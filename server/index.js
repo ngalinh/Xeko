@@ -336,6 +336,29 @@ app.post('/api/accounts', async (req, res) => {
     return res.status(400).json({ error: 'Thiếu tên profile hoặc tên hiển thị' });
   }
 
+  // Neu dang chay o che do proxy (remote server), forward sang local server
+  if (process.env.PLAYWRIGHT_LOCAL_URL) {
+    try {
+      const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL;
+      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const getFetch = async () => {
+        if (typeof fetch !== 'undefined') return fetch;
+        const { default: nodeFetch } = await import('node-fetch');
+        return nodeFetch;
+      };
+      const fetchFn = await getFetch();
+      const response = await fetchFn(`${LOCAL_URL}/api/accounts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+        body: JSON.stringify({ type, key, name, email, password }),
+      });
+      const data = await response.json();
+      return res.status(response.status).json(data);
+    } catch (e) {
+      return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
+    }
+  }
+
   if (type === 'facebook') {
     // Tao thu muc profile moi
     const profileDir = path.resolve(__dirname, `../playwright-data/${key}`);
@@ -418,8 +441,31 @@ app.post('/api/accounts', async (req, res) => {
 });
 
 // Xoa profile
-app.delete('/api/accounts/:type/:key', (req, res) => {
+app.delete('/api/accounts/:type/:key', async (req, res) => {
   const { type, key } = req.params;
+
+  // Neu dang chay o che do proxy, forward sang local server
+  if (process.env.PLAYWRIGHT_LOCAL_URL) {
+    try {
+      const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL;
+      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const getFetch = async () => {
+        if (typeof fetch !== 'undefined') return fetch;
+        const { default: nodeFetch } = await import('node-fetch');
+        return nodeFetch;
+      };
+      const fetchFn = await getFetch();
+      const response = await fetchFn(`${LOCAL_URL}/api/accounts/${type}/${key}`, {
+        method: 'DELETE',
+        headers: { 'x-api-key': API_KEY },
+      });
+      const data = await response.json();
+      return res.status(response.status).json(data);
+    } catch (e) {
+      return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
+    }
+  }
+
   const rimraf = require('fs');
 
   try {
@@ -449,7 +495,28 @@ app.delete('/api/accounts/:type/:key', (req, res) => {
 });
 
 // Lay danh sach profiles tu thu muc playwright-data
-app.get('/api/accounts', (req, res) => {
+app.get('/api/accounts', async (req, res) => {
+  // Neu dang chay o che do proxy, lay tu local server
+  if (process.env.PLAYWRIGHT_LOCAL_URL) {
+    try {
+      const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL;
+      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const getFetch = async () => {
+        if (typeof fetch !== 'undefined') return fetch;
+        const { default: nodeFetch } = await import('node-fetch');
+        return nodeFetch;
+      };
+      const fetchFn = await getFetch();
+      const response = await fetchFn(`${LOCAL_URL}/api/accounts`, {
+        headers: { 'x-api-key': API_KEY },
+      });
+      const data = await response.json();
+      return res.json(data);
+    } catch (e) {
+      return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
+    }
+  }
+
   const dataDir = path.resolve(__dirname, '../playwright-data');
   const knownNonProfiles = [
     'Crashpad', 'Default', 'GrShaderCache', 'GraphiteDawnCache',
