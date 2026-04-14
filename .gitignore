@@ -6,4 +6,4 @@ logs/
 temp/
 data/
 cloudflared.exe
-data/
+data/cloudflared.exe.exe 
