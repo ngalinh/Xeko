@@ -861,6 +861,9 @@
   </div><!-- end main-content -->
 
   <script>
+    // Base URL tự động detect để hoạt động đúng ở cả /index.html lẫn /b/{id}/index.html
+    const BASE_URL = window.location.pathname.replace(/\/[^/]*$/, '').replace(/\/$/, '');
+
     let currentProfile = null;
     let currentTarget = null;
     let selectedFiles = [];
@@ -990,7 +993,7 @@
       step = 'profile';
       addUser('Chọn Profile');
       try {
-        const res = await fetch('/api/accounts');
+        const res = await fetch(BASE_URL + '/api/accounts');
         const data = await res.json();
         const buttons = data.facebook.map(p => ({
           label: `👩 ${p.name}`,
@@ -1005,7 +1008,7 @@
     function selectProfile(name) {
       addUser(name);
 
-      fetch('/api/profile', {
+      fetch(BASE_URL + '/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ profile: name }),
@@ -1348,7 +1351,7 @@
     // ===== Trạng thái =====
     function showStatus() {
       addUser('Trạng thái');
-      fetch('/api/command', {
+      fetch(BASE_URL + '/api/command', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ command: '/status' }),
@@ -1501,7 +1504,7 @@
       document.getElementById('sendBtn').disabled = true;
 
       try {
-        const res = await fetch('/api/post', { method: 'POST', body: formData });
+        const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: formData });
         const data = await res.json();
         removeTyping();
 
@@ -1533,7 +1536,7 @@
             cf.append('target', 'group');
             cf.append('groupId', gid);
             selectedFiles.forEach(file => cf.append('images', file));
-            const cr = await fetch('/api/post', { method: 'POST', body: cf });
+            const cr = await fetch(BASE_URL + '/api/post', { method: 'POST', body: cf });
             const cd = await cr.json();
             removeTyping();
             if (cd.success) {
@@ -1661,7 +1664,7 @@
       addTyping();
 
       try {
-        const res = await fetch('/api/schedule', { method: 'POST', body: formData });
+        const res = await fetch(BASE_URL + '/api/schedule', { method: 'POST', body: formData });
         const data = await res.json();
         removeTyping();
 
@@ -1714,7 +1717,7 @@
       addTyping();
 
       try {
-        const res = await fetch('/api/schedules');
+        const res = await fetch(BASE_URL + '/api/schedules');
         const schedules = await res.json();
         removeTyping();
 
@@ -1751,7 +1754,7 @@
     async function deleteSchedule(id) {
       addUser(`Xoá lịch #${id}`);
       try {
-        const res = await fetch(`/api/schedule/${id}`, { method: 'DELETE' });
+        const res = await fetch(`${BASE_URL}/api/schedule/${id}`, { method: 'DELETE' });
         const data = await res.json();
         if (data.success) {
           addBot(`✅ ${data.message}`, [
@@ -1822,7 +1825,7 @@
       const filterDate = document.getElementById('calFilterDate').value;
 
       try {
-        const res = await fetch('/api/schedules');
+        const res = await fetch(BASE_URL + '/api/schedules');
         let schedules = await res.json();
 
         // Loc theo platform
@@ -1910,7 +1913,7 @@
     async function deleteCalendarItem(id) {
       if (!confirm(`Xoá lịch #${id}?`)) return;
       try {
-        const res = await fetch(`/api/schedule/${id}`, { method: 'DELETE' });
+        const res = await fetch(`${BASE_URL}/api/schedule/${id}`, { method: 'DELETE' });
         const data = await res.json();
         if (data.success) loadCalendar();
         else alert(`Lỗi: ${data.error}`);
@@ -1937,7 +1940,7 @@
       const zaloContainer = document.getElementById('zaloProfileList');
 
       try {
-        const res = await fetch('/api/accounts');
+        const res = await fetch(BASE_URL + '/api/accounts');
         const data = await res.json();
 
         // FB profiles
@@ -1999,7 +2002,7 @@
       if (!name) { alert('Vui lòng nhập tên hiển thị!'); return; }
 
       try {
-        const res = await fetch(`/api/accounts/${encodeURIComponent(key)}`, {
+        const res = await fetch(`${BASE_URL}/api/accounts/${encodeURIComponent(key)}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, email, password: password || undefined }),
@@ -2026,7 +2029,7 @@
       if (!confirm(`Bạn có chắc muốn xoá profile "${name}"?\n\nDữ liệu session Chromium sẽ bị xoá vĩnh viễn.`)) return;
 
       try {
-        const res = await fetch(`/api/accounts/${type}/${encodeURIComponent(key)}`, { method: 'DELETE' });
+        const res = await fetch(`${BASE_URL}/api/accounts/${type}/${encodeURIComponent(key)}`, { method: 'DELETE' });
         const data = await res.json();
         if (data.success) {
           alert(`✅ ${data.message}`);
@@ -2057,7 +2060,7 @@
       }
 
       try {
-        const res = await fetch('/api/accounts', {
+        const res = await fetch(BASE_URL + '/api/accounts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type, key, name, email, password: pass }),
@@ -2089,7 +2092,7 @@
       container.innerHTML = '<p style="color:#999;">Đang kiểm tra session các profile, vui lòng đợi...</p>';
 
       try {
-        const res = await fetch('/api/sessions');
+        const res = await fetch(BASE_URL + '/api/sessions');
         const results = await res.json();
 
         let html = '';
@@ -2215,7 +2218,7 @@
     // Polling: kiem tra lich da chay xong moi 10 giay
     setInterval(async () => {
       try {
-        const res = await fetch('/api/notifications');
+        const res = await fetch(BASE_URL + '/api/notifications');
         const items = await res.json();
 
         for (const n of items) {
@@ -2466,7 +2469,7 @@
       addZaloTyping();
 
       try {
-        const res = await fetch('/api/schedule', { method: 'POST', body: formData });
+        const res = await fetch(BASE_URL + '/api/schedule', { method: 'POST', body: formData });
         const data = await res.json();
         removeZaloTyping();
 
@@ -2494,7 +2497,7 @@
     async function showZaloScheduleList() {
       addZaloUser('Xem lịch Zalo');
       try {
-        const res = await fetch('/api/schedules');
+        const res = await fetch(BASE_URL + '/api/schedules');
         const schedules = await res.json();
         const zaloSchedules = schedules.filter(s => s.type === 'zalo');
 
@@ -2528,7 +2531,7 @@
     async function deleteZaloSchedule(id) {
       addZaloUser(`Xoá lịch #${id}`);
       try {
-        const res = await fetch(`/api/schedule/${id}`, { method: 'DELETE' });
+        const res = await fetch(`${BASE_URL}/api/schedule/${id}`, { method: 'DELETE' });
         const data = await res.json();
         addZaloBot(data.success ? `✅ ${data.message}` : `❌ ${data.error}`, [
           { label: '📋 Xem lịch', action: 'showZaloScheduleList()' },
@@ -2635,7 +2638,7 @@
         document.getElementById('zaloSendBtn').disabled = true;
 
         try {
-          const res = await fetch('/api/zalo/post', { method: 'POST', body: formData });
+          const res = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: formData });
           const data = await res.json();
           removeZaloTyping();
 
@@ -2712,7 +2715,7 @@
 
         // Khoi phuc profile tren server
         if (currentProfile) {
-          fetch('/api/profile', {
+          fetch(BASE_URL + '/api/profile', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ profile: currentProfile }),
@@ -2744,7 +2747,7 @@
     async function loadDashboard() {
       try {
         // Load statistics
-        const statsRes = await fetch('/api/statistics');
+        const statsRes = await fetch(BASE_URL + '/api/statistics');
         const stats = await statsRes.json();
 
         // Summary cards
@@ -2816,7 +2819,7 @@
       params.set('offset', dashPage * dashLimit);
 
       try {
-        const res = await fetch('/api/post-history?' + params.toString());
+        const res = await fetch(BASE_URL + '/api/post-history?' + params.toString());
         const data = await res.json();
 
         const tbody = document.getElementById('dashHistoryBody');
