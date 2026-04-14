@@ -1,0 +1,9 @@
+node_modules/
+.env
+playwright-data/
+logs/
+*.log
+temp/
+data/
+cloudflared.exe
+data/

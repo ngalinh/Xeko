@@ -1,0 +1,2872 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Xeko - FB Auto Post</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      background: #f8f9fe;
+      color: #1e1e2e;
+      height: 100vh;
+      display: flex;
+      flex-direction: row;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: #fff;
+      border-right: 1px solid #eee;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    .sidebar-logo {
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .sidebar-logo img { width: 34px; height: 34px; border-radius: 50%; }
+    .sidebar-logo span { font-size: 18px; font-weight: 800; color: #4f46e5; }
+    .sidebar-logo .edit-icon {
+      margin-left: auto; width: 28px; height: 28px; border-radius: 8px;
+      background: #f0edff; border: none; cursor: pointer; font-size: 14px;
+      display: flex; align-items: center; justify-content: center; color: #4f46e5;
+    }
+    .sidebar-logo .edit-icon:hover { background: #e0d4ff; }
+    .sidebar-nav {
+      flex: 1;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .sidebar-section {
+      font-size: 11px; font-weight: 600; color: #aaa; text-transform: uppercase;
+      letter-spacing: 0.5px; padding: 16px 14px 6px;
+    }
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #666;
+      transition: all 0.15s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+    .sidebar-item:hover { background: #f5f3ff; color: #4f46e5; }
+    .sidebar-item.active { background: #ede9fe; color: #4f46e5; font-weight: 600; }
+    .sidebar-item .icon { font-size: 16px; width: 22px; text-align: center; }
+    .sidebar-item .badge {
+      margin-left: auto;
+      background: #ede9fe;
+      color: #7c3aed;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid #f0f0f0;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .sidebar-footer img { width: 30px; height: 30px; border-radius: 50%; }
+    .sidebar-footer .footer-text { font-size: 12px; color: #999; }
+
+    /* Main content */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      background: #f8f9fe;
+    }
+
+    /* Page containers */
+    .page { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+    .page.active { display: flex; }
+
+    /* Header */
+    .header {
+      background: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid #eee;
+    }
+    .header-info h1 { font-size: 15px; color: #1e1e2e; font-weight: 600; }
+    .header-info span { font-size: 12px; color: #999; }
+
+    /* Chat area */
+    .chat-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      background: #f8f9fe;
+    }
+
+    /* Message */
+    .msg-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      max-width: 75%;
+    }
+    .msg-row.bot { align-self: flex-start; }
+    .msg-row.user { align-self: flex-end; flex-direction: row-reverse; }
+    .msg-avatar {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      object-fit: cover;
+      margin-top: 18px;
+    }
+    .msg-wrapper { display: flex; flex-direction: column; gap: 4px; }
+    .msg-header { font-size: 12px; font-weight: 600; color: #555; }
+    .msg-header .time { font-weight: 400; color: #aaa; margin-left: 8px; }
+    .msg-row.user .msg-header { text-align: right; }
+    .msg {
+      padding: 12px 16px;
+      font-size: 14px;
+      line-height: 1.6;
+      word-wrap: break-word;
+    }
+    .msg.bot {
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 4px 16px 16px 16px;
+      color: #1e1e2e;
+    }
+    .msg.user {
+      background: #ede9fe;
+      color: #1e1e2e;
+      border-radius: 16px 4px 16px 16px;
+    }
+    .msg img {
+      max-width: 100%;
+      border-radius: 8px;
+      margin-top: 8px;
+    }
+    .msg .link { color: #4f46e5; word-break: break-all; text-decoration: none; font-weight: 500; }
+    .msg .link:hover { text-decoration: underline; }
+    .msg-time { display: none; }
+
+    /* Inline buttons */
+    .msg-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-top: 10px;
+    }
+    .msg-btn {
+      padding: 9px 16px;
+      border-radius: 8px;
+      border: 1px solid #e0d4ff;
+      background: #faf8ff;
+      color: #4f46e5;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+      text-align: center;
+      width: 100%;
+    }
+    .msg-btn:hover { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+
+    /* Channel selector panel */
+    .channel-panel { margin-top: 10px; }
+    .channel-platform-row {
+      display: flex; gap: 10px; margin-bottom: 12px;
+    }
+    .channel-platform-toggle {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 8px;
+      border: 1.5px solid #e0d4ff; background: #faf8ff;
+      cursor: pointer; font-size: 13px; font-weight: 600; color: #4f46e5;
+      transition: all 0.15s; user-select: none; flex: 1; justify-content: center;
+    }
+    .channel-platform-toggle input[type="checkbox"] { display: none; }
+    .channel-platform-toggle.checked { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+    .channel-profile-section {
+      margin-bottom: 10px; border: 1px solid #e8e4f0; border-radius: 10px;
+      overflow: hidden; background: #fff;
+    }
+    .channel-profile-header {
+      padding: 8px 14px; font-weight: 600; font-size: 13px;
+      background: #f3f0ff; color: #4f46e5; border-bottom: 1px solid #e8e4f0;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .channel-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 14px; font-size: 13px; color: #333;
+      border-bottom: 1px solid #f0ecf9; cursor: pointer;
+      transition: background 0.1s; user-select: none;
+    }
+    .channel-item:last-child { border-bottom: none; }
+    .channel-item:hover { background: #f8f6ff; }
+    .channel-item input[type="checkbox"] {
+      accent-color: #4f46e5; width: 16px; height: 16px; cursor: pointer;
+    }
+    .channel-item.disabled { opacity: 0.35; pointer-events: none; }
+    .channel-item .ch-tag {
+      font-size: 10px; padding: 1px 6px; border-radius: 4px; font-weight: 600;
+      margin-left: auto; flex-shrink: 0;
+    }
+    .channel-item .ch-tag.fb { background: #e8f0fe; color: #1877f2; }
+    .channel-item .ch-tag.zalo { background: #e6f7ff; color: #0068ff; }
+
+    /* Dark mode for channel panel */
+    [data-theme="dark"] .channel-platform-toggle { background: #1e1e3a; border-color: #3a3a5a; color: #a78bfa; }
+    [data-theme="dark"] .channel-platform-toggle.checked { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+    [data-theme="dark"] .channel-profile-section { background: #1e1e3a; border-color: #2a2a4a; }
+    [data-theme="dark"] .channel-profile-header { background: #252547; color: #a78bfa; border-color: #2a2a4a; }
+    [data-theme="dark"] .channel-item { color: #ccc; border-color: #2a2a4a; }
+    [data-theme="dark"] .channel-item:hover { background: #252547; }
+    [data-theme="dark"] [id^="customGroupInput_"] input { background: #1e1e3a; border-color: #3a3a5a; color: #e0e0e0; }
+    [data-theme="dark"] .channel-item .ch-tag.fb { background: #1a2a4a; color: #5b9cf6; }
+    [data-theme="dark"] .channel-item .ch-tag.zalo { background: #1a2a3a; color: #4da6ff; }
+
+    /* Image preview */
+    .image-preview {
+      padding: 8px 24px;
+      background: #fff;
+      display: none;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      border-top: 1px solid #eee;
+    }
+    .image-preview.show { display: flex; }
+    .preview-item { position: relative; display: inline-block; }
+    .preview-item img {
+      width: 52px; height: 52px;
+      object-fit: cover; border-radius: 8px; border: 2px solid #ede9fe;
+    }
+    .preview-item .remove-img {
+      position: absolute; top: -5px; right: -5px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #ef4444; color: #fff; border: 2px solid #fff;
+      font-size: 10px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .image-preview .clear-btn {
+      background: #ef4444; border: none; color: #fff;
+      padding: 4px 12px; border-radius: 12px; cursor: pointer; font-size: 12px;
+    }
+
+    /* Input area */
+    .input-area {
+      padding: 16px 24px;
+      background: #fff;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      border-top: 1px solid #eee;
+    }
+    .input-area input[type="text"] {
+      flex: 1;
+      padding: 12px 18px;
+      border-radius: 24px;
+      border: 1px solid #e0e0e0;
+      background: #f8f9fe;
+      color: #1e1e2e;
+      font-size: 14px;
+      outline: none;
+    }
+    .input-area input[type="text"]:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
+    .input-area input[type="file"] { display: none; }
+    .btn-icon {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      transition: all 0.15s;
+    }
+    .btn-attach { background: #f0edff; color: #4f46e5; }
+    .btn-attach:hover { background: #e0d4ff; }
+    .btn-send { background: #4f46e5; color: #fff; }
+    .btn-send:hover { background: #4338ca; }
+    .btn-send:disabled { background: #ccc; cursor: not-allowed; }
+
+    /* Photo grid */
+    .photo-grid {
+      display: grid; gap: 3px; border-radius: 8px;
+      overflow: hidden; margin-top: 8px; max-width: 280px;
+    }
+    .photo-grid.count-1 { grid-template-columns: 1fr; }
+    .photo-grid.count-2 { grid-template-columns: 1fr 1fr; }
+    .photo-grid.count-3 { grid-template-columns: 1fr 1fr; }
+    .photo-grid.count-3 .photo-item:first-child { grid-column: 1 / -1; }
+    .photo-grid.count-4 { grid-template-columns: 1fr 1fr; }
+    .photo-grid.count-5 { grid-template-columns: 1fr 1fr 1fr; }
+    .photo-grid.count-5 .photo-item:nth-child(1) { grid-column: 1 / 2; }
+    .photo-grid.count-5 .photo-item:nth-child(2) { grid-column: 2 / 4; }
+    .photo-grid.count-more { grid-template-columns: 1fr 1fr; }
+    .photo-item { position: relative; aspect-ratio: 1; overflow: hidden; }
+    .photo-item img { width: 100%; height: 100%; object-fit: cover; margin: 0; border-radius: 0; }
+    .photo-more {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.55);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 24px; font-weight: bold;
+    }
+
+    /* Menu button */
+    .btn-menu { background: #f0edff; color: #4f46e5; font-size: 20px; }
+    .btn-menu:hover { background: #e0d4ff; }
+
+    /* Popup menu */
+    .popup-menu {
+      display: none; position: fixed; bottom: 70px; left: 276px;
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      border: 1px solid #eee; padding: 6px 0; z-index: 100; min-width: 220px;
+    }
+    .popup-menu.show { display: block; }
+    .popup-menu button {
+      display: block; width: 100%;
+      padding: 10px 18px; border: none; background: none;
+      color: #444; font-size: 14px; text-align: left;
+      cursor: pointer; transition: all 0.12s;
+    }
+    .popup-menu button:hover { background: #f5f3ff; color: #4f46e5; }
+
+    /* Loading */
+    .typing { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+    .typing span {
+      width: 7px; height: 7px; background: #4f46e5;
+      border-radius: 50%; animation: bounce 1.2s infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-6px); }
+    }
+    /* Account tabs */
+    .acc-tab {
+      padding: 8px 16px; border: none; background: none;
+      color: #999; font-size: 13px; font-weight: 500;
+      cursor: pointer; border-bottom: 2px solid transparent;
+      transition: all 0.15s; margin-bottom: -14px;
+    }
+    .acc-tab:hover { color: #4f46e5; }
+    .acc-tab.active { color: #4f46e5; border-bottom-color: #4f46e5; }
+
+    .profile-card {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 18px; background: #fff; border: 1px solid #eee;
+      border-radius: 10px; transition: all 0.15s;
+    }
+    .profile-card:hover { border-color: #d0d0ff; }
+    .profile-card .avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: #ede9fe; display: flex; align-items: center;
+      justify-content: center; font-size: 18px; flex-shrink: 0;
+    }
+    .profile-card .info { flex: 1; }
+    .profile-card .info .name { font-weight: 600; font-size: 14px; }
+    .profile-card .info .detail { font-size: 12px; color: #999; margin-top: 2px; }
+    .profile-card .status-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+    }
+    .status-dot.active { background: #16a34a; }
+    .status-dot.unknown { background: #999; }
+    .status-dot.expired { background: #dc2626; }
+
+    /* ===== DARK MODE ===== */
+    [data-theme="dark"] { color-scheme: dark; }
+    [data-theme="dark"] body, [data-theme="dark"] { background: #1a1a2e; color: #e0e0e0; }
+    [data-theme="dark"] .sidebar { background: #16172b; border-color: #2a2a4a; }
+    [data-theme="dark"] .sidebar-logo span { color: #a78bfa; }
+    [data-theme="dark"] .sidebar-section { color: #666; }
+    [data-theme="dark"] .sidebar-item { color: #999; }
+    [data-theme="dark"] .sidebar-item:hover { background: #1e1e3a; color: #a78bfa; }
+    [data-theme="dark"] .sidebar-item.active { background: #2d2b55; color: #a78bfa; }
+    [data-theme="dark"] .sidebar-item .badge { background: #2d2b55; color: #a78bfa; }
+    [data-theme="dark"] .sidebar-footer { border-color: #2a2a4a; }
+    [data-theme="dark"] .main-content, [data-theme="dark"] .chat-area, [data-theme="dark"] #zaloChatArea { background: #1a1a2e; }
+    [data-theme="dark"] .header { background: #16172b; border-color: #2a2a4a; }
+    [data-theme="dark"] .header-info h1 { color: #e0e0e0; }
+    [data-theme="dark"] .msg.bot { background: #1e1e3a; border-color: #2a2a4a; color: #e0e0e0; }
+    [data-theme="dark"] .msg.user { background: #4f46e5; color: #fff; }
+    [data-theme="dark"] .msg-header { color: #999; }
+    [data-theme="dark"] .msg-header .time { color: #666; }
+    [data-theme="dark"] .msg .link { color: #a78bfa; }
+    [data-theme="dark"] .msg-btn { background: #1e1e3a; border-color: #3a3a5a; color: #a78bfa; }
+    [data-theme="dark"] .msg-btn:hover { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+    [data-theme="dark"] .input-area { background: #16172b; border-color: #2a2a4a; }
+    [data-theme="dark"] .input-area input[type="text"] { background: #1e1e3a; border-color: #3a3a5a; color: #e0e0e0; }
+    [data-theme="dark"] .input-area input[type="text"]:focus { border-color: #a78bfa; box-shadow: 0 0 0 3px rgba(167,139,250,0.15); }
+    [data-theme="dark"] .btn-attach { background: #1e1e3a; color: #a78bfa; }
+    [data-theme="dark"] .btn-attach:hover { background: #2d2b55; }
+    [data-theme="dark"] .btn-menu { background: #1e1e3a; color: #a78bfa; }
+    [data-theme="dark"] .btn-menu:hover { background: #2d2b55; }
+    [data-theme="dark"] .image-preview { background: #16172b; border-color: #2a2a4a; }
+    [data-theme="dark"] .preview-item img { border-color: #3a3a5a; }
+    [data-theme="dark"] .popup-menu { background: #1e1e3a; border-color: #3a3a5a; }
+    [data-theme="dark"] .popup-menu button { color: #ccc; }
+    [data-theme="dark"] .popup-menu button:hover { background: #2d2b55; color: #a78bfa; }
+    [data-theme="dark"] .sidebar-logo .edit-icon { background: #1e1e3a; color: #a78bfa; }
+    [data-theme="dark"] #pageCalendar div[style*="background:#fffbeb"] { background: #2e2a1a !important; border-color: #4a3a2a !important; }
+    [data-theme="dark"] #pageCalendar div[style*="background:#eef2ff"] { background: #1a1a2e !important; border-color: #2a2a4a !important; }
+    [data-theme="dark"] #pageCalendar div[style*="background:#f0fdf4"] { background: #1a2e1a !important; border-color: #2a4a2a !important; }
+    [data-theme="dark"] #pageCalendar div[style*="background:#fef2f2"] { background: #2e1a1a !important; border-color: #4a2a2a !important; }
+    [data-theme="dark"] #pageCalendar div[style*="font-weight:600"] { color: #e0e0e0 !important; }
+    [data-theme="dark"] .profile-card { background: #1e1e3a; border-color: #2a2a4a; }
+    [data-theme="dark"] .profile-card .info .name { color: #e0e0e0; }
+    [data-theme="dark"] .acc-tab { color: #666; }
+    [data-theme="dark"] .acc-tab.active { color: #a78bfa; border-bottom-color: #a78bfa; }
+    [data-theme="dark"] select, [data-theme="dark"] #panelAdd input { background: #1e1e3a; border-color: #3a3a5a; color: #e0e0e0; }
+    [data-theme="dark"] #panelAdd > div { background: #16172b !important; border-color: #2a2a4a !important; }
+    [data-theme="dark"] #editProfileModal > div { background: #1e1e3a !important; }
+    [data-theme="dark"] #editProfileModal h3 { color: #e0e0e0 !important; }
+    [data-theme="dark"] #editProfileModal input { background: #16172b !important; border-color: #3a3a5a !important; color: #e0e0e0 !important; }
+    [data-theme="dark"] #editProfileModal label { color: #999 !important; }
+    [data-theme="dark"] #pageSession div[style*="background:#f0fdf4"] { background: #1a2e1a !important; border-color: #2a4a2a !important; }
+    [data-theme="dark"] #pageSession div[style*="background:#fef2f2"] { background: #2e1a1a !important; border-color: #4a2a2a !important; }
+    [data-theme="dark"] #pageSession div[style*="background:#fffbeb"] { background: #2e2a1a !important; border-color: #4a3a2a !important; }
+    [data-theme="dark"] #pageSession div[style*="font-weight:600"] { color: #e0e0e0 !important; }
+
+    /* Dashboard dark mode */
+    [data-theme="dark"] #pageDashboard div[style*="background:#f0fdf4"] { background: #1a2e1a !important; border-color: #2a4a2a !important; }
+    [data-theme="dark"] #pageDashboard div[style*="background:#eff6ff"] { background: #1a1a2e !important; border-color: #2a2a4a !important; }
+    [data-theme="dark"] #pageDashboard div[style*="background:#fef2f2"] { background: #2e1a1a !important; border-color: #4a2a2a !important; }
+    [data-theme="dark"] #pageDashboard div[style*="background:#fdf4ff"] { background: #2e1a2e !important; border-color: #4a2a4a !important; }
+    [data-theme="dark"] #pageDashboard div[style*="background:#fff"] { background: #1e1e2e !important; border-color: #2e2e4e !important; }
+    [data-theme="dark"] #pageDashboard table { color: #e0e0e0; }
+    [data-theme="dark"] #pageDashboard thead tr { background: #1e1e2e !important; }
+    [data-theme="dark"] #pageDashboard select, [data-theme="dark"] #pageDashboard input[type="date"] { background: #1e1e2e; color: #e0e0e0; border-color: #333; }
+
+    /* Theme toggle */
+    .theme-toggle {
+      width: 36px; height: 36px; border-radius: 8px;
+      background: #f0edff; border: none; cursor: pointer;
+      font-size: 16px; display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .theme-toggle:hover { background: #e0d4ff; }
+    [data-theme="dark"] .theme-toggle { background: #1e1e3a; }
+    [data-theme="dark"] .theme-toggle:hover { background: #2d2b55; }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <img src="/xeko-avatar.png" alt="Xeko">
+      <span>Xeko</span>
+    </div>
+    <div class="sidebar-nav">
+      <div class="sidebar-section">Đăng bài tự động</div>
+      <button class="sidebar-item active" onclick="switchPage('post')" id="navPost">
+        <span class="icon">📝</span> Đăng bài
+      </button>
+      <div class="sidebar-section">Lịch trình</div>
+      <button class="sidebar-item" onclick="switchPage('calendar')" id="navCalendar">
+        <span class="icon">📅</span> Lịch đăng bài
+      </button>
+      <div class="sidebar-section">Thống kê</div>
+      <button class="sidebar-item" onclick="switchPage('dashboard')" id="navDashboard">
+        <span class="icon">📊</span> Thống kê
+      </button>
+      <div class="sidebar-section">Công cụ</div>
+      <button class="sidebar-item" onclick="switchPage('session')" id="navSession">
+        <span class="icon">👥</span> Quản lý tài khoản
+      </button>
+      <button class="sidebar-item" onclick="switchPage('spy')" id="navSpy">
+        <span class="icon">🔍</span> Spy bài viết
+        <span class="badge">Soon</span>
+      </button>
+    </div>
+    <div class="sidebar-footer">
+      <img src="/xeko-avatar.png" alt="Xeko">
+      <div class="footer-text">Xeko v1.0</div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="main-content">
+
+  <!-- PAGE: Đăng bài -->
+  <div class="page active" id="pageDangBai">
+  <div class="header">
+    <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:22px;">📝</div>
+    <div class="header-info">
+      <h1>Đăng bài</h1>
+      <span id="headerStatus">Đăng bài tự động</span>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn" title="Đổi giao diện" style="margin-left:auto;">🌙</button>
+  </div>
+
+  <div class="chat-area" id="chatArea"></div>
+
+  <div class="image-preview" id="imagePreview">
+    <div id="previewImages" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+    <button class="clear-btn" onclick="clearImages()">Xoá ảnh</button>
+  </div>
+
+  <div class="input-area" id="inputArea">
+    <button class="btn-icon btn-menu" onclick="toggleMenu()">☰</button>
+    <button class="btn-icon btn-attach" onclick="document.getElementById('fileInput').click()">📷</button>
+    <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this)">
+    <input type="text" id="msgInput" placeholder="Nhập nội dung bài viết..." onkeydown="if(event.key==='Enter')sendMessage()">
+    <input type="text" id="groupIdInput" placeholder="Nhập Group ID..." style="display:none; width:140px;">
+    <button class="btn-icon btn-send" id="sendBtn" onclick="sendMessage()">➤</button>
+  </div>
+
+  <div class="popup-menu" id="popupMenu">
+    <button onclick="toggleMenu(); showProfileSelect()">👤 Chọn Profile</button>
+    <button onclick="toggleMenu(); showModeSelect()">📝 Đổi chế độ</button>
+    <button onclick="toggleMenu(); showTargetSelect()">📍 Đổi nơi đăng</button>
+    <button onclick="toggleMenu(); showScheduleList()">📋 Xem lịch đăng</button>
+    <button onclick="toggleMenu(); showStatus()">📊 Trạng thái</button>
+    <button onclick="toggleMenu(); showWelcome()">🏠 Về trang chủ</button>
+    <button onclick="toggleMenu(); clearChat()" style="color:#e74c3c;">🗑 Xoá lịch sử chat</button>
+  </div>
+  </div><!-- end pageDangBai -->
+
+  <!-- PAGE: Đăng Zalo -->
+  <div class="page" id="pageZalo">
+    <div class="header">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Icon_of_Zalo.svg" alt="Zalo" style="width:28px;height:28px;">
+      <div class="header-info">
+        <h1>Zalo</h1>
+        <span id="zaloHeaderStatus">Đăng bài qua Salework</span>
+      </div>
+    </div>
+    <div class="chat-area" id="zaloChatArea"></div>
+    <div class="image-preview" id="zaloImagePreview">
+      <div id="zaloPreviewImages" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+      <button class="clear-btn" onclick="clearZaloImages()">Xoá ảnh</button>
+    </div>
+    <div class="input-area">
+      <button class="btn-icon btn-attach" onclick="document.getElementById('zaloFileInput').click()">📷</button>
+      <input type="file" id="zaloFileInput" accept="image/*" multiple onchange="handleZaloFiles(this)" style="display:none;">
+      <input type="text" id="zaloMsgInput" placeholder="Nhập tin nhắn..." onkeydown="if(event.key==='Enter')sendZaloMessage()">
+      <button class="btn-icon btn-send" id="zaloSendBtn" onclick="sendZaloMessage()">➤</button>
+    </div>
+  </div>
+
+  <!-- PAGE: Lịch đăng bài -->
+  <div class="page" id="pageCalendar">
+    <div class="header">
+      <div class="header-info">
+        <h1>📅 Lịch đăng bài</h1>
+        <span>Tổng hợp bài đã lên lịch - Facebook & Zalo</span>
+      </div>
+    </div>
+    <div style="flex:1; padding:24px 32px; overflow-y:auto;">
+      <!-- Filter -->
+      <div style="display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; align-items:center;">
+        <select id="calFilterPlatform" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
+          <option value="">Tất cả kênh</option>
+          <option value="facebook">📘 Facebook</option>
+          <option value="zalo">💬 Zalo</option>
+        </select>
+        <select id="calFilterStatus" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
+          <option value="">Tất cả trạng thái</option>
+          <option value="pending">⏳ Chờ đăng</option>
+          <option value="done">✅ Đã đăng</option>
+          <option value="error">❌ Lỗi</option>
+          <option value="running">🔄 Đang chạy</option>
+        </select>
+        <select id="calFilterProfile" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
+          <option value="">Tất cả profile</option>
+          <option value="linhthao">Linh Thảo</option>
+          <option value="linhduong">Linh Dương</option>
+          <option value="Linh Thảo Us Authentic">Linh Thảo (Zalo)</option>
+          <option value="Linh Duong Us">Linh Dương (Zalo)</option>
+        </select>
+        <span style="font-size:12px; color:#999;">Từ</span>
+        <input type="date" id="calFilterDateFrom" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
+        <span style="font-size:12px; color:#999;">đến</span>
+        <input type="date" id="calFilterDateTo" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
+        <button onclick="clearCalendarFilters()" style="padding:8px 14px; background:#f0edff; border:1px solid #e0d4ff; border-radius:8px; font-size:13px; cursor:pointer; color:#4f46e5;">
+          ✕ Xoá lọc
+        </button>
+        <button onclick="loadCalendar()" style="padding:8px 14px; background:#f0edff; border:1px solid #e0d4ff; border-radius:8px; font-size:13px; cursor:pointer; color:#4f46e5;">
+          🔄 Làm mới
+        </button>
+      </div>
+      <div style="font-size:13px; color:#999; margin-bottom:14px;" id="calSummary"></div>
+
+      <!-- Danh sach -->
+      <div id="calendarList" style="display:flex; flex-direction:column; gap:10px;">
+        <p style="color:#999;">Đang tải...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: Quản lý tài khoản -->
+  <div class="page" id="pageSession">
+    <div class="header">
+      <div class="header-info">
+        <h1>👥 Quản lý tài khoản</h1>
+        <span>Quản lý profile Chromium - Facebook & Zalo</span>
+      </div>
+    </div>
+    <div style="flex:1; padding:24px 32px; overflow-y:auto;">
+
+      <!-- Tab navigation -->
+      <div style="display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid #eee; padding-bottom:12px;">
+        <button onclick="switchAccountTab('profiles')" class="acc-tab active" id="tabProfiles">📋 Danh sách tài khoản</button>
+        <button onclick="switchAccountTab('add')" class="acc-tab" id="tabAdd">➕ Thêm tài khoản</button>
+        <button onclick="switchAccountTab('history')" class="acc-tab" id="tabHistory">📜 Lịch sử</button>
+      </div>
+
+      <!-- Tab: Danh sach tai khoan -->
+      <div id="panelProfiles">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <h3 style="font-size:15px; color:#1e1e2e; flex:1;">Profile Chromium đã đăng nhập</h3>
+          <button onclick="checkSessions()" id="checkSessionBtn"
+            style="padding:8px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer;">
+            🔍 Kiểm tra Session
+          </button>
+        </div>
+
+        <!-- Facebook profiles -->
+        <h4 style="font-size:13px; color:#999; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:16px;height:16px;vertical-align:middle;"> Facebook
+        </h4>
+        <div id="fbProfileList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;"></div>
+
+        <!-- Zalo profiles -->
+        <h4 style="font-size:13px; color:#999; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Icon_of_Zalo.svg" style="width:16px;height:16px;vertical-align:middle;"> Zalo (Salework)
+        </h4>
+        <div id="zaloProfileList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;"></div>
+
+        <!-- Session check results -->
+        <div id="sessionResults" style="display:flex; flex-direction:column; gap:10px; margin-top:16px;"></div>
+      </div>
+
+      <!-- Tab: Them tai khoan -->
+      <div id="panelAdd" style="display:none;">
+        <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:16px;">Thêm tài khoản mới</h3>
+
+        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px; max-width:500px;">
+          <div style="margin-bottom:14px;">
+            <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Loại tài khoản</label>
+            <select id="newAccType" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+              <option value="facebook">Facebook</option>
+              <option value="zalo">Zalo (Salework)</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Tên profile (không dấu, viết liền)</label>
+            <input type="text" id="newAccKey" placeholder="vd: linhthao, linhduong..." style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Tên hiển thị</label>
+            <input type="text" id="newAccName" placeholder="vd: Linh Thảo US" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+          </div>
+
+          <div id="newAccFbFields">
+            <div style="margin-bottom:14px;">
+              <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Email / SĐT Facebook</label>
+              <input type="text" id="newAccEmail" placeholder="email hoặc số điện thoại" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+            </div>
+            <div style="margin-bottom:14px;">
+              <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Mật khẩu Facebook</label>
+              <input type="password" id="newAccPass" placeholder="mật khẩu" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+            </div>
+          </div>
+
+          <button onclick="addNewAccount()" style="width:100%; padding:12px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer; margin-top:8px;">
+            ➕ Thêm và đăng nhập
+          </button>
+
+          <p style="font-size:12px; color:#999; margin-top:10px;">
+            * Lần đầu thêm tài khoản, Chromium sẽ mở lên để bạn đăng nhập thủ công.<br>
+            * Với Zalo, hệ thống sẽ mở Salework để bạn đăng nhập.
+          </p>
+        </div>
+      </div>
+
+      <!-- Tab: Lich su -->
+      <div id="panelHistory" style="display:none;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+          <h3 style="font-size:15px; color:#1e1e2e;">Lịch sử hoạt động</h3>
+          <select id="historyFilter" onchange="loadLoginHistory()" style="padding:6px 12px; border-radius:6px; border:1px solid #ddd; font-size:13px; background:#fff;">
+            <option value="">Tất cả profile</option>
+            <option value="linhthao">Linh Thảo</option>
+            <option value="linhduong">Linh Dương</option>
+          </select>
+          <button onclick="loadLoginHistory()" style="padding:6px 14px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; font-size:13px; cursor:pointer; color:#4f46e5;">
+            🔄 Làm mới
+          </button>
+        </div>
+        <div id="loginHistoryList" style="display:flex; flex-direction:column; gap:6px;"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PAGE: Spy bài viết -->
+  <div class="page" id="pageSpyBaiViet">
+    <div class="header">
+      <div class="header-info">
+        <h1>🔍 Spy bài viết</h1>
+        <span>Tính năng đang phát triển</span>
+      </div>
+    </div>
+    <div style="flex:1; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px; color:#999;">
+      <div style="font-size:64px;">🔍</div>
+      <h2 style="color:#6c5ce7;">Spy bài viết</h2>
+      <p style="max-width:400px; text-align:center; line-height:1.6;">
+        Tính năng theo dõi và phân tích bài viết từ các đối thủ, group, fanpage.<br>
+        Sắp ra mắt trong phiên bản tiếp theo!
+      </p>
+    </div>
+  </div><!-- end pageSpyBaiViet -->
+
+  <!-- PAGE: Dashboard Thống kê -->
+  <div class="page" id="pageDashboard">
+    <div class="header">
+      <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:22px;">📊</div>
+      <div class="header-info">
+        <h1>Thống kê</h1>
+        <span>Lịch sử & thống kê bài đăng</span>
+      </div>
+    </div>
+
+    <div style="flex:1; overflow-y:auto; padding:20px;">
+      <!-- Summary Cards -->
+      <div id="dashSummary" style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px;">
+        <div class="dash-card" style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:16px;">
+          <div style="font-size:12px; color:#666; margin-bottom:4px;">Hôm nay</div>
+          <div id="statToday" style="font-size:28px; font-weight:700; color:#16a34a;">0</div>
+          <div style="font-size:11px; color:#999;">bài đăng</div>
+        </div>
+        <div class="dash-card" style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:16px;">
+          <div style="font-size:12px; color:#666; margin-bottom:4px;">Thành công</div>
+          <div id="statSuccess" style="font-size:28px; font-weight:700; color:#2563eb;">0</div>
+          <div style="font-size:11px; color:#999;">hôm nay</div>
+        </div>
+        <div class="dash-card" style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px;">
+          <div style="font-size:12px; color:#666; margin-bottom:4px;">Thất bại</div>
+          <div id="statFail" style="font-size:28px; font-weight:700; color:#dc2626;">0</div>
+          <div style="font-size:11px; color:#999;">hôm nay</div>
+        </div>
+        <div class="dash-card" style="background:#fdf4ff; border:1px solid #f0abfc; border-radius:12px; padding:16px;">
+          <div style="font-size:12px; color:#666; margin-bottom:4px;">Tổng cộng</div>
+          <div id="statTotal" style="font-size:28px; font-weight:700; color:#a855f7;">0</div>
+          <div style="font-size:11px; color:#999;">tất cả</div>
+        </div>
+      </div>
+
+      <!-- Stats by Profile & Group -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:24px;">
+        <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px;">
+          <div style="font-weight:600; margin-bottom:12px; font-size:14px;">Theo tài khoản</div>
+          <div id="statByProfile" style="font-size:13px;"></div>
+        </div>
+        <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px;">
+          <div style="font-weight:600; margin-bottom:12px; font-size:14px;">Theo nhóm</div>
+          <div id="statByGroup" style="font-size:13px;"></div>
+        </div>
+      </div>
+
+      <!-- Filter bar -->
+      <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
+        <select id="dashFilterProfile" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+          <option value="">Tất cả tài khoản</option>
+        </select>
+        <select id="dashFilterPlatform" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+          <option value="">Tất cả nền tảng</option>
+          <option value="facebook">Facebook</option>
+          <option value="zalo">Zalo</option>
+        </select>
+        <select id="dashFilterStatus" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+          <option value="">Tất cả trạng thái</option>
+          <option value="1">Thành công</option>
+          <option value="0">Thất bại</option>
+        </select>
+        <input type="date" id="dashFilterFrom" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+        <input type="date" id="dashFilterTo" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+        <button onclick="loadDashboard()" style="padding:8px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:13px;">Lọc</button>
+      </div>
+
+      <!-- Post History Table -->
+      <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <thead>
+            <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
+              <th style="padding:10px 14px; text-align:left; font-weight:600;">Thời gian</th>
+              <th style="padding:10px 14px; text-align:left; font-weight:600;">Tài khoản</th>
+              <th style="padding:10px 14px; text-align:left; font-weight:600;">Nền tảng</th>
+              <th style="padding:10px 14px; text-align:left; font-weight:600;">Nơi đăng</th>
+              <th style="padding:10px 14px; text-align:left; font-weight:600;">Nội dung</th>
+              <th style="padding:10px 14px; text-align:center; font-weight:600;">Ảnh</th>
+              <th style="padding:10px 14px; text-align:center; font-weight:600;">Trạng thái</th>
+              <th style="padding:10px 14px; text-align:left; font-weight:600;">Nguồn</th>
+            </tr>
+          </thead>
+          <tbody id="dashHistoryBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div id="dashPagination" style="display:flex; justify-content:center; gap:8px; margin-top:16px; padding-bottom:20px;"></div>
+    </div>
+  </div><!-- end pageDashboard -->
+
+  <!-- Modal chỉnh sửa profile -->
+  <div id="editProfileModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:16px; padding:24px; width:420px; max-width:90%; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+      <h3 style="font-size:16px; color:#1e1e2e; margin-bottom:16px;">✏️ Chỉnh sửa tài khoản</h3>
+      <input type="hidden" id="editKey">
+      <div style="margin-bottom:12px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Tên hiển thị</label>
+        <input type="text" id="editName" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Email / SĐT</label>
+        <input type="text" id="editEmail" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Mật khẩu</label>
+        <input type="password" id="editPassword" placeholder="Để trống nếu không đổi" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+      </div>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button onclick="closeEditModal()" style="padding:8px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
+        <button onclick="saveProfile()" style="padding:8px 20px; border:none; border-radius:8px; background:#4f46e5; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">💾 Lưu</button>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- end main-content -->
+
+  <script>
+    let currentProfile = null;
+    let currentTarget = null;
+    let selectedFiles = [];
+    let step = 'welcome'; // welcome -> profile -> target -> compose
+
+    function now() {
+      return new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    const BOT_AVATAR = '/xeko-avatar.png';
+
+    function buildPhotoGrid(photos) {
+      if (!photos || photos.length === 0) return '';
+      const maxShow = Math.min(photos.length, 5);
+      let gridClass = 'photo-grid count-' + maxShow;
+      if (photos.length > 5) gridClass = 'photo-grid count-5 count-more';
+      let html = `<div class="${gridClass}">`;
+      for (let i = 0; i < maxShow; i++) {
+        html += `<div class="photo-item"><img src="${photos[i]}">`;
+        if (i === maxShow - 1 && photos.length > 5) html += `<div class="photo-more">+${photos.length - 5}</div>`;
+        html += '</div>';
+      }
+      return html + '</div>';
+    }
+
+    function addBot(text, buttons = null, imgSrc = null) {
+      const chat = document.getElementById('chatArea');
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+
+      let msgHtml = text.replace(/\n/g, '<br>');
+      if (imgSrc) msgHtml += `<img src="${imgSrc}" alt="screenshot">`;
+      if (buttons) {
+        msgHtml += '<div class="msg-buttons">';
+        buttons.forEach(b => { msgHtml += `<button class="msg-btn" onclick="${b.action}">${b.label}</button>`; });
+        msgHtml += '</div>';
+      }
+
+      row.innerHTML = `
+        <img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko">
+        <div class="msg-wrapper">
+          <div class="msg-header">Xeko <span class="time">${now()}</span></div>
+          <div class="msg bot">${msgHtml}</div>
+        </div>`;
+      chat.appendChild(row);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function addUser(text, photos = []) {
+      const chat = document.getElementById('chatArea');
+      const row = document.createElement('div');
+      row.className = 'msg-row user';
+
+      let content = '';
+      if (text) content += text.replace(/\n/g, '<br>');
+      content += buildPhotoGrid(photos);
+
+      row.innerHTML = `
+        <div class="msg-wrapper">
+          <div class="msg-header">Bạn <span class="time">${now()}</span></div>
+          <div class="msg user">${content}</div>
+        </div>`;
+      chat.appendChild(row);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function addTyping() {
+      const chat = document.getElementById('chatArea');
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      row.id = 'typingMsg';
+      row.innerHTML = `
+        <img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko">
+        <div class="msg-wrapper">
+          <div class="msg-header">Xeko <span class="time">${now()}</span></div>
+          <div class="msg bot"><div class="typing"><span></span><span></span><span></span></div> Xeko đang xử lý...</div>
+        </div>`;
+      chat.appendChild(row);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function removeTyping() {
+      const el = document.getElementById('typingMsg');
+      if (el) el.remove();
+    }
+
+    function updateHeader(text) {
+      document.getElementById('headerStatus').textContent = text;
+    }
+    function updateHeaderProfile(name) {
+      document.getElementById('headerStatus').textContent = `Profile: ${name}`;
+    }
+
+    let postMode = 'now'; // 'now' hoac 'schedule'
+
+    const TARGET_LABELS = {
+      personal: 'FB Cá nhân',
+      asale: 'Group Asale',
+      tongkho: 'Group Tổng Kho',
+      allgroup: '2 Group (Asale + Tổng Kho)',
+      all: 'Cá nhân + 2 Group',
+      custom: 'Group khác',
+      fb_zalo: 'FB + Zalo',
+    };
+
+    // Map profile FB -> profile Zalo
+    const FB_TO_ZALO_MAP = {
+      linhthao: 'Linh Thảo Us Authentic',
+      linhduong: 'Linh Duong Us',
+    };
+
+    // ===== STEP 1: Welcome =====
+    function showWelcome() {
+      step = 'welcome';
+      addBot(
+        'Xin chào! Mình là <strong>Xeko</strong> - trợ lý đăng bài Facebook tự động.\nBạn muốn làm gì?',
+        [
+          { label: '👤 Chọn Profile', action: 'showProfileSelect()' },
+          { label: '📋 Xem lịch đăng bài', action: 'showScheduleList()' },
+          { label: '📊 Trạng thái', action: 'showStatus()' },
+        ]
+      );
+    }
+
+    // ===== STEP 2: Chọn Profile =====
+    async function showProfileSelect() {
+      step = 'profile';
+      addUser('Chọn Profile');
+      try {
+        const res = await fetch('/api/accounts');
+        const data = await res.json();
+        const buttons = data.facebook.map(p => ({
+          label: `👩 ${p.name}`,
+          action: `selectProfile('${p.key}')`,
+        }));
+        addBot('Hãy chọn profile trình duyệt để đăng bài:', buttons);
+      } catch (e) {
+        addBot(`Lỗi tải danh sách profile: ${e.message}`);
+      }
+    }
+
+    function selectProfile(name) {
+      addUser(name);
+
+      fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: name }),
+      })
+      .then(r => r.json())
+      .then(data => {
+        currentProfile = name;
+        updateHeaderProfile(data.name);
+        // STEP 3: Chon che do
+        addBot(
+          `Đã chọn profile: <strong>${data.name}</strong>\nBạn muốn đăng bài ngay hay lên lịch?`,
+          [
+            { label: '📝 Đăng ngay', action: "selectMode('now')" },
+            { label: '⏰ Lên lịch', action: "selectMode('schedule')" },
+            { label: '🔄 Đổi Profile', action: 'showProfileSelect()' },
+          ]
+        );
+        step = 'mode';
+      })
+      .catch(e => addBot(`Lỗi: ${e.message}`));
+    }
+
+    // ===== STEP 3: Chọn chế độ =====
+    function selectMode(mode) {
+      postMode = mode;
+      const modeLabel = mode === 'now' ? 'Đăng ngay' : 'Lên lịch';
+      addUser(modeLabel);
+      // STEP 4: Chon noi dang
+      showTargetSelect();
+    }
+
+    // ===== STEP 4: Chọn nơi đăng =====
+    const PROFILE_CHANNELS = {
+      linhduong: {
+        label: 'Linh Dương',
+        fb: [
+          { id: 'personal', name: 'FB Cá nhân', icon: '📱' },
+          { id: 'asale', name: 'Group Asale', icon: '🏪' },
+          { id: 'tongkho', name: 'Group Tổng Kho', icon: '📦' },
+        ],
+        zalo: [
+          { id: 'zalo_si_ld', name: 'Sỉ Hàng Order Mỹ, Anh - Linh Dương', icon: '💬' },
+          { id: 'zalo_kho_ld', name: 'KHO HÀNG MỸ CÓ SẴN - LINH DƯƠNG', icon: '💬' },
+          { id: 'zalo_sale_ld', name: 'SĂN SALE HÀNG HIỆU US', icon: '💬' },
+        ],
+        zaloProfile: 'Linh Duong Us',
+      },
+      linhthao: {
+        label: 'Linh Thảo',
+        fb: [
+          { id: 'personal', name: 'FB Cá nhân', icon: '📱' },
+          { id: 'asale', name: 'Group Asale', icon: '🏪' },
+          { id: 'tongkho', name: 'Group Tổng Kho', icon: '📦' },
+        ],
+        zalo: [
+          { id: 'zalo_si_lt', name: 'SỈ HÀNG ORDER MỸ - LINH THẢO', icon: '💬' },
+          { id: 'zalo_kho_lt', name: 'TỔNG KHO HÀNG SẴN US - LINH THẢO', icon: '💬' },
+          { id: 'zalo_sale_lt', name: 'DEAL NGON MỸ PHẨM US', icon: '💬' },
+        ],
+        zaloProfile: 'Linh Thảo Us Authentic',
+      },
+    };
+
+    let channelPanelId = 0;
+
+    function showTargetSelect() {
+      if (!currentProfile) {
+        showProfileSelect();
+        return;
+      }
+      channelPanelId++;
+      const pid = channelPanelId;
+      const modeIcon = postMode === 'now' ? '📝' : '⏰';
+      const modeLabel = postMode === 'now' ? 'Đăng ngay' : 'Lên lịch';
+
+      const p = PROFILE_CHANNELS[currentProfile] || {
+        label: currentProfile,
+        fb: [
+          { id: 'personal', name: 'FB Cá nhân', icon: '📱' },
+          { id: 'asale', name: 'Group Asale', icon: '🏪' },
+          { id: 'tongkho', name: 'Group Tổng Kho', icon: '📦' },
+        ],
+        zalo: [],
+      };
+      let panelHtml = `<div class="channel-panel" id="channelPanel_${pid}">`;
+
+      // Platform toggles
+      const hasZalo = p.zalo && p.zalo.length > 0;
+      panelHtml += `<div class="channel-platform-row">
+        <label class="channel-platform-toggle checked" id="fbToggle_${pid}" onclick="togglePlatform(${pid},'fb')">
+          <input type="checkbox" checked>📘 Facebook
+        </label>
+        ${hasZalo ? `<label class="channel-platform-toggle checked" id="zaloToggle_${pid}" onclick="togglePlatform(${pid},'zalo')">
+          <input type="checkbox" checked>💙 Zalo
+        </label>` : ''}
+      </div>`;
+
+      // Channels for current profile
+      panelHtml += `<div class="channel-profile-section">`;
+      panelHtml += `<div class="channel-profile-header">👩 ${p.label}</div>`;
+
+      for (const ch of p.fb) {
+        panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="${ch.id}">
+          <input type="checkbox" checked onchange="onChannelChange(${pid})"> ${ch.icon} ${ch.name}
+          <span class="ch-tag fb">FB</span>
+        </label>`;
+      }
+      // Custom group option
+      panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="custom">
+        <input type="checkbox" onchange="onChannelChange(${pid}); toggleCustomGroupInput(${pid}, this.checked)"> 🔗 Group khác...
+        <span class="ch-tag fb">FB</span>
+      </label>`;
+      panelHtml += `<div id="customGroupInput_${pid}" style="display:none; padding:4px 14px 10px 38px;">
+        <input type="text" id="customGroupId_${pid}" placeholder="Nhập Group ID, cách nhau bởi dấu phẩy..." style="width:100%; padding:7px 12px; border-radius:8px; border:1px solid #e0d4ff; font-size:13px; background:#faf8ff; color:#333;">
+      </div>`;
+      for (const ch of p.zalo) {
+        panelHtml += `<label class="channel-item ch-zalo" data-panel="${pid}" data-platform="zalo" data-profile="${currentProfile}" data-chid="${ch.id}" data-zalo-group="${ch.name}">
+          <input type="checkbox" checked onchange="onChannelChange(${pid})"> ${ch.icon} ${ch.name}
+          <span class="ch-tag zalo">Zalo</span>
+        </label>`;
+      }
+
+      panelHtml += `</div>`;
+
+      // Action buttons
+      panelHtml += `<div class="msg-buttons" style="margin-top:12px;">
+        <button class="msg-btn" style="background:#4f46e5;color:#fff;font-weight:600;" onclick="confirmChannelSelection(${pid})">✅ Tiếp tục</button>
+        <button class="msg-btn" onclick="showModeSelect()">🔄 Đổi chế độ</button>
+      </div>`;
+
+      panelHtml += `</div>`;
+
+      // Render as bot message
+      const chat = document.getElementById('chatArea');
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      row.innerHTML = `
+        <img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko">
+        <div class="msg-wrapper">
+          <div class="msg-header">Xeko <span class="time">${now()}</span></div>
+          <div class="msg bot">
+            <strong>${modeIcon} Đăng bài</strong> — Chế độ: ${modeLabel}<br>
+            Chọn kênh đăng bài:
+            ${panelHtml}
+          </div>
+        </div>`;
+      chat.appendChild(row);
+      chat.scrollTop = chat.scrollHeight;
+      step = 'target';
+    }
+
+    function togglePlatform(pid, platform) {
+      const toggle = document.getElementById(`${platform}Toggle_${pid}`);
+      const cb = toggle.querySelector('input');
+      const isChecked = cb.checked;
+      toggle.classList.toggle('checked', isChecked);
+
+      // Toggle all channels of this platform
+      const items = document.querySelectorAll(`#channelPanel_${pid} .channel-item.ch-${platform}`);
+      items.forEach(item => {
+        const itemCb = item.querySelector('input');
+        itemCb.checked = isChecked;
+        item.classList.toggle('disabled', !isChecked);
+      });
+    }
+
+    function onChannelChange(pid) {
+      // Update platform toggle state based on individual checkboxes
+      ['fb', 'zalo'].forEach(platform => {
+        const items = document.querySelectorAll(`#channelPanel_${pid} .channel-item.ch-${platform} input`);
+        const toggle = document.getElementById(`${platform}Toggle_${pid}`);
+        if (!toggle) return;
+        const allChecked = Array.from(items).every(cb => cb.checked);
+        const someChecked = Array.from(items).some(cb => cb.checked);
+        const toggleCb = toggle.querySelector('input');
+        toggleCb.checked = someChecked;
+        toggleCb.indeterminate = someChecked && !allChecked;
+        toggle.classList.toggle('checked', someChecked);
+      });
+    }
+
+    function toggleCustomGroupInput(pid, show) {
+      const el = document.getElementById(`customGroupInput_${pid}`);
+      if (el) el.style.display = show ? 'block' : 'none';
+    }
+
+    function confirmChannelSelection(pid) {
+      const panel = document.getElementById(`channelPanel_${pid}`);
+      if (!panel) return;
+
+      const checkedItems = panel.querySelectorAll('.channel-item input:checked');
+      if (checkedItems.length === 0) {
+        addBot('Vui lòng chọn ít nhất 1 kênh đăng bài!');
+        return;
+      }
+
+      // Validate custom group if checked
+      const customGroupInput = document.getElementById(`customGroupId_${pid}`);
+      const hasCustom = panel.querySelector('.channel-item[data-chid="custom"] input:checked');
+      if (hasCustom && customGroupInput && !customGroupInput.value.trim()) {
+        addBot('Vui lòng nhập Group ID cho "Group khác"!');
+        return;
+      }
+
+      // Collect selected channels grouped by profile
+      const selected = { linhduong: { fb: [], zalo: [] }, linhthao: { fb: [], zalo: [] } };
+      checkedItems.forEach(cb => {
+        const item = cb.closest('.channel-item');
+        const profile = item.dataset.profile;
+        const platform = item.dataset.platform;
+        let chid = item.dataset.chid;
+        const zaloGroup = item.dataset.zaloGroup || '';
+        // For custom groups, split by comma and add each
+        if (chid === 'custom' && customGroupInput) {
+          const ids = customGroupInput.value.split(',').map(s => s.trim()).filter(Boolean);
+          ids.forEach(gid => {
+            selected[profile][platform].push({ id: 'custom', groupId: gid, zaloGroup });
+          });
+        } else {
+          selected[profile][platform].push({ id: chid, zaloGroup });
+        }
+      });
+
+      // Store selection for posting
+      window._channelSelection = selected;
+
+      // Build summary text
+      let summaryParts = [];
+      for (const pKey of ['linhduong', 'linhthao']) {
+        const pLabel = PROFILE_CHANNELS[pKey].label;
+        const fbNames = selected[pKey].fb.map(c => {
+          if (c.id === 'custom') return `Group #${c.groupId}`;
+          const ch = PROFILE_CHANNELS[pKey].fb.find(f => f.id === c.id);
+          return ch ? ch.name : c.id;
+        });
+        const zaloNames = selected[pKey].zalo.map(c => c.zaloGroup);
+        const all = [...fbNames, ...zaloNames];
+        if (all.length > 0) {
+          summaryParts.push(`<strong>${pLabel}:</strong> ${all.join(', ')}`);
+        }
+      }
+
+      const summaryText = summaryParts.join('<br>');
+      addUser('Đã chọn kênh đăng bài');
+
+      // Determine which profiles need posting
+      const profilesToPost = [];
+      for (const pKey of ['linhduong', 'linhthao']) {
+        if (selected[pKey].fb.length > 0 || selected[pKey].zalo.length > 0) {
+          profilesToPost.push(pKey);
+        }
+      }
+      window._profilesToPost = profilesToPost;
+
+      // Determine target type for backward compat
+      const activeSel = selected[currentProfile] || { fb: [], zalo: [] };
+      const hasFb = activeSel.fb.some(c => c.id !== 'custom');
+      const hasZalo = activeSel.zalo.length > 0;
+      const fbIds = activeSel.fb.filter(c => c.id !== 'custom').map(c => c.id);
+      // Store custom group IDs separately
+      window._customGroupIds = activeSel.fb.filter(c => c.id === 'custom').map(c => c.groupId);
+
+      let target = 'personal';
+      if (hasFb && hasZalo) {
+        target = 'fb_zalo';
+      } else if (fbIds.includes('personal') && fbIds.includes('asale') && fbIds.includes('tongkho')) {
+        target = 'all';
+      } else if (fbIds.includes('asale') && fbIds.includes('tongkho') && !fbIds.includes('personal')) {
+        target = 'allgroup';
+      } else if (fbIds.length === 1 && fbIds[0] === 'personal') {
+        target = 'personal';
+      } else if (fbIds.length === 1 && (fbIds[0] === 'asale' || fbIds[0] === 'tongkho')) {
+        target = fbIds[0];
+      } else if (hasFb) {
+        target = 'all';
+      } else if (hasZalo) {
+        target = 'fb_zalo';
+      }
+
+      currentTarget = target;
+
+      step = 'compose';
+
+      if (postMode === 'schedule') {
+        showScheduleForm();
+      } else {
+        addBot(
+          `Đăng bài lên:\n${summaryText}\n\nNhập nội dung bài viết bên dưới.\nBấm 📷 để đính kèm hình ảnh, rồi nhấn ➤ để gửi.`,
+          [
+            { label: '📍 Đổi nơi đăng', action: 'showTargetSelect()' },
+            { label: '🔄 Đổi Profile', action: 'showProfileSelect()' },
+          ]
+        );
+      }
+    }
+
+    function showModeSelect() {
+      addUser('Đổi chế độ');
+      addBot(
+        'Bạn muốn đăng bài ngay hay lên lịch?',
+        [
+          { label: '📝 Đăng ngay', action: "selectMode('now')" },
+          { label: '⏰ Lên lịch', action: "selectMode('schedule')" },
+        ]
+      );
+    }
+
+    function selectTarget(target) {
+      addUser(TARGET_LABELS[target]);
+      currentTarget = target;
+
+      const groupIdInput = document.getElementById('groupIdInput');
+      groupIdInput.style.display = target === 'custom' ? 'block' : 'none';
+
+      // inputArea luon hien
+      step = 'compose';
+
+      let targetText = TARGET_LABELS[target];
+      if (target === 'allgroup') targetText = 'Asale + Tổng Kho';
+      if (target === 'all') targetText = 'FB Cá nhân + Asale + Tổng Kho';
+      if (target === 'fb_zalo') {
+        const zaloProfile = FB_TO_ZALO_MAP[currentProfile] || '';
+        const zaloGroupList = (typeof ZALO_GROUPS !== 'undefined' && ZALO_GROUPS[zaloProfile]) || [];
+        targetText = `FB Cá nhân + 2 FB Group + ${zaloGroupList.length} Zalo Group`;
+      }
+
+      if (postMode === 'schedule') {
+        showScheduleForm();
+      } else {
+        addBot(
+          `Đăng bài lên: <strong>${targetText}</strong>\n\nNhập nội dung bài viết bên dưới.\nBấm 📷 để đính kèm hình ảnh, rồi nhấn ➤ để gửi.`,
+          [
+            { label: '📍 Đổi nơi đăng', action: 'showTargetSelect()' },
+            { label: '🔄 Đổi Profile', action: 'showProfileSelect()' },
+          ]
+        );
+      }
+    }
+
+    // ===== Trạng thái =====
+    function showStatus() {
+      addUser('Trạng thái');
+      fetch('/api/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: '/status' }),
+      })
+      .then(r => r.json())
+      .then(data => {
+        addBot(data.message, [
+          { label: '👤 Chọn Profile', action: 'showProfileSelect()' },
+          { label: '📋 Xem lịch đăng bài', action: 'showScheduleList()' },
+        ]);
+      })
+      .catch(e => addBot(`Lỗi: ${e.message}`));
+    }
+
+    // ===== Upload ảnh =====
+    function handleFiles(input) {
+      selectedFiles = [...selectedFiles, ...Array.from(input.files)];
+      updatePreview();
+    }
+
+    function clearImages() {
+      selectedFiles = [];
+      document.getElementById('fileInput').value = '';
+      document.getElementById('imagePreview').classList.remove('show');
+      document.getElementById('previewImages').innerHTML = '';
+    }
+
+    function updatePreview() {
+      const preview = document.getElementById('imagePreview');
+      const previewDiv = document.getElementById('previewImages');
+      previewDiv.innerHTML = '';
+      if (selectedFiles.length > 0) {
+        preview.classList.add('show');
+        selectedFiles.forEach((file, index) => {
+          const item = document.createElement('div');
+          item.className = 'preview-item';
+          const img = document.createElement('img');
+          img.src = URL.createObjectURL(file);
+          const btn = document.createElement('button');
+          btn.className = 'remove-img';
+          btn.textContent = '✕';
+          btn.onclick = () => removeImage(index);
+          item.appendChild(img);
+          item.appendChild(btn);
+          previewDiv.appendChild(item);
+        });
+      } else {
+        preview.classList.remove('show');
+      }
+    }
+
+    function removeImage(index) {
+      selectedFiles.splice(index, 1);
+      updatePreview();
+    }
+
+    // Paste ảnh từ clipboard (Ctrl+V)
+    document.addEventListener('paste', (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            selectedFiles.push(file);
+            updatePreview();
+          }
+        }
+      }
+    });
+
+    // Kéo thả ảnh
+    const chatArea = document.getElementById('chatArea');
+    ['dragenter', 'dragover'].forEach(evt => {
+      document.body.addEventListener(evt, (e) => {
+        e.preventDefault();
+        chatArea.style.border = '2px dashed #6c5ce7';
+      });
+    });
+    ['dragleave', 'drop'].forEach(evt => {
+      document.body.addEventListener(evt, (e) => {
+        e.preventDefault();
+        chatArea.style.border = 'none';
+      });
+    });
+    document.body.addEventListener('drop', (e) => {
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+      if (files.length > 0) {
+        selectedFiles.push(...files);
+        updatePreview();
+      }
+    });
+
+    // ===== Gửi bài =====
+    async function sendMessage() {
+      // Neu dang o che do len lich -> goi submitSchedule
+      if (postMode === 'schedule') {
+        submitSchedule(scheduleFormId);
+        return;
+      }
+
+      const input = document.getElementById('msgInput');
+      const message = input.value.trim();
+
+      if (!message && selectedFiles.length === 0) return;
+      if (!currentProfile) {
+        addBot('Vui lòng chọn profile trước nhé!', [
+          { label: '👤 Chọn Profile', action: 'showProfileSelect()' },
+        ]);
+        return;
+      }
+      if (!currentTarget) {
+        addBot('Vui lòng chọn nơi đăng bài!', [
+          { label: '📍 Chọn nơi đăng', action: 'showTargetSelect()' },
+        ]);
+        return;
+      }
+
+      // Tao thumbnail URLs truoc khi clear
+      const photoUrls = selectedFiles.map(f => URL.createObjectURL(f));
+      let userMsg = message || '';
+      addUser(userMsg, photoUrls);
+      input.value = '';
+
+      let target = currentTarget;
+      let groupId = null;
+      if (target === 'custom') {
+        groupId = document.getElementById('groupIdInput').value.trim();
+        if (!groupId) {
+          addBot('Vui lòng nhập Group ID!');
+          return;
+        }
+        target = 'group';
+      } else if (target === 'asale' || target === 'tongkho') {
+        groupId = target;
+        target = 'shortcut';
+      }
+
+      const formData = new FormData();
+      formData.append('message', message);
+      formData.append('target', target);
+      if (groupId) formData.append('groupId', groupId);
+      if (target === 'fb_zalo') formData.append('fbProfile', currentProfile);
+      selectedFiles.forEach(file => formData.append('images', file));
+
+      clearImages();
+      addTyping();
+      document.getElementById('sendBtn').disabled = true;
+
+      try {
+        const res = await fetch('/api/post', { method: 'POST', body: formData });
+        const data = await res.json();
+        removeTyping();
+
+        if (data.results) {
+          data.results.forEach(r => {
+            if (r.success) {
+              let msg = `Đã đăng bài lên <strong>${r.target}</strong> thành công!`;
+              if (r.postUrl) msg += `\n<a class="link" href="${r.postUrl}" target="_blank">Xem bài viết</a>`;
+              addBot(msg, null, r.screenshot ? `/api/screenshot?t=${Date.now()}` : null);
+            } else {
+              addBot(`Lỗi khi đăng <strong>${r.target}</strong>: ${r.error}`);
+            }
+          });
+        } else if (data.success) {
+          let msg = 'Đã đăng bài thành công!';
+          if (data.postUrl) msg += `\n<a class="link" href="${data.postUrl}" target="_blank">Xem bài viết</a>`;
+          addBot(msg, null, data.screenshot ? `/api/screenshot?t=${Date.now()}` : null);
+        } else {
+          addBot(`Lỗi: ${data.error}`);
+        }
+
+        // Post to custom groups if any
+        const customIds = window._customGroupIds || [];
+        for (const gid of customIds) {
+          addTyping();
+          try {
+            const cf = new FormData();
+            cf.append('message', message);
+            cf.append('target', 'group');
+            cf.append('groupId', gid);
+            selectedFiles.forEach(file => cf.append('images', file));
+            const cr = await fetch('/api/post', { method: 'POST', body: cf });
+            const cd = await cr.json();
+            removeTyping();
+            if (cd.success) {
+              let msg = `Đã đăng bài lên <strong>Group #${gid}</strong> thành công!`;
+              if (cd.postUrl) msg += `\n<a class="link" href="${cd.postUrl}" target="_blank">Xem bài viết</a>`;
+              addBot(msg, null, cd.screenshot ? `/api/screenshot?t=${Date.now()}` : null);
+            } else {
+              addBot(`Lỗi khi đăng <strong>Group #${gid}</strong>: ${cd.error}`);
+            }
+          } catch (ce) {
+            removeTyping();
+            addBot(`Lỗi Group #${gid}: ${ce.message}`);
+          }
+        }
+
+        // Hien nut tiep tuc
+        addBot('Bạn muốn làm gì tiếp?', [
+          { label: '📝 Đăng bài tiếp', action: 'focusInput()' },
+          { label: '📍 Đổi nơi đăng', action: 'showTargetSelect()' },
+          { label: '🔄 Đổi Profile', action: 'showProfileSelect()' },
+          { label: '📊 Trạng thái', action: 'showStatus()' },
+        ]);
+      } catch (e) {
+        removeTyping();
+        addBot(`Lỗi: ${e.message}`);
+      }
+
+      document.getElementById('sendBtn').disabled = false;
+    }
+
+    // ===== Lên lịch =====
+    let scheduleFormId = 0;
+
+    function showScheduleForm() {
+      scheduleFormId++;
+      const formId = scheduleFormId;
+      const nowDate = new Date();
+      const localISO = new Date(nowDate.getTime() - nowDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+
+      let targetText = TARGET_LABELS[currentTarget] || 'Chưa chọn';
+      if (currentTarget === 'allgroup') targetText = 'Asale + Tổng Kho';
+      if (currentTarget === 'all') targetText = 'FB Cá nhân + Asale + Tổng Kho';
+
+      const chat = document.getElementById('chatArea');
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      row.innerHTML = `
+        <img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko">
+        <div class="msg bot">
+          <strong>⏰ Lên lịch đăng bài</strong><br>
+          Nơi đăng: <strong>${targetText}</strong><br><br>
+          Chọn thời gian đăng:<br>
+          <input type="datetime-local" id="scheduleTime_${formId}" value="${localISO}" min="${localISO}"
+            style="padding:8px 12px; border-radius:8px; border:1px solid #ddd; background:#f8f8f8; color:#1a1a1a; font-size:14px; margin:8px 0; width:100%;">
+          <br>
+          Nhập nội dung bên dưới, đính kèm ảnh (nếu có), rồi bấm <strong>Đặt lịch</strong>.
+          <div class="msg-buttons">
+            <button class="msg-btn" onclick="submitSchedule(${formId})">⏰ Đặt lịch</button>
+            <button class="msg-btn" onclick="showTargetSelect()">📍 Đổi nơi đăng</button>
+            <button class="msg-btn" onclick="showModeSelect()">🔄 Đổi chế độ</button>
+          </div>
+          <div class="msg-time">${now()}</div>
+        </div>`;
+      chat.appendChild(row);
+      chat.scrollTop = chat.scrollHeight;
+      // inputArea luon hien
+    }
+
+    async function submitSchedule(formId) {
+      const fid = formId || scheduleFormId;
+      const timeInput = document.getElementById(`scheduleTime_${fid}`);
+      if (!timeInput) {
+        addBot('Vui lòng mở form lên lịch trước!');
+        return;
+      }
+      const time = timeInput.value;
+      if (!time) {
+        addBot('Vui lòng chọn thời gian!');
+        return;
+      }
+
+      const input = document.getElementById('msgInput');
+      const message = input.value.trim();
+      if (!message && selectedFiles.length === 0) {
+        addBot('Vui lòng nhập nội dung hoặc chọn ảnh!');
+        return;
+      }
+      if (!currentProfile) {
+        addBot('Vui lòng chọn profile trước!');
+        return;
+      }
+      if (!currentTarget) {
+        addBot('Vui lòng chọn nơi đăng trước!');
+        return;
+      }
+
+      let target = currentTarget;
+      let groupId = null;
+      if (target === 'custom') {
+        groupId = document.getElementById('groupIdInput').value.trim();
+        if (!groupId) { addBot('Vui lòng nhập Group ID!'); return; }
+        target = 'group';
+      } else if (target === 'asale' || target === 'tongkho') {
+        groupId = target;
+        target = 'shortcut';
+      }
+
+      // Luu thumbnail truoc khi clear
+      const photoUrls = selectedFiles.map(f => URL.createObjectURL(f));
+      const savedMessage = message;
+
+      const formData = new FormData();
+      formData.append('time', new Date(time).toISOString());
+      formData.append('target', target);
+      formData.append('message', message);
+      formData.append('profile', currentProfile);
+      if (groupId) formData.append('groupId', groupId);
+      selectedFiles.forEach(file => formData.append('images', file));
+
+      // Hien thi tin nhan nguoi dung voi noi dung + anh
+      addUser(savedMessage, photoUrls);
+
+      input.value = '';
+      clearImages();
+      addTyping();
+
+      try {
+        const res = await fetch('/api/schedule', { method: 'POST', body: formData });
+        const data = await res.json();
+        removeTyping();
+
+        if (data.success) {
+          // Hien thi xac nhan voi noi dung + thumbnail
+          let targetText = TARGET_LABELS[currentTarget] || currentTarget;
+          let confirmMsg = `⏰ ${data.message}\n\n`;
+          confirmMsg += `📍 Nơi đăng: <strong>${targetText}</strong>\n`;
+          if (savedMessage) confirmMsg += `📝 Nội dung: ${savedMessage}\n`;
+          if (photoUrls.length > 0) confirmMsg += `📷 ${photoUrls.length} ảnh đính kèm`;
+
+          // Tao photo grid trong tin nhan bot
+          let photoHtml = '';
+          if (photoUrls.length > 0) {
+            const maxShow = Math.min(photoUrls.length, 5);
+            let gridClass = 'photo-grid count-' + (maxShow > 5 ? '5' : maxShow);
+            photoHtml = `<div class="${gridClass}" style="max-width:200px;margin-top:8px;">`;
+            for (let i = 0; i < maxShow; i++) {
+              photoHtml += `<div class="photo-item"><img src="${photoUrls[i]}">`;
+              if (i === maxShow - 1 && photoUrls.length > 5) {
+                photoHtml += `<div class="photo-more">+${photoUrls.length - 5}</div>`;
+              }
+              photoHtml += '</div>';
+            }
+            photoHtml += '</div>';
+          }
+
+          const chat = document.getElementById('chatArea');
+          const row = document.createElement('div');
+          row.className = 'msg-row bot';
+          let btnHtml = '<div class="msg-buttons">';
+          btnHtml += '<button class="msg-btn" onclick="showScheduleList()">📋 Xem lịch đã đặt</button>';
+          btnHtml += '<button class="msg-btn" onclick="showScheduleForm()">⏰ Lên lịch thêm</button>';
+          btnHtml += `<button class="msg-btn" onclick="selectMode('now')">📝 Đăng bài ngay</button>`;
+          btnHtml += '</div>';
+          row.innerHTML = `<img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko"><div class="msg bot">${confirmMsg.replace(/\n/g,'<br>')}${photoHtml}${btnHtml}<div class="msg-time">${now()}</div></div>`;
+          chat.appendChild(row);
+          chat.scrollTop = chat.scrollHeight;
+        } else {
+          addBot(`Lỗi: ${data.error}`);
+        }
+      } catch (e) {
+        removeTyping();
+        addBot(`Lỗi: ${e.message}`);
+      }
+    }
+
+    async function showScheduleList() {
+      addUser('Xem lịch đã đặt');
+      addTyping();
+
+      try {
+        const res = await fetch('/api/schedules');
+        const schedules = await res.json();
+        removeTyping();
+
+        if (schedules.length === 0) {
+          addBot('Chưa có lịch nào được đặt.', [
+            { label: '⏰ Lên lịch mới', action: 'showScheduleForm()' },
+          ]);
+          return;
+        }
+
+        let msg = `📋 <strong>Danh sách lịch đăng bài:</strong>\n\n`;
+        const buttons = [];
+        schedules.forEach(s => {
+          const statusIcon = { pending: '⏳', running: '🔄', done: '✅', error: '❌' }[s.status] || '❓';
+          msg += `${statusIcon} <strong>#${s.id}</strong> - ${s.time}\n`;
+          msg += `   Profile: ${s.profile} | Nơi đăng: ${s.target}\n`;
+          msg += `   Nội dung: ${s.message || '(ảnh)'}`;
+          if (s.imageCount > 0) msg += ` [${s.imageCount} ảnh]`;
+          msg += `\n\n`;
+
+          if (s.status === 'pending') {
+            buttons.push({ label: `🗑 Xoá lịch #${s.id}`, action: `deleteSchedule(${s.id})` });
+          }
+        });
+
+        buttons.push({ label: '⏰ Lên lịch mới', action: 'showScheduleForm()' });
+        addBot(msg, buttons);
+      } catch (e) {
+        removeTyping();
+        addBot(`Lỗi: ${e.message}`);
+      }
+    }
+
+    async function deleteSchedule(id) {
+      addUser(`Xoá lịch #${id}`);
+      try {
+        const res = await fetch(`/api/schedule/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          addBot(`✅ ${data.message}`, [
+            { label: '📋 Xem lịch', action: 'showScheduleList()' },
+          ]);
+        } else {
+          addBot(`Lỗi: ${data.error}`);
+        }
+      } catch (e) {
+        addBot(`Lỗi: ${e.message}`);
+      }
+    }
+
+    function toggleMenu() {
+      document.getElementById('popupMenu').classList.toggle('show');
+    }
+
+    // Dong menu khi click ra ngoai
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('popupMenu');
+      const menuBtn = document.querySelector('.btn-menu');
+      if (menu.classList.contains('show') && !menu.contains(e.target) && e.target !== menuBtn) {
+        menu.classList.remove('show');
+      }
+    });
+
+    function switchPage(pg) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
+
+      const pageMap = {
+        post: { page: 'pageDangBai', nav: 'navPost' },
+        zalo: { page: 'pageZalo', nav: 'navZalo' },
+        calendar: { page: 'pageCalendar', nav: 'navCalendar' },
+        dashboard: { page: 'pageDashboard', nav: 'navDashboard' },
+        session: { page: 'pageSession', nav: 'navSession' },
+        spy: { page: 'pageSpyBaiViet', nav: 'navSpy' },
+      };
+
+      const target = pageMap[pg];
+      if (target) {
+        document.getElementById(target.page).classList.add('active');
+        document.getElementById(target.nav).classList.add('active');
+      }
+
+      if (pg === 'zalo' && !zaloInitialized) {
+        initZaloChat();
+        zaloInitialized = true;
+      }
+      if (pg === 'calendar') {
+        loadCalendar();
+      }
+      if (pg === 'dashboard') {
+        loadDashboard();
+      }
+      if (pg === 'session') {
+        renderProfileList();
+      }
+    }
+
+    // === Lich dang bai ===
+    async function loadCalendar() {
+      const container = document.getElementById('calendarList');
+      const summary = document.getElementById('calSummary');
+      const filterPlatform = document.getElementById('calFilterPlatform').value;
+      const filterStatus = document.getElementById('calFilterStatus').value;
+      const filterProfile = document.getElementById('calFilterProfile').value;
+      const filterDate = document.getElementById('calFilterDate').value;
+
+      try {
+        const res = await fetch('/api/schedules');
+        let schedules = await res.json();
+
+        // Loc theo platform
+        if (filterPlatform) {
+          schedules = schedules.filter(s => (s.type || 'facebook') === filterPlatform);
+        }
+        // Loc theo status
+        if (filterStatus) {
+          schedules = schedules.filter(s => s.status === filterStatus);
+        }
+        // Loc theo profile
+        if (filterProfile) {
+          schedules = schedules.filter(s => s.profile === filterProfile);
+        }
+        // Loc theo khoang ngay
+        const filterDateFrom = document.getElementById('calFilterDateFrom').value;
+        const filterDateTo = document.getElementById('calFilterDateTo').value;
+        if (filterDateFrom) {
+          schedules = schedules.filter(s => s.timeISO && s.timeISO >= filterDateFrom);
+        }
+        if (filterDateTo) {
+          const toEnd = filterDateTo + 'T23:59:59';
+          schedules = schedules.filter(s => s.timeISO && s.timeISO <= toEnd);
+        }
+
+        // Summary
+        const total = schedules.length;
+        const pending = schedules.filter(s => s.status === 'pending').length;
+        const done = schedules.filter(s => s.status === 'done').length;
+        const error = schedules.filter(s => s.status === 'error').length;
+        summary.innerHTML = `Tổng: <strong>${total}</strong> · ⏳ ${pending} · ✅ ${done} · ❌ ${error}`;
+
+        if (schedules.length === 0) {
+          container.innerHTML = '<p style="color:#999; text-align:center; padding:40px;">Chưa có lịch đăng bài nào.</p>';
+          return;
+        }
+
+        const statusConfig = {
+          pending: { icon: '⏳', color: '#d97706', bg: '#fffbeb', border: '#fde68a', label: 'Chờ đăng' },
+          running: { icon: '🔄', color: '#4f46e5', bg: '#eef2ff', border: '#c7d2fe', label: 'Đang chạy' },
+          done: { icon: '✅', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', label: 'Đã đăng' },
+          error: { icon: '❌', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', label: 'Lỗi' },
+        };
+
+        let html = '';
+        schedules.forEach(s => {
+          const st = statusConfig[s.status] || statusConfig.error;
+          const platform = (s.type || 'facebook') === 'zalo' ? '💬 Zalo' : '📘 Facebook';
+          const targetText = s.type === 'zalo' ? (s.groupName || '') : (s.target || '');
+
+          html += `
+            <div style="padding:16px 20px; background:${st.bg}; border:1px solid ${st.border}; border-radius:12px;">
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                <span style="font-size:20px;">${st.icon}</span>
+                <div style="flex:1;">
+                  <div style="font-weight:600; font-size:14px; color:#1e1e2e;">
+                    #${s.id} · ${platform} · <span style="color:${st.color};">${st.label}</span>
+                  </div>
+                  <div style="font-size:12px; color:#999; margin-top:2px;">
+                    ⏰ ${s.time} · 👤 ${s.profile || ''} · 📍 ${targetText}
+                  </div>
+                </div>
+                ${s.status === 'pending' ? `<button onclick="deleteCalendarItem(${s.id})" style="padding:6px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:12px; cursor:pointer; color:#dc2626;">🗑 Xoá</button>` : ''}
+              </div>
+              ${s.message ? `<div style="font-size:13px; color:#555; padding:8px 12px; background:rgba(255,255,255,0.6); border-radius:8px;">${s.message}</div>` : ''}
+              ${s.imageCount > 0 ? `<div style="display:flex; gap:4px; margin-top:8px; flex-wrap:wrap;">${Array.from({length: Math.min(s.imageCount, 5)}, (_, i) => `<img src="/api/schedule-image/${s.id}/${i}" style="width:60px; height:60px; object-fit:cover; border-radius:6px; border:1px solid rgba(0,0,0,0.1);" onerror="this.style.display='none'">`).join('')}${s.imageCount > 5 ? `<div style="width:60px; height:60px; border-radius:6px; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:bold; font-size:14px;">+${s.imageCount - 5}</div>` : ''}</div>` : ''}
+            </div>`;
+        });
+
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = `<p style="color:red;">Lỗi: ${e.message}</p>`;
+      }
+    }
+
+    function clearCalendarFilters() {
+      document.getElementById('calFilterPlatform').value = '';
+      document.getElementById('calFilterStatus').value = '';
+      document.getElementById('calFilterProfile').value = '';
+      document.getElementById('calFilterDateFrom').value = '';
+      document.getElementById('calFilterDateTo').value = '';
+      loadCalendar();
+    }
+
+    async function deleteCalendarItem(id) {
+      if (!confirm(`Xoá lịch #${id}?`)) return;
+      try {
+        const res = await fetch(`/api/schedule/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) loadCalendar();
+        else alert(`Lỗi: ${data.error}`);
+      } catch (e) { alert(`Lỗi: ${e.message}`); }
+    }
+
+    // === Quan ly tai khoan ===
+    function switchAccountTab(tab) {
+      document.querySelectorAll('.acc-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('panelProfiles').style.display = tab === 'profiles' ? 'block' : 'none';
+      document.getElementById('panelAdd').style.display = tab === 'add' ? 'block' : 'none';
+      document.getElementById('panelHistory').style.display = tab === 'history' ? 'block' : 'none';
+      document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+      if (tab === 'history') loadLoginHistory();
+    }
+
+    // Toggle FB/Zalo fields khi them tai khoan
+    document.getElementById('newAccType')?.addEventListener('change', function() {
+      document.getElementById('newAccFbFields').style.display = this.value === 'facebook' ? 'block' : 'none';
+    });
+
+    async function renderProfileList() {
+      const fbContainer = document.getElementById('fbProfileList');
+      const zaloContainer = document.getElementById('zaloProfileList');
+
+      try {
+        const res = await fetch('/api/accounts');
+        const data = await res.json();
+
+        // FB profiles
+        fbContainer.innerHTML = data.facebook.map(p => `
+          <div class="profile-card">
+            <div class="avatar">👩</div>
+            <div class="info">
+              <div class="name">${p.name}</div>
+              <div class="detail">${p.email || p.key} · Chromium profile: ${p.key}</div>
+            </div>
+            <div class="status-dot unknown" id="dot_fb_${p.key}" title="Chưa kiểm tra"></div>
+            <button onclick="editProfile('${p.key}','${p.name.replace(/'/g, "\\'")}','${(p.email||'').replace(/'/g, "\\'")}')" style="padding:6px 12px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px; font-size:12px; cursor:pointer; color:#0284c7;">
+              ✏️ Sửa
+            </button>
+            <button onclick="loginProfile('${p.key}')" style="padding:6px 12px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; font-size:12px; cursor:pointer; color:#4f46e5;">
+              🔑 Login
+            </button>
+            <button onclick="deleteProfile('facebook','${p.key}','${p.name.replace(/'/g, "\\'")}')" style="padding:6px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:12px; cursor:pointer; color:#dc2626;">
+              🗑
+            </button>
+          </div>`).join('');
+
+        // Zalo profiles
+        zaloContainer.innerHTML = data.zalo.map(p => `
+          <div class="profile-card">
+            <div class="avatar">💬</div>
+            <div class="info">
+              <div class="name">${p.name}</div>
+              <div class="detail">Salework Zalo · zalo.salework.net</div>
+            </div>
+            <div class="status-dot unknown" title="Kiểm tra qua Salework"></div>
+            <button onclick="deleteProfile('zalo','${p.name.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')" style="padding:6px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:12px; cursor:pointer; color:#dc2626;">
+              🗑
+            </button>
+          </div>`).join('');
+      } catch (e) {
+        fbContainer.innerHTML = `<div style="color:#dc2626;">Lỗi tải danh sách: ${e.message}</div>`;
+      }
+    }
+
+    function editProfile(key, name, email) {
+      document.getElementById('editKey').value = key;
+      document.getElementById('editName').value = name;
+      document.getElementById('editEmail').value = email;
+      document.getElementById('editPassword').value = '';
+      document.getElementById('editProfileModal').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+      document.getElementById('editProfileModal').style.display = 'none';
+    }
+
+    async function saveProfile() {
+      const key = document.getElementById('editKey').value;
+      const name = document.getElementById('editName').value.trim();
+      const email = document.getElementById('editEmail').value.trim();
+      const password = document.getElementById('editPassword').value;
+
+      if (!name) { alert('Vui lòng nhập tên hiển thị!'); return; }
+
+      try {
+        const res = await fetch(`/api/accounts/${encodeURIComponent(key)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password: password || undefined }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('✅ Đã cập nhật thông tin tài khoản!');
+          closeEditModal();
+          renderProfileList();
+        } else {
+          alert(`❌ Lỗi: ${data.error}`);
+        }
+      } catch (e) {
+        alert(`❌ Lỗi: ${e.message}`);
+      }
+    }
+
+    // Click outside modal to close
+    document.getElementById('editProfileModal')?.addEventListener('click', function(e) {
+      if (e.target === this) closeEditModal();
+    });
+
+    async function deleteProfile(type, key, name) {
+      if (!confirm(`Bạn có chắc muốn xoá profile "${name}"?\n\nDữ liệu session Chromium sẽ bị xoá vĩnh viễn.`)) return;
+
+      try {
+        const res = await fetch(`/api/accounts/${type}/${encodeURIComponent(key)}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          alert(`✅ ${data.message}`);
+          renderProfileList();
+        } else {
+          alert(`❌ Lỗi: ${data.error}`);
+        }
+      } catch (e) {
+        alert(`❌ Lỗi: ${e.message}`);
+      }
+    }
+
+    async function addNewAccount() {
+      const type = document.getElementById('newAccType').value;
+      const key = document.getElementById('newAccKey').value.trim();
+      const name = document.getElementById('newAccName').value.trim();
+      const email = document.getElementById('newAccEmail')?.value.trim();
+      const pass = document.getElementById('newAccPass')?.value.trim();
+
+      if (!key || !name) {
+        alert('Vui lòng nhập tên profile và tên hiển thị!');
+        return;
+      }
+
+      if (type === 'facebook' && (!email || !pass)) {
+        alert('Vui lòng nhập email và mật khẩu Facebook!');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, key, name, email, password: pass }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          alert(data.message);
+          // Clear form
+          document.getElementById('newAccKey').value = '';
+          document.getElementById('newAccName').value = '';
+          if (document.getElementById('newAccEmail')) document.getElementById('newAccEmail').value = '';
+          if (document.getElementById('newAccPass')) document.getElementById('newAccPass').value = '';
+          renderProfileList();
+          switchAccountTab('profiles');
+        } else {
+          alert('Lỗi: ' + data.error);
+        }
+      } catch (e) {
+        alert('Lỗi: ' + e.message);
+      }
+    }
+
+    async function checkSessions() {
+      const container = document.getElementById('sessionResults');
+      const btn = document.getElementById('checkSessionBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Đang kiểm tra...';
+      container.innerHTML = '<p style="color:#999;">Đang kiểm tra session các profile, vui lòng đợi...</p>';
+
+      try {
+        const res = await fetch('/api/sessions');
+        const results = await res.json();
+
+        let html = '';
+        results.forEach(r => {
+          const statusConfig = {
+            active: { icon: '✅', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', label: 'Hoạt động' },
+            expired: { icon: '❌', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', label: 'Hết hạn' },
+            unknown: { icon: '⚠️', color: '#d97706', bg: '#fffbeb', border: '#fde68a', label: 'Không rõ' },
+            error: { icon: '💥', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', label: 'Lỗi' },
+          };
+          const s = statusConfig[r.status] || statusConfig.error;
+
+          html += `
+            <div style="padding:16px 20px; background:${s.bg}; border:1px solid ${s.border}; border-radius:12px; display:flex; align-items:center; gap:14px;">
+              <span style="font-size:28px;">${s.icon}</span>
+              <div style="flex:1;">
+                <div style="font-weight:600; font-size:15px; color:#1e1e2e;">${r.name}</div>
+                <div style="font-size:13px; color:${s.color}; margin-top:2px;">${s.label} - ${r.message}</div>
+              </div>
+              ${r.status === 'expired' ? `<button onclick="loginProfile('${r.profile}')" style="padding:8px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer;">🔑 Đăng nhập lại</button>` : ''}
+            </div>`;
+        });
+
+        container.innerHTML = html;
+
+        // Update status dots
+        results.forEach(r => {
+          const dot = document.getElementById(`dot_fb_${r.profile}`);
+          if (dot) {
+            dot.className = `status-dot ${r.status}`;
+            dot.title = r.message;
+          }
+        });
+      } catch (e) {
+        container.innerHTML = `<p style="color:red;">Lỗi: ${e.message}</p>`;
+      }
+
+      btn.disabled = false;
+      btn.textContent = '🔍 Kiểm tra lại';
+    }
+
+    function loginProfile(profileKey) {
+      alert(`Chạy lệnh trong terminal:\n\ncd C:\\Users\\tramm\\projects\\fb-auto-poster\nnode src\\playwright\\login.js ${profileKey}`);
+    }
+
+    async function loadLoginHistory() {
+      const filter = document.getElementById('historyFilter')?.value || '';
+      const container = document.getElementById('loginHistoryList');
+
+      try {
+        const url = filter ? `/api/login-history?profile=${filter}` : '/api/login-history';
+        const res = await fetch(url);
+        const history = await res.json();
+
+        if (history.length === 0) {
+          container.innerHTML = '<p style="color:#999; font-size:13px;">Chưa có lịch sử.</p>';
+          return;
+        }
+
+        const typeConfig = {
+          login: { icon: '🔑', color: '#16a34a', label: 'Đăng nhập' },
+          session_check: { icon: '✅', color: '#4f46e5', label: 'Kiểm tra session' },
+          session_expired: { icon: '❌', color: '#dc2626', label: 'Session hết hạn' },
+          post_success: { icon: '📝', color: '#16a34a', label: 'Đăng bài' },
+          post_error: { icon: '💥', color: '#dc2626', label: 'Lỗi đăng bài' },
+        };
+
+        let html = '';
+        history.forEach(h => {
+          const t = typeConfig[h.type] || { icon: '📌', color: '#999', label: h.type };
+          html += `
+            <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; background:#fff; border:1px solid #eee; border-radius:8px; font-size:13px;">
+              <span style="font-size:16px;">${t.icon}</span>
+              <div style="flex:1;">
+                <span style="font-weight:600;">${h.name}</span>
+                <span style="color:${t.color}; margin-left:6px;">${t.label}</span>
+                ${h.detail ? `<span style="color:#999; margin-left:4px;">- ${h.detail}</span>` : ''}
+              </div>
+              <span style="color:#aaa; font-size:11px; white-space:nowrap;">${h.time}</span>
+            </div>`;
+        });
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = `<p style="color:red;">Lỗi: ${e.message}</p>`;
+      }
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
+      localStorage.setItem('xeko_theme', next);
+    }
+
+    // Load theme tu localStorage
+    (function() {
+      const saved = localStorage.getItem('xeko_theme') || 'light';
+      document.documentElement.setAttribute('data-theme', saved);
+      const btn = document.getElementById('themeBtn');
+      if (btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+    })();
+
+    function clearChat() {
+      document.getElementById('chatArea').innerHTML = '';
+      localStorage.removeItem('xeko_chat');
+      localStorage.removeItem('xeko_profile');
+      localStorage.removeItem('xeko_target');
+      localStorage.removeItem('xeko_mode');
+      currentProfile = null;
+      currentTarget = null;
+      postMode = 'now';
+      updateHeader('FB Auto Post');
+      showWelcome();
+    }
+
+    function focusInput() {
+      document.getElementById('msgInput').focus();
+    }
+
+    // ===== Khởi động =====
+    // Polling: kiem tra lich da chay xong moi 10 giay
+    setInterval(async () => {
+      try {
+        const res = await fetch('/api/notifications');
+        const items = await res.json();
+
+        for (const n of items) {
+          const targetLabels = {
+            personal: 'FB Cá nhân',
+            group: 'Group',
+            allgroup: '2 Group',
+            shortcut: 'Group',
+            all: 'Cá nhân + 2 Group',
+          };
+          const targetText = targetLabels[n.target] || n.target;
+
+          if (n.type === 'success') {
+            let msg = `✅ <strong>Bài viết đã lên lịch đăng thành công!</strong>\n\n`;
+            msg += `⏰ Lịch hẹn: ${n.scheduledTime}\n`;
+            msg += `📍 Nơi đăng: ${targetText}\n`;
+            msg += `👤 Profile: ${n.profile}\n`;
+            if (n.message) msg += `📝 Nội dung: ${n.message}\n`;
+            if (n.imageCount > 0) msg += `📷 ${n.imageCount} ảnh đính kèm\n`;
+            msg += `\n🕐 Đã đăng lúc: ${n.time}`;
+            addBot(msg);
+          } else {
+            let msg = `❌ <strong>Bài viết lên lịch bị lỗi!</strong>\n\n`;
+            msg += `⏰ Lịch hẹn: ${n.scheduledTime}\n`;
+            msg += `📍 Nơi đăng: ${targetText}\n`;
+            if (n.message) msg += `📝 Nội dung: ${n.message}\n`;
+            msg += `\n❗ Lỗi: ${n.error}`;
+            addBot(msg);
+          }
+        }
+      } catch {}
+    }, 10000);
+
+    // ===== ZALO CHAT =====
+    let zaloInitialized = false;
+    let zaloProfile = null;
+    let zaloGroupName = null;
+    let zaloSelectedFiles = [];
+
+    const ZALO_PROFILES = [
+      'Basso Order Hàng Mỹ',
+      'Linh Duong Us',
+      'Linh Thảo Us Authentic',
+      'Shipus Mua Hàng Mỹ',
+    ];
+
+    const ZALO_GROUPS = {
+      'Linh Duong Us': [
+        'Sỉ Hàng Order Mỹ, Anh - Linh Dương',
+        'KHO HÀNG MỸ CÓ SẴN - LINH DƯƠNG',
+        'SĂN SALE HÀNG HIỆU US',
+      ],
+      'Linh Thảo Us Authentic': [
+        'SỈ HÀNG ORDER MỸ - LINH THẢO',
+        'TỔNG KHO HÀNG SẴN US - LINH THẢO',
+        'DEAL NGON MỸ PHẨM US',
+      ],
+    };
+
+    function addZaloBot(text, buttons = null) {
+      const chat = document.getElementById('zaloChatArea');
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      let html = text.replace(/\n/g, '<br>');
+      if (buttons) {
+        html += '<div class="msg-buttons">';
+        buttons.forEach(b => {
+          html += `<button class="msg-btn" onclick="${b.action}">${b.label}</button>`;
+        });
+        html += '</div>';
+      }
+      html += `<div class="msg-time">${now()}</div>`;
+      row.innerHTML = `<img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko"><div class="msg bot">${html}</div>`;
+      chat.appendChild(row);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function addZaloUser(text, photos = []) {
+      const chat = document.getElementById('zaloChatArea');
+      const row = document.createElement('div');
+      row.className = 'msg-row user';
+
+      let html = `<div class="msg user">`;
+      if (text) html += text.replace(/\n/g, '<br>');
+
+      if (photos.length > 0) {
+        const maxShow = Math.min(photos.length, 5);
+        let gridClass = 'photo-grid count-' + (maxShow > 5 ? '5' : maxShow);
+        html += `<div class="${gridClass}" style="max-width:200px;margin-top:8px;">`;
+        for (let i = 0; i < maxShow; i++) {
+          html += `<div class="photo-item"><img src="${photos[i]}">`;
+          if (i === maxShow - 1 && photos.length > 5) {
+            html += `<div class="photo-more">+${photos.length - 5}</div>`;
+          }
+          html += '</div>';
+        }
+        html += '</div>';
+      }
+
+      html += `<div class="msg-time">${now()}</div></div>`;
+      row.innerHTML = html;
+      chat.appendChild(row);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function addZaloTyping() {
+      const chat = document.getElementById('zaloChatArea');
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      row.id = 'zaloTypingMsg';
+      row.innerHTML = `<img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko"><div class="msg bot"><div class="typing"><span></span><span></span><span></span></div> Xeko đang gửi tin nhắn Zalo...</div>`;
+      chat.appendChild(row);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function removeZaloTyping() {
+      const el = document.getElementById('zaloTypingMsg');
+      if (el) el.remove();
+    }
+
+    function initZaloChat() {
+      addZaloBot(
+        'Chào bạn! Đây là chức năng <strong>đăng bài Zalo</strong> qua Salework.\nHãy chọn profile Zalo:',
+        ZALO_PROFILES.map(p => ({ label: `👤 ${p}`, action: `selectZaloProfile('${p}')` }))
+      );
+    }
+
+    let zaloStep = 'profile'; // profile -> group -> compose
+
+    function selectZaloProfile(name) {
+      zaloProfile = name;
+      zaloStep = 'group';
+      document.getElementById('zaloHeaderStatus').textContent = `Profile: ${name}`;
+      addZaloUser(name);
+
+      // Tao buttons cho nhom co san + nhap thu cong
+      const buttons = [];
+      const groups = ZALO_GROUPS[name] || [];
+      groups.forEach(g => {
+        buttons.push({ label: `👥 ${g}`, action: `quickSelectZaloGroup('${g.replace(/'/g, "\\'")}')` });
+      });
+      buttons.push({ label: '🔍 Nhập tên nhóm khác...', action: 'manualZaloGroup()' });
+      buttons.push({ label: '🔄 Đổi profile', action: 'showZaloProfileSelect()' });
+
+      addZaloBot(
+        `Đã chọn profile: <strong>${name}</strong>\n\nChọn nhóm Zalo:`,
+        buttons
+      );
+    }
+
+    let zaloPostMode = 'now'; // 'now' hoac 'schedule'
+
+    function quickSelectZaloGroup(groupName) {
+      zaloGroupName = groupName;
+      addZaloUser(`Nhóm: ${groupName}`);
+      // Hoi dang ngay hay len lich
+      addZaloBot(
+        `Nhóm: <strong>${groupName}</strong>\n\nBạn muốn gửi ngay hay lên lịch?`,
+        [
+          { label: '📝 Gửi ngay', action: "selectZaloMode('now')" },
+          { label: '⏰ Lên lịch', action: "selectZaloMode('schedule')" },
+          { label: '📍 Đổi nhóm', action: 'changeZaloGroup()' },
+        ]
+      );
+    }
+
+    function selectZaloMode(mode) {
+      zaloPostMode = mode;
+      zaloStep = 'compose';
+      const modeLabel = mode === 'now' ? 'Gửi ngay' : 'Lên lịch';
+      addZaloUser(modeLabel);
+
+      if (mode === 'schedule') {
+        showZaloScheduleForm();
+      } else {
+        addZaloBot(
+          `Chế độ: <strong>📝 Gửi ngay</strong>\n\nNhập <strong>nội dung tin nhắn</strong>, đính kèm ảnh (nếu có), rồi nhấn ➤ để gửi.`,
+          [
+            { label: '📍 Đổi nhóm', action: 'changeZaloGroup()' },
+            { label: '🔄 Đổi profile', action: 'showZaloProfileSelect()' },
+          ]
+        );
+        document.getElementById('zaloMsgInput').placeholder = 'Nhập nội dung tin nhắn...';
+      }
+    }
+
+    let zaloScheduleFormId = 0;
+
+    function showZaloScheduleForm() {
+      zaloScheduleFormId++;
+      const fid = zaloScheduleFormId;
+      const nowDate = new Date();
+      const localISO = new Date(nowDate.getTime() - nowDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+
+      const chat = document.getElementById('zaloChatArea');
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      row.innerHTML = `
+        <img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko">
+        <div class="msg bot">
+          <strong>⏰ Lên lịch gửi Zalo</strong><br>
+          👤 Profile: <strong>${zaloProfile}</strong><br>
+          📍 Nhóm: <strong>${zaloGroupName}</strong><br><br>
+          Chọn thời gian gửi:<br>
+          <input type="datetime-local" id="zaloScheduleTime_${fid}" value="${localISO}" min="${localISO}"
+            style="padding:8px 12px; border-radius:8px; border:1px solid #ddd; background:#f8f8f8; color:#1a1a1a; font-size:14px; margin:8px 0; width:100%;">
+          <br>
+          Nhập nội dung bên dưới, đính kèm ảnh (nếu có), rồi bấm <strong>Đặt lịch</strong>.
+          <div class="msg-buttons">
+            <button class="msg-btn" onclick="submitZaloSchedule(${fid})">⏰ Đặt lịch</button>
+            <button class="msg-btn" onclick="showZaloScheduleList()">📋 Xem lịch đã đặt</button>
+            <button class="msg-btn" onclick="selectZaloMode('now')">📝 Gửi ngay</button>
+          </div>
+          <div class="msg-time">${now()}</div>
+        </div>`;
+      chat.appendChild(row);
+      chat.scrollTop = chat.scrollHeight;
+      document.getElementById('zaloMsgInput').placeholder = 'Nhập nội dung tin nhắn...';
+    }
+
+    async function submitZaloSchedule(fid) {
+      const timeInput = document.getElementById(`zaloScheduleTime_${fid}`);
+      if (!timeInput) { addZaloBot('Vui lòng mở form lên lịch trước!'); return; }
+
+      const time = timeInput.value;
+      if (!time) { addZaloBot('Vui lòng chọn thời gian!'); return; }
+
+      const input = document.getElementById('zaloMsgInput');
+      const message = input.value.trim();
+      if (!message && zaloSelectedFiles.length === 0) {
+        addZaloBot('Vui lòng nhập nội dung hoặc chọn ảnh!');
+        return;
+      }
+
+      const photoUrls = zaloSelectedFiles.map(f => URL.createObjectURL(f));
+      addZaloUser(message, photoUrls);
+
+      const formData = new FormData();
+      formData.append('time', new Date(time).toISOString());
+      formData.append('type', 'zalo');
+      formData.append('profile', zaloProfile);
+      formData.append('groupName', zaloGroupName);
+      formData.append('message', message);
+      zaloSelectedFiles.forEach(file => formData.append('images', file));
+
+      input.value = '';
+      clearZaloImages();
+      addZaloTyping();
+
+      try {
+        const res = await fetch('/api/schedule', { method: 'POST', body: formData });
+        const data = await res.json();
+        removeZaloTyping();
+
+        if (data.success) {
+          let msg = `⏰ ${data.message}\n\n`;
+          msg += `👤 Profile: <strong>${zaloProfile}</strong>\n`;
+          msg += `📍 Nhóm: <strong>${zaloGroupName}</strong>\n`;
+          if (message) msg += `📝 Nội dung: ${message}\n`;
+          if (photoUrls.length > 0) msg += `📷 ${photoUrls.length} ảnh đính kèm`;
+
+          addZaloBot(msg, [
+            { label: '📋 Xem lịch đã đặt', action: 'showZaloScheduleList()' },
+            { label: '⏰ Lên lịch thêm', action: 'showZaloScheduleForm()' },
+            { label: '📝 Gửi ngay', action: "selectZaloMode('now')" },
+          ]);
+        } else {
+          addZaloBot(`❌ Lỗi: ${data.error}`);
+        }
+      } catch (e) {
+        removeZaloTyping();
+        addZaloBot(`❌ Lỗi: ${e.message}`);
+      }
+    }
+
+    async function showZaloScheduleList() {
+      addZaloUser('Xem lịch Zalo');
+      try {
+        const res = await fetch('/api/schedules');
+        const schedules = await res.json();
+        const zaloSchedules = schedules.filter(s => s.type === 'zalo');
+
+        if (zaloSchedules.length === 0) {
+          addZaloBot('Chưa có lịch Zalo nào.', [
+            { label: '⏰ Lên lịch mới', action: 'showZaloScheduleForm()' },
+          ]);
+          return;
+        }
+
+        let msg = `📋 <strong>Lịch gửi Zalo:</strong>\n\n`;
+        const buttons = [];
+        zaloSchedules.forEach(s => {
+          const icon = { pending: '⏳', running: '🔄', done: '✅', error: '❌' }[s.status] || '❓';
+          msg += `${icon} <strong>#${s.id}</strong> - ${s.time}\n`;
+          msg += `   Profile: ${s.profile} | Nhóm: ${s.groupName || ''}\n`;
+          if (s.message) msg += `   Nội dung: ${s.message}`;
+          if (s.imageCount > 0) msg += ` [${s.imageCount} ảnh]`;
+          msg += `\n\n`;
+          if (s.status === 'pending') {
+            buttons.push({ label: `🗑 Xoá #${s.id}`, action: `deleteZaloSchedule(${s.id})` });
+          }
+        });
+        buttons.push({ label: '⏰ Lên lịch mới', action: 'showZaloScheduleForm()' });
+        addZaloBot(msg, buttons);
+      } catch (e) {
+        addZaloBot(`Lỗi: ${e.message}`);
+      }
+    }
+
+    async function deleteZaloSchedule(id) {
+      addZaloUser(`Xoá lịch #${id}`);
+      try {
+        const res = await fetch(`/api/schedule/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        addZaloBot(data.success ? `✅ ${data.message}` : `❌ ${data.error}`, [
+          { label: '📋 Xem lịch', action: 'showZaloScheduleList()' },
+        ]);
+      } catch (e) { addZaloBot(`Lỗi: ${e.message}`); }
+    }
+
+    function manualZaloGroup() {
+      zaloStep = 'group';
+      addZaloBot('Nhập <strong>tên nhóm Zalo</strong> vào ô bên dưới rồi nhấn ➤');
+      document.getElementById('zaloMsgInput').placeholder = 'Nhập tên nhóm Zalo...';
+    }
+
+    function showZaloProfileSelect() {
+      addZaloUser('Đổi profile');
+      addZaloBot(
+        'Chọn profile Zalo:',
+        ZALO_PROFILES.map(p => ({ label: `👤 ${p}`, action: `selectZaloProfile('${p}')` }))
+      );
+    }
+
+    function handleZaloFiles(input) {
+      zaloSelectedFiles = [...zaloSelectedFiles, ...Array.from(input.files)];
+      updateZaloPreview();
+    }
+
+    function updateZaloPreview() {
+      const preview = document.getElementById('zaloImagePreview');
+      const previewDiv = document.getElementById('zaloPreviewImages');
+      previewDiv.innerHTML = '';
+      if (zaloSelectedFiles.length > 0) {
+        preview.classList.add('show');
+        zaloSelectedFiles.forEach((file, index) => {
+          const item = document.createElement('div');
+          item.className = 'preview-item';
+          const img = document.createElement('img');
+          img.src = URL.createObjectURL(file);
+          const btn = document.createElement('button');
+          btn.className = 'remove-img';
+          btn.textContent = '✕';
+          btn.onclick = () => { zaloSelectedFiles.splice(index, 1); updateZaloPreview(); };
+          item.appendChild(img);
+          item.appendChild(btn);
+          previewDiv.appendChild(item);
+        });
+      } else {
+        preview.classList.remove('show');
+      }
+    }
+
+    function clearZaloImages() {
+      zaloSelectedFiles = [];
+      document.getElementById('zaloFileInput').value = '';
+      document.getElementById('zaloImagePreview').classList.remove('show');
+      document.getElementById('zaloPreviewImages').innerHTML = '';
+    }
+
+    async function sendZaloMessage() {
+      const input = document.getElementById('zaloMsgInput');
+      const text = input.value.trim();
+
+      if (!zaloProfile) {
+        addZaloBot('Vui lòng chọn profile Zalo trước!',
+          ZALO_PROFILES.map(p => ({ label: `👤 ${p}`, action: `selectZaloProfile('${p}')` }))
+        );
+        return;
+      }
+
+      // BUOC 1: Nhap ten nhom -> hoi gui ngay hay len lich
+      if (zaloStep === 'group') {
+        if (!text) { addZaloBot('Vui lòng nhập tên nhóm Zalo!'); return; }
+
+        input.value = '';
+        addZaloUser(`Nhóm: ${text}`);
+        // Goi quickSelectZaloGroup de hien nut Gui ngay / Len lich
+        quickSelectZaloGroup(text);
+        return;
+      }
+
+      // BUOC 2: Nhap noi dung
+      if (zaloStep === 'compose') {
+        // Neu dang o mode schedule -> goi submitZaloSchedule
+        if (zaloPostMode === 'schedule') {
+          submitZaloSchedule(zaloScheduleFormId);
+          return;
+        }
+        if (!text && zaloSelectedFiles.length === 0) {
+          addZaloBot('Vui lòng nhập nội dung hoặc chọn ảnh!');
+          return;
+        }
+
+        const photoUrls = zaloSelectedFiles.map(f => URL.createObjectURL(f));
+        addZaloUser(text, photoUrls);
+
+        const formData = new FormData();
+        formData.append('profile', zaloProfile);
+        formData.append('groupName', zaloGroupName);
+        formData.append('message', text);
+        zaloSelectedFiles.forEach(file => formData.append('images', file));
+
+        input.value = '';
+        clearZaloImages();
+        addZaloTyping();
+        document.getElementById('zaloSendBtn').disabled = true;
+
+        try {
+          const res = await fetch('/api/zalo/post', { method: 'POST', body: formData });
+          const data = await res.json();
+          removeZaloTyping();
+
+          if (data.success) {
+            addZaloBot(`✅ Đã gửi tin nhắn Zalo thành công!\n\n👤 Profile: ${data.profile}\n📍 Nhóm: ${zaloGroupName}`, [
+              { label: '📝 Gửi tiếp nhóm này', action: 'focusZaloInput()' },
+              { label: '📍 Đổi nhóm', action: 'changeZaloGroup()' },
+              { label: '🔄 Đổi profile', action: 'showZaloProfileSelect()' },
+            ]);
+          } else {
+            addZaloBot(`❌ Lỗi: ${data.error}`, [
+              { label: '🔄 Thử lại', action: 'focusZaloInput()' },
+              { label: '📍 Đổi nhóm', action: 'changeZaloGroup()' },
+            ]);
+          }
+        } catch (e) {
+          removeZaloTyping();
+          addZaloBot(`❌ Lỗi: ${e.message}`);
+        }
+
+        document.getElementById('zaloSendBtn').disabled = false;
+      }
+    }
+
+    function changeZaloGroup() {
+      zaloStep = 'group';
+      zaloGroupName = null;
+      document.getElementById('zaloMsgInput').placeholder = 'Nhập tên nhóm Zalo...';
+
+      const buttons = [];
+      const groups = ZALO_GROUPS[zaloProfile] || [];
+      groups.forEach(g => {
+        buttons.push({ label: `👥 ${g}`, action: `quickSelectZaloGroup('${g.replace(/'/g, "\\'")}')` });
+      });
+      buttons.push({ label: '🔍 Nhập tên nhóm khác...', action: 'manualZaloGroup()' });
+
+      addZaloBot('Chọn nhóm Zalo:', buttons);
+    }
+
+    function focusZaloInput() {
+      document.getElementById('zaloMsgInput').focus();
+    }
+
+    // Paste anh cho Zalo
+    document.getElementById('pageZalo')?.addEventListener('paste', (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) { zaloSelectedFiles.push(file); updateZaloPreview(); }
+        }
+      }
+    });
+
+    // === Luu chat vao localStorage ===
+    function saveChat() {
+      const chat = document.getElementById('chatArea');
+      localStorage.setItem('xeko_chat', chat.innerHTML);
+      localStorage.setItem('xeko_profile', currentProfile || '');
+      localStorage.setItem('xeko_target', currentTarget || '');
+      localStorage.setItem('xeko_mode', postMode || 'now');
+    }
+
+    function loadChat() {
+      const saved = localStorage.getItem('xeko_chat');
+      if (saved) {
+        const chat = document.getElementById('chatArea');
+        chat.innerHTML = saved;
+        currentProfile = localStorage.getItem('xeko_profile') || null;
+        currentTarget = localStorage.getItem('xeko_target') || null;
+        postMode = localStorage.getItem('xeko_mode') || 'now';
+
+        // Khoi phuc profile tren server
+        if (currentProfile) {
+          fetch('/api/profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ profile: currentProfile }),
+          }).then(r => r.json()).then(data => {
+            updateHeaderProfile(data.name);
+          }).catch(() => {});
+        }
+
+        // Scroll xuong cuoi
+        chat.scrollTop = chat.scrollHeight;
+        return true;
+      }
+      return false;
+    }
+
+    // Luu chat sau moi thay doi
+    const chatObserver = new MutationObserver(() => saveChat());
+    chatObserver.observe(document.getElementById('chatArea'), { childList: true, subtree: true });
+
+    // Khoi dong: load chat cu hoac hien welcome
+    if (!loadChat()) {
+      showWelcome();
+    }
+
+    // ===== DASHBOARD =====
+    let dashPage = 0;
+    const dashLimit = 20;
+
+    async function loadDashboard() {
+      try {
+        // Load statistics
+        const statsRes = await fetch('/api/statistics');
+        const stats = await statsRes.json();
+
+        // Summary cards
+        document.getElementById('statToday').textContent = stats.today?.total || 0;
+        document.getElementById('statSuccess').textContent = stats.today?.success_count || 0;
+        document.getElementById('statFail').textContent = stats.today?.fail_count || 0;
+        document.getElementById('statTotal').textContent = stats.summary?.total || 0;
+
+        // By profile
+        const profileEl = document.getElementById('statByProfile');
+        if (stats.byProfile && stats.byProfile.length > 0) {
+          profileEl.innerHTML = stats.byProfile.map(p => {
+            const rate = p.total > 0 ? Math.round(p.success_count / p.total * 100) : 0;
+            return `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f3f4f6;">
+              <span>${p.profile_name || p.profile}</span>
+              <span><strong>${p.total}</strong> bài · <span style="color:#16a34a">${p.success_count}</span> / <span style="color:#dc2626">${p.fail_count}</span> · ${rate}%</span>
+            </div>`;
+          }).join('');
+        } else {
+          profileEl.innerHTML = '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>';
+        }
+
+        // By group
+        const groupEl = document.getElementById('statByGroup');
+        if (stats.byGroup && stats.byGroup.length > 0) {
+          groupEl.innerHTML = stats.byGroup.map(g => {
+            const icon = g.platform === 'zalo' ? '💬' : '👥';
+            return `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f3f4f6;">
+              <span>${icon} ${g.group_name}</span>
+              <span><strong>${g.total}</strong> bài · <span style="color:#16a34a">${g.success_count}</span> / <span style="color:#dc2626">${g.fail_count}</span></span>
+            </div>`;
+          }).join('');
+        } else {
+          groupEl.innerHTML = '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>';
+        }
+
+        // Populate profile filter
+        const filterProfile = document.getElementById('dashFilterProfile');
+        const currentVal = filterProfile.value;
+        filterProfile.innerHTML = '<option value="">Tất cả tài khoản</option>';
+        if (stats.byProfile) {
+          stats.byProfile.forEach(p => {
+            filterProfile.innerHTML += `<option value="${p.profile}">${p.profile_name || p.profile}</option>`;
+          });
+        }
+        filterProfile.value = currentVal;
+
+        // Load history
+        await loadDashHistory();
+      } catch (e) {
+        console.error('Dashboard error:', e);
+      }
+    }
+
+    async function loadDashHistory() {
+      const profile = document.getElementById('dashFilterProfile').value;
+      const platform = document.getElementById('dashFilterPlatform').value;
+      const success = document.getElementById('dashFilterStatus').value;
+      const from = document.getElementById('dashFilterFrom').value;
+      const to = document.getElementById('dashFilterTo').value;
+
+      const params = new URLSearchParams();
+      if (profile) params.set('profile', profile);
+      if (platform) params.set('platform', platform);
+      if (success !== '') params.set('success', success);
+      if (from) params.set('from', from + 'T00:00:00.000Z');
+      if (to) params.set('to', to + 'T23:59:59.999Z');
+      params.set('limit', dashLimit);
+      params.set('offset', dashPage * dashLimit);
+
+      try {
+        const res = await fetch('/api/post-history?' + params.toString());
+        const data = await res.json();
+
+        const tbody = document.getElementById('dashHistoryBody');
+        if (data.rows && data.rows.length > 0) {
+          tbody.innerHTML = data.rows.map(row => {
+            const time = new Date(row.timestamp).toLocaleString('vi-VN');
+            const platformIcon = row.platform === 'zalo' ? '💬' : '📘';
+            const statusBadge = row.success
+              ? '<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:6px; font-size:11px;">OK</span>'
+              : `<span style="background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:6px; font-size:11px;" title="${row.error || ''}">Lỗi</span>`;
+            const target = row.group_name || (row.target === 'personal' ? 'Cá nhân' : row.target);
+            const sourceMap = { web: '🌐', telegram: '🤖', schedule: '⏰' };
+            const msg = row.message ? (row.message.length > 40 ? row.message.substring(0, 40) + '...' : row.message) : '-';
+
+            return `<tr style="border-bottom:1px solid #f3f4f6;">
+              <td style="padding:10px 14px; white-space:nowrap;">${time}</td>
+              <td style="padding:10px 14px;">${row.profile_name || row.profile}</td>
+              <td style="padding:10px 14px;">${platformIcon} ${row.platform}</td>
+              <td style="padding:10px 14px;">${target}</td>
+              <td style="padding:10px 14px; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.message||'').replace(/"/g,'&quot;')}">${msg}</td>
+              <td style="padding:10px 14px; text-align:center;">${row.image_count || 0}</td>
+              <td style="padding:10px 14px; text-align:center;">${statusBadge}</td>
+              <td style="padding:10px 14px;">${sourceMap[row.source] || row.source}</td>
+            </tr>`;
+          }).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="8" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
+        }
+
+        // Pagination
+        const totalPages = Math.ceil(data.total / dashLimit);
+        const paginationEl = document.getElementById('dashPagination');
+        if (totalPages > 1) {
+          let html = '';
+          if (dashPage > 0) html += `<button onclick="dashGoPage(${dashPage - 1})" style="padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer;">← Trước</button>`;
+          html += `<span style="padding:6px 12px; color:#666;">Trang ${dashPage + 1} / ${totalPages} (${data.total} bài)</span>`;
+          if (dashPage < totalPages - 1) html += `<button onclick="dashGoPage(${dashPage + 1})" style="padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer;">Sau →</button>`;
+          paginationEl.innerHTML = html;
+        } else {
+          paginationEl.innerHTML = data.total > 0 ? `<span style="color:#999; font-size:12px;">Tổng: ${data.total} bài</span>` : '';
+        }
+      } catch (e) {
+        console.error('History error:', e);
+      }
+    }
+
+    function dashGoPage(page) {
+      dashPage = page;
+      loadDashHistory();
+    }
+  </script>
+</body>
+</html>
