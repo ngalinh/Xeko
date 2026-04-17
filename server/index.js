@@ -2,12 +2,12 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const config = require('../config/default');
-const logger = require('./utils/logger');
+const config = require('./config/default');
+const logger = require('./src/utils/logger');
 const playwright = process.env.PLAYWRIGHT_LOCAL_URL
   ? require('./playwright-proxy')
-  : require('./playwright/post');
-const postLogger = require('./database/post-logger');
+  : require('./src/playwright/post');
+const postLogger = require('./src/database/post-logger');
 
 const app = express();
 app.use(express.json());
@@ -300,7 +300,7 @@ app.post('/api/command', (req, res) => {
 });
 
 // === Zalo API ===
-const salework = require('./playwright/salework');
+const salework = require('./src/playwright/salework');
 
 app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
   const { profile, groupName, message } = req.body;
@@ -324,9 +324,9 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
 });
 
 // === Session Check API ===
-const sessionCheck = require('./utils/session-check');
+const sessionCheck = require('./src/utils/session-check');
 
-const loginHistory = require('./utils/login-history');
+const loginHistory = require('./src/utils/login-history');
 
 // Them tai khoan moi + mo trinh duyet de login thu cong
 app.post('/api/accounts', async (req, res) => {
@@ -598,7 +598,7 @@ app.get('/api/sessions', async (req, res) => {
 });
 
 // === Scheduler API ===
-const scheduler = require('./utils/scheduler');
+const scheduler = require('./src/utils/scheduler');
 
 // Len lich dang bai
 app.post('/api/schedule', upload.array('images', 10), (req, res) => {
