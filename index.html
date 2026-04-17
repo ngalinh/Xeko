@@ -467,9 +467,141 @@
     .theme-toggle:hover { background: #e0d4ff; }
     [data-theme="dark"] .theme-toggle { background: #1e1e3a; }
     [data-theme="dark"] .theme-toggle:hover { background: #2d2b55; }
+
+    /* ===== MOBILE BOTTOM NAV (hidden on desktop) ===== */
+    .mobile-bottom-nav {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: #fff;
+      border-top: 1px solid #eee;
+      z-index: 200;
+      justify-content: space-around;
+      align-items: stretch;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .mobile-nav-item {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 3px;
+      padding: 8px 4px 6px;
+      border: none; background: none; cursor: pointer;
+      font-size: 10px; color: #999; flex: 1;
+      transition: color 0.15s;
+    }
+    .mobile-nav-item .mn-icon { font-size: 22px; line-height: 1; }
+    .mobile-nav-item.active { color: #4f46e5; }
+    .mobile-nav-item.active .mn-icon { transform: scale(1.08); }
+    .mobile-nav-item:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ===== MOBILE OVERLAY ===== */
+    .mobile-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45); z-index: 998;
+    }
+    .mobile-overlay.show { display: block; }
+
+    /* ===== @media MOBILE ===== */
+    @media (max-width: 768px) {
+      body { overflow: hidden; }
+
+      /* Sidebar becomes hidden drawer */
+      .sidebar {
+        position: fixed; top: 0; left: -280px;
+        width: 280px; height: 100vh;
+        z-index: 999; transition: left 0.28s cubic-bezier(.4,0,.2,1);
+        box-shadow: none;
+      }
+      .sidebar.sidebar-open {
+        left: 0;
+        box-shadow: 6px 0 28px rgba(0,0,0,0.18);
+      }
+
+      /* Bottom nav visible */
+      .mobile-bottom-nav { display: flex; }
+
+      /* Main content full-width, pad for bottom nav */
+      .main-content { padding-bottom: 56px; }
+
+      /* Header tighter */
+      .header { padding: 10px 14px; gap: 8px; }
+      .header-info h1 { font-size: 14px; }
+      .header-info span { font-size: 11px; }
+
+      /* Hamburger button visible */
+      .mobile-hamburger {
+        display: flex !important;
+        width: 36px; height: 36px;
+        border-radius: 8px; border: none;
+        background: #f0edff; color: #4f46e5;
+        font-size: 18px; align-items: center; justify-content: center;
+        cursor: pointer; flex-shrink: 0;
+      }
+
+      /* Chat area */
+      .chat-area { padding: 12px 12px 8px; gap: 14px; }
+
+      /* Messages wider on mobile */
+      .msg-row { max-width: 90%; }
+      .msg { font-size: 14px; padding: 10px 13px; }
+
+      /* Input area */
+      .input-area { padding: 8px 10px; gap: 7px; }
+      .input-area input[type="text"] {
+        font-size: 16px; /* prevent iOS zoom */
+        padding: 9px 13px;
+      }
+      .btn-icon { width: 38px; height: 38px; font-size: 16px; }
+
+      /* Popup menu repositioned for mobile */
+      .popup-menu {
+        left: 10px; right: 10px; bottom: 110px;
+        min-width: unset;
+      }
+
+      /* Settings/accounts page padding */
+      #pageSession .page > div,
+      #pageSession > div { padding: 16px; }
+
+      /* Account tab bar scrollable */
+      .acc-tab-bar {
+        overflow-x: auto; -webkit-overflow-scrolling: touch;
+        white-space: nowrap; flex-wrap: nowrap !important;
+        padding-bottom: 2px; gap: 4px !important;
+      }
+      .acc-tab { font-size: 12px; padding: 7px 10px; white-space: nowrap; }
+
+      /* Edit profile modal full-width */
+      #editProfileModal > div {
+        width: 94% !important; max-width: 94% !important;
+        padding: 18px 16px !important;
+      }
+
+      /* Profile cards compact */
+      .profile-card { padding: 11px 14px; gap: 10px; }
+
+      /* Dashboard page padding */
+      #pageDashboard > div:last-child { padding: 14px !important; }
+
+      /* Stats table horizontal scroll */
+      table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
+
+      /* Calendar page padding */
+      #pageCalendar > div:last-child { padding: 14px !important; }
+
+      /* Image preview */
+      .image-preview { padding: 6px 10px; }
+
+      /* Photo grid max width */
+      .photo-grid { max-width: 100%; }
+
+      /* Channel form inputs wrap nicely */
+      #panelChannels > div > div:last-child { gap: 6px !important; }
+    }
   </style>
 </head>
 <body>
+
+  <div class="mobile-overlay" id="mobileOverlay" onclick="closeSidebar()"></div>
 
   <!-- Sidebar -->
   <div class="sidebar">
@@ -511,6 +643,7 @@
   <!-- PAGE: Đăng bài -->
   <div class="page active" id="pageDangBai">
   <div class="header">
+    <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;">☰</button>
     <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:22px;">📝</div>
     <div class="header-info">
       <h1>Đăng bài</h1>
@@ -549,6 +682,7 @@
   <!-- PAGE: Đăng Zalo -->
   <div class="page" id="pageZalo">
     <div class="header">
+      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;">☰</button>
       <img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Icon_of_Zalo.svg" alt="Zalo" style="width:28px;height:28px;">
       <div class="header-info">
         <h1>Zalo</h1>
@@ -571,6 +705,7 @@
   <!-- PAGE: Lịch đăng bài -->
   <div class="page" id="pageCalendar">
     <div class="header">
+      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;">☰</button>
       <div class="header-info">
         <h1>📅 Lịch đăng bài</h1>
         <span>Tổng hợp bài đã lên lịch - Facebook & Zalo</span>
@@ -621,6 +756,7 @@
   <!-- PAGE: Quản lý tài khoản -->
   <div class="page" id="pageSession">
     <div class="header">
+      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;">☰</button>
       <div class="header-info">
         <h1>👥 Quản lý tài khoản</h1>
         <span>Quản lý profile Chromium - Facebook & Zalo</span>
@@ -629,7 +765,7 @@
     <div style="flex:1; padding:24px 32px; overflow-y:auto;">
 
       <!-- Tab navigation -->
-      <div style="display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid #eee; padding-bottom:12px; flex-wrap:wrap;">
+      <div class="acc-tab-bar" style="display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid #eee; padding-bottom:12px; flex-wrap:wrap;">
         <button onclick="switchAccountTab('profiles')" class="acc-tab active" id="tabProfiles">📋 Tài khoản</button>
         <button onclick="switchAccountTab('add')" class="acc-tab" id="tabAdd">➕ Thêm tài khoản</button>
         <button onclick="switchAccountTab('channels')" class="acc-tab" id="tabChannels">⚙️ Cài đặt kênh</button>
@@ -786,6 +922,7 @@
   <!-- PAGE: Spy bài viết -->
   <div class="page" id="pageSpyBaiViet">
     <div class="header">
+      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;">☰</button>
       <div class="header-info">
         <h1>🔍 Spy bài viết</h1>
         <span>Tính năng đang phát triển</span>
@@ -804,6 +941,7 @@
   <!-- PAGE: Dashboard Thống kê -->
   <div class="page" id="pageDashboard">
     <div class="header">
+      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;">☰</button>
       <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:22px;">📊</div>
       <div class="header-info">
         <h1>Thống kê</h1>
@@ -1826,6 +1964,20 @@
       }
     }
 
+    function toggleSidebar() {
+      const sidebar = document.querySelector('.sidebar');
+      const overlay = document.getElementById('mobileOverlay');
+      sidebar.classList.toggle('sidebar-open');
+      overlay.classList.toggle('show');
+    }
+
+    function closeSidebar() {
+      const sidebar = document.querySelector('.sidebar');
+      const overlay = document.getElementById('mobileOverlay');
+      sidebar.classList.remove('sidebar-open');
+      overlay.classList.remove('show');
+    }
+
     function toggleMenu() {
       document.getElementById('popupMenu').classList.toggle('show');
     }
@@ -1871,6 +2023,14 @@
       if (pg === 'session') {
         renderProfileList();
       }
+
+      // Sync mobile bottom nav
+      document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
+      const mobileMap = { post:'Post', calendar:'Calendar', dashboard:'Dashboard', session:'Session', spy:'Spy' };
+      const mobileBtn = document.getElementById('mobileNav' + (mobileMap[pg] || ''));
+      if (mobileBtn) mobileBtn.classList.add('active');
+      // Close sidebar if open
+      closeSidebar();
     }
 
     // === Lich dang bai ===
@@ -3128,5 +3288,24 @@
       loadDashHistory();
     }
   </script>
+
+  <!-- Mobile bottom navigation -->
+  <nav class="mobile-bottom-nav" id="mobileBottomNav">
+    <button class="mobile-nav-item active" id="mobileNavPost" onclick="switchPage('post')">
+      <span class="mn-icon">📝</span>Đăng bài
+    </button>
+    <button class="mobile-nav-item" id="mobileNavCalendar" onclick="switchPage('calendar')">
+      <span class="mn-icon">📅</span>Lịch
+    </button>
+    <button class="mobile-nav-item" id="mobileNavDashboard" onclick="switchPage('dashboard')">
+      <span class="mn-icon">📊</span>Thống kê
+    </button>
+    <button class="mobile-nav-item" id="mobileNavSession" onclick="switchPage('session')">
+      <span class="mn-icon">👥</span>Tài khoản
+    </button>
+    <button class="mobile-nav-item" id="mobileNavSpy" onclick="switchPage('spy')" disabled>
+      <span class="mn-icon">🔍</span>Spy
+    </button>
+  </nav>
 </body>
 </html>
