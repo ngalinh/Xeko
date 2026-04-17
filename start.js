@@ -7,9 +7,18 @@
  * Cách dùng: node start.js
  */
 
-require('dotenv').config();
-const { spawn } = require('child_process');
+const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
+
+// Đọc .env thủ công không cần dotenv
+const envFile = path.resolve(__dirname, '.env');
+if (fs.existsSync(envFile)) {
+  fs.readFileSync(envFile, 'utf8').split('\n').forEach(line => {
+    const m = line.match(/^([^#=]+)=(.*)$/);
+    if (m) process.env[m[1].trim()] = m[2].trim();
+  });
+}
 
 const REMOTE_BOT_URL = process.env.REMOTE_BOT_URL || 'https://ai.basso.vn/b/9cdc3e8d6a564b5e';
 const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
