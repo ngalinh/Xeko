@@ -2568,10 +2568,6 @@
 
     function clearChat() {
       document.getElementById('chatArea').innerHTML = '';
-      localStorage.removeItem('xeko_chat');
-      localStorage.removeItem('xeko_profile');
-      localStorage.removeItem('xeko_target');
-      localStorage.removeItem('xeko_mode');
       currentProfile = null;
       currentTarget = null;
       postMode = 'now';
@@ -3064,50 +3060,14 @@
       }
     });
 
-    // === Luu chat vao localStorage ===
-    function saveChat() {
-      const chat = document.getElementById('chatArea');
-      localStorage.setItem('xeko_chat', chat.innerHTML);
-      localStorage.setItem('xeko_profile', currentProfile || '');
-      localStorage.setItem('xeko_target', currentTarget || '');
-      localStorage.setItem('xeko_mode', postMode || 'now');
-    }
+    // Xoa chat cu trong localStorage (neu con ton tai tu phien truoc)
+    localStorage.removeItem('xeko_chat');
+    localStorage.removeItem('xeko_profile');
+    localStorage.removeItem('xeko_target');
+    localStorage.removeItem('xeko_mode');
 
-    function loadChat() {
-      const saved = localStorage.getItem('xeko_chat');
-      if (saved) {
-        const chat = document.getElementById('chatArea');
-        chat.innerHTML = saved;
-        currentProfile = localStorage.getItem('xeko_profile') || null;
-        currentTarget = localStorage.getItem('xeko_target') || null;
-        postMode = localStorage.getItem('xeko_mode') || 'now';
-
-        // Khoi phuc profile tren server
-        if (currentProfile) {
-          fetch(BASE_URL + '/api/profile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ profile: currentProfile }),
-          }).then(r => r.json()).then(data => {
-            updateHeaderProfile(data.name);
-          }).catch(() => {});
-        }
-
-        // Scroll xuong cuoi
-        chat.scrollTop = chat.scrollHeight;
-        return true;
-      }
-      return false;
-    }
-
-    // Luu chat sau moi thay doi
-    const chatObserver = new MutationObserver(() => saveChat());
-    chatObserver.observe(document.getElementById('chatArea'), { childList: true, subtree: true });
-
-    // Khoi dong: load chat cu hoac hien welcome
-    if (!loadChat()) {
-      showWelcome();
-    }
+    // Khoi dong: luon hien welcome moi
+    showWelcome();
 
     // ===== DASHBOARD =====
     let dashPage = 0;
