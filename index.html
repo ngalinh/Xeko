@@ -330,25 +330,6 @@
       color: #fff; font-size: 24px; font-weight: bold;
     }
 
-    /* Menu button */
-    .btn-menu { background: #f0edff; color: #4f46e5; font-size: 20px; }
-    .btn-menu:hover { background: #e0d4ff; }
-
-    /* Popup menu */
-    .popup-menu {
-      display: none; position: fixed; bottom: 70px; left: 276px;
-      background: #fff; border-radius: 12px;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-      border: 1px solid #eee; padding: 6px 0; z-index: 100; min-width: 220px;
-    }
-    .popup-menu.show { display: block; }
-    .popup-menu button {
-      display: block; width: 100%;
-      padding: 10px 18px; border: none; background: none;
-      color: #444; font-size: 14px; text-align: left;
-      cursor: pointer; transition: all 0.12s;
-    }
-    .popup-menu button:hover { background: #f5f3ff; color: #4f46e5; }
 
     /* Loading */
     .typing { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
@@ -419,13 +400,10 @@
     [data-theme="dark"] .input-area input[type="text"]:focus { border-color: #a78bfa; box-shadow: 0 0 0 3px rgba(167,139,250,0.15); }
     [data-theme="dark"] .btn-attach { background: #1e1e3a; color: #a78bfa; }
     [data-theme="dark"] .btn-attach:hover { background: #2d2b55; }
-    [data-theme="dark"] .btn-menu { background: #1e1e3a; color: #a78bfa; }
-    [data-theme="dark"] .btn-menu:hover { background: #2d2b55; }
+
     [data-theme="dark"] .image-preview { background: #16172b; border-color: #2a2a4a; }
     [data-theme="dark"] .preview-item img { border-color: #3a3a5a; }
-    [data-theme="dark"] .popup-menu { background: #1e1e3a; border-color: #3a3a5a; }
-    [data-theme="dark"] .popup-menu button { color: #ccc; }
-    [data-theme="dark"] .popup-menu button:hover { background: #2d2b55; color: #a78bfa; }
+
     [data-theme="dark"] .sidebar-logo .edit-icon { background: #1e1e3a; color: #a78bfa; }
     [data-theme="dark"] #pageCalendar div[style*="background:#fffbeb"] { background: #2e2a1a !important; border-color: #4a3a2a !important; }
     [data-theme="dark"] #pageCalendar div[style*="background:#eef2ff"] { background: #1a1a2e !important; border-color: #2a2a4a !important; }
@@ -552,11 +530,6 @@
       }
       .btn-icon { width: 38px; height: 38px; font-size: 16px; }
 
-      /* Popup menu repositioned for mobile */
-      .popup-menu {
-        left: 10px; right: 10px; bottom: 110px;
-        min-width: unset;
-      }
 
       /* Settings/accounts page padding */
       #pageSession .page > div,
@@ -660,7 +633,6 @@
   </div>
 
   <div class="input-area" id="inputArea">
-    <button class="btn-icon btn-menu" onclick="toggleMenu()">☰</button>
     <button class="btn-icon btn-attach" onclick="document.getElementById('fileInput').click()">📷</button>
     <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this)">
     <input type="text" id="msgInput" placeholder="Nhập nội dung bài viết..." autocomplete="off" onkeydown="if(event.key==='Enter')sendMessage()">
@@ -668,15 +640,6 @@
     <button class="btn-icon btn-send" id="sendBtn" onclick="sendMessage()">➤</button>
   </div>
 
-  <div class="popup-menu" id="popupMenu">
-    <button onclick="toggleMenu(); showProfileSelect()">👤 Chọn Profile</button>
-    <button onclick="toggleMenu(); showModeSelect()">📝 Đổi chế độ</button>
-    <button onclick="toggleMenu(); showTargetSelect()">📍 Đổi nơi đăng</button>
-    <button onclick="toggleMenu(); showScheduleList()">📋 Xem lịch đăng</button>
-    <button onclick="toggleMenu(); showStatus()">📊 Trạng thái</button>
-    <button onclick="toggleMenu(); showWelcome()">🏠 Về trang chủ</button>
-    <button onclick="toggleMenu(); clearChat()" style="color:#e74c3c;">🗑 Xoá lịch sử chat</button>
-  </div>
   </div><!-- end pageDangBai -->
 
   <!-- PAGE: Đăng Zalo -->
@@ -1979,18 +1942,6 @@
       overlay.classList.remove('show');
     }
 
-    function toggleMenu() {
-      document.getElementById('popupMenu').classList.toggle('show');
-    }
-
-    // Dong menu khi click ra ngoai
-    document.addEventListener('click', (e) => {
-      const menu = document.getElementById('popupMenu');
-      const menuBtn = document.querySelector('.btn-menu');
-      if (menu.classList.contains('show') && !menu.contains(e.target) && e.target !== menuBtn) {
-        menu.classList.remove('show');
-      }
-    });
 
     function switchPage(pg) {
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
