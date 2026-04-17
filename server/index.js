@@ -562,6 +562,8 @@ function loadProfilesMeta() {
   return {};
 }
 function saveProfilesMeta(data) {
+  const dir = path.dirname(PROFILES_META_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(PROFILES_META_FILE, JSON.stringify(data, null, 2));
 }
 
