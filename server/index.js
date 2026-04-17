@@ -554,7 +554,7 @@ app.get('/api/accounts', async (req, res) => {
 });
 
 // Luu thong tin profile dong vao file JSON
-const PROFILES_META_FILE = path.resolve(__dirname, '../config/profiles-meta.json');
+const PROFILES_META_FILE = path.resolve(__dirname, './config/profiles-meta.json');
 function loadProfilesMeta() {
   try {
     if (fs.existsSync(PROFILES_META_FILE)) return JSON.parse(fs.readFileSync(PROFILES_META_FILE, 'utf8'));
