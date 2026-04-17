@@ -531,7 +531,7 @@
     <button class="btn-icon btn-attach" onclick="document.getElementById('fileInput').click()">📷</button>
     <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this)">
     <input type="text" id="msgInput" placeholder="Nhập nội dung bài viết..." autocomplete="off" onkeydown="if(event.key==='Enter')sendMessage()">
-    <input type="text" id="groupIdInput" placeholder="Nhập Group ID..." style="display:none; width:140px;">
+    <input type="text" id="groupIdInput" placeholder="Nhập Group ID..." autocomplete="off" style="display:none; width:140px;">
     <button class="btn-icon btn-send" id="sendBtn" onclick="sendMessage()">➤</button>
   </div>
 
@@ -676,22 +676,22 @@
 
           <div style="margin-bottom:14px;">
             <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Tên profile (không dấu, viết liền)</label>
-            <input type="text" id="newAccKey" placeholder="vd: linhthao, linhduong..." style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+            <input type="text" id="newAccKey" placeholder="vd: linhthao, linhduong..." autocomplete="off" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
           </div>
 
           <div style="margin-bottom:14px;">
             <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Tên hiển thị</label>
-            <input type="text" id="newAccName" placeholder="vd: Linh Thảo US" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+            <input type="text" id="newAccName" placeholder="vd: Linh Thảo US" autocomplete="off" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
           </div>
 
           <div id="newAccFbFields">
             <div style="margin-bottom:14px;">
               <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Email / SĐT Facebook</label>
-              <input type="text" id="newAccEmail" placeholder="email hoặc số điện thoại" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+              <input type="text" id="newAccEmail" placeholder="email hoặc số điện thoại" autocomplete="off" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
             </div>
             <div style="margin-bottom:14px;">
               <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Mật khẩu Facebook</label>
-              <input type="password" id="newAccPass" placeholder="mật khẩu" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+              <input type="password" id="newAccPass" placeholder="mật khẩu" autocomplete="new-password" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
             </div>
           </div>
 
@@ -841,15 +841,15 @@
       <input type="hidden" id="editKey">
       <div style="margin-bottom:12px;">
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Tên hiển thị</label>
-        <input type="text" id="editName" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+        <input type="text" id="editName" autocomplete="off" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
       </div>
       <div style="margin-bottom:12px;">
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Email / SĐT</label>
-        <input type="text" id="editEmail" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+        <input type="text" id="editEmail" autocomplete="off" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
       </div>
       <div style="margin-bottom:16px;">
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Mật khẩu</label>
-        <input type="password" id="editPassword" placeholder="Để trống nếu không đổi" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+        <input type="password" id="editPassword" placeholder="Để trống nếu không đổi" autocomplete="new-password" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
       </div>
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button onclick="closeEditModal()" style="padding:8px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
@@ -1122,7 +1122,7 @@
         <span class="ch-tag fb">FB</span>
       </label>`;
       panelHtml += `<div id="customGroupInput_${pid}" style="display:none; padding:4px 14px 10px 38px;">
-        <input type="text" id="customGroupId_${pid}" placeholder="Nhập Group ID, cách nhau bởi dấu phẩy..." style="width:100%; padding:7px 12px; border-radius:8px; border:1px solid #e0d4ff; font-size:13px; background:#faf8ff; color:#333;">
+        <input type="text" id="customGroupId_${pid}" placeholder="Nhập Group ID, cách nhau bởi dấu phẩy..." autocomplete="off" style="width:100%; padding:7px 12px; border-radius:8px; border:1px solid #e0d4ff; font-size:13px; background:#faf8ff; color:#333;">
       </div>`;
       for (const ch of p.zalo) {
         panelHtml += `<label class="channel-item ch-zalo" data-panel="${pid}" data-platform="zalo" data-profile="${currentProfile}" data-chid="${ch.id}" data-zalo-group="${ch.name}">
