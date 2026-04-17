@@ -1032,6 +1032,16 @@
       return new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     }
 
+    async function parseJson(res) {
+      const text = await res.text();
+      try {
+        return JSON.parse(text);
+      } catch {
+        const snippet = text.replace(/\s+/g, ' ').slice(0, 120);
+        throw new Error(`HTTP ${res.status} ${res.statusText} — server không trả JSON: ${snippet}`);
+      }
+    }
+
     const BOT_AVATAR = '/xeko-avatar.png';
 
     function buildPhotoGrid(photos) {
@@ -1665,7 +1675,7 @@
 
       try {
         const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: formData });
-        const data = await res.json();
+        const data = await parseJson(res);
         removeTyping();
 
         if (data.results) {
@@ -1697,7 +1707,7 @@
             cf.append('groupId', gid);
             selectedFiles.forEach(file => cf.append('images', file));
             const cr = await fetch(BASE_URL + '/api/post', { method: 'POST', body: cf });
-            const cd = await cr.json();
+            const cd = await parseJson(cr);
             removeTyping();
             if (cd.success) {
               let msg = `Đã đăng bài lên <strong>Group #${gid}</strong> thành công!`;
