@@ -337,9 +337,9 @@ app.post('/api/accounts', async (req, res) => {
   }
 
   // Neu dang chay o che do proxy (remote server), forward sang local server
-  if (process.env.PLAYWRIGHT_LOCAL_URL) {
+  if (getLocalUrl()) {
     try {
-      const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL;
+      const LOCAL_URL = getLocalUrl();
       const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
       const getFetch = async () => {
         if (typeof fetch !== 'undefined') return fetch;
@@ -445,9 +445,9 @@ app.delete('/api/accounts/:type/:key', async (req, res) => {
   const { type, key } = req.params;
 
   // Neu dang chay o che do proxy, forward sang local server
-  if (process.env.PLAYWRIGHT_LOCAL_URL) {
+  if (getLocalUrl()) {
     try {
-      const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL;
+      const LOCAL_URL = getLocalUrl();
       const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
       const getFetch = async () => {
         if (typeof fetch !== 'undefined') return fetch;
@@ -497,9 +497,9 @@ app.delete('/api/accounts/:type/:key', async (req, res) => {
 // Lay danh sach profiles tu thu muc playwright-data
 app.get('/api/accounts', async (req, res) => {
   // Neu dang chay o che do proxy, lay tu local server
-  if (process.env.PLAYWRIGHT_LOCAL_URL) {
+  if (getLocalUrl()) {
     try {
-      const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL;
+      const LOCAL_URL = getLocalUrl();
       const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
       const getFetch = async () => {
         if (typeof fetch !== 'undefined') return fetch;
@@ -575,9 +575,9 @@ app.put('/api/accounts/:key', async (req, res) => {
   if (!name) return res.status(400).json({ error: 'Thiếu tên hiển thị' });
 
   // Proxy sang local server de dong bo voi GET /api/accounts
-  if (process.env.PLAYWRIGHT_LOCAL_URL) {
+  if (getLocalUrl()) {
     try {
-      const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL;
+      const LOCAL_URL = getLocalUrl();
       const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
       const getFetch = async () => {
         if (typeof fetch !== 'undefined') return fetch;
@@ -615,9 +615,9 @@ app.get('/api/login-history', (req, res) => {
 
 app.get('/api/sessions', async (req, res) => {
   // Session check cần Playwright - proxy sang local server
-  if (process.env.PLAYWRIGHT_LOCAL_URL) {
+  if (getLocalUrl()) {
     try {
-      const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL;
+      const LOCAL_URL = getLocalUrl();
       const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
       const getFetch = async () => {
         if (typeof fetch !== 'undefined') return fetch;
@@ -739,6 +739,26 @@ app.get('/api/statistics', (req, res) => {
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Local server tu dang ky URL tunnel moi khi khoi dong
+let dynamicLocalUrl = process.env.PLAYWRIGHT_LOCAL_URL || null;
+
+app.post('/api/register-local', (req, res) => {
+  const { url } = req.body;
+  const apiKey = req.headers['x-api-key'];
+  if (apiKey !== (process.env.LOCAL_API_KEY || 'change-this-secret-key')) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  if (!url) return res.status(400).json({ error: 'Missing url' });
+  dynamicLocalUrl = url;
+  logger.info(`Local server da dang ky URL moi: ${url}`);
+  res.json({ success: true, message: `Đã cập nhật URL: ${url}` });
+});
+
+// Override PLAYWRIGHT_LOCAL_URL bang dynamicLocalUrl neu co
+function getLocalUrl() {
+  return dynamicLocalUrl || process.env.PLAYWRIGHT_LOCAL_URL;
+}
 
 app.listen(config.server.port, () => {
   logger.info(`Web server dang chay: http://localhost:${config.server.port}`);
