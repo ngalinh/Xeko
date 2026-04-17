@@ -784,6 +784,7 @@ app.post('/api/register-local', (req, res) => {
   }
   if (!url) return res.status(400).json({ error: 'Missing url' });
   dynamicLocalUrl = url;
+  process.env.PLAYWRIGHT_LOCAL_URL = url; // Cập nhật để playwright-proxy đọc URL mới
   logger.info(`Local server da dang ky URL moi: ${url}`);
   res.json({ success: true, message: `Đã cập nhật URL: ${url}` });
 });

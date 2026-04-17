@@ -7,7 +7,7 @@ const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
 
-const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL; // vd: https://automation.basso.vn
+// Không cache LOCAL_URL — đọc động mỗi lần gọi để nhận URL tunnel mới sau register-local
 const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
 
 // State active profile (lưu trên server để trả lời nhanh)
@@ -18,8 +18,9 @@ let _activeProfileName = null;
  * Gọi API về máy local
  */
 async function callLocal(method, endpoint, data = null, files = []) {
+  const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL; // Đọc động mỗi lần
   if (!LOCAL_URL) {
-    throw new Error('PLAYWRIGHT_LOCAL_URL chưa được set trong .env');
+    throw new Error('Local server chưa kết nối. Hãy chạy start.js trên máy local!');
   }
 
   const url = `${LOCAL_URL}${endpoint}`;
