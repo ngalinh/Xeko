@@ -735,6 +735,39 @@ app.get('/api/statistics', (req, res) => {
   }
 });
 
+// ===== CHANNELS PROXY =====
+async function proxyToLocal(req, res, method, path, body = null) {
+  const LOCAL_URL = getLocalUrl();
+  if (!LOCAL_URL) return res.status(503).json({ error: 'Local server chưa kết nối' });
+  try {
+    const getFetch = async () => {
+      if (typeof fetch !== 'undefined') return fetch;
+      const { default: nodeFetch } = await import('node-fetch');
+      return nodeFetch;
+    };
+    const fetchFn = await getFetch();
+    const opts = {
+      method,
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+    };
+    if (body) opts.body = JSON.stringify(body);
+    const response = await fetchFn(`${LOCAL_URL}${path}`, opts);
+    const data = await response.json();
+    return res.status(response.status).json(data);
+  } catch (e) {
+    return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
+  }
+}
+
+app.get('/api/channels', (req, res) => proxyToLocal(req, res, 'GET', '/api/channels'));
+app.post('/api/channels/fb-groups', (req, res) => proxyToLocal(req, res, 'POST', '/api/channels/fb-groups', req.body));
+app.delete('/api/channels/fb-groups/:key', (req, res) => proxyToLocal(req, res, 'DELETE', `/api/channels/fb-groups/${req.params.key}`));
+app.post('/api/channels/zalo-profiles', (req, res) => proxyToLocal(req, res, 'POST', '/api/channels/zalo-profiles', req.body));
+app.delete('/api/channels/zalo-profiles/:name', (req, res) => proxyToLocal(req, res, 'DELETE', `/api/channels/zalo-profiles/${req.params.name}`));
+app.post('/api/channels/zalo-groups', (req, res) => proxyToLocal(req, res, 'POST', '/api/channels/zalo-groups', req.body));
+app.delete('/api/channels/zalo-groups', (req, res) => proxyToLocal(req, res, 'DELETE', '/api/channels/zalo-groups', req.body));
+app.put('/api/channels/profile-channels', (req, res) => proxyToLocal(req, res, 'PUT', '/api/channels/profile-channels', req.body));
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
