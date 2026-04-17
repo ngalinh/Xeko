@@ -568,11 +568,34 @@ function saveProfilesMeta(data) {
 }
 
 // Cap nhat thong tin profile
-app.put('/api/accounts/:key', (req, res) => {
+app.put('/api/accounts/:key', async (req, res) => {
   const { key } = req.params;
   const { name, email, password } = req.body;
 
   if (!name) return res.status(400).json({ error: 'Thiếu tên hiển thị' });
+
+  // Proxy sang local server de dong bo voi GET /api/accounts
+  if (process.env.PLAYWRIGHT_LOCAL_URL) {
+    try {
+      const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL;
+      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const getFetch = async () => {
+        if (typeof fetch !== 'undefined') return fetch;
+        const { default: nodeFetch } = await import('node-fetch');
+        return nodeFetch;
+      };
+      const fetchFn = await getFetch();
+      const response = await fetchFn(`${LOCAL_URL}/api/accounts/${key}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+        body: JSON.stringify({ name, email, password }),
+      });
+      const data = await response.json();
+      return res.status(response.status).json(data);
+    } catch (e) {
+      return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
+    }
+  }
 
   try {
     const meta = loadProfilesMeta();
