@@ -322,6 +322,93 @@ app.get('/api/screenshot', (req, res) => {
   }
 });
 
+// ===== CHANNELS CONFIG =====
+const CHANNELS_FILE = path.resolve(__dirname, 'config/channels.json');
+
+function readChannels() {
+  if (!fs.existsSync(CHANNELS_FILE)) {
+    // Auto-populate from config/default.js on first use
+    try {
+      const cfg = require('./config/default');
+      const fbGroups = Object.entries(cfg.groups || {}).map(([key, g]) => ({ key, id: g.id, name: g.name }));
+      return { fbGroups, zaloProfiles: [], profileChannels: {} };
+    } catch { return { fbGroups: [], zaloProfiles: [], profileChannels: {} }; }
+  }
+  return JSON.parse(fs.readFileSync(CHANNELS_FILE, 'utf8'));
+}
+
+function saveChannels(data) {
+  const dir = path.dirname(CHANNELS_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(CHANNELS_FILE, JSON.stringify(data, null, 2));
+}
+
+app.get('/api/channels', (req, res) => res.json(readChannels()));
+
+app.post('/api/channels/fb-groups', (req, res) => {
+  const { key, id, name } = req.body;
+  if (!key || !id || !name) return res.status(400).json({ error: 'Thiếu key, id, hoặc name' });
+  const data = readChannels();
+  if (data.fbGroups.find(g => g.key === key)) return res.status(400).json({ error: 'Key đã tồn tại' });
+  data.fbGroups.push({ key, id, name });
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.delete('/api/channels/fb-groups/:key', (req, res) => {
+  const { key } = req.params;
+  const data = readChannels();
+  data.fbGroups = data.fbGroups.filter(g => g.key !== key);
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.post('/api/channels/zalo-profiles', (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'Thiếu tên profile' });
+  const data = readChannels();
+  if (data.zaloProfiles.find(p => p.name === name)) return res.status(400).json({ error: 'Profile đã tồn tại' });
+  data.zaloProfiles.push({ name, groups: [] });
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.delete('/api/channels/zalo-profiles/:name', (req, res) => {
+  const name = decodeURIComponent(req.params.name);
+  const data = readChannels();
+  data.zaloProfiles = data.zaloProfiles.filter(p => p.name !== name);
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.post('/api/channels/zalo-groups', (req, res) => {
+  const { profileName, groupName } = req.body;
+  if (!profileName || !groupName) return res.status(400).json({ error: 'Thiếu thông tin' });
+  const data = readChannels();
+  const profile = data.zaloProfiles.find(p => p.name === profileName);
+  if (!profile) return res.status(404).json({ error: 'Profile không tồn tại' });
+  if (!profile.groups.includes(groupName)) profile.groups.push(groupName);
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.delete('/api/channels/zalo-groups', (req, res) => {
+  const { profileName, groupName } = req.body;
+  const data = readChannels();
+  const profile = data.zaloProfiles.find(p => p.name === profileName);
+  if (profile) profile.groups = profile.groups.filter(g => g !== groupName);
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.put('/api/channels/profile-channels', (req, res) => {
+  const { profileChannels } = req.body;
+  const data = readChannels();
+  data.profileChannels = profileChannels || {};
+  saveChannels(data);
+  res.json({ success: true });
+});
+
 // ===== HEALTH CHECK =====
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', machine: 'local', timestamp: new Date().toISOString() });

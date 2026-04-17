@@ -629,9 +629,10 @@
     <div style="flex:1; padding:24px 32px; overflow-y:auto;">
 
       <!-- Tab navigation -->
-      <div style="display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid #eee; padding-bottom:12px;">
-        <button onclick="switchAccountTab('profiles')" class="acc-tab active" id="tabProfiles">📋 Danh sách tài khoản</button>
+      <div style="display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid #eee; padding-bottom:12px; flex-wrap:wrap;">
+        <button onclick="switchAccountTab('profiles')" class="acc-tab active" id="tabProfiles">📋 Tài khoản</button>
         <button onclick="switchAccountTab('add')" class="acc-tab" id="tabAdd">➕ Thêm tài khoản</button>
+        <button onclick="switchAccountTab('channels')" class="acc-tab" id="tabChannels">⚙️ Cài đặt kênh</button>
         <button onclick="switchAccountTab('history')" class="acc-tab" id="tabHistory">📜 Lịch sử</button>
       </div>
 
@@ -704,6 +705,63 @@
             * Với Zalo, hệ thống sẽ mở Salework để bạn đăng nhập.
           </p>
         </div>
+      </div>
+
+      <!-- Tab: Cai dat kenh -->
+      <div id="panelChannels" style="display:none;">
+
+        <!-- Facebook Groups -->
+        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px; margin-bottom:20px;">
+          <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:6px; display:flex; align-items:center; gap:8px;">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:18px;height:18px;"> Facebook Groups
+          </h3>
+          <p id="noFbGroupsMsg" style="font-size:13px; color:#999; margin-bottom:12px;">Chưa có group nào.</p>
+          <div id="fbGroupList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;"></div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <input type="text" id="newGroupKey" placeholder="Key (vd: asale)" autocomplete="off"
+              style="flex:1; min-width:100px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+            <input type="text" id="newGroupId" placeholder="Group ID (từ URL)" autocomplete="off"
+              style="flex:2; min-width:150px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+            <input type="text" id="newGroupName" placeholder="Tên hiển thị" autocomplete="off"
+              style="flex:2; min-width:150px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+            <button onclick="addFbGroup()"
+              style="padding:8px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer; white-space:nowrap;">+ Thêm</button>
+          </div>
+        </div>
+
+        <!-- Zalo (Salework) -->
+        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px; margin-bottom:20px;">
+          <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:6px; display:flex; align-items:center; gap:8px;">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Icon_of_Zalo.svg" style="width:18px;height:18px;"> Zalo (Salework)
+          </h3>
+          <p id="noZaloProfilesMsg" style="font-size:13px; color:#999; margin-bottom:12px;">Chưa có profile Zalo nào.</p>
+          <div id="zaloChannelList" style="margin-bottom:14px;"></div>
+          <div style="display:flex; gap:8px; margin-bottom:10px;">
+            <input type="text" id="newZaloProfileInput" placeholder="Tên profile Zalo" autocomplete="off"
+              style="flex:1; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+            <button onclick="addZaloProfile()"
+              style="padding:8px 16px; background:#0068ff; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer; white-space:nowrap;">+ Thêm Profile</button>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <select id="zaloProfileSelect"
+              style="flex:1; min-width:160px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px; background:#fff;">
+              <option value="">Chọn profile Zalo...</option>
+            </select>
+            <input type="text" id="newZaloGroupInput" placeholder="Tên nhóm Zalo" autocomplete="off"
+              style="flex:2; min-width:160px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+            <button onclick="addZaloGroup()"
+              style="padding:8px 16px; background:#0068ff; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer; white-space:nowrap;">+ Thêm Nhóm</button>
+          </div>
+        </div>
+
+        <!-- Gán kênh cho từng Profile -->
+        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px;">
+          <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:4px;">👤 Gán kênh cho từng Profile</h3>
+          <p style="font-size:12px; color:#999; margin-bottom:16px;">Tick các kênh muốn tự động đăng bài. Lưu 1 lần, mỗi lần đăng không cần chọn lại.</p>
+          <div id="profileChannelError" style="color:#e53e3e; font-size:13px; display:none;">Lỗi tải danh sách profile</div>
+          <div id="profileChannelList" style="display:flex; flex-direction:column; gap:14px;"></div>
+        </div>
+
       </div>
 
       <!-- Tab: Lich su -->
@@ -1922,12 +1980,18 @@
 
     // === Quan ly tai khoan ===
     function switchAccountTab(tab) {
-      document.querySelectorAll('.acc-tab').forEach(t => t.classList.remove('active'));
-      document.getElementById('panelProfiles').style.display = tab === 'profiles' ? 'block' : 'none';
-      document.getElementById('panelAdd').style.display = tab === 'add' ? 'block' : 'none';
-      document.getElementById('panelHistory').style.display = tab === 'history' ? 'block' : 'none';
-      document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+      ['profiles','add','channels','history'].forEach(t => {
+        const p = document.getElementById('panel' + t.charAt(0).toUpperCase() + t.slice(1));
+        const b = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (p) p.style.display = 'none';
+        if (b) b.classList.remove('active');
+      });
+      const panel = document.getElementById('panel' + tab.charAt(0).toUpperCase() + tab.slice(1));
+      const btn = document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+      if (panel) panel.style.display = '';
+      if (btn) btn.classList.add('active');
       if (tab === 'history') loadLoginHistory();
+      if (tab === 'channels') loadChannels();
     }
 
     // Toggle FB/Zalo fields khi them tai khoan
@@ -2178,6 +2242,199 @@
       } catch (e) {
         container.innerHTML = `<p style="color:red;">Lỗi: ${e.message}</p>`;
       }
+    }
+
+    // ===== CHANNEL SETTINGS =====
+    let channelsData = { fbGroups: [], zaloProfiles: [], profileChannels: {} };
+
+    async function loadChannels() {
+      try {
+        const res = await fetch(`${BASE_URL}/api/channels`);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        channelsData = await res.json();
+      } catch (e) {
+        channelsData = { fbGroups: [], zaloProfiles: [], profileChannels: {} };
+        console.error('Lỗi tải channels:', e);
+      }
+      renderFbGroups();
+      renderZaloChannels();
+      renderProfileChannels();
+    }
+
+    function renderFbGroups() {
+      const list = document.getElementById('fbGroupList');
+      const noMsg = document.getElementById('noFbGroupsMsg');
+      if (!list) return;
+      const groups = channelsData.fbGroups || [];
+      noMsg.style.display = groups.length ? 'none' : '';
+      list.innerHTML = groups.map(g => `
+        <div style="display:flex; align-items:center; gap:10px; padding:9px 14px; background:#f8f6ff; border-radius:8px; border:1px solid #e8e4ff;">
+          <span style="font-size:12px; font-weight:700; color:#4f46e5; min-width:70px;">${g.key}</span>
+          <span style="font-size:13px; color:#333; flex:1;">${g.name}</span>
+          <span style="font-size:11px; color:#aaa;">${g.id}</span>
+          <button onclick="deleteFbGroup('${g.key}')" style="padding:4px 10px; background:#fff0f0; border:1px solid #fecaca; border-radius:6px; color:#e53e3e; font-size:12px; cursor:pointer;">🗑</button>
+        </div>
+      `).join('');
+    }
+
+    function renderZaloChannels() {
+      const list = document.getElementById('zaloChannelList');
+      const noMsg = document.getElementById('noZaloProfilesMsg');
+      const select = document.getElementById('zaloProfileSelect');
+      if (!list) return;
+      const profiles = channelsData.zaloProfiles || [];
+      noMsg.style.display = profiles.length ? 'none' : '';
+      select.innerHTML = '<option value="">Chọn profile Zalo...</option>' +
+        profiles.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+      list.innerHTML = profiles.map(p => `
+        <div style="margin-bottom:10px; padding:12px 14px; background:#f0f7ff; border-radius:8px; border:1px solid #c8e4ff;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <span style="font-size:13px; font-weight:600; color:#0068ff;">💙 ${p.name}</span>
+            <button onclick="deleteZaloProfile('${p.name.replace(/'/g,"\\'")}',event)"
+              style="padding:3px 10px; background:#fff0f0; border:1px solid #fecaca; border-radius:6px; color:#e53e3e; font-size:12px; cursor:pointer;">🗑 Xoá profile</button>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:6px;">
+            ${(p.groups || []).map(g => `
+              <span style="display:inline-flex; align-items:center; gap:5px; padding:4px 10px; background:#dbeafe; border-radius:20px; font-size:12px; color:#0068ff;">
+                ${g}
+                <button onclick="deleteZaloGroup('${p.name.replace(/'/g,"\\'")}','${g.replace(/'/g,"\\'")}',event)"
+                  style="background:none; border:none; cursor:pointer; color:#e53e3e; font-size:14px; line-height:1; padding:0;">×</button>
+              </span>
+            `).join('')}
+            ${(p.groups || []).length === 0 ? '<span style="font-size:12px; color:#aaa;">Chưa có nhóm nào</span>' : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function renderProfileChannels() {
+      const container = document.getElementById('profileChannelList');
+      const errorEl = document.getElementById('profileChannelError');
+      if (!container) return;
+      errorEl.style.display = 'none';
+      try {
+        const res = await fetch(`${BASE_URL}/api/accounts`);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const profiles = data.facebook || [];
+        if (profiles.length === 0) {
+          container.innerHTML = '<p style="color:#999;font-size:13px;">Chưa có profile Facebook nào.</p>';
+          return;
+        }
+        const fbGroups = channelsData.fbGroups || [];
+        container.innerHTML = profiles.map(p => {
+          const pCh = (channelsData.profileChannels || {})[p.key] || { fbGroups: [] };
+          return `
+            <div style="padding:14px; background:#f8f6ff; border-radius:10px; border:1px solid #e8e4ff;">
+              <div style="font-size:14px; font-weight:600; color:#4f46e5; margin-bottom:10px;">👤 ${p.name}</div>
+              ${fbGroups.length > 0 ? `
+                <div style="font-size:12px; color:#666; margin-bottom:7px; font-weight:600;">📘 Facebook Groups:</div>
+                <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                  ${fbGroups.map(g => `
+                    <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; padding:5px 12px; background:#fff; border-radius:20px; border:1px solid #e0d4ff; user-select:none;">
+                      <input type="checkbox" ${(pCh.fbGroups || []).includes(g.key) ? 'checked' : ''}
+                        onchange="toggleProfileChannel('${p.key}','fb','${g.key}',this.checked)" style="cursor:pointer;"> ${g.name}
+                    </label>
+                  `).join('')}
+                </div>
+              ` : '<p style="font-size:12px; color:#aaa;">Chưa có group Facebook nào được cấu hình.</p>'}
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        errorEl.style.display = '';
+        errorEl.textContent = 'Lỗi tải danh sách profile: ' + e.message;
+      }
+    }
+
+    async function addFbGroup() {
+      const key = document.getElementById('newGroupKey').value.trim();
+      const id = document.getElementById('newGroupId').value.trim();
+      const name = document.getElementById('newGroupName').value.trim();
+      if (!key || !id || !name) return alert('Vui lòng nhập đầy đủ Key, Group ID và Tên hiển thị');
+      try {
+        const res = await fetch(`${BASE_URL}/api/channels/fb-groups`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, id, name }),
+        });
+        const data = await res.json();
+        if (data.error) return alert(data.error);
+        document.getElementById('newGroupKey').value = '';
+        document.getElementById('newGroupId').value = '';
+        document.getElementById('newGroupName').value = '';
+        await loadChannels();
+      } catch (e) { alert('Lỗi: ' + e.message); }
+    }
+
+    async function deleteFbGroup(key, e) {
+      if (e) e.stopPropagation();
+      if (!confirm(`Xoá group "${key}"?`)) return;
+      await fetch(`${BASE_URL}/api/channels/fb-groups/${encodeURIComponent(key)}`, { method: 'DELETE' });
+      await loadChannels();
+    }
+
+    async function addZaloProfile() {
+      const name = document.getElementById('newZaloProfileInput').value.trim();
+      if (!name) return alert('Nhập tên profile Zalo');
+      try {
+        const res = await fetch(`${BASE_URL}/api/channels/zalo-profiles`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }),
+        });
+        const data = await res.json();
+        if (data.error) return alert(data.error);
+        document.getElementById('newZaloProfileInput').value = '';
+        await loadChannels();
+      } catch (e) { alert('Lỗi: ' + e.message); }
+    }
+
+    async function deleteZaloProfile(name, e) {
+      if (e) e.stopPropagation();
+      if (!confirm(`Xoá profile Zalo "${name}"?`)) return;
+      await fetch(`${BASE_URL}/api/channels/zalo-profiles/${encodeURIComponent(name)}`, { method: 'DELETE' });
+      await loadChannels();
+    }
+
+    async function addZaloGroup() {
+      const profileName = document.getElementById('zaloProfileSelect').value;
+      const groupName = document.getElementById('newZaloGroupInput').value.trim();
+      if (!profileName || !groupName) return alert('Chọn profile và nhập tên nhóm');
+      try {
+        const res = await fetch(`${BASE_URL}/api/channels/zalo-groups`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profileName, groupName }),
+        });
+        const data = await res.json();
+        if (data.error) return alert(data.error);
+        document.getElementById('newZaloGroupInput').value = '';
+        await loadChannels();
+      } catch (e) { alert('Lỗi: ' + e.message); }
+    }
+
+    async function deleteZaloGroup(profileName, groupName, e) {
+      if (e) e.stopPropagation();
+      await fetch(`${BASE_URL}/api/channels/zalo-groups`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileName, groupName }),
+      });
+      await loadChannels();
+    }
+
+    async function toggleProfileChannel(profileKey, platform, channelKey, checked) {
+      const pCh = (channelsData.profileChannels || {})[profileKey] || { fbGroups: [] };
+      if (!pCh.fbGroups) pCh.fbGroups = [];
+      if (platform === 'fb') {
+        if (checked && !pCh.fbGroups.includes(channelKey)) pCh.fbGroups.push(channelKey);
+        if (!checked) pCh.fbGroups = pCh.fbGroups.filter(k => k !== channelKey);
+      }
+      if (!channelsData.profileChannels) channelsData.profileChannels = {};
+      channelsData.profileChannels[profileKey] = pCh;
+      try {
+        await fetch(`${BASE_URL}/api/channels/profile-channels`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profileChannels: channelsData.profileChannels }),
+        });
+      } catch (e) { console.error('Lỗi lưu profile channels:', e); }
     }
 
     function toggleTheme() {
