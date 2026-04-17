@@ -2,9 +2,9 @@
   "name": "fb-auto-poster",
   "version": "1.0.0",
   "description": "Auto post to Facebook via Telegram bot + n8n + Playwright",
-  "main": "src/index.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node index.js",
     "bot": "node src/bot/telegram.js",
     "playwright:install": "npx playwright install chromium",
     "playwright:login:linhthao": "node src/playwright/login.js linhthao",
