@@ -530,7 +530,7 @@
     <button class="btn-icon btn-menu" onclick="toggleMenu()">☰</button>
     <button class="btn-icon btn-attach" onclick="document.getElementById('fileInput').click()">📷</button>
     <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this)">
-    <input type="text" id="msgInput" placeholder="Nhập nội dung bài viết..." onkeydown="if(event.key==='Enter')sendMessage()">
+    <input type="text" id="msgInput" placeholder="Nhập nội dung bài viết..." autocomplete="off" onkeydown="if(event.key==='Enter')sendMessage()">
     <input type="text" id="groupIdInput" placeholder="Nhập Group ID..." style="display:none; width:140px;">
     <button class="btn-icon btn-send" id="sendBtn" onclick="sendMessage()">➤</button>
   </div>
@@ -563,7 +563,7 @@
     <div class="input-area">
       <button class="btn-icon btn-attach" onclick="document.getElementById('zaloFileInput').click()">📷</button>
       <input type="file" id="zaloFileInput" accept="image/*" multiple onchange="handleZaloFiles(this)" style="display:none;">
-      <input type="text" id="zaloMsgInput" placeholder="Nhập tin nhắn..." onkeydown="if(event.key==='Enter')sendZaloMessage()">
+      <input type="text" id="zaloMsgInput" placeholder="Nhập tin nhắn..." autocomplete="off" onkeydown="if(event.key==='Enter')sendZaloMessage()">
       <button class="btn-icon btn-send" id="zaloSendBtn" onclick="sendZaloMessage()">➤</button>
     </div>
   </div>
