@@ -1409,12 +1409,13 @@
         return;
       }
 
-      // Collect selected channels grouped by profile
-      const selected = { linhduong: { fb: [], zalo: [] }, linhthao: { fb: [], zalo: [] } };
+      // Collect selected channels grouped by profile (dynamic — not hardcoded)
+      const selected = {};
       checkedItems.forEach(cb => {
         const item = cb.closest('.channel-item');
         const profile = item.dataset.profile;
         const platform = item.dataset.platform;
+        if (!selected[profile]) selected[profile] = { fb: [], zalo: [] };
         let chid = item.dataset.chid;
         const zaloGroup = item.dataset.zaloGroup || '';
         // For custom groups, split by comma and add each
@@ -1433,11 +1434,11 @@
 
       // Build summary text
       let summaryParts = [];
-      for (const pKey of ['linhduong', 'linhthao']) {
-        const pLabel = PROFILE_CHANNELS[pKey].label;
+      for (const pKey of Object.keys(selected)) {
+        const pLabel = (PROFILE_CHANNELS[pKey] && PROFILE_CHANNELS[pKey].label) || pKey;
         const fbNames = selected[pKey].fb.map(c => {
           if (c.id === 'custom') return `Group #${c.groupId}`;
-          const ch = PROFILE_CHANNELS[pKey].fb.find(f => f.id === c.id);
+          const ch = (PROFILE_CHANNELS[pKey] && PROFILE_CHANNELS[pKey].fb || []).find(f => f.id === c.id);
           return ch ? ch.name : c.id;
         });
         const zaloNames = selected[pKey].zalo.map(c => c.zaloGroup);
@@ -1452,7 +1453,7 @@
 
       // Determine which profiles need posting
       const profilesToPost = [];
-      for (const pKey of ['linhduong', 'linhthao']) {
+      for (const pKey of Object.keys(selected)) {
         if (selected[pKey].fb.length > 0 || selected[pKey].zalo.length > 0) {
           profilesToPost.push(pKey);
         }
