@@ -589,6 +589,27 @@ app.get('/api/login-history', (req, res) => {
 });
 
 app.get('/api/sessions', async (req, res) => {
+  // Session check cần Playwright - proxy sang local server
+  if (process.env.PLAYWRIGHT_LOCAL_URL) {
+    try {
+      const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL;
+      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const getFetch = async () => {
+        if (typeof fetch !== 'undefined') return fetch;
+        const { default: nodeFetch } = await import('node-fetch');
+        return nodeFetch;
+      };
+      const fetchFn = await getFetch();
+      const response = await fetchFn(`${LOCAL_URL}/api/sessions`, {
+        headers: { 'x-api-key': API_KEY },
+      });
+      const data = await response.json();
+      return res.json(data);
+    } catch (e) {
+      return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
+    }
+  }
+
   try {
     const results = await sessionCheck.checkAllSessions();
     res.json(results);
