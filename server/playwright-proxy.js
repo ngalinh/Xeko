@@ -14,6 +14,19 @@ const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
 let _activeProfile = null;
 let _activeProfileName = null;
 
+async function safeJson(response) {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    const snippet = text.replace(/\s+/g, ' ').slice(0, 200);
+    throw new Error(
+      `Local server trả về không phải JSON (HTTP ${response.status}). ` +
+      `Kiểm tra: máy local có đang chạy? Tunnel còn sống? Response: ${snippet}`
+    );
+  }
+}
+
 /**
  * Gọi API về máy local
  */
@@ -55,7 +68,7 @@ async function callLocal(method, endpoint, data = null, files = []) {
       headers: { ...headers, ...form.getHeaders() },
       body: form,
     });
-    return response.json();
+    return safeJson(response);
   }
 
   // Không có file → dùng JSON
@@ -65,7 +78,7 @@ async function callLocal(method, endpoint, data = null, files = []) {
     headers: { ...headers, 'Content-Type': 'application/json' },
     body: data ? JSON.stringify(data) : undefined,
   });
-  return response.json();
+  return safeJson(response);
 }
 
 async function getFetch() {
