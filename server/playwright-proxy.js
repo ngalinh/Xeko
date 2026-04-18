@@ -62,11 +62,22 @@ async function callLocal(method, endpoint, data = null, files = []) {
       }
     }
 
+    // Buffer toàn bộ multipart để có Content-Length chính xác.
+    // Thiếu Content-Length → tunnel/Multer có thể cắt stream giữa chừng
+    // và báo "Unexpected end of form".
+    const chunks = [];
+    for await (const chunk of form) chunks.push(chunk);
+    const body = Buffer.concat(chunks);
+
     const fetch = await getFetch();
     const response = await fetch(url, {
       method,
-      headers: { ...headers, ...form.getHeaders() },
-      body: form,
+      headers: {
+        ...headers,
+        ...form.getHeaders(),
+        'Content-Length': String(body.length),
+      },
+      body,
     });
     return safeJson(response);
   }
