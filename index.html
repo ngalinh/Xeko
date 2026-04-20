@@ -1038,8 +1038,16 @@
         return JSON.parse(text);
       } catch {
         const snippet = text.replace(/\s+/g, ' ').slice(0, 120);
-        throw new Error(`HTTP ${res.status} ${res.statusText} — server không trả JSON: ${snippet}`);
+        const err = new Error(`HTTP ${res.status} ${res.statusText} — server không trả JSON: ${snippet}`);
+        err.status = res.status;
+        throw err;
       }
+    }
+
+    // Reverse proxy cắt sau ~60s nhưng backend vẫn chạy và đăng bài xong.
+    // 502/504 ở post flow → coi như "đang xử lý", không phải lỗi thật.
+    function isProxyTimeout(e) {
+      return e && (e.status === 504 || e.status === 502 || e.status === 524);
     }
 
     const BOT_AVATAR = '/xeko-avatar.png';
@@ -1718,7 +1726,11 @@
             }
           } catch (ce) {
             removeTyping();
-            addBot(`Lỗi Group #${gid}: ${ce.message}`);
+            if (isProxyTimeout(ce)) {
+              addBot(`⏳ Group #${gid}: bài đang được đăng, kiểm tra FB sau vài phút.`);
+            } else {
+              addBot(`Lỗi Group #${gid}: ${ce.message}`);
+            }
           }
         }
 
@@ -1731,7 +1743,16 @@
         ]);
       } catch (e) {
         removeTyping();
-        addBot(`Lỗi: ${e.message}`);
+        if (isProxyTimeout(e)) {
+          addBot('⏳ Bài đang được đăng (có thể mất 1–2 phút). Kiểm tra Facebook sau. Đừng bấm đăng lại để tránh trùng bài.', [
+            { label: '📝 Đăng bài tiếp', action: 'focusInput()' },
+            { label: '📍 Đổi nơi đăng', action: 'showTargetSelect()' },
+            { label: '🔄 Đổi Profile', action: 'showProfileSelect()' },
+            { label: '📊 Trạng thái', action: 'showStatus()' },
+          ]);
+        } else {
+          addBot(`Lỗi: ${e.message}`);
+        }
       }
 
       document.getElementById('sendBtn').disabled = false;
