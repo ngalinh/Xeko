@@ -826,6 +826,12 @@ function getLocalUrl() {
 
 app.listen(config.server.port, () => {
   logger.info(`Web server dang chay: http://localhost:${config.server.port}`);
+  // Khoi phuc lich tu DB: re-schedule lich tuong lai + catch-up lich qua han
+  try {
+    scheduler.init();
+  } catch (e) {
+    logger.error(`Scheduler init error: ${e.message}`);
+  }
 });
 
 process.on('SIGINT', async () => {
