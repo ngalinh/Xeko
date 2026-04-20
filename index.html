@@ -1725,18 +1725,29 @@
         }
         removeTyping();
 
+        // Tên đích đến cho message thành công
+        const targetLabel = (() => {
+          if (!target || target === 'personal') return `trang cá nhân (<strong>${currentProfile}</strong>)`;
+          if (target === 'group') return `Group <strong>#${groupId}</strong> (profile <strong>${currentProfile}</strong>)`;
+          if (target === 'shortcut') {
+            const scMap = { asale: 'Asale', tongkho: 'Tổng Kho' };
+            return `Group <strong>${scMap[groupId] || groupId}</strong> (profile <strong>${currentProfile}</strong>)`;
+          }
+          return target;
+        })();
+
         if (data.results) {
           data.results.forEach(r => {
             if (r.success) {
-              let msg = `Đã đăng bài lên <strong>${r.target}</strong> thành công!`;
+              let msg = `✅ Đăng bài lên <strong>${r.target}</strong> (profile <strong>${currentProfile}</strong>) thành công!`;
               if (r.postUrl) msg += `\n<a class="link" href="${r.postUrl}" target="_blank">Xem bài viết</a>`;
               addBot(msg, null, r.screenshot ? `/api/screenshot?t=${Date.now()}` : null);
             } else {
-              addBot(`Lỗi khi đăng <strong>${r.target}</strong>: ${r.error}`);
+              addBot(`❌ Lỗi khi đăng <strong>${r.target}</strong>: ${r.error}`);
             }
           });
         } else if (data.success) {
-          let msg = 'Đã đăng bài thành công!';
+          let msg = `✅ Đăng bài lên ${targetLabel} thành công!`;
           if (data.postUrl) msg += `\n<a class="link" href="${data.postUrl}" target="_blank">Xem bài viết</a>`;
           addBot(msg, null, data.screenshot ? `/api/screenshot?t=${Date.now()}` : null);
         } else {
@@ -1758,11 +1769,11 @@
             const cd = initial.jobId ? await pollJob(initial.jobId) : initial;
             removeTyping();
             if (cd.success) {
-              let msg = `Đã đăng bài lên <strong>Group #${gid}</strong> thành công!`;
+              let msg = `✅ Đăng bài lên Group <strong>#${gid}</strong> (profile <strong>${currentProfile}</strong>) thành công!`;
               if (cd.postUrl) msg += `\n<a class="link" href="${cd.postUrl}" target="_blank">Xem bài viết</a>`;
               addBot(msg, null, cd.screenshot ? `/api/screenshot?t=${Date.now()}` : null);
             } else {
-              addBot(`Lỗi khi đăng <strong>Group #${gid}</strong>: ${cd.error}`);
+              addBot(`❌ Lỗi khi đăng Group <strong>#${gid}</strong>: ${cd.error}`);
             }
           } catch (ce) {
             removeTyping();
