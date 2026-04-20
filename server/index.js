@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const config = require('./config/default');
 const logger = require('./src/utils/logger');
 const playwright = process.env.PLAYWRIGHT_LOCAL_URL
@@ -61,14 +62,156 @@ app.post('/api/profile', (req, res) => {
   }
 });
 
-// Dang bai
+// Job queue: post chạy async để tránh reverse proxy timeout ở ~60s.
+// Browser POST /api/post → trả ngay {jobId}, rồi polling /api/job/:id.
+const postJobs = new Map();
+
+function createJob() {
+  const id = crypto.randomBytes(8).toString('hex');
+  postJobs.set(id, { status: 'pending', createdAt: Date.now() });
+  return id;
+}
+
+function setJobResult(id, result) {
+  postJobs.set(id, { status: 'done', result, createdAt: Date.now() });
+}
+
+function setJobError(id, message) {
+  postJobs.set(id, { status: 'failed', error: message, createdAt: Date.now() });
+}
+
+// Dọn job cũ mỗi giờ
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, job] of postJobs) {
+    if (now - job.createdAt > 3600_000) postJobs.delete(id);
+  }
+}, 3600_000);
+
+async function executePost({ message, target, groupId, imagePaths, fbProfile }) {
+  // Dang len ca nhan + tat ca group
+  if (target === 'all') {
+    const results = [];
+    const activeProfile = playwright.getActiveProfile();
+    if (postCount < config.posting.maxPostsPerDay) {
+      logger.info('Dang len FB ca nhan...');
+      const r = await playwright.postToPersonal(message, imagePaths);
+      postCount++;
+      postLogger.logPost({ profile: activeProfile.key, profileName: activeProfile.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
+      results.push({ target: 'FB Cá nhân', success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
+      await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
+    }
+
+    const groups = Object.values(config.groups);
+    for (const group of groups) {
+      if (postCount >= config.posting.maxPostsPerDay) break;
+      logger.info(`Dang len ${group.name}...`);
+      const r = await playwright.postToGroup(group.id, message, imagePaths);
+      postCount++;
+      postLogger.logPost({ profile: activeProfile.key, profileName: activeProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
+      results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
+      if (groups.indexOf(group) < groups.length - 1) {
+        await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
+      }
+    }
+    return { results };
+  }
+
+  // Dang len FB + Zalo (tat ca)
+  if (target === 'fb_zalo') {
+    const results = [];
+    const fbToZalo = { linhthao: 'Linh Thảo Us Authentic', linhduong: 'Linh Duong Us' };
+    const zaloGroups = {
+      'Linh Thảo Us Authentic': ['SỈ HÀNG ORDER MỸ - LINH THẢO', 'TỔNG KHO HÀNG SẴN US - LINH THẢO', 'DEAL NGON MỸ PHẨM US'],
+      'Linh Duong Us': ['Sỉ Hàng Order Mỹ, Anh - Linh Dương', 'KHO HÀNG MỸ CÓ SẴN - LINH DƯƠNG', 'SĂN SALE HÀNG HIỆU US'],
+    };
+
+    let fbZaloProfile;
+    try { fbZaloProfile = playwright.getActiveProfile(); } catch {}
+    if (postCount < config.posting.maxPostsPerDay) {
+      logger.info('FB+Zalo: Dang FB ca nhan...');
+      const r = await playwright.postToPersonal(message, imagePaths);
+      postCount++;
+      postLogger.logPost({ profile: fbZaloProfile?.key || 'unknown', profileName: fbZaloProfile?.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
+      results.push({ target: 'FB Cá nhân', success: r.success, error: r.error });
+      await new Promise(res => setTimeout(res, 30000 + Math.random() * 30000));
+    }
+
+    const fbGroups = Object.values(config.groups);
+    for (const group of fbGroups) {
+      if (postCount >= config.posting.maxPostsPerDay) break;
+      logger.info(`FB+Zalo: Dang FB group ${group.name}...`);
+      const r = await playwright.postToGroup(group.id, message, imagePaths);
+      postCount++;
+      postLogger.logPost({ profile: fbZaloProfile?.key || 'unknown', profileName: fbZaloProfile?.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
+      results.push({ target: `FB:${group.name}`, success: r.success, error: r.error });
+      await new Promise(res => setTimeout(res, 30000 + Math.random() * 30000));
+    }
+
+    const zaloProfileName = fbToZalo[fbProfile || Object.keys(fbToZalo)[0]] || 'Linh Thảo Us Authentic';
+    const zaloGroupList = zaloGroups[zaloProfileName] || [];
+    for (const groupName of zaloGroupList) {
+      logger.info(`FB+Zalo: Dang Zalo ${groupName}...`);
+      const r = await salework.postToZaloGroup(zaloProfileName, groupName, message, imagePaths);
+      postLogger.logPost({ profile: zaloProfileName, profileName: zaloProfileName, platform: 'zalo', target: 'group', groupName, message, imageCount: imagePaths.length, success: r.success, error: r.error, source: 'web' });
+      results.push({ target: `Zalo:${groupName}`, success: r.success, error: r.error });
+      await new Promise(res => setTimeout(res, 20000 + Math.random() * 20000));
+    }
+    return { results };
+  }
+
+  if (target === 'allgroup') {
+    const groups = Object.values(config.groups);
+    const results = [];
+    const agProfile = playwright.getActiveProfile();
+    for (const group of groups) {
+      if (postCount >= config.posting.maxPostsPerDay) break;
+      logger.info(`Dang len ${group.name}...`);
+      const r = await playwright.postToGroup(group.id, message, imagePaths);
+      postCount++;
+      postLogger.logPost({ profile: agProfile.key, profileName: agProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
+      results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
+      if (groups.indexOf(group) < groups.length - 1) {
+        await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
+      }
+    }
+    return { results };
+  }
+
+  if (target === 'shortcut') {
+    const group = config.groups[groupId];
+    const r = await playwright.postToGroup(group.id, message, imagePaths);
+    postCount++;
+    const scProfile = playwright.getActiveProfile();
+    postLogger.logPost({ profile: scProfile.key, profileName: scProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
+    return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
+  }
+
+  if (target === 'group') {
+    const r = await playwright.postToGroup(groupId, message, imagePaths);
+    postCount++;
+    const gProfile = playwright.getActiveProfile();
+    postLogger.logPost({ profile: gProfile.key, profileName: gProfile.name, platform: 'facebook', target: 'group', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
+    return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
+  }
+
+  // personal (default)
+  const r = await playwright.postToPersonal(message, imagePaths);
+  postCount++;
+  const pProfile = playwright.getActiveProfile();
+  postLogger.logPost({ profile: pProfile.key, profileName: pProfile.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
+  return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
+}
+
+// Dang bai (async job)
 app.post('/api/post', upload.array('images', 10), async (req, res) => {
   checkDailyReset();
 
   const { message, target, groupId } = req.body;
+  const fbProfile = req.body.fbProfile;
   const imagePaths = (req.files || []).map(f => f.path);
 
-  // Kiem tra profile
+  // Kiem tra nhanh (sync) — trả lỗi luôn nếu sai
   try {
     playwright.getActiveProfile();
   } catch {
@@ -81,192 +224,33 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
     return res.json({ error: `Da dat gioi han ${config.posting.maxPostsPerDay} bai/ngay.` });
   }
 
-  try {
-    // Dang len ca nhan + tat ca group
-    if (target === 'all') {
-      const results = [];
-
-      // Dang FB ca nhan truoc
-      const activeProfile = playwright.getActiveProfile();
-      if (postCount < config.posting.maxPostsPerDay) {
-        logger.info('Dang len FB ca nhan...');
-        const result = await playwright.postToPersonal(message, imagePaths);
-        postCount++;
-        postLogger.logPost({ profile: activeProfile.key, profileName: activeProfile.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: result.success, error: result.error, postUrl: result.postUrl, source: 'web' });
-        results.push({
-          target: 'FB Cá nhân',
-          success: result.success,
-          postUrl: result.postUrl,
-          screenshot: !!result.screenshot,
-          error: result.error,
-        });
-
-        const delay = Math.floor(Math.random() * 30000) + 30000;
-        await new Promise(r => setTimeout(r, delay));
-      }
-
-      // Dang len cac group
-      const groups = Object.values(config.groups);
-      for (const group of groups) {
-        if (postCount >= config.posting.maxPostsPerDay) break;
-
-        logger.info(`Dang len ${group.name}...`);
-        const result = await playwright.postToGroup(group.id, message, imagePaths);
-        postCount++;
-        postLogger.logPost({ profile: activeProfile.key, profileName: activeProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: result.success, error: result.error, postUrl: result.postUrl, source: 'web' });
-        results.push({
-          target: group.name,
-          success: result.success,
-          postUrl: result.postUrl,
-          screenshot: !!result.screenshot,
-          error: result.error,
-        });
-
-        if (groups.indexOf(group) < groups.length - 1) {
-          const delay = Math.floor(Math.random() * 30000) + 30000;
-          await new Promise(r => setTimeout(r, delay));
-        }
-      }
-
-      cleanupFiles(imagePaths);
-      return res.json({ results });
-    }
-
-    // Dang len FB + Zalo (tat ca)
-    if (target === 'fb_zalo') {
-      const results = [];
-      const fbToZalo = { linhthao: 'Linh Thảo Us Authentic', linhduong: 'Linh Duong Us' };
-      const zaloGroups = {
-        'Linh Thảo Us Authentic': ['SỈ HÀNG ORDER MỸ - LINH THẢO', 'TỔNG KHO HÀNG SẴN US - LINH THẢO', 'DEAL NGON MỸ PHẨM US'],
-        'Linh Duong Us': ['Sỉ Hàng Order Mỹ, Anh - Linh Dương', 'KHO HÀNG MỸ CÓ SẴN - LINH DƯƠNG', 'SĂN SALE HÀNG HIỆU US'],
-      };
-
-      // 1. Dang FB ca nhan
-      let fbZaloProfile;
-      try { fbZaloProfile = playwright.getActiveProfile(); } catch {}
-      if (postCount < config.posting.maxPostsPerDay) {
-        logger.info('FB+Zalo: Dang FB ca nhan...');
-        const r = await playwright.postToPersonal(message, imagePaths);
-        postCount++;
-        postLogger.logPost({ profile: fbZaloProfile?.key || 'unknown', profileName: fbZaloProfile?.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
-        results.push({ target: 'FB Cá nhân', success: r.success, error: r.error });
-        await new Promise(r => setTimeout(r, 30000 + Math.random() * 30000));
-      }
-
-      // 2. Dang FB groups
-      const fbGroups = Object.values(config.groups);
-      for (const group of fbGroups) {
-        if (postCount >= config.posting.maxPostsPerDay) break;
-        logger.info(`FB+Zalo: Dang FB group ${group.name}...`);
-        const r = await playwright.postToGroup(group.id, message, imagePaths);
-        postCount++;
-        postLogger.logPost({ profile: fbZaloProfile?.key || 'unknown', profileName: fbZaloProfile?.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
-        results.push({ target: `FB:${group.name}`, success: r.success, error: r.error });
-        await new Promise(r => setTimeout(r, 30000 + Math.random() * 30000));
-      }
-
-      // 3. Dang Zalo groups
-      const zaloProfileName = fbToZalo[req.body.fbProfile || Object.keys(fbToZalo)[0]] || 'Linh Thảo Us Authentic';
-      const zaloGroupList = zaloGroups[zaloProfileName] || [];
-
-      for (const groupName of zaloGroupList) {
-        logger.info(`FB+Zalo: Dang Zalo ${groupName}...`);
-        const r = await salework.postToZaloGroup(zaloProfileName, groupName, message, imagePaths);
-        postLogger.logPost({ profile: zaloProfileName, profileName: zaloProfileName, platform: 'zalo', target: 'group', groupName, message, imageCount: imagePaths.length, success: r.success, error: r.error, source: 'web' });
-        results.push({ target: `Zalo:${groupName}`, success: r.success, error: r.error });
-        await new Promise(r => setTimeout(r, 20000 + Math.random() * 20000));
-      }
-
-      cleanupFiles(imagePaths);
-      return res.json({ results });
-    }
-
-    // Dang len tat ca group
-    if (target === 'allgroup') {
-      const groups = Object.values(config.groups);
-      const results = [];
-      const agProfile = playwright.getActiveProfile();
-
-      for (const group of groups) {
-        if (postCount >= config.posting.maxPostsPerDay) break;
-
-        logger.info(`Dang len ${group.name}...`);
-        const result = await playwright.postToGroup(group.id, message, imagePaths);
-        postCount++;
-        postLogger.logPost({ profile: agProfile.key, profileName: agProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: result.success, error: result.error, postUrl: result.postUrl, source: 'web' });
-        results.push({
-          target: group.name,
-          success: result.success,
-          postUrl: result.postUrl,
-          screenshot: !!result.screenshot,
-          error: result.error,
-        });
-
-        // Delay giua cac group
-        if (groups.indexOf(group) < groups.length - 1) {
-          const delay = Math.floor(Math.random() * 30000) + 30000;
-          await new Promise(r => setTimeout(r, delay));
-        }
-      }
-
-      cleanupFiles(imagePaths);
-      return res.json({ results });
-    }
-
-    // Dang len group shortcut (asale, tongkho)
-    if (target === 'shortcut') {
-      const group = config.groups[groupId];
-      if (!group) {
-        cleanupFiles(imagePaths);
-        return res.status(400).json({ error: `Group "${groupId}" khong ton tai` });
-      }
-
-      const result = await playwright.postToGroup(group.id, message, imagePaths);
-      postCount++;
-      const scProfile = playwright.getActiveProfile();
-      postLogger.logPost({ profile: scProfile.key, profileName: scProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: result.success, error: result.error, postUrl: result.postUrl, source: 'web' });
-      cleanupFiles(imagePaths);
-      return res.json({
-        success: result.success,
-        postUrl: result.postUrl,
-        screenshot: !!result.screenshot,
-        error: result.error,
-      });
-    }
-
-    // Dang len group (custom ID)
-    if (target === 'group') {
-      const result = await playwright.postToGroup(groupId, message, imagePaths);
-      postCount++;
-      const gProfile = playwright.getActiveProfile();
-      postLogger.logPost({ profile: gProfile.key, profileName: gProfile.name, platform: 'facebook', target: 'group', groupId, message, imageCount: imagePaths.length, success: result.success, error: result.error, postUrl: result.postUrl, source: 'web' });
-      cleanupFiles(imagePaths);
-      return res.json({
-        success: result.success,
-        postUrl: result.postUrl,
-        screenshot: !!result.screenshot,
-        error: result.error,
-      });
-    }
-
-    // Dang len ca nhan
-    const result = await playwright.postToPersonal(message, imagePaths);
-    postCount++;
-    const pProfile = playwright.getActiveProfile();
-    postLogger.logPost({ profile: pProfile.key, profileName: pProfile.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: result.success, error: result.error, postUrl: result.postUrl, source: 'web' });
+  if (target === 'shortcut' && !config.groups[groupId]) {
     cleanupFiles(imagePaths);
-    return res.json({
-      success: result.success,
-      postUrl: result.postUrl,
-      screenshot: !!result.screenshot,
-      error: result.error,
-    });
-
-  } catch (error) {
-    cleanupFiles(imagePaths);
-    logger.error(`Loi: ${error.message}`);
-    return res.status(500).json({ error: error.message });
+    return res.status(400).json({ error: `Group "${groupId}" khong ton tai` });
   }
+
+  // Tạo job, trả jobId ngay
+  const jobId = createJob();
+  res.json({ jobId, status: 'pending' });
+
+  // Chạy post ở background
+  (async () => {
+    try {
+      const result = await executePost({ message, target, groupId, imagePaths, fbProfile });
+      setJobResult(jobId, result);
+    } catch (error) {
+      logger.error(`Loi job ${jobId}: ${error.message}`);
+      setJobError(jobId, error.message);
+    } finally {
+      cleanupFiles(imagePaths);
+    }
+  })();
+});
+
+app.get('/api/job/:id', (req, res) => {
+  const job = postJobs.get(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Job không tồn tại hoặc đã hết hạn' });
+  res.json(job);
 });
 
 // Lay screenshot moi nhat
