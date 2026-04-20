@@ -863,44 +863,49 @@
       <button onclick="switchDashTab('stats')" class="dash-tab" id="dashTabStats" style="padding:10px 20px; background:none; border:none; border-bottom:2px solid transparent; color:#666; cursor:pointer; font-size:14px;">📊 Thống kê</button>
     </div>
 
-    <!-- Tab content: Lịch đăng bài -->
+    <!-- Tab content: Lịch đăng bài (month calendar + issues panel) -->
     <div id="dashPanelCalendar" style="flex:1; overflow-y:auto; padding:20px;">
-      <!-- Filter -->
-      <div style="display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; align-items:center;">
-        <select id="calFilterPlatform" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
-          <option value="">Tất cả kênh</option>
-          <option value="facebook">📘 Facebook</option>
-          <option value="zalo">💬 Zalo</option>
-        </select>
-        <select id="calFilterStatus" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
-          <option value="">Tất cả trạng thái</option>
-          <option value="pending">⏳ Chờ đăng</option>
-          <option value="done">✅ Đã đăng</option>
-          <option value="error">❌ Lỗi</option>
-          <option value="running">🔄 Đang chạy</option>
-        </select>
-        <select id="calFilterProfile" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
-          <option value="">Tất cả profile</option>
-          <option value="linhthao">Linh Thảo</option>
-          <option value="linhduong">Linh Dương</option>
-          <option value="Linh Thảo Us Authentic">Linh Thảo (Zalo)</option>
-          <option value="Linh Duong Us">Linh Dương (Zalo)</option>
-        </select>
-        <span style="font-size:12px; color:#999;">Từ</span>
-        <input type="date" id="calFilterDateFrom" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
-        <span style="font-size:12px; color:#999;">đến</span>
-        <input type="date" id="calFilterDateTo" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
-        <button onclick="clearCalendarFilters()" style="padding:8px 14px; background:#f0edff; border:1px solid #e0d4ff; border-radius:8px; font-size:13px; cursor:pointer; color:#4f46e5;">
-          ✕ Xoá lọc
-        </button>
-        <button onclick="loadCalendar()" style="padding:8px 14px; background:#f0edff; border:1px solid #e0d4ff; border-radius:8px; font-size:13px; cursor:pointer; color:#4f46e5;">
-          🔄 Làm mới
-        </button>
+      <!-- Month nav -->
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+        <button onclick="calPrevMonth()" style="padding:6px 12px; border:1px solid #ddd; border-radius:8px; background:#fff; cursor:pointer;">← Tháng trước</button>
+        <div id="calMonthLabel" style="font-size:15px; font-weight:600; min-width:160px; text-align:center;"></div>
+        <button onclick="calNextMonth()" style="padding:6px 12px; border:1px solid #ddd; border-radius:8px; background:#fff; cursor:pointer;">Tháng sau →</button>
+        <button onclick="calToday()" style="padding:6px 12px; border:1px solid #c7d2fe; border-radius:8px; background:#eef2ff; cursor:pointer; color:#4f46e5;">Hôm nay</button>
+        <div style="margin-left:auto; font-size:12px; color:#666;">
+          <span style="display:inline-block; width:10px; height:10px; background:#2563eb; border-radius:50%; margin-right:4px;"></span>Facebook
+          <span style="display:inline-block; width:10px; height:10px; background:#16a34a; border-radius:50%; margin:0 4px 0 10px;"></span>Zalo
+        </div>
       </div>
-      <div style="font-size:13px; color:#999; margin-bottom:14px;" id="calSummary"></div>
-      <div id="calendarList" style="display:flex; flex-direction:column; gap:10px;">
-        <p style="color:#999;">Đang tải...</p>
+
+      <!-- Layout: calendar trái, issues panel phải -->
+      <div style="display:grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap:16px;">
+        <!-- Calendar grid -->
+        <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:10px;">
+          <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;">
+            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">CN</div>
+            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T2</div>
+            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T3</div>
+            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T4</div>
+            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T5</div>
+            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T6</div>
+            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T7</div>
+          </div>
+          <div id="calMonthGrid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;">
+            <p style="grid-column:span 7; color:#999; text-align:center; padding:24px;">Đang tải...</p>
+          </div>
+        </div>
+
+        <!-- Bài cần xử lý (pending + error) -->
+        <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:14px; align-self:flex-start;">
+          <div style="font-weight:600; font-size:14px; margin-bottom:10px;">⚠️ Bài cần xử lý</div>
+          <div id="calIssuesList" style="display:flex; flex-direction:column; gap:8px; max-height:520px; overflow-y:auto;">
+            <div style="color:#999; font-size:12px;">Không có</div>
+          </div>
+        </div>
       </div>
+
+      <!-- Day detail -->
+      <div id="calDayDetail" style="margin-top:16px;"></div>
     </div>
 
     <!-- Tab content: Thống kê -->
@@ -2082,98 +2087,224 @@
       }
     }
 
-    // === Lich dang bai ===
+    // === Dashboard Calendar ===
+    // Hiển thị theo tháng: bài thực sự đã đăng (post_logs) + lịch đặt trước (schedules).
+    // Pending/error tách sang panel "Bài cần xử lý".
+    let calViewDate = new Date();
+    let calCache = { events: [], issues: [] };
+
+    function calFmtMonthKey(d) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`;
+    }
+    function calFmtDayKey(d) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
     async function loadCalendar() {
-      const container = document.getElementById('calendarList');
-      const summary = document.getElementById('calSummary');
-      const filterPlatform = document.getElementById('calFilterPlatform').value;
-      const filterStatus = document.getElementById('calFilterStatus').value;
-      const filterProfile = document.getElementById('calFilterProfile').value;
-      const filterDate = document.getElementById('calFilterDate').value;
+      const grid = document.getElementById('calMonthGrid');
+      const issues = document.getElementById('calIssuesList');
+      const detail = document.getElementById('calDayDetail');
+      if (!grid) return; // tab chưa mở
+
+      grid.innerHTML = '<p style="grid-column:span 7; color:#999; text-align:center; padding:24px;">Đang tải...</p>';
+      detail.innerHTML = '';
 
       try {
-        const res = await fetch(BASE_URL + '/api/schedules');
-        let schedules = await res.json();
+        const [schedRes, histRes] = await Promise.all([
+          fetch(BASE_URL + '/api/schedules').then(r => r.json()).catch(() => []),
+          fetch(BASE_URL + '/api/post-history?limit=500').then(r => r.json()).catch(() => ({ rows: [] })),
+        ]);
 
-        // Loc theo platform
-        if (filterPlatform) {
-          schedules = schedules.filter(s => (s.type || 'facebook') === filterPlatform);
-        }
-        // Loc theo status
-        if (filterStatus) {
-          schedules = schedules.filter(s => s.status === filterStatus);
-        }
-        // Loc theo profile
-        if (filterProfile) {
-          schedules = schedules.filter(s => s.profile === filterProfile);
-        }
-        // Loc theo khoang ngay
-        const filterDateFrom = document.getElementById('calFilterDateFrom').value;
-        const filterDateTo = document.getElementById('calFilterDateTo').value;
-        if (filterDateFrom) {
-          schedules = schedules.filter(s => s.timeISO && s.timeISO >= filterDateFrom);
-        }
-        if (filterDateTo) {
-          const toEnd = filterDateTo + 'T23:59:59';
-          schedules = schedules.filter(s => s.timeISO && s.timeISO <= toEnd);
-        }
+        const events = [];
 
-        // Summary
-        const total = schedules.length;
-        const pending = schedules.filter(s => s.status === 'pending').length;
-        const done = schedules.filter(s => s.status === 'done').length;
-        const error = schedules.filter(s => s.status === 'error').length;
-        summary.innerHTML = `Tổng: <strong>${total}</strong> · ⏳ ${pending} · ✅ ${done} · ❌ ${error}`;
-
-        if (schedules.length === 0) {
-          container.innerHTML = '<p style="color:#999; text-align:center; padding:40px;">Chưa có lịch đăng bài nào.</p>';
-          return;
+        // Schedules: đặt trước, có thể pending / running / done / error
+        const schedules = Array.isArray(schedRes) ? schedRes : [];
+        for (const s of schedules) {
+          if (!s.timeISO) continue;
+          const d = new Date(s.timeISO);
+          if (isNaN(d)) continue;
+          events.push({
+            kind: 'schedule',
+            id: s.id,
+            date: d,
+            platform: (s.type || 'facebook'),
+            status: s.status || 'pending',
+            profile: s.profile,
+            target: s.type === 'zalo' ? (s.groupName || '') : (s.target || ''),
+            message: s.message,
+            imageCount: s.imageCount || 0,
+          });
         }
 
-        const statusConfig = {
-          pending: { icon: '⏳', color: '#d97706', bg: '#fffbeb', border: '#fde68a', label: 'Chờ đăng' },
-          running: { icon: '🔄', color: '#4f46e5', bg: '#eef2ff', border: '#c7d2fe', label: 'Đang chạy' },
-          done: { icon: '✅', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', label: 'Đã đăng' },
-          error: { icon: '❌', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', label: 'Lỗi' },
-        };
+        // Posts đã đăng (post_logs)
+        const history = (histRes.rows || []);
+        for (const r of history) {
+          const d = new Date(r.timestamp);
+          if (isNaN(d)) continue;
+          events.push({
+            kind: 'post',
+            id: r.id,
+            date: d,
+            platform: r.platform || 'facebook',
+            status: r.success ? 'done' : 'error',
+            profile: r.profile_name || r.profile,
+            target: r.group_name || (r.target === 'personal' ? 'Cá nhân' : (r.target || '')),
+            groupId: r.group_id,
+            message: r.message,
+            imageCount: r.image_count || 0,
+            images: (r.images || []).map(u => u.startsWith('/uploads/') ? '/api/image/' + u.slice('/uploads/'.length) : u),
+            postUrl: r.post_url,
+            error: r.error,
+          });
+        }
 
-        let html = '';
-        schedules.forEach(s => {
-          const st = statusConfig[s.status] || statusConfig.error;
-          const platform = (s.type || 'facebook') === 'zalo' ? '💬 Zalo' : '📘 Facebook';
-          const targetText = s.type === 'zalo' ? (s.groupName || '') : (s.target || '');
+        // Pending + error từ SCHEDULES (không lấy từ post_logs vì lỗi post đã xảy ra rồi)
+        const issuesArr = events.filter(e => e.kind === 'schedule' && (e.status === 'pending' || e.status === 'error' || e.status === 'running'));
 
-          html += `
-            <div style="padding:16px 20px; background:${st.bg}; border:1px solid ${st.border}; border-radius:12px;">
-              <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                <span style="font-size:20px;">${st.icon}</span>
-                <div style="flex:1;">
-                  <div style="font-weight:600; font-size:14px; color:#1e1e2e;">
-                    #${s.id} · ${platform} · <span style="color:${st.color};">${st.label}</span>
-                  </div>
-                  <div style="font-size:12px; color:#999; margin-top:2px;">
-                    ⏰ ${s.time} · 👤 ${s.profile || ''} · 📍 ${targetText}
-                  </div>
-                </div>
-                ${s.status === 'pending' ? `<button onclick="deleteCalendarItem(${s.id})" style="padding:6px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:12px; cursor:pointer; color:#dc2626;">🗑 Xoá</button>` : ''}
-              </div>
-              ${s.message ? `<div style="font-size:13px; color:#555; padding:8px 12px; background:rgba(255,255,255,0.6); border-radius:8px;">${s.message}</div>` : ''}
-              ${s.imageCount > 0 ? `<div style="display:flex; gap:4px; margin-top:8px; flex-wrap:wrap;">${Array.from({length: Math.min(s.imageCount, 5)}, (_, i) => `<img src="/api/schedule-image/${s.id}/${i}" style="width:60px; height:60px; object-fit:cover; border-radius:6px; border:1px solid rgba(0,0,0,0.1);" onerror="this.style.display='none'">`).join('')}${s.imageCount > 5 ? `<div style="width:60px; height:60px; border-radius:6px; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:bold; font-size:14px;">+${s.imageCount - 5}</div>` : ''}</div>` : ''}
-            </div>`;
-        });
+        calCache.events = events;
+        calCache.issues = issuesArr;
 
-        container.innerHTML = html;
+        renderCalendarMonth();
+        renderIssues();
       } catch (e) {
-        container.innerHTML = `<p style="color:red;">Lỗi: ${e.message}</p>`;
+        grid.innerHTML = `<p style="grid-column:span 7; color:#dc2626; text-align:center; padding:24px;">Lỗi: ${e.message}</p>`;
       }
     }
 
+    function renderCalendarMonth() {
+      const grid = document.getElementById('calMonthGrid');
+      const label = document.getElementById('calMonthLabel');
+      const y = calViewDate.getFullYear();
+      const m = calViewDate.getMonth();
+      label.textContent = `Tháng ${m + 1} / ${y}`;
+
+      // Bucket events theo ngày (yyyy-mm-dd)
+      const byDay = new Map();
+      for (const e of calCache.events) {
+        if (e.date.getFullYear() !== y || e.date.getMonth() !== m) continue;
+        const key = calFmtDayKey(e.date);
+        if (!byDay.has(key)) byDay.set(key, []);
+        byDay.get(key).push(e);
+      }
+
+      // Firstday offset (Sunday = 0)
+      const firstDay = new Date(y, m, 1).getDay();
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      const todayKey = calFmtDayKey(new Date());
+
+      let html = '';
+      // Blank cells trước ngày 1
+      for (let i = 0; i < firstDay; i++) {
+        html += '<div style="min-height:84px;"></div>';
+      }
+      for (let day = 1; day <= daysInMonth; day++) {
+        const key = calFmtDayKey(new Date(y, m, day));
+        const list = byDay.get(key) || [];
+        const fbCount = list.filter(e => e.platform === 'facebook').length;
+        const zaloCount = list.filter(e => e.platform === 'zalo').length;
+        const errCount = list.filter(e => e.status === 'error').length;
+        const pendingCount = list.filter(e => e.status === 'pending' || e.status === 'running').length;
+        const isToday = key === todayKey;
+        const bg = isToday ? '#eef2ff' : '#fff';
+        const border = isToday ? '#4f46e5' : '#eee';
+        const clickable = list.length > 0;
+
+        html += `<div ${clickable ? `onclick="calShowDay('${key}')"` : ''} style="min-height:84px; border:1px solid ${border}; border-radius:8px; padding:6px; background:${bg}; cursor:${clickable ? 'pointer' : 'default'}; display:flex; flex-direction:column; gap:4px;">
+          <div style="font-size:12px; color:${isToday ? '#4f46e5' : '#333'}; font-weight:${isToday ? '700' : '500'};">${day}</div>
+          <div style="display:flex; flex-wrap:wrap; gap:3px;">
+            ${fbCount > 0 ? `<span style="background:#dbeafe; color:#1e40af; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">FB ${fbCount}</span>` : ''}
+            ${zaloCount > 0 ? `<span style="background:#dcfce7; color:#166534; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">Zalo ${zaloCount}</span>` : ''}
+            ${errCount > 0 ? `<span style="background:#fef2f2; color:#dc2626; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">✕${errCount}</span>` : ''}
+            ${pendingCount > 0 ? `<span style="background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">⏳${pendingCount}</span>` : ''}
+          </div>
+        </div>`;
+      }
+
+      grid.innerHTML = html;
+    }
+
+    function renderIssues() {
+      const list = document.getElementById('calIssuesList');
+      const issues = calCache.issues;
+      if (!issues.length) {
+        list.innerHTML = '<div style="color:#999; font-size:12px;">Không có bài pending / lỗi</div>';
+        return;
+      }
+      list.innerHTML = issues.map(e => {
+        const color = e.status === 'pending' ? '#d97706' : e.status === 'running' ? '#4f46e5' : '#dc2626';
+        const bg = e.status === 'pending' ? '#fffbeb' : e.status === 'running' ? '#eef2ff' : '#fef2f2';
+        const icon = e.status === 'pending' ? '⏳' : e.status === 'running' ? '🔄' : '❌';
+        const label = e.status === 'pending' ? 'Chờ đăng' : e.status === 'running' ? 'Đang chạy' : 'Lỗi';
+        const timeStr = e.date.toLocaleString('vi-VN');
+        const plat = e.platform === 'zalo' ? 'Zalo' : 'FB';
+        const msg = (e.message || '').length > 50 ? (e.message || '').slice(0, 50) + '…' : (e.message || '');
+        return `<div style="padding:8px 10px; background:${bg}; border:1px solid ${color}33; border-radius:8px;">
+          <div style="font-size:12px; font-weight:600; color:${color};">${icon} ${label} · ${plat}</div>
+          <div style="font-size:11px; color:#555; margin-top:2px;">🕐 ${timeStr}</div>
+          <div style="font-size:11px; color:#555;">📍 ${e.target || '-'}</div>
+          ${msg ? `<div style="font-size:12px; color:#333; margin-top:4px;" title="${(e.message || '').replace(/"/g,'&quot;')}">${msg}</div>` : ''}
+          ${e.status === 'pending' ? `<button onclick="deleteCalendarItem(${e.id})" style="margin-top:6px; padding:3px 8px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:11px; cursor:pointer; color:#dc2626;">🗑 Xoá</button>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    function calShowDay(key) {
+      const detail = document.getElementById('calDayDetail');
+      const list = calCache.events.filter(e => calFmtDayKey(e.date) === key);
+      if (!list.length) { detail.innerHTML = ''; return; }
+      list.sort((a, b) => a.date - b.date);
+
+      detail.innerHTML = `
+        <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:14px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+            <div style="font-weight:600; font-size:14px;">📅 Bài ngày ${key}</div>
+            <button onclick="document.getElementById('calDayDetail').innerHTML=''" style="background:none; border:none; font-size:16px; cursor:pointer; color:#666;">✕</button>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            ${list.map(e => {
+              const plat = e.platform === 'zalo' ? 'Zalo' : 'FB';
+              const time = e.date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+              const statusBadge = e.status === 'done'
+                ? '<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:6px; font-size:11px;">OK</span>'
+                : e.status === 'error'
+                ? `<span style="background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:6px; font-size:11px;" title="${(e.error||'').replace(/"/g,'&quot;')}">Lỗi</span>`
+                : e.status === 'pending'
+                ? '<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:6px; font-size:11px;">Chờ đăng</span>'
+                : '<span style="background:#eef2ff; color:#4f46e5; padding:2px 8px; border-radius:6px; font-size:11px;">Đang chạy</span>';
+              const thumbs = (e.images && e.images.length)
+                ? `<div style="display:flex; gap:3px; margin-top:6px;">${e.images.slice(0,4).map(u => `<a href="${u}" target="_blank"><img src="${u}" style="width:36px; height:36px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px;"></a>`).join('')}${e.images.length > 4 ? `<span style="font-size:11px; color:#666; align-self:center;">+${e.images.length - 4}</span>` : ''}</div>`
+                : '';
+              return `<div style="padding:10px 12px; border:1px solid #eef2ff; border-radius:8px;">
+                <div style="display:flex; align-items:center; gap:8px; font-size:12px;">
+                  <span style="color:#666;">🕐 ${time}</span>
+                  <span style="color:#333; font-weight:600;">${plat}</span>
+                  <span style="color:#555;">· ${e.target || '-'}</span>
+                  <span style="margin-left:auto;">${statusBadge}</span>
+                </div>
+                ${e.message ? `<div style="font-size:13px; color:#333; margin-top:6px;">${e.message}</div>` : ''}
+                ${thumbs}
+                ${e.postUrl ? `<div style="margin-top:6px;"><a href="${e.postUrl}" target="_blank" style="color:#4f46e5; font-size:12px;">🔗 Xem bài</a></div>` : ''}
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+    }
+
+    function calPrevMonth() {
+      calViewDate = new Date(calViewDate.getFullYear(), calViewDate.getMonth() - 1, 1);
+      renderCalendarMonth();
+    }
+    function calNextMonth() {
+      calViewDate = new Date(calViewDate.getFullYear(), calViewDate.getMonth() + 1, 1);
+      renderCalendarMonth();
+    }
+    function calToday() {
+      calViewDate = new Date();
+      renderCalendarMonth();
+    }
+
     function clearCalendarFilters() {
-      document.getElementById('calFilterPlatform').value = '';
-      document.getElementById('calFilterStatus').value = '';
-      document.getElementById('calFilterProfile').value = '';
-      document.getElementById('calFilterDateFrom').value = '';
-      document.getElementById('calFilterDateTo').value = '';
+      // (kept for backward compatibility, không còn filter trực tiếp)
       loadCalendar();
     }
 
