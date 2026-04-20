@@ -1054,6 +1054,35 @@
       }
     }
 
+    // Nén ảnh client-side để tránh 413 từ reverse proxy.
+    // Chỉ nén khi file > 2MB; max 2048px cạnh dài; JPEG quality 0.9.
+    // Giữ nguyên file nếu không phải ảnh hoặc nén thất bại.
+    async function compressImage(file) {
+      if (!file.type.startsWith('image/') || file.size <= 2 * 1024 * 1024) return file;
+      try {
+        const bitmap = await createImageBitmap(file);
+        const MAX = 2048;
+        const scale = Math.min(1, MAX / Math.max(bitmap.width, bitmap.height));
+        const w = Math.round(bitmap.width * scale);
+        const h = Math.round(bitmap.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.9));
+        if (!blob || blob.size >= file.size) return file;
+        const name = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+        return new File([blob], name, { type: 'image/jpeg', lastModified: Date.now() });
+      } catch {
+        return file;
+      }
+    }
+
+    async function appendImages(formData, files, field = 'images') {
+      const compressed = await Promise.all(files.map(compressImage));
+      compressed.forEach(f => formData.append(field, f));
+    }
+
     // Reverse proxy cắt sau ~60s nhưng backend vẫn chạy và đăng bài xong.
     // 502/504 ở post flow → coi như "đang xử lý", không phải lỗi thật.
     function isProxyTimeout(e) {
@@ -1703,7 +1732,7 @@
       formData.append('target', target);
       if (groupId) formData.append('groupId', groupId);
       if (target === 'fb_zalo') formData.append('fbProfile', currentProfile);
-      selectedFiles.forEach(file => formData.append('images', file));
+      await appendImages(formData, selectedFiles);
 
       clearImages();
       addTyping();
@@ -1763,7 +1792,7 @@
             cf.append('message', message);
             cf.append('target', 'group');
             cf.append('groupId', gid);
-            selectedFiles.forEach(file => cf.append('images', file));
+            await appendImages(cf, selectedFiles);
             const cr = await fetch(BASE_URL + '/api/post', { method: 'POST', body: cf });
             const initial = await parseJson(cr);
             const cd = initial.jobId ? await pollJob(initial.jobId) : initial;
@@ -1896,7 +1925,7 @@
       formData.append('message', message);
       formData.append('profile', currentProfile);
       if (groupId) formData.append('groupId', groupId);
-      selectedFiles.forEach(file => formData.append('images', file));
+      await appendImages(formData, selectedFiles);
 
       // Hien thi tin nhan nguoi dung voi noi dung + anh
       addUser(savedMessage, photoUrls);
@@ -3066,7 +3095,7 @@
       formData.append('profile', zaloProfile);
       formData.append('groupName', zaloGroupName);
       formData.append('message', message);
-      zaloSelectedFiles.forEach(file => formData.append('images', file));
+      await appendImages(formData, zaloSelectedFiles);
 
       input.value = '';
       clearZaloImages();
@@ -3234,7 +3263,7 @@
         formData.append('profile', zaloProfile);
         formData.append('groupName', zaloGroupName);
         formData.append('message', text);
-        zaloSelectedFiles.forEach(file => formData.append('images', file));
+        await appendImages(formData, zaloSelectedFiles);
 
         input.value = '';
         clearZaloImages();
