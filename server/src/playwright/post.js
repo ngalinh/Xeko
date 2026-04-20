@@ -127,17 +127,30 @@ async function tryClick(page, selectors, description, timeout = 5000) {
 }
 
 async function openCreatePost(page, isGroup = false) {
+  // Đợi feed render xong trước khi tìm nút tạo bài
+  await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
+
   const selectors = isGroup
     ? [
+        '[aria-label*="Tạo bài viết"]',
+        '[aria-label*="Create post"]',
+        '[aria-label*="Create a post"]',
+        'div[role="button"]:has-text("Bạn viết gì đi")',
+        'div[role="button"]:has-text("viết gì đi")',
+        'div[role="button"]:has-text("Viết gì đó")',
+        'div[role="button"]:has-text("Bạn đang nghĩ gì")',
+        'div[role="button"]:has-text("Write something")',
         'span:has-text("Bạn viết gì đi")',
         'span:has-text("viết gì đi")',
-        'div[role="button"] span:has-text("Viết gì đó")',
-        'div[role="button"] span:has-text("Write something")',
-        'div[role="button"] span:has-text("Bạn đang nghĩ gì")',
       ]
     : [
+        '[aria-label*="Tạo bài viết"]',
+        '[aria-label*="Create post"]',
+        'div[role="button"]:has-text("đang nghĩ gì")',
+        'div[role="button"]:has-text("on your mind")',
         'span:has-text("bạn đang nghĩ gì")',
         'span:has-text("đang nghĩ gì thế")',
+        'span:has-text("đang nghĩ gì")',
         '[aria-label*="nghĩ gì"]',
         '[aria-label*="on your mind"]',
       ];
