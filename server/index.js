@@ -690,7 +690,7 @@ app.post('/api/schedule', upload.array('images', 10), (req, res) => {
     const job = scheduler.addSchedule({ time, target, groupId, message, imagePaths, profile, type, groupName });
     res.json({
       success: true,
-      message: `Đã lên lịch đăng bài lúc ${job.time.toLocaleString('vi-VN')}`,
+      message: `Đã lên lịch đăng bài lúc ${job.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`,
       id: job.id,
     });
   } catch (e) {

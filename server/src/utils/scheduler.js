@@ -62,7 +62,7 @@ function addSchedule({ time, target, groupId, message, imagePaths, profile, type
   }, delay);
 
   scheduledPosts.push(job);
-  logger.info(`Len lich #${id}: ${scheduleTime.toLocaleString('vi-VN')} - ${target} - "${message?.substring(0, 30)}..."`);
+  logger.info(`Len lich #${id}: ${scheduleTime.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} - ${target} - "${message?.substring(0, 30)}..."`);
 
   return job;
 }
@@ -90,8 +90,8 @@ async function executeSchedule(job) {
         id: job.id,
         type: result.success ? 'success' : 'error',
         platform: 'zalo',
-        time: new Date().toLocaleString('vi-VN'),
-        scheduledTime: job.time.toLocaleString('vi-VN'),
+        time: new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
+        scheduledTime: job.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
         target: `Zalo:${job.groupName}`,
         message: job.message,
         imageCount: job.imagePaths?.length || 0,
@@ -165,8 +165,8 @@ async function executeSchedule(job) {
     notifications.push({
       id: job.id,
       type: 'success',
-      time: new Date().toLocaleString('vi-VN'),
-      scheduledTime: job.time.toLocaleString('vi-VN'),
+      time: new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
+      scheduledTime: job.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
       target: job.target,
       groupId: job.groupId,
       message: job.message,
@@ -181,8 +181,8 @@ async function executeSchedule(job) {
     notifications.push({
       id: job.id,
       type: 'error',
-      time: new Date().toLocaleString('vi-VN'),
-      scheduledTime: job.time.toLocaleString('vi-VN'),
+      time: new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
+      scheduledTime: job.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
       target: job.target,
       groupId: job.groupId,
       message: job.message,
@@ -210,7 +210,7 @@ async function executeSchedule(job) {
 function getSchedules() {
   return scheduledPosts.map(j => ({
     id: j.id,
-    time: j.time.toLocaleString('vi-VN'),
+    time: j.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
     timeISO: j.time.toISOString(),
     type: j.type || 'facebook',
     target: j.target,
