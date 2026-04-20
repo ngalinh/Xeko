@@ -2192,7 +2192,9 @@
             groupId: r.group_id,
             message: r.message,
             imageCount: r.image_count || 0,
-            images: (r.images || []).map(u => u.startsWith('/uploads/') ? '/api/image/' + u.slice('/uploads/'.length) : u),
+            images: (r.images || [])
+              .map(u => u.startsWith('/uploads/') ? '/api/image/' + u.slice('/uploads/'.length) : u)
+              .map(u => u.startsWith('/') ? BASE_URL + u : u),
             postUrl: r.post_url,
             error: r.error,
           });
@@ -3434,7 +3436,8 @@
             const msg = row.message ? (row.message.length > 60 ? row.message.substring(0, 60) + '…' : row.message) : '-';
             const imgCount = row.image_count || 0;
             const images = (Array.isArray(row.images) ? row.images : [])
-              .map(u => u.startsWith('/uploads/') ? '/api/image/' + u.slice('/uploads/'.length) : u);
+              .map(u => u.startsWith('/uploads/') ? '/api/image/' + u.slice('/uploads/'.length) : u)
+              .map(u => u.startsWith('/') ? BASE_URL + u : u);
             let thumbs;
             if (images.length > 0) {
               const shown = images.slice(0, 4);
