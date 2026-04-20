@@ -587,13 +587,9 @@
       <button class="sidebar-item active" onclick="switchPage('post')" id="navPost">
         <span class="icon">📝</span> Đăng bài
       </button>
-      <div class="sidebar-section">Lịch trình</div>
-      <button class="sidebar-item" onclick="switchPage('calendar')" id="navCalendar">
-        <span class="icon">📅</span> Lịch đăng bài
-      </button>
-      <div class="sidebar-section">Thống kê</div>
+      <div class="sidebar-section">Lịch trình & Thống kê</div>
       <button class="sidebar-item" onclick="switchPage('dashboard')" id="navDashboard">
-        <span class="icon">📊</span> Thống kê
+        <span class="icon">📊</span> Dashboard
       </button>
       <div class="sidebar-section">Công cụ</div>
       <button class="sidebar-item" onclick="switchPage('session')" id="navSession">
@@ -662,57 +658,6 @@
       <input type="file" id="zaloFileInput" accept="image/*" multiple onchange="handleZaloFiles(this)" style="display:none;">
       <input type="text" id="zaloMsgInput" placeholder="Nhập tin nhắn..." autocomplete="off" onkeydown="if(event.key==='Enter')sendZaloMessage()">
       <button class="btn-icon btn-send" id="zaloSendBtn" onclick="sendZaloMessage()">➤</button>
-    </div>
-  </div>
-
-  <!-- PAGE: Lịch đăng bài -->
-  <div class="page" id="pageCalendar">
-    <div class="header">
-      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;">☰</button>
-      <div class="header-info">
-        <h1>📅 Lịch đăng bài</h1>
-        <span>Tổng hợp bài đã lên lịch - Facebook & Zalo</span>
-      </div>
-    </div>
-    <div style="flex:1; padding:24px 32px; overflow-y:auto;">
-      <!-- Filter -->
-      <div style="display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; align-items:center;">
-        <select id="calFilterPlatform" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
-          <option value="">Tất cả kênh</option>
-          <option value="facebook">📘 Facebook</option>
-          <option value="zalo">💬 Zalo</option>
-        </select>
-        <select id="calFilterStatus" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
-          <option value="">Tất cả trạng thái</option>
-          <option value="pending">⏳ Chờ đăng</option>
-          <option value="done">✅ Đã đăng</option>
-          <option value="error">❌ Lỗi</option>
-          <option value="running">🔄 Đang chạy</option>
-        </select>
-        <select id="calFilterProfile" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
-          <option value="">Tất cả profile</option>
-          <option value="linhthao">Linh Thảo</option>
-          <option value="linhduong">Linh Dương</option>
-          <option value="Linh Thảo Us Authentic">Linh Thảo (Zalo)</option>
-          <option value="Linh Duong Us">Linh Dương (Zalo)</option>
-        </select>
-        <span style="font-size:12px; color:#999;">Từ</span>
-        <input type="date" id="calFilterDateFrom" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
-        <span style="font-size:12px; color:#999;">đến</span>
-        <input type="date" id="calFilterDateTo" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
-        <button onclick="clearCalendarFilters()" style="padding:8px 14px; background:#f0edff; border:1px solid #e0d4ff; border-radius:8px; font-size:13px; cursor:pointer; color:#4f46e5;">
-          ✕ Xoá lọc
-        </button>
-        <button onclick="loadCalendar()" style="padding:8px 14px; background:#f0edff; border:1px solid #e0d4ff; border-radius:8px; font-size:13px; cursor:pointer; color:#4f46e5;">
-          🔄 Làm mới
-        </button>
-      </div>
-      <div style="font-size:13px; color:#999; margin-bottom:14px;" id="calSummary"></div>
-
-      <!-- Danh sach -->
-      <div id="calendarList" style="display:flex; flex-direction:column; gap:10px;">
-        <p style="color:#999;">Đang tải...</p>
-      </div>
     </div>
   </div>
 
@@ -901,18 +846,65 @@
     </div>
   </div><!-- end pageSpyBaiViet -->
 
-  <!-- PAGE: Dashboard Thống kê -->
+  <!-- PAGE: Dashboard (gộp Lịch đăng bài + Thống kê) -->
   <div class="page" id="pageDashboard">
     <div class="header">
       <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;">☰</button>
       <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:22px;">📊</div>
       <div class="header-info">
-        <h1>Thống kê</h1>
-        <span>Lịch sử & thống kê bài đăng</span>
+        <h1>Dashboard</h1>
+        <span>Lịch đăng bài & Thống kê</span>
       </div>
     </div>
 
-    <div style="flex:1; overflow-y:auto; padding:20px;">
+    <!-- Tab bar -->
+    <div class="dash-tab-bar" style="display:flex; gap:8px; padding:16px 20px 0; border-bottom:1px solid #e5e7eb;">
+      <button onclick="switchDashTab('calendar')" class="dash-tab active" id="dashTabCalendar" style="padding:10px 20px; background:none; border:none; border-bottom:2px solid #4f46e5; color:#4f46e5; font-weight:600; cursor:pointer; font-size:14px;">📅 Lịch đăng bài</button>
+      <button onclick="switchDashTab('stats')" class="dash-tab" id="dashTabStats" style="padding:10px 20px; background:none; border:none; border-bottom:2px solid transparent; color:#666; cursor:pointer; font-size:14px;">📊 Thống kê</button>
+    </div>
+
+    <!-- Tab content: Lịch đăng bài -->
+    <div id="dashPanelCalendar" style="flex:1; overflow-y:auto; padding:20px;">
+      <!-- Filter -->
+      <div style="display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; align-items:center;">
+        <select id="calFilterPlatform" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
+          <option value="">Tất cả kênh</option>
+          <option value="facebook">📘 Facebook</option>
+          <option value="zalo">💬 Zalo</option>
+        </select>
+        <select id="calFilterStatus" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
+          <option value="">Tất cả trạng thái</option>
+          <option value="pending">⏳ Chờ đăng</option>
+          <option value="done">✅ Đã đăng</option>
+          <option value="error">❌ Lỗi</option>
+          <option value="running">🔄 Đang chạy</option>
+        </select>
+        <select id="calFilterProfile" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
+          <option value="">Tất cả profile</option>
+          <option value="linhthao">Linh Thảo</option>
+          <option value="linhduong">Linh Dương</option>
+          <option value="Linh Thảo Us Authentic">Linh Thảo (Zalo)</option>
+          <option value="Linh Duong Us">Linh Dương (Zalo)</option>
+        </select>
+        <span style="font-size:12px; color:#999;">Từ</span>
+        <input type="date" id="calFilterDateFrom" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
+        <span style="font-size:12px; color:#999;">đến</span>
+        <input type="date" id="calFilterDateTo" onchange="loadCalendar()" style="padding:8px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
+        <button onclick="clearCalendarFilters()" style="padding:8px 14px; background:#f0edff; border:1px solid #e0d4ff; border-radius:8px; font-size:13px; cursor:pointer; color:#4f46e5;">
+          ✕ Xoá lọc
+        </button>
+        <button onclick="loadCalendar()" style="padding:8px 14px; background:#f0edff; border:1px solid #e0d4ff; border-radius:8px; font-size:13px; cursor:pointer; color:#4f46e5;">
+          🔄 Làm mới
+        </button>
+      </div>
+      <div style="font-size:13px; color:#999; margin-bottom:14px;" id="calSummary"></div>
+      <div id="calendarList" style="display:flex; flex-direction:column; gap:10px;">
+        <p style="color:#999;">Đang tải...</p>
+      </div>
+    </div>
+
+    <!-- Tab content: Thống kê -->
+    <div id="dashPanelStats" style="display:none; flex:1; overflow-y:auto; padding:20px;">
       <!-- Summary Cards -->
       <div id="dashSummary" style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px;">
         <div class="dash-card" style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:16px;">
@@ -945,7 +937,10 @@
         </div>
         <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px;">
           <div style="font-weight:600; margin-bottom:12px; font-size:14px;">Theo nhóm</div>
-          <div id="statByGroup" style="font-size:13px;"></div>
+          <div style="font-size:12px; font-weight:600; color:#2563eb; margin:6px 0 4px;">📘 Facebook</div>
+          <div id="statByGroupFb" style="font-size:13px;"></div>
+          <div style="font-size:12px; font-weight:600; color:#16a34a; margin:14px 0 4px;">💬 Zalo</div>
+          <div id="statByGroupZalo" style="font-size:13px;"></div>
         </div>
       </div>
 
@@ -971,17 +966,27 @@
 
       <!-- Post History Table -->
       <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
-        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <table style="width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed;">
+          <colgroup>
+            <col style="width:105px;">
+            <col style="width:110px;">
+            <col style="width:90px;">
+            <col style="width:110px;">
+            <col style="width:140px;">
+            <col>
+            <col style="width:150px;">
+            <col style="width:80px;">
+          </colgroup>
           <thead>
             <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
-              <th style="padding:10px 14px; text-align:left; font-weight:600;">Thời gian</th>
-              <th style="padding:10px 14px; text-align:left; font-weight:600;">Tài khoản</th>
-              <th style="padding:10px 14px; text-align:left; font-weight:600;">Nền tảng</th>
-              <th style="padding:10px 14px; text-align:left; font-weight:600;">Nơi đăng</th>
-              <th style="padding:10px 14px; text-align:left; font-weight:600;">Nội dung</th>
-              <th style="padding:10px 14px; text-align:center; font-weight:600;">Ảnh</th>
-              <th style="padding:10px 14px; text-align:center; font-weight:600;">Trạng thái</th>
-              <th style="padding:10px 14px; text-align:left; font-weight:600;">Nguồn</th>
+              <th style="padding:10px 12px; text-align:left; font-weight:600;">Thời gian</th>
+              <th style="padding:10px 12px; text-align:left; font-weight:600;">Tài khoản</th>
+              <th style="padding:10px 12px; text-align:left; font-weight:600;">Nền tảng</th>
+              <th style="padding:10px 12px; text-align:left; font-weight:600;">Nơi đăng</th>
+              <th style="padding:10px 12px; text-align:left; font-weight:600;">ID nhóm</th>
+              <th style="padding:10px 12px; text-align:left; font-weight:600;">Nội dung</th>
+              <th style="padding:10px 12px; text-align:left; font-weight:600;">Ảnh</th>
+              <th style="padding:10px 12px; text-align:center; font-weight:600;">Trạng thái</th>
             </tr>
           </thead>
           <tbody id="dashHistoryBody"></tbody>
@@ -2011,8 +2016,9 @@
       const pageMap = {
         post: { page: 'pageDangBai', nav: 'navPost' },
         zalo: { page: 'pageZalo', nav: 'navZalo' },
-        calendar: { page: 'pageCalendar', nav: 'navCalendar' },
         dashboard: { page: 'pageDashboard', nav: 'navDashboard' },
+        // 'calendar' alias → dashboard calendar tab (BC cho nơi còn trỏ tới)
+        calendar: { page: 'pageDashboard', nav: 'navDashboard' },
         session: { page: 'pageSession', nav: 'navSession' },
         spy: { page: 'pageSpyBaiViet', nav: 'navSpy' },
       };
@@ -2028,10 +2034,11 @@
         zaloInitialized = true;
       }
       if (pg === 'calendar') {
-        loadCalendar();
-      }
-      if (pg === 'dashboard') {
-        loadDashboard();
+        switchDashTab('calendar');
+      } else if (pg === 'dashboard') {
+        // Giữ tab hiện tại; load lại dữ liệu của tab đang mở
+        const currentTab = document.getElementById('dashTabStats')?.classList.contains('active') ? 'stats' : 'calendar';
+        switchDashTab(currentTab);
       }
       if (pg === 'session') {
         renderProfileList();
@@ -2039,11 +2046,40 @@
 
       // Sync mobile bottom nav
       document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
-      const mobileMap = { post:'Post', calendar:'Calendar', dashboard:'Dashboard', session:'Session', spy:'Spy' };
+      const mobileMap = { post:'Post', calendar:'Dashboard', dashboard:'Dashboard', session:'Session', spy:'Spy' };
       const mobileBtn = document.getElementById('mobileNav' + (mobileMap[pg] || ''));
       if (mobileBtn) mobileBtn.classList.add('active');
       // Close sidebar if open
       closeSidebar();
+    }
+
+    function switchDashTab(tab) {
+      const calTab = document.getElementById('dashTabCalendar');
+      const statsTab = document.getElementById('dashTabStats');
+      const calPanel = document.getElementById('dashPanelCalendar');
+      const statsPanel = document.getElementById('dashPanelStats');
+      if (!calTab || !statsTab) return;
+
+      const setActive = (btn, on) => {
+        btn.classList.toggle('active', on);
+        btn.style.borderBottom = on ? '2px solid #4f46e5' : '2px solid transparent';
+        btn.style.color = on ? '#4f46e5' : '#666';
+        btn.style.fontWeight = on ? '600' : 'normal';
+      };
+
+      if (tab === 'stats') {
+        setActive(statsTab, true);
+        setActive(calTab, false);
+        calPanel.style.display = 'none';
+        statsPanel.style.display = 'block';
+        loadDashboard();
+      } else {
+        setActive(calTab, true);
+        setActive(statsTab, false);
+        statsPanel.style.display = 'none';
+        calPanel.style.display = 'block';
+        loadCalendar();
+      }
     }
 
     // === Lich dang bai ===
@@ -3160,19 +3196,18 @@
           profileEl.innerHTML = '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>';
         }
 
-        // By group
-        const groupEl = document.getElementById('statByGroup');
-        if (stats.byGroup && stats.byGroup.length > 0) {
-          groupEl.innerHTML = stats.byGroup.map(g => {
-            const icon = g.platform === 'zalo' ? '💬' : '👥';
-            return `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f3f4f6;">
-              <span>${icon} ${g.group_name}</span>
-              <span><strong>${g.total}</strong> bài · <span style="color:#16a34a">${g.success_count}</span> / <span style="color:#dc2626">${g.fail_count}</span></span>
-            </div>`;
-          }).join('');
-        } else {
-          groupEl.innerHTML = '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>';
-        }
+        // By group — split Facebook vs Zalo
+        const fbEl = document.getElementById('statByGroupFb');
+        const zaloEl = document.getElementById('statByGroupZalo');
+        const groups = stats.byGroup || [];
+        const fbGroups = groups.filter(g => g.platform !== 'zalo');
+        const zaloGroups = groups.filter(g => g.platform === 'zalo');
+        const renderRow = g => `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f3f4f6;">
+          <span>${g.group_name}</span>
+          <span><strong>${g.total}</strong> bài · <span style="color:#16a34a">${g.success_count}</span> / <span style="color:#dc2626">${g.fail_count}</span></span>
+        </div>`;
+        fbEl.innerHTML = fbGroups.length ? fbGroups.map(renderRow).join('') : '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>';
+        zaloEl.innerHTML = zaloGroups.length ? zaloGroups.map(renderRow).join('') : '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>';
 
         // Populate profile filter
         const filterProfile = document.getElementById('dashFilterProfile');
@@ -3215,24 +3250,41 @@
         const tbody = document.getElementById('dashHistoryBody');
         if (data.rows && data.rows.length > 0) {
           tbody.innerHTML = data.rows.map(row => {
-            const time = new Date(row.timestamp).toLocaleString('vi-VN');
+            const d = new Date(row.timestamp);
+            const time = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} ${d.getDate()}/${d.getMonth()+1}`;
             const platformIcon = row.platform === 'zalo' ? '💬' : '📘';
             const statusBadge = row.success
               ? '<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:6px; font-size:11px;">OK</span>'
-              : `<span style="background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:6px; font-size:11px;" title="${row.error || ''}">Lỗi</span>`;
-            const target = row.group_name || (row.target === 'personal' ? 'Cá nhân' : row.target);
-            const sourceMap = { web: '🌐', telegram: '🤖', schedule: '⏰' };
-            const msg = row.message ? (row.message.length > 40 ? row.message.substring(0, 40) + '...' : row.message) : '-';
+              : `<span style="background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:6px; font-size:11px;" title="${(row.error||'').replace(/"/g,'&quot;')}">Lỗi</span>`;
+            const target = row.target === 'personal' ? 'Cá nhân' : (row.target || '-');
+            const groupId = row.group_id || row.group_name || '-';
+            const fullMsg = (row.message || '').replace(/"/g,'&quot;');
+            const msg = row.message ? (row.message.length > 80 ? row.message.substring(0, 80) + '...' : row.message) : '-';
+            const imgCount = row.image_count || 0;
+            const images = Array.isArray(row.images) ? row.images : [];
+            let thumbs;
+            if (images.length > 0) {
+              const shown = images.slice(0, 4);
+              thumbs = `<div style="display:flex; gap:3px; align-items:center;">${shown.map(u => `<a href="${u}" target="_blank"><img src="${u}" style="width:28px; height:28px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
+            } else if (imgCount > 0) {
+              // Legacy rows trước khi có cột images
+              thumbs = `<div style="display:flex; gap:3px; align-items:center;">${Array.from({length: Math.min(imgCount, 4)}).map(() => '<span style="display:inline-flex; width:28px; height:28px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:13px;">🖼️</span>').join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
+            } else {
+              thumbs = '<span style="color:#bbb;">—</span>';
+            }
+            const shortProfile = (row.profile_name || row.profile || '').length > 14
+              ? (row.profile_name || row.profile).substring(0, 14) + '…'
+              : (row.profile_name || row.profile || '-');
 
             return `<tr style="border-bottom:1px solid #f3f4f6;">
-              <td style="padding:10px 14px; white-space:nowrap;">${time}</td>
-              <td style="padding:10px 14px;">${row.profile_name || row.profile}</td>
-              <td style="padding:10px 14px;">${platformIcon} ${row.platform}</td>
-              <td style="padding:10px 14px;">${target}</td>
-              <td style="padding:10px 14px; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.message||'').replace(/"/g,'&quot;')}">${msg}</td>
-              <td style="padding:10px 14px; text-align:center;">${row.image_count || 0}</td>
-              <td style="padding:10px 14px; text-align:center;">${statusBadge}</td>
-              <td style="padding:10px 14px;">${sourceMap[row.source] || row.source}</td>
+              <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
+              <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${row.profile_name || row.profile || ''}">${shortProfile}</td>
+              <td style="padding:10px 12px; font-size:12px;">${platformIcon} ${row.platform}</td>
+              <td style="padding:10px 12px; font-size:12px;">${target}</td>
+              <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${groupId}</td>
+              <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msg}</td>
+              <td style="padding:10px 12px;">${thumbs}</td>
+              <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
             </tr>`;
           }).join('');
         } else {
@@ -3267,11 +3319,8 @@
     <button class="mobile-nav-item active" id="mobileNavPost" onclick="switchPage('post')">
       <span class="mn-icon">📝</span>Đăng bài
     </button>
-    <button class="mobile-nav-item" id="mobileNavCalendar" onclick="switchPage('calendar')">
-      <span class="mn-icon">📅</span>Lịch
-    </button>
     <button class="mobile-nav-item" id="mobileNavDashboard" onclick="switchPage('dashboard')">
-      <span class="mn-icon">📊</span>Thống kê
+      <span class="mn-icon">📊</span>Dashboard
     </button>
     <button class="mobile-nav-item" id="mobileNavSession" onclick="switchPage('session')">
       <span class="mn-icon">👥</span>Tài khoản

@@ -38,4 +38,10 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_post_logs_success ON post_logs(success);
 `);
 
+// Migration: add images column (JSON array of URLs) if not exists
+const cols = db.prepare("PRAGMA table_info(post_logs)").all().map(c => c.name);
+if (!cols.includes('images')) {
+  db.exec(`ALTER TABLE post_logs ADD COLUMN images TEXT`);
+}
+
 module.exports = db;
