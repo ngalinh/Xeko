@@ -25,7 +25,7 @@ function saveHistory(data) {
 function addEntry(profile, name, type, detail = '') {
   const history = loadHistory();
   history.unshift({
-    time: new Date().toLocaleString('vi-VN'),
+    time: new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
     timeISO: new Date().toISOString(),
     profile,
     name,
