@@ -1050,6 +1050,24 @@
       return e && (e.status === 504 || e.status === 502 || e.status === 524);
     }
 
+    // Polling job status (backend dùng async job để tránh proxy timeout)
+    async function pollJob(jobId, maxWaitMs = 10 * 60 * 1000) {
+      const start = Date.now();
+      while (Date.now() - start < maxWaitMs) {
+        await new Promise(r => setTimeout(r, 5000));
+        try {
+          const r = await fetch(BASE_URL + '/api/job/' + jobId);
+          const data = await parseJson(r);
+          if (data.status === 'done') return data.result;
+          if (data.status === 'failed') throw new Error(data.error || 'Job thất bại');
+        } catch (e) {
+          if (isProxyTimeout(e)) continue; // proxy lag, thử lại
+          throw e;
+        }
+      }
+      throw new Error('Quá 10 phút chưa xong — kiểm tra FB tay.');
+    }
+
     const BOT_AVATAR = '/xeko-avatar.png';
 
     function buildPhotoGrid(photos) {
@@ -1683,7 +1701,18 @@
 
       try {
         const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: formData });
-        const data = await parseJson(res);
+        const initial = await parseJson(res);
+
+        // Backend trả jobId → polling; nếu lỗi nhanh (sai profile, quá hạn) → data.error
+        let data;
+        if (initial.jobId) {
+          removeTyping();
+          addBot('⏳ Đang đăng bài, vui lòng chờ...');
+          addTyping();
+          data = await pollJob(initial.jobId);
+        } else {
+          data = initial; // lỗi sync (vd sai profile)
+        }
         removeTyping();
 
         if (data.results) {
@@ -1715,7 +1744,8 @@
             cf.append('groupId', gid);
             selectedFiles.forEach(file => cf.append('images', file));
             const cr = await fetch(BASE_URL + '/api/post', { method: 'POST', body: cf });
-            const cd = await parseJson(cr);
+            const initial = await parseJson(cr);
+            const cd = initial.jobId ? await pollJob(initial.jobId) : initial;
             removeTyping();
             if (cd.success) {
               let msg = `Đã đăng bài lên <strong>Group #${gid}</strong> thành công!`;
