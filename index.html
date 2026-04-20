@@ -1589,23 +1589,6 @@
       }
     }
 
-    // ===== Trạng thái =====
-    function showStatus() {
-      addUser('Trạng thái');
-      fetch(BASE_URL + '/api/command', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: '/status' }),
-      })
-      .then(r => parseJson(r))
-      .then(data => {
-        addBot(data.message, [
-          { label: '👤 Chọn Profile', action: 'showProfileSelect()' },
-          { label: '📋 Xem lịch đăng bài', action: 'showScheduleList()' },
-        ]);
-      })
-      .catch(e => addBot(`Lỗi: ${e.message}`));
-    }
 
     // ===== Upload ảnh =====
     function handleFiles(input) {
@@ -1825,7 +1808,6 @@
           { label: '📝 Đăng bài tiếp', action: 'focusInput()' },
           { label: '📍 Đổi nơi đăng', action: 'showTargetSelect()' },
           { label: '🔄 Đổi Profile', action: 'showProfileSelect()' },
-          { label: '📊 Trạng thái', action: 'showStatus()' },
         ]);
       } catch (e) {
         removeTyping();
@@ -1834,7 +1816,6 @@
             { label: '📝 Đăng bài tiếp', action: 'focusInput()' },
             { label: '📍 Đổi nơi đăng', action: 'showTargetSelect()' },
             { label: '🔄 Đổi Profile', action: 'showProfileSelect()' },
-            { label: '📊 Trạng thái', action: 'showStatus()' },
           ]);
         } else {
           addBot(`Lỗi: ${e.message}`);
