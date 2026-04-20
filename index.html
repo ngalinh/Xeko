@@ -968,14 +968,14 @@
       <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
         <table style="width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed;">
           <colgroup>
-            <col style="width:105px;">
-            <col style="width:110px;">
-            <col style="width:90px;">
-            <col style="width:110px;">
-            <col style="width:140px;">
-            <col>
+            <col style="width:170px;">
             <col style="width:150px;">
-            <col style="width:80px;">
+            <col style="width:70px;">
+            <col style="width:100px;">
+            <col style="width:160px;">
+            <col style="width:260px;">
+            <col>
+            <col style="width:90px;">
           </colgroup>
           <thead>
             <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
@@ -3251,35 +3251,34 @@
         if (data.rows && data.rows.length > 0) {
           tbody.innerHTML = data.rows.map(row => {
             const d = new Date(row.timestamp);
-            const time = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} ${d.getDate()}/${d.getMonth()+1}`;
-            const platformIcon = row.platform === 'zalo' ? '💬' : '📘';
+            const pad = n => String(n).padStart(2,'0');
+            const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+            const platformLabel = row.platform === 'zalo' ? 'Zalo' : 'FB';
             const statusBadge = row.success
               ? '<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:6px; font-size:11px;">OK</span>'
               : `<span style="background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:6px; font-size:11px;" title="${(row.error||'').replace(/"/g,'&quot;')}">Lỗi</span>`;
             const target = row.target === 'personal' ? 'Cá nhân' : (row.target || '-');
             const groupId = row.group_id || row.group_name || '-';
             const fullMsg = (row.message || '').replace(/"/g,'&quot;');
-            const msg = row.message ? (row.message.length > 80 ? row.message.substring(0, 80) + '...' : row.message) : '-';
+            const msg = row.message ? (row.message.length > 60 ? row.message.substring(0, 60) + '…' : row.message) : '-';
             const imgCount = row.image_count || 0;
-            const images = Array.isArray(row.images) ? row.images : [];
+            const images = (Array.isArray(row.images) ? row.images : [])
+              .map(u => u.startsWith('/uploads/') ? '/api/image/' + u.slice('/uploads/'.length) : u);
             let thumbs;
             if (images.length > 0) {
               const shown = images.slice(0, 4);
-              thumbs = `<div style="display:flex; gap:3px; align-items:center;">${shown.map(u => `<a href="${u}" target="_blank"><img src="${u}" style="width:28px; height:28px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
+              thumbs = `<div style="display:flex; gap:3px; align-items:center;">${shown.map(u => `<a href="${u}" target="_blank"><img src="${u}" style="width:32px; height:32px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
             } else if (imgCount > 0) {
-              // Legacy rows trước khi có cột images
-              thumbs = `<div style="display:flex; gap:3px; align-items:center;">${Array.from({length: Math.min(imgCount, 4)}).map(() => '<span style="display:inline-flex; width:28px; height:28px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:13px;">🖼️</span>').join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
+              thumbs = `<div style="display:flex; gap:3px; align-items:center;">${Array.from({length: Math.min(imgCount, 4)}).map(() => '<span style="display:inline-flex; width:32px; height:32px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:14px;">🖼️</span>').join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
             } else {
               thumbs = '<span style="color:#bbb;">—</span>';
             }
-            const shortProfile = (row.profile_name || row.profile || '').length > 14
-              ? (row.profile_name || row.profile).substring(0, 14) + '…'
-              : (row.profile_name || row.profile || '-');
+            const profileName = row.profile_name || row.profile || '-';
 
             return `<tr style="border-bottom:1px solid #f3f4f6;">
               <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
-              <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${row.profile_name || row.profile || ''}">${shortProfile}</td>
-              <td style="padding:10px 12px; font-size:12px;">${platformIcon} ${row.platform}</td>
+              <td style="padding:10px 12px; font-size:12px; white-space:nowrap;">${profileName}</td>
+              <td style="padding:10px 12px; font-size:12px;">${platformLabel}</td>
               <td style="padding:10px 12px; font-size:12px;">${target}</td>
               <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${groupId}</td>
               <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msg}</td>

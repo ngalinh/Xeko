@@ -19,10 +19,22 @@ const TEMP_DIR = path.resolve(__dirname, '../temp');
 if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 
 // Uploads persistent (thumbnail trong history). Temp files sau khi post xong
-// được copy sang đây để browser xem lại được.
+// được copy sang đây để browser xem lại được. Serve qua /api/image/*
+// (nằm trong namespace /api nên chắc chắn được reverse proxy forward).
 const UPLOADS_DIR = path.resolve(__dirname, '../uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-app.use('/uploads', express.static(UPLOADS_DIR));
+
+app.get('/api/image/:date/:filename', (req, res) => {
+  const { date, filename } = req.params;
+  // Chặn path traversal
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || /[/\\]/.test(filename)) {
+    return res.status(400).send('Bad request');
+  }
+  const filePath = path.join(UPLOADS_DIR, date, filename);
+  if (!filePath.startsWith(UPLOADS_DIR)) return res.status(400).send('Bad request');
+  if (!fs.existsSync(filePath)) return res.status(404).send('Not found');
+  res.sendFile(filePath);
+});
 
 function persistImages(imagePaths) {
   if (!imagePaths || !imagePaths.length) return [];
@@ -38,7 +50,7 @@ function persistImages(imagePaths) {
       const filename = path.basename(p);
       const target = path.join(targetDir, filename);
       fs.copyFileSync(p, target);
-      urls.push(`/uploads/${dateDir}/${filename}`);
+      urls.push(`/api/image/${dateDir}/${filename}`);
     } catch (e) {
       logger.error(`persistImages: ${e.message}`);
     }
