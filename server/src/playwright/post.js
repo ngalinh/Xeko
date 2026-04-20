@@ -45,11 +45,15 @@ async function getBrowser() {
   const profile = getActiveProfile();
   const key = activeProfile;
 
+  // .pages() không throw khi context đã đóng → thử newPage để kiểm tra thật,
+  // nếu fail thì invalidate cache và tạo lại.
   if (browsers[key]) {
     try {
-      browsers[key].pages();
+      const probe = await browsers[key].newPage();
+      await probe.close();
       return browsers[key];
     } catch {
+      try { await browsers[key].close(); } catch {}
       browsers[key] = null;
     }
   }
@@ -63,6 +67,11 @@ async function getBrowser() {
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
     args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
     permissions: ['clipboard-read', 'clipboard-write'],
+  });
+
+  // Khi user đóng tay cửa sổ Chromium, clear cache để lần sau tạo mới.
+  browsers[key].once('close', () => {
+    if (browsers[key]) browsers[key] = null;
   });
 
   return browsers[key];
