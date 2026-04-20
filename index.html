@@ -3261,9 +3261,17 @@
             const fullMsg = (row.message || '').replace(/"/g,'&quot;');
             const msg = row.message ? (row.message.length > 80 ? row.message.substring(0, 80) + '...' : row.message) : '-';
             const imgCount = row.image_count || 0;
-            const thumbs = imgCount > 0
-              ? `<div style="display:flex; gap:3px; align-items:center;">${Array.from({length: Math.min(imgCount, 4)}).map(() => '<span style="display:inline-flex; width:28px; height:28px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:13px;">🖼️</span>').join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`
-              : '<span style="color:#bbb;">—</span>';
+            const images = Array.isArray(row.images) ? row.images : [];
+            let thumbs;
+            if (images.length > 0) {
+              const shown = images.slice(0, 4);
+              thumbs = `<div style="display:flex; gap:3px; align-items:center;">${shown.map(u => `<a href="${u}" target="_blank"><img src="${u}" style="width:28px; height:28px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
+            } else if (imgCount > 0) {
+              // Legacy rows trước khi có cột images
+              thumbs = `<div style="display:flex; gap:3px; align-items:center;">${Array.from({length: Math.min(imgCount, 4)}).map(() => '<span style="display:inline-flex; width:28px; height:28px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:13px;">🖼️</span>').join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
+            } else {
+              thumbs = '<span style="color:#bbb;">—</span>';
+            }
             const shortProfile = (row.profile_name || row.profile || '').length > 14
               ? (row.profile_name || row.profile).substring(0, 14) + '…'
               : (row.profile_name || row.profile || '-');

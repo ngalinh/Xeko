@@ -3,14 +3,14 @@ const db = require('./db');
 // === Prepared statements ===
 
 const insertStmt = db.prepare(`
-  INSERT INTO post_logs (timestamp, profile, profile_name, platform, target, group_name, group_id, message, image_count, success, error, post_url, source)
-  VALUES (@timestamp, @profile, @profileName, @platform, @target, @groupName, @groupId, @message, @imageCount, @success, @error, @postUrl, @source)
+  INSERT INTO post_logs (timestamp, profile, profile_name, platform, target, group_name, group_id, message, image_count, success, error, post_url, source, images)
+  VALUES (@timestamp, @profile, @profileName, @platform, @target, @groupName, @groupId, @message, @imageCount, @success, @error, @postUrl, @source, @images)
 `);
 
 /**
  * Ghi log 1 bai dang
  */
-function logPost({ profile, profileName, platform, target, groupName, groupId, message, imageCount, success, error, postUrl, source }) {
+function logPost({ profile, profileName, platform, target, groupName, groupId, message, imageCount, success, error, postUrl, source, images }) {
   return insertStmt.run({
     timestamp: new Date().toISOString(),
     profile: profile || 'unknown',
@@ -25,6 +25,7 @@ function logPost({ profile, profileName, platform, target, groupName, groupId, m
     error: error || null,
     postUrl: postUrl || null,
     source: source || 'web',
+    images: images && images.length ? JSON.stringify(images) : null,
   });
 }
 
@@ -64,9 +65,16 @@ function getPostHistory({ profile, platform, success, from, to, limit = 50, offs
   params.limit = limit;
   params.offset = offset;
 
-  const rows = db.prepare(sql).all(params);
+  const rows = db.prepare(sql).all(params).map(r => ({
+    ...r,
+    images: r.images ? safeParseJson(r.images) : [],
+  }));
 
   return { total, rows };
+}
+
+function safeParseJson(str) {
+  try { return JSON.parse(str); } catch { return []; }
 }
 
 /**

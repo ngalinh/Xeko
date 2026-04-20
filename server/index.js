@@ -18,6 +18,34 @@ app.use(express.static(path.join(__dirname, '../')));
 const TEMP_DIR = path.resolve(__dirname, '../temp');
 if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 
+// Uploads persistent (thumbnail trong history). Temp files sau khi post xong
+// được copy sang đây để browser xem lại được.
+const UPLOADS_DIR = path.resolve(__dirname, '../uploads');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+app.use('/uploads', express.static(UPLOADS_DIR));
+
+function persistImages(imagePaths) {
+  if (!imagePaths || !imagePaths.length) return [];
+  const now = new Date();
+  const dateDir = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const targetDir = path.join(UPLOADS_DIR, dateDir);
+  if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+
+  const urls = [];
+  for (const p of imagePaths) {
+    try {
+      if (!fs.existsSync(p)) continue;
+      const filename = path.basename(p);
+      const target = path.join(targetDir, filename);
+      fs.copyFileSync(p, target);
+      urls.push(`/uploads/${dateDir}/${filename}`);
+    } catch (e) {
+      logger.error(`persistImages: ${e.message}`);
+    }
+  }
+  return urls;
+}
+
 const upload = multer({
   storage: multer.diskStorage({
     destination: TEMP_DIR,
@@ -88,7 +116,7 @@ setInterval(() => {
   }
 }, 3600_000);
 
-async function executePost({ message, target, groupId, imagePaths, fbProfile }) {
+async function executePost({ message, target, groupId, imagePaths, fbProfile, imageUrls }) {
   // Dang len ca nhan + tat ca group
   if (target === 'all') {
     const results = [];
@@ -97,7 +125,7 @@ async function executePost({ message, target, groupId, imagePaths, fbProfile }) 
       logger.info('Dang len FB ca nhan...');
       const r = await playwright.postToPersonal(message, imagePaths);
       postCount++;
-      postLogger.logPost({ profile: activeProfile.key, profileName: activeProfile.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
+      postLogger.logPost({ profile: activeProfile.key, profileName: activeProfile.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
       results.push({ target: 'FB Cá nhân', success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
     }
@@ -108,7 +136,7 @@ async function executePost({ message, target, groupId, imagePaths, fbProfile }) 
       logger.info(`Dang len ${group.name}...`);
       const r = await playwright.postToGroup(group.id, message, imagePaths);
       postCount++;
-      postLogger.logPost({ profile: activeProfile.key, profileName: activeProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
+      postLogger.logPost({ profile: activeProfile.key, profileName: activeProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
       results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       if (groups.indexOf(group) < groups.length - 1) {
         await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
@@ -132,7 +160,7 @@ async function executePost({ message, target, groupId, imagePaths, fbProfile }) 
       logger.info('FB+Zalo: Dang FB ca nhan...');
       const r = await playwright.postToPersonal(message, imagePaths);
       postCount++;
-      postLogger.logPost({ profile: fbZaloProfile?.key || 'unknown', profileName: fbZaloProfile?.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
+      postLogger.logPost({ profile: fbZaloProfile?.key || 'unknown', profileName: fbZaloProfile?.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
       results.push({ target: 'FB Cá nhân', success: r.success, error: r.error });
       await new Promise(res => setTimeout(res, 30000 + Math.random() * 30000));
     }
@@ -143,7 +171,7 @@ async function executePost({ message, target, groupId, imagePaths, fbProfile }) 
       logger.info(`FB+Zalo: Dang FB group ${group.name}...`);
       const r = await playwright.postToGroup(group.id, message, imagePaths);
       postCount++;
-      postLogger.logPost({ profile: fbZaloProfile?.key || 'unknown', profileName: fbZaloProfile?.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
+      postLogger.logPost({ profile: fbZaloProfile?.key || 'unknown', profileName: fbZaloProfile?.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
       results.push({ target: `FB:${group.name}`, success: r.success, error: r.error });
       await new Promise(res => setTimeout(res, 30000 + Math.random() * 30000));
     }
@@ -153,7 +181,7 @@ async function executePost({ message, target, groupId, imagePaths, fbProfile }) 
     for (const groupName of zaloGroupList) {
       logger.info(`FB+Zalo: Dang Zalo ${groupName}...`);
       const r = await salework.postToZaloGroup(zaloProfileName, groupName, message, imagePaths);
-      postLogger.logPost({ profile: zaloProfileName, profileName: zaloProfileName, platform: 'zalo', target: 'group', groupName, message, imageCount: imagePaths.length, success: r.success, error: r.error, source: 'web' });
+      postLogger.logPost({ profile: zaloProfileName, profileName: zaloProfileName, platform: 'zalo', target: 'group', groupName, message, imageCount: imagePaths.length, success: r.success, error: r.error, source: 'web', images: imageUrls });
       results.push({ target: `Zalo:${groupName}`, success: r.success, error: r.error });
       await new Promise(res => setTimeout(res, 20000 + Math.random() * 20000));
     }
@@ -169,7 +197,7 @@ async function executePost({ message, target, groupId, imagePaths, fbProfile }) 
       logger.info(`Dang len ${group.name}...`);
       const r = await playwright.postToGroup(group.id, message, imagePaths);
       postCount++;
-      postLogger.logPost({ profile: agProfile.key, profileName: agProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
+      postLogger.logPost({ profile: agProfile.key, profileName: agProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
       results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       if (groups.indexOf(group) < groups.length - 1) {
         await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
@@ -183,7 +211,7 @@ async function executePost({ message, target, groupId, imagePaths, fbProfile }) 
     const r = await playwright.postToGroup(group.id, message, imagePaths);
     postCount++;
     const scProfile = playwright.getActiveProfile();
-    postLogger.logPost({ profile: scProfile.key, profileName: scProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
+    postLogger.logPost({ profile: scProfile.key, profileName: scProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
   }
 
@@ -191,7 +219,7 @@ async function executePost({ message, target, groupId, imagePaths, fbProfile }) 
     const r = await playwright.postToGroup(groupId, message, imagePaths);
     postCount++;
     const gProfile = playwright.getActiveProfile();
-    postLogger.logPost({ profile: gProfile.key, profileName: gProfile.name, platform: 'facebook', target: 'group', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
+    postLogger.logPost({ profile: gProfile.key, profileName: gProfile.name, platform: 'facebook', target: 'group', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
   }
 
@@ -199,7 +227,7 @@ async function executePost({ message, target, groupId, imagePaths, fbProfile }) 
   const r = await playwright.postToPersonal(message, imagePaths);
   postCount++;
   const pProfile = playwright.getActiveProfile();
-  postLogger.logPost({ profile: pProfile.key, profileName: pProfile.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web' });
+  postLogger.logPost({ profile: pProfile.key, profileName: pProfile.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
   return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
 }
 
@@ -229,6 +257,10 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
     return res.status(400).json({ error: `Group "${groupId}" khong ton tai` });
   }
 
+  // Copy ảnh sang uploads/ (persistent) để DB log URL + browser render thumbnail
+  // sau này. File gốc trong temp/ vẫn giữ để Playwright dùng, dọn ở finally.
+  const imageUrls = persistImages(imagePaths);
+
   // Tạo job, trả jobId ngay
   const jobId = createJob();
   res.json({ jobId, status: 'pending' });
@@ -236,7 +268,7 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
   // Chạy post ở background
   (async () => {
     try {
-      const result = await executePost({ message, target, groupId, imagePaths, fbProfile });
+      const result = await executePost({ message, target, groupId, imagePaths, fbProfile, imageUrls });
       setJobResult(jobId, result);
     } catch (error) {
       logger.error(`Loi job ${jobId}: ${error.message}`);
@@ -295,13 +327,15 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
     return res.status(400).json({ error: 'Thiếu profile hoặc tên nhóm' });
   }
 
+  const imageUrls = persistImages(imagePaths);
+
   try {
     const result = await salework.postToZaloGroup(profile, groupName, message, imagePaths);
-    postLogger.logPost({ profile, profileName: profile, platform: 'zalo', target: 'group', groupName, message, imageCount: imagePaths.length, success: result.success, error: result.error, source: 'web' });
+    postLogger.logPost({ profile, profileName: profile, platform: 'zalo', target: 'group', groupName, message, imageCount: imagePaths.length, success: result.success, error: result.error, source: 'web', images: imageUrls });
     cleanupFiles(imagePaths);
     res.json(result);
   } catch (error) {
-    postLogger.logPost({ profile, profileName: profile, platform: 'zalo', target: 'group', groupName, message, imageCount: imagePaths.length, success: false, error: error.message, source: 'web' });
+    postLogger.logPost({ profile, profileName: profile, platform: 'zalo', target: 'group', groupName, message, imageCount: imagePaths.length, success: false, error: error.message, source: 'web', images: imageUrls });
     cleanupFiles(imagePaths);
     res.status(500).json({ error: error.message });
   }
