@@ -1,9 +1,10 @@
 const logger = require('./logger');
 const postLogger = require('../database/post-logger');
+const scheduleStore = require('../database/schedule-store');
 const fs = require('fs');
 const path = require('path');
 
-// Luu lich dang bai: { id, time, target, message, imagePaths, profile, status }
+// Luu lich dang bai trong RAM (nguon su that la DB, day chi la cache)
 const scheduledPosts = [];
 let nextId = 1;
 
@@ -55,6 +56,9 @@ function addSchedule({ time, target, groupId, message, imagePaths, profile, type
     timer: null,
   };
 
+  // Persist xuong DB truoc khi set timer, tranh mat khi crash giua chung
+  scheduleStore.insert(job);
+
   // Dat timer
   const delay = scheduleTime.getTime() - Date.now();
   job.timer = setTimeout(() => {
@@ -74,6 +78,7 @@ async function executeSchedule(job) {
   const playwright = require('../playwright/post');
 
   job.status = 'running';
+  scheduleStore.updateStatus(job.id, 'running');
   logger.info(`Dang thuc thi lich #${job.id} (${job.type})...`);
 
   try {
@@ -201,6 +206,8 @@ async function executeSchedule(job) {
         fs.rmdirSync(dir);
       } catch {}
     }
+    // Xoa khoi DB — bai da chay xong, thong tin se nam trong post_logs
+    scheduleStore.remove(job.id);
   }
 }
 
@@ -229,13 +236,71 @@ function getSchedules() {
  */
 function removeSchedule(id) {
   const index = scheduledPosts.findIndex(j => j.id === id);
-  if (index === -1) return false;
+  if (index === -1) {
+    // Khong co trong RAM nhung co the van con trong DB (vd sau crash)
+    scheduleStore.remove(id);
+    return false;
+  }
 
   const job = scheduledPosts[index];
   if (job.timer) clearTimeout(job.timer);
   scheduledPosts.splice(index, 1);
+  scheduleStore.remove(id);
   logger.info(`Da xoa lich #${id}`);
   return true;
+}
+
+/**
+ * Khoi phuc lich tu DB khi server khoi dong.
+ * Lich con trong tuong lai -> re-schedule setTimeout.
+ * Lich qua han (server down dung luc no) -> chay ngay (catch-up).
+ */
+function init() {
+  nextId = scheduleStore.nextId();
+
+  const pending = scheduleStore.getPending();
+  if (!pending.length) {
+    logger.info('Scheduler init: khong co lich pending');
+    return;
+  }
+
+  const now = Date.now();
+  let catchup = 0;
+  let restored = 0;
+
+  for (const p of pending) {
+    const job = {
+      id: p.id,
+      time: p.time,
+      type: p.type,
+      target: p.target,
+      groupId: p.groupId,
+      groupName: p.groupName,
+      message: p.message,
+      imagePaths: p.imagePaths,
+      profile: p.profile,
+      status: 'pending',
+      result: null,
+      timer: null,
+    };
+    scheduledPosts.push(job);
+
+    const delay = p.time.getTime() - now;
+    if (delay <= 0) {
+      // Da qua gio -> chay ngay
+      const mins = Math.round(-delay / 60000);
+      logger.warn(`Catch-up lich #${p.id}: qua han ${mins} phut, chay ngay`);
+      catchup++;
+      executeSchedule(job);
+    } else {
+      // Con trong tuong lai -> re-schedule
+      job.timer = setTimeout(() => executeSchedule(job), delay);
+      restored++;
+      logger.info(`Khoi phuc lich #${p.id}: ${p.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`);
+    }
+  }
+
+  logger.info(`Scheduler init: khoi phuc ${restored} lich, catch-up ${catchup} lich qua han`);
 }
 
 /**
@@ -247,4 +312,4 @@ function getNotifications() {
   return items;
 }
 
-module.exports = { addSchedule, getSchedules, removeSchedule, getNotifications };
+module.exports = { addSchedule, getSchedules, removeSchedule, getNotifications, init };
