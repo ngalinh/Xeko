@@ -1199,7 +1199,7 @@
       addUser('Chọn Profile');
       try {
         const res = await fetch(BASE_URL + '/api/accounts');
-        const data = await res.json();
+        const data = await parseJson(res);
         const buttons = data.facebook.map(p => ({
           label: `👩 ${p.name}`,
           action: `selectProfile('${p.key}')`,
@@ -1218,7 +1218,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ profile: name }),
       })
-      .then(r => r.json())
+      .then(r => parseJson(r))
       .then(data => {
         currentProfile = name;
         updateHeaderProfile(data.name);
@@ -1562,7 +1562,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ command: '/status' }),
       })
-      .then(r => r.json())
+      .then(r => parseJson(r))
       .then(data => {
         addBot(data.message, [
           { label: '👤 Chọn Profile', action: 'showProfileSelect()' },
@@ -1907,7 +1907,7 @@
 
       try {
         const res = await fetch(BASE_URL + '/api/schedule', { method: 'POST', body: formData });
-        const data = await res.json();
+        const data = await parseJson(res);
         removeTyping();
 
         if (data.success) {
@@ -1960,7 +1960,7 @@
 
       try {
         const res = await fetch(BASE_URL + '/api/schedules');
-        const schedules = await res.json();
+        const schedules = await parseJson(res);
         removeTyping();
 
         if (schedules.length === 0) {
@@ -1997,7 +1997,7 @@
       addUser(`Xoá lịch #${id}`);
       try {
         const res = await fetch(`${BASE_URL}/api/schedule/${id}`, { method: 'DELETE' });
-        const data = await res.json();
+        const data = await parseJson(res);
         if (data.success) {
           addBot(`✅ ${data.message}`, [
             { label: '📋 Xem lịch', action: 'showScheduleList()' },
@@ -2122,8 +2122,8 @@
 
       try {
         const [schedRes, histRes] = await Promise.all([
-          fetch(BASE_URL + '/api/schedules').then(r => r.json()).catch(() => []),
-          fetch(BASE_URL + '/api/post-history?limit=500').then(r => r.json()).catch(() => ({ rows: [] })),
+          fetch(BASE_URL + '/api/schedules').then(r => parseJson(r)).catch(() => []),
+          fetch(BASE_URL + '/api/post-history?limit=500').then(r => parseJson(r)).catch(() => ({ rows: [] })),
         ]);
 
         const events = [];
@@ -2323,7 +2323,7 @@
       if (!confirm(`Xoá lịch #${id}?`)) return;
       try {
         const res = await fetch(`${BASE_URL}/api/schedule/${id}`, { method: 'DELETE' });
-        const data = await res.json();
+        const data = await parseJson(res);
         if (data.success) loadCalendar();
         else alert(`Lỗi: ${data.error}`);
       } catch (e) { alert(`Lỗi: ${e.message}`); }
@@ -2356,7 +2356,7 @@
 
       try {
         const res = await fetch(BASE_URL + '/api/accounts');
-        const data = await res.json();
+        const data = await parseJson(res);
 
         // FB profiles
         fbContainer.innerHTML = data.facebook.map(p => `
@@ -2422,7 +2422,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, email, password: password || undefined }),
         });
-        const data = await res.json();
+        const data = await parseJson(res);
         if (data.success) {
           alert('✅ Đã cập nhật thông tin tài khoản!');
           closeEditModal();
@@ -2445,7 +2445,7 @@
 
       try {
         const res = await fetch(`${BASE_URL}/api/accounts/${type}/${encodeURIComponent(key)}`, { method: 'DELETE' });
-        const data = await res.json();
+        const data = await parseJson(res);
         if (data.success) {
           alert(`✅ ${data.message}`);
           renderProfileList();
@@ -2480,7 +2480,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type, key, name, email, password: pass }),
         });
-        const data = await res.json();
+        const data = await parseJson(res);
 
         if (data.success) {
           alert(data.message);
@@ -2508,7 +2508,7 @@
 
       try {
         const res = await fetch(BASE_URL + '/api/sessions');
-        const results = await res.json();
+        const results = await parseJson(res);
 
         let html = '';
         results.forEach(r => {
@@ -2560,7 +2560,7 @@
       try {
         const url = filter ? `/api/login-history?profile=${filter}` : '/api/login-history';
         const res = await fetch(url);
-        const history = await res.json();
+        const history = await parseJson(res);
 
         if (history.length === 0) {
           container.innerHTML = '<p style="color:#999; font-size:13px;">Chưa có lịch sử.</p>';
@@ -2602,7 +2602,7 @@
       try {
         const res = await fetch(`${BASE_URL}/api/channels`);
         if (!res.ok) throw new Error('HTTP ' + res.status);
-        channelsData = await res.json();
+        channelsData = await parseJson(res);
       } catch (e) {
         channelsData = { fbGroups: [], zaloProfiles: [], profileChannels: {} };
         console.error('Lỗi tải channels:', e);
@@ -2666,7 +2666,7 @@
       try {
         const res = await fetch(`${BASE_URL}/api/accounts`);
         if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
+        const data = await parseJson(res);
         const profiles = data.facebook || [];
         if (profiles.length === 0) {
           container.innerHTML = '<p style="color:#999;font-size:13px;">Chưa có profile Facebook nào.</p>';
@@ -2708,7 +2708,7 @@
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, id, name }),
         });
-        const data = await res.json();
+        const data = await parseJson(res);
         if (data.error) return alert(data.error);
         document.getElementById('newGroupKey').value = '';
         document.getElementById('newGroupId').value = '';
@@ -2732,7 +2732,7 @@
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name }),
         });
-        const data = await res.json();
+        const data = await parseJson(res);
         if (data.error) return alert(data.error);
         document.getElementById('newZaloProfileInput').value = '';
         await loadChannels();
@@ -2755,7 +2755,7 @@
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ profileName, groupName }),
         });
-        const data = await res.json();
+        const data = await parseJson(res);
         if (data.error) return alert(data.error);
         document.getElementById('newZaloGroupInput').value = '';
         await loadChannels();
@@ -2823,7 +2823,7 @@
     setInterval(async () => {
       try {
         const res = await fetch(BASE_URL + '/api/notifications');
-        const items = await res.json();
+        const items = await parseJson(res);
 
         for (const n of items) {
           const targetLabels = {
@@ -3074,7 +3074,7 @@
 
       try {
         const res = await fetch(BASE_URL + '/api/schedule', { method: 'POST', body: formData });
-        const data = await res.json();
+        const data = await parseJson(res);
         removeZaloTyping();
 
         if (data.success) {
@@ -3102,7 +3102,7 @@
       addZaloUser('Xem lịch Zalo');
       try {
         const res = await fetch(BASE_URL + '/api/schedules');
-        const schedules = await res.json();
+        const schedules = await parseJson(res);
         const zaloSchedules = schedules.filter(s => s.type === 'zalo');
 
         if (zaloSchedules.length === 0) {
@@ -3136,7 +3136,7 @@
       addZaloUser(`Xoá lịch #${id}`);
       try {
         const res = await fetch(`${BASE_URL}/api/schedule/${id}`, { method: 'DELETE' });
-        const data = await res.json();
+        const data = await parseJson(res);
         addZaloBot(data.success ? `✅ ${data.message}` : `❌ ${data.error}`, [
           { label: '📋 Xem lịch', action: 'showZaloScheduleList()' },
         ]);
@@ -3243,7 +3243,7 @@
 
         try {
           const res = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: formData });
-          const data = await res.json();
+          const data = await parseJson(res);
           removeZaloTyping();
 
           if (data.success) {
@@ -3316,7 +3316,7 @@
       try {
         // Load statistics
         const statsRes = await fetch(BASE_URL + '/api/statistics');
-        const stats = await statsRes.json();
+        const stats = await parseJson(statsRes);
 
         // Summary cards
         document.getElementById('statToday').textContent = stats.today?.total || 0;
@@ -3387,7 +3387,7 @@
 
       try {
         const res = await fetch(BASE_URL + '/api/post-history?' + params.toString());
-        const data = await res.json();
+        const data = await parseJson(res);
 
         const tbody = document.getElementById('dashHistoryBody');
         if (data.rows && data.rows.length > 0) {
