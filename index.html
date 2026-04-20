@@ -877,9 +877,8 @@
         </div>
       </div>
 
-      <!-- Layout: calendar trái, issues panel phải -->
-      <div style="display:grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap:16px;">
-        <!-- Calendar grid -->
+      <!-- Calendar full width -->
+      <div>
         <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:10px;">
           <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;">
             <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">CN</div>
@@ -892,14 +891,6 @@
           </div>
           <div id="calMonthGrid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;">
             <p style="grid-column:span 7; color:#999; text-align:center; padding:24px;">Đang tải...</p>
-          </div>
-        </div>
-
-        <!-- Bài cần xử lý (pending + error) -->
-        <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:14px; align-self:flex-start;">
-          <div style="font-weight:600; font-size:14px; margin-bottom:10px;">⚠️ Bài cần xử lý</div>
-          <div id="calIssuesList" style="display:flex; flex-direction:column; gap:8px; max-height:520px; overflow-y:auto;">
-            <div style="color:#999; font-size:12px;">Không có</div>
           </div>
         </div>
       </div>
@@ -1589,23 +1580,6 @@
       }
     }
 
-    // ===== Trạng thái =====
-    function showStatus() {
-      addUser('Trạng thái');
-      fetch(BASE_URL + '/api/command', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: '/status' }),
-      })
-      .then(r => parseJson(r))
-      .then(data => {
-        addBot(data.message, [
-          { label: '👤 Chọn Profile', action: 'showProfileSelect()' },
-          { label: '📋 Xem lịch đăng bài', action: 'showScheduleList()' },
-        ]);
-      })
-      .catch(e => addBot(`Lỗi: ${e.message}`));
-    }
 
     // ===== Upload ảnh =====
     function handleFiles(input) {
@@ -1825,7 +1799,6 @@
           { label: '📝 Đăng bài tiếp', action: 'focusInput()' },
           { label: '📍 Đổi nơi đăng', action: 'showTargetSelect()' },
           { label: '🔄 Đổi Profile', action: 'showProfileSelect()' },
-          { label: '📊 Trạng thái', action: 'showStatus()' },
         ]);
       } catch (e) {
         removeTyping();
@@ -1834,7 +1807,6 @@
             { label: '📝 Đăng bài tiếp', action: 'focusInput()' },
             { label: '📍 Đổi nơi đăng', action: 'showTargetSelect()' },
             { label: '🔄 Đổi Profile', action: 'showProfileSelect()' },
-            { label: '📊 Trạng thái', action: 'showStatus()' },
           ]);
         } else {
           addBot(`Lỗi: ${e.message}`);
@@ -2137,7 +2109,7 @@
     // Hiển thị theo tháng: bài thực sự đã đăng (post_logs) + lịch đặt trước (schedules).
     // Pending/error tách sang panel "Bài cần xử lý".
     let calViewDate = new Date();
-    let calCache = { events: [], issues: [] };
+    let calCache = { events: [] };
 
     function calFmtMonthKey(d) {
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`;
@@ -2148,7 +2120,6 @@
 
     async function loadCalendar() {
       const grid = document.getElementById('calMonthGrid');
-      const issues = document.getElementById('calIssuesList');
       const detail = document.getElementById('calDayDetail');
       if (!grid) return; // tab chưa mở
 
@@ -2206,14 +2177,9 @@
           });
         }
 
-        // Pending + error từ SCHEDULES (không lấy từ post_logs vì lỗi post đã xảy ra rồi)
-        const issuesArr = events.filter(e => e.kind === 'schedule' && (e.status === 'pending' || e.status === 'error' || e.status === 'running'));
-
         calCache.events = events;
-        calCache.issues = issuesArr;
 
         renderCalendarMonth();
-        renderIssues();
       } catch (e) {
         grid.innerHTML = `<p style="grid-column:span 7; color:#dc2626; text-align:center; padding:24px;">Lỗi: ${e.message}</p>`;
       }
@@ -2302,31 +2268,6 @@
       }
 
       grid.innerHTML = html;
-    }
-
-    function renderIssues() {
-      const list = document.getElementById('calIssuesList');
-      const issues = calCache.issues;
-      if (!issues.length) {
-        list.innerHTML = '<div style="color:#999; font-size:12px;">Không có bài pending / lỗi</div>';
-        return;
-      }
-      list.innerHTML = issues.map(e => {
-        const color = e.status === 'pending' ? '#d97706' : e.status === 'running' ? '#4f46e5' : '#dc2626';
-        const bg = e.status === 'pending' ? '#fffbeb' : e.status === 'running' ? '#eef2ff' : '#fef2f2';
-        const icon = e.status === 'pending' ? '⏳' : e.status === 'running' ? '🔄' : '❌';
-        const label = e.status === 'pending' ? 'Chờ đăng' : e.status === 'running' ? 'Đang chạy' : 'Lỗi';
-        const timeStr = e.date.toLocaleString('vi-VN');
-        const plat = e.platform === 'zalo' ? 'Zalo' : 'FB';
-        const msg = (e.message || '').length > 50 ? (e.message || '').slice(0, 50) + '…' : (e.message || '');
-        return `<div style="padding:8px 10px; background:${bg}; border:1px solid ${color}33; border-radius:8px;">
-          <div style="font-size:12px; font-weight:600; color:${color};">${icon} ${label} · ${plat}</div>
-          <div style="font-size:11px; color:#555; margin-top:2px;">🕐 ${timeStr}</div>
-          <div style="font-size:11px; color:#555;">📍 ${e.target || '-'}</div>
-          ${msg ? `<div style="font-size:12px; color:#333; margin-top:4px;" title="${(e.message || '').replace(/"/g,'&quot;')}">${msg}</div>` : ''}
-          ${e.status === 'pending' ? `<button onclick="deleteCalendarItem(${e.id})" style="margin-top:6px; padding:3px 8px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:11px; cursor:pointer; color:#dc2626;">🗑 Xoá</button>` : ''}
-        </div>`;
-      }).join('');
     }
 
     function calShowDay(key) {
