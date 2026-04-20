@@ -2228,7 +2228,15 @@
       const m = calViewDate.getMonth();
       label.textContent = `Tháng ${m + 1} / ${y}`;
 
-      // Bucket events theo ngày (yyyy-mm-dd)
+      const isMobile = window.innerWidth < 768;
+      const CELL_H = isMobile ? 84 : 130;
+      const MAX_STRIPS = 3;
+
+      const escHtml = s => (s == null ? '' : String(s)).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
+      const statusColor = s => s === 'done' ? '#16a34a' : s === 'pending' ? '#d97706' : s === 'running' ? '#4f46e5' : s === 'error' ? '#dc2626' : '#9ca3af';
+      const platIcon = p => p === 'zalo' ? '💬' : '📘';
+
+      // Bucket events theo ngày và sort theo giờ
       const byDay = new Map();
       for (const e of calCache.events) {
         if (e.date.getFullYear() !== y || e.date.getMonth() !== m) continue;
@@ -2236,37 +2244,62 @@
         if (!byDay.has(key)) byDay.set(key, []);
         byDay.get(key).push(e);
       }
+      for (const arr of byDay.values()) arr.sort((a, b) => a.date - b.date);
 
-      // Firstday offset (Sunday = 0)
       const firstDay = new Date(y, m, 1).getDay();
       const daysInMonth = new Date(y, m + 1, 0).getDate();
       const todayKey = calFmtDayKey(new Date());
 
       let html = '';
-      // Blank cells trước ngày 1
       for (let i = 0; i < firstDay; i++) {
-        html += '<div style="min-height:84px;"></div>';
+        html += `<div style="min-height:${CELL_H}px;"></div>`;
       }
       for (let day = 1; day <= daysInMonth; day++) {
         const key = calFmtDayKey(new Date(y, m, day));
         const list = byDay.get(key) || [];
-        const fbCount = list.filter(e => e.platform === 'facebook').length;
-        const zaloCount = list.filter(e => e.platform === 'zalo').length;
-        const errCount = list.filter(e => e.status === 'error').length;
-        const pendingCount = list.filter(e => e.status === 'pending' || e.status === 'running').length;
         const isToday = key === todayKey;
         const bg = isToday ? '#eef2ff' : '#fff';
         const border = isToday ? '#4f46e5' : '#eee';
         const clickable = list.length > 0;
 
-        html += `<div ${clickable ? `onclick="calShowDay('${key}')"` : ''} style="min-height:84px; border:1px solid ${border}; border-radius:8px; padding:6px; background:${bg}; cursor:${clickable ? 'pointer' : 'default'}; display:flex; flex-direction:column; gap:4px;">
-          <div style="font-size:12px; color:${isToday ? '#4f46e5' : '#333'}; font-weight:${isToday ? '700' : '500'};">${day}</div>
-          <div style="display:flex; flex-wrap:wrap; gap:3px;">
+        let body = '';
+        if (isMobile) {
+          // Mobile: badge đếm (ô quá nhỏ để hiện strip)
+          const fbCount = list.filter(e => e.platform === 'facebook').length;
+          const zaloCount = list.filter(e => e.platform === 'zalo').length;
+          const errCount = list.filter(e => e.status === 'error').length;
+          const pendingCount = list.filter(e => e.status === 'pending' || e.status === 'running').length;
+          body = `<div style="display:flex; flex-wrap:wrap; gap:3px;">
             ${fbCount > 0 ? `<span style="background:#dbeafe; color:#1e40af; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">FB ${fbCount}</span>` : ''}
             ${zaloCount > 0 ? `<span style="background:#dcfce7; color:#166534; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">Zalo ${zaloCount}</span>` : ''}
             ${errCount > 0 ? `<span style="background:#fef2f2; color:#dc2626; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">✕${errCount}</span>` : ''}
             ${pendingCount > 0 ? `<span style="background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">⏳${pendingCount}</span>` : ''}
-          </div>
+          </div>`;
+        } else {
+          // Desktop: mini-card strips (giống Meta Business Suite)
+          const shown = list.slice(0, MAX_STRIPS);
+          const strips = shown.map(e => {
+            const col = statusColor(e.status);
+            const time = e.date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            const thumbUrl = (e.images && e.images.length) ? e.images[0] : null;
+            const rawMsg = e.message || '(ảnh)';
+            const msg = rawMsg.length > 18 ? rawMsg.slice(0, 18) + '…' : rawMsg;
+            const thumbHtml = thumbUrl
+              ? `<img src="${escHtml(thumbUrl)}" style="width:18px; height:18px; object-fit:cover; border-radius:3px; flex-shrink:0;" loading="lazy">`
+              : `<span style="width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0;">${platIcon(e.platform)}</span>`;
+            return `<div title="${escHtml(rawMsg)}" style="display:flex; align-items:center; gap:4px; padding:2px 4px; border-left:3px solid ${col}; background:${col}15; border-radius:3px; font-size:10px; line-height:1.3; overflow:hidden;">
+              ${thumbHtml}
+              <span style="color:#555; font-weight:600; flex-shrink:0;">${time}</span>
+              <span style="color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escHtml(msg)}</span>
+            </div>`;
+          }).join('');
+          const extra = list.length > MAX_STRIPS ? `<div style="font-size:10px; color:#666; padding:1px 4px;">+${list.length - MAX_STRIPS} bài nữa</div>` : '';
+          body = `<div style="display:flex; flex-direction:column; gap:2px; overflow:hidden;">${strips}${extra}</div>`;
+        }
+
+        html += `<div ${clickable ? `onclick="calShowDay('${key}')"` : ''} style="min-height:${CELL_H}px; border:1px solid ${border}; border-radius:8px; padding:6px; background:${bg}; cursor:${clickable ? 'pointer' : 'default'}; display:flex; flex-direction:column; gap:4px; overflow:hidden;">
+          <div style="font-size:12px; color:${isToday ? '#4f46e5' : '#333'}; font-weight:${isToday ? '700' : '500'};">${day}</div>
+          ${body}
         </div>`;
       }
 
@@ -2357,6 +2390,21 @@
       // (kept for backward compatibility, không còn filter trực tiếp)
       loadCalendar();
     }
+
+    // Re-render khi đổi giữa mobile/desktop breakpoint (debounce)
+    (() => {
+      let t, lastMobile = window.innerWidth < 768;
+      window.addEventListener('resize', () => {
+        clearTimeout(t);
+        t = setTimeout(() => {
+          const nowMobile = window.innerWidth < 768;
+          if (nowMobile !== lastMobile && calCache.events.length) {
+            lastMobile = nowMobile;
+            renderCalendarMonth();
+          }
+        }, 200);
+      });
+    })();
 
     async function deleteCalendarItem(id) {
       if (!confirm(`Xoá lịch #${id}?`)) return;
