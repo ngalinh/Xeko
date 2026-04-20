@@ -6,6 +6,7 @@
 const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
+const { PassThrough } = require('stream');
 
 // Không cache LOCAL_URL — đọc động mỗi lần gọi để nhận URL tunnel mới sau register-local
 const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
@@ -63,11 +64,18 @@ async function callLocal(method, endpoint, data = null, files = []) {
     }
 
     // Buffer toàn bộ multipart để có Content-Length chính xác.
-    // Thiếu Content-Length → tunnel/Multer có thể cắt stream giữa chừng
-    // và báo "Unexpected end of form".
-    const chunks = [];
-    for await (const chunk of form) chunks.push(chunk);
-    const body = Buffer.concat(chunks);
+    // form-data là CombinedStream (không hỗ trợ async iteration), nên pipe qua
+    // PassThrough rồi collect chunks. Thiếu Content-Length → tunnel/Multer
+    // có thể cắt stream giữa chừng và báo "Unexpected end of form".
+    const body = await new Promise((resolve, reject) => {
+      const chunks = [];
+      const sink = new PassThrough();
+      sink.on('data', c => chunks.push(c));
+      sink.on('end', () => resolve(Buffer.concat(chunks)));
+      sink.on('error', reject);
+      form.on('error', reject);
+      form.pipe(sink);
+    });
 
     const fetch = await getFetch();
     const response = await fetch(url, {
