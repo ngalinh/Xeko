@@ -298,7 +298,7 @@ const loginHistory = require('./src/utils/login-history');
 
 // Them tai khoan moi + mo trinh duyet de login thu cong
 app.post('/api/accounts', async (req, res) => {
-  const { type, key, name, email, password } = req.body;
+  const { type, key, name, email, password, saleworkName } = req.body;
 
   if (!key || !name) {
     return res.status(400).json({ error: 'Thiếu tên profile hoặc tên hiển thị' });
@@ -313,7 +313,7 @@ app.post('/api/accounts', async (req, res) => {
       const response = await fetchFn(`${LOCAL_URL}/api/accounts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
-        body: JSON.stringify({ type, key, name, email, password }),
+        body: JSON.stringify({ type, key, name, email, password, saleworkName }),
       });
       const data = await response.json();
       return res.status(response.status).json(data);
@@ -394,21 +394,21 @@ app.delete('/api/accounts/:type/:key', async (req, res) => {
   }
 
   try {
-    let profileDir;
     if (type === 'facebook') {
-      profileDir = path.resolve(__dirname, `../playwright-data/${key}`);
+      const profileDir = path.resolve(__dirname, `../playwright-data/${key}`);
+      if (fs.existsSync(profileDir)) {
+        fs.rmSync(profileDir, { recursive: true, force: true });
+        logger.info(`Da xoa profile dir: ${profileDir}`);
+      }
+    } else if (type === 'zalo') {
+      // Zalo accounts stored in config, not in playwright-data (salework dir is shared)
+      // Nothing to delete on the remote server side — local server handles config
     } else {
       return res.status(400).json({ error: 'Loại không hợp lệ' });
     }
 
-    // Xoa thu muc chromium profile
-    if (fs.existsSync(profileDir)) {
-      fs.rmSync(profileDir, { recursive: true, force: true });
-      logger.info(`Da xoa profile dir: ${profileDir}`);
-    }
-
-    loginHistory.addEntry(key, key, 'delete', `Đã xoá profile và dữ liệu session`);
-    res.json({ success: true, message: `Đã xoá profile "${key}" và dữ liệu session` });
+    loginHistory.addEntry(key, key, 'delete', `Đã xoá tài khoản`);
+    res.json({ success: true, message: `Đã xoá tài khoản "${key}"` });
   } catch (e) {
     logger.error(`Loi xoa profile: ${e.message}`);
     res.status(500).json({ error: e.message });
@@ -456,7 +456,7 @@ app.get('/api/accounts', async (req, res) => {
         };
       });
 
-    res.json({ facebook: fbProfiles });
+    res.json({ facebook: fbProfiles, zalo: [] });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -479,7 +479,7 @@ function saveProfilesMeta(data) {
 // Cap nhat thong tin profile
 app.put('/api/accounts/:key', async (req, res) => {
   const { key } = req.params;
-  const { name, email, password } = req.body;
+  const { name, email, password, type, saleworkName } = req.body;
 
   if (!name) return res.status(400).json({ error: 'Thiếu tên hiển thị' });
 
@@ -492,7 +492,7 @@ app.put('/api/accounts/:key', async (req, res) => {
       const response = await fetchFn(`${LOCAL_URL}/api/accounts/${key}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, type, saleworkName }),
       });
       const data = await response.json();
       return res.status(response.status).json(data);
@@ -502,6 +502,9 @@ app.put('/api/accounts/:key', async (req, res) => {
   }
 
   try {
+    if (type === 'zalo') {
+      return res.status(400).json({ error: 'Zalo accounts managed by local server' });
+    }
     const meta = loadProfilesMeta();
     meta[key] = { name, email: email || '', password: password || (meta[key] && meta[key].password) || '' };
     saveProfilesMeta(meta);
@@ -659,6 +662,37 @@ app.delete('/api/channels/fb-groups/:key', (req, res) => proxyToLocal(req, res, 
 app.post('/api/channels/zalo-groups', (req, res) => proxyToLocal(req, res, 'POST', '/api/channels/zalo-groups', req.body));
 app.delete('/api/channels/zalo-groups/:key', (req, res) => proxyToLocal(req, res, 'DELETE', `/api/channels/zalo-groups/${req.params.key}`));
 app.put('/api/channels/profile-channels', (req, res) => proxyToLocal(req, res, 'PUT', '/api/channels/profile-channels', req.body));
+
+// ===== ZALO POST =====
+app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
+  const LOCAL_URL = getLocalUrl();
+  if (!LOCAL_URL) return res.status(503).json({ error: 'Local server chưa kết nối' });
+
+  const imagePaths = (req.files || []).map(f => f.path);
+  try {
+    const fetchFn = await getFetch();
+    const FormData = (await import('form-data')).default;
+    const form = new FormData();
+    const { zaloAccountName, groupName, message } = req.body;
+    if (zaloAccountName) form.append('zaloAccountName', zaloAccountName);
+    if (groupName) form.append('groupName', groupName);
+    if (message) form.append('message', message);
+    for (const p of imagePaths) {
+      form.append('images', require('fs').createReadStream(p));
+    }
+    const response = await fetchFn(`${LOCAL_URL}/api/zalo/post`, {
+      method: 'POST',
+      headers: { ...form.getHeaders(), 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+      body: form,
+    });
+    const data = await response.json();
+    return res.status(response.status).json(data);
+  } catch (e) {
+    return res.status(500).json({ error: `Lỗi proxy Zalo post: ${e.message}` });
+  } finally {
+    cleanupFiles(imagePaths);
+  }
+});
 
 // Health check
 app.get('/health', (req, res) => {
