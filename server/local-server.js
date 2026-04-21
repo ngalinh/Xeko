@@ -154,6 +154,33 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
   }
 });
 
+// ===== ĐĂNG ZALO =====
+app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
+  const { profile, zaloAccountName, groupName, message } = req.body;
+  const imagePaths = (req.files || []).map(f => f.path);
+  const accountName = zaloAccountName || profile;
+
+  if (!accountName || !groupName) {
+    cleanupFiles(imagePaths);
+    return res.status(400).json({ error: 'Thiếu zaloAccountName/profile hoặc groupName' });
+  }
+
+  try {
+    const result = await salework.postToZaloGroup({
+      zaloAccountName: accountName,
+      groupName,
+      message: message || '',
+      imagePaths,
+    });
+    cleanupFiles(imagePaths);
+    return res.json(result);
+  } catch (error) {
+    cleanupFiles(imagePaths);
+    logger.error(`Lỗi Zalo post: ${error.message}`);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 // ===== ACCOUNTS =====
 app.post('/api/accounts', (req, res) => {
   const { type, key, name, email, password, saleworkName } = req.body;

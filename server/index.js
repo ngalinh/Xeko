@@ -673,8 +673,9 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
     const fetchFn = await getFetch();
     const FormData = (await import('form-data')).default;
     const form = new FormData();
-    const { zaloAccountName, groupName, message } = req.body;
-    if (zaloAccountName) form.append('zaloAccountName', zaloAccountName);
+    const { profile, zaloAccountName, groupName, message } = req.body;
+    const accountName = zaloAccountName || profile;
+    if (accountName) form.append('profile', accountName);
     if (groupName) form.append('groupName', groupName);
     if (message) form.append('message', message);
     for (const p of imagePaths) {
