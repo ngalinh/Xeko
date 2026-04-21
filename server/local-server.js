@@ -399,36 +399,13 @@ app.delete('/api/channels/zalo-groups/:key', (req, res) => {
 });
 
 app.put('/api/channels/profile-channels', (req, res) => {
-  const { profileKey, channels } = req.body;
-  if (!profileKey) return res.status(400).json({ error: 'Thiếu profileKey' });
+  const { profileChannels } = req.body;
+  if (!profileChannels) return res.status(400).json({ error: 'Thiếu profileChannels' });
   const data = loadChannels();
-  if (!data.profileChannels) data.profileChannels = {};
-  data.profileChannels[profileKey] = channels || {};
+  data.profileChannels = profileChannels;
   saveChannels(data);
   res.json({ success: true });
 });
-
-// ===== ZALO POST =====
-app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
-  const { zaloAccountName, groupName, message } = req.body;
-  const imagePaths = (req.files || []).map(f => f.path);
-
-  if (!zaloAccountName || !groupName || !message) {
-    cleanupFiles(imagePaths);
-    return res.status(400).json({ error: 'Thiếu zaloAccountName, groupName hoặc message' });
-  }
-
-  try {
-    const result = await salework.postToZaloGroup({ zaloAccountName, groupName, message, imagePaths });
-    cleanupFiles(imagePaths);
-    return res.json(result);
-  } catch (e) {
-    cleanupFiles(imagePaths);
-    logger.error(`Lỗi Zalo post: ${e.message}`);
-    return res.status(500).json({ error: e.message });
-  }
-});
-
 // ===== SCREENSHOT =====
 app.get('/api/screenshot', (req, res) => {
   const screenshotPath = path.resolve(__dirname, 'logs/latest-post.png');
