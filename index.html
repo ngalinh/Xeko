@@ -638,29 +638,6 @@
 
   </div><!-- end pageDangBai -->
 
-  <!-- PAGE: Đăng Zalo -->
-  <div class="page" id="pageZalo">
-    <div class="header">
-      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;">☰</button>
-      <img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Icon_of_Zalo.svg" alt="Zalo" style="width:28px;height:28px;">
-      <div class="header-info">
-        <h1>Zalo</h1>
-        <span id="zaloHeaderStatus">Đăng bài qua Salework</span>
-      </div>
-    </div>
-    <div class="chat-area" id="zaloChatArea"></div>
-    <div class="image-preview" id="zaloImagePreview">
-      <div id="zaloPreviewImages" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-      <button class="clear-btn" onclick="clearZaloImages()">Xoá ảnh</button>
-    </div>
-    <div class="input-area">
-      <button class="btn-icon btn-attach" onclick="document.getElementById('zaloFileInput').click()">📷</button>
-      <input type="file" id="zaloFileInput" accept="image/*" multiple onchange="handleZaloFiles(this)" style="display:none;">
-      <input type="text" id="zaloMsgInput" placeholder="Nhập tin nhắn..." autocomplete="off" onkeydown="if(event.key==='Enter')sendZaloMessage()">
-      <button class="btn-icon btn-send" id="zaloSendBtn" onclick="sendZaloMessage()">➤</button>
-    </div>
-  </div>
-
   <!-- PAGE: Quản lý tài khoản -->
   <div class="page" id="pageSession">
     <div class="header">
