@@ -47,87 +47,80 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     await page.waitForTimeout(2000);
     await screenshot(page, '01-loaded');
 
-    // --- Account selection (Element UI el-select) ---
+    // --- Account selection ---
+    // The account search input is always visible on page (not inside a closed dropdown).
+    // Flow: click input → type name → click matching item from filtered list.
     try {
-      // Click the el-select input to open dropdown
-      const opened = await tryClick(page, [
-        '[class*="account"] .el-input__inner',
-        '[class*="Account"] .el-input__inner',
-        '[class*="account"] .el-select',
-        '.el-select .el-input__inner',
+      const accountInput = await page.waitForSelector(
+        'input[placeholder*="tài khoản"], input[placeholder*="Tài khoản"]',
+        { timeout: 5000 }
+      );
+      await accountInput.click();
+      await accountInput.fill('');
+      await accountInput.type(zaloAccountName, { delay: 50 });
+      await page.waitForTimeout(800);
+      await screenshot(page, '02-account-typed');
+
+      // Click the matching account item from the filtered list
+      const accountSelected = await tryClick(page, [
+        `.el-select-dropdown__item:has-text("${zaloAccountName}")`,
+        `.el-select-dropdown .el-select-dropdown__item:has-text("${zaloAccountName}")`,
+        `[class*="account-item"]:has-text("${zaloAccountName}")`,
+        `[class*="AccountItem"]:has-text("${zaloAccountName}")`,
+        `[class*="item"]:has-text("${zaloAccountName}")`,
+        `li:has-text("${zaloAccountName}")`,
       ], 5000);
 
-      if (opened) {
-        await page.waitForTimeout(600);
-        await screenshot(page, '02-dropdown-open');
-
-        // Type to filter account name in the search input inside dropdown
-        try {
-          const accountSearchInput = await page.$('input[placeholder*="tài khoản"]');
-          if (accountSearchInput) {
-            await accountSearchInput.fill(zaloAccountName);
-            await page.waitForTimeout(500);
-          }
-        } catch {}
-
-        // Click matching option in el-select dropdown
-        const optionSelected = await tryClick(page, [
-          `.el-select-dropdown__item:has-text("${zaloAccountName}")`,
-          `.el-select-dropdown .el-select-dropdown__item:has-text("${zaloAccountName}")`,
-          `li.el-select-dropdown__item:has-text("${zaloAccountName}")`,
-          `.el-option:has-text("${zaloAccountName}")`,
-        ], 5000);
-
-        if (!optionSelected) {
-          logger.warn(`[salework] Không tìm thấy option cho "${zaloAccountName}" trong dropdown`);
-          await screenshot(page, '02b-no-account-option');
-        }
-        await page.waitForTimeout(800);
-        await screenshot(page, '02c-account-selected');
+      if (accountSelected) {
+        logger.info(`[salework] Đã chọn tài khoản "${zaloAccountName}"`);
       } else {
-        logger.warn(`[salework] Không mở được dropdown tài khoản cho "${zaloAccountName}"`);
-        await screenshot(page, '02-no-dropdown');
+        logger.warn(`[salework] Không tìm thấy item tài khoản "${zaloAccountName}"`);
+        await screenshot(page, '02b-account-not-found');
       }
+      await page.waitForTimeout(800);
+      await screenshot(page, '02c-after-account');
     } catch (e) {
       logger.warn(`[salework] Lỗi chọn tài khoản "${zaloAccountName}": ${e.message}`);
       await screenshot(page, '02-account-error');
     }
 
-    await screenshot(page, '03-after-account');
-
-    // --- Search group (avoid account search input by using specific placeholder) ---
-    // The page has multiple el-input__inner: "Tìm kiếm tài khoản..." and "Tìm kiếm nhóm/hội thoại..."
+    // --- Search group ---
+    // There are 2 "Tìm kiếm" inputs: one for account, one for group.
+    // Use the one that does NOT contain "tài khoản" in placeholder.
     const groupSearchInput = await page.waitForSelector(
       [
         'input[placeholder*="nhóm"]',
         'input[placeholder*="hội thoại"]',
-        'input[placeholder*="Tìm kiếm cuộc"]',
-        'input[placeholder*="tin nhắn"]',
-        // Fallback: second el-input__inner (first is account search)
-        '.el-input__inner:not([placeholder*="tài khoản"])',
+        'input[placeholder*="cuộc trò chuyện"]',
+        'input[placeholder*="Tìm kiếm"]:not([placeholder*="tài khoản"])',
+        'input[placeholder*="tìm kiếm"]:not([placeholder*="tài khoản"])',
       ].join(', '),
       { timeout: 10000 }
     );
     await groupSearchInput.click();
-    await groupSearchInput.fill(groupName);
+    await groupSearchInput.fill('');
+    await groupSearchInput.type(groupName, { delay: 50 });
     await page.waitForTimeout(1500);
     await screenshot(page, '04-search-filled');
 
-    // Click group from result list (Element UI list items)
-    const groupClicked = await tryClick(page, [
-      `.el-list-item:has-text("${groupName}")`,
+    // Click group from result list — scroll into view if needed
+    const groupLocator = page.locator([
       `[class*="conversation-item"]:has-text("${groupName}")`,
       `[class*="ConversationItem"]:has-text("${groupName}")`,
       `[class*="group-item"]:has-text("${groupName}")`,
       `[class*="chat-item"]:has-text("${groupName}")`,
+      `.el-list-item:has-text("${groupName}")`,
       `[class*="item"]:has-text("${groupName}")`,
       `li:has-text("${groupName}")`,
-      `text="${groupName}"`,
-    ], 8000);
+    ].join(', ')).first();
 
-    if (!groupClicked) {
-      await screenshot(page, '05-group-not-found');
-      throw new Error(`Không tìm thấy nhóm "${groupName}" trong danh sách`);
+    try {
+      await groupLocator.waitFor({ timeout: 8000 });
+      await groupLocator.scrollIntoViewIfNeeded();
+      await groupLocator.click();
+    } catch {
+      // Fallback: plain text click
+      await page.click(`text="${groupName}"`, { timeout: 5000 });
     }
     await page.waitForTimeout(1000);
     await screenshot(page, '05-group-selected');
@@ -174,7 +167,7 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
       }
     }
 
-    // --- Send (Element UI button) ---
+    // --- Send ---
     const sent = await tryClick(page, [
       'button.el-button--primary:has-text("Gửi")',
       '.el-button--primary:has-text("Gửi")',
