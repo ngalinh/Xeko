@@ -280,9 +280,15 @@ app.get('/api/accounts', (req, res) => {
         email: config.profiles[e.name]?.email || '',
       }));
 
-    const zaloProfiles = fs.existsSync(path.join(dataDir, 'salework'))
-      ? ['Basso Order Hàng Mỹ', 'Linh Duong Us', 'Linh Thảo Us Authentic', 'Shipus Mua Hàng Mỹ'].map(name => ({ name }))
-      : [];
+    // Zalo profiles: doc tu channels.json (quan ly qua tab "Cai dat kenh")
+    // thay vi hardcode. Empty neu chua co file hoac chua co profile nao.
+    let zaloProfiles = [];
+    try {
+      const ch = readChannels();
+      zaloProfiles = (ch.zaloProfiles || []).map(p => ({ name: p.name }));
+    } catch (e) {
+      logger.error(`Loi doc channels.json: ${e.message}`);
+    }
 
     res.json({ facebook: fbProfiles, zalo: zaloProfiles });
   } catch (e) {
