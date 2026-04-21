@@ -47,36 +47,43 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     await page.waitForTimeout(2000);
     await screenshot(page, '01-loaded');
 
-    // --- Account selection ---
+    // --- Account selection (Element UI el-select) ---
     try {
-      // Ant Design Select: click the selector to open dropdown
+      // Click the el-select input to open dropdown
       const opened = await tryClick(page, [
-        '.ant-select-selector',
-        '[class*="account"] .ant-select-selector',
-        '[class*="Account"] .ant-select-selector',
-        '.ant-select:first-of-type .ant-select-selector',
-        '[class*="account-select"]',
-        '[class*="AccountSelect"]',
+        '[class*="account"] .el-input__inner',
+        '[class*="Account"] .el-input__inner',
+        '[class*="account"] .el-select',
+        '.el-select .el-input__inner',
       ], 5000);
 
       if (opened) {
-        await page.waitForTimeout(800);
+        await page.waitForTimeout(600);
         await screenshot(page, '02-dropdown-open');
 
-        // Select option by text — Ant Design renders options in a portal
+        // Type to filter account name in the search input inside dropdown
+        try {
+          const accountSearchInput = await page.$('input[placeholder*="tài khoản"]');
+          if (accountSearchInput) {
+            await accountSearchInput.fill(zaloAccountName);
+            await page.waitForTimeout(500);
+          }
+        } catch {}
+
+        // Click matching option in el-select dropdown
         const optionSelected = await tryClick(page, [
-          `.ant-select-item-option-content:text("${zaloAccountName}")`,
-          `.ant-select-item[title="${zaloAccountName}"]`,
-          `.ant-select-item-option:has-text("${zaloAccountName}")`,
-          `li:has-text("${zaloAccountName}")`,
-          `[class*="option"]:has-text("${zaloAccountName}")`,
+          `.el-select-dropdown__item:has-text("${zaloAccountName}")`,
+          `.el-select-dropdown .el-select-dropdown__item:has-text("${zaloAccountName}")`,
+          `li.el-select-dropdown__item:has-text("${zaloAccountName}")`,
+          `.el-option:has-text("${zaloAccountName}")`,
         ], 5000);
 
         if (!optionSelected) {
           logger.warn(`[salework] Không tìm thấy option cho "${zaloAccountName}" trong dropdown`);
-          await screenshot(page, '02b-dropdown-no-option');
+          await screenshot(page, '02b-no-account-option');
         }
         await page.waitForTimeout(800);
+        await screenshot(page, '02c-account-selected');
       } else {
         logger.warn(`[salework] Không mở được dropdown tài khoản cho "${zaloAccountName}"`);
         await screenshot(page, '02-no-dropdown');
@@ -88,33 +95,32 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
 
     await screenshot(page, '03-after-account');
 
-    // --- Search group ---
-    const searchInput = await page.waitForSelector(
+    // --- Search group (avoid account search input by using specific placeholder) ---
+    // The page has multiple el-input__inner: "Tìm kiếm tài khoản..." and "Tìm kiếm nhóm/hội thoại..."
+    const groupSearchInput = await page.waitForSelector(
       [
-        'input[placeholder*="Tìm kiếm"]',
-        'input[placeholder*="Tìm"]',
-        'input[placeholder*="tìm"]',
-        'input[placeholder*="Search"]',
-        '[class*="search"] input',
-        '.ant-input-search input',
-        '.ant-input[type="text"]',
-        'input.ant-input',
+        'input[placeholder*="nhóm"]',
+        'input[placeholder*="hội thoại"]',
+        'input[placeholder*="Tìm kiếm cuộc"]',
+        'input[placeholder*="tin nhắn"]',
+        // Fallback: second el-input__inner (first is account search)
+        '.el-input__inner:not([placeholder*="tài khoản"])',
       ].join(', '),
       { timeout: 10000 }
     );
-    await searchInput.click();
-    await searchInput.fill(groupName);
+    await groupSearchInput.click();
+    await groupSearchInput.fill(groupName);
     await page.waitForTimeout(1500);
     await screenshot(page, '04-search-filled');
 
-    // Click group from result list
+    // Click group from result list (Element UI list items)
     const groupClicked = await tryClick(page, [
+      `.el-list-item:has-text("${groupName}")`,
+      `[class*="conversation-item"]:has-text("${groupName}")`,
+      `[class*="ConversationItem"]:has-text("${groupName}")`,
       `[class*="group-item"]:has-text("${groupName}")`,
-      `[class*="GroupItem"]:has-text("${groupName}")`,
-      `[class*="conversation"]:has-text("${groupName}")`,
-      `[class*="Conversation"]:has-text("${groupName}")`,
+      `[class*="chat-item"]:has-text("${groupName}")`,
       `[class*="item"]:has-text("${groupName}")`,
-      `.ant-list-item:has-text("${groupName}")`,
       `li:has-text("${groupName}")`,
       `text="${groupName}"`,
     ], 8000);
@@ -129,19 +135,18 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     // --- Type message ---
     const msgInput = await page.waitForSelector(
       [
+        '.el-textarea__inner',
+        'textarea.el-textarea__inner',
         '[placeholder*="Nhập tin nhắn"]',
         '[placeholder*="nhập tin nhắn"]',
         '[placeholder*="Nhập nội dung"]',
-        'textarea.ant-input',
         '[contenteditable="true"]',
-        '.ant-input[placeholder*="tin nhắn"]',
+        'textarea',
       ].join(', '),
       { timeout: 8000 }
     );
     await msgInput.click();
 
-    // contenteditable needs type() not fill()
-    const tagName = await msgInput.evaluate(el => el.tagName.toLowerCase());
     const isEditable = await msgInput.evaluate(el => el.contentEditable === 'true');
     if (isEditable) {
       await msgInput.evaluate(el => { el.textContent = ''; });
@@ -169,19 +174,17 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
       }
     }
 
-    // --- Send ---
+    // --- Send (Element UI button) ---
     const sent = await tryClick(page, [
+      'button.el-button--primary:has-text("Gửi")',
+      '.el-button--primary:has-text("Gửi")',
       'button:has-text("Gửi")',
-      'button:has-text("Send")',
-      '.ant-btn-primary:has-text("Gửi")',
-      '.ant-btn-primary',
-      '[class*="send-btn"]',
-      '[class*="SendBtn"]',
+      '.el-button--primary',
+      '[class*="send"]:has-text("Gửi")',
       'button[type="submit"]',
     ], 5000);
 
     if (!sent) {
-      // Try Enter key as fallback
       await msgInput.press('Enter');
     }
     await page.waitForTimeout(1500);
