@@ -12,7 +12,6 @@ const path = require('path');
 const fs = require('fs');
 
 const playwright = require('./src/playwright/post');
-const salework = require('./src/playwright/salework');
 const sessionCheck = require('./src/utils/session-check');
 const loginHistory = require('./src/utils/login-history');
 const logger = require('./src/utils/logger');
