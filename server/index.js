@@ -506,11 +506,12 @@ app.delete('/api/accounts/:type/:key', async (req, res) => {
       profileDir = path.resolve(__dirname, `../playwright-data/${key}`);
     } else if (type === 'zalo') {
       const channelsFile = path.resolve(__dirname, 'config/channels.json');
-      if (fs.existsSync(channelsFile)) {
-        const ch = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
-        ch.zaloProfiles = (ch.zaloProfiles || []).filter(p => p.name !== key);
-        fs.writeFileSync(channelsFile, JSON.stringify(ch, null, 2));
+      if (!fs.existsSync(channelsFile)) {
+        return res.status(404).json({ error: 'Chưa có dữ liệu kênh Zalo' });
       }
+      const ch = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
+      ch.zaloProfiles = (ch.zaloProfiles || []).filter(p => p.name !== key);
+      fs.writeFileSync(channelsFile, JSON.stringify(ch, null, 2));
       loginHistory.addEntry(key, key, 'delete', 'Đã xoá profile Zalo');
       return res.json({ success: true, message: `Đã xoá profile Zalo "${key}"` });
     } else {
