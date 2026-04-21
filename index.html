@@ -1315,10 +1315,7 @@
         showProfileSelect();
         return;
       }
-      // Dam bao channelsData fresh truoc khi build options
-      if (!channelsData.fbGroups || !channelsData.fbGroups.length) {
-        await loadChannels();
-      }
+      await loadChannels();
       channelPanelId++;
       const pid = channelPanelId;
       const modeIcon = postMode === 'now' ? '📝' : '⏰';
