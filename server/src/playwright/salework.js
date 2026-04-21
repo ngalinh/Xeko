@@ -48,53 +48,49 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     await screenshot(page, '01-loaded');
 
     // --- Account selection ---
-    // The account search input is always visible on page (not inside a closed dropdown).
-    // Flow: click input → type name → click matching item from filtered list.
+    // The account selector is an el-select at the top showing "Tất cả tài khoản".
+    // When opened it shows a search input placeholder="Tìm kiếm tài khoản...".
+    // Persistent context may leave the dropdown already open.
     try {
-      const accountInput = await page.waitForSelector(
-        'input[placeholder*="tài khoản"], input[placeholder*="Tài khoản"]',
-        { timeout: 5000 }
-      );
-      await accountInput.click();
-      await accountInput.fill('');
-      await accountInput.type(zaloAccountName, { delay: 50 });
-      await page.waitForTimeout(800);
-      await screenshot(page, '02-account-typed');
+      // Check if the account dropdown is already open (search input visible)
+      const alreadyOpen = await page.isVisible('input[placeholder*="tài khoản"]');
 
-      // Click the matching account item from the filtered list
-      const accountSelected = await tryClick(page, [
-        `.el-select-dropdown__item:has-text("${zaloAccountName}")`,
-        `.el-select-dropdown .el-select-dropdown__item:has-text("${zaloAccountName}")`,
-        `[class*="account-item"]:has-text("${zaloAccountName}")`,
-        `[class*="AccountItem"]:has-text("${zaloAccountName}")`,
-        `[class*="item"]:has-text("${zaloAccountName}")`,
-        `li:has-text("${zaloAccountName}")`,
-      ], 5000);
-
-      if (accountSelected) {
-        logger.info(`[salework] Đã chọn tài khoản "${zaloAccountName}"`);
-      } else {
-        logger.warn(`[salework] Không tìm thấy item tài khoản "${zaloAccountName}"`);
-        await screenshot(page, '02b-account-not-found');
+      if (!alreadyOpen) {
+        // Click the el-select trigger to open the dropdown
+        await tryClick(page, [
+          '.el-select .el-input__inner',
+          '.el-select',
+        ], 5000);
+        await page.waitForTimeout(600);
       }
-      await page.waitForTimeout(800);
-      await screenshot(page, '02c-after-account');
+
+      await screenshot(page, '02-dropdown-open');
+
+      // Type account name in the search input inside the dropdown
+      await page.fill('input[placeholder*="tài khoản"]', zaloAccountName);
+      await page.waitForTimeout(600);
+      await screenshot(page, '02b-account-typed');
+
+      // Click the matching option
+      await page.click(`.el-select-dropdown__item:has-text("${zaloAccountName}")`, { timeout: 5000 });
+      await page.waitForTimeout(600);
+      await screenshot(page, '02c-account-selected');
+      logger.info(`[salework] Đã chọn tài khoản "${zaloAccountName}"`);
     } catch (e) {
       logger.warn(`[salework] Lỗi chọn tài khoản "${zaloAccountName}": ${e.message}`);
-      await screenshot(page, '02-account-error');
+      await screenshot(page, '02-error');
+      // Close any open dropdown before continuing
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
     }
 
+    await screenshot(page, '03-after-account');
+
     // --- Search group ---
-    // There are 2 "Tìm kiếm" inputs: one for account, one for group.
-    // Use the one that does NOT contain "tài khoản" in placeholder.
+    // From screenshot: the group search input has placeholder exactly "Tìm kiếm"
+    // (different from account search which has "Tìm kiếm tài khoản...")
     const groupSearchInput = await page.waitForSelector(
-      [
-        'input[placeholder*="nhóm"]',
-        'input[placeholder*="hội thoại"]',
-        'input[placeholder*="cuộc trò chuyện"]',
-        'input[placeholder*="Tìm kiếm"]:not([placeholder*="tài khoản"])',
-        'input[placeholder*="tìm kiếm"]:not([placeholder*="tài khoản"])',
-      ].join(', '),
+      'input[placeholder="Tìm kiếm"]',
       { timeout: 10000 }
     );
     await groupSearchInput.click();
@@ -107,6 +103,7 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     const groupLocator = page.locator([
       `[class*="conversation-item"]:has-text("${groupName}")`,
       `[class*="ConversationItem"]:has-text("${groupName}")`,
+      `[class*="contact-item"]:has-text("${groupName}")`,
       `[class*="group-item"]:has-text("${groupName}")`,
       `[class*="chat-item"]:has-text("${groupName}")`,
       `.el-list-item:has-text("${groupName}")`,
@@ -119,7 +116,6 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
       await groupLocator.scrollIntoViewIfNeeded();
       await groupLocator.click();
     } catch {
-      // Fallback: plain text click
       await page.click(`text="${groupName}"`, { timeout: 5000 });
     }
     await page.waitForTimeout(1000);
