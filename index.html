@@ -650,7 +650,6 @@
       <!-- Tab navigation -->
       <div class="acc-tab-bar" style="display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid #eee; padding-bottom:12px; flex-wrap:wrap;">
         <button onclick="switchAccountTab('profiles')" class="acc-tab active" id="tabProfiles">📋 Tài khoản</button>
-        <button onclick="switchAccountTab('add')" class="acc-tab" id="tabAdd">➕ Thêm tài khoản</button>
         <button onclick="switchAccountTab('channels')" class="acc-tab" id="tabChannels">⚙️ Cài đặt kênh</button>
         <button onclick="switchAccountTab('history')" class="acc-tab" id="tabHistory">📜 Lịch sử</button>
       </div>
@@ -659,9 +658,9 @@
       <div id="panelProfiles">
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
           <h3 style="font-size:15px; color:#1e1e2e; flex:1;">Profile Chromium đã đăng nhập</h3>
-          <button onclick="checkSessions()" id="checkSessionBtn"
+          <button onclick="switchAccountTab('add')"
             style="padding:8px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer;">
-            🔍 Kiểm tra Session
+            ➕ Thêm tài khoản
           </button>
         </div>
 
