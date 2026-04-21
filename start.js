@@ -22,7 +22,14 @@ if (fs.existsSync(envFile)) {
 
 const REMOTE_BOT_URL = process.env.REMOTE_BOT_URL || 'https://ai.basso.vn/b/9cdc3e8d6a564b5e';
 const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
-const CLOUDFLARED = path.resolve(__dirname, 'cloudflared.exe.exe');
+// Tim cloudflared binary: uu tien ten chuan, fallback .exe.exe (artifact cu)
+const CLOUDFLARED = (() => {
+  for (const name of ['cloudflared.exe', 'cloudflared', 'cloudflared.exe.exe']) {
+    const p = path.resolve(__dirname, name);
+    if (fs.existsSync(p)) return p;
+  }
+  return path.resolve(__dirname, 'cloudflared.exe');
+})();
 
 async function registerUrl(tunnelUrl) {
   const getFetch = async () => {
