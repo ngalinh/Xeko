@@ -87,31 +87,6 @@ async function executeSchedule(job) {
   logger.info(`Dang thuc thi lich #${job.id} (${job.type})...`);
 
   try {
-    // Zalo
-    if (job.type === 'zalo') {
-      const salework = require('../playwright/salework');
-      const result = await salework.postToZaloGroup(job.profile, job.groupName, job.message, job.imagePaths);
-
-      job.status = result.success ? 'done' : 'error';
-      job.result = result;
-      postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'zalo', target: 'group', groupName: job.groupName, message: job.message, imageCount: job.imagePaths?.length || 0, success: result.success, error: result.error, source: 'schedule' });
-
-      notifications.push({
-        id: job.id,
-        type: result.success ? 'success' : 'error',
-        platform: 'zalo',
-        time: new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
-        scheduledTime: job.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
-        target: `Zalo:${job.groupName}`,
-        message: job.message,
-        imageCount: job.imagePaths?.length || 0,
-        profile: job.profile,
-        error: result.error,
-      });
-
-      return;
-    }
-
     // Facebook
     // Set profile
     playwright.setProfile(job.profile);
