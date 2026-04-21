@@ -887,6 +887,161 @@
       .sidebar-nav::-webkit-scrollbar { width: 0; }
     }
 
+    /* ================================================================
+       MOBILE HOME PAGE (tile dashboard landing)
+       ================================================================ */
+
+    /* Default: hide home page everywhere; switchPage('home') activates it */
+    #pageMobileHome { display: none; }
+    #pageMobileHome.active { display: none; }  /* still hidden on desktop */
+
+    @media (max-width: 768px) {
+      /* Hide bottom nav completely — tiles replace it */
+      .mobile-bottom-nav { display: none !important; }
+      .main-content { padding-bottom: 0 !important; }
+
+      /* Show home page when active */
+      #pageMobileHome.active {
+        display: flex !important;
+        flex-direction: column;
+        padding: calc(18px + env(safe-area-inset-top, 0px)) 18px
+                 calc(20px + env(safe-area-inset-bottom, 0px));
+        gap: 22px;
+        overflow-y: auto;
+      }
+
+      /* Top greeting row */
+      .mhome-top {
+        display: flex; align-items: center; gap: 12px;
+      }
+      .mhome-greeting { flex: 1; min-width: 0; }
+      .mhome-hello {
+        display: block;
+        font-size: 13px;
+        color: #8b88a8;
+        font-weight: 500;
+        margin-bottom: 4px;
+      }
+      .mhome-title {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.4px;
+        color: #1f1b3a;
+        line-height: 1.2;
+      }
+      .mhome-avatar {
+        width: 46px; height: 46px;
+        border-radius: 16px;
+        padding: 0; border: none;
+        background: #fff;
+        box-shadow: 0 8px 20px rgba(124,102,255,0.18);
+        overflow: hidden; cursor: pointer;
+        flex-shrink: 0;
+      }
+      .mhome-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+      /* Tile grid */
+      .mhome-tiles {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .mhome-tile {
+        display: flex; flex-direction: column; align-items: flex-start;
+        gap: 6px;
+        padding: 18px 16px 16px;
+        border: none;
+        border-radius: 22px;
+        background: #fff;
+        cursor: pointer;
+        text-align: left;
+        min-height: 140px;
+        position: relative; overflow: hidden;
+        box-shadow: 0 12px 28px rgba(124,102,255,0.10);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+      .mhome-tile:active { transform: scale(0.97); }
+      .mhome-tile:disabled { cursor: not-allowed; opacity: 0.6; }
+      .mhome-tile::after {
+        content: "";
+        position: absolute;
+        right: -30px; top: -30px;
+        width: 90px; height: 90px;
+        border-radius: 50%;
+        opacity: 0.18;
+        background: currentColor;
+      }
+      .mhome-tile-icon {
+        width: 46px; height: 46px;
+        border-radius: 14px;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 22px;
+        background: rgba(255,255,255,0.75);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+        margin-bottom: 6px;
+      }
+      .mhome-tile-label {
+        font-size: 16px; font-weight: 700; color: inherit;
+        letter-spacing: -0.2px;
+      }
+      .mhome-tile-hint {
+        font-size: 12px; color: rgba(31,27,58,0.55);
+        font-weight: 500;
+      }
+
+      /* Color per tile — inspired by reference */
+      .tile-post {
+        background: linear-gradient(140deg, #ffd7e2 0%, #ffc3d3 100%);
+        color: #c0336a;
+      }
+      .tile-dash {
+        background: linear-gradient(140deg, #dcd2ff 0%, #bfb0ff 100%);
+        color: #4a3bd6;
+      }
+      .tile-acc {
+        background: linear-gradient(140deg, #c7f0ea 0%, #9fe3d9 100%);
+        color: #1d8374;
+      }
+      .tile-spy {
+        background: linear-gradient(140deg, #ffe3c4 0%, #ffd199 100%);
+        color: #a8661c;
+      }
+
+      .mhome-foot {
+        margin-top: auto;
+        display: flex; justify-content: center;
+      }
+      .mhome-foot-btn {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 12px 22px;
+        border-radius: 999px;
+        border: none;
+        background: #fff;
+        color: #4a3bd6;
+        font-size: 13px; font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 6px 16px rgba(124,102,255,0.12);
+      }
+
+      /* Home-back button injected into each header */
+      .mhome-back-btn {
+        display: inline-flex;
+        align-items: center; justify-content: center;
+        width: 38px; height: 38px;
+        border: none; border-radius: 12px;
+        background: linear-gradient(135deg, #efeaff 0%, #e4dcff 100%);
+        color: #6b5bff;
+        font-size: 17px;
+        cursor: pointer;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(124,102,255,0.18);
+      }
+      .mhome-back-btn:active { transform: scale(0.95); }
+    }
+
+    /* Hide home-back button on desktop — no home page there */
+    .mhome-back-btn { display: none; }
+
     /* --- mobile dark mode overrides (keep reference purple, dim bg) --- */
     @media (max-width: 768px) {
       [data-theme="dark"] body {
@@ -902,6 +1057,17 @@
       [data-theme="dark"] .sidebar-item .icon { background: #2a2a4a; color: #a78bfa; }
       [data-theme="dark"] .profile-card { background: #1e1e3a !important; }
       [data-theme="dark"] .acc-tab-bar { background: rgba(30,30,58,0.55); }
+
+      /* Home page dark mode */
+      [data-theme="dark"] .mhome-hello { color: #9f9bc4; }
+      [data-theme="dark"] .mhome-title { color: #f1eeff; }
+      [data-theme="dark"] .mhome-avatar { background: #1e1e3a; box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+      [data-theme="dark"] .mhome-tile {
+        box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+        filter: brightness(0.92);
+      }
+      [data-theme="dark"] .mhome-foot-btn { background: #1e1e3a; color: #a78bfa; }
+      [data-theme="dark"] .mhome-back-btn { background: #1e1e3a; color: #a78bfa; }
     }
   </style>
 </head>
@@ -938,6 +1104,49 @@
 
   <!-- Main content -->
   <div class="main-content">
+
+  <!-- PAGE: Mobile Home (landing với tile grid, chỉ hiện trên mobile) -->
+  <div class="page" id="pageMobileHome">
+    <div class="mhome-top">
+      <div class="mhome-greeting">
+        <span class="mhome-hello">Xin chào 👋</span>
+        <h1 class="mhome-title">Hôm nay đăng gì nhỉ?</h1>
+      </div>
+      <button class="mhome-avatar" onclick="toggleSidebar()" aria-label="Menu">
+        <img src="https://raw.githubusercontent.com/ngalinh/Xeko/main/xeko-avatar.png" alt="Xeko">
+      </button>
+    </div>
+
+    <div class="mhome-tiles">
+      <button class="mhome-tile tile-post" onclick="switchPage('post')">
+        <span class="mhome-tile-icon">📝</span>
+        <span class="mhome-tile-label">Đăng bài</span>
+        <span class="mhome-tile-hint">Soạn & gửi ngay</span>
+      </button>
+      <button class="mhome-tile tile-dash" onclick="switchPage('dashboard')">
+        <span class="mhome-tile-icon">📊</span>
+        <span class="mhome-tile-label">Dashboard</span>
+        <span class="mhome-tile-hint">Thống kê & lịch</span>
+      </button>
+      <button class="mhome-tile tile-acc" onclick="switchPage('session')">
+        <span class="mhome-tile-icon">👥</span>
+        <span class="mhome-tile-label">Tài khoản</span>
+        <span class="mhome-tile-hint">Profile FB / Zalo</span>
+      </button>
+      <button class="mhome-tile tile-spy" disabled>
+        <span class="mhome-tile-icon">🔍</span>
+        <span class="mhome-tile-label">Spy</span>
+        <span class="mhome-tile-hint">Sắp ra mắt</span>
+      </button>
+    </div>
+
+    <div class="mhome-foot">
+      <button class="mhome-foot-btn" onclick="toggleTheme()" aria-label="Đổi giao diện">
+        <span id="mhomeThemeIcon">🌙</span>
+        <span>Đổi giao diện</span>
+      </button>
+    </div>
+  </div>
 
   <!-- PAGE: Đăng bài -->
   <div class="page active" id="pageDangBai">
@@ -2309,6 +2518,7 @@
       document.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
 
       const pageMap = {
+        home: { page: 'pageMobileHome', nav: null },
         post: { page: 'pageDangBai', nav: 'navPost' },
         dashboard: { page: 'pageDashboard', nav: 'navDashboard' },
         // 'calendar' alias → dashboard calendar tab (BC cho nơi còn trỏ tới)
@@ -2320,7 +2530,7 @@
       const target = pageMap[pg];
       if (target) {
         document.getElementById(target.page).classList.add('active');
-        document.getElementById(target.nav).classList.add('active');
+        if (target.nav) document.getElementById(target.nav).classList.add('active');
       }
 
       if (pg === 'dashboard') {
@@ -3424,14 +3634,42 @@
       if (btn) btn.style.display = 'none';
     });
 
-    // Deep-link: ?page=dashboard|post|session|spy (used by PWA shortcuts)
+    // Inject a "home" button into every page header on mobile.
+    // Kept in JS to avoid editing 4 separate header blocks.
+    function xekoInjectHomeButtons() {
+      document.querySelectorAll('.page:not(#pageMobileHome) .header').forEach((h) => {
+        if (h.querySelector('.mhome-back-btn')) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'mhome-back-btn';
+        btn.setAttribute('aria-label', 'Trang chủ');
+        btn.innerHTML = '🏠';
+        btn.onclick = () => switchPage('home');
+        h.insertBefore(btn, h.firstChild);
+      });
+    }
+
+    // Default mobile landing = home; desktop unchanged.
+    // Deep-link ?page=... still wins over this default.
     (function () {
-      try {
-        const p = new URLSearchParams(location.search).get('page');
-        if (p && typeof switchPage === 'function') {
-          setTimeout(() => switchPage(p), 0);
-        }
-      } catch (_) {}
+      const run = () => {
+        try {
+          xekoInjectHomeButtons();
+          const p = new URLSearchParams(location.search).get('page');
+          if (p && typeof switchPage === 'function') {
+            switchPage(p);
+            return;
+          }
+          if (window.innerWidth <= 768 && typeof switchPage === 'function') {
+            switchPage('home');
+          }
+        } catch (_) {}
+      };
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', run);
+      } else {
+        run();
+      }
     })();
   </script>
 </body>
