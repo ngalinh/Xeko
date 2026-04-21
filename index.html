@@ -814,8 +814,6 @@
           <h3 style="font-size:15px; color:#1e1e2e;">Lịch sử hoạt động</h3>
           <select id="historyFilter" onchange="loadLoginHistory()" style="padding:6px 12px; border-radius:6px; border:1px solid #ddd; font-size:13px; background:#fff;">
             <option value="">Tất cả profile</option>
-            <option value="linhthao">Linh Thảo</option>
-            <option value="linhduong">Linh Dương</option>
           </select>
           <button onclick="loadLoginHistory()" style="padding:6px 14px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; font-size:13px; cursor:pointer; color:#4f46e5;">
             🔄 Làm mới
@@ -1025,6 +1023,7 @@
     const BASE_URL = window.location.pathname.replace(/\/[^/]*$/, '').replace(/\/$/, '');
 
     let currentProfile = null;
+    let currentProfileName = null;
     let currentTarget = null;
     let selectedFiles = [];
     let step = 'welcome'; // welcome -> profile -> target -> compose
@@ -1247,6 +1246,7 @@
       .then(r => parseJson(r))
       .then(data => {
         currentProfile = name;
+        currentProfileName = data.name || name;
         updateHeaderProfile(data.name);
         // STEP 3: Chon che do
         addBot(
@@ -1272,58 +1272,59 @@
     }
 
     // ===== STEP 4: Chọn nơi đăng =====
-    const PROFILE_CHANNELS = {
-      linhduong: {
-        label: 'Linh Dương',
-        fb: [
-          { id: 'personal', name: 'FB Cá nhân', icon: '📱' },
-          { id: 'asale', name: 'Group Asale', icon: '🏪' },
-          { id: 'tongkho', name: 'Group Tổng Kho', icon: '📦' },
-        ],
-        zalo: [
-          { id: 'zalo_si_ld', name: 'Sỉ Hàng Order Mỹ, Anh - Linh Dương', icon: '💬' },
-          { id: 'zalo_kho_ld', name: 'KHO HÀNG MỸ CÓ SẴN - LINH DƯƠNG', icon: '💬' },
-          { id: 'zalo_sale_ld', name: 'SĂN SALE HÀNG HIỆU US', icon: '💬' },
-        ],
-        zaloProfile: 'Linh Duong Us',
-      },
-      linhthao: {
-        label: 'Linh Thảo',
-        fb: [
-          { id: 'personal', name: 'FB Cá nhân', icon: '📱' },
-          { id: 'asale', name: 'Group Asale', icon: '🏪' },
-          { id: 'tongkho', name: 'Group Tổng Kho', icon: '📦' },
-        ],
-        zalo: [
-          { id: 'zalo_si_lt', name: 'SỈ HÀNG ORDER MỸ - LINH THẢO', icon: '💬' },
-          { id: 'zalo_kho_lt', name: 'TỔNG KHO HÀNG SẴN US - LINH THẢO', icon: '💬' },
-          { id: 'zalo_sale_lt', name: 'DEAL NGON MỸ PHẨM US', icon: '💬' },
-        ],
-        zaloProfile: 'Linh Thảo Us Authentic',
-      },
+    // Build dynamic channels cho profile hien tai tu channelsData (nguon su
+    // that la tab Kenh). Them profile / xoa profile / cau hinh FB groups deu
+    // reflect ngay khong can deploy code.
+    // Backwards-compat: 2 account cu dang duoc pair voi Zalo profile nay.
+    // Moi profile moi user se set qua UI Channel Settings.
+    const LEGACY_ZALO_PAIRING = {
+      linhduong: 'Linh Duong Us',
+      linhthao: 'Linh Thảo Us Authentic',
     };
+
+    function buildTargetChannels(profileKey, profileName) {
+      const cfg = (channelsData.profileChannels || {})[profileKey] || {};
+      const fbGroupKeys = cfg.fbGroups || [];
+      const allFbGroups = channelsData.fbGroups || [];
+      const zaloProfileName = cfg.zaloProfile || LEGACY_ZALO_PAIRING[profileKey] || null;
+      const zaloProfileObj = zaloProfileName
+        ? (channelsData.zaloProfiles || []).find(p => p.name === zaloProfileName)
+        : null;
+
+      return {
+        label: profileName || profileKey,
+        fb: [
+          { id: 'personal', name: 'FB Cá nhân', icon: '📱' },
+          ...allFbGroups
+            .filter(g => fbGroupKeys.includes(g.key))
+            .map(g => ({ id: g.key, name: `Group ${g.name}`, icon: '🏪' })),
+        ],
+        zalo: (zaloProfileObj?.groups || []).map(name => ({
+          id: `zalo_${name.replace(/[^a-z0-9]+/gi, '_').toLowerCase()}`,
+          name,
+          icon: '💬',
+        })),
+        zaloProfile: zaloProfileName,
+      };
+    }
 
     let channelPanelId = 0;
 
-    function showTargetSelect() {
+    async function showTargetSelect() {
       if (!currentProfile) {
         showProfileSelect();
         return;
+      }
+      // Dam bao channelsData fresh truoc khi build options
+      if (!channelsData.fbGroups || !channelsData.fbGroups.length) {
+        await loadChannels();
       }
       channelPanelId++;
       const pid = channelPanelId;
       const modeIcon = postMode === 'now' ? '📝' : '⏰';
       const modeLabel = postMode === 'now' ? 'Đăng ngay' : 'Lên lịch';
 
-      const p = PROFILE_CHANNELS[currentProfile] || {
-        label: currentProfile,
-        fb: [
-          { id: 'personal', name: 'FB Cá nhân', icon: '📱' },
-          { id: 'asale', name: 'Group Asale', icon: '🏪' },
-          { id: 'tongkho', name: 'Group Tổng Kho', icon: '📦' },
-        ],
-        zalo: [],
-      };
+      const p = buildTargetChannels(currentProfile, currentProfileName);
       let panelHtml = `<div class="channel-panel" id="channelPanel_${pid}">`;
 
       // Platform toggles
@@ -2579,12 +2580,32 @@
       alert(`Chạy lệnh trong terminal:\n\ncd C:\\Users\\tramm\\projects\\fb-auto-poster\nnode src\\playwright\\login.js ${profileKey}`);
     }
 
+    async function populateHistoryFilter() {
+      const select = document.getElementById('historyFilter');
+      if (!select) return;
+      const prev = select.value;
+      try {
+        const res = await fetch(BASE_URL + '/api/accounts');
+        const data = await parseJson(res);
+        const fb = data.facebook || [];
+        select.innerHTML = '<option value="">Tất cả profile</option>' +
+          fb.map(p => `<option value="${p.key}">${p.name}</option>`).join('');
+        // Giu lua chon cu neu van con trong danh sach
+        if (prev && Array.from(select.options).some(o => o.value === prev)) {
+          select.value = prev;
+        }
+      } catch (e) {
+        console.error('Không populate được history filter:', e);
+      }
+    }
+
     async function loadLoginHistory() {
+      await populateHistoryFilter();
       const filter = document.getElementById('historyFilter')?.value || '';
       const container = document.getElementById('loginHistoryList');
 
       try {
-        const url = filter ? `/api/login-history?profile=${filter}` : '/api/login-history';
+        const url = BASE_URL + (filter ? `/api/login-history?profile=${filter}` : '/api/login-history');
         const res = await fetch(url);
         const history = await parseJson(res);
 
