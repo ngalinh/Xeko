@@ -490,12 +490,33 @@
 
     /* ===== @media MOBILE ===== */
     @media (max-width: 768px) {
-      body { overflow: hidden; }
+      /* Lock viewport to visible area so header + input stay pinned
+         when user scrolls inside chat-area (iOS URL bar issue). */
+      html, body {
+        height: 100vh;          /* fallback */
+        height: 100dvh;
+        overflow: hidden;
+        overscroll-behavior: contain;
+      }
+      .main-content {
+        height: 100vh;
+        height: 100dvh;
+      }
+      /* Flex children with internal overflow need min-height:0 to
+         respect parent height instead of their content height. */
+      .page { min-height: 0; }
+      .chat-area {
+        min-height: 0;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+      }
 
       /* Sidebar becomes hidden drawer */
       .sidebar {
         position: fixed; top: 0; left: -280px;
-        width: 280px; height: 100vh;
+        width: 280px;
+        height: 100vh;
+        height: 100dvh;
         z-index: 999; transition: left 0.28s cubic-bezier(.4,0,.2,1);
         box-shadow: none;
       }
