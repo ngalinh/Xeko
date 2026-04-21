@@ -147,6 +147,14 @@ app.post('/api/accounts', (req, res) => {
   // facebook.com co the mat >30s va Cloudflare tunnel cut o 60s. Neu cho
   // launch xong moi res.json() thi client nhan 504 Gateway Timeout ngay ca
   // khi Chromium van mo thanh cong o may local.
+  // Lưu tên hiển thị + email vào meta ngay (trước khi launch browser)
+  const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
+  try {
+    const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8')) : {};
+    meta[key] = { name, email: email || '', password: password || meta[key]?.password || '' };
+    fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2));
+  } catch {}
+
   res.json({ success: true, message: `Đang mở Chromium cho "${name}". Chờ cửa sổ hiện ra để đăng nhập.` });
 
   (async () => {
