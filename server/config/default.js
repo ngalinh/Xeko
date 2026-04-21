@@ -23,12 +23,6 @@ module.exports = {
     asale: { id: '350987965423767', name: 'Asale' },
     tongkho: { id: '532093344311571', name: 'Tổng Kho' },
   },
-  salework: {
-    loginUrl: process.env.SW_LOGIN_URL || 'https://salework.net/login/user18',
-    username: process.env.SW_USERNAME,
-    password: process.env.SW_PASSWORD,
-    userDataDir: './playwright-data/salework',
-  },
   n8n: {
     webhookUrl: process.env.N8N_WEBHOOK_URL,
   },

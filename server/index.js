@@ -14,6 +14,12 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../')));
 
+async function getFetch() {
+  if (typeof fetch !== 'undefined') return fetch;
+  const { default: nodeFetch } = await import('node-fetch');
+  return nodeFetch;
+}
+
 // Multer: luu anh upload vao temp/
 const TEMP_DIR = path.resolve(__dirname, '../temp');
 if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
@@ -130,7 +136,7 @@ setInterval(() => {
   }
 }, 3600_000);
 
-async function executePost({ message, target, groupId, imagePaths, fbProfile, imageUrls }) {
+async function executePost({ message, target, groupId, imagePaths, imageUrls }) {
   // Dang len ca nhan + tat ca group
   if (target === 'all') {
     const results = [];
@@ -155,49 +161,6 @@ async function executePost({ message, target, groupId, imagePaths, fbProfile, im
       if (groups.indexOf(group) < groups.length - 1) {
         await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
       }
-    }
-    return { results };
-  }
-
-  // Dang len FB + Zalo (tat ca)
-  if (target === 'fb_zalo') {
-    const results = [];
-    const fbToZalo = { linhthao: 'Linh Thảo Us Authentic', linhduong: 'Linh Duong Us' };
-    const zaloGroups = {
-      'Linh Thảo Us Authentic': ['SỈ HÀNG ORDER MỸ - LINH THẢO', 'TỔNG KHO HÀNG SẴN US - LINH THẢO', 'DEAL NGON MỸ PHẨM US'],
-      'Linh Duong Us': ['Sỉ Hàng Order Mỹ, Anh - Linh Dương', 'KHO HÀNG MỸ CÓ SẴN - LINH DƯƠNG', 'SĂN SALE HÀNG HIỆU US'],
-    };
-
-    let fbZaloProfile;
-    try { fbZaloProfile = playwright.getActiveProfile(); } catch {}
-    if (postCount < config.posting.maxPostsPerDay) {
-      logger.info('FB+Zalo: Dang FB ca nhan...');
-      const r = await playwright.postToPersonal(message, imagePaths);
-      postCount++;
-      postLogger.logPost({ profile: fbZaloProfile?.key || 'unknown', profileName: fbZaloProfile?.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
-      results.push({ target: 'FB Cá nhân', success: r.success, error: r.error });
-      await new Promise(res => setTimeout(res, 30000 + Math.random() * 30000));
-    }
-
-    const fbGroups = Object.values(config.groups);
-    for (const group of fbGroups) {
-      if (postCount >= config.posting.maxPostsPerDay) break;
-      logger.info(`FB+Zalo: Dang FB group ${group.name}...`);
-      const r = await playwright.postToGroup(group.id, message, imagePaths);
-      postCount++;
-      postLogger.logPost({ profile: fbZaloProfile?.key || 'unknown', profileName: fbZaloProfile?.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
-      results.push({ target: `FB:${group.name}`, success: r.success, error: r.error });
-      await new Promise(res => setTimeout(res, 30000 + Math.random() * 30000));
-    }
-
-    const zaloProfileName = fbToZalo[fbProfile || Object.keys(fbToZalo)[0]] || 'Linh Thảo Us Authentic';
-    const zaloGroupList = zaloGroups[zaloProfileName] || [];
-    for (const groupName of zaloGroupList) {
-      logger.info(`FB+Zalo: Dang Zalo ${groupName}...`);
-      const r = await salework.postToZaloGroup(zaloProfileName, groupName, message, imagePaths);
-      postLogger.logPost({ profile: zaloProfileName, profileName: zaloProfileName, platform: 'zalo', target: 'group', groupName, message, imageCount: imagePaths.length, success: r.success, error: r.error, source: 'web', images: imageUrls });
-      results.push({ target: `Zalo:${groupName}`, success: r.success, error: r.error });
-      await new Promise(res => setTimeout(res, 20000 + Math.random() * 20000));
     }
     return { results };
   }
@@ -250,7 +213,6 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
   checkDailyReset();
 
   const { message, target, groupId } = req.body;
-  const fbProfile = req.body.fbProfile;
   const imagePaths = (req.files || []).map(f => f.path);
 
   // Kiem tra nhanh (sync) — trả lỗi luôn nếu sai
@@ -282,7 +244,7 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
   // Chạy post ở background
   (async () => {
     try {
-      const result = await executePost({ message, target, groupId, imagePaths, fbProfile, imageUrls });
+      const result = await executePost({ message, target, groupId, imagePaths, imageUrls });
       setJobResult(jobId, result);
     } catch (error) {
       logger.error(`Loi job ${jobId}: ${error.message}`);
@@ -329,32 +291,6 @@ app.post('/api/command', (req, res) => {
   res.json({ message: 'Lệnh không hợp lệ' });
 });
 
-// === Zalo API ===
-const salework = require('./src/playwright/salework');
-
-app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
-  const { profile, groupName, message } = req.body;
-  const imagePaths = (req.files || []).map(f => f.path);
-
-  if (!profile || !groupName) {
-    cleanupFiles(imagePaths);
-    return res.status(400).json({ error: 'Thiếu profile hoặc tên nhóm' });
-  }
-
-  const imageUrls = persistImages(imagePaths);
-
-  try {
-    const result = await salework.postToZaloGroup(profile, groupName, message, imagePaths);
-    postLogger.logPost({ profile, profileName: profile, platform: 'zalo', target: 'group', groupName, message, imageCount: imagePaths.length, success: result.success, error: result.error, source: 'web', images: imageUrls });
-    cleanupFiles(imagePaths);
-    res.json(result);
-  } catch (error) {
-    postLogger.logPost({ profile, profileName: profile, platform: 'zalo', target: 'group', groupName, message, imageCount: imagePaths.length, success: false, error: error.message, source: 'web', images: imageUrls });
-    cleanupFiles(imagePaths);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // === Session Check API ===
 const sessionCheck = require('./src/utils/session-check');
 
@@ -373,11 +309,6 @@ app.post('/api/accounts', async (req, res) => {
     try {
       const LOCAL_URL = getLocalUrl();
       const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
-      const getFetch = async () => {
-        if (typeof fetch !== 'undefined') return fetch;
-        const { default: nodeFetch } = await import('node-fetch');
-        return nodeFetch;
-      };
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/accounts`, {
         method: 'POST',
@@ -394,8 +325,8 @@ app.post('/api/accounts', async (req, res) => {
   if (type === 'facebook') {
     // Tao thu muc profile moi
     const profileDir = path.resolve(__dirname, `../playwright-data/${key}`);
-    if (!require('fs').existsSync(profileDir)) {
-      require('fs').mkdirSync(profileDir, { recursive: true });
+    if (!fs.existsSync(profileDir)) {
+      fs.mkdirSync(profileDir, { recursive: true });
     }
 
     // Mo trinh duyet de login thu cong
@@ -436,37 +367,6 @@ app.post('/api/accounts', async (req, res) => {
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  } else if (type === 'zalo') {
-    // Mo Salework de login
-    try {
-      const { chromium } = require('playwright');
-      const profileDir = path.resolve(__dirname, '../playwright-data/salework');
-      if (!require('fs').existsSync(profileDir)) {
-        require('fs').mkdirSync(profileDir, { recursive: true });
-      }
-
-      const browser = await chromium.launchPersistentContext(profileDir, {
-        headless: false,
-        slowMo: 500,
-        viewport: { width: 1400, height: 800 },
-      });
-
-      const page = browser.pages()[0] || await browser.newPage();
-      await page.goto('https://zalo.salework.net', { waitUntil: 'domcontentloaded', timeout: 30000 });
-
-      loginHistory.addEntry(key, name, 'login', 'Mở Salework Zalo đăng nhập thủ công');
-
-      res.json({
-        success: true,
-        message: `Đã mở Chromium cho Salework Zalo. Hãy đăng nhập trên trình duyệt, sau đó đóng lại.`,
-      });
-
-      browser.on('close', () => {
-        loginHistory.addEntry(key, name, 'login', 'Đã đóng trình duyệt Salework');
-      });
-    } catch (e) {
-      res.status(500).json({ error: e.message });
-    }
   } else {
     res.status(400).json({ error: 'Loại tài khoản không hợp lệ' });
   }
@@ -481,11 +381,6 @@ app.delete('/api/accounts/:type/:key', async (req, res) => {
     try {
       const LOCAL_URL = getLocalUrl();
       const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
-      const getFetch = async () => {
-        if (typeof fetch !== 'undefined') return fetch;
-        const { default: nodeFetch } = await import('node-fetch');
-        return nodeFetch;
-      };
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/accounts/${type}/${key}`, {
         method: 'DELETE',
@@ -498,29 +393,17 @@ app.delete('/api/accounts/:type/:key', async (req, res) => {
     }
   }
 
-  const rimraf = require('fs');
-
   try {
     let profileDir;
     if (type === 'facebook') {
       profileDir = path.resolve(__dirname, `../playwright-data/${key}`);
-    } else if (type === 'zalo') {
-      const channelsFile = path.resolve(__dirname, 'config/channels.json');
-      if (!fs.existsSync(channelsFile)) {
-        return res.status(404).json({ error: 'Chưa có dữ liệu kênh Zalo' });
-      }
-      const ch = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
-      ch.zaloProfiles = (ch.zaloProfiles || []).filter(p => p.name !== key);
-      fs.writeFileSync(channelsFile, JSON.stringify(ch, null, 2));
-      loginHistory.addEntry(key, key, 'delete', 'Đã xoá profile Zalo');
-      return res.json({ success: true, message: `Đã xoá profile Zalo "${key}"` });
     } else {
       return res.status(400).json({ error: 'Loại không hợp lệ' });
     }
 
     // Xoa thu muc chromium profile
-    if (rimraf.existsSync(profileDir)) {
-      rimraf.rmSync(profileDir, { recursive: true, force: true });
+    if (fs.existsSync(profileDir)) {
+      fs.rmSync(profileDir, { recursive: true, force: true });
       logger.info(`Da xoa profile dir: ${profileDir}`);
     }
 
@@ -539,11 +422,6 @@ app.get('/api/accounts', async (req, res) => {
     try {
       const LOCAL_URL = getLocalUrl();
       const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
-      const getFetch = async () => {
-        if (typeof fetch !== 'undefined') return fetch;
-        const { default: nodeFetch } = await import('node-fetch');
-        return nodeFetch;
-      };
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/accounts`, {
         headers: { 'x-api-key': API_KEY },
@@ -559,13 +437,13 @@ app.get('/api/accounts', async (req, res) => {
   const knownNonProfiles = [
     'Crashpad', 'Default', 'GrShaderCache', 'GraphiteDawnCache',
     'ShaderCache', 'Variations', 'component_crx_cache', 'extensions_crx_cache',
-    'segmentation_platform', 'Safe Browsing', 'salework',
+    'segmentation_platform', 'Safe Browsing',
   ];
   try {
     const entries = fs.readdirSync(dataDir, { withFileTypes: true });
     const fbProfiles = entries
       .filter(e => e.isDirectory() && !knownNonProfiles.includes(e.name) && !e.name.startsWith('.'))
-      .filter(e => !e.name.includes('.') && e.name !== 'salework')
+      .filter(e => !e.name.includes('.'))
       .map(e => {
         const key = e.name;
         const cfgProfile = config.profiles[key];
@@ -578,18 +456,7 @@ app.get('/api/accounts', async (req, res) => {
         };
       });
 
-    const zaloProfiles = [];
-    const channelsFile = path.resolve(__dirname, 'config/channels.json');
-    if (fs.existsSync(channelsFile)) {
-      try {
-        const ch = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
-        (ch.zaloProfiles || []).forEach(p => zaloProfiles.push({ name: p.name }));
-      } catch (e) {
-        logger.error(`Loi doc channels.json: ${e.message}`);
-      }
-    }
-
-    res.json({ facebook: fbProfiles, zalo: zaloProfiles });
+    res.json({ facebook: fbProfiles });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -621,11 +488,6 @@ app.put('/api/accounts/:key', async (req, res) => {
     try {
       const LOCAL_URL = getLocalUrl();
       const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
-      const getFetch = async () => {
-        if (typeof fetch !== 'undefined') return fetch;
-        const { default: nodeFetch } = await import('node-fetch');
-        return nodeFetch;
-      };
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/accounts/${key}`, {
         method: 'PUT',
@@ -661,11 +523,6 @@ app.get('/api/sessions', async (req, res) => {
     try {
       const LOCAL_URL = getLocalUrl();
       const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
-      const getFetch = async () => {
-        if (typeof fetch !== 'undefined') return fetch;
-        const { default: nodeFetch } = await import('node-fetch');
-        return nodeFetch;
-      };
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/sessions`, {
         headers: { 'x-api-key': API_KEY },
@@ -782,11 +639,6 @@ async function proxyToLocal(req, res, method, path, body = null) {
   const LOCAL_URL = getLocalUrl();
   if (!LOCAL_URL) return res.status(503).json({ error: 'Local server chưa kết nối' });
   try {
-    const getFetch = async () => {
-      if (typeof fetch !== 'undefined') return fetch;
-      const { default: nodeFetch } = await import('node-fetch');
-      return nodeFetch;
-    };
     const fetchFn = await getFetch();
     const opts = {
       method,
@@ -804,10 +656,6 @@ async function proxyToLocal(req, res, method, path, body = null) {
 app.get('/api/channels', (req, res) => proxyToLocal(req, res, 'GET', '/api/channels'));
 app.post('/api/channels/fb-groups', (req, res) => proxyToLocal(req, res, 'POST', '/api/channels/fb-groups', req.body));
 app.delete('/api/channels/fb-groups/:key', (req, res) => proxyToLocal(req, res, 'DELETE', `/api/channels/fb-groups/${req.params.key}`));
-app.post('/api/channels/zalo-profiles', (req, res) => proxyToLocal(req, res, 'POST', '/api/channels/zalo-profiles', req.body));
-app.delete('/api/channels/zalo-profiles/:name', (req, res) => proxyToLocal(req, res, 'DELETE', `/api/channels/zalo-profiles/${req.params.name}`));
-app.post('/api/channels/zalo-groups', (req, res) => proxyToLocal(req, res, 'POST', '/api/channels/zalo-groups', req.body));
-app.delete('/api/channels/zalo-groups', (req, res) => proxyToLocal(req, res, 'DELETE', '/api/channels/zalo-groups', req.body));
 app.put('/api/channels/profile-channels', (req, res) => proxyToLocal(req, res, 'PUT', '/api/channels/profile-channels', req.body));
 
 // Health check
