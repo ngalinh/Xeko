@@ -14,6 +14,12 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../')));
 
+async function getFetch() {
+  if (typeof fetch !== 'undefined') return fetch;
+  const { default: nodeFetch } = await import('node-fetch');
+  return nodeFetch;
+}
+
 // Multer: luu anh upload vao temp/
 const TEMP_DIR = path.resolve(__dirname, '../temp');
 if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
@@ -130,7 +136,7 @@ setInterval(() => {
   }
 }, 3600_000);
 
-async function executePost({ message, target, groupId, imagePaths, fbProfile, imageUrls }) {
+async function executePost({ message, target, groupId, imagePaths, imageUrls }) {
   // Dang len ca nhan + tat ca group
   if (target === 'all') {
     const results = [];
@@ -207,7 +213,6 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
   checkDailyReset();
 
   const { message, target, groupId } = req.body;
-  const fbProfile = req.body.fbProfile;
   const imagePaths = (req.files || []).map(f => f.path);
 
   // Kiem tra nhanh (sync) — trả lỗi luôn nếu sai
@@ -239,7 +244,7 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
   // Chạy post ở background
   (async () => {
     try {
-      const result = await executePost({ message, target, groupId, imagePaths, fbProfile, imageUrls });
+      const result = await executePost({ message, target, groupId, imagePaths, imageUrls });
       setJobResult(jobId, result);
     } catch (error) {
       logger.error(`Loi job ${jobId}: ${error.message}`);
@@ -304,11 +309,6 @@ app.post('/api/accounts', async (req, res) => {
     try {
       const LOCAL_URL = getLocalUrl();
       const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
-      const getFetch = async () => {
-        if (typeof fetch !== 'undefined') return fetch;
-        const { default: nodeFetch } = await import('node-fetch');
-        return nodeFetch;
-      };
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/accounts`, {
         method: 'POST',
@@ -325,8 +325,8 @@ app.post('/api/accounts', async (req, res) => {
   if (type === 'facebook') {
     // Tao thu muc profile moi
     const profileDir = path.resolve(__dirname, `../playwright-data/${key}`);
-    if (!require('fs').existsSync(profileDir)) {
-      require('fs').mkdirSync(profileDir, { recursive: true });
+    if (!fs.existsSync(profileDir)) {
+      fs.mkdirSync(profileDir, { recursive: true });
     }
 
     // Mo trinh duyet de login thu cong
@@ -381,11 +381,6 @@ app.delete('/api/accounts/:type/:key', async (req, res) => {
     try {
       const LOCAL_URL = getLocalUrl();
       const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
-      const getFetch = async () => {
-        if (typeof fetch !== 'undefined') return fetch;
-        const { default: nodeFetch } = await import('node-fetch');
-        return nodeFetch;
-      };
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/accounts/${type}/${key}`, {
         method: 'DELETE',
@@ -398,8 +393,6 @@ app.delete('/api/accounts/:type/:key', async (req, res) => {
     }
   }
 
-  const rimraf = require('fs');
-
   try {
     let profileDir;
     if (type === 'facebook') {
@@ -409,8 +402,8 @@ app.delete('/api/accounts/:type/:key', async (req, res) => {
     }
 
     // Xoa thu muc chromium profile
-    if (rimraf.existsSync(profileDir)) {
-      rimraf.rmSync(profileDir, { recursive: true, force: true });
+    if (fs.existsSync(profileDir)) {
+      fs.rmSync(profileDir, { recursive: true, force: true });
       logger.info(`Da xoa profile dir: ${profileDir}`);
     }
 
@@ -429,11 +422,6 @@ app.get('/api/accounts', async (req, res) => {
     try {
       const LOCAL_URL = getLocalUrl();
       const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
-      const getFetch = async () => {
-        if (typeof fetch !== 'undefined') return fetch;
-        const { default: nodeFetch } = await import('node-fetch');
-        return nodeFetch;
-      };
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/accounts`, {
         headers: { 'x-api-key': API_KEY },
@@ -500,11 +488,6 @@ app.put('/api/accounts/:key', async (req, res) => {
     try {
       const LOCAL_URL = getLocalUrl();
       const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
-      const getFetch = async () => {
-        if (typeof fetch !== 'undefined') return fetch;
-        const { default: nodeFetch } = await import('node-fetch');
-        return nodeFetch;
-      };
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/accounts/${key}`, {
         method: 'PUT',
@@ -540,11 +523,6 @@ app.get('/api/sessions', async (req, res) => {
     try {
       const LOCAL_URL = getLocalUrl();
       const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
-      const getFetch = async () => {
-        if (typeof fetch !== 'undefined') return fetch;
-        const { default: nodeFetch } = await import('node-fetch');
-        return nodeFetch;
-      };
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/sessions`, {
         headers: { 'x-api-key': API_KEY },
@@ -661,11 +639,6 @@ async function proxyToLocal(req, res, method, path, body = null) {
   const LOCAL_URL = getLocalUrl();
   if (!LOCAL_URL) return res.status(503).json({ error: 'Local server chưa kết nối' });
   try {
-    const getFetch = async () => {
-      if (typeof fetch !== 'undefined') return fetch;
-      const { default: nodeFetch } = await import('node-fetch');
-      return nodeFetch;
-    };
     const fetchFn = await getFetch();
     const opts = {
       method,
