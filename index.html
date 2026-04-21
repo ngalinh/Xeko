@@ -705,7 +705,7 @@
           <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
             <input type="text" id="newZaloGroupKey" placeholder="Key (vd: zalo1)" autocomplete="off"
               style="flex:1; min-width:100px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-            <input type="text" id="newZaloGroupOid" placeholder="OA ID / Group OID" autocomplete="off"
+            <input type="text" id="newZaloGroupOid" placeholder="Tên nhóm trong Salework" autocomplete="off"
               style="flex:2; min-width:150px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
             <input type="text" id="newZaloGroupName" placeholder="Tên hiển thị" autocomplete="off"
               style="flex:2; min-width:150px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
@@ -897,6 +897,7 @@
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Loại tài khoản</label>
         <select id="newAccType" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
           <option value="facebook">Facebook</option>
+          <option value="zalo">Zalo</option>
         </select>
       </div>
       <div style="margin-bottom:14px;">
@@ -921,10 +922,17 @@
             style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
         </div>
       </div>
+      <div id="newAccZaloFields" style="display:none;">
+        <div style="margin-bottom:14px;">
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Tên trong Salework</label>
+          <input type="text" id="newZaloSaleworkName" placeholder="vd: Linh Duong Us, Basso Order Hàng Mỹ" autocomplete="off"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+        </div>
+      </div>
       <button onclick="addNewAccount()" style="width:100%; padding:12px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer; margin-top:4px; box-sizing:border-box;">
         ➕ Thêm và đăng nhập
       </button>
-      <p style="font-size:12px; color:#999; margin-top:10px; margin-bottom:0;">
+      <p id="newAccNote" style="font-size:12px; color:#999; margin-top:10px; margin-bottom:0;">
         * Lần đầu thêm tài khoản, Chromium sẽ mở lên để bạn đăng nhập thủ công.
       </p>
     </div>
@@ -2210,7 +2218,13 @@
     }
 
     document.getElementById('newAccType')?.addEventListener('change', function() {
-      document.getElementById('newAccFbFields').style.display = this.value === 'facebook' ? 'block' : 'none';
+      const isFb = this.value === 'facebook';
+      const isZalo = this.value === 'zalo';
+      document.getElementById('newAccFbFields').style.display = isFb ? 'block' : 'none';
+      document.getElementById('newAccZaloFields').style.display = isZalo ? 'block' : 'none';
+      document.getElementById('newAccNote').textContent = isZalo
+        ? '* Chromium sẽ mở salework.net để bạn đăng nhập. Chỉ cần đăng nhập 1 lần cho tất cả tài khoản Zalo.'
+        : '* Lần đầu thêm tài khoản, Chromium sẽ mở lên để bạn đăng nhập thủ công.';
     });
 
     async function renderProfileList() {
@@ -2239,9 +2253,57 @@
               🗑
             </button>
           </div>`).join('');
+
+        // Zalo accounts
+        let zaloSection = document.getElementById('zaloAccountSection');
+        if (data.zalo && data.zalo.length > 0) {
+          if (!zaloSection) {
+            zaloSection = document.createElement('div');
+            zaloSection.id = 'zaloAccountSection';
+            fbContainer.parentNode.insertBefore(zaloSection, fbContainer.nextSibling);
+          }
+          zaloSection.innerHTML = `
+            <h4 style="font-size:13px; color:#999; margin-bottom:10px; margin-top:8px; text-transform:uppercase; letter-spacing:0.5px;">
+              💬 Zalo
+            </h4>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              ${data.zalo.map(z => `
+                <div class="profile-card">
+                  <div class="avatar" style="background:#e8f4ff; color:#0068ff;">💬</div>
+                  <div class="info">
+                    <div class="name">${z.name}</div>
+                    <div class="detail">Key: ${z.key} · Salework: ${z.saleworkName}</div>
+                  </div>
+                  <button onclick="editZaloProfile('${z.key}','${z.name.replace(/'/g, "\\'")}','${z.saleworkName.replace(/'/g, "\\'")}')" style="padding:6px 12px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px; font-size:12px; cursor:pointer; color:#0284c7;">
+                    ✏️ Sửa
+                  </button>
+                  <button onclick="loginZaloProfile()" style="padding:6px 12px; background:#e8f4ff; border:1px solid #b3d9ff; border-radius:6px; font-size:12px; cursor:pointer; color:#0068ff;">
+                    🔑 Login
+                  </button>
+                  <button onclick="deleteProfile('zalo','${z.key}','${z.name.replace(/'/g, "\\'")}')" style="padding:6px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:12px; cursor:pointer; color:#dc2626;">
+                    🗑
+                  </button>
+                </div>`).join('')}
+            </div>`;
+        } else if (zaloSection) {
+          zaloSection.innerHTML = '';
+        }
       } catch (e) {
         fbContainer.innerHTML = `<div style="color:#dc2626;">Lỗi tải danh sách: ${e.message}</div>`;
       }
+    }
+
+    function loginZaloProfile() {
+      alert('Mở Salework: chạy lại lệnh thêm tài khoản Zalo để mở lại trình duyệt Salework.');
+    }
+
+    function editZaloProfile(key, name, saleworkName) {
+      document.getElementById('editKey').value = key;
+      document.getElementById('editName').value = name;
+      document.getElementById('editEmail').value = saleworkName;
+      document.getElementById('editPassword').value = '';
+      document.getElementById('editProfileModal').style.display = 'flex';
+      document.getElementById('editProfileModal').dataset.editType = 'zalo';
     }
 
     function editProfile(key, name, email) {
@@ -2249,26 +2311,36 @@
       document.getElementById('editName').value = name;
       document.getElementById('editEmail').value = email;
       document.getElementById('editPassword').value = '';
+      document.getElementById('editProfileModal').dataset.editType = 'facebook';
       document.getElementById('editProfileModal').style.display = 'flex';
     }
 
     function closeEditModal() {
       document.getElementById('editProfileModal').style.display = 'none';
+      delete document.getElementById('editProfileModal').dataset.editType;
     }
 
     async function saveProfile() {
       const key = document.getElementById('editKey').value;
       const name = document.getElementById('editName').value.trim();
-      const email = document.getElementById('editEmail').value.trim();
+      const emailOrSalework = document.getElementById('editEmail').value.trim();
       const password = document.getElementById('editPassword').value;
+      const editType = document.getElementById('editProfileModal').dataset.editType || 'facebook';
 
       if (!name) { alert('Vui lòng nhập tên hiển thị!'); return; }
 
       try {
+        const body = { name, type: editType };
+        if (editType === 'zalo') {
+          body.saleworkName = emailOrSalework;
+        } else {
+          body.email = emailOrSalework;
+          if (password) body.password = password;
+        }
         const res = await fetch(`${BASE_URL}/api/accounts/${encodeURIComponent(key)}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password: password || undefined }),
+          body: JSON.stringify(body),
         });
         const data = await parseJson(res);
         if (data.success) {
@@ -2311,6 +2383,7 @@
       const name = document.getElementById('newAccName').value.trim();
       const email = document.getElementById('newAccEmail')?.value.trim();
       const pass = document.getElementById('newAccPass')?.value.trim();
+      const saleworkName = document.getElementById('newZaloSaleworkName')?.value.trim();
 
       if (!key || !name) {
         alert('Vui lòng nhập tên profile và tên hiển thị!');
@@ -2322,21 +2395,30 @@
         return;
       }
 
+      if (type === 'zalo' && !saleworkName) {
+        alert('Vui lòng nhập tên tài khoản trong Salework!');
+        return;
+      }
+
       try {
+        const body = { type, key, name };
+        if (type === 'facebook') { body.email = email; body.password = pass; }
+        if (type === 'zalo') { body.saleworkName = saleworkName; }
+
         const res = await fetch(BASE_URL + '/api/accounts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type, key, name, email, password: pass }),
+          body: JSON.stringify(body),
         });
         const data = await parseJson(res);
 
         if (data.success) {
           alert(data.message);
-          // Clear form
           document.getElementById('newAccKey').value = '';
           document.getElementById('newAccName').value = '';
           if (document.getElementById('newAccEmail')) document.getElementById('newAccEmail').value = '';
           if (document.getElementById('newAccPass')) document.getElementById('newAccPass').value = '';
+          if (document.getElementById('newZaloSaleworkName')) document.getElementById('newZaloSaleworkName').value = '';
           closeAddAccountModal();
           renderProfileList();
         } else {
@@ -2511,14 +2593,21 @@
           return;
         }
         const fbGroups = channelsData.fbGroups || [];
+        const zaloGroups = channelsData.zaloGroups || [];
+        const zaloAccounts = (data.zalo || []).map(z => z.saleworkName).filter(Boolean);
         container.innerHTML = profiles.map(p => {
-          const pCh = (channelsData.profileChannels || {})[p.key] || { fbGroups: [] };
+          const pCh = (channelsData.profileChannels || {})[p.key] || { fbGroups: [], zaloGroups: [], zaloAccount: '' };
+          const assignedZaloGroups = pCh.zaloGroups || [];
+          const assignedZaloAccount = pCh.zaloAccount || '';
+          const zaloAccountOptions = ['', ...zaloAccounts].map(acc =>
+            `<option value="${acc}" ${assignedZaloAccount === acc ? 'selected' : ''}>${acc || '-- Chọn tài khoản Zalo --'}</option>`
+          ).join('');
           return `
             <div style="padding:14px; background:#f8f6ff; border-radius:10px; border:1px solid #e8e4ff;">
               <div style="font-size:14px; font-weight:600; color:#4f46e5; margin-bottom:10px;">👤 ${p.name}</div>
               ${fbGroups.length > 0 ? `
                 <div style="font-size:12px; color:#666; margin-bottom:7px; font-weight:600;">📘 Facebook Groups:</div>
-                <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
                   ${fbGroups.map(g => `
                     <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; padding:5px 12px; background:#fff; border-radius:20px; border:1px solid #e0d4ff; user-select:none;">
                       <input type="checkbox" ${(pCh.fbGroups || []).includes(g.key) ? 'checked' : ''}
@@ -2526,7 +2615,28 @@
                     </label>
                   `).join('')}
                 </div>
-              ` : '<p style="font-size:12px; color:#aaa;">Chưa có group Facebook nào được cấu hình.</p>'}
+              ` : '<p style="font-size:12px; color:#aaa; margin-bottom:12px;">Chưa có group Facebook nào được cấu hình.</p>'}
+              <div style="border-top:1px solid #e0d4ff; padding-top:10px;">
+                <div style="font-size:12px; color:#666; margin-bottom:7px; font-weight:600;">💬 Zalo:</div>
+                <div style="margin-bottom:8px;">
+                  <label style="font-size:12px; color:#555; display:block; margin-bottom:4px;">Tài khoản Zalo (Salework):</label>
+                  <select onchange="setProfileZaloAccount('${p.key}', this.value)"
+                    style="padding:6px 10px; border:1px solid #b3d0ff; border-radius:8px; font-size:13px; background:#fff; color:#333; min-width:200px; cursor:pointer;">
+                    ${zaloAccountOptions}
+                  </select>
+                </div>
+                ${zaloGroups.length > 0 ? `
+                  <div style="font-size:12px; color:#555; margin-bottom:6px;">Zalo Groups:</div>
+                  <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                    ${zaloGroups.map(g => `
+                      <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; padding:5px 12px; background:#fff; border-radius:20px; border:1px solid #b3d0ff; user-select:none;">
+                        <input type="checkbox" ${assignedZaloGroups.includes(g.key) ? 'checked' : ''}
+                          onchange="toggleProfileChannel('${p.key}','zalo','${g.key}',this.checked)" style="cursor:pointer;"> ${g.name}
+                      </label>
+                    `).join('')}
+                  </div>
+                ` : '<p style="font-size:12px; color:#aaa;">Chưa có Zalo group nào được cấu hình.</p>'}
+              </div>
             </div>
           `;
         }).join('');
@@ -2546,7 +2656,7 @@
         <div style="display:flex; align-items:center; gap:10px; padding:9px 14px; background:#f0f6ff; border-radius:8px; border:1px solid #d0e4ff;">
           <span style="font-size:12px; font-weight:700; color:#0068ff; min-width:70px;">${g.key}</span>
           <span style="font-size:13px; color:#333; flex:1;">${g.name}</span>
-          <span style="font-size:11px; color:#aaa;">${g.oid}</span>
+          <span style="font-size:11px; color:#aaa;">Tên Salework: ${g.oid}</span>
           <button onclick="deleteZaloGroup('${g.key}')" style="padding:4px 10px; background:#fff0f0; border:1px solid #fecaca; border-radius:6px; color:#e53e3e; font-size:12px; cursor:pointer;">🗑</button>
         </div>
       `).join('');
@@ -2605,11 +2715,16 @@
     }
 
     async function toggleProfileChannel(profileKey, platform, channelKey, checked) {
-      const pCh = (channelsData.profileChannels || {})[profileKey] || { fbGroups: [] };
+      const pCh = (channelsData.profileChannels || {})[profileKey] || { fbGroups: [], zaloGroups: [], zaloAccount: '' };
       if (!pCh.fbGroups) pCh.fbGroups = [];
+      if (!pCh.zaloGroups) pCh.zaloGroups = [];
       if (platform === 'fb') {
         if (checked && !pCh.fbGroups.includes(channelKey)) pCh.fbGroups.push(channelKey);
         if (!checked) pCh.fbGroups = pCh.fbGroups.filter(k => k !== channelKey);
+      }
+      if (platform === 'zalo') {
+        if (checked && !pCh.zaloGroups.includes(channelKey)) pCh.zaloGroups.push(channelKey);
+        if (!checked) pCh.zaloGroups = pCh.zaloGroups.filter(k => k !== channelKey);
       }
       if (!channelsData.profileChannels) channelsData.profileChannels = {};
       channelsData.profileChannels[profileKey] = pCh;
@@ -2619,6 +2734,21 @@
           body: JSON.stringify({ profileChannels: channelsData.profileChannels }),
         });
       } catch (e) { console.error('Lỗi lưu profile channels:', e); }
+    }
+
+    async function setProfileZaloAccount(profileKey, saleworkName) {
+      const pCh = (channelsData.profileChannels || {})[profileKey] || { fbGroups: [], zaloGroups: [], zaloAccount: '' };
+      if (!pCh.fbGroups) pCh.fbGroups = [];
+      if (!pCh.zaloGroups) pCh.zaloGroups = [];
+      pCh.zaloAccount = saleworkName;
+      if (!channelsData.profileChannels) channelsData.profileChannels = {};
+      channelsData.profileChannels[profileKey] = pCh;
+      try {
+        await fetch(`${BASE_URL}/api/channels/profile-channels`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profileChannels: channelsData.profileChannels }),
+        });
+      } catch (e) { console.error('Lỗi lưu tài khoản Zalo cho profile:', e); }
     }
 
     function toggleTheme() {

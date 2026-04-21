@@ -12,9 +12,25 @@ const path = require('path');
 const fs = require('fs');
 
 const playwright = require('./src/playwright/post');
+const salework = require('./src/playwright/salework');
 const sessionCheck = require('./src/utils/session-check');
 const loginHistory = require('./src/utils/login-history');
 const logger = require('./src/utils/logger');
+
+const ZALO_ACCOUNTS_FILE = path.resolve(__dirname, 'config/zalo-accounts.json');
+
+function loadZaloAccounts() {
+  try {
+    if (fs.existsSync(ZALO_ACCOUNTS_FILE)) return JSON.parse(fs.readFileSync(ZALO_ACCOUNTS_FILE, 'utf8'));
+  } catch {}
+  return [];
+}
+
+function saveZaloAccounts(accounts) {
+  const dir = path.dirname(ZALO_ACCOUNTS_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(ZALO_ACCOUNTS_FILE, JSON.stringify(accounts, null, 2));
+}
 
 const app = express();
 app.use(express.json());
@@ -140,9 +156,56 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
 
 // ===== ACCOUNTS =====
 app.post('/api/accounts', (req, res) => {
-  const { type, key, name, email, password } = req.body;
+  const { type, key, name, email, password, saleworkName } = req.body;
   if (!key || !name) return res.status(400).json({ error: 'Thiếu key hoặc tên' });
 
+  if (type === 'zalo') {
+    if (!saleworkName) return res.status(400).json({ error: 'Thiếu tên Salework' });
+
+    const accounts = loadZaloAccounts();
+    if (accounts.find(a => a.key === key)) return res.status(400).json({ error: 'Key đã tồn tại' });
+    accounts.push({ key, name, saleworkName, fbProfileKey: '' });
+    saveZaloAccounts(accounts);
+
+    const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
+    try {
+      const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8')) : {};
+      meta[key] = { name, saleworkName };
+      fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2));
+    } catch {}
+
+    const saleworkProfileDir = salework.SALEWORK_PROFILE;
+    const alreadyLoggedIn = fs.existsSync(saleworkProfileDir);
+
+    res.json({ success: true, message: alreadyLoggedIn
+      ? `Đã thêm tài khoản Zalo "${name}". Salework đã đăng nhập sẵn.`
+      : `Đang mở Chromium để đăng nhập Salework. Chờ cửa sổ hiện ra.` });
+
+    if (!alreadyLoggedIn) {
+      (async () => {
+        try {
+          const { chromium } = require('playwright');
+          fs.mkdirSync(saleworkProfileDir, { recursive: true });
+          const browser = await chromium.launchPersistentContext(saleworkProfileDir, {
+            headless: false,
+            slowMo: 500,
+            viewport: { width: 1280, height: 720 },
+          });
+          const page = browser.pages()[0] || await browser.newPage();
+          await page.goto('https://salework.net/login/user18', { waitUntil: 'domcontentloaded', timeout: 30000 });
+          loginHistory.addEntry(key, name, 'login', 'Mở Salework để đăng nhập');
+          browser.on('close', () => {
+            loginHistory.addEntry(key, name, 'login', 'Đã đóng Salework - session được lưu');
+          });
+        } catch (e) {
+          logger.error(`Lỗi mở Salework: ${e.message}`);
+        }
+      })();
+    }
+    return;
+  }
+
+  // Facebook (default)
   // Respond ngay truoc khi launch Chromium — browser khoi dong + goto
   // facebook.com co the mat >30s va Cloudflare tunnel cut o 60s. Neu cho
   // launch xong moi res.json() thi client nhan 504 Gateway Timeout ngay ca
@@ -201,11 +264,14 @@ app.delete('/api/accounts/:type/:key', (req, res) => {
     if (type === 'facebook') {
       const profileDir = path.resolve(__dirname, `playwright-data/${key}`);
       if (fs.existsSync(profileDir)) fs.rmSync(profileDir, { recursive: true, force: true });
+    } else if (type === 'zalo') {
+      const accounts = loadZaloAccounts().filter(a => a.key !== key);
+      saveZaloAccounts(accounts);
     } else {
       return res.status(400).json({ error: 'Loại không hợp lệ' });
     }
-    loginHistory.addEntry(key, key, 'delete', 'Đã xoá profile');
-    res.json({ success: true, message: `Đã xoá profile "${key}"` });
+    loginHistory.addEntry(key, key, 'delete', 'Đã xoá tài khoản');
+    res.json({ success: true, message: `Đã xoá tài khoản "${key}"` });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -219,7 +285,7 @@ app.get('/api/accounts', (req, res) => {
   const knownNonProfiles = [
     'Crashpad', 'Default', 'GrShaderCache', 'GraphiteDawnCache',
     'ShaderCache', 'Variations', 'component_crx_cache', 'extensions_crx_cache',
-    'segmentation_platform', 'Safe Browsing',
+    'segmentation_platform', 'Safe Browsing', 'salework',
   ];
   try {
     const entries = fs.readdirSync(dataDir, { withFileTypes: true });
@@ -231,7 +297,9 @@ app.get('/api/accounts', (req, res) => {
         email: (meta[e.name] && meta[e.name].email) || config.profiles[e.name]?.email || '',
       }));
 
-    res.json({ facebook: fbProfiles });
+    const zaloAccounts = loadZaloAccounts();
+
+    res.json({ facebook: fbProfiles, zalo: zaloAccounts });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -239,9 +307,17 @@ app.get('/api/accounts', (req, res) => {
 
 app.put('/api/accounts/:key', (req, res) => {
   const { key } = req.params;
-  const { name, email, password } = req.body;
-  const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
+  const { name, email, password, saleworkName, type } = req.body;
   try {
+    if (type === 'zalo') {
+      const accounts = loadZaloAccounts();
+      const idx = accounts.findIndex(a => a.key === key);
+      if (idx === -1) return res.status(404).json({ error: 'Không tìm thấy tài khoản Zalo' });
+      accounts[idx] = { ...accounts[idx], name: name || accounts[idx].name, saleworkName: saleworkName || accounts[idx].saleworkName };
+      saveZaloAccounts(accounts);
+      return res.json({ success: true });
+    }
+    const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
     const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8')) : {};
     meta[key] = { name, email: email || '', password: password || meta[key]?.password || '' };
     fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2));
@@ -330,6 +406,27 @@ app.put('/api/channels/profile-channels', (req, res) => {
   data.profileChannels[profileKey] = channels || {};
   saveChannels(data);
   res.json({ success: true });
+});
+
+// ===== ZALO POST =====
+app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
+  const { zaloAccountName, groupName, message } = req.body;
+  const imagePaths = (req.files || []).map(f => f.path);
+
+  if (!zaloAccountName || !groupName || !message) {
+    cleanupFiles(imagePaths);
+    return res.status(400).json({ error: 'Thiếu zaloAccountName, groupName hoặc message' });
+  }
+
+  try {
+    const result = await salework.postToZaloGroup({ zaloAccountName, groupName, message, imagePaths });
+    cleanupFiles(imagePaths);
+    return res.json(result);
+  } catch (e) {
+    cleanupFiles(imagePaths);
+    logger.error(`Lỗi Zalo post: ${e.message}`);
+    return res.status(500).json({ error: e.message });
+  }
 });
 
 // ===== SCREENSHOT =====
