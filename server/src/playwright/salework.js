@@ -48,30 +48,39 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     await screenshot(page, '01-loaded');
 
     // --- Account selection ---
+    // The el-select trigger shows "Tất cả tài khoản". Click it to open dropdown.
+    // Use locator().first() — more reliable than CSS selector with tryClick.
     try {
-      // Check if the account dropdown is already open (search input visible)
       const alreadyOpen = await page.isVisible('input[placeholder*="tài khoản"]');
 
       if (!alreadyOpen) {
-        await tryClick(page, [
-          '.el-select .el-input__inner',
-          '.el-select',
-        ], 5000);
-        await page.waitForTimeout(600);
+        // Click the caret (▼ arrow) or the whole el-select to open dropdown
+        try {
+          await page.locator('.el-select__caret').first().click({ timeout: 4000 });
+        } catch {
+          await page.locator('.el-select').first().click({ timeout: 4000 });
+        }
+        // Wait for the search input inside the dropdown to appear
+        await page.waitForSelector('input[placeholder*="tài khoản"]', { state: 'visible', timeout: 3000 })
+          .catch(() => {});
       }
 
       await screenshot(page, '02-dropdown-open');
 
-      // Type account name in the search input inside the dropdown
-      await page.fill('input[placeholder*="tài khoản"]', zaloAccountName);
-      await page.waitForTimeout(600);
-      await screenshot(page, '02b-account-typed');
+      const searchVisible = await page.isVisible('input[placeholder*="tài khoản"]');
+      if (searchVisible) {
+        await page.fill('input[placeholder*="tài khoản"]', zaloAccountName);
+        await page.waitForTimeout(600);
+        await screenshot(page, '02b-account-typed');
 
-      // Use locator().filter() — most reliable way to match text in Playwright
-      await page.locator('li').filter({ hasText: zaloAccountName }).first().click({ timeout: 5000 });
-      await page.waitForTimeout(600);
-      await screenshot(page, '02c-account-selected');
-      logger.info(`[salework] Đã chọn tài khoản "${zaloAccountName}"`);
+        await page.locator('li').filter({ hasText: zaloAccountName }).first().click({ timeout: 5000 });
+        await page.waitForTimeout(600);
+        await screenshot(page, '02c-account-selected');
+        logger.info(`[salework] Đã chọn tài khoản "${zaloAccountName}"`);
+      } else {
+        logger.warn(`[salework] Không mở được dropdown tài khoản, bỏ qua chọn account`);
+        await screenshot(page, '02-dropdown-failed');
+      }
     } catch (e) {
       logger.warn(`[salework] Lỗi chọn tài khoản "${zaloAccountName}": ${e.message}`);
       await screenshot(page, '02-error');
@@ -82,7 +91,6 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     await screenshot(page, '03-after-account');
 
     // --- Search group ---
-    // Group search input has placeholder exactly "Tìm kiếm" (not "Tìm kiếm tài khoản...")
     const groupSearchInput = await page.waitForSelector(
       'input[placeholder="Tìm kiếm"]',
       { timeout: 10000 }
@@ -138,41 +146,50 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     await page.waitForTimeout(500);
     await screenshot(page, '06-message-typed');
 
-    // --- Upload images via filechooser event ---
+    // --- Upload images ---
+    // Strategy: click attachment/image button, capture filechooser event, set files.
+    // If no button found, fall back to setInputFiles on any file input.
     if (imagePaths && imagePaths.length > 0) {
       try {
-        const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 5000 });
+        // Attach a filechooser listener BEFORE clicking to avoid race condition
+        const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 8000 });
 
-        // Try clicking the image/attachment upload button
         const uploadClicked = await tryClick(page, [
-          '[class*="upload"] button',
-          '[class*="attach"]',
-          '[class*="image-upload"]',
-          '[class*="ImageUpload"]',
-          'button[title*="ảnh"], button[title*="hình"], button[title*="image"]',
-          '[class*="toolbar"] button:nth-child(1)',
-          '[class*="Toolbar"] button:nth-child(1)',
+          // Common Vietnamese CRM upload button selectors
+          '[class*="btn-upload"]',
+          '[class*="BtnUpload"]',
+          '[class*="upload-image"]',
+          '[class*="UploadImage"]',
+          '[class*="attach-image"]',
+          '[class*="image-btn"]',
+          // Icon buttons near message input
+          '[class*="toolbar"] [class*="image"]',
+          '[class*="toolbar"] [class*="photo"]',
+          '[class*="footer"] [class*="image"]',
+          '[class*="footer"] [class*="photo"]',
+          // Generic label for file input
           'label[for*="file"]',
           'label[class*="upload"]',
         ], 3000);
 
-        if (!uploadClicked) {
-          // Fallback: force-click any hidden file input
-          fileChooserPromise.catch(() => {});
-          const fileInput = await page.$('input[type="file"]');
-          if (fileInput) {
-            await page.setInputFiles('input[type="file"]', imagePaths);
-            await page.waitForTimeout(2000);
-            await screenshot(page, '07-images-set');
-          } else {
-            logger.warn('[salework] Không tìm thấy nút upload ảnh hoặc input[type="file"]');
-          }
-        } else {
-          // Upload button was clicked — set files via filechooser dialog
+        if (uploadClicked) {
           const fileChooser = await fileChooserPromise;
           await fileChooser.setFiles(imagePaths);
           await page.waitForTimeout(2000);
           await screenshot(page, '07-images-attached');
+        } else {
+          // Cancel the pending filechooser promise
+          fileChooserPromise.catch(() => {});
+          // Fallback: use setInputFiles directly on the file input element
+          const fileInputs = await page.$$('input[type="file"]');
+          if (fileInputs.length > 0) {
+            await page.setInputFiles('input[type="file"]', imagePaths);
+            await page.waitForTimeout(2000);
+            await screenshot(page, '07-images-set');
+          } else {
+            logger.warn('[salework] Không tìm thấy nút upload ảnh — bỏ qua ảnh');
+            await screenshot(page, '07-no-upload-btn');
+          }
         }
       } catch (e) {
         logger.warn(`[salework] Không upload được ảnh: ${e.message}`);

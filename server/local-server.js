@@ -166,7 +166,7 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
   }
 
   // Respond immediately so cloud proxy never hits 504 — Playwright runs in background
-  res.json({ success: true, message: 'Đang xử lý đăng bài Zalo...' });
+  res.json({ success: true, processing: true });
 
   salework.postToZaloGroup({ zaloAccountName: accountName, groupName, message: message || '', imagePaths })
     .then(result => {
