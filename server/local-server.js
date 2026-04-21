@@ -255,6 +255,15 @@ app.delete('/api/accounts/:type/:key', (req, res) => {
     if (type === 'facebook') {
       const profileDir = path.resolve(__dirname, `playwright-data/${key}`);
       if (fs.existsSync(profileDir)) fs.rmSync(profileDir, { recursive: true, force: true });
+    } else if (type === 'zalo') {
+      const channelsFile = path.resolve(__dirname, 'config/channels.json');
+      if (fs.existsSync(channelsFile)) {
+        const ch = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
+        ch.zaloProfiles = (ch.zaloProfiles || []).filter(p => p.name !== key);
+        fs.writeFileSync(channelsFile, JSON.stringify(ch, null, 2));
+      }
+    } else {
+      return res.status(400).json({ error: 'Loại không hợp lệ' });
     }
     loginHistory.addEntry(key, key, 'delete', 'Đã xoá profile');
     res.json({ success: true, message: `Đã xoá profile "${key}"` });

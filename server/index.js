@@ -505,9 +505,14 @@ app.delete('/api/accounts/:type/:key', async (req, res) => {
     if (type === 'facebook') {
       profileDir = path.resolve(__dirname, `../playwright-data/${key}`);
     } else if (type === 'zalo') {
-      // Zalo dung chung 1 thu muc salework, khong xoa
-      loginHistory.addEntry(key, key, 'delete', 'Xoá profile Zalo (chỉ xoá khỏi danh sách)');
-      return res.json({ success: true, message: `Đã xoá profile Zalo "${key}" khỏi danh sách` });
+      const channelsFile = path.resolve(__dirname, 'config/channels.json');
+      if (fs.existsSync(channelsFile)) {
+        const ch = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
+        ch.zaloProfiles = (ch.zaloProfiles || []).filter(p => p.name !== key);
+        fs.writeFileSync(channelsFile, JSON.stringify(ch, null, 2));
+      }
+      loginHistory.addEntry(key, key, 'delete', 'Đã xoá profile Zalo');
+      return res.json({ success: true, message: `Đã xoá profile Zalo "${key}"` });
     } else {
       return res.status(400).json({ error: 'Loại không hợp lệ' });
     }
@@ -573,10 +578,14 @@ app.get('/api/accounts', async (req, res) => {
       });
 
     const zaloProfiles = [];
-    if (fs.existsSync(path.join(dataDir, 'salework'))) {
-      // Zalo profiles from known list (managed via Salework)
-      const knownZalo = ['Basso Order Hàng Mỹ', 'Linh Duong Us', 'Linh Thảo Us Authentic', 'Shipus Mua Hàng Mỹ'];
-      knownZalo.forEach(name => zaloProfiles.push({ name }));
+    const channelsFile = path.resolve(__dirname, 'config/channels.json');
+    if (fs.existsSync(channelsFile)) {
+      try {
+        const ch = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
+        (ch.zaloProfiles || []).forEach(p => zaloProfiles.push({ name: p.name }));
+      } catch (e) {
+        logger.error(`Loi doc channels.json: ${e.message}`);
+      }
     }
 
     res.json({ facebook: fbProfiles, zalo: zaloProfiles });
