@@ -672,6 +672,7 @@
 
       /* --- input: pill search + gradient send FAB --- */
       .input-area {
+        position: relative;   /* anchor the ::before pill inside this row */
         background: transparent;
         border-top: none;
         padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px));
@@ -1042,6 +1043,16 @@
     /* Hide home-back button on desktop — no home page there */
     .mhome-back-btn { display: none; }
 
+    /* Sidebar "Trang chủ" entry: only meaningful on mobile */
+    .mobile-only-nav { display: none; }
+    @media (max-width: 768px) {
+      .mobile-only-nav { display: flex; }
+      #navHome .icon {
+        background: linear-gradient(135deg, #efeaff 0%, #d4c8ff 100%);
+        color: #4a3bd6;
+      }
+    }
+
     /* --- mobile dark mode overrides (keep reference purple, dim bg) --- */
     @media (max-width: 768px) {
       [data-theme="dark"] body {
@@ -1082,6 +1093,9 @@
       <span>Xeko</span>
     </div>
     <div class="sidebar-nav">
+      <button class="sidebar-item mobile-only-nav" onclick="switchPage('home')" id="navHome">
+        <span class="icon">🏠</span> Trang chủ
+      </button>
       <button class="sidebar-item" onclick="switchPage('dashboard')" id="navDashboard">
         <span class="icon">📊</span> Dashboard
       </button>
