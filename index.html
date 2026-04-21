@@ -644,7 +644,7 @@
       <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;">☰</button>
       <div class="header-info">
         <h1>👥 Quản lý tài khoản</h1>
-        <span>Quản lý profile Chromium - Facebook & Zalo</span>
+        <span>Quản lý profile Chromium - Facebook</span>
       </div>
     </div>
     <div style="flex:1; padding:24px 32px; overflow-y:auto;">
@@ -673,12 +673,6 @@
         </h4>
         <div id="fbProfileList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;"></div>
 
-        <!-- Zalo profiles -->
-        <h4 style="font-size:13px; color:#999; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Icon_of_Zalo.svg" style="width:16px;height:16px;vertical-align:middle;"> Zalo (Salework)
-        </h4>
-        <div id="zaloProfileList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;"></div>
-
         <!-- Session check results -->
         <div id="sessionResults" style="display:flex; flex-direction:column; gap:10px; margin-top:16px;"></div>
       </div>
@@ -692,7 +686,6 @@
             <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Loại tài khoản</label>
             <select id="newAccType" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
               <option value="facebook">Facebook</option>
-              <option value="zalo">Zalo (Salework)</option>
             </select>
           </div>
 
@@ -722,8 +715,7 @@
           </button>
 
           <p style="font-size:12px; color:#999; margin-top:10px;">
-            * Lần đầu thêm tài khoản, Chromium sẽ mở lên để bạn đăng nhập thủ công.<br>
-            * Với Zalo, hệ thống sẽ mở Salework để bạn đăng nhập.
+            * Lần đầu thêm tài khoản, Chromium sẽ mở lên để bạn đăng nhập thủ công.
           </p>
         </div>
       </div>
@@ -747,31 +739,6 @@
               style="flex:2; min-width:150px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
             <button onclick="addFbGroup()"
               style="padding:8px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer; white-space:nowrap;">+ Thêm</button>
-          </div>
-        </div>
-
-        <!-- Zalo (Salework) -->
-        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px; margin-bottom:20px;">
-          <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:6px; display:flex; align-items:center; gap:8px;">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Icon_of_Zalo.svg" style="width:18px;height:18px;"> Zalo (Salework)
-          </h3>
-          <p id="noZaloProfilesMsg" style="font-size:13px; color:#999; margin-bottom:12px;">Chưa có profile Zalo nào.</p>
-          <div id="zaloChannelList" style="margin-bottom:14px;"></div>
-          <div style="display:flex; gap:8px; margin-bottom:10px;">
-            <input type="text" id="newZaloProfileInput" placeholder="Tên profile Zalo" autocomplete="off"
-              style="flex:1; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-            <button onclick="addZaloProfile()"
-              style="padding:8px 16px; background:#0068ff; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer; white-space:nowrap;">+ Thêm Profile</button>
-          </div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-            <select id="zaloProfileSelect"
-              style="flex:1; min-width:160px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px; background:#fff;">
-              <option value="">Chọn profile Zalo...</option>
-            </select>
-            <input type="text" id="newZaloGroupInput" placeholder="Tên nhóm Zalo" autocomplete="off"
-              style="flex:2; min-width:160px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-            <button onclick="addZaloGroup()"
-              style="padding:8px 16px; background:#0068ff; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer; white-space:nowrap;">+ Thêm Nhóm</button>
           </div>
         </div>
 
@@ -848,7 +815,6 @@
         <button onclick="calToday()" style="padding:6px 12px; border:1px solid #c7d2fe; border-radius:8px; background:#eef2ff; cursor:pointer; color:#4f46e5;">Hôm nay</button>
         <div style="margin-left:auto; font-size:12px; color:#666;">
           <span style="display:inline-block; width:10px; height:10px; background:#2563eb; border-radius:50%; margin-right:4px;"></span>Facebook
-          <span style="display:inline-block; width:10px; height:10px; background:#16a34a; border-radius:50%; margin:0 4px 0 10px;"></span>Zalo
         </div>
       </div>
 
@@ -908,10 +874,7 @@
         </div>
         <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px;">
           <div style="font-weight:600; margin-bottom:12px; font-size:14px;">Theo nhóm</div>
-          <div style="font-size:12px; font-weight:600; color:#2563eb; margin:6px 0 4px;">📘 Facebook</div>
           <div id="statByGroupFb" style="font-size:13px;"></div>
-          <div style="font-size:12px; font-weight:600; color:#16a34a; margin:14px 0 4px;">💬 Zalo</div>
-          <div id="statByGroupZalo" style="font-size:13px;"></div>
         </div>
       </div>
 
@@ -923,7 +886,6 @@
         <select id="dashFilterPlatform" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
           <option value="">Tất cả nền tảng</option>
           <option value="facebook">Facebook</option>
-          <option value="zalo">Zalo</option>
         </select>
         <select id="dashFilterStatus" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
           <option value="">Tất cả trạng thái</option>
@@ -1175,13 +1137,6 @@
       allgroup: '2 Group (Asale + Tổng Kho)',
       all: 'Cá nhân + 2 Group',
       custom: 'Group khác',
-      fb_zalo: 'FB + Zalo',
-    };
-
-    // Map profile FB -> profile Zalo
-    const FB_TO_ZALO_MAP = {
-      linhthao: 'Linh Thảo Us Authentic',
-      linhduong: 'Linh Duong Us',
     };
 
     // ===== STEP 1: Welcome =====
