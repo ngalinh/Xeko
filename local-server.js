@@ -12,7 +12,6 @@ const path = require('path');
 const fs = require('fs');
 
 const playwright = require('./src/playwright/post');
-const salework = require('./src/playwright/salework');
 const sessionCheck = require('./src/utils/session-check');
 const loginHistory = require('./src/utils/login-history');
 const logger = require('./src/utils/logger');
@@ -138,67 +137,6 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
   }
 });
 
-// ===== ĐĂNG ZALO =====
-app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
-  const { profile, groupName, message } = req.body;
-  const imagePaths = (req.files || []).map(f => f.path);
-
-  if (!profile || !groupName) {
-    cleanupFiles(imagePaths);
-    return res.status(400).json({ error: 'Thiếu profile hoặc tên nhóm' });
-  }
-
-  try {
-    const result = await salework.postToZaloGroup(profile, groupName, message, imagePaths);
-    cleanupFiles(imagePaths);
-    res.json(result);
-  } catch (error) {
-    cleanupFiles(imagePaths);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ===== ĐĂNG FB + ZALO =====
-app.post('/api/fb_zalo', upload.array('images', 10), async (req, res) => {
-  const { message, fbProfile } = req.body;
-  const imagePaths = (req.files || []).map(f => f.path);
-
-  const config = require('./config/default');
-  const fbToZalo = { linhthao: 'Linh Thảo Us Authentic', linhduong: 'Linh Duong Us' };
-  const zaloGroups = {
-    'Linh Thảo Us Authentic': ['SỈ HÀNG ORDER MỸ - LINH THẢO', 'TỔNG KHO HÀNG SẴN US - LINH THẢO', 'DEAL NGON MỸ PHẨM US'],
-    'Linh Duong Us': ['Sỉ Hàng Order Mỹ, Anh - Linh Dương', 'KHO HÀNG MỸ CÓ SẴN - LINH DƯƠNG', 'SĂN SALE HÀNG HIỆU US'],
-  };
-
-  const results = [];
-  try {
-    const r = await playwright.postToPersonal(message, imagePaths);
-    results.push({ target: 'FB Cá nhân', success: r.success, error: r.error });
-    await new Promise(r => setTimeout(r, 30000 + Math.random() * 30000));
-
-    const groups = Object.values(config.groups);
-    for (const group of groups) {
-      const gr = await playwright.postToGroup(group.id, message, imagePaths);
-      results.push({ target: `FB:${group.name}`, success: gr.success, error: gr.error });
-      await new Promise(r => setTimeout(r, 30000 + Math.random() * 30000));
-    }
-
-    const zaloProfileName = fbToZalo[fbProfile || Object.keys(fbToZalo)[0]] || 'Linh Thảo Us Authentic';
-    const zaloGroupList = zaloGroups[zaloProfileName] || [];
-    for (const groupName of zaloGroupList) {
-      const zr = await salework.postToZaloGroup(zaloProfileName, groupName, message, imagePaths);
-      results.push({ target: `Zalo:${groupName}`, success: zr.success, error: zr.error });
-      await new Promise(r => setTimeout(r, 20000 + Math.random() * 20000));
-    }
-
-    cleanupFiles(imagePaths);
-    return res.json({ results });
-  } catch (error) {
-    cleanupFiles(imagePaths);
-    return res.status(500).json({ error: error.message });
-  }
-});
-
 // ===== ACCOUNTS =====
 app.post('/api/accounts', (req, res) => {
   const { type, key, name, email, password } = req.body;
@@ -213,7 +151,7 @@ app.post('/api/accounts', (req, res) => {
   (async () => {
     try {
       const { chromium } = require('playwright');
-      const profileDir = path.resolve(__dirname, `playwright-data/${type === 'zalo' ? 'salework' : key}`);
+      const profileDir = path.resolve(__dirname, `playwright-data/${key}`);
       if (!fs.existsSync(profileDir)) fs.mkdirSync(profileDir, { recursive: true });
 
       const browser = await chromium.launchPersistentContext(profileDir, {
@@ -222,11 +160,11 @@ app.post('/api/accounts', (req, res) => {
         viewport: { width: 1280, height: 720 },
       });
       const page = browser.pages()[0] || await browser.newPage();
-      await page.goto(type === 'zalo' ? 'https://zalo.salework.net' : 'https://www.facebook.com/', {
+      await page.goto('https://www.facebook.com/', {
         waitUntil: 'domcontentloaded', timeout: 30000,
       });
 
-      if (type === 'facebook' && email && password) {
+      if (email && password) {
         try {
           const emailInput = await page.$('input[name="email"]');
           if (emailInput) {
@@ -254,10 +192,6 @@ app.delete('/api/accounts/:type/:key', (req, res) => {
     if (type === 'facebook') {
       const profileDir = path.resolve(__dirname, `playwright-data/${key}`);
       if (fs.existsSync(profileDir)) fs.rmSync(profileDir, { recursive: true, force: true });
-    } else if (type === 'zalo') {
-      const data = readChannels();
-      data.zaloProfiles = (data.zaloProfiles || []).filter(p => p.name !== key);
-      saveChannels(data);
     } else {
       return res.status(400).json({ error: 'Loại không hợp lệ' });
     }
@@ -286,17 +220,7 @@ app.get('/api/accounts', (req, res) => {
         email: config.profiles[e.name]?.email || '',
       }));
 
-    // Zalo profiles: doc tu channels.json (quan ly qua tab "Cai dat kenh")
-    // thay vi hardcode. Empty neu chua co file hoac chua co profile nao.
-    let zaloProfiles = [];
-    try {
-      const ch = readChannels();
-      zaloProfiles = (ch.zaloProfiles || []).map(p => ({ name: p.name }));
-    } catch (e) {
-      logger.error(`Loi doc channels.json: ${e.message}`);
-    }
-
-    res.json({ facebook: fbProfiles, zalo: zaloProfiles });
+    res.json({ facebook: fbProfiles });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -351,8 +275,8 @@ function readChannels() {
     try {
       const cfg = require('./config/default');
       const fbGroups = Object.entries(cfg.groups || {}).map(([key, g]) => ({ key, id: g.id, name: g.name }));
-      return { fbGroups, zaloProfiles: [], profileChannels: {} };
-    } catch { return { fbGroups: [], zaloProfiles: [], profileChannels: {} }; }
+      return { fbGroups, profileChannels: {} };
+    } catch { return { fbGroups: [], profileChannels: {} }; }
   }
   return JSON.parse(fs.readFileSync(CHANNELS_FILE, 'utf8'));
 }
