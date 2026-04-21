@@ -1194,7 +1194,10 @@
     function buildTargetChannels(profileKey, profileName) {
       const cfg = (channelsData.profileChannels || {})[profileKey] || {};
       const fbGroupKeys = cfg.fbGroups || [];
+      const zaloGroupKeys = cfg.zaloGroups || [];
+      const zaloAccount = cfg.zaloAccount || '';
       const allFbGroups = channelsData.fbGroups || [];
+      const allZaloGroups = channelsData.zaloGroups || [];
 
       return {
         label: profileName || profileKey,
@@ -1204,6 +1207,10 @@
             .filter(g => fbGroupKeys.includes(g.key))
             .map(g => ({ id: g.key, name: `Group ${g.name}`, icon: '🏪' })),
         ],
+        zalo: allZaloGroups
+          .filter(g => zaloGroupKeys.includes(g.key))
+          .map(g => ({ id: g.key, name: g.name, icon: '💬' })),
+        zaloAccount,
       };
     }
 
@@ -1223,12 +1230,17 @@
       const p = buildTargetChannels(currentProfile, currentProfileName);
       let panelHtml = `<div class="channel-panel" id="channelPanel_${pid}">`;
 
-      // Platform toggle (Facebook only)
+      // Platform toggles
       panelHtml += `<div class="channel-platform-row">
         <label class="channel-platform-toggle checked" id="fbToggle_${pid}" onclick="togglePlatform(${pid},'fb')">
           <input type="checkbox" checked>📘 Facebook
-        </label>
-      </div>`;
+        </label>`;
+      if (p.zalo.length > 0) {
+        panelHtml += `<label class="channel-platform-toggle checked" id="zaloToggle_${pid}" onclick="togglePlatform(${pid},'zalo')" style="margin-left:8px;">
+          <input type="checkbox" checked>💬 Zalo
+        </label>`;
+      }
+      panelHtml += `</div>`;
 
       // Channels for current profile
       panelHtml += `<div class="channel-profile-section">`;
@@ -1248,6 +1260,14 @@
       panelHtml += `<div id="customGroupInput_${pid}" style="display:none; padding:4px 14px 10px 38px;">
         <input type="text" id="customGroupId_${pid}" placeholder="Nhập Group ID, cách nhau bởi dấu phẩy..." autocomplete="off" style="width:100%; padding:7px 12px; border-radius:8px; border:1px solid #e0d4ff; font-size:13px; background:#faf8ff; color:#333;">
       </div>`;
+
+      // Zalo channels
+      for (const ch of p.zalo) {
+        panelHtml += `<label class="channel-item ch-zalo" data-panel="${pid}" data-platform="zalo" data-profile="${currentProfile}" data-chid="${ch.id}" data-zalo-account="${p.zaloAccount}">
+          <input type="checkbox" checked onchange="onChannelChange(${pid})"> ${ch.icon} ${ch.name}
+          <span class="ch-tag zalo" style="background:#e6f0ff; color:#0068ff;">Zalo</span>
+        </label>`;
+      }
 
       panelHtml += `</div>`;
 
@@ -1294,16 +1314,17 @@
     }
 
     function onChannelChange(pid) {
-      // Update platform toggle state based on individual checkboxes
-      const items = document.querySelectorAll(`#channelPanel_${pid} .channel-item.ch-fb input`);
-      const toggle = document.getElementById(`fbToggle_${pid}`);
-      if (!toggle) return;
-      const allChecked = Array.from(items).every(cb => cb.checked);
-      const someChecked = Array.from(items).some(cb => cb.checked);
-      const toggleCb = toggle.querySelector('input');
-      toggleCb.checked = someChecked;
-      toggleCb.indeterminate = someChecked && !allChecked;
-      toggle.classList.toggle('checked', someChecked);
+      for (const platform of ['fb', 'zalo']) {
+        const items = document.querySelectorAll(`#channelPanel_${pid} .channel-item.ch-${platform} input`);
+        const toggle = document.getElementById(`${platform}Toggle_${pid}`);
+        if (!toggle || items.length === 0) continue;
+        const allChecked = Array.from(items).every(cb => cb.checked);
+        const someChecked = Array.from(items).some(cb => cb.checked);
+        const toggleCb = toggle.querySelector('input');
+        toggleCb.checked = someChecked;
+        toggleCb.indeterminate = someChecked && !allChecked;
+        toggle.classList.toggle('checked', someChecked);
+      }
     }
 
     function toggleCustomGroupInput(pid, show) {
@@ -1335,16 +1356,18 @@
         const item = cb.closest('.channel-item');
         const profile = item.dataset.profile;
         const platform = item.dataset.platform;
-        if (!selected[profile]) selected[profile] = { fb: [] };
+        if (!selected[profile]) selected[profile] = { fb: [], zalo: [], zaloAccount: '' };
         let chid = item.dataset.chid;
-        // For custom groups, split by comma and add each
-        if (chid === 'custom' && customGroupInput) {
+        if (platform === 'zalo') {
+          selected[profile].zaloAccount = item.dataset.zaloAccount || '';
+          selected[profile].zalo.push({ id: chid });
+        } else if (chid === 'custom' && customGroupInput) {
           const ids = customGroupInput.value.split(',').map(s => s.trim()).filter(Boolean);
           ids.forEach(gid => {
-            selected[profile][platform].push({ id: 'custom', groupId: gid });
+            selected[profile].fb.push({ id: 'custom', groupId: gid });
           });
         } else {
-          selected[profile][platform].push({ id: chid });
+          selected[profile].fb.push({ id: chid });
         }
       });
 
@@ -1354,14 +1377,21 @@
       // Build summary text
       let summaryParts = [];
       for (const pKey of Object.keys(selected)) {
+        const p = buildTargetChannels(pKey, pKey);
         const fbNames = (selected[pKey].fb || []).map(c => {
           if (c.id === 'custom') return `Group #${c.groupId}`;
-          const p = buildTargetChannels(pKey, pKey);
           const ch = (p.fb || []).find(f => f.id === c.id);
           return ch ? ch.name : c.id;
         });
-        if (fbNames.length > 0) {
-          summaryParts.push(`<strong>${pKey}:</strong> ${fbNames.join(', ')}`);
+        const zaloNames = (selected[pKey].zalo || []).map(c => {
+          const ch = (p.zalo || []).find(f => f.id === c.id);
+          return ch ? `💬 ${ch.name}` : c.id;
+        });
+        const parts = [];
+        if (fbNames.length > 0) parts.push(`📘 ${fbNames.join(', ')}`);
+        if (zaloNames.length > 0) parts.push(zaloNames.join(', '));
+        if (parts.length > 0) {
+          summaryParts.push(`<strong>${pKey}:</strong> ${parts.join(' • ')}`);
         }
       }
 
@@ -1378,13 +1408,13 @@
       window._profilesToPost = profilesToPost;
 
       // Determine target type for backward compat
-      const activeSel = selected[currentProfile] || { fb: [] };
-      const hasFb = activeSel.fb.some(c => c.id !== 'custom');
-      const fbIds = activeSel.fb.filter(c => c.id !== 'custom').map(c => c.id);
-      // Store custom group IDs separately
-      window._customGroupIds = activeSel.fb.filter(c => c.id === 'custom').map(c => c.groupId);
+      const activeSel = selected[currentProfile] || { fb: [], zalo: [] };
+      const hasFb = (activeSel.fb || []).some(c => c.id !== 'custom');
+      const hasCustomFb = (activeSel.fb || []).some(c => c.id === 'custom');
+      const fbIds = (activeSel.fb || []).filter(c => c.id !== 'custom').map(c => c.id);
+      window._customGroupIds = (activeSel.fb || []).filter(c => c.id === 'custom').map(c => c.groupId);
 
-      let target = 'personal';
+      let target = null;
       if (fbIds.includes('personal') && fbIds.includes('asale') && fbIds.includes('tongkho')) {
         target = 'all';
       } else if (fbIds.includes('asale') && fbIds.includes('tongkho') && !fbIds.includes('personal')) {
@@ -1552,7 +1582,10 @@
         ]);
         return;
       }
-      if (!currentTarget) {
+      const zaloSelCheck = (window._channelSelection || {})[currentProfile] || { zalo: [] };
+      const hasZaloSelection = (zaloSelCheck.zalo || []).length > 0;
+      const hasCustomFbSelection = (window._customGroupIds || []).length > 0;
+      if (!currentTarget && !hasZaloSelection && !hasCustomFbSelection) {
         addBot('Vui lòng chọn nơi đăng bài!', [
           { label: '📍 Chọn nơi đăng', action: 'showTargetSelect()' },
         ]);
@@ -1579,59 +1612,59 @@
         target = 'shortcut';
       }
 
-      const formData = new FormData();
-      formData.append('message', message);
-      formData.append('target', target);
-      if (groupId) formData.append('groupId', groupId);
-      await appendImages(formData, selectedFiles);
-
       clearImages();
-      addTyping();
       document.getElementById('sendBtn').disabled = true;
 
       try {
-        const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: formData });
-        const initial = await parseJson(res);
+        if (target) {
+          const formData = new FormData();
+          formData.append('message', message);
+          formData.append('target', target);
+          if (groupId) formData.append('groupId', groupId);
+          await appendImages(formData, selectedFiles);
 
-        // Backend trả jobId → polling; nếu lỗi nhanh (sai profile, quá hạn) → data.error
-        let data;
-        if (initial.jobId) {
-          removeTyping();
-          addBot('⏳ Đang đăng bài, vui lòng chờ...');
           addTyping();
-          data = await pollJob(initial.jobId);
-        } else {
-          data = initial; // lỗi sync (vd sai profile)
-        }
-        removeTyping();
+          const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: formData });
+          const initial = await parseJson(res);
 
-        // Tên đích đến cho message thành công
-        const targetLabel = (() => {
-          if (!target || target === 'personal') return `trang cá nhân (<strong>${currentProfile}</strong>)`;
-          if (target === 'group') return `Group <strong>#${groupId}</strong> (profile <strong>${currentProfile}</strong>)`;
-          if (target === 'shortcut') {
-            const scMap = { asale: 'Asale', tongkho: 'Tổng Kho' };
-            return `Group <strong>${scMap[groupId] || groupId}</strong> (profile <strong>${currentProfile}</strong>)`;
+          let data;
+          if (initial.jobId) {
+            removeTyping();
+            addBot('⏳ Đang đăng bài, vui lòng chờ...');
+            addTyping();
+            data = await pollJob(initial.jobId);
+          } else {
+            data = initial;
           }
-          return target;
-        })();
+          removeTyping();
 
-        if (data.results) {
-          data.results.forEach(r => {
-            if (r.success) {
-              let msg = `✅ Đăng bài lên <strong>${r.target}</strong> (profile <strong>${currentProfile}</strong>) thành công!`;
-              if (r.postUrl) msg += `\n<a class="link" href="${r.postUrl}" target="_blank">Xem bài viết</a>`;
-              addBot(msg, null, r.screenshot ? `/api/screenshot?t=${Date.now()}` : null);
-            } else {
-              addBot(`❌ Lỗi khi đăng <strong>${r.target}</strong>: ${r.error}`);
+          const targetLabel = (() => {
+            if (!target || target === 'personal') return `trang cá nhân (<strong>${currentProfile}</strong>)`;
+            if (target === 'group') return `Group <strong>#${groupId}</strong> (profile <strong>${currentProfile}</strong>)`;
+            if (target === 'shortcut') {
+              const scMap = { asale: 'Asale', tongkho: 'Tổng Kho' };
+              return `Group <strong>${scMap[groupId] || groupId}</strong> (profile <strong>${currentProfile}</strong>)`;
             }
-          });
-        } else if (data.success) {
-          let msg = `✅ Đăng bài lên ${targetLabel} thành công!`;
-          if (data.postUrl) msg += `\n<a class="link" href="${data.postUrl}" target="_blank">Xem bài viết</a>`;
-          addBot(msg, null, data.screenshot ? `/api/screenshot?t=${Date.now()}` : null);
-        } else {
-          addBot(`Lỗi: ${data.error}`);
+            return target;
+          })();
+
+          if (data.results) {
+            data.results.forEach(r => {
+              if (r.success) {
+                let msg = `✅ Đăng bài lên <strong>${r.target}</strong> (profile <strong>${currentProfile}</strong>) thành công!`;
+                if (r.postUrl) msg += `\n<a class="link" href="${r.postUrl}" target="_blank">Xem bài viết</a>`;
+                addBot(msg, null, r.screenshot ? `/api/screenshot?t=${Date.now()}` : null);
+              } else {
+                addBot(`❌ Lỗi khi đăng <strong>${r.target}</strong>: ${r.error}`);
+              }
+            });
+          } else if (data.success) {
+            let msg = `✅ Đăng bài lên ${targetLabel} thành công!`;
+            if (data.postUrl) msg += `\n<a class="link" href="${data.postUrl}" target="_blank">Xem bài viết</a>`;
+            addBot(msg, null, data.screenshot ? `/api/screenshot?t=${Date.now()}` : null);
+          } else {
+            addBot(`Lỗi: ${data.error}`);
+          }
         }
 
         // Post to custom groups if any
@@ -1661,6 +1694,37 @@
               addBot(`⏳ Group #${gid}: bài đang được đăng, kiểm tra FB sau vài phút.`);
             } else {
               addBot(`Lỗi Group #${gid}: ${ce.message}`);
+            }
+          }
+        }
+
+        // Post to Zalo groups if any
+        const zaloSel = (window._channelSelection || {})[currentProfile] || { zalo: [], zaloAccount: '' };
+        const zaloGroups = zaloSel.zalo || [];
+        const zaloAccount = zaloSel.zaloAccount;
+        if (zaloGroups.length > 0 && zaloAccount) {
+          const allZalo = channelsData.zaloGroups || [];
+          for (const z of zaloGroups) {
+            const g = allZalo.find(x => x.key === z.id);
+            if (!g) continue;
+            addTyping();
+            try {
+              const zf = new FormData();
+              zf.append('profile', zaloAccount);
+              zf.append('groupName', g.name);
+              zf.append('message', message);
+              await appendImages(zf, selectedFiles);
+              const zr = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: zf });
+              const zd = await parseJson(zr);
+              removeTyping();
+              if (zd.success) {
+                addBot(`✅ Zalo <strong>${g.name}</strong> (${zaloAccount}) đăng thành công!`);
+              } else {
+                addBot(`❌ Lỗi Zalo <strong>${g.name}</strong>: ${zd.error || 'Không rõ'}`);
+              }
+            } catch (ze) {
+              removeTyping();
+              addBot(`Lỗi Zalo ${g.name}: ${ze.message}`);
             }
           }
         }
