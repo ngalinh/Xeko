@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const { PassThrough } = require('stream');
 const config = require('./config/default');
 const logger = require('./src/utils/logger');
 const playwright = process.env.PLAYWRIGHT_LOCAL_URL
@@ -674,19 +675,41 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
     const FormData = (await import('form-data')).default;
     const form = new FormData();
     const { zaloAccountName, groupName, message } = req.body;
-    if (zaloAccountName) form.append('zaloAccountName', zaloAccountName);
+    const accountName = zaloAccountName || req.body.profile;
+    if (accountName) form.append('zaloAccountName', accountName);
     if (groupName) form.append('groupName', groupName);
     if (message) form.append('message', message);
     for (const p of imagePaths) {
-      form.append('images', require('fs').createReadStream(p));
+      form.append('images', require('fs').createReadStream(p), { filename: path.basename(p) });
     }
+
+    // Buffer toàn bộ multipart để có Content-Length chính xác — Cloudflare Tunnel
+    // truncates chunked streams without Content-Length.
+    const body = await new Promise((resolve, reject) => {
+      const chunks = [];
+      const sink = new PassThrough();
+      sink.on('data', c => chunks.push(c));
+      sink.on('end', () => resolve(Buffer.concat(chunks)));
+      sink.on('error', reject);
+      form.on('error', reject);
+      form.pipe(sink);
+    });
+
     const response = await fetchFn(`${LOCAL_URL}/api/zalo/post`, {
       method: 'POST',
-      headers: { ...form.getHeaders(), 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
-      body: form,
+      headers: {
+        ...form.getHeaders(),
+        'Content-Length': String(body.length),
+        'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key',
+      },
+      body,
     });
-    const data = await response.json();
-    return res.status(response.status).json(data);
+    const text = await response.text();
+    let data;
+    try { data = JSON.parse(text); } catch {
+      data = { error: `Local trả non-JSON (${response.status}): ${text.slice(0, 200)}` };
+    }
+    return res.status(response.ok ? 200 : response.status).json(data);
   } catch (e) {
     return res.status(500).json({ error: `Lỗi proxy Zalo post: ${e.message}` });
   } finally {
