@@ -674,13 +674,16 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
     const fetchFn = await getFetch();
     const FormData = (await import('form-data')).default;
     const form = new FormData();
-    const { zaloAccountName, groupName, message } = req.body;
-    const accountName = zaloAccountName || req.body.profile;
+    const { profile, zaloAccountName, groupName, message } = req.body;
+    const accountName = zaloAccountName || profile;
     if (accountName) form.append('zaloAccountName', accountName);
     if (groupName) form.append('groupName', groupName);
     if (message) form.append('message', message);
     for (const p of imagePaths) {
-      form.append('images', require('fs').createReadStream(p), { filename: path.basename(p) });
+      form.append('images', fs.createReadStream(p), {
+        filename: path.basename(p),
+        contentType: 'image/jpeg',
+      });
     }
 
     // Buffer toàn bộ multipart để có Content-Length chính xác — Cloudflare Tunnel
@@ -706,10 +709,9 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
     });
     const text = await response.text();
     let data;
-    try { data = JSON.parse(text); } catch {
-      data = { error: `Local trả non-JSON (${response.status}): ${text.slice(0, 200)}` };
-    }
-    return res.status(response.ok ? 200 : response.status).json(data);
+    try { data = JSON.parse(text); }
+    catch { data = { error: `Local trả non-JSON (${response.status}): ${text.slice(0, 200)}` }; }
+    return res.status(response.status).json(data);
   } catch (e) {
     return res.status(500).json({ error: `Lỗi proxy Zalo post: ${e.message}` });
   } finally {

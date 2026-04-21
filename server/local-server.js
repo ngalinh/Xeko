@@ -154,6 +154,32 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
   }
 });
 
+// ===== ĐĂNG ZALO =====
+app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
+  const { profile, zaloAccountName, groupName, message } = req.body;
+  const imagePaths = (req.files || []).map(f => f.path);
+  const accountName = zaloAccountName || profile;
+
+  if (!accountName || !groupName) {
+    cleanupFiles(imagePaths);
+    return res.status(400).json({ error: 'Thiếu zaloAccountName/profile hoặc groupName' });
+  }
+
+  // Respond immediately so cloud proxy never hits 504 — Playwright runs in background
+  res.json({ success: true, message: 'Đang xử lý đăng bài Zalo...' });
+
+  salework.postToZaloGroup({ zaloAccountName: accountName, groupName, message: message || '', imagePaths })
+    .then(result => {
+      cleanupFiles(imagePaths);
+      if (!result.success) logger.error(`[zalo/post] Thất bại "${groupName}": ${result.error}`);
+      else logger.info(`[zalo/post] Thành công: ${groupName}`);
+    })
+    .catch(err => {
+      cleanupFiles(imagePaths);
+      logger.error(`[zalo/post] Exception: ${err.message}`);
+    });
+});
+
 // ===== ACCOUNTS =====
 app.post('/api/accounts', (req, res) => {
   const { type, key, name, email, password, saleworkName } = req.body;
