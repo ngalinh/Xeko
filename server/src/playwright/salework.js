@@ -48,15 +48,11 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     await screenshot(page, '01-loaded');
 
     // --- Account selection ---
-    // The account selector is an el-select at the top showing "Tất cả tài khoản".
-    // When opened it shows a search input placeholder="Tìm kiếm tài khoản...".
-    // Persistent context may leave the dropdown already open.
     try {
       // Check if the account dropdown is already open (search input visible)
       const alreadyOpen = await page.isVisible('input[placeholder*="tài khoản"]');
 
       if (!alreadyOpen) {
-        // Click the el-select trigger to open the dropdown
         await tryClick(page, [
           '.el-select .el-input__inner',
           '.el-select',
@@ -71,15 +67,14 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
       await page.waitForTimeout(600);
       await screenshot(page, '02b-account-typed');
 
-      // Click the matching option
-      await page.click(`.el-select-dropdown__item:has-text("${zaloAccountName}")`, { timeout: 5000 });
+      // Use locator().filter() — most reliable way to match text in Playwright
+      await page.locator('li').filter({ hasText: zaloAccountName }).first().click({ timeout: 5000 });
       await page.waitForTimeout(600);
       await screenshot(page, '02c-account-selected');
       logger.info(`[salework] Đã chọn tài khoản "${zaloAccountName}"`);
     } catch (e) {
       logger.warn(`[salework] Lỗi chọn tài khoản "${zaloAccountName}": ${e.message}`);
       await screenshot(page, '02-error');
-      // Close any open dropdown before continuing
       await page.keyboard.press('Escape');
       await page.waitForTimeout(300);
     }
@@ -87,8 +82,7 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     await screenshot(page, '03-after-account');
 
     // --- Search group ---
-    // From screenshot: the group search input has placeholder exactly "Tìm kiếm"
-    // (different from account search which has "Tìm kiếm tài khoản...")
+    // Group search input has placeholder exactly "Tìm kiếm" (not "Tìm kiếm tài khoản...")
     const groupSearchInput = await page.waitForSelector(
       'input[placeholder="Tìm kiếm"]',
       { timeout: 10000 }
@@ -99,14 +93,12 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     await page.waitForTimeout(1500);
     await screenshot(page, '04-search-filled');
 
-    // Click group from result list — scroll into view if needed
+    // Click group from result list
     const groupLocator = page.locator([
       `[class*="conversation-item"]:has-text("${groupName}")`,
-      `[class*="ConversationItem"]:has-text("${groupName}")`,
       `[class*="contact-item"]:has-text("${groupName}")`,
       `[class*="group-item"]:has-text("${groupName}")`,
       `[class*="chat-item"]:has-text("${groupName}")`,
-      `.el-list-item:has-text("${groupName}")`,
       `[class*="item"]:has-text("${groupName}")`,
       `li:has-text("${groupName}")`,
     ].join(', ')).first();
@@ -146,16 +138,41 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     await page.waitForTimeout(500);
     await screenshot(page, '06-message-typed');
 
-    // --- Upload images ---
+    // --- Upload images via filechooser event ---
     if (imagePaths && imagePaths.length > 0) {
       try {
-        const fileInput = await page.$('input[type="file"]');
-        if (fileInput) {
-          await fileInput.setInputFiles(imagePaths);
+        const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 5000 });
+
+        // Try clicking the image/attachment upload button
+        const uploadClicked = await tryClick(page, [
+          '[class*="upload"] button',
+          '[class*="attach"]',
+          '[class*="image-upload"]',
+          '[class*="ImageUpload"]',
+          'button[title*="ảnh"], button[title*="hình"], button[title*="image"]',
+          '[class*="toolbar"] button:nth-child(1)',
+          '[class*="Toolbar"] button:nth-child(1)',
+          'label[for*="file"]',
+          'label[class*="upload"]',
+        ], 3000);
+
+        if (!uploadClicked) {
+          // Fallback: force-click any hidden file input
+          fileChooserPromise.catch(() => {});
+          const fileInput = await page.$('input[type="file"]');
+          if (fileInput) {
+            await page.setInputFiles('input[type="file"]', imagePaths);
+            await page.waitForTimeout(2000);
+            await screenshot(page, '07-images-set');
+          } else {
+            logger.warn('[salework] Không tìm thấy nút upload ảnh hoặc input[type="file"]');
+          }
+        } else {
+          // Upload button was clicked — set files via filechooser dialog
+          const fileChooser = await fileChooserPromise;
+          await fileChooser.setFiles(imagePaths);
           await page.waitForTimeout(2000);
           await screenshot(page, '07-images-attached');
-        } else {
-          logger.warn('[salework] Không tìm thấy input[type="file"] để upload ảnh');
         }
       } catch (e) {
         logger.warn(`[salework] Không upload được ảnh: ${e.message}`);

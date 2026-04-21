@@ -165,20 +165,19 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
     return res.status(400).json({ error: 'Thiếu zaloAccountName/profile hoặc groupName' });
   }
 
-  try {
-    const result = await salework.postToZaloGroup({
-      zaloAccountName: accountName,
-      groupName,
-      message: message || '',
-      imagePaths,
+  // Respond immediately so cloud proxy never hits 504 — Playwright runs in background
+  res.json({ success: true, message: 'Đang xử lý đăng bài Zalo...' });
+
+  salework.postToZaloGroup({ zaloAccountName: accountName, groupName, message: message || '', imagePaths })
+    .then(result => {
+      cleanupFiles(imagePaths);
+      if (!result.success) logger.error(`[zalo/post] Thất bại "${groupName}": ${result.error}`);
+      else logger.info(`[zalo/post] Thành công: ${groupName}`);
+    })
+    .catch(err => {
+      cleanupFiles(imagePaths);
+      logger.error(`[zalo/post] Exception: ${err.message}`);
     });
-    cleanupFiles(imagePaths);
-    return res.json(result);
-  } catch (error) {
-    cleanupFiles(imagePaths);
-    logger.error(`Lỗi Zalo post: ${error.message}`);
-    return res.status(500).json({ error: error.message });
-  }
 });
 
 // ===== ACCOUNTS =====
@@ -433,6 +432,32 @@ app.put('/api/channels/profile-channels', (req, res) => {
   saveChannels(data);
   res.json({ success: true });
 });
+// ===== ZALO POST =====
+app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
+  const { profile, zaloAccountName, groupName, message } = req.body;
+  const imagePaths = (req.files || []).map(f => f.path);
+  const accountName = zaloAccountName || profile;
+
+  if (!accountName || !groupName) {
+    cleanupFiles(imagePaths);
+    return res.status(400).json({ error: 'Thiếu zaloAccountName/profile hoặc groupName' });
+  }
+
+  // Respond immediately so cloud proxy never times out — Playwright runs in background
+  res.json({ success: true, message: 'Đang xử lý đăng bài Zalo...' });
+
+  salework.postToZaloGroup({ zaloAccountName: accountName, groupName, message: message || '', imagePaths })
+    .then(result => {
+      cleanupFiles(imagePaths);
+      if (!result.success) logger.error(`[zalo/post] Thất bại "${groupName}": ${result.error}`);
+      else logger.info(`[zalo/post] Thành công: ${groupName}`);
+    })
+    .catch(err => {
+      cleanupFiles(imagePaths);
+      logger.error(`[zalo/post] Exception: ${err.message}`);
+    });
+});
+
 // ===== SCREENSHOT =====
 app.get('/api/screenshot', (req, res) => {
   const screenshotPath = path.resolve(__dirname, 'logs/latest-post.png');

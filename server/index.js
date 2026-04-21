@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const { PassThrough } = require('stream');
 const config = require('./config/default');
 const logger = require('./src/utils/logger');
 const playwright = process.env.PLAYWRIGHT_LOCAL_URL
@@ -672,23 +673,21 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
   try {
     const fetchFn = await getFetch();
     const FormData = (await import('form-data')).default;
-    const { PassThrough } = require('stream');
     const form = new FormData();
     const { profile, zaloAccountName, groupName, message } = req.body;
     const accountName = zaloAccountName || profile;
-    if (accountName) form.append('profile', accountName);
+    if (accountName) form.append('zaloAccountName', accountName);
     if (groupName) form.append('groupName', groupName);
     if (message) form.append('message', message);
     for (const p of imagePaths) {
       form.append('images', fs.createReadStream(p), {
-        filename: require('path').basename(p),
+        filename: path.basename(p),
         contentType: 'image/jpeg',
       });
     }
 
-    // Buffer toàn bộ multipart để có Content-Length chính xác. Thiếu
-    // Content-Length → tunnel/Multer sẽ cắt stream và báo
-    // "Unexpected end of form".
+    // Buffer toàn bộ multipart để có Content-Length chính xác — Cloudflare Tunnel
+    // truncates chunked streams without Content-Length.
     const body = await new Promise((resolve, reject) => {
       const chunks = [];
       const sink = new PassThrough();
@@ -708,7 +707,6 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
       },
       body,
     });
-
     const text = await response.text();
     let data;
     try { data = JSON.parse(text); }
