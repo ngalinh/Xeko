@@ -412,8 +412,8 @@
     [data-theme="dark"] .profile-card .info .name { color: #e0e0e0; }
     [data-theme="dark"] .acc-tab { color: #666; }
     [data-theme="dark"] .acc-tab.active { color: #a78bfa; border-bottom-color: #a78bfa; }
-    [data-theme="dark"] select, [data-theme="dark"] #panelAdd input { background: #1e1e3a; border-color: #3a3a5a; color: #e0e0e0; }
-    [data-theme="dark"] #panelAdd > div { background: #16172b !important; border-color: #2a2a4a !important; }
+    [data-theme="dark"] select, [data-theme="dark"] #addAccountModal input { background: #1e1e3a; border-color: #3a3a5a; color: #e0e0e0; }
+    [data-theme="dark"] #addAccountModal > div { background: #16172b !important; border-color: #2a2a4a !important; }
     [data-theme="dark"] #editProfileModal > div { background: #1e1e3a !important; }
     [data-theme="dark"] #editProfileModal h3 { color: #e0e0e0 !important; }
     [data-theme="dark"] #editProfileModal input { background: #16172b !important; border-color: #3a3a5a !important; color: #e0e0e0 !important; }
@@ -658,7 +658,7 @@
       <div id="panelProfiles">
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
           <h3 style="font-size:15px; color:#1e1e2e; flex:1;">Profile Chromium đã đăng nhập</h3>
-          <button onclick="switchAccountTab('add')"
+          <button onclick="openAddAccountModal()"
             style="padding:8px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer;">
             ➕ Thêm tài khoản
           </button>
@@ -674,48 +674,7 @@
         <div id="sessionResults" style="display:flex; flex-direction:column; gap:10px; margin-top:16px;"></div>
       </div>
 
-      <!-- Tab: Them tai khoan -->
-      <div id="panelAdd" style="display:none;">
-        <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:16px;">Thêm tài khoản mới</h3>
-
-        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px; max-width:500px;">
-          <div style="margin-bottom:14px;">
-            <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Loại tài khoản</label>
-            <select id="newAccType" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
-              <option value="facebook">Facebook</option>
-            </select>
-          </div>
-
-          <div style="margin-bottom:14px;">
-            <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Tên profile (không dấu, viết liền)</label>
-            <input type="text" id="newAccKey" placeholder="vd: linhthao, linhduong..." autocomplete="off" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
-          </div>
-
-          <div style="margin-bottom:14px;">
-            <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Tên hiển thị</label>
-            <input type="text" id="newAccName" placeholder="vd: Linh Thảo US" autocomplete="off" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
-          </div>
-
-          <div id="newAccFbFields">
-            <div style="margin-bottom:14px;">
-              <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Email / SĐT Facebook</label>
-              <input type="text" id="newAccEmail" placeholder="email hoặc số điện thoại" autocomplete="off" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
-            </div>
-            <div style="margin-bottom:14px;">
-              <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Mật khẩu Facebook</label>
-              <input type="password" id="newAccPass" placeholder="mật khẩu" autocomplete="new-password" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
-            </div>
-          </div>
-
-          <button onclick="addNewAccount()" style="width:100%; padding:12px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer; margin-top:8px;">
-            ➕ Thêm và đăng nhập
-          </button>
-
-          <p style="font-size:12px; color:#999; margin-top:10px;">
-            * Lần đầu thêm tài khoản, Chromium sẽ mở lên để bạn đăng nhập thủ công.
-          </p>
-        </div>
-      </div>
+      <!-- panelAdd removed — form moved to addAccountModal below -->
 
       <!-- Tab: Cai dat kenh -->
       <div id="panelChannels" style="display:none;">
@@ -792,53 +751,12 @@
       <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:22px;">📊</div>
       <div class="header-info">
         <h1>Dashboard</h1>
-        <span>Lịch đăng bài & Thống kê</span>
+        <span>Thống kê</span>
       </div>
     </div>
 
-    <!-- Tab bar -->
-    <div class="dash-tab-bar" style="display:flex; gap:8px; padding:16px 20px 0; border-bottom:1px solid #e5e7eb;">
-      <button onclick="switchDashTab('calendar')" class="dash-tab active" id="dashTabCalendar" style="padding:10px 20px; background:none; border:none; border-bottom:2px solid #4f46e5; color:#4f46e5; font-weight:600; cursor:pointer; font-size:14px;">📅 Lịch đăng bài</button>
-      <button onclick="switchDashTab('stats')" class="dash-tab" id="dashTabStats" style="padding:10px 20px; background:none; border:none; border-bottom:2px solid transparent; color:#666; cursor:pointer; font-size:14px;">📊 Thống kê</button>
-    </div>
-
-    <!-- Tab content: Lịch đăng bài (month calendar + issues panel) -->
-    <div id="dashPanelCalendar" style="flex:1; overflow-y:auto; padding:20px;">
-      <!-- Month nav -->
-      <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
-        <button onclick="calPrevMonth()" style="padding:6px 12px; border:1px solid #ddd; border-radius:8px; background:#fff; cursor:pointer;">← Tháng trước</button>
-        <div id="calMonthLabel" style="font-size:15px; font-weight:600; min-width:160px; text-align:center;"></div>
-        <button onclick="calNextMonth()" style="padding:6px 12px; border:1px solid #ddd; border-radius:8px; background:#fff; cursor:pointer;">Tháng sau →</button>
-        <button onclick="calToday()" style="padding:6px 12px; border:1px solid #c7d2fe; border-radius:8px; background:#eef2ff; cursor:pointer; color:#4f46e5;">Hôm nay</button>
-        <div style="margin-left:auto; font-size:12px; color:#666;">
-          <span style="display:inline-block; width:10px; height:10px; background:#2563eb; border-radius:50%; margin-right:4px;"></span>Facebook
-        </div>
-      </div>
-
-      <!-- Calendar full width -->
-      <div>
-        <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:10px;">
-          <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;">
-            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">CN</div>
-            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T2</div>
-            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T3</div>
-            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T4</div>
-            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T5</div>
-            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T6</div>
-            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T7</div>
-          </div>
-          <div id="calMonthGrid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;">
-            <p style="grid-column:span 7; color:#999; text-align:center; padding:24px;">Đang tải...</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Day detail -->
-      <div id="calDayDetail" style="margin-top:16px;"></div>
-    </div>
-
-    <!-- Tab content: Thống kê -->
-    <div id="dashPanelStats" style="display:none; flex:1; overflow-y:auto; padding:20px;">
+    <!-- Thống kê -->
+    <div id="dashPanelStats" style="flex:1; overflow-y:auto; padding:20px;">
       <!-- Summary Cards -->
       <div id="dashSummary" style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px;">
         <div class="dash-card" style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:16px;">
@@ -949,6 +867,50 @@
         <button onclick="closeEditModal()" style="padding:8px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
         <button onclick="saveProfile()" style="padding:8px 20px; border:none; border-radius:8px; background:#4f46e5; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">💾 Lưu</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal thêm tài khoản -->
+  <div id="addAccountModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:16px; padding:24px; width:440px; max-width:92%; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <h3 style="font-size:16px; color:#1e1e2e; margin:0;">➕ Thêm tài khoản mới</h3>
+        <button onclick="closeAddAccountModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999; line-height:1; padding:0 4px;">×</button>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Loại tài khoản</label>
+        <select id="newAccType" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+          <option value="facebook">Facebook</option>
+        </select>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Tên profile (không dấu, viết liền)</label>
+        <input type="text" id="newAccKey" placeholder="vd: linhthao, linhduong..." autocomplete="off"
+          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Tên hiển thị</label>
+        <input type="text" id="newAccName" placeholder="vd: Linh Thảo US" autocomplete="off"
+          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+      </div>
+      <div id="newAccFbFields">
+        <div style="margin-bottom:14px;">
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Email / SĐT Facebook</label>
+          <input type="text" id="newAccEmail" placeholder="email hoặc số điện thoại" autocomplete="off"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Mật khẩu Facebook</label>
+          <input type="password" id="newAccPass" placeholder="mật khẩu" autocomplete="new-password"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+        </div>
+      </div>
+      <button onclick="addNewAccount()" style="width:100%; padding:12px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer; margin-top:4px; box-sizing:border-box;">
+        ➕ Thêm và đăng nhập
+      </button>
+      <p style="font-size:12px; color:#999; margin-top:10px; margin-bottom:0;">
+        * Lần đầu thêm tài khoản, Chromium sẽ mở lên để bạn đăng nhập thủ công.
+      </p>
     </div>
   </div>
 
@@ -1939,12 +1901,8 @@
         document.getElementById(target.nav).classList.add('active');
       }
 
-      if (pg === 'calendar') {
-        switchDashTab('calendar');
-      } else if (pg === 'dashboard') {
-        // Giữ tab hiện tại; load lại dữ liệu của tab đang mở
-        const currentTab = document.getElementById('dashTabStats')?.classList.contains('active') ? 'stats' : 'calendar';
-        switchDashTab(currentTab);
+      if (pg === 'dashboard') {
+        loadDashboard();
       }
       if (pg === 'session') {
         renderProfileList();
@@ -1959,33 +1917,8 @@
       closeSidebar();
     }
 
-    function switchDashTab(tab) {
-      const calTab = document.getElementById('dashTabCalendar');
-      const statsTab = document.getElementById('dashTabStats');
-      const calPanel = document.getElementById('dashPanelCalendar');
-      const statsPanel = document.getElementById('dashPanelStats');
-      if (!calTab || !statsTab) return;
-
-      const setActive = (btn, on) => {
-        btn.classList.toggle('active', on);
-        btn.style.borderBottom = on ? '2px solid #4f46e5' : '2px solid transparent';
-        btn.style.color = on ? '#4f46e5' : '#666';
-        btn.style.fontWeight = on ? '600' : 'normal';
-      };
-
-      if (tab === 'stats') {
-        setActive(statsTab, true);
-        setActive(calTab, false);
-        calPanel.style.display = 'none';
-        statsPanel.style.display = 'block';
-        loadDashboard();
-      } else {
-        setActive(calTab, true);
-        setActive(statsTab, false);
-        statsPanel.style.display = 'none';
-        calPanel.style.display = 'block';
-        loadCalendar();
-      }
+    function switchDashTab() {
+      loadDashboard();
     }
 
     // === Dashboard Calendar ===
@@ -2238,7 +2171,7 @@
 
     // === Quan ly tai khoan ===
     function switchAccountTab(tab) {
-      ['profiles','add','channels','history'].forEach(t => {
+      ['profiles','channels','history'].forEach(t => {
         const p = document.getElementById('panel' + t.charAt(0).toUpperCase() + t.slice(1));
         const b = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
         if (p) p.style.display = 'none';
@@ -2250,6 +2183,14 @@
       if (btn) btn.classList.add('active');
       if (tab === 'history') loadLoginHistory();
       if (tab === 'channels') loadChannels();
+    }
+
+    function openAddAccountModal() {
+      document.getElementById('addAccountModal').style.display = 'flex';
+    }
+
+    function closeAddAccountModal() {
+      document.getElementById('addAccountModal').style.display = 'none';
     }
 
     document.getElementById('newAccType')?.addEventListener('change', function() {
@@ -2380,8 +2321,8 @@
           document.getElementById('newAccName').value = '';
           if (document.getElementById('newAccEmail')) document.getElementById('newAccEmail').value = '';
           if (document.getElementById('newAccPass')) document.getElementById('newAccPass').value = '';
+          closeAddAccountModal();
           renderProfileList();
-          switchAccountTab('profiles');
         } else {
           alert('Lỗi: ' + data.error);
         }
