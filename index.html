@@ -751,53 +751,12 @@
       <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:22px;">📊</div>
       <div class="header-info">
         <h1>Dashboard</h1>
-        <span>Lịch đăng bài & Thống kê</span>
+        <span>Thống kê</span>
       </div>
     </div>
 
-    <!-- Tab bar -->
-    <div class="dash-tab-bar" style="display:flex; gap:8px; padding:16px 20px 0; border-bottom:1px solid #e5e7eb;">
-      <button onclick="switchDashTab('calendar')" class="dash-tab active" id="dashTabCalendar" style="padding:10px 20px; background:none; border:none; border-bottom:2px solid #4f46e5; color:#4f46e5; font-weight:600; cursor:pointer; font-size:14px;">📅 Lịch đăng bài</button>
-      <button onclick="switchDashTab('stats')" class="dash-tab" id="dashTabStats" style="padding:10px 20px; background:none; border:none; border-bottom:2px solid transparent; color:#666; cursor:pointer; font-size:14px;">📊 Thống kê</button>
-    </div>
-
-    <!-- Tab content: Lịch đăng bài (month calendar + issues panel) -->
-    <div id="dashPanelCalendar" style="flex:1; overflow-y:auto; padding:20px;">
-      <!-- Month nav -->
-      <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
-        <button onclick="calPrevMonth()" style="padding:6px 12px; border:1px solid #ddd; border-radius:8px; background:#fff; cursor:pointer;">← Tháng trước</button>
-        <div id="calMonthLabel" style="font-size:15px; font-weight:600; min-width:160px; text-align:center;"></div>
-        <button onclick="calNextMonth()" style="padding:6px 12px; border:1px solid #ddd; border-radius:8px; background:#fff; cursor:pointer;">Tháng sau →</button>
-        <button onclick="calToday()" style="padding:6px 12px; border:1px solid #c7d2fe; border-radius:8px; background:#eef2ff; cursor:pointer; color:#4f46e5;">Hôm nay</button>
-        <div style="margin-left:auto; font-size:12px; color:#666;">
-          <span style="display:inline-block; width:10px; height:10px; background:#2563eb; border-radius:50%; margin-right:4px;"></span>Facebook
-        </div>
-      </div>
-
-      <!-- Calendar full width -->
-      <div>
-        <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:10px;">
-          <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;">
-            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">CN</div>
-            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T2</div>
-            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T3</div>
-            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T4</div>
-            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T5</div>
-            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T6</div>
-            <div style="text-align:center; font-size:11px; color:#666; padding:6px 0; font-weight:600;">T7</div>
-          </div>
-          <div id="calMonthGrid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;">
-            <p style="grid-column:span 7; color:#999; text-align:center; padding:24px;">Đang tải...</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Day detail -->
-      <div id="calDayDetail" style="margin-top:16px;"></div>
-    </div>
-
-    <!-- Tab content: Thống kê -->
-    <div id="dashPanelStats" style="display:none; flex:1; overflow-y:auto; padding:20px;">
+    <!-- Thống kê -->
+    <div id="dashPanelStats" style="flex:1; overflow-y:auto; padding:20px;">
       <!-- Summary Cards -->
       <div id="dashSummary" style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px;">
         <div class="dash-card" style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:16px;">
@@ -1942,12 +1901,8 @@
         document.getElementById(target.nav).classList.add('active');
       }
 
-      if (pg === 'calendar') {
-        switchDashTab('calendar');
-      } else if (pg === 'dashboard') {
-        // Giữ tab hiện tại; load lại dữ liệu của tab đang mở
-        const currentTab = document.getElementById('dashTabStats')?.classList.contains('active') ? 'stats' : 'calendar';
-        switchDashTab(currentTab);
+      if (pg === 'dashboard') {
+        loadDashboard();
       }
       if (pg === 'session') {
         renderProfileList();
@@ -1962,33 +1917,8 @@
       closeSidebar();
     }
 
-    function switchDashTab(tab) {
-      const calTab = document.getElementById('dashTabCalendar');
-      const statsTab = document.getElementById('dashTabStats');
-      const calPanel = document.getElementById('dashPanelCalendar');
-      const statsPanel = document.getElementById('dashPanelStats');
-      if (!calTab || !statsTab) return;
-
-      const setActive = (btn, on) => {
-        btn.classList.toggle('active', on);
-        btn.style.borderBottom = on ? '2px solid #4f46e5' : '2px solid transparent';
-        btn.style.color = on ? '#4f46e5' : '#666';
-        btn.style.fontWeight = on ? '600' : 'normal';
-      };
-
-      if (tab === 'stats') {
-        setActive(statsTab, true);
-        setActive(calTab, false);
-        calPanel.style.display = 'none';
-        statsPanel.style.display = 'block';
-        loadDashboard();
-      } else {
-        setActive(calTab, true);
-        setActive(statsTab, false);
-        statsPanel.style.display = 'none';
-        calPanel.style.display = 'block';
-        loadCalendar();
-      }
+    function switchDashTab() {
+      loadDashboard();
     }
 
     // === Dashboard Calendar ===
