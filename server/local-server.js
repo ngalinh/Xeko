@@ -267,6 +267,71 @@ app.get('/api/login-history', (req, res) => {
   res.json(loginHistory.getHistory(profile, limit));
 });
 
+// ===== CHANNELS =====
+const CHANNELS_FILE = path.resolve(__dirname, 'config/channels.json');
+
+function loadChannels() {
+  try {
+    if (fs.existsSync(CHANNELS_FILE)) return JSON.parse(fs.readFileSync(CHANNELS_FILE, 'utf8'));
+  } catch {}
+  return { fbGroups: [], zaloGroups: [], profileChannels: {} };
+}
+
+function saveChannels(data) {
+  const dir = path.dirname(CHANNELS_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(CHANNELS_FILE, JSON.stringify(data, null, 2));
+}
+
+app.get('/api/channels', (req, res) => {
+  res.json(loadChannels());
+});
+
+app.post('/api/channels/fb-groups', (req, res) => {
+  const { key, id, name } = req.body;
+  if (!key || !id || !name) return res.status(400).json({ error: 'Thiếu key, id hoặc name' });
+  const data = loadChannels();
+  if (data.fbGroups.find(g => g.key === key)) return res.status(400).json({ error: 'Key đã tồn tại' });
+  data.fbGroups.push({ key, id, name });
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.delete('/api/channels/fb-groups/:key', (req, res) => {
+  const data = loadChannels();
+  data.fbGroups = data.fbGroups.filter(g => g.key !== req.params.key);
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.post('/api/channels/zalo-groups', (req, res) => {
+  const { key, oid, name } = req.body;
+  if (!key || !oid || !name) return res.status(400).json({ error: 'Thiếu key, oid hoặc name' });
+  const data = loadChannels();
+  if (!data.zaloGroups) data.zaloGroups = [];
+  if (data.zaloGroups.find(g => g.key === key)) return res.status(400).json({ error: 'Key đã tồn tại' });
+  data.zaloGroups.push({ key, oid, name });
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.delete('/api/channels/zalo-groups/:key', (req, res) => {
+  const data = loadChannels();
+  data.zaloGroups = (data.zaloGroups || []).filter(g => g.key !== req.params.key);
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.put('/api/channels/profile-channels', (req, res) => {
+  const { profileKey, channels } = req.body;
+  if (!profileKey) return res.status(400).json({ error: 'Thiếu profileKey' });
+  const data = loadChannels();
+  if (!data.profileChannels) data.profileChannels = {};
+  data.profileChannels[profileKey] = channels || {};
+  saveChannels(data);
+  res.json({ success: true });
+});
+
 // ===== SCREENSHOT =====
 app.get('/api/screenshot', (req, res) => {
   const screenshotPath = path.resolve(__dirname, 'logs/latest-post.png');
