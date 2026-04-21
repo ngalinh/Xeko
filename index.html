@@ -230,7 +230,6 @@
       margin-left: auto; flex-shrink: 0;
     }
     .channel-item .ch-tag.fb { background: #e8f0fe; color: #1877f2; }
-    .channel-item .ch-tag.zalo { background: #e6f7ff; color: #0068ff; }
 
     /* Dark mode for channel panel */
     [data-theme="dark"] .channel-platform-toggle { background: #1e1e3a; border-color: #3a3a5a; color: #a78bfa; }
@@ -241,7 +240,6 @@
     [data-theme="dark"] .channel-item:hover { background: #252547; }
     [data-theme="dark"] [id^="customGroupInput_"] input { background: #1e1e3a; border-color: #3a3a5a; color: #e0e0e0; }
     [data-theme="dark"] .channel-item .ch-tag.fb { background: #1a2a4a; color: #5b9cf6; }
-    [data-theme="dark"] .channel-item .ch-tag.zalo { background: #1a2a3a; color: #4da6ff; }
 
     /* Image preview */
     .image-preview {
@@ -385,7 +383,7 @@
     [data-theme="dark"] .sidebar-item.active { background: #2d2b55; color: #a78bfa; }
     [data-theme="dark"] .sidebar-item .badge { background: #2d2b55; color: #a78bfa; }
     [data-theme="dark"] .sidebar-footer { border-color: #2a2a4a; }
-    [data-theme="dark"] .main-content, [data-theme="dark"] .chat-area, [data-theme="dark"] #zaloChatArea { background: #1a1a2e; }
+    [data-theme="dark"] .main-content, [data-theme="dark"] .chat-area { background: #1a1a2e; }
     [data-theme="dark"] .header { background: #16172b; border-color: #2a2a4a; }
     [data-theme="dark"] .header-info h1 { color: #e0e0e0; }
     [data-theme="dark"] .msg.bot { background: #1e1e3a; border-color: #2a2a4a; color: #e0e0e0; }
@@ -1207,21 +1205,11 @@
     // Build dynamic channels cho profile hien tai tu channelsData (nguon su
     // that la tab Kenh). Them profile / xoa profile / cau hinh FB groups deu
     // reflect ngay khong can deploy code.
-    // Backwards-compat: 2 account cu dang duoc pair voi Zalo profile nay.
-    // Moi profile moi user se set qua UI Channel Settings.
-    const LEGACY_ZALO_PAIRING = {
-      linhduong: 'Linh Duong Us',
-      linhthao: 'Linh Thảo Us Authentic',
-    };
 
     function buildTargetChannels(profileKey, profileName) {
       const cfg = (channelsData.profileChannels || {})[profileKey] || {};
       const fbGroupKeys = cfg.fbGroups || [];
       const allFbGroups = channelsData.fbGroups || [];
-      const zaloProfileName = cfg.zaloProfile || LEGACY_ZALO_PAIRING[profileKey] || null;
-      const zaloProfileObj = zaloProfileName
-        ? (channelsData.zaloProfiles || []).find(p => p.name === zaloProfileName)
-        : null;
 
       return {
         label: profileName || profileKey,
@@ -1231,12 +1219,6 @@
             .filter(g => fbGroupKeys.includes(g.key))
             .map(g => ({ id: g.key, name: `Group ${g.name}`, icon: '🏪' })),
         ],
-        zalo: (zaloProfileObj?.groups || []).map(name => ({
-          id: `zalo_${name.replace(/[^a-z0-9]+/gi, '_').toLowerCase()}`,
-          name,
-          icon: '💬',
-        })),
-        zaloProfile: zaloProfileName,
       };
     }
 
@@ -1259,15 +1241,11 @@
       const p = buildTargetChannels(currentProfile, currentProfileName);
       let panelHtml = `<div class="channel-panel" id="channelPanel_${pid}">`;
 
-      // Platform toggles
-      const hasZalo = p.zalo && p.zalo.length > 0;
+      // Platform toggle (Facebook only)
       panelHtml += `<div class="channel-platform-row">
         <label class="channel-platform-toggle checked" id="fbToggle_${pid}" onclick="togglePlatform(${pid},'fb')">
           <input type="checkbox" checked>📘 Facebook
         </label>
-        ${hasZalo ? `<label class="channel-platform-toggle checked" id="zaloToggle_${pid}" onclick="togglePlatform(${pid},'zalo')">
-          <input type="checkbox" checked>💙 Zalo
-        </label>` : ''}
       </div>`;
 
       // Channels for current profile
@@ -1288,12 +1266,6 @@
       panelHtml += `<div id="customGroupInput_${pid}" style="display:none; padding:4px 14px 10px 38px;">
         <input type="text" id="customGroupId_${pid}" placeholder="Nhập Group ID, cách nhau bởi dấu phẩy..." autocomplete="off" style="width:100%; padding:7px 12px; border-radius:8px; border:1px solid #e0d4ff; font-size:13px; background:#faf8ff; color:#333;">
       </div>`;
-      for (const ch of p.zalo) {
-        panelHtml += `<label class="channel-item ch-zalo" data-panel="${pid}" data-platform="zalo" data-profile="${currentProfile}" data-chid="${ch.id}" data-zalo-group="${ch.name}">
-          <input type="checkbox" checked onchange="onChannelChange(${pid})"> ${ch.icon} ${ch.name}
-          <span class="ch-tag zalo">Zalo</span>
-        </label>`;
-      }
 
       panelHtml += `</div>`;
 
@@ -1341,17 +1313,15 @@
 
     function onChannelChange(pid) {
       // Update platform toggle state based on individual checkboxes
-      ['fb', 'zalo'].forEach(platform => {
-        const items = document.querySelectorAll(`#channelPanel_${pid} .channel-item.ch-${platform} input`);
-        const toggle = document.getElementById(`${platform}Toggle_${pid}`);
-        if (!toggle) return;
-        const allChecked = Array.from(items).every(cb => cb.checked);
-        const someChecked = Array.from(items).some(cb => cb.checked);
-        const toggleCb = toggle.querySelector('input');
-        toggleCb.checked = someChecked;
-        toggleCb.indeterminate = someChecked && !allChecked;
-        toggle.classList.toggle('checked', someChecked);
-      });
+      const items = document.querySelectorAll(`#channelPanel_${pid} .channel-item.ch-fb input`);
+      const toggle = document.getElementById(`fbToggle_${pid}`);
+      if (!toggle) return;
+      const allChecked = Array.from(items).every(cb => cb.checked);
+      const someChecked = Array.from(items).some(cb => cb.checked);
+      const toggleCb = toggle.querySelector('input');
+      toggleCb.checked = someChecked;
+      toggleCb.indeterminate = someChecked && !allChecked;
+      toggle.classList.toggle('checked', someChecked);
     }
 
     function toggleCustomGroupInput(pid, show) {
@@ -1377,23 +1347,22 @@
         return;
       }
 
-      // Collect selected channels grouped by profile (dynamic — not hardcoded)
+      // Collect selected channels grouped by profile
       const selected = {};
       checkedItems.forEach(cb => {
         const item = cb.closest('.channel-item');
         const profile = item.dataset.profile;
         const platform = item.dataset.platform;
-        if (!selected[profile]) selected[profile] = { fb: [], zalo: [] };
+        if (!selected[profile]) selected[profile] = { fb: [] };
         let chid = item.dataset.chid;
-        const zaloGroup = item.dataset.zaloGroup || '';
         // For custom groups, split by comma and add each
         if (chid === 'custom' && customGroupInput) {
           const ids = customGroupInput.value.split(',').map(s => s.trim()).filter(Boolean);
           ids.forEach(gid => {
-            selected[profile][platform].push({ id: 'custom', groupId: gid, zaloGroup });
+            selected[profile][platform].push({ id: 'custom', groupId: gid });
           });
         } else {
-          selected[profile][platform].push({ id: chid, zaloGroup });
+          selected[profile][platform].push({ id: chid });
         }
       });
 
@@ -1403,16 +1372,14 @@
       // Build summary text
       let summaryParts = [];
       for (const pKey of Object.keys(selected)) {
-        const pLabel = (PROFILE_CHANNELS[pKey] && PROFILE_CHANNELS[pKey].label) || pKey;
-        const fbNames = selected[pKey].fb.map(c => {
+        const fbNames = (selected[pKey].fb || []).map(c => {
           if (c.id === 'custom') return `Group #${c.groupId}`;
-          const ch = (PROFILE_CHANNELS[pKey] && PROFILE_CHANNELS[pKey].fb || []).find(f => f.id === c.id);
+          const p = buildTargetChannels(pKey, pKey);
+          const ch = (p.fb || []).find(f => f.id === c.id);
           return ch ? ch.name : c.id;
         });
-        const zaloNames = selected[pKey].zalo.map(c => c.zaloGroup);
-        const all = [...fbNames, ...zaloNames];
-        if (all.length > 0) {
-          summaryParts.push(`<strong>${pLabel}:</strong> ${all.join(', ')}`);
+        if (fbNames.length > 0) {
+          summaryParts.push(`<strong>${pKey}:</strong> ${fbNames.join(', ')}`);
         }
       }
 
@@ -1422,24 +1389,21 @@
       // Determine which profiles need posting
       const profilesToPost = [];
       for (const pKey of Object.keys(selected)) {
-        if (selected[pKey].fb.length > 0 || selected[pKey].zalo.length > 0) {
+        if ((selected[pKey].fb || []).length > 0) {
           profilesToPost.push(pKey);
         }
       }
       window._profilesToPost = profilesToPost;
 
       // Determine target type for backward compat
-      const activeSel = selected[currentProfile] || { fb: [], zalo: [] };
+      const activeSel = selected[currentProfile] || { fb: [] };
       const hasFb = activeSel.fb.some(c => c.id !== 'custom');
-      const hasZalo = activeSel.zalo.length > 0;
       const fbIds = activeSel.fb.filter(c => c.id !== 'custom').map(c => c.id);
       // Store custom group IDs separately
       window._customGroupIds = activeSel.fb.filter(c => c.id === 'custom').map(c => c.groupId);
 
       let target = 'personal';
-      if (hasFb && hasZalo) {
-        target = 'fb_zalo';
-      } else if (fbIds.includes('personal') && fbIds.includes('asale') && fbIds.includes('tongkho')) {
+      if (fbIds.includes('personal') && fbIds.includes('asale') && fbIds.includes('tongkho')) {
         target = 'all';
       } else if (fbIds.includes('asale') && fbIds.includes('tongkho') && !fbIds.includes('personal')) {
         target = 'allgroup';
@@ -1449,8 +1413,6 @@
         target = fbIds[0];
       } else if (hasFb) {
         target = 'all';
-      } else if (hasZalo) {
-        target = 'fb_zalo';
       }
 
       currentTarget = target;
@@ -1494,11 +1456,6 @@
       let targetText = TARGET_LABELS[target];
       if (target === 'allgroup') targetText = 'Asale + Tổng Kho';
       if (target === 'all') targetText = 'FB Cá nhân + Asale + Tổng Kho';
-      if (target === 'fb_zalo') {
-        const zaloProfile = FB_TO_ZALO_MAP[currentProfile] || '';
-        const zaloGroupList = (typeof ZALO_GROUPS !== 'undefined' && ZALO_GROUPS[zaloProfile]) || [];
-        targetText = `FB Cá nhân + 2 FB Group + ${zaloGroupList.length} Zalo Group`;
-      }
 
       if (postMode === 'schedule') {
         showScheduleForm();
@@ -1644,7 +1601,6 @@
       formData.append('message', message);
       formData.append('target', target);
       if (groupId) formData.append('groupId', groupId);
-      if (target === 'fb_zalo') formData.append('fbProfile', currentProfile);
       await appendImages(formData, selectedFiles);
 
       clearImages();
@@ -1971,7 +1927,6 @@
 
       const pageMap = {
         post: { page: 'pageDangBai', nav: 'navPost' },
-        zalo: { page: 'pageZalo', nav: 'navZalo' },
         dashboard: { page: 'pageDashboard', nav: 'navDashboard' },
         // 'calendar' alias → dashboard calendar tab (BC cho nơi còn trỏ tới)
         calendar: { page: 'pageDashboard', nav: 'navDashboard' },
@@ -1985,10 +1940,6 @@
         document.getElementById(target.nav).classList.add('active');
       }
 
-      if (pg === 'zalo' && !zaloInitialized) {
-        initZaloChat();
-        zaloInitialized = true;
-      }
       if (pg === 'calendar') {
         switchDashTab('calendar');
       } else if (pg === 'dashboard') {
@@ -2002,7 +1953,7 @@
 
       // Sync mobile bottom nav
       document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
-      const mobileMap = { post:'Post', calendar:'Dashboard', dashboard:'Dashboard', session:'Session', spy:'Spy' };
+      const mobileMap = { post: 'Post', calendar: 'Dashboard', dashboard: 'Dashboard', session: 'Session', spy: 'Spy' };
       const mobileBtn = document.getElementById('mobileNav' + (mobileMap[pg] || ''));
       if (mobileBtn) mobileBtn.classList.add('active');
       // Close sidebar if open
@@ -2080,7 +2031,7 @@
             platform: (s.type || 'facebook'),
             status: s.status || 'pending',
             profile: s.profile,
-            target: s.type === 'zalo' ? (s.groupName || '') : (s.target || ''),
+            target: s.target || '',
             message: s.message,
             imageCount: s.imageCount || 0,
           });
@@ -2131,7 +2082,7 @@
 
       const escHtml = s => (s == null ? '' : String(s)).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
       const statusColor = s => s === 'done' ? '#16a34a' : s === 'pending' ? '#d97706' : s === 'running' ? '#4f46e5' : s === 'error' ? '#dc2626' : '#9ca3af';
-      const platIcon = p => p === 'zalo' ? '💬' : '📘';
+      const platIcon = () => '📘';
 
       // Bucket events theo ngày và sort theo giờ
       const byDay = new Map();
@@ -2163,12 +2114,10 @@
         if (isMobile) {
           // Mobile: badge đếm (ô quá nhỏ để hiện strip)
           const fbCount = list.filter(e => e.platform === 'facebook').length;
-          const zaloCount = list.filter(e => e.platform === 'zalo').length;
           const errCount = list.filter(e => e.status === 'error').length;
           const pendingCount = list.filter(e => e.status === 'pending' || e.status === 'running').length;
           body = `<div style="display:flex; flex-wrap:wrap; gap:3px;">
             ${fbCount > 0 ? `<span style="background:#dbeafe; color:#1e40af; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">FB ${fbCount}</span>` : ''}
-            ${zaloCount > 0 ? `<span style="background:#dcfce7; color:#166534; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">Zalo ${zaloCount}</span>` : ''}
             ${errCount > 0 ? `<span style="background:#fef2f2; color:#dc2626; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">✕${errCount}</span>` : ''}
             ${pendingCount > 0 ? `<span style="background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">⏳${pendingCount}</span>` : ''}
           </div>`;
@@ -2217,7 +2166,7 @@
           </div>
           <div style="display:flex; flex-direction:column; gap:8px;">
             ${list.map(e => {
-              const plat = e.platform === 'zalo' ? 'Zalo' : 'FB';
+              const plat = 'FB';
               const time = e.date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
               const statusBadge = e.status === 'done'
                 ? '<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:6px; font-size:11px;">OK</span>'
@@ -2304,14 +2253,12 @@
       if (tab === 'channels') loadChannels();
     }
 
-    // Toggle FB/Zalo fields khi them tai khoan
     document.getElementById('newAccType')?.addEventListener('change', function() {
       document.getElementById('newAccFbFields').style.display = this.value === 'facebook' ? 'block' : 'none';
     });
 
     async function renderProfileList() {
       const fbContainer = document.getElementById('fbProfileList');
-      const zaloContainer = document.getElementById('zaloProfileList');
 
       try {
         const res = await fetch(BASE_URL + '/api/accounts');
@@ -2333,20 +2280,6 @@
               🔑 Login
             </button>
             <button onclick="deleteProfile('facebook','${p.key}','${p.name.replace(/'/g, "\\'")}')" style="padding:6px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:12px; cursor:pointer; color:#dc2626;">
-              🗑
-            </button>
-          </div>`).join('');
-
-        // Zalo profiles
-        zaloContainer.innerHTML = data.zalo.map(p => `
-          <div class="profile-card">
-            <div class="avatar">💬</div>
-            <div class="info">
-              <div class="name">${p.name}</div>
-              <div class="detail">Salework Zalo · zalo.salework.net</div>
-            </div>
-            <div class="status-dot unknown" title="Kiểm tra qua Salework"></div>
-            <button onclick="deleteProfile('zalo','${p.name.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')" style="padding:6px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:12px; cursor:pointer; color:#dc2626;">
               🗑
             </button>
           </div>`).join('');
@@ -2575,7 +2508,7 @@
     }
 
     // ===== CHANNEL SETTINGS =====
-    let channelsData = { fbGroups: [], zaloProfiles: [], profileChannels: {} };
+    let channelsData = { fbGroups: [], profileChannels: {} };
 
     async function loadChannels() {
       try {
@@ -2583,11 +2516,10 @@
         if (!res.ok) throw new Error('HTTP ' + res.status);
         channelsData = await parseJson(res);
       } catch (e) {
-        channelsData = { fbGroups: [], zaloProfiles: [], profileChannels: {} };
+        channelsData = { fbGroups: [], profileChannels: {} };
         console.error('Lỗi tải channels:', e);
       }
       renderFbGroups();
-      renderZaloChannels();
       renderProfileChannels();
     }
 
@@ -2603,36 +2535,6 @@
           <span style="font-size:13px; color:#333; flex:1;">${g.name}</span>
           <span style="font-size:11px; color:#aaa;">${g.id}</span>
           <button onclick="deleteFbGroup('${g.key}')" style="padding:4px 10px; background:#fff0f0; border:1px solid #fecaca; border-radius:6px; color:#e53e3e; font-size:12px; cursor:pointer;">🗑</button>
-        </div>
-      `).join('');
-    }
-
-    function renderZaloChannels() {
-      const list = document.getElementById('zaloChannelList');
-      const noMsg = document.getElementById('noZaloProfilesMsg');
-      const select = document.getElementById('zaloProfileSelect');
-      if (!list) return;
-      const profiles = channelsData.zaloProfiles || [];
-      noMsg.style.display = profiles.length ? 'none' : '';
-      select.innerHTML = '<option value="">Chọn profile Zalo...</option>' +
-        profiles.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
-      list.innerHTML = profiles.map(p => `
-        <div style="margin-bottom:10px; padding:12px 14px; background:#f0f7ff; border-radius:8px; border:1px solid #c8e4ff;">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-            <span style="font-size:13px; font-weight:600; color:#0068ff;">💙 ${p.name}</span>
-            <button onclick="deleteZaloProfile('${p.name.replace(/'/g,"\\'")}',event)"
-              style="padding:3px 10px; background:#fff0f0; border:1px solid #fecaca; border-radius:6px; color:#e53e3e; font-size:12px; cursor:pointer;">🗑 Xoá profile</button>
-          </div>
-          <div style="display:flex; flex-wrap:wrap; gap:6px;">
-            ${(p.groups || []).map(g => `
-              <span style="display:inline-flex; align-items:center; gap:5px; padding:4px 10px; background:#dbeafe; border-radius:20px; font-size:12px; color:#0068ff;">
-                ${g}
-                <button onclick="deleteZaloGroup('${p.name.replace(/'/g,"\\'")}','${g.replace(/'/g,"\\'")}',event)"
-                  style="background:none; border:none; cursor:pointer; color:#e53e3e; font-size:14px; line-height:1; padding:0;">×</button>
-              </span>
-            `).join('')}
-            ${(p.groups || []).length === 0 ? '<span style="font-size:12px; color:#aaa;">Chưa có nhóm nào</span>' : ''}
-          </div>
         </div>
       `).join('');
     }
@@ -2700,53 +2602,6 @@
       if (e) e.stopPropagation();
       if (!confirm(`Xoá group "${key}"?`)) return;
       await fetch(`${BASE_URL}/api/channels/fb-groups/${encodeURIComponent(key)}`, { method: 'DELETE' });
-      await loadChannels();
-    }
-
-    async function addZaloProfile() {
-      const name = document.getElementById('newZaloProfileInput').value.trim();
-      if (!name) return alert('Nhập tên profile Zalo');
-      try {
-        const res = await fetch(`${BASE_URL}/api/channels/zalo-profiles`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name }),
-        });
-        const data = await parseJson(res);
-        if (data.error) return alert(data.error);
-        document.getElementById('newZaloProfileInput').value = '';
-        await loadChannels();
-      } catch (e) { alert('Lỗi: ' + e.message); }
-    }
-
-    async function deleteZaloProfile(name, e) {
-      if (e) e.stopPropagation();
-      if (!confirm(`Xoá profile Zalo "${name}"?`)) return;
-      await fetch(`${BASE_URL}/api/channels/zalo-profiles/${encodeURIComponent(name)}`, { method: 'DELETE' });
-      await loadChannels();
-    }
-
-    async function addZaloGroup() {
-      const profileName = document.getElementById('zaloProfileSelect').value;
-      const groupName = document.getElementById('newZaloGroupInput').value.trim();
-      if (!profileName || !groupName) return alert('Chọn profile và nhập tên nhóm');
-      try {
-        const res = await fetch(`${BASE_URL}/api/channels/zalo-groups`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ profileName, groupName }),
-        });
-        const data = await parseJson(res);
-        if (data.error) return alert(data.error);
-        document.getElementById('newZaloGroupInput').value = '';
-        await loadChannels();
-      } catch (e) { alert('Lỗi: ' + e.message); }
-    }
-
-    async function deleteZaloGroup(profileName, groupName, e) {
-      if (e) e.stopPropagation();
-      await fetch(`${BASE_URL}/api/channels/zalo-groups`, {
-        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profileName, groupName }),
-      });
       await loadChannels();
     }
 
@@ -2835,449 +2690,6 @@
       } catch {}
     }, 10000);
 
-    // ===== ZALO CHAT =====
-    let zaloInitialized = false;
-    let zaloProfile = null;
-    let zaloGroupName = null;
-    let zaloSelectedFiles = [];
-
-    const ZALO_PROFILES = [
-      'Basso Order Hàng Mỹ',
-      'Linh Duong Us',
-      'Linh Thảo Us Authentic',
-      'Shipus Mua Hàng Mỹ',
-    ];
-
-    const ZALO_GROUPS = {
-      'Linh Duong Us': [
-        'Sỉ Hàng Order Mỹ, Anh - Linh Dương',
-        'KHO HÀNG MỸ CÓ SẴN - LINH DƯƠNG',
-        'SĂN SALE HÀNG HIỆU US',
-      ],
-      'Linh Thảo Us Authentic': [
-        'SỈ HÀNG ORDER MỸ - LINH THẢO',
-        'TỔNG KHO HÀNG SẴN US - LINH THẢO',
-        'DEAL NGON MỸ PHẨM US',
-      ],
-    };
-
-    function addZaloBot(text, buttons = null) {
-      const chat = document.getElementById('zaloChatArea');
-      const row = document.createElement('div');
-      row.className = 'msg-row bot';
-      let html = text.replace(/\n/g, '<br>');
-      if (buttons) {
-        html += '<div class="msg-buttons">';
-        buttons.forEach(b => {
-          html += `<button class="msg-btn" onclick="${b.action}">${b.label}</button>`;
-        });
-        html += '</div>';
-      }
-      html += `<div class="msg-time">${now()}</div>`;
-      row.innerHTML = `<img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko"><div class="msg bot">${html}</div>`;
-      chat.appendChild(row);
-      chat.scrollTop = chat.scrollHeight;
-    }
-
-    function addZaloUser(text, photos = []) {
-      const chat = document.getElementById('zaloChatArea');
-      const row = document.createElement('div');
-      row.className = 'msg-row user';
-
-      let html = `<div class="msg user">`;
-      if (text) html += text.replace(/\n/g, '<br>');
-
-      if (photos.length > 0) {
-        const maxShow = Math.min(photos.length, 5);
-        let gridClass = 'photo-grid count-' + (maxShow > 5 ? '5' : maxShow);
-        html += `<div class="${gridClass}" style="max-width:200px;margin-top:8px;">`;
-        for (let i = 0; i < maxShow; i++) {
-          html += `<div class="photo-item"><img src="${photos[i]}">`;
-          if (i === maxShow - 1 && photos.length > 5) {
-            html += `<div class="photo-more">+${photos.length - 5}</div>`;
-          }
-          html += '</div>';
-        }
-        html += '</div>';
-      }
-
-      html += `<div class="msg-time">${now()}</div></div>`;
-      row.innerHTML = html;
-      chat.appendChild(row);
-      chat.scrollTop = chat.scrollHeight;
-    }
-
-    function addZaloTyping() {
-      const chat = document.getElementById('zaloChatArea');
-      const row = document.createElement('div');
-      row.className = 'msg-row bot';
-      row.id = 'zaloTypingMsg';
-      row.innerHTML = `<img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko"><div class="msg bot"><div class="typing"><span></span><span></span><span></span></div> Xeko đang gửi tin nhắn Zalo...</div>`;
-      chat.appendChild(row);
-      chat.scrollTop = chat.scrollHeight;
-    }
-
-    function removeZaloTyping() {
-      const el = document.getElementById('zaloTypingMsg');
-      if (el) el.remove();
-    }
-
-    function initZaloChat() {
-      addZaloBot(
-        'Chào bạn! Đây là chức năng <strong>đăng bài Zalo</strong> qua Salework.\nHãy chọn profile Zalo:',
-        ZALO_PROFILES.map(p => ({ label: `👤 ${p}`, action: `selectZaloProfile('${p}')` }))
-      );
-    }
-
-    let zaloStep = 'profile'; // profile -> group -> compose
-
-    function selectZaloProfile(name) {
-      zaloProfile = name;
-      zaloStep = 'group';
-      document.getElementById('zaloHeaderStatus').textContent = `Profile: ${name}`;
-      addZaloUser(name);
-
-      // Tao buttons cho nhom co san + nhap thu cong
-      const buttons = [];
-      const groups = ZALO_GROUPS[name] || [];
-      groups.forEach(g => {
-        buttons.push({ label: `👥 ${g}`, action: `quickSelectZaloGroup('${g.replace(/'/g, "\\'")}')` });
-      });
-      buttons.push({ label: '🔍 Nhập tên nhóm khác...', action: 'manualZaloGroup()' });
-      buttons.push({ label: '🔄 Đổi profile', action: 'showZaloProfileSelect()' });
-
-      addZaloBot(
-        `Đã chọn profile: <strong>${name}</strong>\n\nChọn nhóm Zalo:`,
-        buttons
-      );
-    }
-
-    let zaloPostMode = 'now'; // 'now' hoac 'schedule'
-
-    function quickSelectZaloGroup(groupName) {
-      zaloGroupName = groupName;
-      addZaloUser(`Nhóm: ${groupName}`);
-      // Hoi dang ngay hay len lich
-      addZaloBot(
-        `Nhóm: <strong>${groupName}</strong>\n\nBạn muốn gửi ngay hay lên lịch?`,
-        [
-          { label: '📝 Gửi ngay', action: "selectZaloMode('now')" },
-          { label: '⏰ Lên lịch', action: "selectZaloMode('schedule')" },
-          { label: '📍 Đổi nhóm', action: 'changeZaloGroup()' },
-        ]
-      );
-    }
-
-    function selectZaloMode(mode) {
-      zaloPostMode = mode;
-      zaloStep = 'compose';
-      const modeLabel = mode === 'now' ? 'Gửi ngay' : 'Lên lịch';
-      addZaloUser(modeLabel);
-
-      if (mode === 'schedule') {
-        showZaloScheduleForm();
-      } else {
-        addZaloBot(
-          `Chế độ: <strong>📝 Gửi ngay</strong>\n\nNhập <strong>nội dung tin nhắn</strong>, đính kèm ảnh (nếu có), rồi nhấn ➤ để gửi.`,
-          [
-            { label: '📍 Đổi nhóm', action: 'changeZaloGroup()' },
-            { label: '🔄 Đổi profile', action: 'showZaloProfileSelect()' },
-          ]
-        );
-        document.getElementById('zaloMsgInput').placeholder = 'Nhập nội dung tin nhắn...';
-      }
-    }
-
-    let zaloScheduleFormId = 0;
-
-    function showZaloScheduleForm() {
-      zaloScheduleFormId++;
-      const fid = zaloScheduleFormId;
-      const nowDate = new Date();
-      const localISO = new Date(nowDate.getTime() - nowDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-
-      const chat = document.getElementById('zaloChatArea');
-      const row = document.createElement('div');
-      row.className = 'msg-row bot';
-      row.innerHTML = `
-        <img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko">
-        <div class="msg bot">
-          <strong>⏰ Lên lịch gửi Zalo</strong><br>
-          👤 Profile: <strong>${zaloProfile}</strong><br>
-          📍 Nhóm: <strong>${zaloGroupName}</strong><br><br>
-          Chọn thời gian gửi:<br>
-          <input type="datetime-local" id="zaloScheduleTime_${fid}" value="${localISO}" min="${localISO}"
-            style="padding:8px 12px; border-radius:8px; border:1px solid #ddd; background:#f8f8f8; color:#1a1a1a; font-size:14px; margin:8px 0; width:100%;">
-          <br>
-          Nhập nội dung bên dưới, đính kèm ảnh (nếu có), rồi bấm <strong>Đặt lịch</strong>.
-          <div class="msg-buttons">
-            <button class="msg-btn" onclick="submitZaloSchedule(${fid})">⏰ Đặt lịch</button>
-            <button class="msg-btn" onclick="showZaloScheduleList()">📋 Xem lịch đã đặt</button>
-            <button class="msg-btn" onclick="selectZaloMode('now')">📝 Gửi ngay</button>
-          </div>
-          <div class="msg-time">${now()}</div>
-        </div>`;
-      chat.appendChild(row);
-      chat.scrollTop = chat.scrollHeight;
-      document.getElementById('zaloMsgInput').placeholder = 'Nhập nội dung tin nhắn...';
-    }
-
-    async function submitZaloSchedule(fid) {
-      const timeInput = document.getElementById(`zaloScheduleTime_${fid}`);
-      if (!timeInput) { addZaloBot('Vui lòng mở form lên lịch trước!'); return; }
-
-      const time = timeInput.value;
-      if (!time) { addZaloBot('Vui lòng chọn thời gian!'); return; }
-
-      const input = document.getElementById('zaloMsgInput');
-      const message = input.value.trim();
-      if (!message && zaloSelectedFiles.length === 0) {
-        addZaloBot('Vui lòng nhập nội dung hoặc chọn ảnh!');
-        return;
-      }
-
-      const photoUrls = zaloSelectedFiles.map(f => URL.createObjectURL(f));
-      addZaloUser(message, photoUrls);
-
-      const formData = new FormData();
-      formData.append('time', new Date(time).toISOString());
-      formData.append('type', 'zalo');
-      formData.append('profile', zaloProfile);
-      formData.append('groupName', zaloGroupName);
-      formData.append('message', message);
-      await appendImages(formData, zaloSelectedFiles);
-
-      input.value = '';
-      clearZaloImages();
-      addZaloTyping();
-
-      try {
-        const res = await fetch(BASE_URL + '/api/schedule', { method: 'POST', body: formData });
-        const data = await parseJson(res);
-        removeZaloTyping();
-
-        if (data.success) {
-          let msg = `⏰ ${data.message}\n\n`;
-          msg += `👤 Profile: <strong>${zaloProfile}</strong>\n`;
-          msg += `📍 Nhóm: <strong>${zaloGroupName}</strong>\n`;
-          if (message) msg += `📝 Nội dung: ${message}\n`;
-          if (photoUrls.length > 0) msg += `📷 ${photoUrls.length} ảnh đính kèm`;
-
-          addZaloBot(msg, [
-            { label: '📋 Xem lịch đã đặt', action: 'showZaloScheduleList()' },
-            { label: '⏰ Lên lịch thêm', action: 'showZaloScheduleForm()' },
-            { label: '📝 Gửi ngay', action: "selectZaloMode('now')" },
-          ]);
-        } else {
-          addZaloBot(`❌ Lỗi: ${data.error}`);
-        }
-      } catch (e) {
-        removeZaloTyping();
-        addZaloBot(`❌ Lỗi: ${e.message}`);
-      }
-    }
-
-    async function showZaloScheduleList() {
-      addZaloUser('Xem lịch Zalo');
-      try {
-        const res = await fetch(BASE_URL + '/api/schedules');
-        const schedules = await parseJson(res);
-        const zaloSchedules = schedules.filter(s => s.type === 'zalo');
-
-        if (zaloSchedules.length === 0) {
-          addZaloBot('Chưa có lịch Zalo nào.', [
-            { label: '⏰ Lên lịch mới', action: 'showZaloScheduleForm()' },
-          ]);
-          return;
-        }
-
-        let msg = `📋 <strong>Lịch gửi Zalo:</strong>\n\n`;
-        const buttons = [];
-        zaloSchedules.forEach(s => {
-          const icon = { pending: '⏳', running: '🔄', done: '✅', error: '❌' }[s.status] || '❓';
-          msg += `${icon} <strong>#${s.id}</strong> - ${s.time}\n`;
-          msg += `   Profile: ${s.profile} | Nhóm: ${s.groupName || ''}\n`;
-          if (s.message) msg += `   Nội dung: ${s.message}`;
-          if (s.imageCount > 0) msg += ` [${s.imageCount} ảnh]`;
-          msg += `\n\n`;
-          if (s.status === 'pending') {
-            buttons.push({ label: `🗑 Xoá #${s.id}`, action: `deleteZaloSchedule(${s.id})` });
-          }
-        });
-        buttons.push({ label: '⏰ Lên lịch mới', action: 'showZaloScheduleForm()' });
-        addZaloBot(msg, buttons);
-      } catch (e) {
-        addZaloBot(`Lỗi: ${e.message}`);
-      }
-    }
-
-    async function deleteZaloSchedule(id) {
-      addZaloUser(`Xoá lịch #${id}`);
-      try {
-        const res = await fetch(`${BASE_URL}/api/schedule/${id}`, { method: 'DELETE' });
-        const data = await parseJson(res);
-        addZaloBot(data.success ? `✅ ${data.message}` : `❌ ${data.error}`, [
-          { label: '📋 Xem lịch', action: 'showZaloScheduleList()' },
-        ]);
-      } catch (e) { addZaloBot(`Lỗi: ${e.message}`); }
-    }
-
-    function manualZaloGroup() {
-      zaloStep = 'group';
-      addZaloBot('Nhập <strong>tên nhóm Zalo</strong> vào ô bên dưới rồi nhấn ➤');
-      document.getElementById('zaloMsgInput').placeholder = 'Nhập tên nhóm Zalo...';
-    }
-
-    function showZaloProfileSelect() {
-      addZaloUser('Đổi profile');
-      addZaloBot(
-        'Chọn profile Zalo:',
-        ZALO_PROFILES.map(p => ({ label: `👤 ${p}`, action: `selectZaloProfile('${p}')` }))
-      );
-    }
-
-    function handleZaloFiles(input) {
-      zaloSelectedFiles = [...zaloSelectedFiles, ...Array.from(input.files)];
-      updateZaloPreview();
-    }
-
-    function updateZaloPreview() {
-      const preview = document.getElementById('zaloImagePreview');
-      const previewDiv = document.getElementById('zaloPreviewImages');
-      previewDiv.innerHTML = '';
-      if (zaloSelectedFiles.length > 0) {
-        preview.classList.add('show');
-        zaloSelectedFiles.forEach((file, index) => {
-          const item = document.createElement('div');
-          item.className = 'preview-item';
-          const img = document.createElement('img');
-          img.src = URL.createObjectURL(file);
-          const btn = document.createElement('button');
-          btn.className = 'remove-img';
-          btn.textContent = '✕';
-          btn.onclick = () => { zaloSelectedFiles.splice(index, 1); updateZaloPreview(); };
-          item.appendChild(img);
-          item.appendChild(btn);
-          previewDiv.appendChild(item);
-        });
-      } else {
-        preview.classList.remove('show');
-      }
-    }
-
-    function clearZaloImages() {
-      zaloSelectedFiles = [];
-      document.getElementById('zaloFileInput').value = '';
-      document.getElementById('zaloImagePreview').classList.remove('show');
-      document.getElementById('zaloPreviewImages').innerHTML = '';
-    }
-
-    async function sendZaloMessage() {
-      const input = document.getElementById('zaloMsgInput');
-      const text = input.value.trim();
-
-      if (!zaloProfile) {
-        addZaloBot('Vui lòng chọn profile Zalo trước!',
-          ZALO_PROFILES.map(p => ({ label: `👤 ${p}`, action: `selectZaloProfile('${p}')` }))
-        );
-        return;
-      }
-
-      // BUOC 1: Nhap ten nhom -> hoi gui ngay hay len lich
-      if (zaloStep === 'group') {
-        if (!text) { addZaloBot('Vui lòng nhập tên nhóm Zalo!'); return; }
-
-        input.value = '';
-        addZaloUser(`Nhóm: ${text}`);
-        // Goi quickSelectZaloGroup de hien nut Gui ngay / Len lich
-        quickSelectZaloGroup(text);
-        return;
-      }
-
-      // BUOC 2: Nhap noi dung
-      if (zaloStep === 'compose') {
-        // Neu dang o mode schedule -> goi submitZaloSchedule
-        if (zaloPostMode === 'schedule') {
-          submitZaloSchedule(zaloScheduleFormId);
-          return;
-        }
-        if (!text && zaloSelectedFiles.length === 0) {
-          addZaloBot('Vui lòng nhập nội dung hoặc chọn ảnh!');
-          return;
-        }
-
-        const photoUrls = zaloSelectedFiles.map(f => URL.createObjectURL(f));
-        addZaloUser(text, photoUrls);
-
-        const formData = new FormData();
-        formData.append('profile', zaloProfile);
-        formData.append('groupName', zaloGroupName);
-        formData.append('message', text);
-        await appendImages(formData, zaloSelectedFiles);
-
-        input.value = '';
-        clearZaloImages();
-        addZaloTyping();
-        document.getElementById('zaloSendBtn').disabled = true;
-
-        try {
-          const res = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: formData });
-          const data = await parseJson(res);
-          removeZaloTyping();
-
-          if (data.success) {
-            addZaloBot(`✅ Đã gửi tin nhắn Zalo thành công!\n\n👤 Profile: ${data.profile}\n📍 Nhóm: ${zaloGroupName}`, [
-              { label: '📝 Gửi tiếp nhóm này', action: 'focusZaloInput()' },
-              { label: '📍 Đổi nhóm', action: 'changeZaloGroup()' },
-              { label: '🔄 Đổi profile', action: 'showZaloProfileSelect()' },
-            ]);
-          } else {
-            addZaloBot(`❌ Lỗi: ${data.error}`, [
-              { label: '🔄 Thử lại', action: 'focusZaloInput()' },
-              { label: '📍 Đổi nhóm', action: 'changeZaloGroup()' },
-            ]);
-          }
-        } catch (e) {
-          removeZaloTyping();
-          addZaloBot(`❌ Lỗi: ${e.message}`);
-        }
-
-        document.getElementById('zaloSendBtn').disabled = false;
-      }
-    }
-
-    function changeZaloGroup() {
-      zaloStep = 'group';
-      zaloGroupName = null;
-      document.getElementById('zaloMsgInput').placeholder = 'Nhập tên nhóm Zalo...';
-
-      const buttons = [];
-      const groups = ZALO_GROUPS[zaloProfile] || [];
-      groups.forEach(g => {
-        buttons.push({ label: `👥 ${g}`, action: `quickSelectZaloGroup('${g.replace(/'/g, "\\'")}')` });
-      });
-      buttons.push({ label: '🔍 Nhập tên nhóm khác...', action: 'manualZaloGroup()' });
-
-      addZaloBot('Chọn nhóm Zalo:', buttons);
-    }
-
-    function focusZaloInput() {
-      document.getElementById('zaloMsgInput').focus();
-    }
-
-    // Paste anh cho Zalo
-    document.getElementById('pageZalo')?.addEventListener('paste', (e) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (const item of items) {
-        if (item.type.startsWith('image/')) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (file) { zaloSelectedFiles.push(file); updateZaloPreview(); }
-        }
-      }
-    });
-
     // Xoa chat cu trong localStorage (neu con ton tai tu phien truoc)
     localStorage.removeItem('xeko_chat');
     localStorage.removeItem('xeko_profile');
@@ -3317,18 +2729,14 @@
           profileEl.innerHTML = '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>';
         }
 
-        // By group — split Facebook vs Zalo
+        // By group
         const fbEl = document.getElementById('statByGroupFb');
-        const zaloEl = document.getElementById('statByGroupZalo');
         const groups = stats.byGroup || [];
-        const fbGroups = groups.filter(g => g.platform !== 'zalo');
-        const zaloGroups = groups.filter(g => g.platform === 'zalo');
         const renderRow = g => `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f3f4f6;">
           <span>${g.group_name}</span>
           <span><strong>${g.total}</strong> bài · <span style="color:#16a34a">${g.success_count}</span> / <span style="color:#dc2626">${g.fail_count}</span></span>
         </div>`;
-        fbEl.innerHTML = fbGroups.length ? fbGroups.map(renderRow).join('') : '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>';
-        zaloEl.innerHTML = zaloGroups.length ? zaloGroups.map(renderRow).join('') : '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>';
+        fbEl.innerHTML = groups.length ? groups.map(renderRow).join('') : '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>';
 
         // Populate profile filter
         const filterProfile = document.getElementById('dashFilterProfile');
@@ -3374,7 +2782,7 @@
             const d = new Date(row.timestamp);
             const pad = n => String(n).padStart(2,'0');
             const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
-            const platformLabel = row.platform === 'zalo' ? 'Zalo' : 'FB';
+            const platformLabel = 'FB';
             const statusBadge = row.success
               ? '<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:6px; font-size:11px;">OK</span>'
               : `<span style="background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:6px; font-size:11px;" title="${(row.error||'').replace(/"/g,'&quot;')}">Lỗi</span>`;

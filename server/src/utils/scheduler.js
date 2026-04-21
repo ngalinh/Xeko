@@ -44,7 +44,7 @@ function addSchedule({ time, target, groupId, message, imagePaths, profile, type
   const job = {
     id,
     time: scheduleTime,
-    type: type || 'facebook', // 'facebook' hoac 'zalo'
+    type: type || 'facebook',
     target,
     groupId,
     groupName,
