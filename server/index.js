@@ -21,7 +21,9 @@ if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 // Uploads persistent (thumbnail trong history). Temp files sau khi post xong
 // được copy sang đây để browser xem lại được. Serve qua /api/image/*
 // (nằm trong namespace /api nên chắc chắn được reverse proxy forward).
-const UPLOADS_DIR = path.resolve(__dirname, '../uploads');
+// Đặt trong data/ để dùng chung persistent volume với posts.db —
+// tránh mất ảnh mỗi lần server redeploy (filesystem ephemeral).
+const UPLOADS_DIR = path.resolve(__dirname, '../data/uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 app.get('/api/image/:date/:filename', (req, res) => {
