@@ -200,44 +200,52 @@ app.post('/api/fb_zalo', upload.array('images', 10), async (req, res) => {
 });
 
 // ===== ACCOUNTS =====
-app.post('/api/accounts', async (req, res) => {
+app.post('/api/accounts', (req, res) => {
   const { type, key, name, email, password } = req.body;
   if (!key || !name) return res.status(400).json({ error: 'Thiếu key hoặc tên' });
 
-  try {
-    const { chromium } = require('playwright');
-    const profileDir = path.resolve(__dirname, `playwright-data/${type === 'zalo' ? 'salework' : key}`);
-    if (!fs.existsSync(profileDir)) fs.mkdirSync(profileDir, { recursive: true });
+  // Respond ngay truoc khi launch Chromium — browser khoi dong + goto
+  // facebook.com co the mat >30s va Cloudflare tunnel cut o 60s. Neu cho
+  // launch xong moi res.json() thi client nhan 504 Gateway Timeout ngay ca
+  // khi Chromium van mo thanh cong o may local.
+  res.json({ success: true, message: `Đang mở Chromium cho "${name}". Chờ cửa sổ hiện ra để đăng nhập.` });
 
-    const browser = await chromium.launchPersistentContext(profileDir, {
-      headless: false,
-      slowMo: 500,
-      viewport: { width: 1280, height: 720 },
-    });
-    const page = browser.pages()[0] || await browser.newPage();
-    await page.goto(type === 'zalo' ? 'https://zalo.salework.net' : 'https://www.facebook.com/', {
-      waitUntil: 'domcontentloaded', timeout: 30000,
-    });
+  (async () => {
+    try {
+      const { chromium } = require('playwright');
+      const profileDir = path.resolve(__dirname, `playwright-data/${type === 'zalo' ? 'salework' : key}`);
+      if (!fs.existsSync(profileDir)) fs.mkdirSync(profileDir, { recursive: true });
 
-    if (type === 'facebook' && email && password) {
-      try {
-        const emailInput = await page.$('input[name="email"]');
-        if (emailInput) {
-          await emailInput.fill(email);
-          await page.fill('input[name="pass"]', password);
-        }
-      } catch {}
+      const browser = await chromium.launchPersistentContext(profileDir, {
+        headless: false,
+        slowMo: 500,
+        viewport: { width: 1280, height: 720 },
+      });
+      const page = browser.pages()[0] || await browser.newPage();
+      await page.goto(type === 'zalo' ? 'https://zalo.salework.net' : 'https://www.facebook.com/', {
+        waitUntil: 'domcontentloaded', timeout: 30000,
+      });
+
+      if (type === 'facebook' && email && password) {
+        try {
+          const emailInput = await page.$('input[name="email"]');
+          if (emailInput) {
+            await emailInput.fill(email);
+            await page.fill('input[name="pass"]', password);
+          }
+        } catch {}
+      }
+
+      loginHistory.addEntry(key, name, 'login', 'Mở trình duyệt đăng nhập thủ công');
+
+      browser.on('close', () => {
+        loginHistory.addEntry(key, name, 'login', 'Đã đóng trình duyệt - session được lưu');
+      });
+    } catch (e) {
+      logger.error(`Loi mo Chromium cho "${name}": ${e.message}`);
+      loginHistory.addEntry(key, name, 'session_expired', `Không mở được Chromium: ${e.message}`);
     }
-
-    loginHistory.addEntry(key, name, 'login', 'Mở trình duyệt đăng nhập thủ công');
-    res.json({ success: true, message: `Đã mở Chromium cho "${name}". Đăng nhập xong thì đóng trình duyệt.` });
-
-    browser.on('close', () => {
-      loginHistory.addEntry(key, name, 'login', 'Đã đóng trình duyệt - session được lưu');
-    });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  })();
 });
 
 app.delete('/api/accounts/:type/:key', (req, res) => {
