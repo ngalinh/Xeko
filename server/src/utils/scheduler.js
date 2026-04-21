@@ -75,7 +75,12 @@ function addSchedule({ time, target, groupId, message, imagePaths, profile, type
  * Thuc thi bai dang theo lich
  */
 async function executeSchedule(job) {
-  const playwright = require('../playwright/post');
+  // Khi chay tren server ai.basso.vn, playwright thuc su nam o may local —
+  // forward qua proxy. Khong thi cac profile nam trong playwright-data/ cua
+  // may local se khong tim thay va nem loi "Profile khong ton tai".
+  const playwright = process.env.PLAYWRIGHT_LOCAL_URL
+    ? require('../../playwright-proxy')
+    : require('../playwright/post');
 
   job.status = 'running';
   scheduleStore.updateStatus(job.id, 'running');
