@@ -1717,7 +1717,9 @@
               const zr = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: zf });
               const zd = await parseJson(zr);
               removeTyping();
-              if (zd.success) {
+              if (zd.success && zd.processing) {
+                addBot(`⏳ Zalo <strong>${g.name}</strong> (${zaloAccount}) đang xử lý — kiểm tra kết quả trong log VPS.`);
+              } else if (zd.success) {
                 addBot(`✅ Zalo <strong>${g.name}</strong> (${zaloAccount}) đăng thành công!`);
               } else {
                 addBot(`❌ Lỗi Zalo <strong>${g.name}</strong>: ${zd.error || 'Không rõ'}`);
