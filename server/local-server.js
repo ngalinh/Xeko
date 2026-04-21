@@ -257,11 +257,12 @@ app.delete('/api/accounts/:type/:key', (req, res) => {
       if (fs.existsSync(profileDir)) fs.rmSync(profileDir, { recursive: true, force: true });
     } else if (type === 'zalo') {
       const channelsFile = path.resolve(__dirname, 'config/channels.json');
-      if (fs.existsSync(channelsFile)) {
-        const ch = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
-        ch.zaloProfiles = (ch.zaloProfiles || []).filter(p => p.name !== key);
-        fs.writeFileSync(channelsFile, JSON.stringify(ch, null, 2));
+      if (!fs.existsSync(channelsFile)) {
+        return res.status(404).json({ error: 'Chưa có dữ liệu kênh Zalo' });
       }
+      const ch = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
+      ch.zaloProfiles = (ch.zaloProfiles || []).filter(p => p.name !== key);
+      fs.writeFileSync(channelsFile, JSON.stringify(ch, null, 2));
     } else {
       return res.status(400).json({ error: 'Loại không hợp lệ' });
     }
