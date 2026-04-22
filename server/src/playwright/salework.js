@@ -164,16 +164,32 @@ async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message
       await screenshot(page, '05a-before-upload');
       let uploaded = false;
 
+      // Debug: log tất cả element có thể là nút upload
+      const uploadEls = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll('button, span, i, label, div[role="button"]'))
+          .filter(el => el.offsetParent !== null)
+          .map(el => ({
+            tag: el.tagName,
+            cls: el.className?.toString()?.substring(0, 60),
+            title: el.title || el.getAttribute('aria-label') || '',
+            text: el.textContent?.trim()?.substring(0, 20),
+          }))
+          .filter(el => el.title || /icon|upload|image|photo|picture|gallery|file|attach/i.test(el.cls));
+      });
+      logger.info(`[salework] Upload elements: ${JSON.stringify(uploadEls)}`);
+
       // Thử 1: setInputFiles trực tiếp lên tất cả input[type="file"]
       const fileInputs = await page.$$('input[type="file"]');
-      logger.info(`[salework] Tìm thấy ${fileInputs.length} file input(s)`);
+      logger.info(`[salework] File inputs: ${fileInputs.length}`);
       for (const input of fileInputs) {
         try {
           await input.setInputFiles(imagePaths);
           uploaded = true;
           logger.info(`[salework] Upload ${imagePaths.length} ảnh qua file input trực tiếp`);
           break;
-        } catch {}
+        } catch (e) {
+          logger.warn(`[salework] setInputFiles thất bại: ${e.message}`);
+        }
       }
 
       // Thử 2: Promise.all(filechooser + click button) — như code cũ
@@ -207,7 +223,7 @@ async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message
           uploaded = true;
           logger.info(`[salework] Upload ${imagePaths.length} ảnh qua filechooser`);
         } catch (e) {
-          logger.warn(`[salework] Không upload được ảnh: ${e.message}`);
+          logger.warn(`[salework] filechooser thất bại: ${e.message}`);
         }
       }
 
