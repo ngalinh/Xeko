@@ -139,38 +139,17 @@ async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message
     await page.waitForTimeout(2000);
     await screenshot(page, '03-search-filled');
 
-    // Click nhóm — dùng Playwright locator để trigger Vue event handler đúng cách
-    const groupSelectors = [
-      `[class*="conversation-item"]:has-text("${groupName}")`,
-      `[class*="ConversationItem"]:has-text("${groupName}")`,
-      `[class*="contact-item"]:has-text("${groupName}")`,
-      `[class*="group-item"]:has-text("${groupName}")`,
-      `[class*="chat-item"]:has-text("${groupName}")`,
-      `[class*="item"]:has-text("${groupName}")`,
-      `li:has-text("${groupName}")`,
-    ];
-
+    // Click nhóm — dùng page.$$() + ElementHandle.click() như code cũ
     let groupClicked = false;
-    for (const sel of groupSelectors) {
-      try {
-        const loc = page.locator(sel).first();
-        if (await loc.count() > 0) {
-          await loc.scrollIntoViewIfNeeded();
-          await loc.click({ timeout: 5000 });
-          groupClicked = true;
-          logger.info(`[salework] Click group: ${sel}`);
-          break;
-        }
-      } catch {}
-    }
-
-    if (!groupClicked) {
-      // Fallback: getByText
-      try {
-        await page.getByText(groupName).first().click({ timeout: 5000 });
+    const allEls = await page.$$('div, span, li, a');
+    for (const el of allEls) {
+      const text = await el.textContent().catch(() => '');
+      if (text && text.includes(groupName) && text.trim().length < groupName.length + 50) {
+        await el.click();
         groupClicked = true;
-        logger.info(`[salework] Click group via getByText`);
-      } catch {}
+        logger.info(`[salework] Click group: "${text.trim().substring(0, 40)}"`);
+        break;
+      }
     }
 
     if (!groupClicked) {
