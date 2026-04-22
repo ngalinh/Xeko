@@ -1515,6 +1515,10 @@
     <div class="sidebar-footer">
       <img src="https://raw.githubusercontent.com/ngalinh/Xeko/main/xeko-avatar.png" alt="Xeko">
       <div class="footer-text">Xeko v1.0</div>
+      <button id="restartServerBtn" onclick="restartLocalServer()" title="Khởi động lại local server"
+        style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px 14px; background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:8px; font-size:13px; cursor:pointer; font-weight:600; white-space:nowrap; width:100%; margin-top:10px;">
+        <svg class="xi" style="color:#856404;"><use href="#ic-refresh"/></svg> Restart Server
+      </button>
     </div>
   </div>
 
@@ -1556,12 +1560,6 @@
       </button>
     </div>
 
-    <div class="mhome-foot">
-      <button class="mhome-foot-btn" onclick="toggleTheme()" aria-label="Đổi giao diện">
-        <svg class="xi" id="mhomeThemeIcon"><use href="#ic-moon"/></svg>
-        <span>Đổi giao diện</span>
-      </button>
-    </div>
   </div>
 
   <!-- PAGE: Đăng bài -->
@@ -1573,7 +1571,6 @@
       <h1>Đăng bài</h1>
       <span id="headerStatus">Đăng bài tự động</span>
     </div>
-    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn" title="Đổi giao diện" style="margin-left:auto;" aria-label="Đổi giao diện"><svg class="xi" id="themeIconSvg"><use href="#ic-moon"/></svg></button>
   </div>
 
   <div class="chat-area" id="chatArea"></div>
@@ -1602,10 +1599,6 @@
         <h1>Quản lý tài khoản</h1>
         <span>Quản lý profile Chromium - Facebook</span>
       </div>
-      <button id="restartServerBtn" onclick="restartLocalServer()" title="Khởi động lại local server"
-        style="margin-left:auto; display:flex; align-items:center; gap:6px; padding:8px 14px; background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:8px; font-size:13px; cursor:pointer; font-weight:600; white-space:nowrap;">
-        <svg class="xi" style="color:#856404;"><use href="#ic-refresh"/></svg> Restart Server
-      </button>
     </div>
     <div style="flex:1; padding:24px 32px; overflow-y:auto;">
 
