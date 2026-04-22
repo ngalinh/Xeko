@@ -1796,22 +1796,33 @@
         <button onclick="loadDashboard()" style="padding:8px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:13px;">Lọc</button>
       </div>
 
+      <!-- Bulk action bar (hiện khi chọn >= 1 hàng) -->
+      <div id="dashBulkBar" style="display:none; align-items:center; justify-content:space-between; background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:10px 16px; margin-bottom:10px;">
+        <span id="dashBulkCount" style="font-size:13px; color:#555; font-weight:500;"></span>
+        <div style="display:flex; gap:8px;">
+          <button onclick="clearDashSelection()" style="padding:6px 14px; border:1px solid #ddd; border-radius:7px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Bỏ chọn</button>
+          <button onclick="deleteSelectedRows()" style="padding:6px 14px; border:none; border-radius:7px; background:#ef4444; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">🗑️ Xóa đã chọn</button>
+        </div>
+      </div>
+
       <!-- Post History Table -->
       <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
         <table style="width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed;">
           <colgroup>
-            <col style="width:170px;">
-            <col style="width:150px;">
-            <col style="width:70px;">
-            <col style="width:100px;">
-            <col style="width:160px;">
-            <col style="width:260px;">
+            <col style="width:36px;">
+            <col style="width:142px;">
+            <col style="width:126px;">
+            <col style="width:54px;">
+            <col style="width:82px;">
+            <col style="width:120px;">
             <col>
-            <col style="width:90px;">
-            <col style="width:90px;">
+            <col style="width:112px;">
+            <col style="width:74px;">
+            <col style="width:128px;">
           </colgroup>
           <thead>
             <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
+              <th style="padding:10px 10px; text-align:center;"><input type="checkbox" id="dashSelectAll" onchange="toggleSelectAll(this.checked)" style="cursor:pointer; width:14px; height:14px;"></th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Thời gian</th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Tài khoản</th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Nền tảng</th>
@@ -1820,7 +1831,7 @@
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Nội dung</th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Ảnh</th>
               <th style="padding:10px 12px; text-align:center; font-weight:600;">Trạng thái</th>
-              <th style="padding:10px 12px; text-align:center; font-weight:600;">Đăng lại</th>
+              <th style="padding:10px 12px; text-align:center; font-weight:600;">Thao tác</th>
             </tr>
           </thead>
           <tbody id="dashHistoryBody"></tbody>
@@ -1966,33 +1977,31 @@
     </div>
   </div>
 
+  <!-- Delete dropdown menu (dùng chung, hiện theo vị trí button) -->
+  <div id="deleteDropdownMenu" style="display:none; position:fixed; z-index:2000; background:#fff; border:1px solid #e5e7eb; border-radius:10px; box-shadow:0 4px 20px rgba(0,0,0,0.15); min-width:210px; overflow:hidden;">
+    <div style="padding:8px 12px; font-size:11px; font-weight:600; color:#999; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid #f3f4f6;">Xóa lịch sử</div>
+    <button onclick="doDelete('single')" style="display:block; width:100%; text-align:left; padding:10px 14px; border:none; background:#fff; font-size:13px; cursor:pointer; color:#333;" onmouseover="this.style.background='#fef2f2'; this.style.color='#ef4444'" onmouseout="this.style.background='#fff'; this.style.color='#333'">🗑️ Xóa bài này</button>
+    <button onclick="doDelete('failed')" style="display:block; width:100%; text-align:left; padding:10px 14px; border:none; background:#fff; font-size:13px; cursor:pointer; color:#333; border-top:1px solid #f9fafb;" onmouseover="this.style.background='#fef2f2'; this.style.color='#ef4444'" onmouseout="this.style.background='#fff'; this.style.color='#333'">⚠️ Xóa tất cả bài lỗi</button>
+    <button onclick="doDelete('all')" style="display:block; width:100%; text-align:left; padding:10px 14px; border:none; background:#fff; font-size:13px; cursor:pointer; color:#ef4444; font-weight:600; border-top:1px solid #f3f4f6;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'">💥 Xóa toàn bộ lịch sử</button>
+  </div>
+
   <!-- Modal đăng lại bài viết -->
   <div id="repostModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
     <div style="background:#fff; border-radius:16px; padding:28px; width:580px; max-width:95%; max-height:90vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.25); position:relative;">
       <button onclick="closeRepostModal()" style="position:absolute; top:16px; right:16px; background:none; border:none; font-size:22px; line-height:1; cursor:pointer; color:#999; padding:0;">×</button>
-      <h3 style="font-size:16px; font-weight:700; color:#1e1e2e; margin:0 0 22px;">🔄 Đăng lại bài viết</h3>
+      <h3 style="font-size:16px; font-weight:700; color:#1e1e2e; margin:0 0 22px;">🔄 Repost bài viết</h3>
 
       <!-- Tài khoản -->
       <div style="margin-bottom:14px;">
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Tài khoản</label>
-        <select id="repostProfile" style="width:100%; padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#333;" disabled></select>
+        <select id="repostProfile" onchange="_onRepostProfileChange()" style="width:100%; padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#333;" disabled></select>
       </div>
 
-      <!-- Nơi đăng -->
+      <!-- Kênh đăng -->
       <div style="margin-bottom:14px;">
-        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Nơi đăng</label>
-        <div id="repostTargetDisplay" style="padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#333;"></div>
-        <div id="repostTargetEdit" style="display:none; gap:8px; flex-wrap:wrap;">
-          <button type="button" onclick="setRepostTarget('personal')" id="repostTargetPersonalBtn" style="padding:8px 18px; border:1px solid #ddd; border-radius:8px; font-size:13px; cursor:pointer; font-weight:500; transition:all 0.15s;">Cá nhân</button>
-          <button type="button" onclick="setRepostTarget('group')" id="repostTargetGroupBtn" style="padding:8px 18px; border:1px solid #ddd; border-radius:8px; font-size:13px; cursor:pointer; font-weight:500; transition:all 0.15s;">Nhóm</button>
-        </div>
-      </div>
-
-      <!-- Group ID -->
-      <div id="repostGroupIdRow" style="margin-bottom:14px; display:none;">
-        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">ID Nhóm</label>
-        <div id="repostGroupIdDisplay" style="padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#333;"></div>
-        <input type="text" id="repostGroupIdInput" placeholder="Nhập ID nhóm" style="display:none; width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Kênh đăng</label>
+        <div id="repostChannelDisplay" style="padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#333;"></div>
+        <div id="repostChannelList" style="display:none; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; max-height:200px; overflow-y:auto;"></div>
       </div>
 
       <!-- Nội dung -->
@@ -2013,7 +2022,7 @@
       <div style="display:flex; gap:10px; justify-content:flex-end; border-top:1px solid #f3f4f6; padding-top:18px;">
         <button onclick="closeRepostModal()" style="padding:10px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:14px; cursor:pointer; color:#555; font-weight:500;">Huỷ</button>
         <button onclick="toggleRepostEdit()" id="repostEditBtn" style="padding:10px 20px; border:1px solid #7c66ff; border-radius:8px; background:#fff; font-size:14px; cursor:pointer; color:#7c66ff; font-weight:600;">✏️ Chỉnh sửa</button>
-        <button onclick="submitRepost()" id="repostSubmitBtn" style="padding:10px 24px; border:none; border-radius:8px; background:#7c66ff; color:#fff; font-size:14px; cursor:pointer; font-weight:600;">🔄 Đăng lại</button>
+        <button onclick="submitRepost()" id="repostSubmitBtn" style="padding:10px 24px; border:none; border-radius:8px; background:#7c66ff; color:#fff; font-size:14px; cursor:pointer; font-weight:600;">🔄 Repost</button>
       </div>
     </div>
   </div>
@@ -4388,6 +4397,7 @@
         const data = await parseJson(res);
 
         const tbody = document.getElementById('dashHistoryBody');
+        if (typeof _dashSelectedIds !== 'undefined') { _dashSelectedIds.clear(); _updateBulkBar(); }
         if (data.rows && data.rows.length > 0) {
           window._dashRows = data.rows;
           tbody.innerHTML = data.rows.map((row, idx) => {
@@ -4417,7 +4427,8 @@
             }
             const profileName = row.profile_name || row.profile || '-';
 
-            return `<tr style="border-bottom:1px solid #f3f4f6;">
+            return `<tr id="dashRow-${row.id}" style="border-bottom:1px solid #f3f4f6;">
+              <td style="padding:10px 10px; text-align:center;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"></td>
               <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
               <td style="padding:10px 12px; font-size:12px; white-space:nowrap;">${profileName}</td>
               <td style="padding:10px 12px; font-size:12px;">${platformLabel}</td>
@@ -4426,14 +4437,17 @@
               <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msg}</td>
               <td style="padding:10px 12px;">${thumbs}</td>
               <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
-              <td style="padding:10px 12px; text-align:center;">
-                <button onclick="openRepostModal(${idx})" style="padding:4px 10px; border:1px solid #7c66ff; border-radius:6px; background:#fff; color:#7c66ff; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;" onmouseover="this.style.background='#7c66ff';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#7c66ff'">🔄 Đăng lại</button>
+              <td style="padding:8px 10px; text-align:center; position:relative;">
+                <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
+                  <button onclick="openRepostModal(${idx})" style="padding:4px 9px; border:1px solid #7c66ff; border-radius:6px; background:#fff; color:#7c66ff; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;" onmouseover="this.style.background='#7c66ff';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#7c66ff'">🔄 Repost</button>
+                  <button onclick="toggleDeleteMenu(event,${row.id},${idx})" style="padding:4px 7px; border:1px solid #fca5a5; border-radius:6px; background:#fff; color:#ef4444; font-size:13px; cursor:pointer; line-height:1;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'" title="Xóa">🗑️</button>
+                </div>
               </td>
             </tr>`;
           }).join('');
         } else {
           window._dashRows = [];
-          tbody.innerHTML = '<tr><td colspan="9" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="10" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
         }
 
         // Pagination
@@ -4458,19 +4472,204 @@
       loadDashHistory();
     }
 
+    // ===== Bulk Selection =====
+    let _dashSelectedIds = new Set();
+
+    function onRowCheckbox(cb) {
+      const id = Number(cb.dataset.id);
+      const row = document.getElementById('dashRow-' + id);
+      if (cb.checked) {
+        _dashSelectedIds.add(id);
+        if (row) row.style.background = '#f5f3ff';
+      } else {
+        _dashSelectedIds.delete(id);
+        if (row) row.style.background = '';
+      }
+      _updateBulkBar();
+    }
+
+    function toggleSelectAll(checked) {
+      document.querySelectorAll('#dashHistoryBody input[type=checkbox]').forEach(cb => {
+        cb.checked = checked;
+        onRowCheckbox(cb);
+      });
+    }
+
+    function clearDashSelection() {
+      _dashSelectedIds.clear();
+      document.querySelectorAll('#dashHistoryBody input[type=checkbox]').forEach(cb => {
+        cb.checked = false;
+        const row = document.getElementById('dashRow-' + cb.dataset.id);
+        if (row) row.style.background = '';
+      });
+      const sa = document.getElementById('dashSelectAll');
+      if (sa) sa.checked = false;
+      _updateBulkBar();
+    }
+
+    function _updateBulkBar() {
+      const bar = document.getElementById('dashBulkBar');
+      const count = _dashSelectedIds.size;
+      if (count > 0) {
+        bar.style.display = 'flex';
+        document.getElementById('dashBulkCount').textContent = `Đã chọn ${count} bài`;
+      } else {
+        bar.style.display = 'none';
+      }
+      // Sync select-all checkbox state
+      const allCbs = document.querySelectorAll('#dashHistoryBody input[type=checkbox]');
+      const sa = document.getElementById('dashSelectAll');
+      if (sa && allCbs.length > 0) sa.indeterminate = count > 0 && count < allCbs.length;
+      if (sa) sa.checked = allCbs.length > 0 && count === allCbs.length;
+    }
+
+    async function deleteSelectedRows() {
+      const ids = [..._dashSelectedIds];
+      if (ids.length === 0) return;
+      if (!confirm(`Xóa ${ids.length} bài đã chọn?`)) return;
+      try {
+        const res = await fetch(BASE_URL + '/api/post-history/bulk?ids=' + ids.join(','), { method: 'DELETE' });
+        const data = await parseJson(res);
+        if (!res.ok) throw new Error(data.error || 'Lỗi');
+        _dashSelectedIds.clear();
+        loadDashHistory();
+      } catch (e) {
+        alert('❌ Xóa thất bại: ' + e.message);
+      }
+    }
+
+    // ===== Delete Menu =====
+    let _deleteTargetId = null;
+    let _deleteTargetIdx = null;
+
+    function toggleDeleteMenu(e, rowId, idx) {
+      e.stopPropagation();
+      const menu = document.getElementById('deleteDropdownMenu');
+      const alreadyOpen = menu.style.display === 'block' && _deleteTargetId === rowId;
+      closeDeleteMenu();
+      if (alreadyOpen) return;
+
+      _deleteTargetId = rowId;
+      _deleteTargetIdx = idx;
+
+      const btn = e.currentTarget;
+      const rect = btn.getBoundingClientRect();
+      const menuW = 210;
+      let left = rect.right - menuW;
+      if (left < 8) left = 8;
+      let top = rect.bottom + 6;
+      if (top + 160 > window.innerHeight) top = rect.top - 160;
+
+      menu.style.left = left + 'px';
+      menu.style.top = top + 'px';
+      menu.style.display = 'block';
+    }
+
+    function closeDeleteMenu() {
+      document.getElementById('deleteDropdownMenu').style.display = 'none';
+      _deleteTargetId = null;
+      _deleteTargetIdx = null;
+    }
+
+    document.addEventListener('click', () => closeDeleteMenu());
+
+    async function doDelete(scope) {
+      closeDeleteMenu();
+      let confirmMsg, url, method = 'DELETE';
+
+      if (scope === 'single') {
+        confirmMsg = 'Xóa bài đăng này khỏi lịch sử?';
+        url = BASE_URL + '/api/post-history/' + _deleteTargetId;
+      } else if (scope === 'failed') {
+        confirmMsg = 'Xóa toàn bộ bài đăng lỗi khỏi lịch sử?';
+        url = BASE_URL + '/api/post-history?success=0';
+      } else {
+        confirmMsg = 'Xóa TOÀN BỘ lịch sử bài đăng? Không thể hoàn tác!';
+        url = BASE_URL + '/api/post-history';
+      }
+
+      if (!confirm(confirmMsg)) return;
+
+      try {
+        const res = await fetch(url, { method });
+        const data = await parseJson(res);
+        if (!res.ok) throw new Error(data.error || 'Lỗi không xác định');
+        loadDashHistory();
+      } catch (e) {
+        alert('❌ Xóa thất bại: ' + e.message);
+      }
+    }
+
     // ===== Repost Modal =====
     let _repostEditMode = false;
-    let _repostTarget = 'personal';
     let _repostImages = [];
+    let _repostSelectedChannel = null; // { type:'personal' } | { type:'group', key, id, name }
+
+    function _getAccountGroups(profileKey) {
+      const pCh = (channelsData.profileChannels || {})[profileKey] || { fbGroups: [] };
+      const keys = pCh.fbGroups || [];
+      return keys.map(k => (channelsData.fbGroups || []).find(g => g.key === k)).filter(Boolean);
+    }
+
+    function _renderRepostChannelList() {
+      const profileKey = document.getElementById('repostProfile').value;
+      const groups = _getAccountGroups(profileKey);
+      const options = [
+        { type: 'personal', label: '🏠 Cá nhân', sub: '' },
+        ...groups.map(g => ({ type: 'group', key: g.key, id: g.id, name: g.name, label: '👥 ' + (g.name || g.key), sub: g.id || '' }))
+      ];
+      window._repostChannelOptions = options;
+
+      const list = document.getElementById('repostChannelList');
+      list.innerHTML = options.map((opt, i) => {
+        const sel = opt.type === 'personal'
+          ? _repostSelectedChannel?.type === 'personal'
+          : _repostSelectedChannel?.key === opt.key;
+        return `<div onclick="_selectRepostChannel(${i})"
+          style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; cursor:pointer; font-size:13px;
+            background:${sel ? '#f0eeff' : '#fff'}; color:${sel ? '#4f46e5' : '#333'};
+            border-bottom:1px solid #f3f4f6; transition:background 0.1s;"
+          onmouseover="if(!${sel}) this.style.background='#fafafa'" onmouseout="if(!${sel}) this.style.background='#fff'">
+          <span style="font-weight:${sel ? '600' : '400'};">${opt.label}</span>
+          ${opt.sub ? `<span style="font-size:11px; color:#999;">${opt.sub}</span>` : ''}
+          ${sel ? '<span style="color:#7c66ff; font-size:14px;">✓</span>' : ''}
+        </div>`;
+      }).join('');
+    }
+
+    function _selectRepostChannel(i) {
+      _repostSelectedChannel = window._repostChannelOptions[i];
+      _renderRepostChannelList();
+    }
+
+    function _onRepostProfileChange() {
+      _repostSelectedChannel = { type: 'personal' };
+      _renderRepostChannelList();
+    }
+
+    function _channelLabel(ch) {
+      if (!ch || ch.type === 'personal') return '🏠 Cá nhân';
+      return '👥 ' + (ch.name || ch.key || ch.id || 'Nhóm');
+    }
 
     async function openRepostModal(idx) {
       const row = (window._dashRows || [])[idx];
       if (!row) return;
 
       _repostEditMode = false;
-      _repostTarget = row.target || 'personal';
       _repostImages = (Array.isArray(row.images) ? row.images : [])
         .map(u => u.startsWith('/uploads/') ? '/api/image/' + u.slice('/uploads/'.length) : u);
+
+      // Determine original channel from row data
+      const originalGroupId = row.group_id || '';
+      if (row.target === 'personal' || !originalGroupId) {
+        _repostSelectedChannel = { type: 'personal' };
+      } else {
+        const matchedGroup = (channelsData.fbGroups || []).find(g => g.id === originalGroupId || g.key === originalGroupId);
+        _repostSelectedChannel = matchedGroup
+          ? { type: 'group', key: matchedGroup.key, id: matchedGroup.id, name: matchedGroup.name }
+          : { type: 'group', key: originalGroupId, id: originalGroupId, name: row.group_name || originalGroupId };
+      }
 
       // Load accounts into dropdown
       try {
@@ -4488,23 +4687,10 @@
         sel.disabled = true;
       }
 
-      // Target display
-      document.getElementById('repostTargetDisplay').textContent = _repostTarget === 'personal' ? 'Cá nhân' : (_repostTarget === 'group' ? 'Nhóm' : _repostTarget);
-      document.getElementById('repostTargetDisplay').style.display = '';
-      document.getElementById('repostTargetEdit').style.display = 'none';
-
-      // Group ID
-      const groupId = row.group_id || row.group_name || '';
-      const groupRow = document.getElementById('repostGroupIdRow');
-      if (_repostTarget !== 'personal' && groupId) {
-        groupRow.style.display = '';
-        document.getElementById('repostGroupIdDisplay').textContent = groupId;
-        document.getElementById('repostGroupIdDisplay').style.display = '';
-        document.getElementById('repostGroupIdInput').value = row.group_id || '';
-        document.getElementById('repostGroupIdInput').style.display = 'none';
-      } else {
-        groupRow.style.display = 'none';
-      }
+      // Channel display (view mode)
+      document.getElementById('repostChannelDisplay').textContent = _channelLabel(_repostSelectedChannel);
+      document.getElementById('repostChannelDisplay').style.display = '';
+      document.getElementById('repostChannelList').style.display = 'none';
 
       // Message
       const msg = row.message || '';
@@ -4513,15 +4699,12 @@
       document.getElementById('repostMessageInput').value = msg;
       document.getElementById('repostMessageInput').style.display = 'none';
 
-      // Edit button reset
+      // Reset buttons
       const editBtn = document.getElementById('repostEditBtn');
       editBtn.textContent = '✏️ Chỉnh sửa';
       editBtn.style.background = '#fff';
-
-      // Submit button reset
-      const submitBtn = document.getElementById('repostSubmitBtn');
-      submitBtn.disabled = false;
-      submitBtn.textContent = '🔄 Đăng lại';
+      document.getElementById('repostSubmitBtn').disabled = false;
+      document.getElementById('repostSubmitBtn').textContent = '🔄 Repost';
 
       _renderRepostImages();
       document.getElementById('repostModal').style.display = 'flex';
@@ -4555,24 +4738,6 @@
       _renderRepostImages();
     }
 
-    function setRepostTarget(t) {
-      _repostTarget = t;
-      const groupRow = document.getElementById('repostGroupIdRow');
-      const personalBtn = document.getElementById('repostTargetPersonalBtn');
-      const groupBtn = document.getElementById('repostTargetGroupBtn');
-      const active = 'background:#7c66ff; color:#fff; border-color:#7c66ff;';
-      const inactive = 'background:#fff; color:#333; border-color:#ddd;';
-      personalBtn.style.cssText += t === 'personal' ? active : inactive;
-      groupBtn.style.cssText += t === 'group' ? active : inactive;
-      if (t === 'group') {
-        groupRow.style.display = '';
-        document.getElementById('repostGroupIdDisplay').style.display = 'none';
-        document.getElementById('repostGroupIdInput').style.display = '';
-      } else {
-        groupRow.style.display = 'none';
-      }
-    }
-
     function toggleRepostEdit() {
       _repostEditMode = !_repostEditMode;
       const editBtn = document.getElementById('repostEditBtn');
@@ -4580,29 +4745,21 @@
       // Profile dropdown
       document.getElementById('repostProfile').disabled = !_repostEditMode;
 
-      // Target toggle
-      const targetDisplay = document.getElementById('repostTargetDisplay');
-      const targetEdit = document.getElementById('repostTargetEdit');
+      // Channel: toggle display vs list
+      const channelDisplay = document.getElementById('repostChannelDisplay');
+      const channelList = document.getElementById('repostChannelList');
       if (_repostEditMode) {
-        targetDisplay.style.display = 'none';
-        targetEdit.style.display = 'flex';
-        setRepostTarget(_repostTarget);
+        channelDisplay.style.display = 'none';
+        channelList.style.display = '';
+        _renderRepostChannelList();
         editBtn.textContent = '👁️ Xem lại';
         editBtn.style.background = '#f3f4f6';
       } else {
-        targetDisplay.style.display = '';
-        targetDisplay.textContent = _repostTarget === 'personal' ? 'Cá nhân' : 'Nhóm';
-        targetEdit.style.display = 'none';
+        channelDisplay.textContent = _channelLabel(_repostSelectedChannel);
+        channelDisplay.style.display = '';
+        channelList.style.display = 'none';
         editBtn.textContent = '✏️ Chỉnh sửa';
         editBtn.style.background = '#fff';
-      }
-
-      // Group ID fields
-      const groupRow = document.getElementById('repostGroupIdRow');
-      if (_repostTarget !== 'personal') {
-        groupRow.style.display = '';
-        document.getElementById('repostGroupIdDisplay').style.display = _repostEditMode ? 'none' : '';
-        document.getElementById('repostGroupIdInput').style.display = _repostEditMode ? '' : 'none';
       }
 
       // Message fields
@@ -4622,12 +4779,10 @@
 
     async function submitRepost() {
       const profile = document.getElementById('repostProfile').value;
-      const message = _repostEditMode
-        ? document.getElementById('repostMessageInput').value
-        : document.getElementById('repostMessageInput').value;
-      const groupId = _repostTarget === 'group'
-        ? document.getElementById('repostGroupIdInput').value.trim()
-        : '';
+      const message = document.getElementById('repostMessageInput').value;
+      const ch = _repostSelectedChannel || { type: 'personal' };
+      const target = ch.type === 'group' ? 'group' : 'personal';
+      const groupId = ch.type === 'group' ? (ch.id || ch.key || '') : '';
 
       if (!message && _repostImages.length === 0) {
         alert('Vui lòng nhập nội dung hoặc có ảnh để đăng!');
@@ -4641,7 +4796,6 @@
       editBtn.disabled = true;
 
       try {
-        // Switch to selected profile
         await fetch(BASE_URL + '/api/profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -4650,17 +4804,15 @@
 
         const formData = new FormData();
         formData.append('message', message);
-        formData.append('target', _repostTarget);
+        formData.append('target', target);
         if (groupId) formData.append('groupId', groupId);
 
-        // Fetch and re-attach original images
         for (const url of _repostImages) {
           const fullUrl = url.startsWith('/') ? BASE_URL + url : url;
           try {
             const imgRes = await fetch(fullUrl);
             const blob = await imgRes.blob();
-            const filename = url.split('/').pop() || 'image.jpg';
-            formData.append('images', blob, filename);
+            formData.append('images', blob, url.split('/').pop() || 'image.jpg');
           } catch (e) {
             console.warn('Không tải được ảnh:', url);
           }
@@ -4679,7 +4831,7 @@
 
         const ok = data.success || (data.results && data.results.some(r => r.success));
         if (ok) {
-          alert('✅ Đăng lại thành công!');
+          alert('✅ Repost thành công!');
           closeRepostModal();
           loadDashHistory();
         } else {
@@ -4690,7 +4842,7 @@
         alert('❌ Lỗi: ' + e.message);
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = '🔄 Đăng lại';
+        submitBtn.textContent = '🔄 Repost';
         editBtn.disabled = false;
       }
     }

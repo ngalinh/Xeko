@@ -166,4 +166,26 @@ function getStatistics({ from, to } = {}) {
   return { summary, today, daily, byProfile, byGroup, byPlatform };
 }
 
-module.exports = { logPost, getPostHistory, getStatistics };
+function deleteById(id) {
+  return db.prepare('DELETE FROM post_logs WHERE id = ?').run(id);
+}
+
+function deleteByIds(ids) {
+  if (!ids || ids.length === 0) return { changes: 0 };
+  const placeholders = ids.map(() => '?').join(',');
+  return db.prepare(`DELETE FROM post_logs WHERE id IN (${placeholders})`).run(ids);
+}
+
+function deleteByFilter({ profile, success, from, to } = {}) {
+  let sql = 'DELETE FROM post_logs WHERE 1=1';
+  const params = {};
+  if (profile) { sql += ' AND profile = @profile'; params.profile = profile; }
+  if (success !== undefined && success !== null && success !== '') {
+    sql += ' AND success = @success'; params.success = Number(success);
+  }
+  if (from) { sql += ' AND timestamp >= @from'; params.from = from; }
+  if (to) { sql += ' AND timestamp <= @to'; params.to = to; }
+  return db.prepare(sql).run(params);
+}
+
+module.exports = { logPost, getPostHistory, getStatistics, deleteById, deleteByIds, deleteByFilter };
