@@ -1101,6 +1101,247 @@
       [data-theme="dark"] .mhome-foot-btn { background: #1e1e3a; color: #a78bfa; }
       [data-theme="dark"] .mhome-back-btn { background: #1e1e3a; color: #a78bfa; }
     }
+
+    /* ================================================================
+       DESKTOP AESTHETIC — áp dụng màu/thẩm mỹ mobile lên desktop.
+       Chỉ là lớp màu/shadow/radius — không đụng layout desktop.
+       ================================================================ */
+    @media (min-width: 769px) {
+      /* Lavender backdrop */
+      body {
+        background:
+          radial-gradient(1200px 700px at 100% -10%, #efe9ff 0%, rgba(239,233,255,0) 60%),
+          radial-gradient(900px 600px at -10% 110%, #f6ecff 0%, rgba(246,236,255,0) 60%),
+          linear-gradient(180deg, #f4f1fe 0%, #faf9ff 40%, #ffffff 100%);
+      }
+      .main-content { background: transparent; }
+      .chat-area { background: transparent; }
+
+      /* Glassy header */
+      .header {
+        background: rgba(255,255,255,0.78);
+        backdrop-filter: saturate(180%) blur(14px);
+        -webkit-backdrop-filter: saturate(180%) blur(14px);
+        border-bottom: 1px solid rgba(124,102,255,0.08);
+      }
+      .header-emoji { color: #6b5bff; }
+
+      /* Chat bubbles */
+      .msg.bot {
+        border: none;
+        box-shadow: 0 4px 14px rgba(124,102,255,0.07);
+      }
+      .msg.user {
+        color: #fff;
+        background: linear-gradient(135deg, #7c66ff 0%, #a78bfa 100%);
+        box-shadow: 0 6px 16px rgba(124,102,255,0.22);
+      }
+      .msg.user .link { color: #fff; text-decoration: underline; }
+      .msg .link { color: #6b5bff; }
+      .msg-btn {
+        border-radius: 12px;
+        background: #fff;
+        border-color: #e8e1ff;
+        color: #6b5bff;
+        box-shadow: 0 2px 8px rgba(124,102,255,0.06);
+      }
+      .msg-btn:hover {
+        background: linear-gradient(135deg, #7c66ff 0%, #a78bfa 100%);
+        border-color: transparent;
+        color: #fff;
+      }
+
+      /* Input area: pill input + gradient send */
+      .input-area {
+        position: relative;
+        background: rgba(255,255,255,0.55);
+        backdrop-filter: saturate(180%) blur(10px);
+        -webkit-backdrop-filter: saturate(180%) blur(10px);
+        border-top: 1px solid rgba(124,102,255,0.08);
+      }
+      .input-area input[type="text"] {
+        background: #fff;
+        border: 1px solid rgba(124,102,255,0.15);
+        box-shadow: 0 2px 8px rgba(124,102,255,0.05);
+      }
+      .input-area input[type="text"]:focus {
+        border-color: #7c66ff;
+        box-shadow: 0 0 0 3px rgba(124,102,255,0.12);
+      }
+      .btn-attach {
+        background: #f2ecff;
+        color: #6b5bff;
+      }
+      .btn-attach:hover { background: #e4dcff; }
+      .btn-send {
+        background: linear-gradient(135deg, #7c66ff 0%, #a78bfa 100%);
+        color: #fff;
+        box-shadow: 0 6px 16px rgba(124,102,255,0.30);
+      }
+      .btn-send:hover {
+        background: linear-gradient(135deg, #6b5bff 0%, #9076f5 100%);
+      }
+      .btn-send:disabled {
+        background: #d4ccf4;
+        box-shadow: none;
+      }
+
+      /* Image preview translucent */
+      .image-preview {
+        background: rgba(255,255,255,0.85);
+        border-top: 1px solid rgba(124,102,255,0.08);
+      }
+      .preview-item img { border-color: #e5ddff; border-radius: 10px; }
+
+      /* Sidebar: soft gradient + colorful tile icons */
+      .sidebar {
+        background: linear-gradient(180deg, #ffffff 0%, #f8f5ff 100%);
+        border-right: 1px solid rgba(124,102,255,0.08);
+      }
+      .sidebar-logo span { color: #6b5bff; font-weight: 800; }
+      .sidebar-logo .edit-icon { background: #f0ecff; color: #6b5bff; }
+      .sidebar-logo .edit-icon:hover { background: #e0d4ff; }
+      .sidebar-nav { gap: 4px; padding: 10px 12px; }
+      .sidebar-item {
+        padding: 10px 12px;
+        border-radius: 12px;
+        font-weight: 500;
+        color: #3a3658;
+      }
+      .sidebar-item:hover {
+        background: rgba(124,102,255,0.06);
+        color: #4a3bd6;
+      }
+      .sidebar-item.active {
+        background: linear-gradient(135deg, rgba(124,102,255,0.12), rgba(167,139,250,0.10));
+        color: #4a3bd6;
+        font-weight: 600;
+      }
+      .sidebar-item .icon {
+        width: 30px; height: 30px;
+        border-radius: 9px;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: #f0ecff;
+        color: #6b5bff;
+        box-shadow: 0 2px 6px rgba(124,102,255,0.08);
+        font-size: 0; /* kill residual emoji spacing */
+      }
+      #navDashboard .icon { background: linear-gradient(135deg,#dcd2ff,#c1b2ff); color:#4a3bd6; }
+      #navPost      .icon { background: linear-gradient(135deg,#ffd6e1,#ffb7c6); color:#d1477a; }
+      #navSession   .icon { background: linear-gradient(135deg,#c7f0ea,#a2e6de); color:#2a9b8a; }
+      #navSpy       .icon { background: linear-gradient(135deg,#ffe2c4,#ffc98a); color:#c9822f; }
+      .sidebar-item .badge {
+        background: linear-gradient(135deg,#ffe2c4,#ffc98a);
+        color: #b8691c;
+      }
+      .sidebar-footer { border-top-color: rgba(124,102,255,0.08); }
+
+      /* Theme toggle button */
+      .theme-toggle {
+        background: linear-gradient(135deg, #efeaff, #e4dcff);
+        color: #6b5bff;
+        box-shadow: 0 2px 8px rgba(124,102,255,0.10);
+      }
+      .theme-toggle:hover { background: linear-gradient(135deg, #e4dcff, #d4c8ff); }
+
+      /* Profile cards: rounded + shadow */
+      .profile-card {
+        border: none;
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: 0 4px 14px rgba(124,102,255,0.07);
+      }
+      .profile-card:hover {
+        box-shadow: 0 8px 22px rgba(124,102,255,0.14);
+      }
+      .profile-card .avatar {
+        background: linear-gradient(135deg,#efeaff,#ddd2ff);
+        color: #6b5bff;
+        border-radius: 10px;
+      }
+
+      /* Account tabs — pill */
+      .acc-tab-bar {
+        border-bottom: none !important;
+        padding: 4px !important;
+        background: rgba(255,255,255,0.7);
+        border-radius: 14px;
+        box-shadow: 0 2px 10px rgba(124,102,255,0.06);
+      }
+      .acc-tab {
+        border-radius: 10px;
+        margin-bottom: 0;
+        padding: 7px 14px;
+      }
+      .acc-tab:hover { color: #6b5bff; background: rgba(124,102,255,0.05); }
+      .acc-tab.active {
+        background: linear-gradient(135deg,#7c66ff,#a78bfa);
+        color: #fff !important;
+        border-bottom-color: transparent;
+        box-shadow: 0 4px 12px rgba(124,102,255,0.28);
+      }
+
+      /* Panel cards (channels, groups, profile channel list) rounded + shadow */
+      #panelChannels > div[style*="background:#fff"] {
+        border: none !important;
+        border-radius: 16px !important;
+        box-shadow: 0 4px 16px rgba(124,102,255,0.07);
+      }
+
+      /* Dashboard summary tiles rounded */
+      #pageDashboard div[style*="background:#f0fdf4"],
+      #pageDashboard div[style*="background:#eff6ff"],
+      #pageDashboard div[style*="background:#fef2f2"],
+      #pageDashboard div[style*="background:#fdf4ff"],
+      #pageDashboard div[style*="background:#fff"] {
+        border: none !important;
+        border-radius: 14px !important;
+        box-shadow: 0 4px 14px rgba(124,102,255,0.07);
+      }
+
+      /* Channel platform toggle: gradient when checked */
+      .channel-platform-toggle {
+        border-radius: 10px;
+      }
+      .channel-platform-toggle.checked {
+        background: linear-gradient(135deg,#7c66ff,#a78bfa);
+        border-color: transparent;
+        box-shadow: 0 4px 12px rgba(124,102,255,0.25);
+      }
+
+      /* Generic form inputs rounded */
+      #panelChannels input[type="text"] { border-radius: 10px !important; }
+
+      /* Buttons inside session panel (Thêm tài khoản / + Thêm) */
+      button[style*="background:#4f46e5"] {
+        background: linear-gradient(135deg,#7c66ff,#a78bfa) !important;
+        box-shadow: 0 4px 12px rgba(124,102,255,0.26);
+        border-radius: 10px !important;
+      }
+
+      /* Typing indicator dots purple */
+      .typing span { background: #7c66ff; }
+    }
+
+    /* Desktop dark-mode alignment with purple theme */
+    @media (min-width: 769px) {
+      [data-theme="dark"] body {
+        background:
+          radial-gradient(1100px 600px at 100% -10%, rgba(124,102,255,0.15) 0%, rgba(124,102,255,0) 60%),
+          linear-gradient(180deg, #13132a 0%, #1a1a2e 60%, #1a1a2e 100%);
+      }
+      [data-theme="dark"] .header { background: rgba(22,23,43,0.78); border-bottom-color: rgba(124,102,255,0.15); }
+      [data-theme="dark"] .input-area { background: rgba(22,23,43,0.55); border-top-color: rgba(124,102,255,0.15); }
+      [data-theme="dark"] .sidebar {
+        background: linear-gradient(180deg, #16172b 0%, #1a1a2e 100%);
+        border-right-color: rgba(124,102,255,0.12);
+      }
+      [data-theme="dark"] .sidebar-item .icon { background: #2a2a4a; color: #a78bfa; }
+      [data-theme="dark"] .profile-card { background: #1e1e3a; }
+      [data-theme="dark"] .acc-tab-bar { background: rgba(30,30,58,0.55); }
+      [data-theme="dark"] .msg.bot { background: #1e1e3a; box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
+      [data-theme="dark"] .msg-btn { background: #1e1e3a; border-color: #3a3a5a; color: #a78bfa; }
+    }
   </style>
 </head>
 <body>
