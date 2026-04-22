@@ -18,6 +18,23 @@
   <link rel="icon" type="image/png" href="/xeko-avatar.png">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* Line-icon utility (Lucide-style via <svg><use href="#ic-*"/>) */
+    .xi {
+      display: inline-block;
+      width: 18px; height: 18px;
+      vertical-align: middle;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+      pointer-events: none;
+    }
+    .xi-sm { width: 14px; height: 14px; }
+    .xi-md { width: 20px; height: 20px; }
+    .xi-lg { width: 24px; height: 24px; }
     body {
       font-family: 'Inter', 'Segoe UI', sans-serif;
       background: #f8f9fe;
@@ -1346,6 +1363,56 @@
 </head>
 <body>
 
+  <!-- Icon sprite (Lucide-style line icons). Presentation attrs on each
+       drawing element for reliable inheritance through <use> shadow DOM. -->
+  <svg aria-hidden="true" focusable="false"
+       style="position:absolute;width:0;height:0;overflow:hidden;">
+    <defs>
+      <symbol id="ic-home" viewBox="0 0 24 24">
+        <path d="M3 10.5 12 3l9 7.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-dash" viewBox="0 0 24 24">
+        <path d="M3 21h18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="6" y="12" width="3" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="11" y="7" width="3" height="13" rx="1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="16" y="3" width="3" height="17" rx="1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-post" viewBox="0 0 24 24">
+        <path d="M12 20h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-users" viewBox="0 0 24 24">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="9" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="m21 21-4.35-4.35" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-moon" viewBox="0 0 24 24">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-sun" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-menu" viewBox="0 0 24 24">
+        <path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-camera" viewBox="0 0 24 24">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12" cy="13" r="4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-send" viewBox="0 0 24 24">
+        <path d="M22 2 11 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M22 2 15 22l-4-9-9-4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+    </defs>
+  </svg>
+
   <div class="mobile-overlay" id="mobileOverlay" onclick="closeSidebar()"></div>
 
   <!-- Sidebar -->
@@ -1356,19 +1423,19 @@
     </div>
     <div class="sidebar-nav">
       <button class="sidebar-item mobile-only-nav" onclick="switchPage('home')" id="navHome">
-        <span class="icon">🏠</span> Trang chủ
+        <span class="icon"><svg class="xi"><use href="#ic-home"/></svg></span> Trang chủ
       </button>
       <button class="sidebar-item" onclick="switchPage('dashboard')" id="navDashboard">
-        <span class="icon">📊</span> Dashboard
+        <span class="icon"><svg class="xi"><use href="#ic-dash"/></svg></span> Dashboard
       </button>
       <button class="sidebar-item active" onclick="switchPage('post')" id="navPost">
-        <span class="icon">📝</span> Đăng bài
+        <span class="icon"><svg class="xi"><use href="#ic-post"/></svg></span> Đăng bài
       </button>
       <button class="sidebar-item" onclick="switchPage('session')" id="navSession">
-        <span class="icon">👥</span> Quản lý tài khoản
+        <span class="icon"><svg class="xi"><use href="#ic-users"/></svg></span> Quản lý tài khoản
       </button>
       <button class="sidebar-item" onclick="switchPage('spy')" id="navSpy">
-        <span class="icon">🔍</span> Spy bài viết
+        <span class="icon"><svg class="xi"><use href="#ic-search"/></svg></span> Spy bài viết
         <span class="badge">Soon</span>
       </button>
     </div>
@@ -1395,22 +1462,22 @@
 
     <div class="mhome-tiles">
       <button class="mhome-tile tile-post" onclick="switchPage('post')">
-        <span class="mhome-tile-icon">📝</span>
+        <span class="mhome-tile-icon"><svg class="xi xi-lg"><use href="#ic-post"/></svg></span>
         <span class="mhome-tile-label">Đăng bài</span>
         <span class="mhome-tile-hint">Soạn & gửi ngay</span>
       </button>
       <button class="mhome-tile tile-dash" onclick="switchPage('dashboard')">
-        <span class="mhome-tile-icon">📊</span>
+        <span class="mhome-tile-icon"><svg class="xi xi-lg"><use href="#ic-dash"/></svg></span>
         <span class="mhome-tile-label">Dashboard</span>
         <span class="mhome-tile-hint">Thống kê & lịch</span>
       </button>
       <button class="mhome-tile tile-acc" onclick="switchPage('session')">
-        <span class="mhome-tile-icon">👥</span>
+        <span class="mhome-tile-icon"><svg class="xi xi-lg"><use href="#ic-users"/></svg></span>
         <span class="mhome-tile-label">Tài khoản</span>
         <span class="mhome-tile-hint">Profile FB / Zalo</span>
       </button>
       <button class="mhome-tile tile-spy" disabled>
-        <span class="mhome-tile-icon">🔍</span>
+        <span class="mhome-tile-icon"><svg class="xi xi-lg"><use href="#ic-search"/></svg></span>
         <span class="mhome-tile-label">Spy</span>
         <span class="mhome-tile-hint">Sắp ra mắt</span>
       </button>
@@ -1418,7 +1485,7 @@
 
     <div class="mhome-foot">
       <button class="mhome-foot-btn" onclick="toggleTheme()" aria-label="Đổi giao diện">
-        <span id="mhomeThemeIcon">🌙</span>
+        <svg class="xi" id="mhomeThemeIcon"><use href="#ic-moon"/></svg>
         <span>Đổi giao diện</span>
       </button>
     </div>
@@ -1427,13 +1494,13 @@
   <!-- PAGE: Đăng bài -->
   <div class="page active" id="pageDangBai">
   <div class="header">
-    <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;">☰</button>
-    <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:22px;">📝</div>
+    <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
+    <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#6b5bff;"><svg class="xi xi-md"><use href="#ic-post"/></svg></div>
     <div class="header-info">
       <h1>Đăng bài</h1>
       <span id="headerStatus">Đăng bài tự động</span>
     </div>
-    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn" title="Đổi giao diện" style="margin-left:auto;">🌙</button>
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn" title="Đổi giao diện" style="margin-left:auto;" aria-label="Đổi giao diện"><svg class="xi" id="themeIconSvg"><use href="#ic-moon"/></svg></button>
   </div>
 
   <div class="chat-area" id="chatArea"></div>
@@ -1444,11 +1511,11 @@
   </div>
 
   <div class="input-area" id="inputArea">
-    <button class="btn-icon btn-attach" onclick="document.getElementById('fileInput').click()">📷</button>
+    <button class="btn-icon btn-attach" onclick="document.getElementById('fileInput').click()" aria-label="Đính kèm ảnh"><svg class="xi xi-md"><use href="#ic-camera"/></svg></button>
     <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this)">
     <input type="text" id="msgInput" placeholder="Nhập nội dung bài viết..." autocomplete="off" onkeydown="if(event.key==='Enter')sendMessage()">
     <input type="text" id="groupIdInput" placeholder="Nhập Group ID..." autocomplete="off" style="display:none; width:140px;">
-    <button class="btn-icon btn-send" id="sendBtn" onclick="sendMessage()">➤</button>
+    <button class="btn-icon btn-send" id="sendBtn" onclick="sendMessage()" aria-label="Gửi"><svg class="xi xi-md"><use href="#ic-send"/></svg></button>
   </div>
 
   </div><!-- end pageDangBai -->
@@ -1456,9 +1523,10 @@
   <!-- PAGE: Quản lý tài khoản -->
   <div class="page" id="pageSession">
     <div class="header">
-      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;">☰</button>
+      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
+      <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#6b5bff;"><svg class="xi xi-md"><use href="#ic-users"/></svg></div>
       <div class="header-info">
-        <h1>👥 Quản lý tài khoản</h1>
+        <h1>Quản lý tài khoản</h1>
         <span>Quản lý profile Chromium - Facebook</span>
       </div>
     </div>
@@ -1564,9 +1632,10 @@
   <!-- PAGE: Spy bài viết -->
   <div class="page" id="pageSpyBaiViet">
     <div class="header">
-      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;">☰</button>
+      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
+      <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#6b5bff;"><svg class="xi xi-md"><use href="#ic-search"/></svg></div>
       <div class="header-info">
-        <h1>🔍 Spy bài viết</h1>
+        <h1>Spy bài viết</h1>
         <span>Tính năng đang phát triển</span>
       </div>
     </div>
@@ -1583,8 +1652,8 @@
   <!-- PAGE: Dashboard (gộp Lịch đăng bài + Thống kê) -->
   <div class="page" id="pageDashboard">
     <div class="header">
-      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;">☰</button>
-      <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:22px;">📊</div>
+      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
+      <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#6b5bff;"><svg class="xi xi-md"><use href="#ic-dash"/></svg></div>
       <div class="header-info">
         <h1>Dashboard</h1>
         <span>Thống kê</span>
@@ -3658,12 +3727,22 @@
       } catch (e) { console.error('Lỗi lưu tài khoản Zalo cho profile:', e); }
     }
 
+    function xekoSyncThemeIcons(theme) {
+      const ref = theme === 'dark' ? '#ic-sun' : '#ic-moon';
+      ['themeIconSvg', 'mhomeThemeIcon'].forEach((id) => {
+        const svg = document.getElementById(id);
+        if (!svg) return;
+        const use = svg.querySelector('use');
+        if (use) use.setAttribute('href', ref);
+      });
+    }
+
     function toggleTheme() {
       const html = document.documentElement;
       const current = html.getAttribute('data-theme');
       const next = current === 'dark' ? 'light' : 'dark';
       html.setAttribute('data-theme', next);
-      document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
+      xekoSyncThemeIcons(next);
       localStorage.setItem('xeko_theme', next);
     }
 
@@ -3671,8 +3750,7 @@
     (function() {
       const saved = localStorage.getItem('xeko_theme') || 'light';
       document.documentElement.setAttribute('data-theme', saved);
-      const btn = document.getElementById('themeBtn');
-      if (btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+      xekoSyncThemeIcons(saved);
     })();
 
     function clearChat() {
@@ -3942,7 +4020,7 @@
         btn.type = 'button';
         btn.className = 'mhome-back-btn';
         btn.setAttribute('aria-label', 'Trang chủ');
-        btn.innerHTML = '🏠';
+        btn.innerHTML = '<svg class="xi xi-md" aria-hidden="true"><use href="#ic-home"/></svg>';
         btn.onclick = () => switchPage('home');
         h.insertBefore(btn, h.firstChild);
       });
