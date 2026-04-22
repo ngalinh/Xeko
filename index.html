@@ -625,6 +625,17 @@
 
       /* Stack FB + Zalo cards on mobile */
       .channel-groups-grid { grid-template-columns: 1fr !important; }
+
+      /* Group rows: 2 dòng trên mobile — dòng 1 (key + tên + xoá), dòng 2 (phân loại full-width) */
+      .fb-group-row, .zalo-group-row {
+        grid-template-columns: auto minmax(0,1fr) auto !important;
+        grid-template-areas: "key info del" "cat cat cat" !important;
+        row-gap: 6px !important;
+      }
+      .fb-group-row > :nth-child(1), .zalo-group-row > :nth-child(1) { grid-area: key; }
+      .fb-group-row > :nth-child(2), .zalo-group-row > :nth-child(2) { grid-area: info; }
+      .fb-group-row > :nth-child(3), .zalo-group-row > :nth-child(3) { grid-area: cat; }
+      .fb-group-row > :nth-child(4), .zalo-group-row > :nth-child(4) { grid-area: del; }
     }
 
     /* ================================================================
@@ -3670,8 +3681,8 @@
       const groups = channelsData.fbGroups || [];
       noMsg.style.display = groups.length ? 'none' : '';
       list.innerHTML = groups.map(g => `
-        <div class="fb-group-row" style="display:grid; grid-template-columns:minmax(60px,max-content) minmax(0,1fr) minmax(0,140px) auto; align-items:center; gap:10px; padding:8px 12px; background:#f8f6ff; border-radius:8px; border:1px solid #e8e4ff;">
-          <span style="font-size:12px; font-weight:700; color:#4f46e5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px;" title="${g.key}">${g.key}</span>
+        <div class="fb-group-row" style="display:grid; grid-template-columns:90px minmax(0,1fr) minmax(0,140px) auto; align-items:center; gap:10px; padding:8px 12px; background:#f8f6ff; border-radius:8px; border:1px solid #e8e4ff;">
+          <span style="font-size:12px; font-weight:700; color:#4f46e5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${g.key}">${g.key}</span>
           <div style="display:flex; flex-direction:column; min-width:0;">
             <span style="font-size:13px; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${g.name}</span>
             <span style="font-size:10.5px; color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${g.id}</span>
@@ -3760,8 +3771,8 @@
       const groups = channelsData.zaloGroups || [];
       noMsg.style.display = groups.length ? 'none' : '';
       list.innerHTML = groups.map(g => `
-        <div style="display:grid; grid-template-columns:minmax(60px,max-content) minmax(0,1fr) minmax(0,140px) auto; align-items:center; gap:10px; padding:8px 12px; background:#f0f6ff; border-radius:8px; border:1px solid #d0e4ff;">
-          <span style="font-size:12px; font-weight:700; color:#0068ff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px;" title="${g.key}">${g.key}</span>
+        <div class="zalo-group-row" style="display:grid; grid-template-columns:140px minmax(0,1fr) minmax(0,140px) auto; align-items:center; gap:10px; padding:8px 12px; background:#f0f6ff; border-radius:8px; border:1px solid #d0e4ff;">
+          <span style="font-size:12px; font-weight:700; color:#0068ff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${g.key}">${g.key}</span>
           <div style="display:flex; flex-direction:column; min-width:0;">
             <span style="font-size:13px; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${g.name}</span>
             <span style="font-size:10.5px; color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Salework: ${g.oid}</span>
