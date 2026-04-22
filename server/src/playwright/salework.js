@@ -31,15 +31,31 @@ async function delay(ms) {
 async function selectZaloAccount(page, accountName) {
   logger.info(`[salework] Chọn tài khoản: ${accountName}`);
 
+  // Bước 1: Clear tất cả selection cũ (dropdown là multi-select)
+  let cleared = 0;
+  while (cleared < 20) {
+    const removed = await page.evaluate(() => {
+      const closeIcons = document.querySelectorAll('.el-tag__close, .el-icon-close, [class*="tag"] [class*="close"], [class*="tag"] i');
+      for (const icon of closeIcons) {
+        if (icon.offsetParent !== null) {
+          icon.click();
+          return true;
+        }
+      }
+      return false;
+    });
+    if (!removed) break;
+    await delay(200);
+    cleared++;
+  }
+  if (cleared > 0) logger.info(`[salework] Xoá ${cleared} tag cũ`);
+
+  // Bước 2: Mở dropdown
   const openSelectors = [
     '.el-select',
     '.el-select .el-input__inner',
     '.el-select__caret',
-    'div.ant-select',
-    '[class*="ant-select-selector"]',
-    'span.ant-select-selection-item',
   ];
-
   for (const sel of openSelectors) {
     try {
       await page.click(sel, { force: true, timeout: 3000 });
@@ -47,15 +63,11 @@ async function selectZaloAccount(page, accountName) {
       break;
     } catch {}
   }
-
-  try {
-    await page.click('text=Tất cả tài khoản', { force: true, timeout: 3000 });
-  } catch {}
-
   await delay(1500);
 
+  // Bước 3: Click đúng tài khoản target bằng evaluate (scan DOM theo text)
   const selected = await page.evaluate((name) => {
-    const els = document.querySelectorAll('div, span, li, a, [class*="option"], [class*="item"], [class*="dropdown"]');
+    const els = document.querySelectorAll('[class*="dropdown"] li, [class*="option"], li, [class*="item"], div, span, a');
     for (const el of els) {
       if (el.textContent?.trim() === name) {
         el.click();
@@ -68,16 +80,11 @@ async function selectZaloAccount(page, accountName) {
   if (selected) {
     logger.info(`[salework] Đã chọn tài khoản: ${accountName}`);
     await delay(1000);
+    // Click ra ngoài để đóng dropdown
     await page.click('body', { position: { x: 700, y: 400 }, force: true });
     await delay(1000);
     return true;
   }
-
-  try {
-    await page.click(`text="${accountName}"`, { timeout: 3000 });
-    await delay(1000);
-    return true;
-  } catch {}
 
   logger.warn(`[salework] Không tìm thấy tài khoản "${accountName}"`);
   return false;
@@ -90,7 +97,7 @@ async function searchAndClickGroup(page, groupName) {
   if (searchInput) {
     await searchInput.fill('');
     await searchInput.fill(groupName);
-    await delay(2000);
+    await delay(2500);
   }
 
   await screenshot(page, '03-search-filled');
@@ -98,10 +105,10 @@ async function searchAndClickGroup(page, groupName) {
   const results = await page.$$('div, span, li, a');
   for (const el of results) {
     const text = await el.textContent().catch(() => '');
-    if (text && text.includes(groupName) && text.trim().length < groupName.length + 50) {
+    if (text.includes(groupName) && text.length < groupName.length + 50) {
       await el.click();
-      logger.info(`[salework] Click nhóm: ${groupName}`);
-      await delay(2000);
+      logger.info(`[salework] Click vào nhóm: ${groupName}`);
+      await delay(2500);
       return true;
     }
   }
