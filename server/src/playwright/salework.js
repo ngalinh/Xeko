@@ -48,63 +48,21 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     await screenshot(page, '01-loaded');
 
     // --- Account selection ---
-    // Primary: dùng JS để trực tiếp gọi Vue component handleOptionSelect (bypass click)
-    // Fallback: mở dropdown → click search → gõ tên → click item
+    // Dropdown mở sẵn (persistent context) hoặc click el-select để mở.
+    // Sau khi mở: click thẳng vào tên tài khoản trong list — không cần gõ search.
     try {
-      const selectedViaJs = await page.evaluate((name) => {
-        const selects = document.querySelectorAll('.el-select');
-        for (const el of selects) {
-          const vue = el.__vue__;
-          if (!vue) continue;
-          const opts = vue.options || [];
-          const match = opts.find(o =>
-            String(o.currentLabel || o.label || o.value || '').includes(name)
-          );
-          if (match) {
-            vue.handleOptionSelect(match);
-            return true;
-          }
-        }
-        return false;
-      }, zaloAccountName);
-
-      if (selectedViaJs) {
-        logger.info(`[salework] Đã chọn tài khoản "${zaloAccountName}" qua JS`);
-        await page.waitForTimeout(500);
-        await screenshot(page, '02-account-selected-js');
-      } else {
-        // Fallback: mở dropdown thủ công → gõ tên → click item
-        logger.info(`[salework] JS không chọn được, thử click dropdown...`);
-
-        if (!await page.isVisible('input[placeholder*="tài khoản"]')) {
-          // Dùng JS mousedown để trigger Element UI dropdown
-          await page.evaluate(() => {
-            const el = document.querySelector('.el-select .el-input__inner');
-            if (el) {
-              el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-              el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-            }
-          });
-          await page.waitForSelector('input[placeholder*="tài khoản"]', { state: 'visible', timeout: 4000 })
-            .catch(() => {});
-        }
-
-        await screenshot(page, '02-dropdown-open');
-
-        if (await page.isVisible('input[placeholder*="tài khoản"]')) {
-          await page.locator('input[placeholder*="tài khoản"]').click();
-          await page.locator('input[placeholder*="tài khoản"]').type(zaloAccountName, { delay: 80 });
-          await page.waitForTimeout(600);
-          await screenshot(page, '02b-account-typed');
-
-          await page.locator('li').filter({ hasText: zaloAccountName }).first().click({ timeout: 5000 });
-          await page.waitForTimeout(500);
-          await screenshot(page, '02c-account-selected');
-          logger.info(`[salework] Đã chọn tài khoản "${zaloAccountName}" qua click`);
-        } else {
-          logger.warn(`[salework] Không mở được dropdown — tiếp tục với tài khoản hiện tại`);
-        }
+      // Mở dropdown nếu chưa mở
+      if (!await page.isVisible('.el-select-dropdown__item')) {
+        await page.locator('.el-select').first().click({ timeout: 5000 });
+        await page.waitForSelector('.el-select-dropdown__item', { state: 'visible', timeout: 5000 });
       }
+      await screenshot(page, '02-dropdown-open');
+
+      // Click thẳng vào tên tài khoản trong danh sách dropdown
+      await page.locator('.el-select-dropdown__item').filter({ hasText: zaloAccountName }).first().click({ timeout: 5000 });
+      await page.waitForTimeout(600);
+      await screenshot(page, '02-account-selected');
+      logger.info(`[salework] Đã chọn tài khoản "${zaloAccountName}"`);
     } catch (e) {
       logger.warn(`[salework] Lỗi chọn tài khoản "${zaloAccountName}": ${e.message}`);
       await screenshot(page, '02-error');
@@ -171,30 +129,20 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     await screenshot(page, '06-message-typed');
 
     // --- Upload images ---
-    // Strategy: click attachment/image button, capture filechooser event, set files.
-    // If no button found, fall back to setInputFiles on any file input.
+    // Click nút "Thư viện hình ảnh" (icon ảnh trong toolbar), capture filechooser, set files.
     if (imagePaths && imagePaths.length > 0) {
       try {
-        // Attach a filechooser listener BEFORE clicking to avoid race condition
         const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 8000 });
 
         const uploadClicked = await tryClick(page, [
-          // Common Vietnamese CRM upload button selectors
-          '[class*="btn-upload"]',
-          '[class*="BtnUpload"]',
-          '[class*="upload-image"]',
-          '[class*="UploadImage"]',
-          '[class*="attach-image"]',
-          '[class*="image-btn"]',
-          // Icon buttons near message input
-          '[class*="toolbar"] [class*="image"]',
-          '[class*="toolbar"] [class*="photo"]',
-          '[class*="footer"] [class*="image"]',
-          '[class*="footer"] [class*="photo"]',
-          // Generic label for file input
-          'label[for*="file"]',
-          'label[class*="upload"]',
-        ], 3000);
+          '[title*="Thư viện hình ảnh"]',
+          '[title*="hình ảnh"]',
+          '[title*="Hình ảnh"]',
+          '[aria-label*="hình ảnh"]',
+          '[aria-label*="Hình ảnh"]',
+          '[title*="image"]',
+          '[title*="photo"]',
+        ], 4000);
 
         if (uploadClicked) {
           const fileChooser = await fileChooserPromise;
@@ -202,18 +150,9 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
           await page.waitForTimeout(2000);
           await screenshot(page, '07-images-attached');
         } else {
-          // Cancel the pending filechooser promise
           fileChooserPromise.catch(() => {});
-          // Fallback: use setInputFiles directly on the file input element
-          const fileInputs = await page.$$('input[type="file"]');
-          if (fileInputs.length > 0) {
-            await page.setInputFiles('input[type="file"]', imagePaths);
-            await page.waitForTimeout(2000);
-            await screenshot(page, '07-images-set');
-          } else {
-            logger.warn('[salework] Không tìm thấy nút upload ảnh — bỏ qua ảnh');
-            await screenshot(page, '07-no-upload-btn');
-          }
+          logger.warn('[salework] Không tìm thấy nút "Thư viện hình ảnh" — bỏ qua ảnh');
+          await screenshot(page, '07-no-upload-btn');
         }
       } catch (e) {
         logger.warn(`[salework] Không upload được ảnh: ${e.message}`);

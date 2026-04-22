@@ -2143,6 +2143,28 @@
       }
     });
 
+    // Poll kết quả Zalo post async — cập nhật chatbot khi Playwright hoàn thành
+    async function pollZaloJob(jobId, groupName, account) {
+      const maxTries = 24; // tối đa 2 phút (24 × 5s)
+      for (let i = 0; i < maxTries; i++) {
+        await new Promise(r => setTimeout(r, 5000));
+        try {
+          const r = await fetch(`${BASE_URL}/api/zalo/status/${jobId}`);
+          if (!r.ok) continue;
+          const d = await r.json();
+          if (d.status === 'done') {
+            if (d.success) {
+              addBot(`✅ Zalo <strong>${groupName}</strong> (${account}) đăng thành công!`);
+            } else {
+              addBot(`❌ Zalo <strong>${groupName}</strong> thất bại: ${d.error || 'Không rõ'}`);
+            }
+            return;
+          }
+        } catch {}
+      }
+      addBot(`⚠️ Zalo <strong>${groupName}</strong>: không nhận được kết quả sau 2 phút`);
+    }
+
     // ===== Gửi bài =====
     async function sendMessage() {
       // Neu dang o che do len lich -> goi submitSchedule
@@ -2296,8 +2318,9 @@
               const zr = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: zf });
               const zd = await parseJson(zr);
               removeTyping();
-              if (zd.success && zd.processing) {
-                addBot(`⏳ Zalo <strong>${g.name}</strong> (${zaloAccount}) đang xử lý — kiểm tra kết quả trong log VPS.`);
+              if (zd.processing && zd.jobId) {
+                addBot(`⏳ Zalo <strong>${g.name}</strong> (${zaloAccount}) đang xử lý...`);
+                pollZaloJob(zd.jobId, g.name, zaloAccount);
               } else if (zd.success) {
                 addBot(`✅ Zalo <strong>${g.name}</strong> (${zaloAccount}) đăng thành công!`);
               } else {
