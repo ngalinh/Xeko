@@ -164,7 +164,7 @@ async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message
       await screenshot(page, '05a-before-upload');
       let uploaded = false;
 
-      // Thử tất cả input[type="file"] trong page
+      // Thử 1: setInputFiles trực tiếp lên tất cả input[type="file"]
       const fileInputs = await page.$$('input[type="file"]');
       logger.info(`[salework] Tìm thấy ${fileInputs.length} file input(s)`);
       for (const input of fileInputs) {
@@ -176,35 +176,36 @@ async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message
         } catch {}
       }
 
-      // Fallback: click nút upload để trigger filechooser
+      // Thử 2: Promise.all(filechooser + click button) — như code cũ
       if (!uploaded) {
         try {
-          const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 8000 });
-          const uploadSelectors = [
-            '[title*="Thư viện hình ảnh"]', '[title*="hình ảnh"]', '[title*="Hình ảnh"]',
-            '[aria-label*="hình ảnh"]', '[aria-label*="Hình ảnh"]',
-            '.el-icon-picture', '.el-icon-image',
-            'i[class*="picture"]', 'i[class*="image"]',
-            '[class*="image-upload"]', '[class*="gallery"]',
-            'label[for*="file"]',
-          ];
-          let btnClicked = false;
-          for (const sel of uploadSelectors) {
-            try {
-              await page.click(sel, { timeout: 3000 });
-              btnClicked = true;
-              break;
-            } catch {}
-          }
-          if (btnClicked) {
-            const fileChooser = await fileChooserPromise;
-            await fileChooser.setFiles(imagePaths);
-            uploaded = true;
-            logger.info(`[salework] Upload ${imagePaths.length} ảnh qua filechooser`);
-          } else {
-            fileChooserPromise.catch(() => {});
-            logger.warn('[salework] Không tìm thấy nút upload ảnh');
-          }
+          const [fileChooser] = await Promise.all([
+            page.waitForEvent('filechooser', { timeout: 10000 }),
+            (async () => {
+              // Tìm toolbar button có title liên quan đến ảnh
+              const toolbarBtns = await page.$$('[class*="toolbar"] button, [class*="toolbar"] div[role="button"], [class*="action"] svg');
+              for (const btn of toolbarBtns) {
+                const title = await btn.getAttribute('title').catch(() => '');
+                if (title && (title.includes('nh') || title.includes('image') || title.includes('hoto'))) {
+                  await btn.click();
+                  return;
+                }
+              }
+              // Tìm svg/icon và check title của element cha
+              const icons = await page.$$('svg, [class*="icon"]');
+              for (const icon of icons) {
+                const parent = await icon.$('xpath=..');
+                const title = await parent?.getAttribute('title').catch(() => '');
+                if (title && (title.includes('Hình') || title.includes('ảnh') || title.includes('image'))) {
+                  await icon.click();
+                  return;
+                }
+              }
+            })(),
+          ]);
+          await fileChooser.setFiles(imagePaths);
+          uploaded = true;
+          logger.info(`[salework] Upload ${imagePaths.length} ảnh qua filechooser`);
         } catch (e) {
           logger.warn(`[salework] Không upload được ảnh: ${e.message}`);
         }
