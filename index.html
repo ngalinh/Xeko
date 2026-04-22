@@ -2195,6 +2195,8 @@
 
       // Tao thumbnail URLs truoc khi clear
       const photoUrls = selectedFiles.map(f => URL.createObjectURL(f));
+      // Capture files truoc khi clearImages() reset selectedFiles
+      const filesToUpload = [...selectedFiles];
       let userMsg = message || '';
       addUser(userMsg, photoUrls);
       input.value = '';
@@ -2222,7 +2224,7 @@
           formData.append('message', message);
           formData.append('target', target);
           if (groupId) formData.append('groupId', groupId);
-          await appendImages(formData, selectedFiles);
+          await appendImages(formData, filesToUpload);
 
           addTyping();
           const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: formData });
@@ -2277,7 +2279,7 @@
             cf.append('message', message);
             cf.append('target', 'group');
             cf.append('groupId', gid);
-            await appendImages(cf, selectedFiles);
+            await appendImages(cf, filesToUpload);
             const cr = await fetch(BASE_URL + '/api/post', { method: 'POST', body: cf });
             const initial = await parseJson(cr);
             const cd = initial.jobId ? await pollJob(initial.jobId) : initial;
@@ -2314,7 +2316,7 @@
               zf.append('profile', zaloAccount);
               zf.append('groupName', g.name);
               zf.append('message', message);
-              await appendImages(zf, selectedFiles);
+              await appendImages(zf, filesToUpload);
               const zr = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: zf });
               const zd = await parseJson(zr);
               removeTyping();
