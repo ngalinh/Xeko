@@ -3,8 +3,11 @@ const path = require('path');
 const fs = require('fs');
 const logger = require('../utils/logger');
 
-const SALEWORK_PROFILE = path.resolve(__dirname, '../../../playwright-data/salework');
 const DEBUG_SCREENSHOT_DIR = '/tmp/salework-debug';
+
+function getSaleworkProfile(accountKey) {
+  return path.resolve(__dirname, `../../../playwright-data/salework-${accountKey}`);
+}
 
 function ensureDebugDir() {
   if (!fs.existsSync(DEBUG_SCREENSHOT_DIR)) {
@@ -33,8 +36,17 @@ async function tryClick(page, selectors, timeout = 3000) {
   return false;
 }
 
-async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths }) {
-  const browser = await chromium.launchPersistentContext(SALEWORK_PROFILE, {
+async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message, imagePaths }) {
+  const profilePath = getSaleworkProfile(accountKey);
+
+  if (!fs.existsSync(profilePath)) {
+    return {
+      success: false,
+      error: `Chưa đăng nhập Salework cho tài khoản "${zaloAccountName}". Hãy xoá và thêm lại tài khoản qua UI để mở browser đăng nhập.`,
+    };
+  }
+
+  const browser = await chromium.launchPersistentContext(profilePath, {
     headless: false,
     slowMo: 300,
     viewport: { width: 1280, height: 720 },
@@ -47,76 +59,50 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     await page.waitForTimeout(2000);
     await screenshot(page, '01-loaded');
 
-    // --- Account selection ---
-    // Persistent context nhớ session → user đã chọn sẵn tài khoản đúng.
-    // Chỉ log tài khoản hiện tại, không tự động thay đổi.
+    // Per-account profile: account is already selected from the setup session.
     try {
       const currentAccount = await page.locator('.el-select .el-input__inner').first().inputValue();
-      logger.info(`[salework] Tài khoản đang active: "${currentAccount}" (yêu cầu: "${zaloAccountName}")`);
+      logger.info(`[salework] Profile "${accountKey}" — tài khoản active: "${currentAccount}"`);
     } catch {}
     await screenshot(page, '02-account-state');
 
     // --- Search group ---
     const groupSearchInput = await page.waitForSelector(
-      'input[placeholder="Tìm kiếm"]',
+      [
+        'input[placeholder*="nhóm"]',
+        'input[placeholder*="hội thoại"]',
+        'input[placeholder*="Tìm kiếm cuộc"]',
+        'input[placeholder*="tin nhắn"]',
+        '.el-input__inner:not([placeholder*="tài khoản"])',
+      ].join(', '),
       { timeout: 10000 }
     );
     await groupSearchInput.click();
-    await groupSearchInput.fill('');
-    await groupSearchInput.type(groupName, { delay: 50 });
+    await groupSearchInput.fill(groupName);
     await page.waitForTimeout(1500);
     await screenshot(page, '03-search-filled');
 
-    // Click group từ kết quả tìm kiếm
-    const groupLocator = page.locator([
+    // Click group from result list
+    const groupClicked = await tryClick(page, [
       `[class*="conversation-item"]:has-text("${groupName}")`,
-      `[class*="contact-item"]:has-text("${groupName}")`,
+      `[class*="ConversationItem"]:has-text("${groupName}")`,
       `[class*="group-item"]:has-text("${groupName}")`,
       `[class*="chat-item"]:has-text("${groupName}")`,
       `[class*="item"]:has-text("${groupName}")`,
       `li:has-text("${groupName}")`,
-    ].join(', ')).first();
+      `text="${groupName}"`,
+    ], 8000);
 
-    try {
-      await groupLocator.waitFor({ timeout: 8000 });
-      await groupLocator.scrollIntoViewIfNeeded();
-      await groupLocator.click();
-    } catch {
-      await page.click(`text="${groupName}"`, { timeout: 5000 });
+    if (!groupClicked) {
+      await screenshot(page, '04-group-not-found');
+      throw new Error(`Không tìm thấy nhóm "${groupName}"`);
     }
     await page.waitForTimeout(1000);
     await screenshot(page, '04-group-selected');
 
-    // --- Chờ message input xuất hiện ---
-    const msgInputSelector = [
-      '.el-textarea__inner',
-      'textarea.el-textarea__inner',
-      '[placeholder*="Nhập tin nhắn"]',
-      '[placeholder*="nhập tin nhắn"]',
-      '[placeholder*="Nhập nội dung"]',
-      '[contenteditable="true"]',
-      'textarea',
-    ].join(', ');
-
-    await page.waitForSelector(msgInputSelector, { timeout: 8000 });
-
-    // --- Upload ảnh TRƯỚC khi nhập nội dung ---
+    // --- Upload images BEFORE typing message ---
     if (imagePaths && imagePaths.length > 0) {
       await screenshot(page, '05a-before-upload');
-
-      // Log các elements có thể là nút upload để debug
-      const toolbarInfo = await page.evaluate(() => {
-        return Array.from(document.querySelectorAll('button, span, i, label'))
-          .filter(el => el.offsetParent !== null)
-          .map(el => ({
-            tag: el.tagName,
-            class: el.className,
-            title: el.title || el.getAttribute('aria-label') || '',
-          }))
-          .filter(el => el.title || /icon|upload|image|photo|picture|gallery/i.test(el.class));
-      });
-      logger.info(`[salework] Upload-related elements: ${JSON.stringify(toolbarInfo)}`);
-
       try {
         const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 8000 });
 
@@ -130,9 +116,7 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
           '.el-icon-image',
           'i[class*="picture"]',
           'i[class*="image"]',
-          'i[class*="photo"]',
           '[class*="image-upload"]',
-          '[class*="ImageUpload"]',
           '[class*="gallery"]',
           'label[for*="file"]',
         ], 4000);
@@ -145,7 +129,6 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
           logger.info(`[salework] Đã upload ${imagePaths.length} ảnh`);
         } else {
           fileChooserPromise.catch(() => {});
-          // Fallback: setInputFiles trực tiếp
           const fileInput = page.locator('input[type="file"]').first();
           if (await fileInput.count() > 0) {
             await fileInput.setInputFiles(imagePaths);
@@ -153,7 +136,7 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
             await screenshot(page, '05b-images-via-input');
             logger.info(`[salework] Upload ảnh qua file input trực tiếp`);
           } else {
-            logger.warn('[salework] Không tìm thấy nút upload ảnh — xem log elements ở trên');
+            logger.warn('[salework] Không tìm thấy nút upload ảnh');
             await screenshot(page, '05b-no-upload-btn');
           }
         }
@@ -163,9 +146,21 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
       }
     }
 
-    // --- Nhập nội dung SAU khi upload ảnh ---
-    const msgInput = await page.$(msgInputSelector);
+    // --- Type message ---
+    const msgInput = await page.waitForSelector(
+      [
+        '.el-textarea__inner',
+        'textarea.el-textarea__inner',
+        '[placeholder*="Nhập tin nhắn"]',
+        '[placeholder*="nhập tin nhắn"]',
+        '[placeholder*="Nhập nội dung"]',
+        '[contenteditable="true"]',
+        'textarea',
+      ].join(', '),
+      { timeout: 8000 }
+    );
     await msgInput.click();
+
     const isEditable = await msgInput.evaluate(el => el.contentEditable === 'true');
     if (isEditable) {
       await msgInput.evaluate(el => { el.textContent = ''; });
@@ -176,7 +171,7 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     await page.waitForTimeout(500);
     await screenshot(page, '06-message-typed');
 
-    // --- Gửi ---
+    // --- Send ---
     const sent = await tryClick(page, [
       'button.el-button--primary:has-text("Gửi")',
       '.el-button--primary:has-text("Gửi")',
@@ -206,4 +201,4 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
   }
 }
 
-module.exports = { postToZaloGroup, SALEWORK_PROFILE };
+module.exports = { postToZaloGroup, getSaleworkProfile };
