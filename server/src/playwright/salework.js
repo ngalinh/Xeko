@@ -139,41 +139,22 @@ async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message
     await page.waitForTimeout(2000);
     await screenshot(page, '03-search-filled');
 
-    // Click nhóm từ kết quả — evaluate scan text
-    const groupClicked = await page.evaluate((name) => {
-      const els = document.querySelectorAll('div, span, li, a, [class*="item"], [class*="conversation"], [class*="contact"]');
-      for (const el of els) {
-        const text = el.textContent?.trim();
-        if (text && text.includes(name) && text.length < name.length + 60) {
-          el.click();
-          return true;
-        }
+    // Click nhóm — dùng page.$$() + ElementHandle.click() như code cũ
+    let groupClicked = false;
+    const allEls = await page.$$('div, span, li, a');
+    for (const el of allEls) {
+      const text = await el.textContent().catch(() => '');
+      if (text && text.includes(groupName) && text.trim().length < groupName.length + 50) {
+        await el.click();
+        groupClicked = true;
+        logger.info(`[salework] Click group: "${text.trim().substring(0, 40)}"`);
+        break;
       }
-      return false;
-    }, groupName);
+    }
 
     if (!groupClicked) {
-      // Fallback: playwright selectors
-      const clicked = await (async () => {
-        const selectors = [
-          `[class*="conversation-item"]:has-text("${groupName}")`,
-          `[class*="item"]:has-text("${groupName}")`,
-          `li:has-text("${groupName}")`,
-          `text="${groupName}"`,
-        ];
-        for (const sel of selectors) {
-          try {
-            await page.click(sel, { timeout: 5000 });
-            return true;
-          } catch {}
-        }
-        return false;
-      })();
-
-      if (!clicked) {
-        await screenshot(page, '04-group-not-found');
-        throw new Error(`Không tìm thấy nhóm "${groupName}"`);
-      }
+      await screenshot(page, '04-group-not-found');
+      throw new Error(`Không tìm thấy nhóm "${groupName}"`);
     }
     await page.waitForTimeout(1500);
     await screenshot(page, '04-group-selected');
