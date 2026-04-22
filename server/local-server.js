@@ -155,6 +155,8 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
 });
 
 // ===== ĐĂNG ZALO =====
+const zaloJobs = new Map(); // jobId → { status, success, error }
+
 app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
   const { profile, zaloAccountName, groupName, message } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
@@ -165,19 +167,31 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
     return res.status(400).json({ error: 'Thiếu zaloAccountName/profile hoặc groupName' });
   }
 
-  // Respond immediately so cloud proxy never hits 504 — Playwright runs in background
-  res.json({ success: true, processing: true });
+  const jobId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  zaloJobs.set(jobId, { status: 'processing' });
+
+  // Respond immediately so cloud proxy never hits 504 timeout
+  res.json({ success: true, processing: true, jobId });
 
   salework.postToZaloGroup({ zaloAccountName: accountName, groupName, message: message || '', imagePaths })
     .then(result => {
       cleanupFiles(imagePaths);
+      zaloJobs.set(jobId, { status: 'done', success: result.success, error: result.error || null });
       if (!result.success) logger.error(`[zalo/post] Thất bại "${groupName}": ${result.error}`);
       else logger.info(`[zalo/post] Thành công: ${groupName}`);
     })
     .catch(err => {
       cleanupFiles(imagePaths);
+      zaloJobs.set(jobId, { status: 'done', success: false, error: err.message });
       logger.error(`[zalo/post] Exception: ${err.message}`);
     });
+});
+
+app.get('/api/zalo/status/:jobId', (req, res) => {
+  const job = zaloJobs.get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Job không tồn tại' });
+  res.json(job);
+  if (job.status === 'done') zaloJobs.delete(req.params.jobId);
 });
 
 // ===== ACCOUNTS =====

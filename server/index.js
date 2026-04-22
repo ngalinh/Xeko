@@ -719,6 +719,23 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
   }
 });
 
+app.get('/api/zalo/status/:jobId', async (req, res) => {
+  const LOCAL_URL = getLocalUrl();
+  if (!LOCAL_URL) return res.status(503).json({ error: 'Local server chưa kết nối' });
+  try {
+    const fetchFn = await getFetch();
+    const response = await fetchFn(`${LOCAL_URL}/api/zalo/status/${req.params.jobId}`, {
+      headers: { 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+    });
+    const text = await response.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { error: text.slice(0, 200) }; }
+    return res.status(response.status).json(data);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
