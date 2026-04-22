@@ -413,11 +413,21 @@ app.get('/api/channels', (req, res) => {
 });
 
 app.post('/api/channels/fb-groups', (req, res) => {
-  const { key, id, name } = req.body;
+  const { key, id, name, category } = req.body;
   if (!key || !id || !name) return res.status(400).json({ error: 'Thiếu key, id hoặc name' });
   const data = loadChannels();
   if (data.fbGroups.find(g => g.key === key)) return res.status(400).json({ error: 'Key đã tồn tại' });
-  data.fbGroups.push({ key, id, name });
+  data.fbGroups.push({ key, id, name, category: (category || '').trim() });
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.patch('/api/channels/fb-groups/:key', (req, res) => {
+  const data = loadChannels();
+  const group = (data.fbGroups || []).find(g => g.key === req.params.key);
+  if (!group) return res.status(404).json({ error: 'Không tìm thấy group' });
+  if (typeof req.body.category === 'string') group.category = req.body.category.trim();
+  if (typeof req.body.name === 'string' && req.body.name.trim()) group.name = req.body.name.trim();
   saveChannels(data);
   res.json({ success: true });
 });

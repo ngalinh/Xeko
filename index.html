@@ -1630,6 +1630,8 @@
               style="flex:2; min-width:150px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
             <input type="text" id="newGroupName" placeholder="Tên hiển thị" autocomplete="off"
               style="flex:2; min-width:150px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+            <input type="text" id="newGroupCategory" placeholder="Phân loại (vd: Thời trang)" autocomplete="off"
+              style="flex:2; min-width:150px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
             <button onclick="addFbGroup()"
               style="padding:8px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer; white-space:nowrap;">+ Thêm</button>
           </div>
@@ -3607,6 +3609,10 @@
         <div style="display:flex; align-items:center; gap:10px; padding:9px 14px; background:#f8f6ff; border-radius:8px; border:1px solid #e8e4ff;">
           <span style="font-size:12px; font-weight:700; color:#4f46e5; min-width:70px;">${g.key}</span>
           <span style="font-size:13px; color:#333; flex:1;">${g.name}</span>
+          <input type="text" value="${(g.category || '').replace(/"/g, '&quot;')}" placeholder="Phân loại..."
+            onblur="updateFbGroupCategory('${g.key}', this.value)"
+            onkeydown="if(event.key==='Enter'){this.blur();}"
+            style="font-size:12px; color:#4f46e5; background:#fff; border:1px solid #e0d4ff; border-radius:6px; padding:4px 8px; width:160px;">
           <span style="font-size:11px; color:#aaa;">${g.id}</span>
           <button onclick="deleteFbGroup('${g.key}')" style="padding:4px 10px; background:#fff0f0; border:1px solid #fecaca; border-radius:6px; color:#e53e3e; font-size:12px; cursor:pointer;">🗑</button>
         </div>
@@ -3727,18 +3733,36 @@
       const key = document.getElementById('newGroupKey').value.trim();
       const id = document.getElementById('newGroupId').value.trim();
       const name = document.getElementById('newGroupName').value.trim();
+      const category = document.getElementById('newGroupCategory').value.trim();
       if (!key || !id || !name) return alert('Vui lòng nhập đầy đủ Key, Group ID và Tên hiển thị');
       try {
         const res = await fetch(`${BASE_URL}/api/channels/fb-groups`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key, id, name }),
+          body: JSON.stringify({ key, id, name, category }),
         });
         const data = await parseJson(res);
         if (data.error) return alert(data.error);
         document.getElementById('newGroupKey').value = '';
         document.getElementById('newGroupId').value = '';
         document.getElementById('newGroupName').value = '';
+        document.getElementById('newGroupCategory').value = '';
         await loadChannels();
+      } catch (e) { alert('Lỗi: ' + e.message); }
+    }
+
+    async function updateFbGroupCategory(key, category) {
+      const group = (channelsData.fbGroups || []).find(g => g.key === key);
+      if (!group) return;
+      const next = (category || '').trim();
+      if ((group.category || '') === next) return;
+      try {
+        const res = await fetch(`${BASE_URL}/api/channels/fb-groups/${encodeURIComponent(key)}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category: next }),
+        });
+        const data = await parseJson(res);
+        if (data.error) return alert(data.error);
+        group.category = next;
       } catch (e) { alert('Lỗi: ' + e.message); }
     }
 
