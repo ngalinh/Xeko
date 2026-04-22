@@ -428,6 +428,7 @@ app.patch('/api/channels/fb-groups/:key', (req, res) => {
   if (!group) return res.status(404).json({ error: 'Không tìm thấy group' });
   if (typeof req.body.category === 'string') group.category = req.body.category.trim();
   if (typeof req.body.name === 'string' && req.body.name.trim()) group.name = req.body.name.trim();
+  if (typeof req.body.id === 'string' && req.body.id.trim()) group.id = req.body.id.trim();
   saveChannels(data);
   res.json({ success: true });
 });

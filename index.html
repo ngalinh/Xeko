@@ -623,19 +623,10 @@
       /* Channel form inputs wrap nicely */
       #panelChannels > div > div:last-child { gap: 6px !important; }
 
-      /* Stack FB + Zalo cards on mobile */
-      .channel-groups-grid { grid-template-columns: 1fr !important; }
-
-      /* Group rows: 2 dòng trên mobile — dòng 1 (key + tên + xoá), dòng 2 (phân loại full-width) */
-      .fb-group-row, .zalo-group-row {
-        grid-template-columns: auto minmax(0,1fr) auto !important;
-        grid-template-areas: "key info del" "cat cat cat" !important;
-        row-gap: 6px !important;
-      }
-      .fb-group-row > :nth-child(1), .zalo-group-row > :nth-child(1) { grid-area: key; }
-      .fb-group-row > :nth-child(2), .zalo-group-row > :nth-child(2) { grid-area: info; }
-      .fb-group-row > :nth-child(3), .zalo-group-row > :nth-child(3) { grid-area: cat; }
-      .fb-group-row > :nth-child(4), .zalo-group-row > :nth-child(4) { grid-area: del; }
+      /* Group table: header row hơi nhỏ, cột phân loại/hành động gọn lại */
+      #groupsTable thead th { font-size: 10px !important; padding: 4px 6px !important; }
+      #groupsTable tbody td { padding: 8px 6px !important; }
+      .group-filter-tabs button { padding: 5px 10px !important; font-size: 11px !important; }
     }
 
     /* ================================================================
@@ -878,8 +869,7 @@
       }
 
       /* session page: softer cards */
-      #panelChannels > div[style*="background:#fff"],
-      #panelChannels .channel-groups-grid > div[style*="background:#fff"] {
+      #panelChannels > div[style*="background:#fff"] {
         border: none !important;
         border-radius: 20px !important;
         box-shadow: 0 8px 22px rgba(124,102,255,0.08);
@@ -1319,8 +1309,7 @@
       }
 
       /* Panel cards (channels, groups, profile channel list) rounded + shadow */
-      #panelChannels > div[style*="background:#fff"],
-      #panelChannels .channel-groups-grid > div[style*="background:#fff"] {
+      #panelChannels > div[style*="background:#fff"] {
         border: none !important;
         border-radius: 16px !important;
         box-shadow: 0 4px 16px rgba(124,102,255,0.07);
@@ -1632,51 +1621,40 @@
       <!-- Tab: Cai dat kenh -->
       <div id="panelChannels" style="display:none;">
 
-        <!-- FB + Zalo cạnh nhau -->
-        <div class="channel-groups-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
-
-        <!-- Facebook Groups -->
-        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:16px;">
-          <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:18px;height:18px;"> Facebook Groups
-          </h3>
-          <p id="noFbGroupsMsg" style="font-size:13px; color:#999; margin-bottom:10px;">Chưa có group nào.</p>
-          <div id="fbGroupList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px;"></div>
-          <div style="display:grid; grid-template-columns:1fr 1.4fr; gap:8px;">
-            <input type="text" id="newGroupKey" placeholder="Key (vd: asale)" autocomplete="off"
-              style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-            <input type="text" id="newGroupId" placeholder="Group ID (từ URL)" autocomplete="off"
-              style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-            <input type="text" id="newGroupName" placeholder="Tên hiển thị" autocomplete="off"
-              style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-            <input type="text" id="newGroupCategory" placeholder="Phân loại (vd: Thời trang)" autocomplete="off"
-              style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-            <button onclick="addFbGroup()"
-              style="grid-column:1 / -1; padding:9px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer; white-space:nowrap;">+ Thêm</button>
+        <!-- Danh sách group (FB + Zalo gộp) -->
+        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:18px; margin-bottom:16px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
+            <h3 style="font-size:15px; color:#1e1e2e; margin:0; display:flex; align-items:center; gap:8px;">
+              <svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-chat"/></svg> Danh sách group
+            </h3>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <div class="group-filter-tabs" style="display:flex; gap:4px; background:#f3f0ff; padding:3px; border-radius:10px;">
+                <button onclick="setGroupFilter('all')" data-filter="all" class="group-filter-tab active"
+                  style="padding:6px 14px; border:none; background:#fff; color:#4f46e5; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer; box-shadow:0 1px 3px rgba(124,102,255,0.15);">Tất cả</button>
+                <button onclick="setGroupFilter('fb')" data-filter="fb" class="group-filter-tab"
+                  style="padding:6px 14px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Facebook</button>
+                <button onclick="setGroupFilter('zalo')" data-filter="zalo" class="group-filter-tab"
+                  style="padding:6px 14px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Zalo</button>
+              </div>
+              <button onclick="openGroupModal('add')"
+                style="padding:8px 14px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;">+ Thêm group</button>
+            </div>
           </div>
-        </div>
-
-        <!-- Zalo Groups -->
-        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:16px;">
-          <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
-            <span style="width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;color:#0068ff;"><svg class="xi xi-md"><use href="#ic-chat"/></svg></span> Zalo Groups
-          </h3>
-          <p id="noZaloGroupsMsg" style="font-size:13px; color:#999; margin-bottom:10px;">Chưa có group nào.</p>
-          <div id="zaloGroupList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px;"></div>
-          <div style="display:grid; grid-template-columns:1fr 1.4fr; gap:8px;">
-            <input type="text" id="newZaloGroupKey" placeholder="Key (vd: zalo1)" autocomplete="off"
-              style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-            <input type="text" id="newZaloGroupOid" placeholder="Tên nhóm trong Salework" autocomplete="off"
-              style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-            <input type="text" id="newZaloGroupName" placeholder="Tên hiển thị" autocomplete="off"
-              style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-            <input type="text" id="newZaloGroupCategory" placeholder="Phân loại (vd: Thời trang)" autocomplete="off"
-              style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-            <button onclick="addZaloGroup()"
-              style="grid-column:1 / -1; padding:9px 16px; background:#0068ff; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer; white-space:nowrap;">+ Thêm</button>
+          <div id="groupsTableWrap" style="overflow-x:auto;">
+            <table id="groupsTable" style="width:100%; border-collapse:separate; border-spacing:0 4px; font-size:13px;">
+              <thead>
+                <tr style="text-align:left; color:#888; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">
+                  <th style="padding:6px 10px; font-weight:600; width:70px;">Loại</th>
+                  <th style="padding:6px 10px; font-weight:600; width:140px;">Key</th>
+                  <th style="padding:6px 10px; font-weight:600;">Tên hiển thị</th>
+                  <th style="padding:6px 10px; font-weight:600; width:160px;">Phân loại</th>
+                  <th style="padding:6px 10px; font-weight:600; width:96px; text-align:right;">Hành động</th>
+                </tr>
+              </thead>
+              <tbody id="groupsTableBody"></tbody>
+            </table>
+            <p id="noGroupsMsg" style="font-size:13px; color:#999; margin:16px 0 0; text-align:center; display:none;">Chưa có group nào. Bấm "+ Thêm group" để bắt đầu.</p>
           </div>
-        </div>
-
         </div>
 
         <!-- Gán kênh cho từng Profile -->
@@ -1901,6 +1879,64 @@
       <p id="newAccNote" style="font-size:12px; color:#999; margin-top:10px; margin-bottom:0;">
         * Lần đầu thêm tài khoản, Chromium sẽ mở lên để bạn đăng nhập thủ công.
       </p>
+    </div>
+  </div>
+
+  <!-- Modal thêm / chỉnh sửa group -->
+  <div id="groupModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:16px; padding:24px; width:440px; max-width:92%; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <h3 id="groupModalTitle" style="font-size:16px; color:#1e1e2e; margin:0;">➕ Thêm group</h3>
+        <button onclick="closeGroupModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999; line-height:1; padding:0 4px;">×</button>
+      </div>
+
+      <!-- Loại group (chỉ khi thêm mới) -->
+      <div id="groupModalTypeRow" style="margin-bottom:14px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Loại group</label>
+        <div style="display:flex; gap:8px;">
+          <button type="button" onclick="setGroupModalType('fb')" id="groupModalTypeFb"
+            style="flex:1; padding:10px; border:1px solid #e0d4ff; border-radius:8px; background:#f3f0ff; color:#4f46e5; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:16px;height:16px;"> Facebook
+          </button>
+          <button type="button" onclick="setGroupModalType('zalo')" id="groupModalTypeZalo"
+            style="flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff; color:#777; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+            <svg class="xi" style="color:#0068ff;"><use href="#ic-chat"/></svg> Zalo
+          </button>
+        </div>
+      </div>
+
+      <input type="hidden" id="groupModalMode" value="add">
+      <input type="hidden" id="groupModalType" value="fb">
+      <input type="hidden" id="groupModalOriginalKey" value="">
+
+      <div style="margin-bottom:12px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Key</label>
+        <input type="text" id="groupModalKey" placeholder="vd: asale" autocomplete="off"
+          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label id="groupModalIdLabel" style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Group ID (từ URL Facebook)</label>
+        <input type="text" id="groupModalId" placeholder="vd: 350987965423767" autocomplete="off"
+          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Tên hiển thị</label>
+        <input type="text" id="groupModalName" placeholder="vd: Asale" autocomplete="off"
+          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+      </div>
+
+      <div style="margin-bottom:18px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Phân loại</label>
+        <input type="text" id="groupModalCategory" placeholder="vd: Thời trang, Mỹ phẩm, Ralph Lauren..." autocomplete="off"
+          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+      </div>
+
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button onclick="closeGroupModal()" style="padding:9px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
+        <button onclick="saveGroupFromModal()" id="groupModalSaveBtn" style="padding:9px 20px; border:none; border-radius:8px; background:#4f46e5; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">💾 Lưu</button>
+      </div>
     </div>
   </div>
 
@@ -3617,31 +3653,188 @@
         channelsData = { fbGroups: [], zaloGroups: [], profileChannels: {} };
         console.error('Lỗi tải channels:', e);
       }
-      renderFbGroups();
-      renderZaloGroups();
+      renderGroupsTable();
       renderProfileChannels();
     }
 
-    function renderFbGroups() {
-      const list = document.getElementById('fbGroupList');
-      const noMsg = document.getElementById('noFbGroupsMsg');
-      if (!list) return;
-      const groups = channelsData.fbGroups || [];
-      noMsg.style.display = groups.length ? 'none' : '';
-      list.innerHTML = groups.map(g => `
-        <div class="fb-group-row" style="display:grid; grid-template-columns:90px minmax(0,1fr) minmax(0,140px) auto; align-items:center; gap:10px; padding:8px 12px; background:#f8f6ff; border-radius:8px; border:1px solid #e8e4ff;">
-          <span style="font-size:12px; font-weight:700; color:#4f46e5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${g.key}">${g.key}</span>
-          <div style="display:flex; flex-direction:column; min-width:0;">
-            <span style="font-size:13px; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${g.name}</span>
-            <span style="font-size:10.5px; color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${g.id}</span>
-          </div>
-          <input type="text" value="${(g.category || '').replace(/"/g, '&quot;')}" placeholder="Phân loại..."
-            onblur="updateFbGroupCategory('${g.key}', this.value)"
-            onkeydown="if(event.key==='Enter'){this.blur();}"
-            style="font-size:12px; color:#4f46e5; background:#fff; border:1px solid #e0d4ff; border-radius:6px; padding:5px 8px; width:100%; min-width:0;">
-          <button onclick="deleteFbGroup('${g.key}')" style="padding:4px 10px; background:#fff0f0; border:1px solid #fecaca; border-radius:6px; color:#e53e3e; font-size:12px; cursor:pointer;">🗑</button>
-        </div>
-      `).join('');
+    let currentGroupFilter = 'all';
+
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function renderGroupsTable() {
+      const tbody = document.getElementById('groupsTableBody');
+      const empty = document.getElementById('noGroupsMsg');
+      const table = document.getElementById('groupsTable');
+      if (!tbody) return;
+
+      const fb = (channelsData.fbGroups || []).map(g => ({ ...g, _type: 'fb' }));
+      const zalo = (channelsData.zaloGroups || []).map(g => ({ ...g, _type: 'zalo' }));
+      let rows = [...fb, ...zalo];
+      if (currentGroupFilter === 'fb') rows = fb;
+      else if (currentGroupFilter === 'zalo') rows = zalo;
+
+      if (rows.length === 0) {
+        tbody.innerHTML = '';
+        table.style.display = 'none';
+        empty.style.display = '';
+        return;
+      }
+      table.style.display = '';
+      empty.style.display = 'none';
+
+      tbody.innerHTML = rows.map(g => {
+        const isFb = g._type === 'fb';
+        const typeBadge = isFb
+          ? `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e8f1ff; color:#1877f2; border-radius:20px; font-size:11px; font-weight:600;"><img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:12px;height:12px;">FB</span>`
+          : `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e6f2ff; color:#0068ff; border-radius:20px; font-size:11px; font-weight:600;"><svg class="xi" style="width:12px;height:12px;"><use href="#ic-chat"/></svg>Zalo</span>`;
+        const sub = isFb ? `ID: ${escapeHtml(g.id)}` : `Salework: ${escapeHtml(g.oid)}`;
+        const keyColor = isFb ? '#4f46e5' : '#0068ff';
+        const category = g.category ? escapeHtml(g.category) : '<span style="color:#bbb; font-style:italic;">—</span>';
+        return `
+          <tr style="background:#f8f6ff;">
+            <td style="padding:10px; border-top-left-radius:8px; border-bottom-left-radius:8px;">${typeBadge}</td>
+            <td style="padding:10px; font-weight:700; color:${keyColor}; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px;" title="${escapeHtml(g.key)}">${escapeHtml(g.key)}</td>
+            <td style="padding:10px; min-width:0;">
+              <div style="font-size:13px; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(g.name)}</div>
+              <div style="font-size:11px; color:#999; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${sub}</div>
+            </td>
+            <td style="padding:10px; font-size:12px; color:#555;">${category}</td>
+            <td style="padding:10px; text-align:right; border-top-right-radius:8px; border-bottom-right-radius:8px; white-space:nowrap;">
+              <button onclick="openGroupModal('edit','${g._type}','${escapeHtml(g.key)}')" title="Chỉnh sửa"
+                style="padding:5px 9px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; color:#4f46e5; font-size:12px; cursor:pointer; margin-right:4px;">✏️</button>
+              <button onclick="deleteGroup('${g._type}','${escapeHtml(g.key)}')" title="Xoá"
+                style="padding:5px 9px; background:#fff0f0; border:1px solid #fecaca; border-radius:6px; color:#e53e3e; font-size:12px; cursor:pointer;">🗑</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function setGroupFilter(type) {
+      currentGroupFilter = type;
+      document.querySelectorAll('.group-filter-tab').forEach(btn => {
+        const active = btn.dataset.filter === type;
+        btn.style.background = active ? '#fff' : 'transparent';
+        btn.style.color = active ? '#4f46e5' : '#777';
+        btn.style.boxShadow = active ? '0 1px 3px rgba(124,102,255,0.15)' : 'none';
+        btn.classList.toggle('active', active);
+      });
+      renderGroupsTable();
+    }
+
+    async function deleteGroup(type, key) {
+      const label = type === 'fb' ? 'Facebook group' : 'Zalo group';
+      if (!confirm(`Xoá ${label} "${key}"?`)) return;
+      const endpoint = type === 'fb' ? 'fb-groups' : 'zalo-groups';
+      try {
+        await fetch(`${BASE_URL}/api/channels/${endpoint}/${encodeURIComponent(key)}`, { method: 'DELETE' });
+        await loadChannels();
+      } catch (e) { alert('Lỗi: ' + e.message); }
+    }
+
+    function openGroupModal(mode, type, key) {
+      const modal = document.getElementById('groupModal');
+      const title = document.getElementById('groupModalTitle');
+      const typeRow = document.getElementById('groupModalTypeRow');
+      const saveBtn = document.getElementById('groupModalSaveBtn');
+      const keyInput = document.getElementById('groupModalKey');
+
+      document.getElementById('groupModalMode').value = mode;
+      document.getElementById('groupModalOriginalKey').value = '';
+      document.getElementById('groupModalId').value = '';
+      document.getElementById('groupModalName').value = '';
+      document.getElementById('groupModalCategory').value = '';
+      keyInput.value = '';
+      keyInput.readOnly = false;
+      keyInput.style.background = '#fff';
+
+      if (mode === 'edit') {
+        title.textContent = '✏️ Chỉnh sửa group';
+        typeRow.style.display = 'none';
+        saveBtn.textContent = '💾 Lưu thay đổi';
+        const list = type === 'fb' ? (channelsData.fbGroups || []) : (channelsData.zaloGroups || []);
+        const g = list.find(x => x.key === key);
+        if (!g) { alert('Không tìm thấy group'); return; }
+        setGroupModalType(type);
+        keyInput.value = g.key;
+        keyInput.readOnly = true;
+        keyInput.style.background = '#f5f5f7';
+        document.getElementById('groupModalOriginalKey').value = g.key;
+        document.getElementById('groupModalId').value = type === 'fb' ? (g.id || '') : (g.oid || '');
+        document.getElementById('groupModalName').value = g.name || '';
+        document.getElementById('groupModalCategory').value = g.category || '';
+      } else {
+        title.textContent = '➕ Thêm group';
+        typeRow.style.display = '';
+        saveBtn.textContent = '💾 Lưu';
+        setGroupModalType('fb');
+      }
+
+      modal.style.display = 'flex';
+    }
+
+    function closeGroupModal() {
+      document.getElementById('groupModal').style.display = 'none';
+    }
+
+    function setGroupModalType(type) {
+      document.getElementById('groupModalType').value = type;
+      const fbBtn = document.getElementById('groupModalTypeFb');
+      const zaloBtn = document.getElementById('groupModalTypeZalo');
+      const idLabel = document.getElementById('groupModalIdLabel');
+      const idInput = document.getElementById('groupModalId');
+      if (type === 'fb') {
+        fbBtn.style.background = '#f3f0ff'; fbBtn.style.color = '#4f46e5'; fbBtn.style.borderColor = '#e0d4ff';
+        zaloBtn.style.background = '#fff'; zaloBtn.style.color = '#777'; zaloBtn.style.borderColor = '#ddd';
+        idLabel.textContent = 'Group ID (từ URL Facebook)';
+        idInput.placeholder = 'vd: 350987965423767';
+      } else {
+        zaloBtn.style.background = '#e6f2ff'; zaloBtn.style.color = '#0068ff'; zaloBtn.style.borderColor = '#b3d0ff';
+        fbBtn.style.background = '#fff'; fbBtn.style.color = '#777'; fbBtn.style.borderColor = '#ddd';
+        idLabel.textContent = 'Tên nhóm trong Salework';
+        idInput.placeholder = 'vd: TỔNG KHO HÀNG SẴN US - LINH THẢO';
+      }
+    }
+
+    async function saveGroupFromModal() {
+      const mode = document.getElementById('groupModalMode').value;
+      const type = document.getElementById('groupModalType').value;
+      const key = document.getElementById('groupModalKey').value.trim();
+      const idOrOid = document.getElementById('groupModalId').value.trim();
+      const name = document.getElementById('groupModalName').value.trim();
+      const category = document.getElementById('groupModalCategory').value.trim();
+
+      if (!key || !idOrOid || !name) {
+        alert('Vui lòng nhập đầy đủ Key, ' + (type === 'fb' ? 'Group ID' : 'Tên Salework') + ' và Tên hiển thị');
+        return;
+      }
+
+      const endpoint = type === 'fb' ? 'fb-groups' : 'zalo-groups';
+      const payload = type === 'fb'
+        ? { key, id: idOrOid, name, category }
+        : { key, oid: idOrOid, name, category };
+
+      try {
+        let res;
+        if (mode === 'add') {
+          res = await fetch(`${BASE_URL}/api/channels/${endpoint}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        } else {
+          const originalKey = document.getElementById('groupModalOriginalKey').value;
+          res = await fetch(`${BASE_URL}/api/channels/${endpoint}/${encodeURIComponent(originalKey)}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        }
+        const data = await parseJson(res);
+        if (data.error) return alert(data.error);
+        closeGroupModal();
+        await loadChannels();
+      } catch (e) { alert('Lỗi: ' + e.message); }
     }
 
     async function renderProfileChannels() {
@@ -3710,116 +3903,6 @@
         errorEl.style.display = '';
         errorEl.textContent = 'Lỗi tải danh sách profile: ' + e.message;
       }
-    }
-
-    function renderZaloGroups() {
-      const list = document.getElementById('zaloGroupList');
-      const noMsg = document.getElementById('noZaloGroupsMsg');
-      if (!list) return;
-      const groups = channelsData.zaloGroups || [];
-      noMsg.style.display = groups.length ? 'none' : '';
-      list.innerHTML = groups.map(g => `
-        <div class="zalo-group-row" style="display:grid; grid-template-columns:140px minmax(0,1fr) minmax(0,140px) auto; align-items:center; gap:10px; padding:8px 12px; background:#f0f6ff; border-radius:8px; border:1px solid #d0e4ff;">
-          <span style="font-size:12px; font-weight:700; color:#0068ff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${g.key}">${g.key}</span>
-          <div style="display:flex; flex-direction:column; min-width:0;">
-            <span style="font-size:13px; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${g.name}</span>
-            <span style="font-size:10.5px; color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Salework: ${g.oid}</span>
-          </div>
-          <input type="text" value="${(g.category || '').replace(/"/g, '&quot;')}" placeholder="Phân loại..."
-            onblur="updateZaloGroupCategory('${g.key}', this.value)"
-            onkeydown="if(event.key==='Enter'){this.blur();}"
-            style="font-size:12px; color:#0068ff; background:#fff; border:1px solid #b3d0ff; border-radius:6px; padding:5px 8px; width:100%; min-width:0;">
-          <button onclick="deleteZaloGroup('${g.key}')" style="padding:4px 10px; background:#fff0f0; border:1px solid #fecaca; border-radius:6px; color:#e53e3e; font-size:12px; cursor:pointer;">🗑</button>
-        </div>
-      `).join('');
-    }
-
-    async function addZaloGroup() {
-      const key = document.getElementById('newZaloGroupKey').value.trim();
-      const oid = document.getElementById('newZaloGroupOid').value.trim();
-      const name = document.getElementById('newZaloGroupName').value.trim();
-      const category = document.getElementById('newZaloGroupCategory').value.trim();
-      if (!key || !oid || !name) { alert('Vui lòng nhập đầy đủ Key, OID và tên!'); return; }
-      try {
-        const res = await fetch(`${BASE_URL}/api/channels/zalo-groups`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key, oid, name, category }),
-        });
-        const data = await parseJson(res);
-        if (!data.success) throw new Error(data.error);
-        document.getElementById('newZaloGroupKey').value = '';
-        document.getElementById('newZaloGroupOid').value = '';
-        document.getElementById('newZaloGroupName').value = '';
-        document.getElementById('newZaloGroupCategory').value = '';
-        await loadChannels();
-      } catch (e) { alert('Lỗi: ' + e.message); }
-    }
-
-    async function updateZaloGroupCategory(key, category) {
-      const group = (channelsData.zaloGroups || []).find(g => g.key === key);
-      if (!group) return;
-      const next = (category || '').trim();
-      if ((group.category || '') === next) return;
-      try {
-        const res = await fetch(`${BASE_URL}/api/channels/zalo-groups/${encodeURIComponent(key)}`, {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ category: next }),
-        });
-        const data = await parseJson(res);
-        if (data.error) return alert(data.error);
-        group.category = next;
-      } catch (e) { alert('Lỗi: ' + e.message); }
-    }
-
-    async function deleteZaloGroup(key) {
-      if (!confirm(`Xoá Zalo group "${key}"?`)) return;
-      await fetch(`${BASE_URL}/api/channels/zalo-groups/${encodeURIComponent(key)}`, { method: 'DELETE' });
-      await loadChannels();
-    }
-
-    async function addFbGroup() {
-      const key = document.getElementById('newGroupKey').value.trim();
-      const id = document.getElementById('newGroupId').value.trim();
-      const name = document.getElementById('newGroupName').value.trim();
-      const category = document.getElementById('newGroupCategory').value.trim();
-      if (!key || !id || !name) return alert('Vui lòng nhập đầy đủ Key, Group ID và Tên hiển thị');
-      try {
-        const res = await fetch(`${BASE_URL}/api/channels/fb-groups`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key, id, name, category }),
-        });
-        const data = await parseJson(res);
-        if (data.error) return alert(data.error);
-        document.getElementById('newGroupKey').value = '';
-        document.getElementById('newGroupId').value = '';
-        document.getElementById('newGroupName').value = '';
-        document.getElementById('newGroupCategory').value = '';
-        await loadChannels();
-      } catch (e) { alert('Lỗi: ' + e.message); }
-    }
-
-    async function updateFbGroupCategory(key, category) {
-      const group = (channelsData.fbGroups || []).find(g => g.key === key);
-      if (!group) return;
-      const next = (category || '').trim();
-      if ((group.category || '') === next) return;
-      try {
-        const res = await fetch(`${BASE_URL}/api/channels/fb-groups/${encodeURIComponent(key)}`, {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ category: next }),
-        });
-        const data = await parseJson(res);
-        if (data.error) return alert(data.error);
-        group.category = next;
-      } catch (e) { alert('Lỗi: ' + e.message); }
-    }
-
-    async function deleteFbGroup(key, e) {
-      if (e) e.stopPropagation();
-      if (!confirm(`Xoá group "${key}"?`)) return;
-      await fetch(`${BASE_URL}/api/channels/fb-groups/${encodeURIComponent(key)}`, { method: 'DELETE' });
-      await loadChannels();
     }
 
     async function toggleProfileChannel(profileKey, platform, channelKey, checked) {
