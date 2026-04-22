@@ -1,7 +1,7 @@
 /**
  * LOCAL-SERVER.JS - Chạy trên máy local
  * Nhận lệnh từ server ai.basso.vn và chạy Playwright
- * 
+ *
  * Cách dùng: node local-server.js
  */
 
@@ -92,7 +92,6 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
   try {
     if (target === 'all') {
       const results = [];
-      const activeProfile = playwright.getActiveProfile();
 
       logger.info('Đăng lên FB cá nhân...');
       const r = await playwright.postToPersonal(message, imagePaths);
@@ -154,6 +153,51 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
   }
 });
 
+// ===== ĐĂNG ZALO =====
+const zaloJobs = new Map(); // jobId → { status, success, error }
+
+app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
+  const { profile, zaloAccountName, groupName, message } = req.body;
+  const imagePaths = (req.files || []).map(f => f.path);
+  const accountName = zaloAccountName || profile;
+
+  if (!accountName || !groupName) {
+    cleanupFiles(imagePaths);
+    return res.status(400).json({ error: 'Thiếu zaloAccountName/profile hoặc groupName' });
+  }
+
+  // Look up accountKey from zaloAccounts (match by key, name, or saleworkName)
+  const accounts = loadZaloAccounts();
+  const acct = accounts.find(a => a.key === accountName || a.name === accountName || a.saleworkName === accountName);
+  const accountKey = acct ? acct.key : accountName;
+
+  const jobId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  zaloJobs.set(jobId, { status: 'processing' });
+
+  // Respond immediately so cloud proxy never hits 504 timeout
+  res.json({ success: true, processing: true, jobId });
+
+  salework.postToZaloGroup({ zaloAccountName: accountName, accountKey, groupName, message: message || '', imagePaths })
+    .then(result => {
+      cleanupFiles(imagePaths);
+      zaloJobs.set(jobId, { status: 'done', success: result.success, error: result.error || null });
+      if (!result.success) logger.error(`[zalo/post] Thất bại "${groupName}": ${result.error}`);
+      else logger.info(`[zalo/post] Thành công: ${groupName}`);
+    })
+    .catch(err => {
+      cleanupFiles(imagePaths);
+      zaloJobs.set(jobId, { status: 'done', success: false, error: err.message });
+      logger.error(`[zalo/post] Exception: ${err.message}`);
+    });
+});
+
+app.get('/api/zalo/status/:jobId', (req, res) => {
+  const job = zaloJobs.get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Job không tồn tại' });
+  res.json(job);
+  if (job.status === 'done') zaloJobs.delete(req.params.jobId);
+});
+
 // ===== ACCOUNTS =====
 app.post('/api/accounts', (req, res) => {
   const { type, key, name, email, password, saleworkName } = req.body;
@@ -174,12 +218,13 @@ app.post('/api/accounts', (req, res) => {
       fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2));
     } catch {}
 
-    const saleworkProfileDir = salework.SALEWORK_PROFILE;
+    // Each Zalo account gets its own persistent browser profile (Hướng B)
+    const saleworkProfileDir = salework.getSaleworkProfile(key);
     const alreadyLoggedIn = fs.existsSync(saleworkProfileDir);
 
     res.json({ success: true, message: alreadyLoggedIn
-      ? `Đã thêm tài khoản Zalo "${name}". Salework đã đăng nhập sẵn.`
-      : `Đang mở Chromium để đăng nhập Salework. Chờ cửa sổ hiện ra.` });
+      ? `Đã thêm tài khoản Zalo "${name}". Profile Salework đã tồn tại — xoá và thêm lại nếu cần setup lại.`
+      : `Đang mở Chromium để đăng nhập Salework và chọn tài khoản "${name}". Chọn đúng tài khoản xong thì đóng cửa sổ.` });
 
     if (!alreadyLoggedIn) {
       (async () => {
@@ -192,10 +237,10 @@ app.post('/api/accounts', (req, res) => {
             viewport: { width: 1280, height: 720 },
           });
           const page = browser.pages()[0] || await browser.newPage();
-          await page.goto('https://salework.net/login/user18', { waitUntil: 'domcontentloaded', timeout: 30000 });
-          loginHistory.addEntry(key, name, 'login', 'Mở Salework để đăng nhập');
+          await page.goto('https://zalo.salework.net/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+          loginHistory.addEntry(key, name, 'login', 'Mở Salework Zalo để đăng nhập và chọn tài khoản');
           browser.on('close', () => {
-            loginHistory.addEntry(key, name, 'login', 'Đã đóng Salework - session được lưu');
+            loginHistory.addEntry(key, name, 'login', 'Đã đóng Salework - session và tài khoản đã lưu');
           });
         } catch (e) {
           logger.error(`Lỗi mở Salework: ${e.message}`);
@@ -206,10 +251,6 @@ app.post('/api/accounts', (req, res) => {
   }
 
   // Facebook (default)
-  // Respond ngay truoc khi launch Chromium — browser khoi dong + goto
-  // facebook.com co the mat >30s va Cloudflare tunnel cut o 60s. Neu cho
-  // launch xong moi res.json() thi client nhan 504 Gateway Timeout ngay ca
-  // khi Chromium van mo thanh cong o may local.
   // Lưu tên hiển thị + email vào meta ngay (trước khi launch browser)
   const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
   try {
@@ -267,6 +308,9 @@ app.delete('/api/accounts/:type/:key', (req, res) => {
     } else if (type === 'zalo') {
       const accounts = loadZaloAccounts().filter(a => a.key !== key);
       saveZaloAccounts(accounts);
+      // Delete per-account Salework profile so setup runs again on re-add
+      const saleworkProfileDir = salework.getSaleworkProfile(key);
+      if (fs.existsSync(saleworkProfileDir)) fs.rmSync(saleworkProfileDir, { recursive: true, force: true });
     } else {
       return res.status(400).json({ error: 'Loại không hợp lệ' });
     }
@@ -285,12 +329,15 @@ app.get('/api/accounts', (req, res) => {
   const knownNonProfiles = [
     'Crashpad', 'Default', 'GrShaderCache', 'GraphiteDawnCache',
     'ShaderCache', 'Variations', 'component_crx_cache', 'extensions_crx_cache',
-    'segmentation_platform', 'Safe Browsing', 'salework',
+    'segmentation_platform', 'Safe Browsing',
   ];
   try {
     const entries = fs.readdirSync(dataDir, { withFileTypes: true });
     const fbProfiles = entries
-      .filter(e => e.isDirectory() && !knownNonProfiles.includes(e.name) && !e.name.startsWith('.'))
+      .filter(e => e.isDirectory()
+        && !knownNonProfiles.includes(e.name)
+        && !e.name.startsWith('.')
+        && !e.name.startsWith('salework')) // exclude salework and salework-{key} folders
       .map(e => ({
         key: e.name,
         name: (meta[e.name] && meta[e.name].name) || config.profiles[e.name]?.name || e.name,
@@ -406,6 +453,7 @@ app.put('/api/channels/profile-channels', (req, res) => {
   saveChannels(data);
   res.json({ success: true });
 });
+
 // ===== SCREENSHOT =====
 app.get('/api/screenshot', (req, res) => {
   const screenshotPath = path.resolve(__dirname, 'logs/latest-post.png');
