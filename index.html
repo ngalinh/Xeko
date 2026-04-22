@@ -1640,6 +1640,10 @@
                 <button onclick="setGroupFilter('zalo')" data-filter="zalo" class="group-filter-tab"
                   style="padding:6px 14px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Zalo</button>
               </div>
+              <select id="groupCategoryFilter" onchange="setGroupCategoryFilter(this.value)"
+                style="padding:7px 10px; border:1px solid #e0d4ff; border-radius:8px; background:#fff; color:#4f46e5; font-size:12px; font-weight:600; cursor:pointer; min-width:140px;">
+                <option value="">Tất cả phân loại</option>
+              </select>
               <button onclick="openGroupModal('add')"
                 style="padding:8px 14px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;">+ Thêm group</button>
             </div>
@@ -3710,9 +3714,32 @@
     }
 
     let currentGroupFilter = 'all';
+    let currentCategoryFilter = '';
 
     function escapeHtml(s) {
       return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function populateCategoryFilterOptions() {
+      const select = document.getElementById('groupCategoryFilter');
+      if (!select) return;
+      const all = [...(channelsData.fbGroups || []), ...(channelsData.zaloGroups || [])];
+      const cats = [...new Set(all.map(g => (g.category || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
+      const hasUncategorized = all.some(g => !(g.category || '').trim());
+      const prev = currentCategoryFilter;
+      const opts = ['<option value="">Tất cả phân loại</option>'];
+      cats.forEach(c => opts.push(`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`));
+      if (hasUncategorized) opts.push('<option value="__none__">— Chưa phân loại —</option>');
+      select.innerHTML = opts.join('');
+      // Giữ lựa chọn cũ nếu còn hợp lệ
+      const valid = prev === '' || prev === '__none__' || cats.includes(prev);
+      select.value = valid ? prev : '';
+      if (!valid) currentCategoryFilter = '';
+    }
+
+    function setGroupCategoryFilter(value) {
+      currentCategoryFilter = value || '';
+      renderGroupsTable();
     }
 
     function renderGroupsTable() {
@@ -3721,15 +3748,27 @@
       const table = document.getElementById('groupsTable');
       if (!tbody) return;
 
+      populateCategoryFilterOptions();
+
       const fb = (channelsData.fbGroups || []).map(g => ({ ...g, _type: 'fb' }));
       const zalo = (channelsData.zaloGroups || []).map(g => ({ ...g, _type: 'zalo' }));
       let rows = [...fb, ...zalo];
       if (currentGroupFilter === 'fb') rows = fb;
       else if (currentGroupFilter === 'zalo') rows = zalo;
 
+      if (currentCategoryFilter === '__none__') {
+        rows = rows.filter(g => !(g.category || '').trim());
+      } else if (currentCategoryFilter) {
+        rows = rows.filter(g => (g.category || '').trim() === currentCategoryFilter);
+      }
+
       if (rows.length === 0) {
         tbody.innerHTML = '';
         table.style.display = 'none';
+        const hasFilter = currentGroupFilter !== 'all' || currentCategoryFilter !== '';
+        empty.textContent = hasFilter
+          ? 'Không có group nào khớp filter hiện tại.'
+          : 'Chưa có group nào. Bấm "+ Thêm group" để bắt đầu.';
         empty.style.display = '';
         return;
       }
