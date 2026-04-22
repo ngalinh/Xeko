@@ -138,19 +138,44 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     await screenshot(page, '06-message-typed');
 
     // --- Upload images ---
-    // Click nút "Thư viện hình ảnh" (icon ảnh trong toolbar), capture filechooser, set files.
     if (imagePaths && imagePaths.length > 0) {
+      await screenshot(page, '07a-before-upload');
+
+      // Log tất cả buttons/icons trong toolbar để tìm đúng selector
+      const toolbarInfo = await page.evaluate(() => {
+        const els = document.querySelectorAll('button, span[class*="icon"], i[class*="icon"], label');
+        return Array.from(els)
+          .filter(el => el.offsetParent !== null)
+          .map(el => ({
+            tag: el.tagName,
+            class: el.className,
+            title: el.title || el.getAttribute('aria-label') || '',
+            text: el.textContent.trim().slice(0, 30),
+          }))
+          .filter(el => el.title || el.class.includes('icon') || el.class.includes('upload') || el.class.includes('image') || el.class.includes('photo'));
+      });
+      logger.info(`[salework] Toolbar elements: ${JSON.stringify(toolbarInfo)}`);
+
       try {
         const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 8000 });
 
+        // Thử nhiều selector — tooltip của Salework có thể là title, aria-label, hoặc class
         const uploadClicked = await tryClick(page, [
           '[title*="Thư viện hình ảnh"]',
           '[title*="hình ảnh"]',
           '[title*="Hình ảnh"]',
           '[aria-label*="hình ảnh"]',
           '[aria-label*="Hình ảnh"]',
-          '[title*="image"]',
-          '[title*="photo"]',
+          '.el-icon-picture',
+          '.el-icon-image',
+          'i[class*="picture"]',
+          'i[class*="image"]',
+          'i[class*="photo"]',
+          '[class*="image-upload"]',
+          '[class*="ImageUpload"]',
+          '[class*="gallery"]',
+          'input[type="file"] + label',
+          'label[for*="file"]',
         ], 4000);
 
         if (uploadClicked) {
@@ -158,10 +183,20 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
           await fileChooser.setFiles(imagePaths);
           await page.waitForTimeout(2000);
           await screenshot(page, '07-images-attached');
+          logger.info(`[salework] Đã upload ${imagePaths.length} ảnh`);
         } else {
           fileChooserPromise.catch(() => {});
-          logger.warn('[salework] Không tìm thấy nút "Thư viện hình ảnh" — bỏ qua ảnh');
-          await screenshot(page, '07-no-upload-btn');
+          // Fallback: setInputFiles trực tiếp trên hidden file input
+          const fileInput = page.locator('input[type="file"]').first();
+          if (await fileInput.count() > 0) {
+            await fileInput.setInputFiles(imagePaths);
+            await page.waitForTimeout(2000);
+            await screenshot(page, '07-images-via-input');
+            logger.info(`[salework] Upload ảnh qua file input trực tiếp`);
+          } else {
+            logger.warn('[salework] Không tìm thấy nút upload ảnh — xem log toolbar ở trên');
+            await screenshot(page, '07-no-upload-btn');
+          }
         }
       } catch (e) {
         logger.warn(`[salework] Không upload được ảnh: ${e.message}`);
