@@ -627,6 +627,22 @@
       #groupsTable thead th { font-size: 10px !important; padding: 4px 6px !important; }
       #groupsTable tbody td { padding: 8px 6px !important; }
       .group-filter-tabs button { padding: 5px 10px !important; font-size: 11px !important; }
+
+      /* Profile master-detail: stack sidebar lên trên, cuộn ngang */
+      #profileChannelMaster {
+        grid-template-columns: 1fr !important;
+        min-height: 0 !important;
+      }
+      #profileSidebar {
+        flex-direction: row !important;
+        max-height: none !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        padding: 6px !important;
+      }
+      #profileSidebar button {
+        flex-shrink: 0;
+      }
     }
 
     /* ================================================================
@@ -1668,9 +1684,16 @@
         <!-- Gán kênh cho từng Profile -->
         <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px;">
           <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:4px; display:flex; align-items:center; gap:8px;"><svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-user"/></svg> Gán kênh cho từng Profile</h3>
-          <p style="font-size:12px; color:#999; margin-bottom:16px;">Tick các kênh muốn tự động đăng bài. Lưu 1 lần, mỗi lần đăng không cần chọn lại.</p>
-          <div id="profileChannelError" style="color:#e53e3e; font-size:13px; display:none;">Lỗi tải danh sách profile</div>
-          <div id="profileChannelList" style="display:flex; flex-direction:column; gap:14px;"></div>
+          <p style="font-size:12px; color:#999; margin-bottom:14px;">Chọn profile bên trái rồi tick các kênh muốn tự động đăng bài.</p>
+          <div id="profileChannelError" style="color:#e53e3e; font-size:13px; display:none; margin-bottom:10px;">Lỗi tải danh sách profile</div>
+          <div id="profileChannelMaster" style="display:grid; grid-template-columns:240px 1fr; gap:14px; min-height:320px;">
+            <!-- Sidebar -->
+            <div id="profileSidebar" class="profile-sidebar" style="background:#f8f6ff; border:1px solid #e8e4ff; border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:4px; overflow-y:auto; max-height:560px;"></div>
+            <!-- Detail panel -->
+            <div id="profileDetail" style="background:#fcfbff; border:1px solid #e8e4ff; border-radius:10px; padding:16px; min-height:320px;">
+              <p style="color:#999; font-size:13px; margin:0;">Chưa có profile nào.</p>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -3928,72 +3951,193 @@
       } catch (e) { alert('Lỗi: ' + e.message); }
     }
 
+    let profilesCache = [];
+    let zaloAccountsCache = [];
+    let selectedProfileKey = null;
+    let profileDetailSearch = '';
+    let profileDetailCategoryFilter = '';
+
     async function renderProfileChannels() {
-      const container = document.getElementById('profileChannelList');
+      const sidebar = document.getElementById('profileSidebar');
+      const detail = document.getElementById('profileDetail');
       const errorEl = document.getElementById('profileChannelError');
-      if (!container) return;
+      if (!sidebar || !detail) return;
       errorEl.style.display = 'none';
       try {
         const res = await fetch(`${BASE_URL}/api/accounts`);
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await parseJson(res);
-        const profiles = data.facebook || [];
-        if (profiles.length === 0) {
-          container.innerHTML = '<p style="color:#999;font-size:13px;">Chưa có profile Facebook nào.</p>';
+        profilesCache = data.facebook || [];
+        zaloAccountsCache = (data.zalo || []).map(z => z.saleworkName).filter(Boolean);
+
+        if (profilesCache.length === 0) {
+          sidebar.innerHTML = '<p style="color:#999; font-size:13px; padding:12px; text-align:center;">Chưa có profile</p>';
+          detail.innerHTML = '<p style="color:#999; font-size:13px; margin:0;">Chưa có profile Facebook nào.</p>';
           return;
         }
-        const fbGroups = channelsData.fbGroups || [];
-        const zaloGroups = channelsData.zaloGroups || [];
-        const zaloAccounts = (data.zalo || []).map(z => z.saleworkName).filter(Boolean);
-        container.innerHTML = profiles.map(p => {
-          const pCh = (channelsData.profileChannels || {})[p.key] || { fbGroups: [], zaloGroups: [], zaloAccount: '' };
-          const assignedZaloGroups = pCh.zaloGroups || [];
-          const assignedZaloAccount = pCh.zaloAccount || '';
-          const zaloAccountOptions = ['', ...zaloAccounts].map(acc =>
-            `<option value="${acc}" ${assignedZaloAccount === acc ? 'selected' : ''}>${acc || '-- Chọn tài khoản Zalo --'}</option>`
-          ).join('');
-          return `
-            <div style="padding:14px; background:#f8f6ff; border-radius:10px; border:1px solid #e8e4ff;">
-              <div style="font-size:14px; font-weight:600; color:#4f46e5; margin-bottom:10px; display:flex; align-items:center; gap:6px;">${xekoIcon('user')} ${p.name}</div>
-              ${fbGroups.length > 0 ? `
-                <div style="font-size:12px; color:#666; margin-bottom:7px; font-weight:600; display:flex; align-items:center; gap:6px;">${xekoIcon('fb')} Facebook Groups:</div>
-                <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-                  ${fbGroups.map(g => `
-                    <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; padding:5px 12px; background:#fff; border-radius:20px; border:1px solid #e0d4ff; user-select:none;">
-                      <input type="checkbox" ${(pCh.fbGroups || []).includes(g.key) ? 'checked' : ''}
-                        onchange="toggleProfileChannel('${p.key}','fb','${g.key}',this.checked)" style="cursor:pointer;"> ${g.name}
-                    </label>
-                  `).join('')}
-                </div>
-              ` : '<p style="font-size:12px; color:#aaa; margin-bottom:12px;">Chưa có group Facebook nào được cấu hình.</p>'}
-              <div style="border-top:1px solid #e0d4ff; padding-top:10px;">
-                <div style="font-size:12px; color:#666; margin-bottom:7px; font-weight:600; display:flex; align-items:center; gap:6px;">${xekoIcon('chat')} Zalo:</div>
-                <div style="margin-bottom:8px;">
-                  <label style="font-size:12px; color:#555; display:block; margin-bottom:4px;">Tài khoản Zalo (Salework):</label>
-                  <select onchange="setProfileZaloAccount('${p.key}', this.value)"
-                    style="padding:6px 10px; border:1px solid #b3d0ff; border-radius:8px; font-size:13px; background:#fff; color:#333; min-width:200px; cursor:pointer;">
-                    ${zaloAccountOptions}
-                  </select>
-                </div>
-                ${zaloGroups.length > 0 ? `
-                  <div style="font-size:12px; color:#555; margin-bottom:6px;">Zalo Groups:</div>
-                  <div style="display:flex; flex-wrap:wrap; gap:8px;">
-                    ${zaloGroups.map(g => `
-                      <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; padding:5px 12px; background:#fff; border-radius:20px; border:1px solid #b3d0ff; user-select:none;">
-                        <input type="checkbox" ${assignedZaloGroups.includes(g.key) ? 'checked' : ''}
-                          onchange="toggleProfileChannel('${p.key}','zalo','${g.key}',this.checked)" style="cursor:pointer;"> ${g.name}
-                      </label>
-                    `).join('')}
-                  </div>
-                ` : '<p style="font-size:12px; color:#aaa;">Chưa có Zalo group nào được cấu hình.</p>'}
-              </div>
-            </div>
-          `;
-        }).join('');
+
+        if (!selectedProfileKey || !profilesCache.find(p => p.key === selectedProfileKey)) {
+          selectedProfileKey = profilesCache[0].key;
+        }
+        renderProfileSidebar();
+        renderProfileDetail();
       } catch (e) {
         errorEl.style.display = '';
         errorEl.textContent = 'Lỗi tải danh sách profile: ' + e.message;
       }
+    }
+
+    function renderProfileSidebar() {
+      const sidebar = document.getElementById('profileSidebar');
+      if (!sidebar) return;
+      sidebar.innerHTML = profilesCache.map(p => {
+        const pCh = (channelsData.profileChannels || {})[p.key] || { fbGroups: [], zaloGroups: [], zaloAccount: '' };
+        const fbCount = (pCh.fbGroups || []).length;
+        const zaloCount = (pCh.zaloGroups || []).length;
+        const active = p.key === selectedProfileKey;
+        return `
+          <button type="button" onclick="selectProfile('${escapeHtml(p.key)}')"
+            style="display:flex; align-items:center; gap:8px; padding:9px 10px; border:none; border-radius:8px; cursor:pointer; text-align:left;
+              background:${active ? '#fff' : 'transparent'}; box-shadow:${active ? '0 2px 8px rgba(124,102,255,0.12)' : 'none'};
+              font-size:13px; font-weight:${active ? '600' : '500'}; color:${active ? '#4f46e5' : '#444'};">
+            <span style="width:6px; height:6px; border-radius:50%; background:${active ? '#7c66ff' : '#d0c7ff'}; flex-shrink:0;"></span>
+            <span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span>
+            <span style="font-size:10.5px; color:${active ? '#7c66ff' : '#aaa'}; font-weight:600; white-space:nowrap;">${fbCount}·${zaloCount}</span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selectProfile(key) {
+      selectedProfileKey = key;
+      renderProfileSidebar();
+      renderProfileDetail();
+    }
+
+    function renderProfileDetail() {
+      const detail = document.getElementById('profileDetail');
+      if (!detail) return;
+      const p = profilesCache.find(x => x.key === selectedProfileKey);
+      if (!p) { detail.innerHTML = '<p style="color:#999; font-size:13px; margin:0;">Chọn một profile bên trái.</p>'; return; }
+
+      const pCh = (channelsData.profileChannels || {})[p.key] || { fbGroups: [], zaloGroups: [], zaloAccount: '' };
+      const assignedZaloAccount = pCh.zaloAccount || '';
+      const zaloAccountOptions = ['', ...zaloAccountsCache].map(acc =>
+        `<option value="${escapeHtml(acc)}" ${assignedZaloAccount === acc ? 'selected' : ''}>${acc || '-- Chọn tài khoản Zalo --'}</option>`
+      ).join('');
+
+      // Category dropdown options từ tất cả group
+      const allGroupsRaw = [...(channelsData.fbGroups || []), ...(channelsData.zaloGroups || [])];
+      const cats = [...new Set(allGroupsRaw.map(g => (g.category || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
+      const hasUncat = allGroupsRaw.some(g => !(g.category || '').trim());
+      const catOpts = ['<option value="">Tất cả phân loại</option>',
+        ...cats.map(c => `<option value="${escapeHtml(c)}" ${profileDetailCategoryFilter === c ? 'selected' : ''}>${escapeHtml(c)}</option>`),
+        hasUncat ? `<option value="__none__" ${profileDetailCategoryFilter === '__none__' ? 'selected' : ''}>— Chưa phân loại —</option>` : ''
+      ].join('');
+
+      detail.innerHTML = `
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+          <div style="font-size:15px; font-weight:600; color:#4f46e5; display:flex; align-items:center; gap:6px; min-width:0;">
+            ${xekoIcon('user')} <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(p.name)}</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:12px; color:#777;">Zalo Salework:</span>
+            <select onchange="setProfileZaloAccount('${escapeHtml(p.key)}', this.value)"
+              style="padding:6px 10px; border:1px solid #b3d0ff; border-radius:8px; font-size:12px; background:#fff; color:#333; min-width:180px; cursor:pointer;">
+              ${zaloAccountOptions}
+            </select>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+          <input type="text" id="profileDetailSearchInput" value="${escapeHtml(profileDetailSearch)}" placeholder="🔍 Tìm group..."
+            oninput="profileDetailSearch = this.value; renderProfileDetailSections();"
+            style="flex:1; min-width:180px; padding:7px 12px; border:1px solid #e0d4ff; border-radius:8px; font-size:13px; background:#fff;">
+          <select onchange="profileDetailCategoryFilter = this.value; renderProfileDetailSections();"
+            style="padding:7px 10px; border:1px solid #e0d4ff; border-radius:8px; background:#fff; color:#4f46e5; font-size:12px; font-weight:600; cursor:pointer; min-width:140px;">
+            ${catOpts}
+          </select>
+        </div>
+        <div id="profileDetailSections" style="max-height:440px; overflow-y:auto; padding-right:4px;"></div>
+      `;
+      renderProfileDetailSections();
+    }
+
+    function renderProfileDetailSections() {
+      const container = document.getElementById('profileDetailSections');
+      if (!container) return;
+      const p = profilesCache.find(x => x.key === selectedProfileKey);
+      if (!p) return;
+      const pCh = (channelsData.profileChannels || {})[p.key] || { fbGroups: [], zaloGroups: [], zaloAccount: '' };
+      const assignedFb = new Set(pCh.fbGroups || []);
+      const assignedZalo = new Set(pCh.zaloGroups || []);
+
+      const fbAll = (channelsData.fbGroups || []).map(g => ({ ...g, _type: 'fb' }));
+      const zaloAll = (channelsData.zaloGroups || []).map(g => ({ ...g, _type: 'zalo' }));
+      let allGroups = [...fbAll, ...zaloAll];
+
+      const q = profileDetailSearch.toLowerCase().trim();
+      if (q) allGroups = allGroups.filter(g =>
+        (g.name || '').toLowerCase().includes(q) ||
+        (g.key || '').toLowerCase().includes(q) ||
+        (g.category || '').toLowerCase().includes(q)
+      );
+      if (profileDetailCategoryFilter === '__none__') {
+        allGroups = allGroups.filter(g => !(g.category || '').trim());
+      } else if (profileDetailCategoryFilter) {
+        allGroups = allGroups.filter(g => (g.category || '').trim() === profileDetailCategoryFilter);
+      }
+
+      const sections = {};
+      allGroups.forEach(g => {
+        const cat = (g.category || '').trim() || 'Chưa phân loại';
+        const label = (g._type === 'fb' ? 'Facebook' : 'Zalo') + ' · ' + cat;
+        if (!sections[label]) sections[label] = { type: g._type, cat, items: [] };
+        sections[label].items.push(g);
+      });
+      const sectionKeys = Object.keys(sections).sort((a, b) => {
+        const ta = sections[a].type, tb = sections[b].type;
+        if (ta !== tb) return ta === 'fb' ? -1 : 1;
+        return sections[a].cat.localeCompare(sections[b].cat, 'vi');
+      });
+
+      if (sectionKeys.length === 0) {
+        container.innerHTML = '<p style="color:#aaa; font-size:13px; margin:12px 0;">Không có group nào khớp.</p>';
+        return;
+      }
+
+      container.innerHTML = sectionKeys.map(label => {
+        const s = sections[label];
+        const isFb = s.type === 'fb';
+        const icon = isFb
+          ? `<img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:13px;height:13px;">`
+          : `<svg class="xi" style="width:13px;height:13px; color:#0068ff;"><use href="#ic-chat"/></svg>`;
+        const accent = isFb ? '#4f46e5' : '#0068ff';
+        return `
+          <div style="margin-bottom:14px;">
+            <div style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:${accent}; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; padding-bottom:4px; border-bottom:1px dashed ${isFb ? '#e0d4ff' : '#b3d0ff'};">
+              ${icon} ${escapeHtml(label)}
+            </div>
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              ${s.items.map(g => {
+                const checked = isFb ? assignedFb.has(g.key) : assignedZalo.has(g.key);
+                const sub = isFb ? (g.id || '') : ('Salework: ' + (g.oid || ''));
+                const bg = checked ? (isFb ? '#f3f0ff' : '#e6f2ff') : 'transparent';
+                return `
+                  <label style="display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:6px; cursor:pointer; user-select:none; background:${bg};">
+                    <input type="checkbox" ${checked ? 'checked' : ''}
+                      onchange="toggleProfileChannel('${escapeHtml(p.key)}','${s.type}','${escapeHtml(g.key)}',this.checked); renderProfileSidebar(); renderProfileDetailSections();"
+                      style="cursor:pointer; accent-color:${accent};">
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:13px; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(g.name)}</div>
+                      <div style="font-size:11px; color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(g.key)} · ${escapeHtml(sub)}</div>
+                    </div>
+                  </label>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
     }
 
     async function toggleProfileChannel(profileKey, platform, channelKey, checked) {
