@@ -376,7 +376,12 @@
       color: #999; font-size: 13px; font-weight: 500;
       cursor: pointer; border-bottom: 2px solid transparent;
       transition: all 0.15s; margin-bottom: -14px;
+      display: inline-flex; align-items: center; gap: 6px;
     }
+    .msg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+    .channel-platform-toggle { display: inline-flex; align-items: center; gap: 6px; }
+    .channel-profile-header { display: flex; align-items: center; gap: 6px; }
+    .channel-item { align-items: center; }
     .acc-tab:hover { color: #4f46e5; }
     .acc-tab.active { color: #4f46e5; border-bottom-color: #4f46e5; }
 
@@ -1410,6 +1415,53 @@
         <path d="M22 2 11 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M22 2 15 22l-4-9-9-4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
       </symbol>
+      <symbol id="ic-user" viewBox="0 0 24 24">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-fb" viewBox="0 0 24 24">
+        <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" fill="currentColor" stroke="none"/>
+      </symbol>
+      <symbol id="ic-chat" viewBox="0 0 24 24">
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-phone" viewBox="0 0 24 24">
+        <rect x="5" y="2" width="14" height="20" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-link" viewBox="0 0 24 24">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-check" viewBox="0 0 24 24">
+        <path d="m5 12 5 5L20 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-refresh" viewBox="0 0 24 24">
+        <path d="M23 4v6h-6M1 20v-6h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-clipboard" viewBox="0 0 24 24">
+        <rect x="8" y="2" width="8" height="4" rx="1" ry="1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M9 12h6M9 16h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-settings" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-scroll" viewBox="0 0 24 24">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M14 2v6h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M8 13h8M8 17h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-clock" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="ic-pin" viewBox="0 0 24 24">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12" cy="10" r="3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
     </defs>
   </svg>
 
@@ -1534,9 +1586,9 @@
 
       <!-- Tab navigation -->
       <div class="acc-tab-bar" style="display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid #eee; padding-bottom:12px; flex-wrap:wrap;">
-        <button onclick="switchAccountTab('profiles')" class="acc-tab active" id="tabProfiles">📋 Tài khoản</button>
-        <button onclick="switchAccountTab('channels')" class="acc-tab" id="tabChannels">⚙️ Cài đặt kênh</button>
-        <button onclick="switchAccountTab('history')" class="acc-tab" id="tabHistory">📜 Lịch sử</button>
+        <button onclick="switchAccountTab('profiles')" class="acc-tab active" id="tabProfiles"><svg class="xi"><use href="#ic-clipboard"/></svg> Tài khoản</button>
+        <button onclick="switchAccountTab('channels')" class="acc-tab" id="tabChannels"><svg class="xi"><use href="#ic-settings"/></svg> Cài đặt kênh</button>
+        <button onclick="switchAccountTab('history')" class="acc-tab" id="tabHistory"><svg class="xi"><use href="#ic-scroll"/></svg> Lịch sử</button>
       </div>
 
       <!-- Tab: Danh sach tai khoan -->
@@ -1586,7 +1638,7 @@
         <!-- Zalo Groups -->
         <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px; margin-bottom:20px;">
           <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:6px; display:flex; align-items:center; gap:8px;">
-            <span style="width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;">💬</span> Zalo Groups
+            <span style="width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;color:#0068ff;"><svg class="xi xi-md"><use href="#ic-chat"/></svg></span> Zalo Groups
           </h3>
           <p id="noZaloGroupsMsg" style="font-size:13px; color:#999; margin-bottom:12px;">Chưa có group nào.</p>
           <div id="zaloGroupList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;"></div>
@@ -1604,7 +1656,7 @@
 
         <!-- Gán kênh cho từng Profile -->
         <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px;">
-          <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:4px;">👤 Gán kênh cho từng Profile</h3>
+          <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:4px; display:flex; align-items:center; gap:8px;"><svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-user"/></svg> Gán kênh cho từng Profile</h3>
           <p style="font-size:12px; color:#999; margin-bottom:16px;">Tick các kênh muốn tự động đăng bài. Lưu 1 lần, mỗi lần đăng không cần chọn lại.</p>
           <div id="profileChannelError" style="color:#e53e3e; font-size:13px; display:none;">Lỗi tải danh sách profile</div>
           <div id="profileChannelList" style="display:flex; flex-direction:column; gap:14px;"></div>
@@ -1619,8 +1671,8 @@
           <select id="historyFilter" onchange="loadLoginHistory()" style="padding:6px 12px; border-radius:6px; border:1px solid #ddd; font-size:13px; background:#fff;">
             <option value="">Tất cả profile</option>
           </select>
-          <button onclick="loadLoginHistory()" style="padding:6px 14px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; font-size:13px; cursor:pointer; color:#4f46e5;">
-            🔄 Làm mới
+          <button onclick="loadLoginHistory()" style="padding:6px 14px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; font-size:13px; cursor:pointer; color:#4f46e5; display:inline-flex; align-items:center; gap:6px;">
+            <svg class="xi"><use href="#ic-refresh"/></svg> Làm mới
           </button>
         </div>
         <div id="loginHistoryList" style="display:flex; flex-direction:column; gap:6px;"></div>
@@ -1918,6 +1970,11 @@
 
     const BOT_AVATAR = 'https://raw.githubusercontent.com/ngalinh/Xeko/main/xeko-avatar.png';
 
+    /** Return inline SVG icon markup referencing the sprite. */
+    function xekoIcon(name, cls = 'xi') {
+      return `<svg class="${cls}" aria-hidden="true"><use href="#ic-${name}"/></svg>`;
+    }
+
     function buildPhotoGrid(photos) {
       if (!photos || photos.length === 0) return '';
       const maxShow = Math.min(photos.length, 5);
@@ -2017,7 +2074,7 @@
       addBot(
         'Xin chào! Mình là <strong>Xeko</strong> - trợ lý đăng bài Facebook tự động.\nBạn muốn làm gì?',
         [
-          { label: '👤 Chọn Profile', action: 'showProfileSelect()' },
+          { label: `${xekoIcon('user')} Chọn Profile`, action: 'showProfileSelect()' },
         ]
       );
     }
@@ -2030,7 +2087,7 @@
         const res = await fetch(BASE_URL + '/api/accounts');
         const data = await parseJson(res);
         const buttons = data.facebook.map(p => ({
-          label: `👩 ${p.name}`,
+          label: `${xekoIcon('user')} ${p.name}`,
           action: `selectProfile('${p.key}')`,
         }));
         addBot('Hãy chọn profile trình duyệt để đăng bài:', buttons);
@@ -2056,9 +2113,9 @@
         addBot(
           `Đã chọn profile: <strong>${data.name}</strong>\nBạn muốn đăng bài ngay hay lên lịch?`,
           [
-            { label: '📝 Đăng ngay', action: "selectMode('now')" },
-            { label: '⏰ Lên lịch', action: "selectMode('schedule')" },
-            { label: '🔄 Đổi Profile', action: 'showProfileSelect()' },
+            { label: `${xekoIcon('post')} Đăng ngay`, action: "selectMode('now')" },
+            { label: `${xekoIcon('clock')} Lên lịch`, action: "selectMode('schedule')" },
+            { label: `${xekoIcon('refresh')} Đổi Profile`, action: 'showProfileSelect()' },
           ]
         );
         step = 'mode';
@@ -2091,14 +2148,14 @@
       return {
         label: profileName || profileKey,
         fb: [
-          { id: 'personal', name: 'FB Cá nhân', icon: '📱' },
+          { id: 'personal', name: 'FB Cá nhân', icon: xekoIcon('phone') },
           ...allFbGroups
             .filter(g => fbGroupKeys.includes(g.key))
-            .map(g => ({ id: g.key, name: `Group ${g.name}`, icon: '🏪' })),
+            .map(g => ({ id: g.key, name: `Group ${g.name}`, icon: xekoIcon('users') })),
         ],
         zalo: allZaloGroups
           .filter(g => zaloGroupKeys.includes(g.key))
-          .map(g => ({ id: g.key, name: g.name, icon: '💬' })),
+          .map(g => ({ id: g.key, name: g.name, icon: xekoIcon('chat') })),
         zaloAccount,
       };
     }
@@ -2113,7 +2170,7 @@
       await loadChannels();
       channelPanelId++;
       const pid = channelPanelId;
-      const modeIcon = postMode === 'now' ? '📝' : '⏰';
+      const modeIcon = postMode === 'now' ? xekoIcon('post','xi xi-md') : xekoIcon('clock','xi xi-md');
       const modeLabel = postMode === 'now' ? 'Đăng ngay' : 'Lên lịch';
 
       const p = buildTargetChannels(currentProfile, currentProfileName);
@@ -2122,18 +2179,18 @@
       // Platform toggles
       panelHtml += `<div class="channel-platform-row">
         <label class="channel-platform-toggle checked" id="fbToggle_${pid}" onclick="togglePlatform(${pid},'fb')">
-          <input type="checkbox" checked>📘 Facebook
+          <input type="checkbox" checked>${xekoIcon('fb')} Facebook
         </label>`;
       if (p.zalo.length > 0) {
         panelHtml += `<label class="channel-platform-toggle checked" id="zaloToggle_${pid}" onclick="togglePlatform(${pid},'zalo')" style="margin-left:8px;">
-          <input type="checkbox" checked>💬 Zalo
+          <input type="checkbox" checked>${xekoIcon('chat')} Zalo
         </label>`;
       }
       panelHtml += `</div>`;
 
       // Channels for current profile
       panelHtml += `<div class="channel-profile-section">`;
-      panelHtml += `<div class="channel-profile-header">👩 ${p.label}</div>`;
+      panelHtml += `<div class="channel-profile-header">${xekoIcon('user')} ${p.label}</div>`;
 
       for (const ch of p.fb) {
         panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="${ch.id}">
@@ -2143,7 +2200,7 @@
       }
       // Custom group option
       panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="custom">
-        <input type="checkbox" onchange="onChannelChange(${pid}); toggleCustomGroupInput(${pid}, this.checked)"> 🔗 Group khác...
+        <input type="checkbox" onchange="onChannelChange(${pid}); toggleCustomGroupInput(${pid}, this.checked)"> ${xekoIcon('link')} Group khác...
         <span class="ch-tag fb">FB</span>
       </label>`;
       panelHtml += `<div id="customGroupInput_${pid}" style="display:none; padding:4px 14px 10px 38px;">
@@ -2162,8 +2219,8 @@
 
       // Action buttons
       panelHtml += `<div class="msg-buttons" style="margin-top:12px;">
-        <button class="msg-btn" style="background:#4f46e5;color:#fff;font-weight:600;" onclick="confirmChannelSelection(${pid})">✅ Tiếp tục</button>
-        <button class="msg-btn" onclick="showModeSelect()">🔄 Đổi chế độ</button>
+        <button class="msg-btn" style="background:#4f46e5;color:#fff;font-weight:600;" onclick="confirmChannelSelection(${pid})">${xekoIcon('check')} Tiếp tục</button>
+        <button class="msg-btn" onclick="showModeSelect()">${xekoIcon('refresh')} Đổi chế độ</button>
       </div>`;
 
       panelHtml += `</div>`;
@@ -2177,7 +2234,7 @@
         <div class="msg-wrapper">
           <div class="msg-header">Xeko <span class="time">${now()}</span></div>
           <div class="msg bot">
-            <strong>${modeIcon} Đăng bài</strong> — Chế độ: ${modeLabel}<br>
+            <strong style="display:inline-flex; align-items:center; gap:6px;">${modeIcon} Đăng bài</strong> — Chế độ: ${modeLabel}<br>
             Chọn kênh đăng bài:
             ${panelHtml}
           </div>
@@ -2326,8 +2383,8 @@
         addBot(
           `Đăng bài lên:\n${summaryText}\n\nNhập nội dung bài viết bên dưới.\nBấm 📷 để đính kèm hình ảnh, rồi nhấn ➤ để gửi.`,
           [
-            { label: '📍 Đổi nơi đăng', action: 'showTargetSelect()' },
-            { label: '🔄 Đổi Profile', action: 'showProfileSelect()' },
+            { label: `${xekoIcon('pin')} Đổi nơi đăng`, action: 'showTargetSelect()' },
+            { label: `${xekoIcon('refresh')} Đổi Profile`, action: 'showProfileSelect()' },
           ]
         );
       }
@@ -2338,8 +2395,8 @@
       addBot(
         'Bạn muốn đăng bài ngay hay lên lịch?',
         [
-          { label: '📝 Đăng ngay', action: "selectMode('now')" },
-          { label: '⏰ Lên lịch', action: "selectMode('schedule')" },
+          { label: `${xekoIcon('post')} Đăng ngay`, action: "selectMode('now')" },
+          { label: `${xekoIcon('clock')} Lên lịch`, action: "selectMode('schedule')" },
         ]
       );
     }
@@ -2364,8 +2421,8 @@
         addBot(
           `Đăng bài lên: <strong>${targetText}</strong>\n\nNhập nội dung bài viết bên dưới.\nBấm 📷 để đính kèm hình ảnh, rồi nhấn ➤ để gửi.`,
           [
-            { label: '📍 Đổi nơi đăng', action: 'showTargetSelect()' },
-            { label: '🔄 Đổi Profile', action: 'showProfileSelect()' },
+            { label: `${xekoIcon('pin')} Đổi nơi đăng`, action: 'showTargetSelect()' },
+            { label: `${xekoIcon('refresh')} Đổi Profile`, action: 'showProfileSelect()' },
           ]
         );
       }
@@ -2489,7 +2546,7 @@
       if (!message && selectedFiles.length === 0) return;
       if (!currentProfile) {
         addBot('Vui lòng chọn profile trước nhé!', [
-          { label: '👤 Chọn Profile', action: 'showProfileSelect()' },
+          { label: `${xekoIcon('user')} Chọn Profile`, action: 'showProfileSelect()' },
         ]);
         return;
       }
@@ -2498,7 +2555,7 @@
       const hasCustomFbSelection = (window._customGroupIds || []).length > 0;
       if (!currentTarget && !hasZaloSelection && !hasCustomFbSelection) {
         addBot('Vui lòng chọn nơi đăng bài!', [
-          { label: '📍 Chọn nơi đăng', action: 'showTargetSelect()' },
+          { label: `${xekoIcon('pin')} Chọn nơi đăng`, action: 'showTargetSelect()' },
         ]);
         return;
       }
@@ -2645,17 +2702,17 @@
 
         // Hien nut tiep tuc
         addBot('Bạn muốn làm gì tiếp?', [
-          { label: '📝 Đăng bài tiếp', action: 'focusInput()' },
-          { label: '📍 Đổi nơi đăng', action: 'showTargetSelect()' },
-          { label: '🔄 Đổi Profile', action: 'showProfileSelect()' },
+          { label: `${xekoIcon('post')} Đăng bài tiếp`, action: 'focusInput()' },
+          { label: `${xekoIcon('pin')} Đổi nơi đăng`, action: 'showTargetSelect()' },
+          { label: `${xekoIcon('refresh')} Đổi Profile`, action: 'showProfileSelect()' },
         ]);
       } catch (e) {
         removeTyping();
         if (isProxyTimeout(e)) {
           addBot('⏳ Bài đang được đăng (có thể mất 1–2 phút). Kiểm tra Facebook sau. Đừng bấm đăng lại để tránh trùng bài.', [
-            { label: '📝 Đăng bài tiếp', action: 'focusInput()' },
-            { label: '📍 Đổi nơi đăng', action: 'showTargetSelect()' },
-            { label: '🔄 Đổi Profile', action: 'showProfileSelect()' },
+            { label: `${xekoIcon('post')} Đăng bài tiếp`, action: 'focusInput()' },
+            { label: `${xekoIcon('pin')} Đổi nơi đăng`, action: 'showTargetSelect()' },
+            { label: `${xekoIcon('refresh')} Đổi Profile`, action: 'showProfileSelect()' },
           ]);
         } else {
           addBot(`Lỗi: ${e.message}`);
@@ -2684,7 +2741,7 @@
       row.innerHTML = `
         <img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko">
         <div class="msg bot">
-          <strong>⏰ Lên lịch đăng bài</strong><br>
+          <strong style="display:inline-flex; align-items:center; gap:6px;">${xekoIcon('clock','xi xi-md')} Lên lịch đăng bài</strong><br>
           Nơi đăng: <strong>${targetText}</strong><br><br>
           Chọn thời gian đăng:<br>
           <input type="datetime-local" id="scheduleTime_${formId}" value="${localISO}" min="${localISO}"
@@ -2692,9 +2749,9 @@
           <br>
           Nhập nội dung bên dưới, đính kèm ảnh (nếu có), rồi bấm <strong>Đặt lịch</strong>.
           <div class="msg-buttons">
-            <button class="msg-btn" onclick="submitSchedule(${formId})">⏰ Đặt lịch</button>
-            <button class="msg-btn" onclick="showTargetSelect()">📍 Đổi nơi đăng</button>
-            <button class="msg-btn" onclick="showModeSelect()">🔄 Đổi chế độ</button>
+            <button class="msg-btn" onclick="submitSchedule(${formId})">${xekoIcon('clock')} Đặt lịch</button>
+            <button class="msg-btn" onclick="showTargetSelect()">${xekoIcon('pin')} Đổi nơi đăng</button>
+            <button class="msg-btn" onclick="showModeSelect()">${xekoIcon('refresh')} Đổi chế độ</button>
           </div>
           <div class="msg-time">${now()}</div>
         </div>`;
@@ -2794,9 +2851,9 @@
           const row = document.createElement('div');
           row.className = 'msg-row bot';
           let btnHtml = '<div class="msg-buttons">';
-          btnHtml += '<button class="msg-btn" onclick="showScheduleList()">📋 Xem lịch đã đặt</button>';
-          btnHtml += '<button class="msg-btn" onclick="showScheduleForm()">⏰ Lên lịch thêm</button>';
-          btnHtml += `<button class="msg-btn" onclick="selectMode('now')">📝 Đăng bài ngay</button>`;
+          btnHtml += `<button class="msg-btn" onclick="showScheduleList()">${xekoIcon('clipboard')} Xem lịch đã đặt</button>`;
+          btnHtml += `<button class="msg-btn" onclick="showScheduleForm()">${xekoIcon('clock')} Lên lịch thêm</button>`;
+          btnHtml += `<button class="msg-btn" onclick="selectMode('now')">${xekoIcon('post')} Đăng bài ngay</button>`;
           btnHtml += '</div>';
           row.innerHTML = `<img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko"><div class="msg bot">${confirmMsg.replace(/\n/g,'<br>')}${photoHtml}${btnHtml}<div class="msg-time">${now()}</div></div>`;
           chat.appendChild(row);
@@ -2821,7 +2878,7 @@
 
         if (schedules.length === 0) {
           addBot('Chưa có lịch nào được đặt.', [
-            { label: '⏰ Lên lịch mới', action: 'showScheduleForm()' },
+            { label: `${xekoIcon('clock')} Lên lịch mới`, action: 'showScheduleForm()' },
           ]);
           return;
         }
@@ -2841,7 +2898,7 @@
           }
         });
 
-        buttons.push({ label: '⏰ Lên lịch mới', action: 'showScheduleForm()' });
+        buttons.push({ label: `${xekoIcon('clock')} Lên lịch mới`, action: 'showScheduleForm()' });
         addBot(msg, buttons);
       } catch (e) {
         removeTyping();
@@ -2856,7 +2913,7 @@
         const data = await parseJson(res);
         if (data.success) {
           addBot(`✅ ${data.message}`, [
-            { label: '📋 Xem lịch', action: 'showScheduleList()' },
+            { label: `${xekoIcon('clipboard')} Xem lịch`, action: 'showScheduleList()' },
           ]);
         } else {
           addBot(`Lỗi: ${data.error}`);
@@ -3213,7 +3270,7 @@
         // FB profiles
         fbContainer.innerHTML = data.facebook.map(p => `
           <div class="profile-card">
-            <div class="avatar">👩</div>
+            <div class="avatar">${xekoIcon('user','xi xi-md')}</div>
             <div class="info">
               <div class="name">${p.name}</div>
               <div class="detail">${p.email || p.key} · Chromium profile: ${p.key}</div>
@@ -3239,13 +3296,13 @@
             fbContainer.parentNode.insertBefore(zaloSection, fbContainer.nextSibling);
           }
           zaloSection.innerHTML = `
-            <h4 style="font-size:13px; color:#999; margin-bottom:10px; margin-top:8px; text-transform:uppercase; letter-spacing:0.5px;">
-              💬 Zalo
+            <h4 style="font-size:13px; color:#999; margin-bottom:10px; margin-top:8px; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:6px;">
+              ${xekoIcon('chat')} Zalo
             </h4>
             <div style="display:flex; flex-direction:column; gap:8px;">
               ${data.zalo.map(z => `
                 <div class="profile-card">
-                  <div class="avatar" style="background:#e8f4ff; color:#0068ff;">💬</div>
+                  <div class="avatar" style="background:#e8f4ff; color:#0068ff;">${xekoIcon('chat','xi xi-md')}</div>
                   <div class="info">
                     <div class="name">${z.name}</div>
                     <div class="detail">Key: ${z.key} · Salework: ${z.saleworkName}</div>
@@ -3580,9 +3637,9 @@
           ).join('');
           return `
             <div style="padding:14px; background:#f8f6ff; border-radius:10px; border:1px solid #e8e4ff;">
-              <div style="font-size:14px; font-weight:600; color:#4f46e5; margin-bottom:10px;">👤 ${p.name}</div>
+              <div style="font-size:14px; font-weight:600; color:#4f46e5; margin-bottom:10px; display:flex; align-items:center; gap:6px;">${xekoIcon('user')} ${p.name}</div>
               ${fbGroups.length > 0 ? `
-                <div style="font-size:12px; color:#666; margin-bottom:7px; font-weight:600;">📘 Facebook Groups:</div>
+                <div style="font-size:12px; color:#666; margin-bottom:7px; font-weight:600; display:flex; align-items:center; gap:6px;">${xekoIcon('fb')} Facebook Groups:</div>
                 <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
                   ${fbGroups.map(g => `
                     <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; padding:5px 12px; background:#fff; border-radius:20px; border:1px solid #e0d4ff; user-select:none;">
@@ -3593,7 +3650,7 @@
                 </div>
               ` : '<p style="font-size:12px; color:#aaa; margin-bottom:12px;">Chưa có group Facebook nào được cấu hình.</p>'}
               <div style="border-top:1px solid #e0d4ff; padding-top:10px;">
-                <div style="font-size:12px; color:#666; margin-bottom:7px; font-weight:600;">💬 Zalo:</div>
+                <div style="font-size:12px; color:#666; margin-bottom:7px; font-weight:600; display:flex; align-items:center; gap:6px;">${xekoIcon('chat')} Zalo:</div>
                 <div style="margin-bottom:8px;">
                   <label style="font-size:12px; color:#555; display:block; margin-bottom:4px;">Tài khoản Zalo (Salework):</label>
                   <select onchange="setProfileZaloAccount('${p.key}', this.value)"
