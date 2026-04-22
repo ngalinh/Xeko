@@ -2548,6 +2548,7 @@
 
       if (!message && selectedFiles.length === 0) return;
       if (!currentProfile) {
+        input.value = '';
         addBot('Bạn chốt profile cho Xeko trước đã nha!', [
           { label: `${xekoIcon('user')} Chọn Profile`, action: 'showProfileSelect()' },
         ]);
@@ -2557,6 +2558,7 @@
       const hasZaloSelection = (zaloSelCheck.zalo || []).length > 0;
       const hasCustomFbSelection = (window._customGroupIds || []).length > 0;
       if (!currentTarget && !hasZaloSelection && !hasCustomFbSelection) {
+        input.value = '';
         addBot('Bạn chọn nơi đăng giúp Xeko với nè!', [
           { label: `${xekoIcon('pin')} Chọn nơi đăng`, action: 'showTargetSelect()' },
         ]);
@@ -2791,7 +2793,10 @@
         return;
       }
       if (!currentProfile) {
-        addBot('Bạn chốt profile trước đã nha!');
+        input.value = '';
+        addBot('Bạn chốt profile cho Xeko trước đã nha!', [
+          { label: `${xekoIcon('user')} Chọn Profile`, action: 'showProfileSelect()' },
+        ]);
         return;
       }
 
@@ -2800,6 +2805,7 @@
       const customIds = window._customGroupIds || [];
       const hasCustomFbSelection = customIds.length > 0;
       if (!currentTarget && !hasZaloSelection && !hasCustomFbSelection) {
+        input.value = '';
         addBot('Bạn chọn nơi đăng trước đã nha!', [
           { label: `${xekoIcon('pin')} Chọn nơi đăng`, action: 'showTargetSelect()' },
         ]);
