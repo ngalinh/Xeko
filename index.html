@@ -2072,7 +2072,7 @@
     function showWelcome() {
       step = 'welcome';
       addBot(
-        'Xeko nè! Mình là trợ lý đăng bài Facebook xịn sò của bạn đây :D\nHôm nay bạn ráng làm content nhiều nhiều để mình đăng tất cả mọi mặt trận nhé!',
+        'Xeko nè! Mình là trợ lý đăng bài Facebook xịn sò của bạn đây 🤗\nHôm nay bạn ráng làm content nhiều nhiều để mình đăng tất cả mọi mặt trận nhé!',
         [
           { label: `${xekoIcon('user')} Chọn Profile`, action: 'showProfileSelect()' },
         ]
@@ -2381,7 +2381,7 @@
         showScheduleForm();
       } else {
         addBot(
-          `Xeko sẽ quẩy lên:\n${summaryText}\n\nBạn soạn content xuống dưới nha, bấm 📷 để kèm ảnh rồi nhấn ➤ là mình đăng liền :D`,
+          `Xeko sẽ quẩy lên:\n${summaryText}\n\nBạn soạn content xuống dưới nha, bấm 📷 để kèm ảnh rồi nhấn ➤ là mình đăng liền 🚀`,
           [
             { label: `${xekoIcon('pin')} Đổi nơi đăng`, action: 'showTargetSelect()' },
             { label: `${xekoIcon('refresh')} Đổi Profile`, action: 'showProfileSelect()' },
@@ -2419,7 +2419,7 @@
         showScheduleForm();
       } else {
         addBot(
-          `Xeko sẽ đăng lên: <strong>${targetText}</strong>\n\nBạn soạn content xuống dưới, kèm ảnh qua 📷 rồi nhấn ➤ là mình quẩy ngay :D`,
+          `Xeko sẽ đăng lên: <strong>${targetText}</strong>\n\nBạn soạn content xuống dưới, kèm ảnh qua 📷 rồi nhấn ➤ là mình quẩy ngay 🚀`,
           [
             { label: `${xekoIcon('pin')} Đổi nơi đăng`, action: 'showTargetSelect()' },
             { label: `${xekoIcon('refresh')} Đổi Profile`, action: 'showProfileSelect()' },
@@ -2691,7 +2691,7 @@
                 addBot(`⏳ Xeko đang đẩy bài lên Zalo <strong>${g.name}</strong> (${zaloAccount})...`);
                 pollZaloJob(zd.jobId, g.name, zaloAccount);
               } else if (zd.success) {
-                addBot(`✅ Zalo <strong>${g.name}</strong> (${zaloAccount}) xong rồi nha, Xeko giỏi chưa :D`);
+                addBot(`✅ Zalo <strong>${g.name}</strong> (${zaloAccount}) xong rồi nha, Xeko giỏi chưa 😎`);
               } else {
                 addBot(`❌ Huhu Zalo <strong>${g.name}</strong> bị lỗi rồi: ${zd.error || 'Không rõ lý do'}`);
               }
@@ -2703,7 +2703,7 @@
         }
 
         // Hien nut tiep tuc
-        addBot('Xeko sẵn sàng quẩy tiếp nè, bạn muốn làm gì nào? :D', [
+        addBot('Xeko sẵn sàng quẩy tiếp nè, bạn muốn làm gì nào? 🔥', [
           { label: `${xekoIcon('post')} Đăng bài tiếp`, action: 'focusInput()' },
           { label: `${xekoIcon('pin')} Đổi nơi đăng`, action: 'showTargetSelect()' },
           { label: `${xekoIcon('refresh')} Đổi Profile`, action: 'showProfileSelect()' },
@@ -2749,7 +2749,7 @@
           <input type="datetime-local" id="scheduleTime_${formId}" value="${localISO}" min="${localISO}"
             style="padding:8px 12px; border-radius:8px; border:1px solid #ddd; background:#f8f8f8; color:#1a1a1a; font-size:14px; margin:8px 0; width:100%;">
           <br>
-          Bạn soạn content xuống dưới, kèm ảnh nếu có, rồi bấm <strong>Đặt lịch</strong> là Xeko canh giờ đăng giúp nha :D
+          Bạn soạn content xuống dưới, kèm ảnh nếu có, rồi bấm <strong>Đặt lịch</strong> là Xeko canh giờ đăng giúp nha ✨
           <div class="msg-buttons">
             <button class="msg-btn" onclick="submitSchedule(${formId})">${xekoIcon('clock')} Đặt lịch</button>
             <button class="msg-btn" onclick="showTargetSelect()">${xekoIcon('pin')} Đổi nơi đăng</button>
