@@ -22,7 +22,7 @@ if (fs.existsSync(envFile)) {
 
 const REMOTE_BOT_URL = process.env.REMOTE_BOT_URL || 'https://ai.basso.vn/b/9cdc3e8d6a564b5e';
 const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
-const CLOUDFLARED = path.resolve(__dirname, 'cloudflared.exe.exe');
+const CLOUDFLARED = path.resolve(__dirname, 'cloudflared.exe');
 
 async function registerUrl(tunnelUrl) {
   const getFetch = async () => {
