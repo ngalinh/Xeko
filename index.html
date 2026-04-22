@@ -1808,6 +1808,7 @@
             <col style="width:260px;">
             <col>
             <col style="width:90px;">
+            <col style="width:90px;">
           </colgroup>
           <thead>
             <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
@@ -1819,6 +1820,7 @@
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Nội dung</th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Ảnh</th>
               <th style="padding:10px 12px; text-align:center; font-weight:600;">Trạng thái</th>
+              <th style="padding:10px 12px; text-align:center; font-weight:600;">Đăng lại</th>
             </tr>
           </thead>
           <tbody id="dashHistoryBody"></tbody>
@@ -1960,6 +1962,58 @@
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button onclick="closeGroupModal()" style="padding:9px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
         <button onclick="saveGroupFromModal()" id="groupModalSaveBtn" style="padding:9px 20px; border:none; border-radius:8px; background:#4f46e5; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">💾 Lưu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal đăng lại bài viết -->
+  <div id="repostModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:16px; padding:28px; width:580px; max-width:95%; max-height:90vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.25); position:relative;">
+      <button onclick="closeRepostModal()" style="position:absolute; top:16px; right:16px; background:none; border:none; font-size:22px; line-height:1; cursor:pointer; color:#999; padding:0;">×</button>
+      <h3 style="font-size:16px; font-weight:700; color:#1e1e2e; margin:0 0 22px;">🔄 Đăng lại bài viết</h3>
+
+      <!-- Tài khoản -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Tài khoản</label>
+        <select id="repostProfile" style="width:100%; padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#333;" disabled></select>
+      </div>
+
+      <!-- Nơi đăng -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Nơi đăng</label>
+        <div id="repostTargetDisplay" style="padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#333;"></div>
+        <div id="repostTargetEdit" style="display:none; gap:8px; flex-wrap:wrap;">
+          <button type="button" onclick="setRepostTarget('personal')" id="repostTargetPersonalBtn" style="padding:8px 18px; border:1px solid #ddd; border-radius:8px; font-size:13px; cursor:pointer; font-weight:500; transition:all 0.15s;">Cá nhân</button>
+          <button type="button" onclick="setRepostTarget('group')" id="repostTargetGroupBtn" style="padding:8px 18px; border:1px solid #ddd; border-radius:8px; font-size:13px; cursor:pointer; font-weight:500; transition:all 0.15s;">Nhóm</button>
+        </div>
+      </div>
+
+      <!-- Group ID -->
+      <div id="repostGroupIdRow" style="margin-bottom:14px; display:none;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">ID Nhóm</label>
+        <div id="repostGroupIdDisplay" style="padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#333;"></div>
+        <input type="text" id="repostGroupIdInput" placeholder="Nhập ID nhóm" style="display:none; width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+      </div>
+
+      <!-- Nội dung -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Nội dung</label>
+        <div id="repostMessageDisplay" style="padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#333; white-space:pre-wrap; max-height:140px; overflow-y:auto; min-height:44px; line-height:1.5;"></div>
+        <textarea id="repostMessageInput" rows="5" placeholder="Nhập nội dung bài viết..." style="display:none; width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; resize:vertical; box-sizing:border-box; line-height:1.5;"></textarea>
+      </div>
+
+      <!-- Hình ảnh -->
+      <div style="margin-bottom:22px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:8px;">Hình ảnh</label>
+        <div id="repostImagesPreview" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+        <p id="repostNoImages" style="margin:0; color:#bbb; font-size:13px; display:none;">Không có ảnh</p>
+      </div>
+
+      <!-- Buttons -->
+      <div style="display:flex; gap:10px; justify-content:flex-end; border-top:1px solid #f3f4f6; padding-top:18px;">
+        <button onclick="closeRepostModal()" style="padding:10px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:14px; cursor:pointer; color:#555; font-weight:500;">Huỷ</button>
+        <button onclick="toggleRepostEdit()" id="repostEditBtn" style="padding:10px 20px; border:1px solid #7c66ff; border-radius:8px; background:#fff; font-size:14px; cursor:pointer; color:#7c66ff; font-weight:600;">✏️ Chỉnh sửa</button>
+        <button onclick="submitRepost()" id="repostSubmitBtn" style="padding:10px 24px; border:none; border-radius:8px; background:#7c66ff; color:#fff; font-size:14px; cursor:pointer; font-weight:600;">🔄 Đăng lại</button>
       </div>
     </div>
   </div>
@@ -4335,7 +4389,8 @@
 
         const tbody = document.getElementById('dashHistoryBody');
         if (data.rows && data.rows.length > 0) {
-          tbody.innerHTML = data.rows.map(row => {
+          window._dashRows = data.rows;
+          tbody.innerHTML = data.rows.map((row, idx) => {
             const d = new Date(row.timestamp);
             const pad = n => String(n).padStart(2,'0');
             const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
@@ -4371,10 +4426,14 @@
               <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msg}</td>
               <td style="padding:10px 12px;">${thumbs}</td>
               <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
+              <td style="padding:10px 12px; text-align:center;">
+                <button onclick="openRepostModal(${idx})" style="padding:4px 10px; border:1px solid #7c66ff; border-radius:6px; background:#fff; color:#7c66ff; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;" onmouseover="this.style.background='#7c66ff';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#7c66ff'">🔄 Đăng lại</button>
+              </td>
             </tr>`;
           }).join('');
         } else {
-          tbody.innerHTML = '<tr><td colspan="8" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
+          window._dashRows = [];
+          tbody.innerHTML = '<tr><td colspan="9" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
         }
 
         // Pagination
@@ -4397,6 +4456,243 @@
     function dashGoPage(page) {
       dashPage = page;
       loadDashHistory();
+    }
+
+    // ===== Repost Modal =====
+    let _repostEditMode = false;
+    let _repostTarget = 'personal';
+    let _repostImages = [];
+
+    async function openRepostModal(idx) {
+      const row = (window._dashRows || [])[idx];
+      if (!row) return;
+
+      _repostEditMode = false;
+      _repostTarget = row.target || 'personal';
+      _repostImages = (Array.isArray(row.images) ? row.images : [])
+        .map(u => u.startsWith('/uploads/') ? '/api/image/' + u.slice('/uploads/'.length) : u);
+
+      // Load accounts into dropdown
+      try {
+        const res = await fetch(BASE_URL + '/api/accounts');
+        const data = await parseJson(res);
+        const profiles = data.facebook || [];
+        const sel = document.getElementById('repostProfile');
+        sel.innerHTML = profiles.length
+          ? profiles.map(p => `<option value="${escapeHtml(p.key)}" ${p.key === row.profile ? 'selected' : ''}>${escapeHtml(p.name || p.key)}</option>`).join('')
+          : `<option value="${escapeHtml(row.profile || '')}">${escapeHtml(row.profile_name || row.profile || '-')}</option>`;
+        sel.disabled = true;
+      } catch (e) {
+        const sel = document.getElementById('repostProfile');
+        sel.innerHTML = `<option value="${escapeHtml(row.profile || '')}">${escapeHtml(row.profile_name || row.profile || '-')}</option>`;
+        sel.disabled = true;
+      }
+
+      // Target display
+      document.getElementById('repostTargetDisplay').textContent = _repostTarget === 'personal' ? 'Cá nhân' : (_repostTarget === 'group' ? 'Nhóm' : _repostTarget);
+      document.getElementById('repostTargetDisplay').style.display = '';
+      document.getElementById('repostTargetEdit').style.display = 'none';
+
+      // Group ID
+      const groupId = row.group_id || row.group_name || '';
+      const groupRow = document.getElementById('repostGroupIdRow');
+      if (_repostTarget !== 'personal' && groupId) {
+        groupRow.style.display = '';
+        document.getElementById('repostGroupIdDisplay').textContent = groupId;
+        document.getElementById('repostGroupIdDisplay').style.display = '';
+        document.getElementById('repostGroupIdInput').value = row.group_id || '';
+        document.getElementById('repostGroupIdInput').style.display = 'none';
+      } else {
+        groupRow.style.display = 'none';
+      }
+
+      // Message
+      const msg = row.message || '';
+      document.getElementById('repostMessageDisplay').textContent = msg || '(không có nội dung)';
+      document.getElementById('repostMessageDisplay').style.display = '';
+      document.getElementById('repostMessageInput').value = msg;
+      document.getElementById('repostMessageInput').style.display = 'none';
+
+      // Edit button reset
+      const editBtn = document.getElementById('repostEditBtn');
+      editBtn.textContent = '✏️ Chỉnh sửa';
+      editBtn.style.background = '#fff';
+
+      // Submit button reset
+      const submitBtn = document.getElementById('repostSubmitBtn');
+      submitBtn.disabled = false;
+      submitBtn.textContent = '🔄 Đăng lại';
+
+      _renderRepostImages();
+      document.getElementById('repostModal').style.display = 'flex';
+    }
+
+    function closeRepostModal() {
+      document.getElementById('repostModal').style.display = 'none';
+      _repostEditMode = false;
+    }
+
+    function _renderRepostImages() {
+      const preview = document.getElementById('repostImagesPreview');
+      const noImg = document.getElementById('repostNoImages');
+      if (_repostImages.length === 0) {
+        preview.innerHTML = '';
+        noImg.style.display = '';
+        return;
+      }
+      noImg.style.display = 'none';
+      preview.innerHTML = _repostImages.map((url, i) => {
+        const fullUrl = url.startsWith('/') ? BASE_URL + url : url;
+        return `<div style="position:relative; display:inline-block;">
+          <a href="${fullUrl}" target="_blank"><img src="${fullUrl}" style="width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid #e5e7eb; display:block;" loading="lazy"></a>
+          ${_repostEditMode ? `<button type="button" onclick="_removeRepostImage(${i})" style="position:absolute; top:-6px; right:-6px; background:#ef4444; color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:13px; cursor:pointer; line-height:1; padding:0; display:flex; align-items:center; justify-content:center;">×</button>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    function _removeRepostImage(i) {
+      _repostImages.splice(i, 1);
+      _renderRepostImages();
+    }
+
+    function setRepostTarget(t) {
+      _repostTarget = t;
+      const groupRow = document.getElementById('repostGroupIdRow');
+      const personalBtn = document.getElementById('repostTargetPersonalBtn');
+      const groupBtn = document.getElementById('repostTargetGroupBtn');
+      const active = 'background:#7c66ff; color:#fff; border-color:#7c66ff;';
+      const inactive = 'background:#fff; color:#333; border-color:#ddd;';
+      personalBtn.style.cssText += t === 'personal' ? active : inactive;
+      groupBtn.style.cssText += t === 'group' ? active : inactive;
+      if (t === 'group') {
+        groupRow.style.display = '';
+        document.getElementById('repostGroupIdDisplay').style.display = 'none';
+        document.getElementById('repostGroupIdInput').style.display = '';
+      } else {
+        groupRow.style.display = 'none';
+      }
+    }
+
+    function toggleRepostEdit() {
+      _repostEditMode = !_repostEditMode;
+      const editBtn = document.getElementById('repostEditBtn');
+
+      // Profile dropdown
+      document.getElementById('repostProfile').disabled = !_repostEditMode;
+
+      // Target toggle
+      const targetDisplay = document.getElementById('repostTargetDisplay');
+      const targetEdit = document.getElementById('repostTargetEdit');
+      if (_repostEditMode) {
+        targetDisplay.style.display = 'none';
+        targetEdit.style.display = 'flex';
+        setRepostTarget(_repostTarget);
+        editBtn.textContent = '👁️ Xem lại';
+        editBtn.style.background = '#f3f4f6';
+      } else {
+        targetDisplay.style.display = '';
+        targetDisplay.textContent = _repostTarget === 'personal' ? 'Cá nhân' : 'Nhóm';
+        targetEdit.style.display = 'none';
+        editBtn.textContent = '✏️ Chỉnh sửa';
+        editBtn.style.background = '#fff';
+      }
+
+      // Group ID fields
+      const groupRow = document.getElementById('repostGroupIdRow');
+      if (_repostTarget !== 'personal') {
+        groupRow.style.display = '';
+        document.getElementById('repostGroupIdDisplay').style.display = _repostEditMode ? 'none' : '';
+        document.getElementById('repostGroupIdInput').style.display = _repostEditMode ? '' : 'none';
+      }
+
+      // Message fields
+      const msgDisplay = document.getElementById('repostMessageDisplay');
+      const msgInput = document.getElementById('repostMessageInput');
+      if (_repostEditMode) {
+        msgDisplay.style.display = 'none';
+        msgInput.style.display = '';
+      } else {
+        msgDisplay.textContent = msgInput.value || '(không có nội dung)';
+        msgDisplay.style.display = '';
+        msgInput.style.display = 'none';
+      }
+
+      _renderRepostImages();
+    }
+
+    async function submitRepost() {
+      const profile = document.getElementById('repostProfile').value;
+      const message = _repostEditMode
+        ? document.getElementById('repostMessageInput').value
+        : document.getElementById('repostMessageInput').value;
+      const groupId = _repostTarget === 'group'
+        ? document.getElementById('repostGroupIdInput').value.trim()
+        : '';
+
+      if (!message && _repostImages.length === 0) {
+        alert('Vui lòng nhập nội dung hoặc có ảnh để đăng!');
+        return;
+      }
+
+      const submitBtn = document.getElementById('repostSubmitBtn');
+      const editBtn = document.getElementById('repostEditBtn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = '⏳ Đang xử lý...';
+      editBtn.disabled = true;
+
+      try {
+        // Switch to selected profile
+        await fetch(BASE_URL + '/api/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profile })
+        });
+
+        const formData = new FormData();
+        formData.append('message', message);
+        formData.append('target', _repostTarget);
+        if (groupId) formData.append('groupId', groupId);
+
+        // Fetch and re-attach original images
+        for (const url of _repostImages) {
+          const fullUrl = url.startsWith('/') ? BASE_URL + url : url;
+          try {
+            const imgRes = await fetch(fullUrl);
+            const blob = await imgRes.blob();
+            const filename = url.split('/').pop() || 'image.jpg';
+            formData.append('images', blob, filename);
+          } catch (e) {
+            console.warn('Không tải được ảnh:', url);
+          }
+        }
+
+        const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: formData });
+        const initial = await parseJson(res);
+
+        let data;
+        if (initial.jobId) {
+          submitBtn.textContent = '⏳ Chờ kết quả...';
+          data = await pollJob(initial.jobId);
+        } else {
+          data = initial;
+        }
+
+        const ok = data.success || (data.results && data.results.some(r => r.success));
+        if (ok) {
+          alert('✅ Đăng lại thành công!');
+          closeRepostModal();
+          loadDashHistory();
+        } else {
+          const err = data.error || (data.results && (data.results.find(r => !r.success) || {}).error) || 'Lỗi không xác định';
+          alert('❌ Đăng thất bại: ' + err);
+        }
+      } catch (e) {
+        alert('❌ Lỗi: ' + e.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '🔄 Đăng lại';
+        editBtn.disabled = false;
+      }
     }
   </script>
 
