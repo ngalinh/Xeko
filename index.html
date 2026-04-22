@@ -2182,7 +2182,7 @@
       if (imgSrc) msgHtml += `<img src="${imgSrc}" alt="screenshot">`;
       if (buttons) {
         msgHtml += '<div class="msg-buttons">';
-        buttons.forEach(b => { msgHtml += `<button class="msg-btn" onclick="${b.action}">${b.label}</button>`; });
+        buttons.forEach((b, i) => { msgHtml += `<button class="msg-btn" data-btn="${i}">${b.label}</button>`; });
         msgHtml += '</div>';
       }
 
@@ -2192,6 +2192,14 @@
           <div class="msg-header">Xeko <span class="time">${now()}</span></div>
           <div class="msg bot">${msgHtml}</div>
         </div>`;
+
+      if (buttons) {
+        row.querySelectorAll('[data-btn]').forEach(btn => {
+          const action = buttons[+btn.dataset.btn].action;
+          btn.addEventListener('click', () => { new Function(action)(); });
+        });
+      }
+
       chat.appendChild(row);
       chat.scrollTop = chat.scrollHeight;
     }
