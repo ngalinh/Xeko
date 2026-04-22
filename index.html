@@ -1386,6 +1386,7 @@
       [data-theme="dark"] .msg-btn { background: #1e1e3a; border-color: #3a3a5a; color: #a78bfa; }
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -1784,6 +1785,28 @@
         </div>
       </div>
 
+      <!-- Chart: bài đăng theo ngày / tài khoản -->
+      <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:20px; margin-bottom:16px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+          <div style="font-weight:600; font-size:14px; color:#1e1e2e;">📊 Bài đăng theo ngày</div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <select id="chartDays" onchange="loadDashChart()" style="padding:6px 10px; border:1px solid #ddd; border-radius:7px; font-size:12px; color:#555;">
+              <option value="7">7 ngày</option>
+              <option value="14">14 ngày</option>
+              <option value="30" selected>30 ngày</option>
+              <option value="60">60 ngày</option>
+            </select>
+            <div style="display:flex; gap:4px;">
+              <button onclick="setChartType('bar')" id="chartTypeBar" style="padding:5px 10px; border:1px solid #7c66ff; border-radius:6px; background:#7c66ff; color:#fff; font-size:12px; cursor:pointer; font-weight:600;">Bar</button>
+              <button onclick="setChartType('line')" id="chartTypeLine" style="padding:5px 10px; border:1px solid #ddd; border-radius:6px; background:#fff; color:#555; font-size:12px; cursor:pointer;">Line</button>
+            </div>
+          </div>
+        </div>
+        <div style="position:relative; height:220px;">
+          <canvas id="dashChart"></canvas>
+        </div>
+      </div>
+
       <!-- Filter bar -->
       <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
         <select id="dashFilterProfile" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
@@ -2033,8 +2056,9 @@
       <!-- Hình ảnh -->
       <div style="margin-bottom:22px;">
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:8px;">Hình ảnh</label>
-        <div id="repostImagesPreview" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+        <div id="repostImagesPreview" style="display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start;"></div>
         <p id="repostNoImages" style="margin:0; color:#bbb; font-size:13px; display:none;">Không có ảnh</p>
+        <input type="file" id="repostImageInput" multiple accept="image/*" style="display:none;" onchange="_addRepostImages(this.files)">
       </div>
 
       <!-- Buttons -->
@@ -4388,10 +4412,76 @@
         }
         filterProfile.value = currentVal;
 
-        // Load history
-        await loadDashHistory();
+        // Load history + chart
+        await Promise.all([loadDashHistory(), loadDashChart()]);
       } catch (e) {
         console.error('Dashboard error:', e);
+      }
+    }
+
+    // ===== Dashboard Chart =====
+    let _dashChart = null;
+    let _chartType = 'bar';
+    const CHART_PALETTE = ['#7c66ff','#06b6d4','#f59e0b','#10b981','#ef4444','#8b5cf6','#ec4899','#f97316'];
+
+    function setChartType(type) {
+      _chartType = type;
+      document.getElementById('chartTypeBar').style.background  = type === 'bar'  ? '#7c66ff' : '#fff';
+      document.getElementById('chartTypeBar').style.color       = type === 'bar'  ? '#fff'    : '#555';
+      document.getElementById('chartTypeBar').style.borderColor = type === 'bar'  ? '#7c66ff' : '#ddd';
+      document.getElementById('chartTypeLine').style.background  = type === 'line' ? '#7c66ff' : '#fff';
+      document.getElementById('chartTypeLine').style.color       = type === 'line' ? '#fff'    : '#555';
+      document.getElementById('chartTypeLine').style.borderColor = type === 'line' ? '#7c66ff' : '#ddd';
+      loadDashChart();
+    }
+
+    async function loadDashChart() {
+      const days = document.getElementById('chartDays')?.value || 30;
+      try {
+        const rows = await fetch(BASE_URL + '/api/statistics/daily-by-profile?days=' + days).then(r => r.json());
+
+        // Build labels (dates) and datasets per profile
+        const dateSet = new Set(rows.map(r => r.date));
+        const dates = [...dateSet].sort();
+        const profileMap = {};
+        rows.forEach(r => {
+          if (!profileMap[r.profile]) profileMap[r.profile] = { name: r.profile_name || r.profile, data: {} };
+          profileMap[r.profile].data[r.date] = r.count;
+        });
+
+        const profiles = Object.keys(profileMap);
+        const datasets = profiles.map((p, i) => ({
+          label: profileMap[p].name,
+          data: dates.map(d => profileMap[p].data[d] || 0),
+          backgroundColor: CHART_PALETTE[i % CHART_PALETTE.length] + (_chartType === 'bar' ? 'cc' : '22'),
+          borderColor: CHART_PALETTE[i % CHART_PALETTE.length],
+          borderWidth: _chartType === 'line' ? 2 : 0,
+          pointRadius: _chartType === 'line' ? 3 : 0,
+          fill: _chartType === 'line',
+          tension: 0.3,
+        }));
+
+        const canvas = document.getElementById('dashChart');
+        if (_dashChart) { _dashChart.destroy(); _dashChart = null; }
+        _dashChart = new Chart(canvas, {
+          type: _chartType === 'line' ? 'line' : 'bar',
+          data: { labels: dates.map(d => d.slice(5)), datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
+              tooltip: { callbacks: { title: t => dates[t[0].dataIndex] } },
+            },
+            scales: {
+              x: { stacked: _chartType === 'bar', grid: { display: false }, ticks: { font: { size: 11 } } },
+              y: { stacked: _chartType === 'bar', beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: '#f3f4f6' } },
+            },
+          },
+        });
+      } catch (e) {
+        console.error('Chart error:', e);
       }
     }
 
@@ -4628,17 +4718,30 @@
     let _repostSelectedChannel = null; // { type:'personal' } | { type:'group', key, id, name }
 
     function _getAccountGroups(profileKey) {
-      const pCh = (channelsData.profileChannels || {})[profileKey] || { fbGroups: [] };
-      const keys = pCh.fbGroups || [];
-      return keys.map(k => (channelsData.fbGroups || []).find(g => g.key === k)).filter(Boolean);
+      const pCh = (channelsData.profileChannels || {})[profileKey] || { fbGroups: [], zaloGroups: [] };
+      const fbGroups = (pCh.fbGroups || [])
+        .map(k => (channelsData.fbGroups || []).find(g => g.key === k))
+        .filter(Boolean)
+        .map(g => ({ ...g, _platform: 'fb' }));
+      const zaloGroups = (pCh.zaloGroups || [])
+        .map(k => (channelsData.zaloGroups || []).find(g => g.key === k))
+        .filter(Boolean)
+        .map(g => ({ ...g, _platform: 'zalo', _zaloAccount: pCh.zaloAccount || '' }));
+      return [...fbGroups, ...zaloGroups];
     }
 
     function _renderRepostChannelList() {
       const profileKey = document.getElementById('repostProfile').value;
       const groups = _getAccountGroups(profileKey);
       const options = [
-        { type: 'personal', label: '🏠 Cá nhân', sub: '' },
-        ...groups.map(g => ({ type: 'group', key: g.key, id: g.id, name: g.name, label: '👥 ' + (g.name || g.key), sub: g.id || '' }))
+        { type: 'personal', platform: 'fb', label: '🏠 Cá nhân', sub: '' },
+        ...groups.map(g => ({
+          type: 'group', platform: g._platform,
+          key: g.key, id: g.id, name: g.name,
+          zaloAccount: g._zaloAccount || '',
+          label: (g._platform === 'zalo' ? '💬 ' : '👥 ') + (g.name || g.key),
+          sub: g._platform === 'zalo' ? 'Zalo' : (g.id || ''),
+        }))
       ];
       window._repostChannelOptions = options;
 
@@ -4665,13 +4768,14 @@
     }
 
     function _onRepostProfileChange() {
-      _repostSelectedChannel = { type: 'personal' };
+      _repostSelectedChannel = { type: 'personal', platform: 'fb' };
       _renderRepostChannelList();
     }
 
     function _channelLabel(ch) {
       if (!ch || ch.type === 'personal') return '🏠 Cá nhân';
-      return '👥 ' + (ch.name || ch.key || ch.id || 'Nhóm');
+      const icon = ch.platform === 'zalo' ? '💬' : '👥';
+      return icon + ' ' + (ch.name || ch.key || ch.id || 'Nhóm');
     }
 
     async function openRepostModal(idx) {
@@ -4740,19 +4844,28 @@
     function _renderRepostImages() {
       const preview = document.getElementById('repostImagesPreview');
       const noImg = document.getElementById('repostNoImages');
-      if (_repostImages.length === 0) {
-        preview.innerHTML = '';
-        noImg.style.display = '';
-        return;
-      }
-      noImg.style.display = 'none';
-      preview.innerHTML = _repostImages.map((url, i) => {
-        const fullUrl = url.startsWith('/') ? BASE_URL + url : url;
-        return `<div style="position:relative; display:inline-block;">
-          <a href="${fullUrl}" target="_blank"><img src="${fullUrl}" style="width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid #e5e7eb; display:block;" loading="lazy"></a>
+      noImg.style.display = (_repostImages.length === 0 && !_repostEditMode) ? '' : 'none';
+
+      const addBtn = _repostEditMode
+        ? `<button type="button" onclick="document.getElementById('repostImageInput').value=''; document.getElementById('repostImageInput').click()"
+            style="width:72px; height:72px; border:2px dashed #d1d5db; border-radius:8px; background:#fafafa; color:#9ca3af; font-size:24px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:border-color 0.15s;"
+            onmouseover="this.style.borderColor='#7c66ff'; this.style.color='#7c66ff';"
+            onmouseout="this.style.borderColor='#d1d5db'; this.style.color='#9ca3af';">+</button>`
+        : '';
+
+      preview.innerHTML = _repostImages.map((item, i) => {
+        const src = item instanceof File ? URL.createObjectURL(item) : (item.startsWith('/') ? BASE_URL + item : item);
+        const href = item instanceof File ? src : src;
+        return `<div style="position:relative; display:inline-block; flex-shrink:0;">
+          <a href="${href}" target="_blank"><img src="${src}" style="width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid #e5e7eb; display:block;" loading="lazy"></a>
           ${_repostEditMode ? `<button type="button" onclick="_removeRepostImage(${i})" style="position:absolute; top:-6px; right:-6px; background:#ef4444; color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:13px; cursor:pointer; line-height:1; padding:0; display:flex; align-items:center; justify-content:center;">×</button>` : ''}
         </div>`;
-      }).join('');
+      }).join('') + addBtn;
+    }
+
+    function _addRepostImages(files) {
+      for (const f of files) _repostImages.push(f);
+      _renderRepostImages();
     }
 
     function _removeRepostImage(i) {
@@ -4799,12 +4912,28 @@
       _renderRepostImages();
     }
 
+    async function _buildRepostFormData(message) {
+      const formData = new FormData();
+      formData.append('message', message);
+      for (const item of _repostImages) {
+        if (item instanceof File) {
+          formData.append('images', item, item.name);
+        } else {
+          const fullUrl = item.startsWith('/') ? BASE_URL + item : item;
+          try {
+            const imgRes = await fetch(fullUrl);
+            const blob = await imgRes.blob();
+            formData.append('images', blob, fullUrl.split('/').pop() || 'image.jpg');
+          } catch (e) { console.warn('Không tải được ảnh:', item); }
+        }
+      }
+      return formData;
+    }
+
     async function submitRepost() {
       const profile = document.getElementById('repostProfile').value;
       const message = document.getElementById('repostMessageInput').value;
-      const ch = _repostSelectedChannel || { type: 'personal' };
-      const target = ch.type === 'group' ? 'group' : 'personal';
-      const groupId = ch.type === 'group' ? (ch.id || ch.key || '') : '';
+      const ch = _repostSelectedChannel || { type: 'personal', platform: 'fb' };
 
       if (!message && _repostImages.length === 0) {
         alert('Vui lòng nhập nội dung hoặc có ảnh để đăng!');
@@ -4818,27 +4947,33 @@
       editBtn.disabled = true;
 
       try {
+        // Zalo channel
+        if (ch.platform === 'zalo') {
+          const formData = await _buildRepostFormData(message);
+          formData.append('zaloAccountName', ch.zaloAccount || '');
+          formData.append('groupName', ch.name || '');
+          const res = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: formData });
+          const data = await parseJson(res);
+          if (data.success || data.jobId || data.processing) {
+            alert('✅ Repost Zalo thành công!');
+            closeRepostModal();
+            loadDashHistory();
+          } else {
+            alert('❌ Zalo thất bại: ' + (data.error || 'Lỗi không xác định'));
+          }
+          return;
+        }
+
+        // FB channel
         await fetch(BASE_URL + '/api/profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ profile })
         });
 
-        const formData = new FormData();
-        formData.append('message', message);
-        formData.append('target', target);
-        if (groupId) formData.append('groupId', groupId);
-
-        for (const url of _repostImages) {
-          const fullUrl = url.startsWith('/') ? BASE_URL + url : url;
-          try {
-            const imgRes = await fetch(fullUrl);
-            const blob = await imgRes.blob();
-            formData.append('images', blob, url.split('/').pop() || 'image.jpg');
-          } catch (e) {
-            console.warn('Không tải được ảnh:', url);
-          }
-        }
+        const formData = await _buildRepostFormData(message);
+        formData.append('target', ch.type === 'group' ? 'group' : 'personal');
+        if (ch.type === 'group') formData.append('groupId', ch.id || ch.key || '');
 
         const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: formData });
         const initial = await parseJson(res);

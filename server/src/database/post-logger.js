@@ -176,6 +176,20 @@ function getStatistics({ from, to } = {}) {
   return { summary, today, daily, byProfile, byGroup, byPlatform };
 }
 
+function getDailyByProfile({ days = 30 } = {}) {
+  return db.prepare(`
+    SELECT
+      DATE(timestamp) as date,
+      profile,
+      COALESCE(profile_name, profile) as profile_name,
+      COUNT(*) as count
+    FROM post_logs
+    WHERE timestamp >= DATE('now', '-' || ? || ' days')
+    GROUP BY DATE(timestamp), profile
+    ORDER BY date ASC
+  `).all(days);
+}
+
 function deleteById(id) {
   return db.prepare('DELETE FROM post_logs WHERE id = ?').run(id);
 }
@@ -198,4 +212,4 @@ function deleteByFilter({ profile, success, from, to } = {}) {
   return db.prepare(sql).run(params);
 }
 
-module.exports = { logPost, getPostHistory, getStatistics, deleteById, deleteByIds, deleteByFilter };
+module.exports = { logPost, getPostHistory, getStatistics, getDailyByProfile, deleteById, deleteByIds, deleteByFilter };

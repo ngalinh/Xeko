@@ -674,6 +674,16 @@ app.get('/api/statistics', (req, res) => {
   }
 });
 
+app.get('/api/statistics/daily-by-profile', (req, res) => {
+  try {
+    const days = Math.min(parseInt(req.query.days) || 30, 90);
+    const rows = postLogger.getDailyByProfile({ days });
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ===== CHANNELS PROXY =====
 async function proxyToLocal(req, res, method, path, body = null) {
   const LOCAL_URL = getLocalUrl();
