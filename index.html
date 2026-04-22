@@ -622,6 +622,9 @@
 
       /* Channel form inputs wrap nicely */
       #panelChannels > div > div:last-child { gap: 6px !important; }
+
+      /* Stack FB + Zalo cards on mobile */
+      .channel-groups-grid { grid-template-columns: 1fr !important; }
     }
 
     /* ================================================================
@@ -864,7 +867,8 @@
       }
 
       /* session page: softer cards */
-      #panelChannels > div[style*="background:#fff"] {
+      #panelChannels > div[style*="background:#fff"],
+      #panelChannels .channel-groups-grid > div[style*="background:#fff"] {
         border: none !important;
         border-radius: 20px !important;
         box-shadow: 0 8px 22px rgba(124,102,255,0.08);
@@ -1304,7 +1308,8 @@
       }
 
       /* Panel cards (channels, groups, profile channel list) rounded + shadow */
-      #panelChannels > div[style*="background:#fff"] {
+      #panelChannels > div[style*="background:#fff"],
+      #panelChannels .channel-groups-grid > div[style*="background:#fff"] {
         border: none !important;
         border-radius: 16px !important;
         box-shadow: 0 4px 16px rgba(124,102,255,0.07);
@@ -1616,44 +1621,49 @@
       <!-- Tab: Cai dat kenh -->
       <div id="panelChannels" style="display:none;">
 
+        <!-- FB + Zalo cạnh nhau -->
+        <div class="channel-groups-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+
         <!-- Facebook Groups -->
-        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px; margin-bottom:20px;">
-          <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:6px; display:flex; align-items:center; gap:8px;">
+        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:16px;">
+          <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
             <img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:18px;height:18px;"> Facebook Groups
           </h3>
-          <p id="noFbGroupsMsg" style="font-size:13px; color:#999; margin-bottom:12px;">Chưa có group nào.</p>
-          <div id="fbGroupList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;"></div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <p id="noFbGroupsMsg" style="font-size:13px; color:#999; margin-bottom:10px;">Chưa có group nào.</p>
+          <div id="fbGroupList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px;"></div>
+          <div style="display:grid; grid-template-columns:1fr 1.4fr; gap:8px;">
             <input type="text" id="newGroupKey" placeholder="Key (vd: asale)" autocomplete="off"
-              style="flex:1; min-width:100px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+              style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
             <input type="text" id="newGroupId" placeholder="Group ID (từ URL)" autocomplete="off"
-              style="flex:2; min-width:150px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+              style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
             <input type="text" id="newGroupName" placeholder="Tên hiển thị" autocomplete="off"
-              style="flex:2; min-width:150px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+              style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
             <input type="text" id="newGroupCategory" placeholder="Phân loại (vd: Thời trang)" autocomplete="off"
-              style="flex:2; min-width:150px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+              style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
             <button onclick="addFbGroup()"
-              style="padding:8px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer; white-space:nowrap;">+ Thêm</button>
+              style="grid-column:1 / -1; padding:9px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer; white-space:nowrap;">+ Thêm</button>
           </div>
         </div>
 
         <!-- Zalo Groups -->
-        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px; margin-bottom:20px;">
-          <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:6px; display:flex; align-items:center; gap:8px;">
+        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:16px;">
+          <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
             <span style="width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;color:#0068ff;"><svg class="xi xi-md"><use href="#ic-chat"/></svg></span> Zalo Groups
           </h3>
-          <p id="noZaloGroupsMsg" style="font-size:13px; color:#999; margin-bottom:12px;">Chưa có group nào.</p>
-          <div id="zaloGroupList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;"></div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <p id="noZaloGroupsMsg" style="font-size:13px; color:#999; margin-bottom:10px;">Chưa có group nào.</p>
+          <div id="zaloGroupList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px;"></div>
+          <div style="display:grid; grid-template-columns:1fr 1.4fr; gap:8px;">
             <input type="text" id="newZaloGroupKey" placeholder="Key (vd: zalo1)" autocomplete="off"
-              style="flex:1; min-width:100px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+              style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
             <input type="text" id="newZaloGroupOid" placeholder="Tên nhóm trong Salework" autocomplete="off"
-              style="flex:2; min-width:150px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+              style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
             <input type="text" id="newZaloGroupName" placeholder="Tên hiển thị" autocomplete="off"
-              style="flex:2; min-width:150px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+              style="grid-column:1 / -1; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
             <button onclick="addZaloGroup()"
-              style="padding:8px 16px; background:#0068ff; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer; white-space:nowrap;">+ Thêm</button>
+              style="grid-column:1 / -1; padding:9px 16px; background:#0068ff; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer; white-space:nowrap;">+ Thêm</button>
           </div>
+        </div>
+
         </div>
 
         <!-- Gán kênh cho từng Profile -->
@@ -3606,14 +3616,16 @@
       const groups = channelsData.fbGroups || [];
       noMsg.style.display = groups.length ? 'none' : '';
       list.innerHTML = groups.map(g => `
-        <div style="display:flex; align-items:center; gap:10px; padding:9px 14px; background:#f8f6ff; border-radius:8px; border:1px solid #e8e4ff;">
-          <span style="font-size:12px; font-weight:700; color:#4f46e5; min-width:70px;">${g.key}</span>
-          <span style="font-size:13px; color:#333; flex:1;">${g.name}</span>
+        <div class="fb-group-row" style="display:grid; grid-template-columns:72px minmax(0,1fr) minmax(0,140px) auto; align-items:center; gap:10px; padding:8px 12px; background:#f8f6ff; border-radius:8px; border:1px solid #e8e4ff;">
+          <span style="font-size:12px; font-weight:700; color:#4f46e5;">${g.key}</span>
+          <div style="display:flex; flex-direction:column; min-width:0;">
+            <span style="font-size:13px; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${g.name}</span>
+            <span style="font-size:10.5px; color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${g.id}</span>
+          </div>
           <input type="text" value="${(g.category || '').replace(/"/g, '&quot;')}" placeholder="Phân loại..."
             onblur="updateFbGroupCategory('${g.key}', this.value)"
             onkeydown="if(event.key==='Enter'){this.blur();}"
-            style="font-size:12px; color:#4f46e5; background:#fff; border:1px solid #e0d4ff; border-radius:6px; padding:4px 8px; width:160px;">
-          <span style="font-size:11px; color:#aaa;">${g.id}</span>
+            style="font-size:12px; color:#4f46e5; background:#fff; border:1px solid #e0d4ff; border-radius:6px; padding:5px 8px; width:100%; min-width:0;">
           <button onclick="deleteFbGroup('${g.key}')" style="padding:4px 10px; background:#fff0f0; border:1px solid #fecaca; border-radius:6px; color:#e53e3e; font-size:12px; cursor:pointer;">🗑</button>
         </div>
       `).join('');
@@ -3694,10 +3706,12 @@
       const groups = channelsData.zaloGroups || [];
       noMsg.style.display = groups.length ? 'none' : '';
       list.innerHTML = groups.map(g => `
-        <div style="display:flex; align-items:center; gap:10px; padding:9px 14px; background:#f0f6ff; border-radius:8px; border:1px solid #d0e4ff;">
-          <span style="font-size:12px; font-weight:700; color:#0068ff; min-width:70px;">${g.key}</span>
-          <span style="font-size:13px; color:#333; flex:1;">${g.name}</span>
-          <span style="font-size:11px; color:#aaa;">Tên Salework: ${g.oid}</span>
+        <div style="display:grid; grid-template-columns:72px minmax(0,1fr) auto; align-items:center; gap:10px; padding:8px 12px; background:#f0f6ff; border-radius:8px; border:1px solid #d0e4ff;">
+          <span style="font-size:12px; font-weight:700; color:#0068ff;">${g.key}</span>
+          <div style="display:flex; flex-direction:column; min-width:0;">
+            <span style="font-size:13px; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${g.name}</span>
+            <span style="font-size:10.5px; color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Salework: ${g.oid}</span>
+          </div>
           <button onclick="deleteZaloGroup('${g.key}')" style="padding:4px 10px; background:#fff0f0; border:1px solid #fecaca; border-radius:6px; color:#e53e3e; font-size:12px; cursor:pointer;">🗑</button>
         </div>
       `).join('');
