@@ -48,18 +48,27 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     await screenshot(page, '01-loaded');
 
     // --- Account selection ---
-    // Dropdown mở sẵn (persistent context) hoặc click el-select để mở.
-    // Sau khi mở: click thẳng vào tên tài khoản trong list — không cần gõ search.
+    // Dropdown có thể đã mở sẵn (persistent context) hoặc cần click để mở.
+    // Dùng page.getByText() — không phụ thuộc vào class của item.
     try {
-      // Mở dropdown nếu chưa mở
-      if (!await page.isVisible('.el-select-dropdown__item')) {
+      // Mở dropdown nếu chưa mở (kiểm tra bằng search input visible)
+      if (!await page.isVisible('input[placeholder*="tài khoản"]')) {
         await page.locator('.el-select').first().click({ timeout: 5000 });
-        await page.waitForSelector('.el-select-dropdown__item', { state: 'visible', timeout: 5000 });
+        await page.waitForTimeout(800);
       }
       await screenshot(page, '02-dropdown-open');
 
-      // Click thẳng vào tên tài khoản trong danh sách dropdown
-      await page.locator('.el-select-dropdown__item').filter({ hasText: zaloAccountName }).first().click({ timeout: 5000 });
+      // Log tất cả text đang hiển thị để debug
+      const visibleTexts = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll('li, [class*="option"], [class*="item"]'))
+          .filter(el => el.offsetParent !== null) // only visible elements
+          .map(el => el.textContent.trim())
+          .filter(t => t.length > 0 && t.length < 60);
+      });
+      logger.info(`[salework] Items hiển thị trong dropdown: ${JSON.stringify(visibleTexts)}`);
+
+      // Click bằng text content — không dựa vào class
+      await page.getByText(zaloAccountName, { exact: true }).first().click({ timeout: 5000 });
       await page.waitForTimeout(600);
       await screenshot(page, '02-account-selected');
       logger.info(`[salework] Đã chọn tài khoản "${zaloAccountName}"`);
