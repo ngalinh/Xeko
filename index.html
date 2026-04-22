@@ -2,8 +2,20 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Xeko - FB Auto Post</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#6b5bff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1a1a2e" media="(prefers-color-scheme: dark)">
+  <meta name="description" content="Xeko - Đăng bài tự động Facebook & Zalo">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Xeko">
+  <link rel="apple-touch-icon" href="/xeko-avatar.png">
+  <link rel="icon" type="image/png" href="/xeko-avatar.png">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -478,12 +490,33 @@
 
     /* ===== @media MOBILE ===== */
     @media (max-width: 768px) {
-      body { overflow: hidden; }
+      /* Lock viewport to visible area so header + input stay pinned
+         when user scrolls inside chat-area (iOS URL bar issue). */
+      html, body {
+        height: 100vh;          /* fallback */
+        height: 100dvh;
+        overflow: hidden;
+        overscroll-behavior: contain;
+      }
+      .main-content {
+        height: 100vh;
+        height: 100dvh;
+      }
+      /* Flex children with internal overflow need min-height:0 to
+         respect parent height instead of their content height. */
+      .page { min-height: 0; }
+      .chat-area {
+        min-height: 0;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+      }
 
       /* Sidebar becomes hidden drawer */
       .sidebar {
         position: fixed; top: 0; left: -280px;
-        width: 280px; height: 100vh;
+        width: 280px;
+        height: 100vh;
+        height: 100dvh;
         z-index: 999; transition: left 0.28s cubic-bezier(.4,0,.2,1);
         box-shadow: none;
       }
@@ -568,6 +601,506 @@
       /* Channel form inputs wrap nicely */
       #panelChannels > div > div:last-child { gap: 6px !important; }
     }
+
+    /* ================================================================
+       MOBILE PWA REFERENCE STYLE (lavender / purple, rounded, airy)
+       Scoped to mobile only — desktop layout untouched.
+       ================================================================ */
+
+    /* PWA install FAB (mobile only, shown when beforeinstallprompt fires) */
+    .pwa-install-btn {
+      display: none;
+      position: fixed;
+      right: 14px;
+      bottom: 78px;
+      z-index: 250;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #7c66ff 0%, #a78bfa 100%);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 10px 24px rgba(124,102,255,0.35);
+    }
+    .pwa-install-btn:active { transform: scale(0.97); }
+    .pwa-install-icon { font-size: 14px; }
+
+    @media (max-width: 768px) {
+      /* --- backdrop: soft lavender gradient --- */
+      body {
+        background:
+          radial-gradient(1100px 600px at 100% -10%, #efe9ff 0%, rgba(239,233,255,0) 60%),
+          radial-gradient(900px 500px at -10% 100%, #f6ecff 0%, rgba(246,236,255,0) 60%),
+          linear-gradient(180deg, #f4f1fe 0%, #faf9ff 45%, #ffffff 100%);
+      }
+      .main-content { background: transparent; }
+      .chat-area { background: transparent; }
+
+      /* --- header: translucent glass, rounded bottom --- */
+      .header {
+        background: rgba(255,255,255,0.78);
+        backdrop-filter: saturate(180%) blur(14px);
+        -webkit-backdrop-filter: saturate(180%) blur(14px);
+        border-bottom: none;
+        padding: 14px 16px 10px;
+        border-radius: 0 0 22px 22px;
+        box-shadow: 0 6px 18px rgba(124,102,255,0.06);
+        padding-top: calc(14px + env(safe-area-inset-top, 0px));
+      }
+      .header-info h1 {
+        font-size: 17px; font-weight: 700; color: #1f1b3a; letter-spacing: -0.2px;
+      }
+      .header-info span { color: #8b88a8; }
+
+      .mobile-hamburger {
+        border-radius: 12px !important;
+        background: linear-gradient(135deg, #efeaff 0%, #e4dcff 100%) !important;
+        color: #6b5bff !important;
+        box-shadow: 0 4px 12px rgba(124,102,255,0.18);
+      }
+      .theme-toggle {
+        border-radius: 12px;
+        background: linear-gradient(135deg, #efeaff 0%, #e4dcff 100%);
+        color: #6b5bff;
+        box-shadow: 0 4px 12px rgba(124,102,255,0.18);
+      }
+
+      /* --- chat bubbles: softer, bigger radius --- */
+      .msg.bot {
+        border: none;
+        border-radius: 6px 20px 20px 20px;
+        background: #fff;
+        box-shadow: 0 6px 18px rgba(124,102,255,0.08);
+      }
+      .msg.user {
+        color: #fff;
+        background: linear-gradient(135deg, #7c66ff 0%, #a78bfa 100%);
+        border-radius: 20px 6px 20px 20px;
+        box-shadow: 0 8px 20px rgba(124,102,255,0.25);
+      }
+      .msg.user .link { color: #fff; text-decoration: underline; }
+      .msg-btn {
+        border-radius: 14px;
+        padding: 11px 16px;
+        background: #fff;
+        border-color: #e8e1ff;
+        box-shadow: 0 3px 10px rgba(124,102,255,0.08);
+      }
+
+      /* --- input: pill search + gradient send FAB --- */
+      .input-area {
+        position: relative;   /* anchor the ::before pill inside this row */
+        background: transparent;
+        border-top: none;
+        padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+        gap: 10px;
+      }
+      .input-area > * { position: relative; z-index: 1; }
+      .input-area::before {
+        content: "";
+        position: absolute;
+        inset: 4px 8px 4px 8px;
+        background: #fff;
+        border-radius: 26px;
+        box-shadow: 0 10px 30px rgba(124,102,255,0.14);
+        z-index: 0;
+      }
+      .input-area input[type="text"] {
+        background: transparent !important;
+        border: none !important;
+        padding: 12px 8px !important;
+        font-size: 15px !important;
+      }
+      .input-area input[type="text"]:focus {
+        box-shadow: none !important;
+      }
+      .btn-icon {
+        width: 42px; height: 42px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .btn-attach {
+        background: #f2ecff !important;
+        color: #6b5bff !important;
+      }
+      .btn-send {
+        background: linear-gradient(135deg, #7c66ff 0%, #a78bfa 100%) !important;
+        color: #fff !important;
+        box-shadow: 0 8px 20px rgba(124,102,255,0.38);
+      }
+      .btn-send:disabled {
+        background: #d4ccf4 !important;
+        box-shadow: none;
+      }
+
+      /* --- image preview: translucent --- */
+      .image-preview {
+        background: rgba(255,255,255,0.85);
+        backdrop-filter: blur(10px);
+        border-top: none;
+        border-radius: 18px;
+        margin: 0 10px 4px;
+        padding: 8px 10px;
+        box-shadow: 0 6px 18px rgba(124,102,255,0.08);
+      }
+      .preview-item img { border-color: #e5ddff; border-radius: 10px; }
+
+      /* --- sidebar drawer: airy, colorful tiles --- */
+      .sidebar {
+        background: linear-gradient(180deg, #ffffff 0%, #f8f5ff 100%);
+        border-right: none;
+        padding-top: env(safe-area-inset-top, 0px);
+      }
+      .sidebar.sidebar-open { border-radius: 0 28px 28px 0; overflow: hidden; }
+      .sidebar-logo span { color: #6b5bff; font-weight: 800; }
+      .sidebar-nav { padding: 8px 10px; gap: 6px; }
+      .sidebar-item {
+        padding: 12px 14px;
+        border-radius: 16px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #3a3658;
+      }
+      .sidebar-item .icon {
+        width: 36px; height: 36px;
+        border-radius: 10px;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 17px;
+        background: #f0ecff; color: #6b5bff;
+        box-shadow: 0 3px 8px rgba(124,102,255,0.12);
+      }
+      #navDashboard .icon { background: linear-gradient(135deg,#dcd2ff,#c1b2ff); color:#4a3bd6; }
+      #navPost      .icon { background: linear-gradient(135deg,#ffd6e1,#ffb7c6); color:#d1477a; }
+      #navSession   .icon { background: linear-gradient(135deg,#c7f0ea,#a2e6de); color:#2a9b8a; }
+      #navSpy       .icon { background: linear-gradient(135deg,#ffe2c4,#ffc98a); color:#c9822f; }
+      .sidebar-item.active {
+        background: linear-gradient(135deg, rgba(124,102,255,0.10) 0%, rgba(167,139,250,0.10) 100%);
+        color: #4a3bd6;
+      }
+      .sidebar-item .badge {
+        background: linear-gradient(135deg,#ffe2c4,#ffc98a);
+        color: #b8691c;
+      }
+      .sidebar-footer { border-top-color: rgba(124,102,255,0.08); }
+
+      /* --- mobile bottom nav: floating pill with center FAB vibe --- */
+      .mobile-bottom-nav {
+        left: 10px; right: 10px; bottom: max(10px, env(safe-area-inset-bottom, 0px));
+        border: none;
+        border-radius: 22px;
+        padding: 8px 6px;
+        background: rgba(255,255,255,0.92);
+        backdrop-filter: saturate(180%) blur(16px);
+        -webkit-backdrop-filter: saturate(180%) blur(16px);
+        box-shadow:
+          0 12px 32px rgba(79,70,229,0.20),
+          0 2px 6px rgba(124,102,255,0.10);
+      }
+      .main-content { padding-bottom: 82px; }
+      .mobile-nav-item {
+        padding: 8px 4px;
+        border-radius: 14px;
+        color: #8f8ab0;
+        font-weight: 500;
+        transition: all 0.18s ease;
+      }
+      .mobile-nav-item .mn-icon {
+        font-size: 20px;
+        width: 34px; height: 34px;
+        display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 12px;
+        transition: all 0.18s ease;
+      }
+      .mobile-nav-item.active {
+        color: #4a3bd6;
+      }
+      .mobile-nav-item.active .mn-icon {
+        background: linear-gradient(135deg, #7c66ff 0%, #a78bfa 100%);
+        color: #fff;
+        transform: translateY(-2px) scale(1.05);
+        box-shadow: 0 8px 18px rgba(124,102,255,0.42);
+      }
+
+      /* --- profile / account cards: lifted, bigger radius --- */
+      .profile-card {
+        border: none !important;
+        border-radius: 18px !important;
+        background: #fff !important;
+        box-shadow: 0 6px 18px rgba(124,102,255,0.08);
+        padding: 14px 16px !important;
+      }
+      .profile-card:hover { box-shadow: 0 10px 24px rgba(124,102,255,0.16); }
+      .profile-card .avatar {
+        background: linear-gradient(135deg,#efeaff,#ddd2ff) !important;
+        color: #6b5bff;
+        width: 44px; height: 44px;
+        border-radius: 14px !important;
+      }
+
+      /* session page: softer cards */
+      #panelChannels > div[style*="background:#fff"] {
+        border: none !important;
+        border-radius: 20px !important;
+        box-shadow: 0 8px 22px rgba(124,102,255,0.08);
+      }
+
+      /* account tabs: pill bar */
+      .acc-tab-bar {
+        border-bottom: none !important;
+        padding: 4px !important;
+        background: rgba(255,255,255,0.7);
+        border-radius: 16px;
+        box-shadow: 0 4px 14px rgba(124,102,255,0.06);
+        margin-bottom: 16px !important;
+      }
+      .acc-tab {
+        border-radius: 12px;
+        margin-bottom: 0;
+        padding: 8px 14px;
+      }
+      .acc-tab.active {
+        background: linear-gradient(135deg,#7c66ff,#a78bfa);
+        color: #fff !important;
+        border-bottom-color: transparent;
+        box-shadow: 0 6px 14px rgba(124,102,255,0.32);
+      }
+
+      /* dashboard summary tiles */
+      #pageDashboard div[style*="background:#f0fdf4"],
+      #pageDashboard div[style*="background:#eff6ff"],
+      #pageDashboard div[style*="background:#fef2f2"],
+      #pageDashboard div[style*="background:#fdf4ff"],
+      #pageDashboard div[style*="background:#fff"] {
+        border: none !important;
+        border-radius: 18px !important;
+        box-shadow: 0 6px 18px rgba(124,102,255,0.07);
+      }
+
+      /* channel platform toggles: rounder, colorful when checked */
+      .channel-platform-toggle {
+        border-radius: 14px;
+        padding: 10px 14px;
+      }
+      .channel-platform-toggle.checked {
+        background: linear-gradient(135deg,#7c66ff,#a78bfa);
+        border-color: transparent;
+        box-shadow: 0 8px 18px rgba(124,102,255,0.30);
+      }
+
+      /* rounded generic form inputs on mobile */
+      input[type="text"]:not([class]):not([id="msgInput"]):not([id="groupIdInput"]),
+      #panelChannels input[type="text"] {
+        border-radius: 12px !important;
+      }
+
+      /* overlay: deeper blur */
+      .mobile-overlay {
+        background: rgba(24, 19, 56, 0.38);
+        backdrop-filter: blur(3px);
+        -webkit-backdrop-filter: blur(3px);
+      }
+
+      /* scrollbars: thinner on mobile */
+      .chat-area::-webkit-scrollbar,
+      .sidebar-nav::-webkit-scrollbar { width: 0; }
+    }
+
+    /* ================================================================
+       MOBILE HOME PAGE (tile dashboard landing)
+       ================================================================ */
+
+    /* Default: hide home page everywhere; switchPage('home') activates it */
+    #pageMobileHome { display: none; }
+    #pageMobileHome.active { display: none; }  /* still hidden on desktop */
+
+    @media (max-width: 768px) {
+      /* Hide bottom nav completely — tiles replace it */
+      .mobile-bottom-nav { display: none !important; }
+      .main-content { padding-bottom: 0 !important; }
+
+      /* Show home page when active */
+      #pageMobileHome.active {
+        display: flex !important;
+        flex-direction: column;
+        padding: calc(18px + env(safe-area-inset-top, 0px)) 18px
+                 calc(20px + env(safe-area-inset-bottom, 0px));
+        gap: 22px;
+        overflow-y: auto;
+      }
+
+      /* Top greeting row */
+      .mhome-top {
+        display: flex; align-items: center; gap: 12px;
+      }
+      .mhome-greeting { flex: 1; min-width: 0; }
+      .mhome-hello {
+        display: block;
+        font-size: 13px;
+        color: #8b88a8;
+        font-weight: 500;
+        margin-bottom: 4px;
+      }
+      .mhome-title {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.4px;
+        color: #1f1b3a;
+        line-height: 1.2;
+      }
+      .mhome-avatar {
+        width: 46px; height: 46px;
+        border-radius: 16px;
+        padding: 0; border: none;
+        background: #fff;
+        box-shadow: 0 8px 20px rgba(124,102,255,0.18);
+        overflow: hidden; cursor: pointer;
+        flex-shrink: 0;
+      }
+      .mhome-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+      /* Tile grid */
+      .mhome-tiles {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .mhome-tile {
+        display: flex; flex-direction: column; align-items: flex-start;
+        gap: 6px;
+        padding: 18px 16px 16px;
+        border: none;
+        border-radius: 22px;
+        background: #fff;
+        cursor: pointer;
+        text-align: left;
+        min-height: 140px;
+        position: relative; overflow: hidden;
+        box-shadow: 0 12px 28px rgba(124,102,255,0.10);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+      .mhome-tile:active { transform: scale(0.97); }
+      .mhome-tile:disabled { cursor: not-allowed; opacity: 0.6; }
+      .mhome-tile::after {
+        content: "";
+        position: absolute;
+        right: -30px; top: -30px;
+        width: 90px; height: 90px;
+        border-radius: 50%;
+        opacity: 0.18;
+        background: currentColor;
+      }
+      .mhome-tile-icon {
+        width: 46px; height: 46px;
+        border-radius: 14px;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 22px;
+        background: rgba(255,255,255,0.75);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+        margin-bottom: 6px;
+      }
+      .mhome-tile-label {
+        font-size: 16px; font-weight: 700; color: inherit;
+        letter-spacing: -0.2px;
+      }
+      .mhome-tile-hint {
+        font-size: 12px; color: rgba(31,27,58,0.55);
+        font-weight: 500;
+      }
+
+      /* Color per tile — inspired by reference */
+      .tile-post {
+        background: linear-gradient(140deg, #ffd7e2 0%, #ffc3d3 100%);
+        color: #c0336a;
+      }
+      .tile-dash {
+        background: linear-gradient(140deg, #dcd2ff 0%, #bfb0ff 100%);
+        color: #4a3bd6;
+      }
+      .tile-acc {
+        background: linear-gradient(140deg, #c7f0ea 0%, #9fe3d9 100%);
+        color: #1d8374;
+      }
+      .tile-spy {
+        background: linear-gradient(140deg, #ffe3c4 0%, #ffd199 100%);
+        color: #a8661c;
+      }
+
+      .mhome-foot {
+        margin-top: auto;
+        display: flex; justify-content: center;
+      }
+      .mhome-foot-btn {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 12px 22px;
+        border-radius: 999px;
+        border: none;
+        background: #fff;
+        color: #4a3bd6;
+        font-size: 13px; font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 6px 16px rgba(124,102,255,0.12);
+      }
+
+      /* Home-back button injected into each header */
+      .mhome-back-btn {
+        display: inline-flex;
+        align-items: center; justify-content: center;
+        width: 38px; height: 38px;
+        border: none; border-radius: 12px;
+        background: linear-gradient(135deg, #efeaff 0%, #e4dcff 100%);
+        color: #6b5bff;
+        font-size: 17px;
+        cursor: pointer;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(124,102,255,0.18);
+      }
+      .mhome-back-btn:active { transform: scale(0.95); }
+    }
+
+    /* Hide home-back button on desktop — no home page there */
+    .mhome-back-btn { display: none; }
+
+    /* Sidebar "Trang chủ" entry: only meaningful on mobile */
+    .mobile-only-nav { display: none; }
+    @media (max-width: 768px) {
+      .mobile-only-nav { display: flex; }
+      #navHome .icon {
+        background: linear-gradient(135deg, #efeaff 0%, #d4c8ff 100%);
+        color: #4a3bd6;
+      }
+    }
+
+    /* --- mobile dark mode overrides (keep reference purple, dim bg) --- */
+    @media (max-width: 768px) {
+      [data-theme="dark"] body {
+        background:
+          radial-gradient(900px 500px at 100% -10%, rgba(124,102,255,0.18) 0%, rgba(124,102,255,0) 60%),
+          linear-gradient(180deg, #13132a 0%, #1a1a2e 60%, #1a1a2e 100%);
+      }
+      [data-theme="dark"] .header { background: rgba(22,23,43,0.78); }
+      [data-theme="dark"] .input-area::before { background: #1e1e3a; }
+      [data-theme="dark"] .mobile-bottom-nav { background: rgba(22,23,43,0.92); }
+      [data-theme="dark"] .mobile-nav-item { color: #7d7aa0; }
+      [data-theme="dark"] .sidebar { background: linear-gradient(180deg,#16172b 0%,#1a1a2e 100%); }
+      [data-theme="dark"] .sidebar-item .icon { background: #2a2a4a; color: #a78bfa; }
+      [data-theme="dark"] .profile-card { background: #1e1e3a !important; }
+      [data-theme="dark"] .acc-tab-bar { background: rgba(30,30,58,0.55); }
+
+      /* Home page dark mode */
+      [data-theme="dark"] .mhome-hello { color: #9f9bc4; }
+      [data-theme="dark"] .mhome-title { color: #f1eeff; }
+      [data-theme="dark"] .mhome-avatar { background: #1e1e3a; box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+      [data-theme="dark"] .mhome-tile {
+        box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+        filter: brightness(0.92);
+      }
+      [data-theme="dark"] .mhome-foot-btn { background: #1e1e3a; color: #a78bfa; }
+      [data-theme="dark"] .mhome-back-btn { background: #1e1e3a; color: #a78bfa; }
+    }
   </style>
 </head>
 <body>
@@ -581,6 +1114,9 @@
       <span>Xeko</span>
     </div>
     <div class="sidebar-nav">
+      <button class="sidebar-item mobile-only-nav" onclick="switchPage('home')" id="navHome">
+        <span class="icon">🏠</span> Trang chủ
+      </button>
       <button class="sidebar-item" onclick="switchPage('dashboard')" id="navDashboard">
         <span class="icon">📊</span> Dashboard
       </button>
@@ -603,6 +1139,49 @@
 
   <!-- Main content -->
   <div class="main-content">
+
+  <!-- PAGE: Mobile Home (landing với tile grid, chỉ hiện trên mobile) -->
+  <div class="page" id="pageMobileHome">
+    <div class="mhome-top">
+      <div class="mhome-greeting">
+        <span class="mhome-hello">Xin chào 👋</span>
+        <h1 class="mhome-title">Hôm nay đăng gì nhỉ?</h1>
+      </div>
+      <button class="mhome-avatar" onclick="toggleSidebar()" aria-label="Menu">
+        <img src="https://raw.githubusercontent.com/ngalinh/Xeko/main/xeko-avatar.png" alt="Xeko">
+      </button>
+    </div>
+
+    <div class="mhome-tiles">
+      <button class="mhome-tile tile-post" onclick="switchPage('post')">
+        <span class="mhome-tile-icon">📝</span>
+        <span class="mhome-tile-label">Đăng bài</span>
+        <span class="mhome-tile-hint">Soạn & gửi ngay</span>
+      </button>
+      <button class="mhome-tile tile-dash" onclick="switchPage('dashboard')">
+        <span class="mhome-tile-icon">📊</span>
+        <span class="mhome-tile-label">Dashboard</span>
+        <span class="mhome-tile-hint">Thống kê & lịch</span>
+      </button>
+      <button class="mhome-tile tile-acc" onclick="switchPage('session')">
+        <span class="mhome-tile-icon">👥</span>
+        <span class="mhome-tile-label">Tài khoản</span>
+        <span class="mhome-tile-hint">Profile FB / Zalo</span>
+      </button>
+      <button class="mhome-tile tile-spy" disabled>
+        <span class="mhome-tile-icon">🔍</span>
+        <span class="mhome-tile-label">Spy</span>
+        <span class="mhome-tile-hint">Sắp ra mắt</span>
+      </button>
+    </div>
+
+    <div class="mhome-foot">
+      <button class="mhome-foot-btn" onclick="toggleTheme()" aria-label="Đổi giao diện">
+        <span id="mhomeThemeIcon">🌙</span>
+        <span>Đổi giao diện</span>
+      </button>
+    </div>
+  </div>
 
   <!-- PAGE: Đăng bài -->
   <div class="page active" id="pageDangBai">
@@ -1564,6 +2143,28 @@
       }
     });
 
+    // Poll kết quả Zalo post async — cập nhật chatbot khi Playwright hoàn thành
+    async function pollZaloJob(jobId, groupName, account) {
+      const maxTries = 24; // tối đa 2 phút (24 × 5s)
+      for (let i = 0; i < maxTries; i++) {
+        await new Promise(r => setTimeout(r, 5000));
+        try {
+          const r = await fetch(`${BASE_URL}/api/zalo/status/${jobId}`);
+          if (!r.ok) continue;
+          const d = await r.json();
+          if (d.status === 'done') {
+            if (d.success) {
+              addBot(`✅ Zalo <strong>${groupName}</strong> (${account}) đăng thành công!`);
+            } else {
+              addBot(`❌ Zalo <strong>${groupName}</strong> thất bại: ${d.error || 'Không rõ'}`);
+            }
+            return;
+          }
+        } catch {}
+      }
+      addBot(`⚠️ Zalo <strong>${groupName}</strong>: không nhận được kết quả sau 2 phút`);
+    }
+
     // ===== Gửi bài =====
     async function sendMessage() {
       // Neu dang o che do len lich -> goi submitSchedule
@@ -1717,7 +2318,10 @@
               const zr = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: zf });
               const zd = await parseJson(zr);
               removeTyping();
-              if (zd.success) {
+              if (zd.processing && zd.jobId) {
+                addBot(`⏳ Zalo <strong>${g.name}</strong> (${zaloAccount}) đang xử lý...`);
+                pollZaloJob(zd.jobId, g.name, zaloAccount);
+              } else if (zd.success) {
                 addBot(`✅ Zalo <strong>${g.name}</strong> (${zaloAccount}) đăng thành công!`);
               } else {
                 addBot(`❌ Lỗi Zalo <strong>${g.name}</strong>: ${zd.error || 'Không rõ'}`);
@@ -1972,6 +2576,7 @@
       document.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
 
       const pageMap = {
+        home: { page: 'pageMobileHome', nav: null },
         post: { page: 'pageDangBai', nav: 'navPost' },
         dashboard: { page: 'pageDashboard', nav: 'navDashboard' },
         // 'calendar' alias → dashboard calendar tab (BC cho nơi còn trỏ tới)
@@ -1983,7 +2588,7 @@
       const target = pageMap[pg];
       if (target) {
         document.getElementById(target.page).classList.add('active');
-        document.getElementById(target.nav).classList.add('active');
+        if (target.nav) document.getElementById(target.nav).classList.add('active');
       }
 
       if (pg === 'dashboard') {
@@ -3033,6 +3638,12 @@
     }
   </script>
 
+  <!-- PWA install FAB (mobile) -->
+  <button type="button" id="pwaInstallBtn" class="pwa-install-btn" onclick="xekoTriggerInstall()" style="display:none;" aria-label="Cài đặt ứng dụng">
+    <span class="pwa-install-icon">⬇</span>
+    <span class="pwa-install-text">Cài Xeko</span>
+  </button>
+
   <!-- Mobile bottom navigation -->
   <nav class="mobile-bottom-nav" id="mobileBottomNav">
     <button class="mobile-nav-item active" id="mobileNavPost" onclick="switchPage('post')">
@@ -3048,5 +3659,76 @@
       <span class="mn-icon">🔍</span>Spy
     </button>
   </nav>
+
+  <!-- PWA install prompt + service worker registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch((err) => {
+          console.warn('[SW] registration failed:', err);
+        });
+      });
+    }
+
+    // Capture install prompt; surface a small floating button on mobile
+    let __xekoInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      __xekoInstallPrompt = e;
+      const btn = document.getElementById('pwaInstallBtn');
+      if (btn) btn.style.display = 'flex';
+    });
+    function xekoTriggerInstall() {
+      if (!__xekoInstallPrompt) return;
+      __xekoInstallPrompt.prompt();
+      __xekoInstallPrompt.userChoice.finally(() => {
+        __xekoInstallPrompt = null;
+        const btn = document.getElementById('pwaInstallBtn');
+        if (btn) btn.style.display = 'none';
+      });
+    }
+    window.addEventListener('appinstalled', () => {
+      const btn = document.getElementById('pwaInstallBtn');
+      if (btn) btn.style.display = 'none';
+    });
+
+    // Inject a "home" button into every page header on mobile.
+    // Kept in JS to avoid editing 4 separate header blocks.
+    function xekoInjectHomeButtons() {
+      document.querySelectorAll('.page:not(#pageMobileHome) .header').forEach((h) => {
+        if (h.querySelector('.mhome-back-btn')) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'mhome-back-btn';
+        btn.setAttribute('aria-label', 'Trang chủ');
+        btn.innerHTML = '🏠';
+        btn.onclick = () => switchPage('home');
+        h.insertBefore(btn, h.firstChild);
+      });
+    }
+
+    // Default mobile landing = home; desktop unchanged.
+    // Deep-link ?page=... still wins over this default.
+    (function () {
+      const run = () => {
+        try {
+          xekoInjectHomeButtons();
+          const p = new URLSearchParams(location.search).get('page');
+          if (p && typeof switchPage === 'function') {
+            switchPage(p);
+            return;
+          }
+          if (window.innerWidth <= 768 && typeof switchPage === 'function') {
+            switchPage('home');
+          }
+        } catch (_) {}
+      };
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', run);
+      } else {
+        run();
+      }
+    })();
+  </script>
 </body>
 </html>

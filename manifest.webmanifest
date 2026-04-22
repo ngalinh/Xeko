@@ -1,0 +1,54 @@
+{
+  "name": "Xeko - FB Auto Post",
+  "short_name": "Xeko",
+  "description": "Đăng bài tự động Facebook & Zalo — giao diện PWA cho mobile.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f1fe",
+  "theme_color": "#6b5bff",
+  "lang": "vi",
+  "dir": "ltr",
+  "categories": ["productivity", "social", "business"],
+  "icons": [
+    {
+      "src": "/xeko-avatar.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/xeko-avatar.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/xeko-avatar.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Đăng bài",
+      "short_name": "Đăng bài",
+      "url": "/?page=post",
+      "icons": [{ "src": "/xeko-avatar.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "/?page=dashboard",
+      "icons": [{ "src": "/xeko-avatar.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Tài khoản",
+      "short_name": "Tài khoản",
+      "url": "/?page=session",
+      "icons": [{ "src": "/xeko-avatar.png", "sizes": "192x192" }]
+    }
+  ]
+}
