@@ -628,6 +628,29 @@ app.get('/api/post-history', (req, res) => {
   }
 });
 
+app.delete('/api/post-history/:id', (req, res) => {
+  try {
+    const result = postLogger.deleteById(Number(req.params.id));
+    res.json({ deleted: result.changes });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/post-history', (req, res) => {
+  const { profile, success, from, to } = req.query;
+  try {
+    const result = postLogger.deleteByFilter({
+      profile,
+      success: success !== undefined && success !== '' ? success : undefined,
+      from, to,
+    });
+    res.json({ deleted: result.changes });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/statistics', (req, res) => {
   const { from, to } = req.query;
   try {
