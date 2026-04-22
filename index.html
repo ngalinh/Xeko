@@ -1819,7 +1819,7 @@
         <select id="dashFilterTarget" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
           <option value="">Tất cả nơi đăng</option>
           <option value="personal">Cá nhân</option>
-          <option value="group">Nhóm</option>
+          <option value="group">Group</option>
         </select>
         <select id="dashFilterStatus" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
           <option value="">Tất cả trạng thái</option>
@@ -4531,7 +4531,7 @@
             const statusBadge = row.success
               ? '<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:6px; font-size:11px;">OK</span>'
               : `<span style="background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:6px; font-size:11px;" title="${(row.error||'').replace(/"/g,'&quot;')}">Lỗi</span>`;
-            const target = row.target === 'personal' ? 'Cá nhân' : (row.target || '-');
+            const target = row.target === 'personal' ? 'Cá nhân' : row.target === 'group' ? 'Group' : (row.target || '-');
             const groupId = row.group_id || row.group_name || '-';
             const fullMsg = (row.message || '').replace(/"/g,'&quot;');
             const msg = row.message ? (row.message.length > 60 ? row.message.substring(0, 60) + '…' : row.message) : '-';
@@ -4715,7 +4715,16 @@
     // ===== Repost Modal =====
     let _repostEditMode = false;
     let _repostImages = [];
-    let _repostSelectedChannel = null; // { type:'personal' } | { type:'group', key, id, name }
+    let _repostSelectedChannels = []; // array of channel options
+
+    function _channelKey(opt) {
+      return opt.type === 'personal' ? '__personal__' : (opt.key || opt.id);
+    }
+
+    function _isChannelSelected(opt) {
+      const k = _channelKey(opt);
+      return _repostSelectedChannels.some(c => _channelKey(c) === k);
+    }
 
     function _getAccountGroups(profileKey) {
       const pCh = (channelsData.profileChannels || {})[profileKey] || { fbGroups: [], zaloGroups: [] };
@@ -4747,35 +4756,47 @@
 
       const list = document.getElementById('repostChannelList');
       list.innerHTML = options.map((opt, i) => {
-        const sel = opt.type === 'personal'
-          ? _repostSelectedChannel?.type === 'personal'
-          : _repostSelectedChannel?.key === opt.key;
-        return `<div onclick="_selectRepostChannel(${i})"
-          style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; cursor:pointer; font-size:13px;
-            background:${sel ? '#f0eeff' : '#fff'}; color:${sel ? '#4f46e5' : '#333'};
-            border-bottom:1px solid #f3f4f6; transition:background 0.1s;"
-          onmouseover="if(!${sel}) this.style.background='#fafafa'" onmouseout="if(!${sel}) this.style.background='#fff'">
-          <span style="font-weight:${sel ? '600' : '400'};">${opt.label}</span>
-          ${opt.sub ? `<span style="font-size:11px; color:#999;">${opt.sub}</span>` : ''}
-          ${sel ? '<span style="color:#7c66ff; font-size:14px;">✓</span>' : ''}
+        const sel = _isChannelSelected(opt);
+        return `<div onclick="_toggleRepostChannel(${i})"
+          style="display:flex; align-items:center; gap:10px; padding:9px 14px; cursor:pointer; font-size:13px;
+            background:${sel ? '#f0eeff' : '#fff'}; border-bottom:1px solid #f3f4f6; transition:background 0.1s;"
+          onmouseover="this.style.background='${sel ? '#ebe6ff' : '#fafafa'}'" onmouseout="this.style.background='${sel ? '#f0eeff' : '#fff'}'">
+          <span style="width:16px; height:16px; border-radius:4px; border:2px solid ${sel ? '#7c66ff' : '#d1d5db'}; background:${sel ? '#7c66ff' : '#fff'}; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.15s;">
+            ${sel ? '<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+          </span>
+          <span style="flex:1; font-weight:${sel ? '600' : '400'}; color:${sel ? '#4f46e5' : '#333'};">${opt.label}</span>
+          ${opt.sub ? `<span style="font-size:11px; color:#999; flex-shrink:0;">${opt.sub}</span>` : ''}
         </div>`;
       }).join('');
     }
 
-    function _selectRepostChannel(i) {
-      _repostSelectedChannel = window._repostChannelOptions[i];
+    function _toggleRepostChannel(i) {
+      const opt = window._repostChannelOptions[i];
+      const k = _channelKey(opt);
+      const idx = _repostSelectedChannels.findIndex(c => _channelKey(c) === k);
+      if (idx >= 0) {
+        _repostSelectedChannels.splice(idx, 1);
+      } else {
+        _repostSelectedChannels.push(opt);
+      }
       _renderRepostChannelList();
+      // Update display label
+      document.getElementById('repostChannelDisplay').textContent = _channelsDisplayLabel();
     }
 
     function _onRepostProfileChange() {
-      _repostSelectedChannel = { type: 'personal', platform: 'fb' };
+      _repostSelectedChannels = [{ type: 'personal', platform: 'fb', label: '🏠 Cá nhân', sub: '' }];
       _renderRepostChannelList();
     }
 
-    function _channelLabel(ch) {
-      if (!ch || ch.type === 'personal') return '🏠 Cá nhân';
-      const icon = ch.platform === 'zalo' ? '💬' : '👥';
-      return icon + ' ' + (ch.name || ch.key || ch.id || 'Nhóm');
+    function _channelsDisplayLabel() {
+      if (_repostSelectedChannels.length === 0) return '(chưa chọn kênh)';
+      if (_repostSelectedChannels.length === 1) {
+        const ch = _repostSelectedChannels[0];
+        if (ch.type === 'personal') return '🏠 Cá nhân';
+        return (ch.platform === 'zalo' ? '💬 ' : '👥 ') + (ch.name || ch.key || '');
+      }
+      return `${_repostSelectedChannels.length} kênh đã chọn`;
     }
 
     async function openRepostModal(idx) {
@@ -4789,12 +4810,12 @@
       // Determine original channel from row data
       const originalGroupId = row.group_id || '';
       if (row.target === 'personal' || !originalGroupId) {
-        _repostSelectedChannel = { type: 'personal' };
+        _repostSelectedChannels = [{ type: 'personal', platform: 'fb', label: '🏠 Cá nhân', sub: '' }];
       } else {
         const matchedGroup = (channelsData.fbGroups || []).find(g => g.id === originalGroupId || g.key === originalGroupId);
-        _repostSelectedChannel = matchedGroup
-          ? { type: 'group', key: matchedGroup.key, id: matchedGroup.id, name: matchedGroup.name }
-          : { type: 'group', key: originalGroupId, id: originalGroupId, name: row.group_name || originalGroupId };
+        _repostSelectedChannels = [matchedGroup
+          ? { type: 'group', platform: 'fb', key: matchedGroup.key, id: matchedGroup.id, name: matchedGroup.name }
+          : { type: 'group', platform: 'fb', key: originalGroupId, id: originalGroupId, name: row.group_name || originalGroupId }];
       }
 
       // Load accounts into dropdown
@@ -4814,7 +4835,7 @@
       }
 
       // Channel display (view mode)
-      document.getElementById('repostChannelDisplay').textContent = _channelLabel(_repostSelectedChannel);
+      document.getElementById('repostChannelDisplay').textContent = _channelsDisplayLabel();
       document.getElementById('repostChannelDisplay').style.display = '';
       document.getElementById('repostChannelList').style.display = 'none';
 
@@ -4890,7 +4911,7 @@
         editBtn.textContent = '👁️ Xem lại';
         editBtn.style.background = '#f3f4f6';
       } else {
-        channelDisplay.textContent = _channelLabel(_repostSelectedChannel);
+        channelDisplay.textContent = _channelsDisplayLabel();
         channelDisplay.style.display = '';
         channelList.style.display = 'none';
         editBtn.textContent = '✏️ Chỉnh sửa';
@@ -4933,74 +4954,69 @@
     async function submitRepost() {
       const profile = document.getElementById('repostProfile').value;
       const message = document.getElementById('repostMessageInput').value;
-      const ch = _repostSelectedChannel || { type: 'personal', platform: 'fb' };
+      const channels = _repostSelectedChannels;
 
       if (!message && _repostImages.length === 0) {
-        alert('Vui lòng nhập nội dung hoặc có ảnh để đăng!');
-        return;
+        alert('Vui lòng nhập nội dung hoặc có ảnh để đăng!'); return;
+      }
+      if (channels.length === 0) {
+        alert('Vui lòng chọn ít nhất 1 kênh đăng!'); return;
       }
 
       const submitBtn = document.getElementById('repostSubmitBtn');
       const editBtn = document.getElementById('repostEditBtn');
       submitBtn.disabled = true;
-      submitBtn.textContent = '⏳ Đang xử lý...';
       editBtn.disabled = true;
 
-      try {
-        // Zalo channel
-        if (ch.platform === 'zalo') {
-          const formData = await _buildRepostFormData(message);
-          formData.append('zaloAccountName', ch.zaloAccount || '');
-          formData.append('groupName', ch.name || '');
-          const res = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: formData });
-          const data = await parseJson(res);
-          if (data.success || data.jobId || data.processing) {
-            alert('✅ Repost Zalo thành công!');
-            closeRepostModal();
-            loadDashHistory();
+      // Switch FB profile once
+      await fetch(BASE_URL + '/api/profile', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile })
+      }).catch(() => {});
+
+      const errors = [];
+      let successCount = 0;
+      const total = channels.length;
+
+      for (let i = 0; i < channels.length; i++) {
+        const ch = channels[i];
+        submitBtn.textContent = `⏳ Đang đăng ${i + 1}/${total}...`;
+        try {
+          if (ch.platform === 'zalo') {
+            const fd = await _buildRepostFormData(message);
+            fd.append('zaloAccountName', ch.zaloAccount || '');
+            fd.append('groupName', ch.name || '');
+            const res = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: fd });
+            const d = await parseJson(res);
+            if (d.success || d.jobId || d.processing) successCount++;
+            else errors.push(`${ch.label || ch.name}: ${d.error || 'Lỗi'}`);
           } else {
-            alert('❌ Zalo thất bại: ' + (data.error || 'Lỗi không xác định'));
+            const fd = await _buildRepostFormData(message);
+            fd.append('target', ch.type === 'group' ? 'group' : 'personal');
+            if (ch.type === 'group') fd.append('groupId', ch.id || ch.key || '');
+            const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: fd });
+            const initial = await parseJson(res);
+            const d = initial.jobId ? await pollJob(initial.jobId) : initial;
+            const ok = d.success || (d.results && d.results.some(r => r.success));
+            if (ok) successCount++;
+            else errors.push(`${ch.label || ch.name}: ${d.error || 'Lỗi'}`);
           }
-          return;
+        } catch (e) {
+          errors.push(`${ch.label || ch.name}: ${e.message}`);
         }
+      }
 
-        // FB channel
-        await fetch(BASE_URL + '/api/profile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ profile })
-        });
+      submitBtn.disabled = false;
+      submitBtn.textContent = '🔄 Repost';
+      editBtn.disabled = false;
 
-        const formData = await _buildRepostFormData(message);
-        formData.append('target', ch.type === 'group' ? 'group' : 'personal');
-        if (ch.type === 'group') formData.append('groupId', ch.id || ch.key || '');
-
-        const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: formData });
-        const initial = await parseJson(res);
-
-        let data;
-        if (initial.jobId) {
-          submitBtn.textContent = '⏳ Chờ kết quả...';
-          data = await pollJob(initial.jobId);
-        } else {
-          data = initial;
-        }
-
-        const ok = data.success || (data.results && data.results.some(r => r.success));
-        if (ok) {
-          alert('✅ Repost thành công!');
-          closeRepostModal();
-          loadDashHistory();
-        } else {
-          const err = data.error || (data.results && (data.results.find(r => !r.success) || {}).error) || 'Lỗi không xác định';
-          alert('❌ Đăng thất bại: ' + err);
-        }
-      } catch (e) {
-        alert('❌ Lỗi: ' + e.message);
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = '🔄 Repost';
-        editBtn.disabled = false;
+      if (errors.length === 0) {
+        alert(`✅ Đã repost thành công ${successCount}/${total} kênh!`);
+        closeRepostModal();
+        loadDashHistory();
+      } else {
+        alert(`✅ ${successCount}/${total} thành công\n❌ Lỗi:\n${errors.join('\n')}`);
+        if (successCount > 0) loadDashHistory();
       }
     }
   </script>
