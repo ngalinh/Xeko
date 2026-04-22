@@ -3,14 +3,14 @@ const db = require('./db');
 // === Prepared statements ===
 
 const insertStmt = db.prepare(`
-  INSERT INTO post_logs (timestamp, profile, profile_name, platform, target, group_name, group_id, message, image_count, success, error, post_url, source, images)
-  VALUES (@timestamp, @profile, @profileName, @platform, @target, @groupName, @groupId, @message, @imageCount, @success, @error, @postUrl, @source, @images)
+  INSERT INTO post_logs (timestamp, profile, profile_name, platform, target, group_name, group_id, message, image_count, success, error, post_url, source, images, batch_id)
+  VALUES (@timestamp, @profile, @profileName, @platform, @target, @groupName, @groupId, @message, @imageCount, @success, @error, @postUrl, @source, @images, @batchId)
 `);
 
 /**
  * Ghi log 1 bai dang
  */
-function logPost({ profile, profileName, platform, target, groupName, groupId, message, imageCount, success, error, postUrl, source, images }) {
+function logPost({ profile, profileName, platform, target, groupName, groupId, message, imageCount, success, error, postUrl, source, images, batchId }) {
   return insertStmt.run({
     timestamp: new Date().toISOString(),
     profile: profile || 'unknown',
@@ -26,13 +26,14 @@ function logPost({ profile, profileName, platform, target, groupName, groupId, m
     postUrl: postUrl || null,
     source: source || 'web',
     images: images && images.length ? JSON.stringify(images) : null,
+    batchId: batchId || null,
   });
 }
 
 /**
  * Lay lich su bai dang voi filter
  */
-function getPostHistory({ profile, platform, success, from, to, limit = 50, offset = 0 } = {}) {
+function getPostHistory({ profile, platform, target, success, from, to, limit = 50, offset = 0 } = {}) {
   let sql = 'SELECT * FROM post_logs WHERE 1=1';
   const params = {};
 
@@ -43,6 +44,15 @@ function getPostHistory({ profile, platform, success, from, to, limit = 50, offs
   if (platform) {
     sql += ' AND platform = @platform';
     params.platform = platform;
+  }
+  if (target) {
+    if (target === 'personal') {
+      sql += ' AND target = @target';
+      params.target = 'personal';
+    } else if (target === 'group') {
+      sql += ' AND target = @target';
+      params.target = 'group';
+    }
   }
   if (success !== undefined && success !== null && success !== '') {
     sql += ' AND success = @success';
@@ -166,6 +176,20 @@ function getStatistics({ from, to } = {}) {
   return { summary, today, daily, byProfile, byGroup, byPlatform };
 }
 
+function getDailyByProfile({ days = 30 } = {}) {
+  return db.prepare(`
+    SELECT
+      DATE(timestamp) as date,
+      profile,
+      COALESCE(profile_name, profile) as profile_name,
+      COUNT(*) as count
+    FROM post_logs
+    WHERE timestamp >= DATE('now', '-' || ? || ' days')
+    GROUP BY DATE(timestamp), profile
+    ORDER BY date ASC
+  `).all(days);
+}
+
 function deleteById(id) {
   return db.prepare('DELETE FROM post_logs WHERE id = ?').run(id);
 }
@@ -188,4 +212,4 @@ function deleteByFilter({ profile, success, from, to } = {}) {
   return db.prepare(sql).run(params);
 }
 
-module.exports = { logPost, getPostHistory, getStatistics, deleteById, deleteByIds, deleteByFilter };
+module.exports = { logPost, getPostHistory, getStatistics, getDailyByProfile, deleteById, deleteByIds, deleteByFilter };
