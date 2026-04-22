@@ -1505,7 +1505,7 @@
     <div class="mhome-top">
       <div class="mhome-greeting">
         <span class="mhome-hello">Xeko chào bạn 👋</span>
-        <h1 class="mhome-title">Hôm nay mình quẩy content gì nào?</h1>
+        <h1 class="mhome-title">Hôm nay mình chiến content gì nào?</h1>
       </div>
       <button class="mhome-avatar" onclick="toggleSidebar()" aria-label="Menu">
         <img src="https://raw.githubusercontent.com/ngalinh/Xeko/main/xeko-avatar.png" alt="Xeko">
@@ -2235,7 +2235,7 @@
           <div class="msg-header">Xeko <span class="time">${now()}</span></div>
           <div class="msg bot">
             <strong style="display:inline-flex; align-items:center; gap:6px;">${modeIcon} Đăng bài</strong> — Chế độ: ${modeLabel}<br>
-            Bạn tick kênh để Xeko quẩy nha:
+            Bạn tick kênh để Xeko chiến nha:
             ${panelHtml}
           </div>
         </div>`;
@@ -2284,7 +2284,7 @@
 
       const checkedItems = panel.querySelectorAll('.channel-item input:checked');
       if (checkedItems.length === 0) {
-        addBot('Xeko cần bạn tick ít nhất 1 kênh thì mới quẩy được nha!');
+        addBot('Xeko cần bạn tick ít nhất 1 kênh thì mới chiến được nha!');
         return;
       }
 
@@ -2381,7 +2381,7 @@
         showScheduleForm();
       } else {
         addBot(
-          `Xeko sẽ quẩy lên:\n${summaryText}\n\nBạn soạn content xuống dưới nha, bấm 📷 để kèm ảnh rồi nhấn ➤ là mình đăng liền 🚀`,
+          `Xeko sẽ chiến lên:\n${summaryText}\n\nBạn soạn content xuống dưới nha, bấm 📷 để kèm ảnh rồi nhấn ➤ là mình đăng liền 🚀`,
           [
             { label: `${xekoIcon('pin')} Đổi nơi đăng`, action: 'showTargetSelect()' },
             { label: `${xekoIcon('refresh')} Đổi Profile`, action: 'showProfileSelect()' },
@@ -2419,7 +2419,7 @@
         showScheduleForm();
       } else {
         addBot(
-          `Xeko sẽ đăng lên: <strong>${targetText}</strong>\n\nBạn soạn content xuống dưới, kèm ảnh qua 📷 rồi nhấn ➤ là mình quẩy ngay 🚀`,
+          `Xeko sẽ đăng lên: <strong>${targetText}</strong>\n\nBạn soạn content xuống dưới, kèm ảnh qua 📷 rồi nhấn ➤ là mình chiến ngay 🚀`,
           [
             { label: `${xekoIcon('pin')} Đổi nơi đăng`, action: 'showTargetSelect()' },
             { label: `${xekoIcon('refresh')} Đổi Profile`, action: 'showProfileSelect()' },
@@ -2521,7 +2521,7 @@
           const d = await r.json();
           if (d.status === 'done') {
             if (d.success) {
-              addBot(`✅ Xeko quẩy Zalo <strong>${groupName}</strong> (${account}) ngon lành rồi nha!`);
+              addBot(`✅ Xeko chiến Zalo <strong>${groupName}</strong> (${account}) ngon lành rồi nha!`);
             } else {
               addBot(`❌ Huhu Zalo <strong>${groupName}</strong> hỏng mất rồi: ${d.error || 'Không rõ lý do'}`);
             }
@@ -2600,7 +2600,7 @@
           let data;
           if (initial.jobId) {
             removeTyping();
-            addBot('⏳ Xeko đang quẩy bài nè, bạn chờ xíu nha...');
+            addBot('⏳ Xeko đang chiến bài nè, bạn chờ xíu nha...');
             addTyping();
             data = await pollJob(initial.jobId);
           } else {
@@ -2652,7 +2652,7 @@
             const cd = initial.jobId ? await pollJob(initial.jobId) : initial;
             removeTyping();
             if (cd.success) {
-              let msg = `✅ Xeko quẩy Group <strong>#${gid}</strong> (profile <strong>${currentProfile}</strong>) xong rồi nha!`;
+              let msg = `✅ Xeko chiến Group <strong>#${gid}</strong> (profile <strong>${currentProfile}</strong>) xong rồi nha!`;
               if (cd.postUrl) msg += `\n<a class="link" href="${cd.postUrl}" target="_blank">Xem bài viết</a>`;
               addBot(msg, null, cd.screenshot ? `/api/screenshot?t=${Date.now()}` : null);
             } else {
@@ -2703,7 +2703,7 @@
         }
 
         // Hien nut tiep tuc
-        addBot('Xeko sẵn sàng quẩy tiếp nè, bạn muốn làm gì nào? 🔥', [
+        addBot('Xeko sẵn sàng chiến tiếp nè, bạn muốn làm gì nào? 🔥', [
           { label: `${xekoIcon('post')} Đăng bài tiếp`, action: 'focusInput()' },
           { label: `${xekoIcon('pin')} Đổi nơi đăng`, action: 'showTargetSelect()' },
           { label: `${xekoIcon('refresh')} Đổi Profile`, action: 'showProfileSelect()' },
