@@ -2288,14 +2288,18 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ profile: name }),
       })
-      .then(r => parseJson(r))
+      .then(async r => {
+        const data = await parseJson(r);
+        if (!r.ok) throw new Error(data.error || `Lỗi ${r.status}`);
+        return data;
+      })
       .then(data => {
         currentProfile = name;
         currentProfileName = data.name || name;
-        updateHeaderProfile(data.name);
+        updateHeaderProfile(currentProfileName);
         // STEP 3: Chon che do
         addBot(
-          `Xeko chốt profile <strong>${data.name}</strong> rồi nha!\nGiờ bạn muốn Xeko đăng liền hay lên lịch giúp nè?`,
+          `Xeko chốt profile <strong>${currentProfileName}</strong> rồi nha!\nGiờ bạn muốn Xeko đăng liền hay lên lịch giúp nè?`,
           [
             { label: `${xekoIcon('post')} Đăng ngay`, action: "selectMode('now')" },
             { label: `${xekoIcon('clock')} Lên lịch`, action: "selectMode('schedule')" },
