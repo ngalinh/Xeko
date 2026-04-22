@@ -43,5 +43,9 @@ const cols = db.prepare("PRAGMA table_info(post_logs)").all().map(c => c.name);
 if (!cols.includes('images')) {
   db.exec(`ALTER TABLE post_logs ADD COLUMN images TEXT`);
 }
+if (!cols.includes('batch_id')) {
+  db.exec(`ALTER TABLE post_logs ADD COLUMN batch_id TEXT`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_post_logs_batch_id ON post_logs(batch_id)`);
+}
 
 module.exports = db;

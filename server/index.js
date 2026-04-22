@@ -138,6 +138,8 @@ setInterval(() => {
 }, 3600_000);
 
 async function executePost({ message, target, groupId, imagePaths, imageUrls }) {
+  const batchId = crypto.randomUUID();
+
   // Dang len ca nhan + tat ca group
   if (target === 'all') {
     const results = [];
@@ -146,7 +148,7 @@ async function executePost({ message, target, groupId, imagePaths, imageUrls }) 
       logger.info('Dang len FB ca nhan...');
       const r = await playwright.postToPersonal(message, imagePaths);
       postCount++;
-      postLogger.logPost({ profile: activeProfile.key, profileName: activeProfile.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
+      postLogger.logPost({ profile: activeProfile.key, profileName: activeProfile.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
       results.push({ target: 'FB Cá nhân', success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
     }
@@ -157,7 +159,7 @@ async function executePost({ message, target, groupId, imagePaths, imageUrls }) 
       logger.info(`Dang len ${group.name}...`);
       const r = await playwright.postToGroup(group.id, message, imagePaths);
       postCount++;
-      postLogger.logPost({ profile: activeProfile.key, profileName: activeProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
+      postLogger.logPost({ profile: activeProfile.key, profileName: activeProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
       results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       if (groups.indexOf(group) < groups.length - 1) {
         await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
@@ -175,7 +177,7 @@ async function executePost({ message, target, groupId, imagePaths, imageUrls }) 
       logger.info(`Dang len ${group.name}...`);
       const r = await playwright.postToGroup(group.id, message, imagePaths);
       postCount++;
-      postLogger.logPost({ profile: agProfile.key, profileName: agProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
+      postLogger.logPost({ profile: agProfile.key, profileName: agProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
       results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       if (groups.indexOf(group) < groups.length - 1) {
         await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
@@ -613,10 +615,10 @@ app.get('/api/schedule-image/:id/:index', (req, res) => {
 
 // === Post History & Statistics API ===
 app.get('/api/post-history', (req, res) => {
-  const { profile, platform, success, from, to, limit, offset } = req.query;
+  const { profile, platform, target, success, from, to, limit, offset } = req.query;
   try {
     const result = postLogger.getPostHistory({
-      profile, platform,
+      profile, platform, target,
       success: success !== undefined && success !== '' ? success : undefined,
       from, to,
       limit: parseInt(limit) || 50,

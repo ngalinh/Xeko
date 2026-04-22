@@ -1793,6 +1793,11 @@
           <option value="">Tất cả nền tảng</option>
           <option value="facebook">Facebook</option>
         </select>
+        <select id="dashFilterTarget" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+          <option value="">Tất cả nơi đăng</option>
+          <option value="personal">Cá nhân</option>
+          <option value="group">Nhóm</option>
+        </select>
         <select id="dashFilterStatus" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
           <option value="">Tất cả trạng thái</option>
           <option value="1">Thành công</option>
@@ -4393,6 +4398,7 @@
     async function loadDashHistory() {
       const profile = document.getElementById('dashFilterProfile').value;
       const platform = document.getElementById('dashFilterPlatform').value;
+      const target = document.getElementById('dashFilterTarget').value;
       const success = document.getElementById('dashFilterStatus').value;
       const from = document.getElementById('dashFilterFrom').value;
       const to = document.getElementById('dashFilterTo').value;
@@ -4400,6 +4406,7 @@
       const params = new URLSearchParams();
       if (profile) params.set('profile', profile);
       if (platform) params.set('platform', platform);
+      if (target) params.set('target', target);
       if (success !== '') params.set('success', success);
       if (from) params.set('from', from + 'T00:00:00.000Z');
       if (to) params.set('to', to + 'T23:59:59.999Z');
@@ -4414,11 +4421,23 @@
         if (typeof _dashSelectedIds !== 'undefined') { _dashSelectedIds.clear(); _updateBulkBar(); }
         if (data.rows && data.rows.length > 0) {
           window._dashRows = data.rows;
+
+          // Tính batch_id nào xuất hiện nhiều hơn 1 lần → gán màu
+          const BATCH_COLORS = ['#7c66ff','#06b6d4','#f59e0b','#10b981','#ef4444','#8b5cf6','#ec4899'];
+          const batchCount = {};
+          data.rows.forEach(r => { if (r.batch_id) batchCount[r.batch_id] = (batchCount[r.batch_id] || 0) + 1; });
+          const batchColorMap = {};
+          let colorIdx = 0;
+          Object.keys(batchCount).filter(k => batchCount[k] > 1).forEach(k => {
+            batchColorMap[k] = BATCH_COLORS[colorIdx++ % BATCH_COLORS.length];
+          });
+
           tbody.innerHTML = data.rows.map((row, idx) => {
             const d = new Date(row.timestamp);
             const pad = n => String(n).padStart(2,'0');
             const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
             const platformLabel = 'FB';
+            const batchColor = row.batch_id ? batchColorMap[row.batch_id] : null;
             const statusBadge = row.success
               ? '<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:6px; font-size:11px;">OK</span>'
               : `<span style="background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:6px; font-size:11px;" title="${(row.error||'').replace(/"/g,'&quot;')}">Lỗi</span>`;
@@ -4441,9 +4460,12 @@
             }
             const profileName = row.profile_name || row.profile || '-';
 
-            return `<tr id="dashRow-${row.id}" style="border-bottom:1px solid #f3f4f6;">
+            const batchDot = batchColor
+              ? `<span title="Đăng cùng phiên (${batchCount[row.batch_id]} bài)" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${batchColor}; margin-right:5px; flex-shrink:0; cursor:help;"></span>`
+              : '';
+            return `<tr id="dashRow-${row.id}" style="border-bottom:1px solid #f3f4f6;${batchColor ? `border-left:3px solid ${batchColor};` : ''}">
               <td style="padding:10px 10px; text-align:center;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"></td>
-              <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
+              <td style="padding:10px 12px; white-space:nowrap; font-size:12px;"><div style="display:flex; align-items:center;">${batchDot}${time}</div></td>
               <td style="padding:10px 12px; font-size:12px; white-space:nowrap;">${profileName}</td>
               <td style="padding:10px 12px; font-size:12px;">${platformLabel}</td>
               <td style="padding:10px 12px; font-size:12px;">${target}</td>
