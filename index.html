@@ -1586,6 +1586,10 @@
         <h1>Quản lý tài khoản</h1>
         <span>Quản lý profile Chromium - Facebook</span>
       </div>
+      <button id="restartServerBtn" onclick="restartLocalServer()" title="Khởi động lại local server"
+        style="margin-left:auto; display:flex; align-items:center; gap:6px; padding:8px 14px; background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:8px; font-size:13px; cursor:pointer; font-weight:600; white-space:nowrap;">
+        <svg class="xi" style="color:#856404;"><use href="#ic-refresh"/></svg> Restart Server
+      </button>
     </div>
     <div style="flex:1; padding:24px 32px; overflow-y:auto;">
 
@@ -3539,6 +3543,45 @@
 
     function loginProfile(profileKey) {
       alert(`Chạy lệnh trong terminal:\n\ncd C:\\Users\\tramm\\projects\\fb-auto-poster\nnode src\\playwright\\login.js ${profileKey}`);
+    }
+
+    async function restartLocalServer() {
+      const btn = document.getElementById('restartServerBtn');
+      if (!btn) return;
+      const orig = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<svg class="xi" style="color:#856404;"><use href="#ic-refresh"/></svg> Đang restart...';
+      btn.style.opacity = '0.7';
+      try {
+        const res = await fetch(BASE_URL + '/api/restart', { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (data.error) throw new Error(data.error);
+        btn.innerHTML = '✅ Đã gửi lệnh restart!';
+        btn.style.background = '#d1fae5';
+        btn.style.color = '#065f46';
+        btn.style.borderColor = '#6ee7b7';
+        setTimeout(() => {
+          btn.innerHTML = orig;
+          btn.style.background = '';
+          btn.style.color = '';
+          btn.style.borderColor = '';
+          btn.disabled = false;
+          btn.style.opacity = '';
+        }, 4000);
+      } catch (e) {
+        btn.innerHTML = '❌ ' + (e.message || 'Lỗi kết nối');
+        btn.style.background = '#fef2f2';
+        btn.style.color = '#dc2626';
+        btn.style.borderColor = '#fecaca';
+        setTimeout(() => {
+          btn.innerHTML = orig;
+          btn.style.background = '';
+          btn.style.color = '';
+          btn.style.borderColor = '';
+          btn.disabled = false;
+          btn.style.opacity = '';
+        }, 4000);
+      }
     }
 
     async function populateHistoryFilter() {

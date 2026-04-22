@@ -666,6 +666,9 @@ app.patch('/api/channels/zalo-groups/:key', (req, res) => proxyToLocal(req, res,
 app.delete('/api/channels/zalo-groups/:key', (req, res) => proxyToLocal(req, res, 'DELETE', `/api/channels/zalo-groups/${req.params.key}`));
 app.put('/api/channels/profile-channels', (req, res) => proxyToLocal(req, res, 'PUT', '/api/channels/profile-channels', req.body));
 
+// ===== RESTART LOCAL SERVER =====
+app.post('/api/restart', (req, res) => proxyToLocal(req, res, 'POST', '/api/restart'));
+
 // ===== ZALO POST =====
 app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
   const LOCAL_URL = getLocalUrl();
