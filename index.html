@@ -2280,6 +2280,30 @@
       if (el) el.style.display = show ? 'block' : 'none';
     }
 
+    function buildChannelSummary(selection) {
+      if (!selection) return '';
+      const summaryParts = [];
+      for (const pKey of Object.keys(selection)) {
+        const p = buildTargetChannels(pKey, pKey);
+        const fbNames = (selection[pKey].fb || []).map(c => {
+          if (c.id === 'custom') return `Group #${c.groupId}`;
+          const ch = (p.fb || []).find(f => f.id === c.id);
+          return ch ? ch.name : c.id;
+        });
+        const zaloNames = (selection[pKey].zalo || []).map(c => {
+          const ch = (p.zalo || []).find(f => f.id === c.id);
+          return ch ? `💬 ${ch.name}` : c.id;
+        });
+        const parts = [];
+        if (fbNames.length > 0) parts.push(`📘 ${fbNames.join(', ')}`);
+        if (zaloNames.length > 0) parts.push(zaloNames.join(', '));
+        if (parts.length > 0) {
+          summaryParts.push(`<strong>${pKey}:</strong> ${parts.join(' • ')}`);
+        }
+      }
+      return summaryParts.join('<br>');
+    }
+
     function confirmChannelSelection(pid) {
       const panel = document.getElementById(`channelPanel_${pid}`);
       if (!panel) return;
@@ -2322,28 +2346,7 @@
       // Store selection for posting
       window._channelSelection = selected;
 
-      // Build summary text
-      let summaryParts = [];
-      for (const pKey of Object.keys(selected)) {
-        const p = buildTargetChannels(pKey, pKey);
-        const fbNames = (selected[pKey].fb || []).map(c => {
-          if (c.id === 'custom') return `Group #${c.groupId}`;
-          const ch = (p.fb || []).find(f => f.id === c.id);
-          return ch ? ch.name : c.id;
-        });
-        const zaloNames = (selected[pKey].zalo || []).map(c => {
-          const ch = (p.zalo || []).find(f => f.id === c.id);
-          return ch ? `💬 ${ch.name}` : c.id;
-        });
-        const parts = [];
-        if (fbNames.length > 0) parts.push(`📘 ${fbNames.join(', ')}`);
-        if (zaloNames.length > 0) parts.push(zaloNames.join(', '));
-        if (parts.length > 0) {
-          summaryParts.push(`<strong>${pKey}:</strong> ${parts.join(' • ')}`);
-        }
-      }
-
-      const summaryText = summaryParts.join('<br>');
+      const summaryText = buildChannelSummary(selected);
       addUser('Đã chọn kênh đăng bài');
 
       // Determine which profiles need posting
@@ -2735,9 +2738,15 @@
       const nowDate = new Date();
       const localISO = new Date(nowDate.getTime() - nowDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
-      let targetText = TARGET_LABELS[currentTarget] || 'Chưa chọn';
-      if (currentTarget === 'allgroup') targetText = 'Asale + Tổng Kho';
-      if (currentTarget === 'all') targetText = 'FB Cá nhân + Asale + Tổng Kho';
+      const selectionSummary = buildChannelSummary(window._channelSelection);
+      let targetText;
+      if (selectionSummary) {
+        targetText = selectionSummary;
+      } else {
+        targetText = TARGET_LABELS[currentTarget] || 'Chưa chọn';
+        if (currentTarget === 'allgroup') targetText = 'Asale + Tổng Kho';
+        if (currentTarget === 'all') targetText = 'FB Cá nhân + Asale + Tổng Kho';
+      }
 
       const chat = document.getElementById('chatArea');
       const row = document.createElement('div');
