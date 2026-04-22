@@ -662,6 +662,7 @@ app.post('/api/channels/fb-groups', (req, res) => proxyToLocal(req, res, 'POST',
 app.patch('/api/channels/fb-groups/:key', (req, res) => proxyToLocal(req, res, 'PATCH', `/api/channels/fb-groups/${req.params.key}`, req.body));
 app.delete('/api/channels/fb-groups/:key', (req, res) => proxyToLocal(req, res, 'DELETE', `/api/channels/fb-groups/${req.params.key}`));
 app.post('/api/channels/zalo-groups', (req, res) => proxyToLocal(req, res, 'POST', '/api/channels/zalo-groups', req.body));
+app.patch('/api/channels/zalo-groups/:key', (req, res) => proxyToLocal(req, res, 'PATCH', `/api/channels/zalo-groups/${req.params.key}`, req.body));
 app.delete('/api/channels/zalo-groups/:key', (req, res) => proxyToLocal(req, res, 'DELETE', `/api/channels/zalo-groups/${req.params.key}`));
 app.put('/api/channels/profile-channels', (req, res) => proxyToLocal(req, res, 'PUT', '/api/channels/profile-channels', req.body));
 
