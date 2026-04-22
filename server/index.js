@@ -101,8 +101,28 @@ function cleanupFiles(files) {
 // ===== API =====
 
 // Chon profile
-app.post('/api/profile', (req, res) => {
+app.post('/api/profile', async (req, res) => {
   const { profile } = req.body;
+
+  if (getLocalUrl()) {
+    try {
+      const LOCAL_URL = getLocalUrl();
+      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const fetchFn = await getFetch();
+      const response = await fetchFn(`${LOCAL_URL}/api/profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+        body: JSON.stringify({ profile }),
+      });
+      const data = await response.json();
+      if (!response.ok) return res.status(response.status).json(data);
+      playwright.setProfile(profile);
+      return res.json({ success: true, name: data.name || profile });
+    } catch (e) {
+      return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
+    }
+  }
+
   try {
     const p = playwright.setProfile(profile);
     res.json({ success: true, name: p.name || profile });
