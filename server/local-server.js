@@ -161,6 +161,8 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
   const imagePaths = (req.files || []).map(f => f.path);
   const accountName = zaloAccountName || profile;
 
+  logger.info(`[zalo/post] Nhận: account="${accountName}", group="${groupName}", ảnh=${imagePaths.length}, files=${JSON.stringify(imagePaths)}`);
+
   if (!accountName || !groupName) {
     cleanupFiles(imagePaths);
     return res.status(400).json({ error: 'Thiếu zaloAccountName/profile hoặc groupName' });
