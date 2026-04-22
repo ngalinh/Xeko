@@ -1977,12 +1977,19 @@
     </div>
   </div>
 
-  <!-- Delete dropdown menu (dùng chung, hiện theo vị trí button) -->
-  <div id="deleteDropdownMenu" style="display:none; position:fixed; z-index:2000; background:#fff; border:1px solid #e5e7eb; border-radius:10px; box-shadow:0 4px 20px rgba(0,0,0,0.15); min-width:210px; overflow:hidden;">
-    <div style="padding:8px 12px; font-size:11px; font-weight:600; color:#999; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid #f3f4f6;">Xóa lịch sử</div>
-    <button onclick="doDelete('single')" style="display:block; width:100%; text-align:left; padding:10px 14px; border:none; background:#fff; font-size:13px; cursor:pointer; color:#333;" onmouseover="this.style.background='#fef2f2'; this.style.color='#ef4444'" onmouseout="this.style.background='#fff'; this.style.color='#333'">🗑️ Xóa bài này</button>
-    <button onclick="doDelete('failed')" style="display:block; width:100%; text-align:left; padding:10px 14px; border:none; background:#fff; font-size:13px; cursor:pointer; color:#333; border-top:1px solid #f9fafb;" onmouseover="this.style.background='#fef2f2'; this.style.color='#ef4444'" onmouseout="this.style.background='#fff'; this.style.color='#333'">⚠️ Xóa tất cả bài lỗi</button>
-    <button onclick="doDelete('all')" style="display:block; width:100%; text-align:left; padding:10px 14px; border:none; background:#fff; font-size:13px; cursor:pointer; color:#ef4444; font-weight:600; border-top:1px solid #f3f4f6;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'">💥 Xóa toàn bộ lịch sử</button>
+  <!-- Modal xác nhận xóa -->
+  <div id="deleteConfirmModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.35); z-index:2000; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:14px; padding:28px 28px 24px; width:380px; max-width:92%; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+        <span style="font-size:28px; line-height:1;">🗑️</span>
+        <h3 id="deleteConfirmTitle" style="font-size:16px; font-weight:700; color:#1e1e2e; margin:0;"></h3>
+      </div>
+      <p id="deleteConfirmDesc" style="font-size:13px; color:#666; margin:0 0 22px; line-height:1.6;"></p>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button onclick="closeDeleteConfirm()" style="padding:9px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:14px; cursor:pointer; color:#555; font-weight:500;">Huỷ</button>
+        <button id="deleteConfirmBtn" onclick="executeDelete()" style="padding:9px 22px; border:none; border-radius:8px; background:#ef4444; color:#fff; font-size:14px; cursor:pointer; font-weight:600;">Xóa</button>
+      </div>
+    </div>
   </div>
 
   <!-- Modal đăng lại bài viết -->
@@ -4440,7 +4447,7 @@
               <td style="padding:8px 10px; text-align:center; position:relative;">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
                   <button onclick="openRepostModal(${idx})" style="padding:4px 9px; border:1px solid #7c66ff; border-radius:6px; background:#fff; color:#7c66ff; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;" onmouseover="this.style.background='#7c66ff';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#7c66ff'">🔄 Repost</button>
-                  <button onclick="toggleDeleteMenu(event,${row.id},${idx})" style="padding:4px 7px; border:1px solid #fca5a5; border-radius:6px; background:#fff; color:#ef4444; font-size:13px; cursor:pointer; line-height:1;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'" title="Xóa">🗑️</button>
+                  <button onclick="openSingleDeleteConfirm(${row.id})" style="padding:4px 7px; border:1px solid #fca5a5; border-radius:6px; background:#fff; color:#ef4444; font-size:13px; cursor:pointer; line-height:1;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'" title="Xóa">🗑️</button>
                 </div>
               </td>
             </tr>`;
@@ -4523,81 +4530,67 @@
       if (sa) sa.checked = allCbs.length > 0 && count === allCbs.length;
     }
 
-    async function deleteSelectedRows() {
+    function deleteSelectedRows() {
       const ids = [..._dashSelectedIds];
       if (ids.length === 0) return;
-      if (!confirm(`Xóa ${ids.length} bài đã chọn?`)) return;
+      _openDeleteConfirm(
+        'Xóa bài đã chọn',
+        `Bạn chắc chắn muốn xóa <strong>${ids.length} bài</strong> đã chọn khỏi lịch sử?`,
+        async () => {
+          const res = await fetch(BASE_URL + '/api/post-history/bulk?ids=' + ids.join(','), { method: 'DELETE' });
+          const data = await parseJson(res);
+          if (!res.ok) throw new Error(data.error || 'Lỗi');
+          _dashSelectedIds.clear();
+          loadDashHistory();
+        }
+      );
+    }
+
+    // ===== Delete Confirm Modal =====
+    let _deleteConfirmAction = null;
+
+    function _openDeleteConfirm(title, desc, action) {
+      document.getElementById('deleteConfirmTitle').textContent = title;
+      document.getElementById('deleteConfirmDesc').innerHTML = desc;
+      document.getElementById('deleteConfirmBtn').textContent = 'Xóa';
+      document.getElementById('deleteConfirmBtn').disabled = false;
+      _deleteConfirmAction = action;
+      document.getElementById('deleteConfirmModal').style.display = 'flex';
+    }
+
+    function closeDeleteConfirm() {
+      document.getElementById('deleteConfirmModal').style.display = 'none';
+      _deleteConfirmAction = null;
+    }
+
+    async function executeDelete() {
+      if (!_deleteConfirmAction) return;
+      const btn = document.getElementById('deleteConfirmBtn');
+      btn.disabled = true;
+      btn.textContent = 'Đang xóa...';
       try {
-        const res = await fetch(BASE_URL + '/api/post-history/bulk?ids=' + ids.join(','), { method: 'DELETE' });
-        const data = await parseJson(res);
-        if (!res.ok) throw new Error(data.error || 'Lỗi');
-        _dashSelectedIds.clear();
-        loadDashHistory();
+        await _deleteConfirmAction();
+        closeDeleteConfirm();
       } catch (e) {
         alert('❌ Xóa thất bại: ' + e.message);
+        btn.disabled = false;
+        btn.textContent = 'Xóa';
       }
     }
 
-    // ===== Delete Menu =====
-    let _deleteTargetId = null;
-    let _deleteTargetIdx = null;
-
-    function toggleDeleteMenu(e, rowId, idx) {
-      e.stopPropagation();
-      const menu = document.getElementById('deleteDropdownMenu');
-      const alreadyOpen = menu.style.display === 'block' && _deleteTargetId === rowId;
-      closeDeleteMenu();
-      if (alreadyOpen) return;
-
-      _deleteTargetId = rowId;
-      _deleteTargetIdx = idx;
-
-      const btn = e.currentTarget;
-      const rect = btn.getBoundingClientRect();
-      const menuW = 210;
-      let left = rect.right - menuW;
-      if (left < 8) left = 8;
-      let top = rect.bottom + 6;
-      if (top + 160 > window.innerHeight) top = rect.top - 160;
-
-      menu.style.left = left + 'px';
-      menu.style.top = top + 'px';
-      menu.style.display = 'block';
-    }
-
-    function closeDeleteMenu() {
-      document.getElementById('deleteDropdownMenu').style.display = 'none';
-      _deleteTargetId = null;
-      _deleteTargetIdx = null;
-    }
-
-    document.addEventListener('click', () => closeDeleteMenu());
-
-    async function doDelete(scope) {
-      closeDeleteMenu();
-      let confirmMsg, url, method = 'DELETE';
-
-      if (scope === 'single') {
-        confirmMsg = 'Xóa bài đăng này khỏi lịch sử?';
-        url = BASE_URL + '/api/post-history/' + _deleteTargetId;
-      } else if (scope === 'failed') {
-        confirmMsg = 'Xóa toàn bộ bài đăng lỗi khỏi lịch sử?';
-        url = BASE_URL + '/api/post-history?success=0';
-      } else {
-        confirmMsg = 'Xóa TOÀN BỘ lịch sử bài đăng? Không thể hoàn tác!';
-        url = BASE_URL + '/api/post-history';
-      }
-
-      if (!confirm(confirmMsg)) return;
-
-      try {
-        const res = await fetch(url, { method });
-        const data = await parseJson(res);
-        if (!res.ok) throw new Error(data.error || 'Lỗi không xác định');
-        loadDashHistory();
-      } catch (e) {
-        alert('❌ Xóa thất bại: ' + e.message);
-      }
+    function openSingleDeleteConfirm(rowId) {
+      const row = (window._dashRows || []).find(r => r.id === rowId);
+      const preview = row ? (row.message ? `"${row.message.substring(0, 60)}${row.message.length > 60 ? '…' : ''}"` : '(không có nội dung)') : '';
+      _openDeleteConfirm(
+        'Xóa bài viết này',
+        `Bạn chắc chắn muốn xóa bài này khỏi lịch sử?${preview ? `<br><span style="color:#999; font-style:italic; font-size:12px;">${preview}</span>` : ''}`,
+        async () => {
+          const res = await fetch(BASE_URL + '/api/post-history/' + rowId, { method: 'DELETE' });
+          const data = await parseJson(res);
+          if (!res.ok) throw new Error(data.error || 'Lỗi');
+          loadDashHistory();
+        }
+      );
     }
 
     // ===== Repost Modal =====
