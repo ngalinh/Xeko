@@ -492,6 +492,12 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', machine: 'local', timestamp: new Date().toISOString() });
 });
 
+// ===== RESTART =====
+app.post('/api/restart', (req, res) => {
+  res.json({ success: true, message: 'Đang khởi động lại server...' });
+  setTimeout(() => process.exit(0), 500);
+});
+
 // ===== START =====
 const PORT = process.env.LOCAL_PORT || 3001;
 app.listen(PORT, () => {
