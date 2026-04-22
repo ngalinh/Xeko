@@ -170,6 +170,12 @@ function deleteById(id) {
   return db.prepare('DELETE FROM post_logs WHERE id = ?').run(id);
 }
 
+function deleteByIds(ids) {
+  if (!ids || ids.length === 0) return { changes: 0 };
+  const placeholders = ids.map(() => '?').join(',');
+  return db.prepare(`DELETE FROM post_logs WHERE id IN (${placeholders})`).run(ids);
+}
+
 function deleteByFilter({ profile, success, from, to } = {}) {
   let sql = 'DELETE FROM post_logs WHERE 1=1';
   const params = {};
@@ -182,4 +188,4 @@ function deleteByFilter({ profile, success, from, to } = {}) {
   return db.prepare(sql).run(params);
 }
 
-module.exports = { logPost, getPostHistory, getStatistics, deleteById, deleteByFilter };
+module.exports = { logPost, getPostHistory, getStatistics, deleteById, deleteByIds, deleteByFilter };

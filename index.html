@@ -1803,22 +1803,33 @@
         <button onclick="loadDashboard()" style="padding:8px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:13px;">Lọc</button>
       </div>
 
+      <!-- Bulk action bar (hiện khi chọn >= 1 hàng) -->
+      <div id="dashBulkBar" style="display:none; align-items:center; justify-content:space-between; background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:10px 16px; margin-bottom:10px;">
+        <span id="dashBulkCount" style="font-size:13px; color:#555; font-weight:500;"></span>
+        <div style="display:flex; gap:8px;">
+          <button onclick="clearDashSelection()" style="padding:6px 14px; border:1px solid #ddd; border-radius:7px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Bỏ chọn</button>
+          <button onclick="deleteSelectedRows()" style="padding:6px 14px; border:none; border-radius:7px; background:#ef4444; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">🗑️ Xóa đã chọn</button>
+        </div>
+      </div>
+
       <!-- Post History Table -->
       <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
         <table style="width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed;">
           <colgroup>
-            <col style="width:148px;">
-            <col style="width:130px;">
-            <col style="width:56px;">
-            <col style="width:84px;">
-            <col style="width:130px;">
+            <col style="width:36px;">
+            <col style="width:142px;">
+            <col style="width:126px;">
+            <col style="width:54px;">
+            <col style="width:82px;">
+            <col style="width:120px;">
             <col>
-            <col style="width:116px;">
-            <col style="width:76px;">
-            <col style="width:130px;">
+            <col style="width:112px;">
+            <col style="width:74px;">
+            <col style="width:128px;">
           </colgroup>
           <thead>
             <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
+              <th style="padding:10px 10px; text-align:center;"><input type="checkbox" id="dashSelectAll" onchange="toggleSelectAll(this.checked)" style="cursor:pointer; width:14px; height:14px;"></th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Thời gian</th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Tài khoản</th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Nền tảng</th>
@@ -4393,6 +4404,7 @@
         const data = await parseJson(res);
 
         const tbody = document.getElementById('dashHistoryBody');
+        if (typeof _dashSelectedIds !== 'undefined') { _dashSelectedIds.clear(); _updateBulkBar(); }
         if (data.rows && data.rows.length > 0) {
           window._dashRows = data.rows;
           tbody.innerHTML = data.rows.map((row, idx) => {
@@ -4422,7 +4434,8 @@
             }
             const profileName = row.profile_name || row.profile || '-';
 
-            return `<tr style="border-bottom:1px solid #f3f4f6;">
+            return `<tr id="dashRow-${row.id}" style="border-bottom:1px solid #f3f4f6;">
+              <td style="padding:10px 10px; text-align:center;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"></td>
               <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
               <td style="padding:10px 12px; font-size:12px; white-space:nowrap;">${profileName}</td>
               <td style="padding:10px 12px; font-size:12px;">${platformLabel}</td>
@@ -4441,7 +4454,7 @@
           }).join('');
         } else {
           window._dashRows = [];
-          tbody.innerHTML = '<tr><td colspan="9" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="10" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
         }
 
         // Pagination
@@ -4464,6 +4477,72 @@
     function dashGoPage(page) {
       dashPage = page;
       loadDashHistory();
+    }
+
+    // ===== Bulk Selection =====
+    let _dashSelectedIds = new Set();
+
+    function onRowCheckbox(cb) {
+      const id = Number(cb.dataset.id);
+      const row = document.getElementById('dashRow-' + id);
+      if (cb.checked) {
+        _dashSelectedIds.add(id);
+        if (row) row.style.background = '#f5f3ff';
+      } else {
+        _dashSelectedIds.delete(id);
+        if (row) row.style.background = '';
+      }
+      _updateBulkBar();
+    }
+
+    function toggleSelectAll(checked) {
+      document.querySelectorAll('#dashHistoryBody input[type=checkbox]').forEach(cb => {
+        cb.checked = checked;
+        onRowCheckbox(cb);
+      });
+    }
+
+    function clearDashSelection() {
+      _dashSelectedIds.clear();
+      document.querySelectorAll('#dashHistoryBody input[type=checkbox]').forEach(cb => {
+        cb.checked = false;
+        const row = document.getElementById('dashRow-' + cb.dataset.id);
+        if (row) row.style.background = '';
+      });
+      const sa = document.getElementById('dashSelectAll');
+      if (sa) sa.checked = false;
+      _updateBulkBar();
+    }
+
+    function _updateBulkBar() {
+      const bar = document.getElementById('dashBulkBar');
+      const count = _dashSelectedIds.size;
+      if (count > 0) {
+        bar.style.display = 'flex';
+        document.getElementById('dashBulkCount').textContent = `Đã chọn ${count} bài`;
+      } else {
+        bar.style.display = 'none';
+      }
+      // Sync select-all checkbox state
+      const allCbs = document.querySelectorAll('#dashHistoryBody input[type=checkbox]');
+      const sa = document.getElementById('dashSelectAll');
+      if (sa && allCbs.length > 0) sa.indeterminate = count > 0 && count < allCbs.length;
+      if (sa) sa.checked = allCbs.length > 0 && count === allCbs.length;
+    }
+
+    async function deleteSelectedRows() {
+      const ids = [..._dashSelectedIds];
+      if (ids.length === 0) return;
+      if (!confirm(`Xóa ${ids.length} bài đã chọn?`)) return;
+      try {
+        const res = await fetch(BASE_URL + '/api/post-history/bulk?ids=' + ids.join(','), { method: 'DELETE' });
+        const data = await parseJson(res);
+        if (!res.ok) throw new Error(data.error || 'Lỗi');
+        _dashSelectedIds.clear();
+        loadDashHistory();
+      } catch (e) {
+        alert('❌ Xóa thất bại: ' + e.message);
+      }
     }
 
     // ===== Delete Menu =====

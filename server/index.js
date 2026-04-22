@@ -628,6 +628,17 @@ app.get('/api/post-history', (req, res) => {
   }
 });
 
+app.delete('/api/post-history/bulk', (req, res) => {
+  try {
+    const raw = (req.query.ids || '').split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+    if (raw.length === 0) return res.status(400).json({ error: 'Không có ID nào hợp lệ' });
+    const result = postLogger.deleteByIds(raw);
+    res.json({ deleted: result.changes });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.delete('/api/post-history/:id', (req, res) => {
   try {
     const result = postLogger.deleteById(Number(req.params.id));
