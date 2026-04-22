@@ -2990,8 +2990,15 @@
         addBot('Bạn chốt profile trước đã nha!');
         return;
       }
-      if (!currentTarget) {
-        addBot('Bạn chọn nơi đăng trước đã nha!');
+
+      const zaloSelCheck = (window._channelSelection || {})[currentProfile] || { zalo: [] };
+      const hasZaloSelection = (zaloSelCheck.zalo || []).length > 0;
+      const customIds = window._customGroupIds || [];
+      const hasCustomFbSelection = customIds.length > 0;
+      if (!currentTarget && !hasZaloSelection && !hasCustomFbSelection) {
+        addBot('Bạn chọn nơi đăng trước đã nha!', [
+          { label: `${xekoIcon('pin')} Chọn nơi đăng`, action: 'showTargetSelect()' },
+        ]);
         return;
       }
 
@@ -3006,39 +3013,61 @@
         target = 'shortcut';
       }
 
-      // Luu thumbnail truoc khi clear
       const photoUrls = selectedFiles.map(f => URL.createObjectURL(f));
       const savedMessage = message;
+      const filesToUpload = [...selectedFiles];
+      const isoTime = new Date(time).toISOString();
 
-      const formData = new FormData();
-      formData.append('time', new Date(time).toISOString());
-      formData.append('target', target);
-      formData.append('message', message);
-      formData.append('profile', currentProfile);
-      if (groupId) formData.append('groupId', groupId);
-      await appendImages(formData, selectedFiles);
-
-      // Hien thi tin nhan nguoi dung voi noi dung + anh
       addUser(savedMessage, photoUrls);
-
       input.value = '';
       clearImages();
       addTyping();
 
+      const scheduled = [];
+      const errors = [];
+
+      async function postSchedule(extra) {
+        const fd = new FormData();
+        fd.append('time', isoTime);
+        fd.append('message', message);
+        fd.append('profile', currentProfile);
+        for (const [k, v] of Object.entries(extra)) {
+          if (v != null) fd.append(k, v);
+        }
+        await appendImages(fd, filesToUpload);
+        const res = await fetch(BASE_URL + '/api/schedule', { method: 'POST', body: fd });
+        return parseJson(res);
+      }
+
       try {
-        const res = await fetch(BASE_URL + '/api/schedule', { method: 'POST', body: formData });
-        const data = await parseJson(res);
+        if (target) {
+          const data = await postSchedule({ target, groupId });
+          if (data.success) scheduled.push(TARGET_LABELS[currentTarget] || target);
+          else errors.push(`${TARGET_LABELS[currentTarget] || target}: ${data.error}`);
+        }
+
+        for (const gid of customIds) {
+          try {
+            const data = await postSchedule({ target: 'group', groupId: gid });
+            if (data.success) scheduled.push(`Group #${gid}`);
+            else errors.push(`Group #${gid}: ${data.error}`);
+          } catch (e) {
+            errors.push(`Group #${gid}: ${e.message}`);
+          }
+        }
+
+        if (hasZaloSelection) {
+          errors.push('Lên lịch Zalo chưa được hỗ trợ — bạn chọn "Đăng ngay" để đăng Zalo nha.');
+        }
+
         removeTyping();
 
-        if (data.success) {
-          // Hien thi xac nhan voi noi dung + thumbnail
-          let targetText = TARGET_LABELS[currentTarget] || currentTarget;
-          let confirmMsg = `⏰ ${data.message}\n\n`;
-          confirmMsg += `📍 Nơi đăng: <strong>${targetText}</strong>\n`;
+        if (scheduled.length > 0) {
+          let confirmMsg = `⏰ Đã lên lịch đăng bài lúc ${new Date(time).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}\n\n`;
+          confirmMsg += `📍 Nơi đăng: <strong>${scheduled.join(', ')}</strong>\n`;
           if (savedMessage) confirmMsg += `📝 Nội dung: ${savedMessage}\n`;
           if (photoUrls.length > 0) confirmMsg += `📷 ${photoUrls.length} ảnh đính kèm`;
 
-          // Tao photo grid trong tin nhan bot
           let photoHtml = '';
           if (photoUrls.length > 0) {
             const maxShow = Math.min(photoUrls.length, 5);
@@ -3065,8 +3094,10 @@
           row.innerHTML = `<img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko"><div class="msg bot">${confirmMsg.replace(/\n/g,'<br>')}${photoHtml}${btnHtml}<div class="msg-time">${now()}</div></div>`;
           chat.appendChild(row);
           chat.scrollTop = chat.scrollHeight;
-        } else {
-          addBot(`Ui có lỗi rồi nè: ${data.error}`);
+        }
+
+        if (errors.length > 0) {
+          addBot(`Ui có vài chỗ Xeko chưa đặt được lịch nè:\n${errors.map(e => `• ${e}`).join('\n')}`);
         }
       } catch (e) {
         removeTyping();
