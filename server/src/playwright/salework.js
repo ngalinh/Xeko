@@ -48,39 +48,26 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     await screenshot(page, '01-loaded');
 
     // --- Account selection ---
-    // The el-select trigger shows "Tất cả tài khoản". Click it to open dropdown.
-    // Use locator().first() — more reliable than CSS selector with tryClick.
+    // Flow: click .el-select để mở dropdown → click vào ô search bên trong → gõ tên → click item
     try {
-      const alreadyOpen = await page.isVisible('input[placeholder*="tài khoản"]');
-
-      if (!alreadyOpen) {
-        // Click the caret (▼ arrow) or the whole el-select to open dropdown
-        try {
-          await page.locator('.el-select__caret').first().click({ timeout: 4000 });
-        } catch {
-          await page.locator('.el-select').first().click({ timeout: 4000 });
-        }
-        // Wait for the search input inside the dropdown to appear
-        await page.waitForSelector('input[placeholder*="tài khoản"]', { state: 'visible', timeout: 3000 })
-          .catch(() => {});
+      // Bước 1: mở dropdown nếu chưa mở
+      if (!await page.isVisible('input[placeholder*="tài khoản"]')) {
+        await page.locator('.el-select').first().click({ timeout: 5000 });
+        await page.waitForSelector('input[placeholder*="tài khoản"]', { state: 'visible', timeout: 4000 });
       }
-
       await screenshot(page, '02-dropdown-open');
 
-      const searchVisible = await page.isVisible('input[placeholder*="tài khoản"]');
-      if (searchVisible) {
-        await page.fill('input[placeholder*="tài khoản"]', zaloAccountName);
-        await page.waitForTimeout(600);
-        await screenshot(page, '02b-account-typed');
+      // Bước 2: click vào ô search trong dropdown rồi gõ tên tài khoản
+      await page.locator('input[placeholder*="tài khoản"]').click({ timeout: 3000 });
+      await page.locator('input[placeholder*="tài khoản"]').type(zaloAccountName, { delay: 80 });
+      await page.waitForTimeout(600);
+      await screenshot(page, '02b-account-typed');
 
-        await page.locator('li').filter({ hasText: zaloAccountName }).first().click({ timeout: 5000 });
-        await page.waitForTimeout(600);
-        await screenshot(page, '02c-account-selected');
-        logger.info(`[salework] Đã chọn tài khoản "${zaloAccountName}"`);
-      } else {
-        logger.warn(`[salework] Không mở được dropdown tài khoản, bỏ qua chọn account`);
-        await screenshot(page, '02-dropdown-failed');
-      }
+      // Bước 3: click item trong danh sách
+      await page.locator('li').filter({ hasText: zaloAccountName }).first().click({ timeout: 5000 });
+      await page.waitForTimeout(500);
+      await screenshot(page, '02c-account-selected');
+      logger.info(`[salework] Đã chọn tài khoản "${zaloAccountName}"`);
     } catch (e) {
       logger.warn(`[salework] Lỗi chọn tài khoản "${zaloAccountName}": ${e.message}`);
       await screenshot(page, '02-error');
