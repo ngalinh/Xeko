@@ -3,19 +3,20 @@ const path = require('path');
 const config = require('../../config/default');
 const logger = require('../utils/logger');
 const { randomDelay } = require('../utils/delay');
+const funMsg = require('../utils/fun-messages');
 
-// Luu browser context theo profile: { linhthao: ctx, linhduong: ctx }
+// Lưu browser context theo profile: { linhthao: ctx, linhduong: ctx }
 const browsers = {};
 
 // Mutex per profile: prevents concurrent launchPersistentContext on same userDataDir
 const launching = {};
 
-// Profile dang active
+// Profile đang active
 let activeProfile = null;
 let activeProfileData = null;
 
 /**
- * Chon profile
+ * Chọn profile
  */
 function setProfile(profileName) {
   let profile = config.profiles[profileName];
@@ -28,18 +29,18 @@ function setProfile(profileName) {
         userDataDir: profileDir,
       };
     } else {
-      throw new Error(`Profile "${profileName}" khong ton tai. Co: ${Object.keys(config.profiles).join(', ')}`);
+      throw new Error(`Profile "${profileName}" không tồn tại. Có: ${Object.keys(config.profiles).join(', ')}`);
     }
   }
   activeProfile = profileName;
   activeProfileData = profile;
-  logger.info(`Da chon profile: ${profileName} (${profile.name})`);
+  logger.info(`Đã chọn profile: ${profileName} (${profile.name})`);
   return profile;
 }
 
 function getActiveProfile() {
   if (!activeProfile) {
-    throw new Error('Chua chon profile! Dung /linhthao hoac /linhduong truoc.');
+    throw new Error('Chưa chọn profile! Dùng /linhthao hoặc /linhduong trước.');
   }
   return activeProfileData || config.profiles[activeProfile];
 }
@@ -112,7 +113,7 @@ async function ensureLoggedIn(page) {
   const profile = getActiveProfile();
   const url = page.url();
   if (url.includes('login') || url.includes('checkpoint')) {
-    logger.info(`Session het han, dang nhap lai (${profile.name})...`);
+    logger.info(`Session hết hạn, đăng nhập lại (${profile.name})...`);
     const emailInput = await page.$('input[name="email"]');
     if (emailInput) {
       await emailInput.fill(profile.email);
@@ -195,7 +196,7 @@ async function openCreatePost(page, isGroup = false) {
         '[aria-label*="on your mind"]',
       ];
 
-  return await tryClick(page, selectors, 'Mo popup tao bai');
+  return await tryClick(page, selectors, 'Mở popup tạo bài');
 }
 
 async function typeMessage(page, message) {
@@ -225,7 +226,7 @@ async function typeMessage(page, message) {
         for (const char of message) {
           await page.keyboard.type(char, { delay: Math.random() * 50 + 30 });
         }
-        logger.info('Da nhap noi dung bai viet');
+        logger.info('Đã nhập nội dung bài viết');
         return true;
       }
     } catch {
@@ -251,17 +252,17 @@ async function typeMessage(page, message) {
 async function attachImages(page, imagePaths) {
   if (!imagePaths || imagePaths.length === 0) return true;
 
-  logger.info(`Dinh kem ${imagePaths.length} anh...`);
+  logger.info(`Đính kèm ${imagePaths.length} ảnh...`);
   let uploaded = false;
 
-  // Tim nut Anh/Video trong popup
+  // Tìm nút Ảnh/Video trong popup
   const photoSelectors = [
     'div[aria-label="Ảnh/video"]',
     'div[aria-label="Photo/video"]',
     'div[aria-label="Ảnh/Video"]',
   ];
 
-  // Cach 1: Click nut Anh/Video + bat filechooser (khong mo dialog)
+  // Cách 1: Click nút Ảnh/Video + bắt filechooser (không mở dialog)
   try {
     const [fileChooser] = await Promise.all([
       page.waitForEvent('filechooser', { timeout: 10000 }),
@@ -272,18 +273,18 @@ async function attachImages(page, imagePaths) {
             const el = await page.$(sel);
             if (el) {
               await el.click({ force: true });
-              logger.info(`Click nut anh: ${sel}`);
+              logger.info(`Click nút ảnh: ${sel}`);
               return;
             }
           } catch { continue; }
         }
-        // Fallback: tim trong thanh icon
+        // Fallback: tìm trong thanh icon
         const icons = await page.$$('div[role="dialog"] div[role="button"]');
         for (const icon of icons) {
           const label = await icon.getAttribute('aria-label');
           if (label && (label.includes('nh') || label.includes('hoto') || label.includes('ideo'))) {
             await icon.click({ force: true });
-            logger.info(`Click icon anh: ${label}`);
+            logger.info(`Click icon ảnh: ${label}`);
             return;
           }
         }
@@ -292,26 +293,26 @@ async function attachImages(page, imagePaths) {
 
     await fileChooser.setFiles(imagePaths);
     uploaded = true;
-    logger.info(`Upload ${imagePaths.length} anh thanh cong (filechooser)`);
+    logger.info(`Upload ${imagePaths.length} ảnh thành công (filechooser)`);
   } catch (e) {
     logger.error(`Filechooser failed: ${e.message}`);
   }
 
-  // Cach 2: Fallback - tim input[type=file] truc tiep
+  // Cách 2: Fallback - tìm input[type=file] trực tiếp
   if (!uploaded) {
     const fileInputs = await page.$$('input[type="file"]');
     for (const input of fileInputs) {
       try {
         await input.setInputFiles(imagePaths);
         uploaded = true;
-        logger.info(`Upload ${imagePaths.length} anh thanh cong (direct input)`);
+        logger.info(`Upload ${imagePaths.length} ảnh thành công (direct input)`);
         break;
       } catch { continue; }
     }
   }
 
   if (!uploaded) {
-    logger.error('KHONG UPLOAD DUOC ANH!');
+    logger.error('KHÔNG UPLOAD ĐƯỢC ẢNH!');
     await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-upload.png') });
   }
 
@@ -330,7 +331,7 @@ async function submitPost(page) {
     'div[aria-label="Next"]',
     'div[aria-label="Đăng"]',
     'div[aria-label="Post"]',
-  ], 'Buoc 1');
+  ], 'Bước 1');
 
   if (!step1) {
     for (let i = 0; i < 5; i++) {
@@ -350,7 +351,7 @@ async function submitPost(page) {
   const step2 = await tryClick(page, [
     'div[aria-label="Đăng"]',
     'div[aria-label="Post"]',
-  ], 'Buoc 2 - Dang');
+  ], 'Bước 2 - Đăng');
 
   if (!step2) {
     await page.evaluate(() => {
@@ -383,7 +384,7 @@ async function submitPost(page) {
 }
 
 /**
- * Chup screenshot bai viet cua profile dang active
+ * Chụp screenshot bài viết của profile đang active
  */
 
 async function postToPersonal(message, imagePaths = []) {
@@ -392,37 +393,37 @@ async function postToPersonal(message, imagePaths = []) {
 
   try {
     const profile = getActiveProfile();
-    logger.info(`Dang bai len trang ca nhan (${profile.name})...`);
+    logger.info(`Đăng bài lên trang cá nhân (${profile.name})...`);
     await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
     await randomDelay(3000, 5000);
     await ensureLoggedIn(page);
 
     if (!(await openCreatePost(page, false))) {
       await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-open.png') });
-      throw new Error('Khong mo duoc popup tao bai.');
+      throw new Error(funMsg.errPopupPersonal());
     }
     await randomDelay(2000, 3000);
 
     if (imagePaths.length > 0) {
       const imgOk = await attachImages(page, imagePaths);
-      if (!imgOk) throw new Error('Khong upload duoc anh. Xem logs/debug-upload.png');
+      if (!imgOk) throw new Error(funMsg.errUpload() + ' (xem logs/debug-upload.png)');
     }
     await randomDelay(1500, 2500);
 
     if (message && !(await typeMessage(page, message))) {
-      throw new Error('Khong nhap duoc noi dung.');
+      throw new Error(funMsg.errTypeContent());
     }
     await randomDelay(1000, 2000);
 
     const result = await submitPost(page);
     if (!result.success) {
-      throw new Error('Khong dang duoc bai. Xem logs/debug-failed.png');
+      throw new Error(funMsg.errPost() + ' (xem logs/debug-failed.png)');
     }
 
-    logger.info('Da dang bai ca nhan thanh cong!');
+    logger.info('Đã đăng bài cá nhân thành công!');
     return { success: true, target: 'personal' };
   } catch (error) {
-    logger.error(`Loi: ${error.message}`);
+    logger.error(`Lỗi: ${error.message}`);
     return { success: false, error: error.message };
   } finally {
     await page.close();
@@ -435,26 +436,26 @@ async function postToGroup(groupId, message, imagePaths = []) {
 
   try {
     const profile = getActiveProfile();
-    logger.info(`Dang bai len group ${groupId} (${profile.name})...`);
+    logger.info(`Đăng bài lên group ${groupId} (${profile.name})...`);
     await page.goto(`https://www.facebook.com/groups/${groupId}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await randomDelay(3000, 5000);
     await ensureLoggedIn(page);
 
     if (!(await openCreatePost(page, true))) {
       await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-group-open.png') });
-      throw new Error('Khong mo duoc popup tao bai group.');
+      throw new Error(funMsg.errPopupGroup());
     }
     await randomDelay(2000, 3000);
 
-    // Dinh kem anh TRUOC
+    // Đính kèm ảnh TRƯỚC
     if (imagePaths.length > 0) {
       const imgOk = await attachImages(page, imagePaths);
-      if (!imgOk) throw new Error('Khong upload duoc anh. Xem logs/debug-upload.png');
+      if (!imgOk) throw new Error(funMsg.errUpload() + ' (xem logs/debug-upload.png)');
     }
     await randomDelay(1500, 2500);
 
-    // Nhap text SAU - group co 2 o: "Them tieu de" va "Tao bai viet..."
-    // Can click vao o thu 2
+    // Nhập text SAU - group có 2 ô: "Thêm tiêu đề" và "Tạo bài viết..."
+    // Cần click vào ô thứ 2
     if (message) {
       await page.evaluate(() => {
         document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = 0);
@@ -463,7 +464,7 @@ async function postToGroup(groupId, message, imagePaths = []) {
 
       let typed = false;
       try {
-        // Tim tat ca textbox trong dialog, lay o thu 2 (o "Tao bai viet...")
+        // Tìm tất cả textbox trong dialog, lấy ô thứ 2 (ô "Tạo bài viết...")
         const editors = await page.$$('div[role="dialog"] div[contenteditable="true"][role="textbox"]');
         const targetEditor = editors.length >= 2 ? editors[1] : editors[0];
         if (targetEditor) {
@@ -474,29 +475,29 @@ async function postToGroup(groupId, message, imagePaths = []) {
             await page.keyboard.type(char, { delay: Math.random() * 50 + 30 });
           }
           typed = true;
-          logger.info('Da nhap noi dung group (o thu 2)');
+          logger.info('Đã nhập nội dung group (ô thứ 2)');
         }
       } catch (e) {
-        logger.error(`Loi nhap text group: ${e.message}`);
+        logger.error(`Lỗi nhập text group: ${e.message}`);
       }
 
       if (!typed) {
-        // Fallback: dung typeMessage binh thuong
+        // Fallback: dùng typeMessage bình thường
         await typeMessage(page, message);
       }
     }
     await randomDelay(1000, 2000);
 
-    // Nhan Dang
+    // Nhấn Đăng
     const result = await submitPost(page);
     if (!result.success) {
-      throw new Error('Khong dang duoc bai group. Xem logs/debug-failed.png');
+      throw new Error(funMsg.errPost() + ' (xem logs/debug-failed.png)');
     }
 
-    logger.info(`Da dang bai group ${groupId} thanh cong!`);
+    logger.info(`Đã đăng bài group ${groupId} thành công!`);
     return { success: true, target: `group:${groupId}` };
   } catch (error) {
-    logger.error(`Loi: ${error.message}`);
+    logger.error(`Lỗi: ${error.message}`);
     return { success: false, error: error.message };
   } finally {
     await page.close();
