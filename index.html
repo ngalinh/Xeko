@@ -2195,8 +2195,19 @@
 
       if (buttons) {
         row.querySelectorAll('[data-btn]').forEach(btn => {
-          const action = buttons[+btn.dataset.btn].action;
-          btn.addEventListener('click', () => { new Function(action)(); });
+          const b = buttons[+btn.dataset.btn];
+          btn.addEventListener('click', () => {
+            try {
+              if (typeof b.handler === 'function') {
+                b.handler();
+              } else if (typeof b.action === 'string') {
+                new Function(b.action)();
+              }
+            } catch (err) {
+              console.error('[msg-btn]', err);
+              addBot(`Ui nút này lỗi rồi nè: ${err && err.message ? err.message : err}`);
+            }
+          });
         });
       }
 
@@ -2266,7 +2277,7 @@
       addBot(
         'Xeko nè! Mình là trợ lý đăng bài Facebook xịn sò của bạn đây 🤗\nHôm nay bạn ráng làm content nhiều nhiều để mình đăng tất cả mọi mặt trận nhé!',
         [
-          { label: `${xekoIcon('user')} Chọn Profile`, action: 'showProfileSelect()' },
+          { label: `${xekoIcon('user')} Chọn Profile`, handler: () => showProfileSelect() },
         ]
       );
     }
@@ -2280,7 +2291,7 @@
         const data = await parseJson(res);
         const buttons = data.facebook.map(p => ({
           label: `${xekoIcon('user')} ${p.name}`,
-          action: `selectProfile('${p.key}')`,
+          handler: () => selectProfile(p.key),
         }));
         addBot('Bạn chọn profile trình duyệt cho Xeko với nha:', buttons);
       } catch (e) {
@@ -2309,9 +2320,9 @@
         addBot(
           `Xeko chốt profile <strong>${currentProfileName}</strong> rồi nha!\nGiờ bạn muốn Xeko đăng liền hay lên lịch giúp nè?`,
           [
-            { label: `${xekoIcon('post')} Đăng ngay`, action: "selectMode('now')" },
-            { label: `${xekoIcon('clock')} Lên lịch`, action: "selectMode('schedule')" },
-            { label: `${xekoIcon('refresh')} Đổi Profile`, action: 'showProfileSelect()' },
+            { label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') },
+            { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
+            { label: `${xekoIcon('refresh')} Đổi Profile`, handler: () => showProfileSelect() },
           ]
         );
         step = 'mode';
@@ -2582,8 +2593,8 @@
         addBot(
           `Xeko sẽ đăng lên:\n${summaryText}\n\nBạn soạn content xuống dưới nha, bấm 📷 để kèm ảnh rồi nhấn ➤ là mình đăng liền 🚀`,
           [
-            { label: `${xekoIcon('pin')} Đổi nơi đăng`, action: 'showTargetSelect()' },
-            { label: `${xekoIcon('refresh')} Đổi Profile`, action: 'showProfileSelect()' },
+            { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
+            { label: `${xekoIcon('refresh')} Đổi Profile`, handler: () => showProfileSelect() },
           ]
         );
       }
@@ -2594,8 +2605,8 @@
       addBot(
         'Xeko đăng liền hay lên lịch giúp bạn nè?',
         [
-          { label: `${xekoIcon('post')} Đăng ngay`, action: "selectMode('now')" },
-          { label: `${xekoIcon('clock')} Lên lịch`, action: "selectMode('schedule')" },
+          { label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') },
+          { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
         ]
       );
     }
@@ -2620,8 +2631,8 @@
         addBot(
           `Xeko sẽ đăng lên: <strong>${targetText}</strong>\n\nBạn soạn content xuống dưới, kèm ảnh qua 📷 rồi nhấn ➤ là mình đăng ngay 🚀`,
           [
-            { label: `${xekoIcon('pin')} Đổi nơi đăng`, action: 'showTargetSelect()' },
-            { label: `${xekoIcon('refresh')} Đổi Profile`, action: 'showProfileSelect()' },
+            { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
+            { label: `${xekoIcon('refresh')} Đổi Profile`, handler: () => showProfileSelect() },
           ]
         );
       }
@@ -2746,7 +2757,7 @@
       if (!currentProfile) {
         input.value = '';
         addBot('Bạn chốt profile cho Xeko trước đã nha!', [
-          { label: `${xekoIcon('user')} Chọn Profile`, action: 'showProfileSelect()' },
+          { label: `${xekoIcon('user')} Chọn Profile`, handler: () => showProfileSelect() },
         ]);
         return;
       }
@@ -2756,7 +2767,7 @@
       if (!currentTarget && !hasZaloSelection && !hasCustomFbSelection) {
         input.value = '';
         addBot('Bạn chọn nơi đăng giúp Xeko với nè!', [
-          { label: `${xekoIcon('pin')} Chọn nơi đăng`, action: 'showTargetSelect()' },
+          { label: `${xekoIcon('pin')} Chọn nơi đăng`, handler: () => showTargetSelect() },
         ]);
         return;
       }
@@ -2905,17 +2916,17 @@
 
         // Hien nut tiep tuc
         addBot('Mới đăng có bấy nhiêu à má? Ráng post thêm đi, content nhiều là Xeko vui lắm nè 🔥', [
-          { label: `${xekoIcon('post')} Đăng bài tiếp`, action: 'focusInput()' },
-          { label: `${xekoIcon('pin')} Đổi nơi đăng`, action: 'showTargetSelect()' },
-          { label: `${xekoIcon('refresh')} Đổi Profile`, action: 'showProfileSelect()' },
+          { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
+          { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
+          { label: `${xekoIcon('refresh')} Đổi Profile`, handler: () => showProfileSelect() },
         ]);
       } catch (e) {
         removeTyping();
         if (isProxyTimeout(e)) {
           addBot('⏳ Xeko đang đăng bài nè (chắc 1–2 phút thôi). Bạn ghé Facebook check sau nha, đừng bấm đăng lại không lại trùng bài đó!', [
-            { label: `${xekoIcon('post')} Đăng bài tiếp`, action: 'focusInput()' },
-            { label: `${xekoIcon('pin')} Đổi nơi đăng`, action: 'showTargetSelect()' },
-            { label: `${xekoIcon('refresh')} Đổi Profile`, action: 'showProfileSelect()' },
+            { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
+            { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
+            { label: `${xekoIcon('refresh')} Đổi Profile`, handler: () => showProfileSelect() },
           ]);
         } else {
           addBot(`Ui có lỗi rồi nè: ${e.message}`);
@@ -2991,7 +3002,7 @@
       if (!currentProfile) {
         input.value = '';
         addBot('Bạn chốt profile cho Xeko trước đã nha!', [
-          { label: `${xekoIcon('user')} Chọn Profile`, action: 'showProfileSelect()' },
+          { label: `${xekoIcon('user')} Chọn Profile`, handler: () => showProfileSelect() },
         ]);
         return;
       }
@@ -3003,7 +3014,7 @@
       if (!currentTarget && !hasZaloSelection && !hasCustomFbSelection) {
         input.value = '';
         addBot('Bạn chọn nơi đăng trước đã nha!', [
-          { label: `${xekoIcon('pin')} Chọn nơi đăng`, action: 'showTargetSelect()' },
+          { label: `${xekoIcon('pin')} Chọn nơi đăng`, handler: () => showTargetSelect() },
         ]);
         return;
       }
@@ -3122,7 +3133,7 @@
 
         if (schedules.length === 0) {
           addBot('Xeko chưa giữ lịch nào cả, mình lên lịch mới nha?', [
-            { label: `${xekoIcon('clock')} Lên lịch mới`, action: 'showScheduleForm()' },
+            { label: `${xekoIcon('clock')} Lên lịch mới`, handler: () => showScheduleForm() },
           ]);
           return;
         }
@@ -3138,11 +3149,11 @@
           msg += `\n\n`;
 
           if (s.status === 'pending') {
-            buttons.push({ label: `🗑 Xoá lịch #${s.id}`, action: `deleteSchedule(${s.id})` });
+            buttons.push({ label: `🗑 Xoá lịch #${s.id}`, handler: () => deleteSchedule(s.id) });
           }
         });
 
-        buttons.push({ label: `${xekoIcon('clock')} Lên lịch mới`, action: 'showScheduleForm()' });
+        buttons.push({ label: `${xekoIcon('clock')} Lên lịch mới`, handler: () => showScheduleForm() });
         addBot(msg, buttons);
       } catch (e) {
         removeTyping();
@@ -3157,7 +3168,7 @@
         const data = await parseJson(res);
         if (data.success) {
           addBot(`✅ ${data.message}`, [
-            { label: `${xekoIcon('clipboard')} Xem lịch`, action: 'showScheduleList()' },
+            { label: `${xekoIcon('clipboard')} Xem lịch`, handler: () => showScheduleList() },
           ]);
         } else {
           addBot(`Ui có lỗi rồi nè: ${data.error}`);
