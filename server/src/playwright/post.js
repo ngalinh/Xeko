@@ -7,6 +7,9 @@ const { randomDelay } = require('../utils/delay');
 // Luu browser context theo profile: { linhthao: ctx, linhduong: ctx }
 const browsers = {};
 
+// Mutex per profile: prevents concurrent launchPersistentContext on same userDataDir
+const launching = {};
+
 // Profile dang active
 let activeProfile = null;
 let activeProfileData = null;
@@ -45,6 +48,11 @@ async function getBrowser() {
   const profile = getActiveProfile();
   const key = activeProfile;
 
+  // If a launch is already in progress for this profile, wait for it instead of launching a second instance
+  if (launching[key]) {
+    return await launching[key];
+  }
+
   // .pages() không throw khi context đã đóng → thử newPage để kiểm tra thật,
   // nếu fail thì invalidate cache và tạo lại.
   if (browsers[key]) {
@@ -60,21 +68,44 @@ async function getBrowser() {
 
   const userDataDir = path.resolve(__dirname, '../../', profile.userDataDir);
 
-  browsers[key] = await chromium.launchPersistentContext(userDataDir, {
-    headless: false,
-    slowMo: config.playwright.slowMo,
-    viewport: { width: 1280, height: 720 },
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-    args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
-    permissions: ['clipboard-read', 'clipboard-write'],
-  });
+  // Launch with retry — Chrome may still hold a lock on userDataDir for a few seconds after closing
+  launching[key] = (async () => {
+    let lastErr;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) {
+        logger.info(`Retry launch browser (attempt ${attempt + 1}/3)...`);
+        await new Promise(r => setTimeout(r, 3000 * attempt));
+      }
+      try {
+        const ctx = await chromium.launchPersistentContext(userDataDir, {
+          headless: false,
+          slowMo: config.playwright.slowMo,
+          viewport: { width: 1280, height: 720 },
+          userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+          args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
+          permissions: ['clipboard-read', 'clipboard-write'],
+        });
 
-  // Khi user đóng tay cửa sổ Chromium, clear cache để lần sau tạo mới.
-  browsers[key].once('close', () => {
-    if (browsers[key]) browsers[key] = null;
-  });
+        // Khi user đóng tay cửa sổ Chromium, clear cache để lần sau tạo mới.
+        ctx.once('close', () => {
+          if (browsers[key] === ctx) browsers[key] = null;
+        });
 
-  return browsers[key];
+        browsers[key] = ctx;
+        return ctx;
+      } catch (e) {
+        lastErr = e;
+        logger.error(`Launch browser attempt ${attempt + 1} failed: ${e.message}`);
+      }
+    }
+    throw lastErr;
+  })();
+
+  try {
+    return await launching[key];
+  } finally {
+    launching[key] = null;
+  }
 }
 
 async function ensureLoggedIn(page) {
