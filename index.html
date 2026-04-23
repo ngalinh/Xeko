@@ -1572,6 +1572,7 @@
       <h1>Đăng bài</h1>
       <span id="headerStatus">Đăng bài tự động</span>
     </div>
+    <button id="btnChangeProfile" onclick="showProfileSelect()" style="display:none;margin-left:auto;padding:5px 12px;border-radius:8px;border:1px solid #e0d4ff;background:#f5f0ff;color:#6b5bff;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">👤 Đổi Profile</button>
   </div>
 
   <div class="chat-area" id="chatArea"></div>
@@ -2258,6 +2259,8 @@
     }
     function updateHeaderProfile(name) {
       document.getElementById('headerStatus').textContent = `Profile: ${name}`;
+      const btn = document.getElementById('btnChangeProfile');
+      if (btn) btn.style.display = 'block';
     }
 
     let postMode = 'now'; // 'now' hoac 'schedule'
@@ -2377,7 +2380,7 @@
       await loadChannels();
       channelPanelId++;
       const pid = channelPanelId;
-      const modeIcon = postMode === 'now' ? xekoIcon('post','xi xi-md') : xekoIcon('clock','xi xi-md');
+      const modeEmoji = postMode === 'now' ? '✏️' : '🕐';
       const modeLabel = postMode === 'now' ? 'Đăng ngay' : 'Lên lịch';
 
       const p = buildTargetChannels(currentProfile, currentProfileName);
@@ -2441,7 +2444,7 @@
         <div class="msg-wrapper">
           <div class="msg-header">Xeko <span class="time">${now()}</span></div>
           <div class="msg bot">
-            <strong style="display:inline-flex; align-items:center; gap:6px;">${modeIcon} Đăng bài</strong> — Chế độ: ${modeLabel}<br>
+            ${modeEmoji} <strong>Đăng bài</strong> — Chế độ: ${modeLabel}<br>
             Bạn tick kênh để Xeko đăng nha:
             ${panelHtml}
           </div>
