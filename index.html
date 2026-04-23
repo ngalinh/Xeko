@@ -1849,16 +1849,16 @@
       <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
         <table style="width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed;">
           <colgroup>
-            <col style="width:36px;">
-            <col style="width:148px;">
-            <col style="width:130px;">
-            <col style="width:46px;">
-            <col style="width:72px;">
-            <col style="width:130px;">
-            <col style="width:auto;">
-            <col style="width:130px;">
-            <col style="width:96px;">
-            <col style="width:72px;">
+            <col style="width:3%;">
+            <col style="width:13%;">
+            <col style="width:11%;">
+            <col style="width:4%;">
+            <col style="width:6%;">
+            <col style="width:11%;">
+            <col style="width:18%;">
+            <col style="width:13%;">
+            <col style="width:8%;">
+            <col style="width:6%;">
           </colgroup>
           <thead>
             <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
@@ -4491,6 +4491,15 @@
 
     async function loadDashboard() {
       try {
+        // Đảm bảo channelsData đã được tải (cần cho group filter)
+        if (!(channelsData.fbGroups?.length) && !(channelsData.zaloGroups?.length)) {
+          try {
+            const chRes = await fetch(`${BASE_URL}/api/channels`);
+            if (chRes.ok) channelsData = await parseJson(chRes);
+          } catch {}
+          populateDashGroupFilter();
+        }
+
         // Load statistics
         const statsRes = await fetch(BASE_URL + '/api/statistics');
         const stats = await parseJson(statsRes);
