@@ -4740,7 +4740,7 @@
             const d = new Date(row.timestamp);
             const pad = n => String(n).padStart(2,'0');
             const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
-            const platformLabel = 'FB';
+            const platformLabel = row.platform === 'zalo' ? 'Zalo' : 'FB';
             const batchColor = row.batch_id ? batchColorMap[row.batch_id] : null;
             const statusBadge = row.success
               ? '<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:6px; font-size:11px;">OK</span>'

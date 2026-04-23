@@ -741,6 +741,8 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
   if (!LOCAL_URL) return res.status(503).json({ error: 'Local server chưa kết nối' });
 
   const imagePaths = (req.files || []).map(f => f.path);
+  // Persist ảnh trước khi proxy — đảm bảo files còn tồn tại (ReadStream chưa consume)
+  const zaloImageUrls = persistImages(imagePaths);
   try {
     const fetchFn = await getFetch();
     const FormData = (await import('form-data')).default;
@@ -784,7 +786,6 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
     catch { data = { error: `Local trả non-JSON (${response.status}): ${text.slice(0, 200)}` }; }
 
     // Ghi log vào thống kê
-    const zaloImageUrls = persistImages(imagePaths);
     postLogger.logPost({
       profile: accountName || 'zalo',
       profileName: accountName || 'Zalo',
