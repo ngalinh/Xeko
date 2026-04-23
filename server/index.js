@@ -159,20 +159,23 @@ setInterval(() => {
 }, 3600_000);
 
 async function executePost({ profile, message, target, groupId, imagePaths, imageUrls }) {
-  // Set profile ngay đầu job (không dùng global đã bị thay trước đó)
   if (profile) playwright.setProfile(profile);
+
+  // Snapshot 1 lần ngay đầu — không gọi getActiveProfile() sau await (global có thể bị đổi)
+  const _pData = playwright.getActiveProfile();
+  const profileKey  = profile || _pData.key || '';
+  const profileName = _pData.name || profileKey;
 
   const batchId = crypto.randomUUID();
 
   // Đăng lên cá nhân + tất cả group
   if (target === 'all') {
     const results = [];
-    const activeProfile = playwright.getActiveProfile();
     if (postCount < config.posting.maxPostsPerDay) {
       logger.info('Đang đăng lên FB cá nhân...');
       const r = await playwright.postToPersonal(message, imagePaths);
       postCount++;
-      postLogger.logPost({ profile: activeProfile.key, profileName: activeProfile.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+      postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
       results.push({ target: 'FB Cá nhân', success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
     }
@@ -183,7 +186,7 @@ async function executePost({ profile, message, target, groupId, imagePaths, imag
       logger.info(`Đang đăng lên ${group.name}...`);
       const r = await playwright.postToGroup(group.id, message, imagePaths);
       postCount++;
-      postLogger.logPost({ profile: activeProfile.key, profileName: activeProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+      postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
       results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       if (groups.indexOf(group) < groups.length - 1) {
         await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
@@ -195,13 +198,12 @@ async function executePost({ profile, message, target, groupId, imagePaths, imag
   if (target === 'allgroup') {
     const groups = Object.values(config.groups);
     const results = [];
-    const agProfile = playwright.getActiveProfile();
     for (const group of groups) {
       if (postCount >= config.posting.maxPostsPerDay) break;
       logger.info(`Đang đăng lên ${group.name}...`);
       const r = await playwright.postToGroup(group.id, message, imagePaths);
       postCount++;
-      postLogger.logPost({ profile: agProfile.key, profileName: agProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+      postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
       results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       if (groups.indexOf(group) < groups.length - 1) {
         await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
@@ -214,24 +216,21 @@ async function executePost({ profile, message, target, groupId, imagePaths, imag
     const group = config.groups[groupId];
     const r = await playwright.postToGroup(group.id, message, imagePaths);
     postCount++;
-    const scProfile = playwright.getActiveProfile();
-    postLogger.logPost({ profile: scProfile.key, profileName: scProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
+    postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
   }
 
   if (target === 'group') {
     const r = await playwright.postToGroup(groupId, message, imagePaths);
     postCount++;
-    const gProfile = playwright.getActiveProfile();
-    postLogger.logPost({ profile: gProfile.key, profileName: gProfile.name, platform: 'facebook', target: 'group', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
+    postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
   }
 
   // personal (default)
   const r = await playwright.postToPersonal(message, imagePaths);
   postCount++;
-  const pProfile = playwright.getActiveProfile();
-  postLogger.logPost({ profile: pProfile.key, profileName: pProfile.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
+  postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
   return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
 }
 
