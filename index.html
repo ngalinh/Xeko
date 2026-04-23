@@ -1819,6 +1819,8 @@
           <option value="">Tất cả trạng thái</option>
           <option value="1">Thành công</option>
           <option value="0">Thất bại</option>
+          <option value="pending">Chờ đăng</option>
+          <option value="running">Đang đăng</option>
         </select>
         <input type="date" id="dashFilterFrom" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
         <input type="date" id="dashFilterTo" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
@@ -4587,7 +4589,7 @@
       if (profile) params.set('profile', profile);
       if (platform) params.set('platform', platform);
       if (target) params.set('target', target);
-      if (success !== '') params.set('success', success);
+      if (success === '1' || success === '0') params.set('success', success);
       if (from) params.set('from', from + 'T00:00:00.000Z');
       if (to) params.set('to', to + 'T23:59:59.999Z');
       params.set('limit', dashLimit);
@@ -4601,13 +4603,14 @@
         const allSchedules = schedRes ? await parseJson(schedRes).catch(() => []) : [];
         const data = await parseJson(histRes);
 
-        // Lọc lịch phù hợp với filter hiện tại (chỉ pending/running, chưa đăng)
+        // Lọc lịch chờ/đang đăng
+        const isSchedFilter = success === 'pending' || success === 'running';
         let schedToShow = (Array.isArray(allSchedules) ? allSchedules : [])
-          .filter(s => s.status === 'pending' || s.status === 'running');
+          .filter(s => isSchedFilter ? s.status === success : (s.status === 'pending' || s.status === 'running'));
         if (profile) schedToShow = schedToShow.filter(s => s.profile === profile);
         if (target) schedToShow = schedToShow.filter(s => s.target === target);
-        // Nếu đang lọc theo trạng thái thành công/thất bại thì ẩn lịch chờ
-        if (success !== '') schedToShow = [];
+        // Lọc theo thành công/thất bại → ẩn lịch chờ; lọc pending/running → ẩn _activeRepostJobs
+        if (success === '1' || success === '0') schedToShow = [];
 
         const tbody = document.getElementById('dashHistoryBody');
         if (typeof _dashSelectedIds !== 'undefined') { _dashSelectedIds.clear(); _updateBulkBar(); }
@@ -4672,20 +4675,24 @@
           </tr>`;
         }).join('');
 
-        if (data.rows && data.rows.length > 0) {
-          window._dashRows = data.rows;
+        // Khi filter pending/running: chỉ hiện lịch chờ, ẩn history
+        const histRows = isSchedFilter ? [] : (data.rows || []);
+        const activeRepostHtml = isSchedFilter ? '' : repostHtml;
+
+        if (histRows.length > 0) {
+          window._dashRows = histRows;
 
           // Tính batch_id nào xuất hiện nhiều hơn 1 lần → gán màu
           const BATCH_COLORS = ['#7c66ff','#06b6d4','#f59e0b','#10b981','#ef4444','#8b5cf6','#ec4899'];
           const batchCount = {};
-          data.rows.forEach(r => { if (r.batch_id) batchCount[r.batch_id] = (batchCount[r.batch_id] || 0) + 1; });
+          histRows.forEach(r => { if (r.batch_id) batchCount[r.batch_id] = (batchCount[r.batch_id] || 0) + 1; });
           const batchColorMap = {};
           let colorIdx = 0;
           Object.keys(batchCount).filter(k => batchCount[k] > 1).forEach(k => {
             batchColorMap[k] = BATCH_COLORS[colorIdx++ % BATCH_COLORS.length];
           });
 
-          tbody.innerHTML = repostHtml + schedHtml + data.rows.map((row, idx) => {
+          tbody.innerHTML = activeRepostHtml + schedHtml + histRows.map((row, idx) => {
             const d = new Date(row.timestamp);
             const pad = n => String(n).padStart(2,'0');
             const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
@@ -4736,24 +4743,25 @@
           }).join('');
         } else {
           window._dashRows = [];
-          if (repostHtml || schedHtml) {
-            tbody.innerHTML = repostHtml + schedHtml;
-          } else {
-            tbody.innerHTML = '<tr><td colspan="10" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
-          }
+          const fallbackHtml = activeRepostHtml + schedHtml;
+          tbody.innerHTML = fallbackHtml || '<tr><td colspan="10" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
         }
 
-        // Pagination
-        const totalPages = Math.ceil(data.total / dashLimit);
+        // Pagination (ẩn khi đang filter pending/running)
         const paginationEl = document.getElementById('dashPagination');
-        if (totalPages > 1) {
-          let html = '';
-          if (dashPage > 0) html += `<button onclick="dashGoPage(${dashPage - 1})" style="padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer;">← Trước</button>`;
-          html += `<span style="padding:6px 12px; color:#666;">Trang ${dashPage + 1} / ${totalPages} (${data.total} bài)</span>`;
-          if (dashPage < totalPages - 1) html += `<button onclick="dashGoPage(${dashPage + 1})" style="padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer;">Sau →</button>`;
-          paginationEl.innerHTML = html;
+        if (!isSchedFilter) {
+          const totalPages = Math.ceil(data.total / dashLimit);
+          if (totalPages > 1) {
+            let html = '';
+            if (dashPage > 0) html += `<button onclick="dashGoPage(${dashPage - 1})" style="padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer;">← Trước</button>`;
+            html += `<span style="padding:6px 12px; color:#666;">Trang ${dashPage + 1} / ${totalPages} (${data.total} bài)</span>`;
+            if (dashPage < totalPages - 1) html += `<button onclick="dashGoPage(${dashPage + 1})" style="padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer;">Sau →</button>`;
+            paginationEl.innerHTML = html;
+          } else {
+            paginationEl.innerHTML = data.total > 0 ? `<span style="color:#999; font-size:12px;">Tổng: ${data.total} bài</span>` : '';
+          }
         } else {
-          paginationEl.innerHTML = data.total > 0 ? `<span style="color:#999; font-size:12px;">Tổng: ${data.total} bài</span>` : '';
+          paginationEl.innerHTML = '';
         }
       } catch (e) {
         console.error('History error:', e);
