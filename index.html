@@ -5125,57 +5125,89 @@
       const editBtn = document.getElementById('repostEditBtn');
       submitBtn.disabled = true;
       editBtn.disabled = true;
+      submitBtn.textContent = '⏳ Đang gửi...';
 
-      // Switch FB profile once
       await fetch(BASE_URL + '/api/profile', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ profile })
       }).catch(() => {});
 
-      const errors = [];
-      let successCount = 0;
-      const total = channels.length;
-
+      // 1. Submit tất cả jobs (modal vẫn mở để đọc ảnh từ DOM)
+      const jobs = [];
       for (let i = 0; i < channels.length; i++) {
         const ch = channels[i];
-        submitBtn.textContent = `⏳ Đang đăng ${i + 1}/${total}...`;
+        submitBtn.textContent = `⏳ ${i + 1}/${channels.length}...`;
         try {
+          const fd = await _buildRepostFormData(message);
           if (ch.platform === 'zalo') {
-            const fd = await _buildRepostFormData(message);
             fd.append('zaloAccountName', ch.zaloAccount || '');
             fd.append('groupName', ch.name || '');
             const res = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: fd });
             const d = await parseJson(res);
-            if (d.success || d.jobId || d.processing) successCount++;
-            else errors.push(`${ch.label || ch.name}: ${d.error || 'Lỗi'}`);
+            jobs.push({ ch, done: true, ok: !!(d.success || d.jobId || d.processing) });
           } else {
-            const fd = await _buildRepostFormData(message);
             fd.append('target', ch.type === 'group' ? 'group' : 'personal');
             if (ch.type === 'group') fd.append('groupId', ch.id || ch.key || '');
             const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: fd });
             const initial = await parseJson(res);
-            const d = initial.jobId ? await pollJob(initial.jobId) : initial;
-            const ok = d.success || (d.results && d.results.some(r => r.success));
-            if (ok) successCount++;
-            else errors.push(`${ch.label || ch.name}: ${d.error || 'Lỗi'}`);
+            jobs.push({ ch, jobId: initial.jobId, initial, done: !initial.jobId });
           }
         } catch (e) {
-          errors.push(`${ch.label || ch.name}: ${e.message}`);
+          jobs.push({ ch, done: true, ok: false, error: e.message });
         }
       }
 
+      // 2. Thêm hàng tạm vào bảng cho các FB job đang poll
+      const profileName = document.getElementById('repostProfile').options[document.getElementById('repostProfile').selectedIndex]?.text || profile;
+      const tbody = document.getElementById('dashHistoryBody');
+      const now = new Date();
+      const pad = n => String(n).padStart(2,'0');
+      const timeLabel = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} ${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}`;
+      const msgShort = message ? (message.length > 60 ? message.substring(0, 60) + '…' : message) : '-';
+      const fullMsg = (message || '').replace(/"/g, '&quot;');
+
+      jobs.forEach((job, i) => {
+        if (job.done) return;
+        const tempId = `repost-temp-${i}-${Date.now()}`;
+        job.tempId = tempId;
+        const ch = job.ch;
+        const targetLabel = ch.type === 'group' ? 'Group' : 'Cá nhân';
+        const groupId = ch.id || ch.key || '-';
+        const html = `<tr id="${tempId}" style="border-bottom:1px solid #bfdbfe; background:#f0f9ff; border-left:3px solid #60a5fa;">
+          <td style="padding:10px 10px; text-align:center; color:#60a5fa; font-size:15px;">⏳</td>
+          <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${timeLabel}</td>
+          <td style="padding:10px 12px; font-size:12px;">${profileName}</td>
+          <td style="padding:10px 12px; font-size:12px;">FB</td>
+          <td style="padding:10px 12px; font-size:12px;">${targetLabel}</td>
+          <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupId}">${groupId}</td>
+          <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msgShort}</td>
+          <td style="padding:10px 12px; color:#bbb;">—</td>
+          <td style="padding:10px 12px; text-align:center;"><span style="background:#dbeafe; color:#1d4ed8; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">⚡ Đang đăng</span></td>
+          <td></td>
+        </tr>`;
+        tbody.insertAdjacentHTML('afterbegin', html);
+      });
+
+      // 3. Đóng modal ngay
       submitBtn.disabled = false;
       submitBtn.textContent = '🔄 Repost';
       editBtn.disabled = false;
+      closeRepostModal();
 
-      if (errors.length === 0) {
-        alert(`✅ Đã repost thành công ${successCount}/${total} kênh!`);
-        closeRepostModal();
+      // 4. Poll background – khi xong xóa hàng tạm + reload
+      (async () => {
+        for (const job of jobs) {
+          if (job.done) continue;
+          try {
+            const d = job.jobId ? await pollJob(job.jobId) : job.initial;
+            job.ok = !!(d.success || (d.results && d.results.some(r => r.success)));
+          } catch (e) {
+            job.ok = false;
+          }
+          document.getElementById(job.tempId)?.remove();
+        }
         loadDashHistory();
-      } else {
-        alert(`✅ ${successCount}/${total} thành công\n❌ Lỗi:\n${errors.join('\n')}`);
-        if (successCount > 0) loadDashHistory();
-      }
+      })();
     }
   </script>
 
