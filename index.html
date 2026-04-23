@@ -4148,7 +4148,7 @@
         const zaloCount = (pCh.zaloGroups || []).length;
         const active = p.key === selectedProfileKey;
         return `
-          <button type="button" onclick="selectProfile('${escapeHtml(p.key)}')"
+          <button type="button" onclick="selectAccountProfile('${escapeHtml(p.key)}')"
             style="display:flex; align-items:center; gap:8px; padding:9px 10px; border:none; border-radius:8px; cursor:pointer; text-align:left;
               background:${active ? '#fff' : 'transparent'}; box-shadow:${active ? '0 2px 8px rgba(124,102,255,0.12)' : 'none'};
               font-size:13px; font-weight:${active ? '600' : '500'}; color:${active ? '#4f46e5' : '#444'};">
@@ -4160,7 +4160,7 @@
       }).join('');
     }
 
-    function selectProfile(key) {
+    function selectAccountProfile(key) {
       selectedProfileKey = key;
       renderProfileSidebar();
       renderProfileDetail();
