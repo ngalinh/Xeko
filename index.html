@@ -2305,11 +2305,29 @@
       custom: 'Group khác',
     };
 
+    const WELCOMES = [
+      'Xeko nè! Mình là trợ lý đăng bài Facebook xịn sò của bạn đây 🤗\nHôm nay bạn ráng làm content nhiều nhiều để mình đăng tất cả mọi mặt trận nhé!',
+      'Alo alo! Xeko online rồi đây 📡\nBạn có bài nào cần đăng không? Thả vào đây Xeko xử liền!',
+      'Chào buổi sáng (hoặc tối, Xeko không phân biệt) ☀️🌙\nXeko sẵn sàng đăng bài cho bạn rồi, bắt đầu thôi nào!',
+      'Heyyy! Xeko đây~ Hôm nay mình năng lượng lắm, bạn có bài nào không? 🔥',
+      'Ui bạn vào rồi! Xeko đang chờ bạn từ nãy giờ đó 🥺\nNhanh chọn profile rồi mình đăng bài liền nha!',
+      'Bestie ơi Xeko đây! 🫶\nContent hôm nay của bạn đâu? Xeko đăng cho, nhanh lên nào!',
+      'Ting ting! Xeko báo thức đây~ 🔔\nĐã đến giờ đăng bài rồi bạn ơi, không được lười nha!',
+      'Xeko nè! Đừng để page nguội nha bạn 🌡️\nMình đây rồi, chọn profile là chiến thôi!',
+      'Bạn ơi bạn ơi Xeko nhớ bạn lắm 🥹\nThôi nhanh chọn profile đi để mình đăng bài cho!',
+      'GM bestie! ☀️ Xeko sạc đầy 100% rồi\nHôm nay mình với bạn phủ sóng FB nha, bắt đầu thôi!',
+      'Xeko online! 🟢 Tất cả hệ thống hoạt động bình thường\nBạn có bài nào cần "phóng" lên FB không? 🚀',
+      'Yo! Xeko đây~ Hôm nay bạn có bao nhiêu bài cần đăng? Nhiều bao nhiêu cũng được nha 😤',
+    ];
+    function pickWelcome() {
+      return WELCOMES[Math.floor(Math.random() * WELCOMES.length)];
+    }
+
     // ===== STEP 1: Welcome =====
     function showWelcome() {
       step = 'welcome';
       addBot(
-        'Xeko nè! Mình là trợ lý đăng bài Facebook xịn sò của bạn đây 🤗\nHôm nay bạn ráng làm content nhiều nhiều để mình đăng tất cả mọi mặt trận nhé!',
+        pickWelcome(),
         [
           { label: `${xekoIcon('user')} Chọn Profile`, handler: () => showProfileSelect() },
         ]
