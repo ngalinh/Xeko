@@ -4728,7 +4728,7 @@
             let thumbs;
             if (images.length > 0) {
               const shown = images.slice(0, 4);
-              thumbs = `<div style="display:flex; gap:3px; align-items:center;">${shown.map(u => `<a href="${u}" target="_blank"><img src="${u}" style="width:32px; height:32px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
+              thumbs = `<div style="display:flex; gap:3px; align-items:center;">${shown.map(u => `<a href="${u}" target="_blank"><img src="${u}" style="width:32px; height:32px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:32px;height:32px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;align-items:center;justify-content:center;font-size:14px;'}))"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
             } else if (imgCount > 0) {
               thumbs = `<div style="display:flex; gap:3px; align-items:center;">${Array.from({length: Math.min(imgCount, 4)}).map(() => '<span style="display:inline-flex; width:32px; height:32px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:14px;">🖼️</span>').join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
             } else {
@@ -5083,7 +5083,7 @@
         const src = item instanceof File ? URL.createObjectURL(item) : (item.startsWith('/') ? BASE_URL + item : item);
         const href = item instanceof File ? src : src;
         return `<div style="position:relative; display:inline-block; flex-shrink:0;">
-          <a href="${href}" target="_blank"><img src="${src}" style="width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid #e5e7eb; display:block;" loading="lazy"></a>
+          <a href="${href}" target="_blank"><img src="${src}" style="width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid #e5e7eb; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:72px;height:72px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:8px;align-items:center;justify-content:center;font-size:28px;'}))"></a>
           ${_repostEditMode ? `<button type="button" onclick="_removeRepostImage(${i})" style="position:absolute; top:-6px; right:-6px; background:#ef4444; color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:13px; cursor:pointer; line-height:1; padding:0; display:flex; align-items:center; justify-content:center;">×</button>` : ''}
         </div>`;
       }).join('') + addBtn;
