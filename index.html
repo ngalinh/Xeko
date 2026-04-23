@@ -4612,6 +4612,15 @@
         // Lọc theo thành công/thất bại → ẩn lịch chờ; lọc pending/running → ẩn _activeRepostJobs
         if (success === '1' || success === '0') schedToShow = [];
 
+        // Lookup: FB group ID → tên group (từ danh sách kênh đã lưu)
+        const fbGroupIdToName = {};
+        (channelsData.fbGroups || []).forEach(g => { if (g.id) fbGroupIdToName[g.id] = g.name; });
+        function resolveGroupLabel(platform, groupId, groupName) {
+          if (platform === 'zalo') return groupName || groupId || '-';
+          if (groupId && fbGroupIdToName[groupId]) return fbGroupIdToName[groupId];
+          return groupId || groupName || '-';
+        }
+
         const tbody = document.getElementById('dashHistoryBody');
         if (typeof _dashSelectedIds !== 'undefined') { _dashSelectedIds.clear(); _updateBulkBar(); }
 
@@ -4642,7 +4651,8 @@
           const pad = n => String(n).padStart(2,'0');
           const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
           const targetLabel = sched.target === 'personal' ? 'Cá nhân' : sched.target === 'group' ? 'Group' : sched.target === 'all' ? 'Tất cả' : sched.target === 'allgroup' ? 'Tất cả Group' : (sched.target || '-');
-          const groupId = sched.groupId || sched.groupName || '-';
+          const groupId = resolveGroupLabel(sched.type, sched.groupId, sched.groupName);
+          const groupIdRaw = sched.groupId || sched.groupName || '';
           const fullMsg = (sched.message || '').replace(/"/g,'&quot;');
           const msg = sched.message ? (sched.message.length > 60 ? sched.message.substring(0, 60) + '…' : sched.message) : '-';
           const imgCount = sched.imageCount || 0;
@@ -4665,7 +4675,7 @@
             <td style="padding:10px 12px; font-size:12px; white-space:nowrap;">${sched.profile || '-'}</td>
             <td style="padding:10px 12px; font-size:12px;">FB</td>
             <td style="padding:10px 12px; font-size:12px;">${targetLabel}</td>
-            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(sched.groupId || sched.groupName || '').replace(/"/g,'&quot;')}">${groupId}</td>
+            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupIdRaw.replace(/"/g,'&quot;')}">${groupId}</td>
             <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msg}</td>
             <td style="padding:10px 12px;">${thumbs}</td>
             <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
@@ -4702,7 +4712,7 @@
               ? '<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:6px; font-size:11px;">OK</span>'
               : `<span style="background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:6px; font-size:11px;" title="${(row.error||'').replace(/"/g,'&quot;')}">Lỗi</span>`;
             const target = row.target === 'personal' ? 'Cá nhân' : row.target === 'group' ? 'Group' : (row.target || '-');
-            const groupId = row.group_id || row.group_name || '-';
+            const groupId = resolveGroupLabel(row.platform, row.group_id, row.group_name);
             const fullMsg = (row.message || '').replace(/"/g,'&quot;');
             const msg = row.message ? (row.message.length > 60 ? row.message.substring(0, 60) + '…' : row.message) : '-';
             const imgCount = row.image_count || 0;
