@@ -2079,6 +2079,37 @@
       return new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     }
 
+    const ENCOURAGEMENTS = [
+      'Mới đăng có bấy nhiêu à má? Ráng post thêm đi, content nhiều là Xeko vui lắm nè 🔥',
+      'Xong rồi đó! Đừng nghỉ sớm nha, content king mà 👑 Đăng thêm đi!',
+      'Ez game! Giờ đăng thêm vài bài nữa đi, Xeko chiến cùng bạn 24/7 đó 💪',
+      'Một bài thôi chưa đủ đâu nha! Thuật toán FB thích content đều đặn lắm đó 📈',
+      'Bài đã lên sóng rồi 🛸 Đừng để page nguội, đăng thêm đi bạn ơi!',
+      'Ngon lành! Bây giờ uống nước rồi tiếp tục chiến thôi, không nghỉ được đâu 😤',
+      'Page đang hot lên rồi đó, đừng để nguội! Còn content không? 🔥',
+      'Xeko thấy bạn siêng quá nên Xeko cũng siêng theo 😍 Đăng thêm đi!',
+      'Xong 1 bài là ổn áp rồi, nhưng 2-3 bài mới là đỉnh nha 😏',
+      'Thuật toán Facebook đang nhìn bạn đó 👀 Cho nó thêm bài đi!',
+      'Bài vừa đăng xịn lắm đó, nhưng consistency mới là key nha bạn ơi 🔑',
+      'Content is king! Và bạn đang trị vì rất tốt đó 👑 Tiếp tục đi!',
+      'Xeko đang rảnh á, bạn có bài nào nữa không để mình đăng tiếp không 🥺',
+      'Done! Đừng quên page cần được "ăn" đều đặn nha, đăng thêm đi 🍽️',
+      'GG! Bài đã lên sóng, giờ chuẩn bị bài tiếp đi thôi bạn ơi 🎯',
+      'Bạn đang làm rất tốt đó nha! Xeko tin bạn còn nhiều content hay hơn nữa 🌟',
+      'Thả một bài rồi nghỉ à? Không được đâu nha, page cần bạn lắm 🙏',
+      'Plot twist nếu bạn đăng thêm 1 bài nữa: reach tăng gấp đôi đó 😂',
+      'Xeko xử nhanh vậy mà bạn chưa có bài tiếp à? Nhanh lên nào 😤',
+      'Đăng đều đặn là bí kíp của mấy trang lớn đó nha! Một bài nữa đi 💡',
+      'Một bài/ngày giữ doctor away không biết, nhưng giữ reach ổn định thì chắc chắn rồi 😄',
+      'Vừa đăng xong mà Xeko đã sẵn sàng cho bài tiếp rồi nè 🚀 Bạn thì sao?',
+      'No cap! Bạn đang có momentum rồi đó, đừng để đứt đà nha 🏃',
+      'Bài vừa xong rồi, hít thở sâu và... đăng bài nữa đi 😂',
+      'Xeko không mệt đâu nha! Bạn cứ thả bài, Xeko đăng liền 🤖⚡',
+    ];
+    function pickEncouragement() {
+      return ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)];
+    }
+
     async function parseJson(res) {
       const text = await res.text();
       try {
@@ -2925,7 +2956,7 @@
         }
 
         // Hien nut tiep tuc
-        addBot('Mới đăng có bấy nhiêu à má? Ráng post thêm đi, content nhiều là Xeko vui lắm nè 🔥', [
+        addBot(pickEncouragement(), [
           { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
           { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
           { label: `${xekoIcon('refresh')} Đổi Profile`, handler: () => showProfileSelect() },
