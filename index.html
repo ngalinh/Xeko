@@ -2135,11 +2135,22 @@
       return e && (e.status === 504 || e.status === 502 || e.status === 524);
     }
 
+    // Flag huỷ đăng bài — set true để dừng vòng lặp sau khi post hiện tại xong
+    let _postCancelled = false;
+
+    function cancelPosting() {
+      _postCancelled = true;
+      removeTyping();
+      addBot('🚫 Đã huỷ — Xeko sẽ không đăng thêm kênh nào nữa nha. Bài đang đăng dở (nếu có) vẫn sẽ lên bình thường.');
+    }
+
     // Polling job status (backend dùng async job để tránh proxy timeout)
     async function pollJob(jobId, maxWaitMs = 10 * 60 * 1000) {
       const start = Date.now();
       while (Date.now() - start < maxWaitMs) {
+        if (_postCancelled) throw new Error('__cancelled__');
         await new Promise(r => setTimeout(r, 5000));
+        if (_postCancelled) throw new Error('__cancelled__');
         try {
           const r = await fetch(BASE_URL + '/api/job/' + jobId);
           const data = await parseJson(r);
@@ -2804,6 +2815,7 @@
 
       clearImages();
       document.getElementById('sendBtn').disabled = true;
+      _postCancelled = false;
 
       try {
         if (target) {
@@ -2820,7 +2832,9 @@
           let data;
           if (initial.jobId) {
             removeTyping();
-            addBot('⏳ Xeko đang đăng bài nè, bạn chờ xíu nha...');
+            addBot('⏳ Xeko đang đăng bài nè, bạn chờ xíu nha...', [
+              { label: '🚫 Huỷ', handler: () => cancelPosting() },
+            ]);
             addTyping();
             data = await pollJob(initial.jobId);
           } else {
@@ -2860,6 +2874,7 @@
         // Post to custom groups if any
         const customIds = window._customGroupIds || [];
         for (const gid of customIds) {
+          if (_postCancelled) break;
           addTyping();
           try {
             const cf = new FormData();
@@ -2869,6 +2884,13 @@
             await appendImages(cf, filesToUpload);
             const cr = await fetch(BASE_URL + '/api/post', { method: 'POST', body: cf });
             const initial = await parseJson(cr);
+            if (initial.jobId) {
+              removeTyping();
+              addBot(`⏳ Xeko đang đăng Group <strong>#${gid}</strong>...`, [
+                { label: '🚫 Huỷ', handler: () => cancelPosting() },
+              ]);
+              addTyping();
+            }
             const cd = initial.jobId ? await pollJob(initial.jobId) : initial;
             removeTyping();
             if (cd.success) {
@@ -2880,6 +2902,7 @@
             }
           } catch (ce) {
             removeTyping();
+            if (ce.message === '__cancelled__') break;
             if (isProxyTimeout(ce)) {
               addBot(`⏳ Group #${gid}: Xeko đang đăng nè, bạn check FB sau vài phút nha!`);
             } else {
@@ -2897,6 +2920,7 @@
           for (const z of zaloGroups) {
             const g = allZalo.find(x => x.key === z.id);
             if (!g) continue;
+            if (_postCancelled) break;
             addTyping();
             try {
               const zf = new FormData();
@@ -2929,7 +2953,9 @@
         ]);
       } catch (e) {
         removeTyping();
-        if (isProxyTimeout(e)) {
+        if (e.message === '__cancelled__') {
+          // cancelPosting() đã show message rồi, không cần làm gì thêm
+        } else if (isProxyTimeout(e)) {
           addBot('⏳ Xeko đang đăng bài nè (chắc 1–2 phút thôi). Bạn ghé Facebook check sau nha, đừng bấm đăng lại không lại trùng bài đó!', [
             { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
             { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
