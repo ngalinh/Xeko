@@ -8,6 +8,7 @@
 require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
+const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 
@@ -77,6 +78,33 @@ app.post('/api/profile', (req, res) => {
   }
 });
 
+// ===== ASYNC JOB QUEUE (tránh proxy timeout khi Playwright chạy lâu) =====
+const postJobs = new Map();
+
+function createJob() {
+  const id = crypto.randomBytes(8).toString('hex');
+  postJobs.set(id, { status: 'pending', createdAt: Date.now() });
+  return id;
+}
+function setJobResult(id, result) {
+  postJobs.set(id, { status: 'done', result, createdAt: Date.now() });
+}
+function setJobError(id, message) {
+  postJobs.set(id, { status: 'failed', error: message, createdAt: Date.now() });
+}
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, job] of postJobs) {
+    if (now - job.createdAt > 3600_000) postJobs.delete(id);
+  }
+}, 3600_000);
+
+app.get('/api/job/:id', (req, res) => {
+  const job = postJobs.get(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Job không tồn tại hoặc đã hết hạn' });
+  res.json(job);
+});
+
 // ===== ĐĂNG BÀI FACEBOOK =====
 app.post('/api/post', upload.array('images', 10), async (req, res) => {
   const { message, target, groupId } = req.body;
@@ -89,68 +117,66 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
     return res.status(400).json({ error: 'Chưa chọn profile!' });
   }
 
-  try {
-    if (target === 'all') {
-      const results = [];
+  // Trả jobId ngay, Playwright chạy ở background tránh proxy timeout
+  const jobId = createJob();
+  res.json({ jobId, status: 'pending' });
 
-      logger.info('Đăng lên FB cá nhân...');
-      const r = await playwright.postToPersonal(message, imagePaths);
-      results.push({ target: 'FB Cá nhân', success: r.success, error: r.error, postUrl: r.postUrl });
+  (async () => {
+    try {
+      const cfg = require('./config/default');
 
-      await new Promise(r => setTimeout(r, Math.random() * 30000 + 30000));
-
-      const config = require('./config/default');
-      const groups = Object.values(config.groups);
-      for (const group of groups) {
-        logger.info(`Đăng lên ${group.name}...`);
-        const gr = await playwright.postToGroup(group.id, message, imagePaths);
-        results.push({ target: group.name, success: gr.success, error: gr.error, postUrl: gr.postUrl });
-        if (groups.indexOf(group) < groups.length - 1) {
-          await new Promise(r => setTimeout(r, Math.random() * 30000 + 30000));
+      if (target === 'all') {
+        const results = [];
+        logger.info('Đăng lên FB cá nhân...');
+        const r = await playwright.postToPersonal(message, imagePaths);
+        results.push({ target: 'FB Cá nhân', success: r.success, error: r.error, postUrl: r.postUrl });
+        await new Promise(r => setTimeout(r, Math.random() * 30000 + 30000));
+        const groups = Object.values(cfg.groups);
+        for (const group of groups) {
+          logger.info(`Đăng lên ${group.name}...`);
+          const gr = await playwright.postToGroup(group.id, message, imagePaths);
+          results.push({ target: group.name, success: gr.success, error: gr.error, postUrl: gr.postUrl });
+          if (groups.indexOf(group) < groups.length - 1) {
+            await new Promise(r => setTimeout(r, Math.random() * 30000 + 30000));
+          }
         }
+        setJobResult(jobId, { results });
+        return;
       }
 
-      cleanupFiles(imagePaths);
-      return res.json({ results });
-    }
-
-    if (target === 'allgroup') {
-      const config = require('./config/default');
-      const groups = Object.values(config.groups);
-      const results = [];
-      for (const group of groups) {
-        const gr = await playwright.postToGroup(group.id, message, imagePaths);
-        results.push({ target: group.name, success: gr.success, error: gr.error });
-        if (groups.indexOf(group) < groups.length - 1) {
-          await new Promise(r => setTimeout(r, Math.random() * 30000 + 30000));
+      if (target === 'allgroup') {
+        const groups = Object.values(cfg.groups);
+        const results = [];
+        for (const group of groups) {
+          const gr = await playwright.postToGroup(group.id, message, imagePaths);
+          results.push({ target: group.name, success: gr.success, error: gr.error, postUrl: gr.postUrl });
+          if (groups.indexOf(group) < groups.length - 1) {
+            await new Promise(r => setTimeout(r, Math.random() * 30000 + 30000));
+          }
         }
+        setJobResult(jobId, { results });
+        return;
       }
-      cleanupFiles(imagePaths);
-      return res.json({ results });
-    }
 
-    if (target === 'shortcut' || target === 'group') {
-      const config = require('./config/default');
-      const gId = target === 'shortcut' ? config.groups[groupId]?.id : groupId;
-      if (!gId) {
-        cleanupFiles(imagePaths);
-        return res.status(400).json({ error: `Group "${groupId}" không tồn tại` });
+      if (target === 'shortcut' || target === 'group') {
+        const gId = target === 'shortcut' ? cfg.groups[groupId]?.id : groupId;
+        if (!gId) { setJobError(jobId, `Group "${groupId}" không tồn tại`); return; }
+        const result = await playwright.postToGroup(gId, message, imagePaths);
+        setJobResult(jobId, { success: result.success, error: result.error, postUrl: result.postUrl });
+        return;
       }
-      const result = await playwright.postToGroup(gId, message, imagePaths);
+
+      // Mặc định: đăng cá nhân
+      const result = await playwright.postToPersonal(message, imagePaths);
+      setJobResult(jobId, { success: result.success, error: result.error, postUrl: result.postUrl });
+
+    } catch (error) {
+      logger.error(`Lỗi job ${jobId}: ${error.message}`);
+      setJobError(jobId, error.message);
+    } finally {
       cleanupFiles(imagePaths);
-      return res.json({ success: result.success, error: result.error, postUrl: result.postUrl });
     }
-
-    // Mặc định: đăng cá nhân
-    const result = await playwright.postToPersonal(message, imagePaths);
-    cleanupFiles(imagePaths);
-    return res.json({ success: result.success, error: result.error, postUrl: result.postUrl });
-
-  } catch (error) {
-    cleanupFiles(imagePaths);
-    logger.error(`Lỗi: ${error.message}`);
-    return res.status(500).json({ error: error.message });
-  }
+  })();
 });
 
 // ===== ĐĂNG ZALO =====

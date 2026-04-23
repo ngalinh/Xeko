@@ -15,7 +15,7 @@ const notifications = [];
 /**
  * Thêm lịch đăng bài
  */
-function addSchedule({ time, target, groupId, message, imagePaths, profile, type, groupName }) {
+function addSchedule({ time, target, groupId, message, imagePaths, profile, type, groupName, zaloAccount }) {
   const id = nextId++;
   const scheduleTime = new Date(time);
 
@@ -49,6 +49,7 @@ function addSchedule({ time, target, groupId, message, imagePaths, profile, type
     target,
     groupId,
     groupName,
+    zaloAccount: zaloAccount || null,
     message,
     imagePaths: ownImagePaths,
     profile,
@@ -88,12 +89,48 @@ async function executeSchedule(job) {
   logger.info(`Đang thực thi lịch #${job.id} (${job.type})...`);
 
   try {
-    // Facebook
-    // Set profile
-    playwright.setProfile(job.profile);
-
     let result;
     const imgCount = job.imagePaths?.length || 0;
+
+    // Zalo
+    if (job.type === 'zalo') {
+      const salework = process.env.PLAYWRIGHT_LOCAL_URL
+        ? require('../../playwright-proxy')
+        : require('../playwright/salework');
+
+      if (!job.zaloAccount || !job.groupName) {
+        throw new Error('Thiếu zaloAccount hoặc groupName cho lịch Zalo');
+      }
+
+      if (process.env.PLAYWRIGHT_LOCAL_URL) {
+        result = await salework.postToZaloGroup({
+          zaloAccountName: job.zaloAccount,
+          groupName: job.groupName,
+          message: job.message,
+          imagePaths: job.imagePaths || [],
+        });
+      } else {
+        // Trực tiếp trên máy local: cần lookup accountKey
+        const fs = require('fs');
+        const accountsFile = require('path').resolve(__dirname, '../../config/zalo-accounts.json');
+        let accounts = [];
+        try { accounts = JSON.parse(fs.readFileSync(accountsFile, 'utf8')); } catch {}
+        const acct = accounts.find(a => a.key === job.zaloAccount || a.name === job.zaloAccount || a.saleworkName === job.zaloAccount);
+        result = await salework.postToZaloGroup({
+          zaloAccountName: job.zaloAccount,
+          accountKey: acct ? acct.key : job.zaloAccount,
+          groupName: job.groupName,
+          message: job.message,
+          imagePaths: job.imagePaths || [],
+        });
+      }
+
+      postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'zalo', target: 'group', groupName: job.groupName, message: job.message, imageCount: imgCount, success: result.success, error: result.error, source: 'schedule' });
+
+    } else {
+    // Facebook
+    playwright.setProfile(job.profile);
+
     if (job.target === 'personal') {
       result = await playwright.postToPersonal(job.message, job.imagePaths);
       postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'personal', message: job.message, imageCount: imgCount, success: result.success, error: result.error, postUrl: result.postUrl, source: 'schedule' });
@@ -142,6 +179,7 @@ async function executeSchedule(job) {
       }
       result = { success: results.every(r => r.success), results };
     }
+    } // end else (facebook)
 
     job.status = 'done';
     job.result = result;
