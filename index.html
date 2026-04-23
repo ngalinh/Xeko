@@ -4427,7 +4427,10 @@
             shortcut: 'Group',
             all: 'Cá nhân + 2 Group',
           };
-          const targetText = targetLabels[n.target] || n.target;
+          const isZalo = n.jobType === 'zalo';
+          const targetText = isZalo
+            ? `Zalo: ${n.groupName || n.zaloAccount || 'nhóm'}`
+            : (targetLabels[n.target] || n.target || '-');
 
           if (n.type === 'success') {
             let msg = `✅ <strong>Xong rồi má ơi, Xeko canh giờ đăng bài cho bạn chuẩn ko cần chỉnh luôn á!</strong>\n\n`;
@@ -4437,14 +4440,19 @@
             if (n.message) msg += `📝 Nội dung: ${n.message}\n`;
             if (n.imageCount > 0) msg += `📷 ${n.imageCount} ảnh đính kèm\n`;
             msg += `\n🕐 Đã đăng lúc: ${n.time}`;
-            addBot(msg);
+            addBot(msg, [
+              { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
+              { label: `${xekoIcon('clock')} Lên lịch thêm`, handler: () => { selectMode('schedule'); showScheduleForm(); } },
+            ]);
           } else {
             let msg = `❌ <strong>Huhu bài lên lịch bị lỗi mất rồi!</strong>\n\n`;
             msg += `⏰ Lịch hẹn: ${n.scheduledTime}\n`;
             msg += `📍 Nơi đăng: ${targetText}\n`;
             if (n.message) msg += `📝 Nội dung: ${n.message}\n`;
             msg += `\n❗ Lỗi: ${n.error}`;
-            addBot(msg);
+            addBot(msg, [
+              { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
+            ]);
           }
         }
       } catch {}
