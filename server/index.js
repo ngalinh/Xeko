@@ -782,6 +782,24 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
     let data;
     try { data = JSON.parse(text); }
     catch { data = { error: `Local trả non-JSON (${response.status}): ${text.slice(0, 200)}` }; }
+
+    // Ghi log vào thống kê
+    const zaloImageUrls = persistImages(imagePaths);
+    postLogger.logPost({
+      profile: accountName || 'zalo',
+      profileName: accountName || 'Zalo',
+      platform: 'zalo',
+      target: 'group',
+      groupName: groupName || '',
+      message: message || '',
+      imageCount: imagePaths.length,
+      success: !!(data.success || data.processing),
+      error: data.error || null,
+      postUrl: data.postUrl || null,
+      source: 'web',
+      images: zaloImageUrls,
+    });
+
     return res.status(response.status).json(data);
   } catch (e) {
     return res.status(500).json({ error: `Lỗi proxy Zalo post: ${e.message}` });
