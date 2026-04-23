@@ -4453,6 +4453,7 @@
     // ===== DASHBOARD =====
     let dashPage = 0;
     const dashLimit = 20;
+    const _activeRepostJobs = []; // jobs đang poll background
 
     async function loadDashboard() {
       try {
@@ -4610,6 +4611,27 @@
         const tbody = document.getElementById('dashHistoryBody');
         if (typeof _dashSelectedIds !== 'undefined') { _dashSelectedIds.clear(); _updateBulkBar(); }
 
+        // --- Render repost-in-progress rows (giữ lại khi reload) ---
+        const repostHtml = _activeRepostJobs.map(job => {
+          const ch = job.ch;
+          const targetLabel = ch.type === 'group' ? 'Group' : 'Cá nhân';
+          const groupId = ch.id || ch.key || '-';
+          const msgShort = job.message ? (job.message.length > 60 ? job.message.substring(0, 60) + '…' : job.message) : '-';
+          const fullMsg = (job.message || '').replace(/"/g, '&quot;');
+          return `<tr id="${job.tempId}" style="border-bottom:1px solid #bfdbfe; background:#f0f9ff; border-left:3px solid #60a5fa;">
+            <td style="padding:10px 10px; text-align:center; color:#60a5fa; font-size:15px;">⏳</td>
+            <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${job.timeLabel}</td>
+            <td style="padding:10px 12px; font-size:12px;">${job.profileName}</td>
+            <td style="padding:10px 12px; font-size:12px;">FB</td>
+            <td style="padding:10px 12px; font-size:12px;">${targetLabel}</td>
+            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupId}">${groupId}</td>
+            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msgShort}</td>
+            <td style="padding:10px 12px; color:#bbb;">—</td>
+            <td style="padding:10px 12px; text-align:center;"><span style="background:#dbeafe; color:#1d4ed8; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">⚡ Đang đăng</span></td>
+            <td></td>
+          </tr>`;
+        }).join('');
+
         // --- Render scheduled rows ---
         const schedHtml = schedToShow.map(sched => {
           const d = new Date(sched.timeISO || sched.time);
@@ -4662,7 +4684,7 @@
             batchColorMap[k] = BATCH_COLORS[colorIdx++ % BATCH_COLORS.length];
           });
 
-          tbody.innerHTML = schedHtml + data.rows.map((row, idx) => {
+          tbody.innerHTML = repostHtml + schedHtml + data.rows.map((row, idx) => {
             const d = new Date(row.timestamp);
             const pad = n => String(n).padStart(2,'0');
             const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
@@ -4713,8 +4735,8 @@
           }).join('');
         } else {
           window._dashRows = [];
-          if (schedHtml) {
-            tbody.innerHTML = schedHtml;
+          if (repostHtml || schedHtml) {
+            tbody.innerHTML = repostHtml + schedHtml;
           } else {
             tbody.innerHTML = '<tr><td colspan="10" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
           }
@@ -5157,44 +5179,29 @@
         }
       }
 
-      // 2. Thêm hàng tạm vào bảng cho các FB job đang poll
+      // 2. Đăng ký job vào _activeRepostJobs để loadDashHistory() tự render lại khi cần
       const profileName = document.getElementById('repostProfile').options[document.getElementById('repostProfile').selectedIndex]?.text || profile;
-      const tbody = document.getElementById('dashHistoryBody');
       const now = new Date();
       const pad = n => String(n).padStart(2,'0');
       const timeLabel = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} ${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}`;
-      const msgShort = message ? (message.length > 60 ? message.substring(0, 60) + '…' : message) : '-';
-      const fullMsg = (message || '').replace(/"/g, '&quot;');
 
       jobs.forEach((job, i) => {
         if (job.done) return;
-        const tempId = `repost-temp-${i}-${Date.now()}`;
-        job.tempId = tempId;
-        const ch = job.ch;
-        const targetLabel = ch.type === 'group' ? 'Group' : 'Cá nhân';
-        const groupId = ch.id || ch.key || '-';
-        const html = `<tr id="${tempId}" style="border-bottom:1px solid #bfdbfe; background:#f0f9ff; border-left:3px solid #60a5fa;">
-          <td style="padding:10px 10px; text-align:center; color:#60a5fa; font-size:15px;">⏳</td>
-          <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${timeLabel}</td>
-          <td style="padding:10px 12px; font-size:12px;">${profileName}</td>
-          <td style="padding:10px 12px; font-size:12px;">FB</td>
-          <td style="padding:10px 12px; font-size:12px;">${targetLabel}</td>
-          <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupId}">${groupId}</td>
-          <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msgShort}</td>
-          <td style="padding:10px 12px; color:#bbb;">—</td>
-          <td style="padding:10px 12px; text-align:center;"><span style="background:#dbeafe; color:#1d4ed8; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">⚡ Đang đăng</span></td>
-          <td></td>
-        </tr>`;
-        tbody.insertAdjacentHTML('afterbegin', html);
+        job.tempId = `repost-temp-${i}-${Date.now()}`;
+        job.profileName = profileName;
+        job.timeLabel = timeLabel;
+        job.message = message;
+        _activeRepostJobs.push(job);
       });
 
-      // 3. Đóng modal ngay
+      // 3. Đóng modal ngay + render hàng tạm
       submitBtn.disabled = false;
       submitBtn.textContent = '🔄 Repost';
       editBtn.disabled = false;
       closeRepostModal();
+      loadDashHistory();
 
-      // 4. Poll background – khi xong xóa hàng tạm + reload
+      // 4. Poll background – khi từng job xong thì xóa khỏi registry + reload
       (async () => {
         for (const job of jobs) {
           if (job.done) continue;
@@ -5204,7 +5211,8 @@
           } catch (e) {
             job.ok = false;
           }
-          document.getElementById(job.tempId)?.remove();
+          const idx = _activeRepostJobs.indexOf(job);
+          if (idx !== -1) _activeRepostJobs.splice(idx, 1);
         }
         loadDashHistory();
       })();
