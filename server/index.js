@@ -10,6 +10,7 @@ const playwright = process.env.PLAYWRIGHT_LOCAL_URL
   ? require('./playwright-proxy')
   : require('./src/playwright/post');
 const postLogger = require('./src/database/post-logger');
+const { queuePost } = require('./src/utils/post-queue');
 
 const app = express();
 app.use(express.json());
@@ -157,7 +158,10 @@ setInterval(() => {
   }
 }, 3600_000);
 
-async function executePost({ message, target, groupId, imagePaths, imageUrls }) {
+async function executePost({ profile, message, target, groupId, imagePaths, imageUrls }) {
+  // Set profile ngay đầu job (không dùng global đã bị thay trước đó)
+  if (profile) playwright.setProfile(profile);
+
   const batchId = crypto.randomUUID();
 
   // Đăng lên cá nhân + tất cả group
@@ -235,12 +239,13 @@ async function executePost({ message, target, groupId, imagePaths, imageUrls }) 
 app.post('/api/post', upload.array('images', 10), async (req, res) => {
   checkDailyReset();
 
-  const { message, target, groupId } = req.body;
+  const { message, target, groupId, profile } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
 
   // Kiem tra nhanh (sync) — trả lỗi luôn nếu sai
   try {
-    playwright.getActiveProfile();
+    if (profile) playwright.setProfile(profile);
+    else playwright.getActiveProfile();
   } catch {
     cleanupFiles(imagePaths);
     return res.status(400).json({ error: 'Chưa chọn profile!' });
@@ -264,18 +269,14 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
   const jobId = createJob();
   res.json({ jobId, status: 'pending' });
 
-  // Chạy post ở background
-  (async () => {
-    try {
-      const result = await executePost({ message, target, groupId, imagePaths, imageUrls });
-      setJobResult(jobId, result);
-    } catch (error) {
+  // Chạy post qua serial queue — tránh race condition profile
+  queuePost(() => executePost({ profile, message, target, groupId, imagePaths, imageUrls }))
+    .then(result => setJobResult(jobId, result))
+    .catch(error => {
       logger.error(`Lỗi job ${jobId}: ${error.message}`);
       setJobError(jobId, error.message);
-    } finally {
-      cleanupFiles(imagePaths);
-    }
-  })();
+    })
+    .finally(() => cleanupFiles(imagePaths));
 });
 
 app.get('/api/job/:id', (req, res) => {

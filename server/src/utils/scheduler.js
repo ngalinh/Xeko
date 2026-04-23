@@ -1,6 +1,7 @@
 const logger = require('./logger');
 const postLogger = require('../database/post-logger');
 const scheduleStore = require('../database/schedule-store');
+const { queuePost } = require('./post-queue');
 const fs = require('fs');
 const path = require('path');
 
@@ -62,7 +63,7 @@ function addSchedule({ time, target, groupId, message, imagePaths, profile, type
   // Đặt timer
   const delay = scheduleTime.getTime() - Date.now();
   job.timer = setTimeout(() => {
-    executeSchedule(job);
+    queuePost(() => executeSchedule(job));
   }, delay);
 
   scheduledPosts.push(job);
@@ -271,10 +272,10 @@ function init() {
       const mins = Math.round(-delay / 60000);
       logger.warn(`Catch-up lịch #${p.id}: quá hạn ${mins} phút, chạy ngay`);
       catchup++;
-      executeSchedule(job);
+      queuePost(() => executeSchedule(job));
     } else {
       // Còn trong tương lai -> re-schedule
-      job.timer = setTimeout(() => executeSchedule(job), delay);
+      job.timer = setTimeout(() => queuePost(() => executeSchedule(job)), delay);
       restored++;
       logger.info(`Khôi phục lịch #${p.id}: ${p.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`);
     }

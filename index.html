@@ -2842,6 +2842,7 @@
           formData.append('message', message);
           formData.append('target', target);
           if (groupId) formData.append('groupId', groupId);
+          if (currentProfile) formData.append('profile', currentProfile);
           await appendImages(formData, filesToUpload);
 
           addTyping();
@@ -5170,6 +5171,7 @@
           } else {
             fd.append('target', ch.type === 'group' ? 'group' : 'personal');
             if (ch.type === 'group') fd.append('groupId', ch.id || ch.key || '');
+            fd.append('profile', profile);
             const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: fd });
             const initial = await parseJson(res);
             jobs.push({ ch, jobId: initial.jobId, initial, done: !initial.jobId });
