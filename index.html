@@ -1821,6 +1821,9 @@
           <option value="personal">Cá nhân</option>
           <option value="group">Group</option>
         </select>
+        <select id="dashFilterGroup" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+          <option value="">Tất cả nhóm</option>
+        </select>
         <select id="dashFilterStatus" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
           <option value="">Tất cả trạng thái</option>
           <option value="1">Thành công</option>
@@ -3930,6 +3933,28 @@
       }
       renderGroupsTable();
       renderProfileChannels();
+      populateDashGroupFilter();
+    }
+
+    function populateDashGroupFilter() {
+      const sel = document.getElementById('dashFilterGroup');
+      if (!sel) return;
+      const prev = sel.value;
+      const fb = (channelsData.fbGroups || []);
+      const zalo = (channelsData.zaloGroups || []);
+      let opts = '<option value="">Tất cả nhóm</option>';
+      if (fb.length) {
+        opts += '<optgroup label="Facebook">';
+        fb.forEach(g => { opts += `<option value="${g.id || g.key}">${g.name || g.key}</option>`; });
+        opts += '</optgroup>';
+      }
+      if (zalo.length) {
+        opts += '<optgroup label="Zalo">';
+        zalo.forEach(g => { opts += `<option value="${g.name || g.key}">${g.name || g.key}</option>`; });
+        opts += '</optgroup>';
+      }
+      sel.innerHTML = opts;
+      if (prev) sel.value = prev;
     }
 
     let currentGroupFilter = 'all';
@@ -4587,6 +4612,7 @@
       const profile = document.getElementById('dashFilterProfile').value;
       const platform = document.getElementById('dashFilterPlatform').value;
       const target = document.getElementById('dashFilterTarget').value;
+      const groupId = document.getElementById('dashFilterGroup').value;
       const success = document.getElementById('dashFilterStatus').value;
       const from = document.getElementById('dashFilterFrom').value;
       const to = document.getElementById('dashFilterTo').value;
@@ -4595,6 +4621,7 @@
       if (profile) params.set('profile', profile);
       if (platform) params.set('platform', platform);
       if (target) params.set('target', target);
+      if (groupId) params.set('groupId', groupId);
       if (success === '1' || success === '0') params.set('success', success);
       if (from) params.set('from', from + 'T00:00:00.000Z');
       if (to) params.set('to', to + 'T23:59:59.999Z');
@@ -4615,6 +4642,7 @@
           .filter(s => isSchedFilter ? s.status === success : (s.status === 'pending' || s.status === 'running'));
         if (profile) schedToShow = schedToShow.filter(s => s.profile === profile);
         if (target) schedToShow = schedToShow.filter(s => s.target === target);
+        if (groupId) schedToShow = schedToShow.filter(s => s.groupId === groupId || s.groupName === groupId);
         // Lọc theo thành công/thất bại → ẩn lịch chờ; lọc pending/running → ẩn _activeRepostJobs
         if (success === '1' || success === '0') schedToShow = [];
 
