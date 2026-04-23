@@ -4592,11 +4592,63 @@
       params.set('offset', dashPage * dashLimit);
 
       try {
-        const res = await fetch(BASE_URL + '/api/post-history?' + params.toString());
-        const data = await parseJson(res);
+        const [schedRes, histRes] = await Promise.all([
+          fetch(BASE_URL + '/api/schedules').catch(() => null),
+          fetch(BASE_URL + '/api/post-history?' + params.toString()),
+        ]);
+        const allSchedules = schedRes ? await parseJson(schedRes).catch(() => []) : [];
+        const data = await parseJson(histRes);
+
+        // Lọc lịch phù hợp với filter hiện tại (chỉ pending/running, chưa đăng)
+        let schedToShow = (Array.isArray(allSchedules) ? allSchedules : [])
+          .filter(s => s.status === 'pending' || s.status === 'running');
+        if (profile) schedToShow = schedToShow.filter(s => s.profile === profile);
+        if (target) schedToShow = schedToShow.filter(s => s.target === target);
+        // Nếu đang lọc theo trạng thái thành công/thất bại thì ẩn lịch chờ
+        if (success !== '') schedToShow = [];
 
         const tbody = document.getElementById('dashHistoryBody');
         if (typeof _dashSelectedIds !== 'undefined') { _dashSelectedIds.clear(); _updateBulkBar(); }
+
+        // --- Render scheduled rows ---
+        const schedHtml = schedToShow.map(sched => {
+          const d = new Date(sched.timeISO || sched.time);
+          const pad = n => String(n).padStart(2,'0');
+          const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+          const targetLabel = sched.target === 'personal' ? 'Cá nhân' : sched.target === 'group' ? 'Group' : sched.target === 'all' ? 'Tất cả' : sched.target === 'allgroup' ? 'Tất cả Group' : (sched.target || '-');
+          const groupId = sched.groupId || sched.groupName || '-';
+          const fullMsg = (sched.message || '').replace(/"/g,'&quot;');
+          const msg = sched.message ? (sched.message.length > 60 ? sched.message.substring(0, 60) + '…' : sched.message) : '-';
+          const imgCount = sched.imageCount || 0;
+          let thumbs;
+          if (imgCount > 0) {
+            const shown = Math.min(imgCount, 4);
+            const imgUrls = Array.from({length: shown}, (_, i) => `${BASE_URL}/api/schedule-image/${sched.id}/${i}`);
+            thumbs = `<div style="display:flex; gap:3px; align-items:center;">${imgUrls.map(u => `<a href="${u}" target="_blank"><img src="${u}" style="width:32px; height:32px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\'font-size:18px;\'>🖼️</span>'"></a>`).join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
+          } else {
+            thumbs = '<span style="color:#bbb;">—</span>';
+          }
+          const isRunning = sched.status === 'running';
+          const statusBadge = isRunning
+            ? '<span style="background:#dbeafe; color:#1d4ed8; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">⚡ Đang đăng</span>'
+            : '<span style="background:#fff7ed; color:#c2410c; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">⏳ Chờ đăng</span>';
+          const rowBg = isRunning ? '#eff6ff' : '#f8f7ff';
+          return `<tr id="schedRow-${sched.id}" style="border-bottom:1px solid #e8e4ff; background:${rowBg}; border-left:3px solid #a5b4fc;">
+            <td style="padding:10px 10px; text-align:center; color:#a5b4fc; font-size:15px;">⏰</td>
+            <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
+            <td style="padding:10px 12px; font-size:12px; white-space:nowrap;">${sched.profile || '-'}</td>
+            <td style="padding:10px 12px; font-size:12px;">FB</td>
+            <td style="padding:10px 12px; font-size:12px;">${targetLabel}</td>
+            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(sched.groupId || sched.groupName || '').replace(/"/g,'&quot;')}">${groupId}</td>
+            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msg}</td>
+            <td style="padding:10px 12px;">${thumbs}</td>
+            <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
+            <td style="padding:8px 10px; text-align:center;">
+              <button onclick="cancelScheduleFromTable(${sched.id})" style="padding:4px 9px; border:1px solid #fca5a5; border-radius:6px; background:#fff; color:#ef4444; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'" title="Hủy lịch đăng">✕ Hủy</button>
+            </td>
+          </tr>`;
+        }).join('');
+
         if (data.rows && data.rows.length > 0) {
           window._dashRows = data.rows;
 
@@ -4610,7 +4662,7 @@
             batchColorMap[k] = BATCH_COLORS[colorIdx++ % BATCH_COLORS.length];
           });
 
-          tbody.innerHTML = data.rows.map((row, idx) => {
+          tbody.innerHTML = schedHtml + data.rows.map((row, idx) => {
             const d = new Date(row.timestamp);
             const pad = n => String(n).padStart(2,'0');
             const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
@@ -4661,7 +4713,11 @@
           }).join('');
         } else {
           window._dashRows = [];
-          tbody.innerHTML = '<tr><td colspan="10" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
+          if (schedHtml) {
+            tbody.innerHTML = schedHtml;
+          } else {
+            tbody.innerHTML = '<tr><td colspan="10" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
+          }
         }
 
         // Pagination
@@ -4684,6 +4740,20 @@
     function dashGoPage(page) {
       dashPage = page;
       loadDashHistory();
+    }
+
+    async function cancelScheduleFromTable(id) {
+      if (!confirm('Hủy bài đăng đã lên lịch này?')) return;
+      try {
+        const res = await fetch(`${BASE_URL}/api/schedule/${id}`, { method: 'DELETE' });
+        const data = await parseJson(res);
+        if (data.success) {
+          const row = document.getElementById('schedRow-' + id);
+          if (row) row.remove();
+        }
+      } catch (e) {
+        console.error('Cancel schedule error:', e);
+      }
     }
 
     // ===== Bulk Selection =====
