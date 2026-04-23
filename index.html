@@ -1484,6 +1484,12 @@
         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="12" cy="10" r="3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
       </symbol>
+      <symbol id="ic-trash" viewBox="0 0 24 24">
+        <polyline points="3 6 5 6 21 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
     </defs>
   </svg>
 
@@ -1819,6 +1825,8 @@
           <option value="">Tất cả trạng thái</option>
           <option value="1">Thành công</option>
           <option value="0">Thất bại</option>
+          <option value="pending">Chờ đăng</option>
+          <option value="running">Đang đăng</option>
         </select>
         <input type="date" id="dashFilterFrom" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
         <input type="date" id="dashFilterTo" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
@@ -1839,15 +1847,15 @@
         <table style="width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed;">
           <colgroup>
             <col style="width:36px;">
-            <col style="width:138px;">
-            <col style="width:120px;">
-            <col style="width:46px;">
-            <col style="width:70px;">
-            <col style="width:100px;">
-            <col style="width:180px;">
-            <col style="width:88px;">
-            <col style="width:78px;">
             <col style="width:148px;">
+            <col style="width:130px;">
+            <col style="width:46px;">
+            <col style="width:72px;">
+            <col style="width:130px;">
+            <col style="width:auto;">
+            <col style="width:130px;">
+            <col style="width:96px;">
+            <col style="width:72px;">
           </colgroup>
           <thead>
             <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
@@ -2860,6 +2868,7 @@
           formData.append('message', message);
           formData.append('target', target);
           if (groupId) formData.append('groupId', groupId);
+          if (currentProfile) formData.append('profile', currentProfile);
           await appendImages(formData, filesToUpload);
 
           addTyping();
@@ -4471,6 +4480,7 @@
     // ===== DASHBOARD =====
     let dashPage = 0;
     const dashLimit = 20;
+    const _activeRepostJobs = []; // jobs đang poll background
 
     async function loadDashboard() {
       try {
@@ -4603,7 +4613,7 @@
       if (profile) params.set('profile', profile);
       if (platform) params.set('platform', platform);
       if (target) params.set('target', target);
-      if (success !== '') params.set('success', success);
+      if (success === '1' || success === '0') params.set('success', success);
       if (from) params.set('from', from + 'T00:00:00.000Z');
       if (to) params.set('to', to + 'T23:59:59.999Z');
       params.set('limit', dashLimit);
@@ -4617,16 +4627,47 @@
         const allSchedules = schedRes ? await parseJson(schedRes).catch(() => []) : [];
         const data = await parseJson(histRes);
 
-        // Lọc lịch phù hợp với filter hiện tại (chỉ pending/running, chưa đăng)
+        // Lọc lịch chờ/đang đăng
+        const isSchedFilter = success === 'pending' || success === 'running';
         let schedToShow = (Array.isArray(allSchedules) ? allSchedules : [])
-          .filter(s => s.status === 'pending' || s.status === 'running');
+          .filter(s => isSchedFilter ? s.status === success : (s.status === 'pending' || s.status === 'running'));
         if (profile) schedToShow = schedToShow.filter(s => s.profile === profile);
         if (target) schedToShow = schedToShow.filter(s => s.target === target);
-        // Nếu đang lọc theo trạng thái thành công/thất bại thì ẩn lịch chờ
-        if (success !== '') schedToShow = [];
+        // Lọc theo thành công/thất bại → ẩn lịch chờ; lọc pending/running → ẩn _activeRepostJobs
+        if (success === '1' || success === '0') schedToShow = [];
+
+        // Lookup: FB group ID → tên group (từ danh sách kênh đã lưu)
+        const fbGroupIdToName = {};
+        (channelsData.fbGroups || []).forEach(g => { if (g.id) fbGroupIdToName[g.id] = g.name; });
+        function resolveGroupLabel(platform, groupId, groupName) {
+          if (platform === 'zalo') return groupName || groupId || '-';
+          if (groupId && fbGroupIdToName[groupId]) return fbGroupIdToName[groupId];
+          return groupId || groupName || '-';
+        }
 
         const tbody = document.getElementById('dashHistoryBody');
         if (typeof _dashSelectedIds !== 'undefined') { _dashSelectedIds.clear(); _updateBulkBar(); }
+
+        // --- Render repost-in-progress rows (giữ lại khi reload) ---
+        const repostHtml = _activeRepostJobs.map(job => {
+          const ch = job.ch;
+          const targetLabel = ch.type === 'group' ? 'Group' : 'Cá nhân';
+          const groupId = ch.id || ch.key || '-';
+          const msgShort = job.message ? (job.message.length > 60 ? job.message.substring(0, 60) + '…' : job.message) : '-';
+          const fullMsg = (job.message || '').replace(/"/g, '&quot;');
+          return `<tr id="${job.tempId}" style="border-bottom:1px solid #bfdbfe; background:#f0f9ff; border-left:3px solid #60a5fa;">
+            <td style="padding:10px 10px; text-align:center; color:#60a5fa; font-size:15px;">⏳</td>
+            <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${job.timeLabel}</td>
+            <td style="padding:10px 12px; font-size:12px;">${job.profileName}</td>
+            <td style="padding:10px 12px; font-size:12px;">FB</td>
+            <td style="padding:10px 12px; font-size:12px;">${targetLabel}</td>
+            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupId}">${groupId}</td>
+            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msgShort}</td>
+            <td style="padding:10px 12px; color:#bbb;">—</td>
+            <td style="padding:10px 12px; text-align:center;"><span style="background:#dbeafe; color:#1d4ed8; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">⚡ Đang đăng</span></td>
+            <td></td>
+          </tr>`;
+        }).join('');
 
         // --- Render scheduled rows ---
         const schedHtml = schedToShow.map(sched => {
@@ -4634,7 +4675,8 @@
           const pad = n => String(n).padStart(2,'0');
           const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
           const targetLabel = sched.target === 'personal' ? 'Cá nhân' : sched.target === 'group' ? 'Group' : sched.target === 'all' ? 'Tất cả' : sched.target === 'allgroup' ? 'Tất cả Group' : (sched.target || '-');
-          const groupId = sched.groupId || sched.groupName || '-';
+          const groupId = resolveGroupLabel(sched.type, sched.groupId, sched.groupName);
+          const groupIdRaw = sched.groupId || sched.groupName || '';
           const fullMsg = (sched.message || '').replace(/"/g,'&quot;');
           const msg = sched.message ? (sched.message.length > 60 ? sched.message.substring(0, 60) + '…' : sched.message) : '-';
           const imgCount = sched.imageCount || 0;
@@ -4657,30 +4699,34 @@
             <td style="padding:10px 12px; font-size:12px; white-space:nowrap;">${sched.profile || '-'}</td>
             <td style="padding:10px 12px; font-size:12px;">FB</td>
             <td style="padding:10px 12px; font-size:12px;">${targetLabel}</td>
-            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(sched.groupId || sched.groupName || '').replace(/"/g,'&quot;')}">${groupId}</td>
+            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupIdRaw.replace(/"/g,'&quot;')}">${groupId}</td>
             <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msg}</td>
             <td style="padding:10px 12px;">${thumbs}</td>
             <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
             <td style="padding:8px 10px; text-align:center;">
-              <button onclick="cancelScheduleFromTable(${sched.id})" style="padding:4px 9px; border:1px solid #fca5a5; border-radius:6px; background:#fff; color:#ef4444; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'" title="Hủy lịch đăng">✕ Hủy</button>
+              <button onclick="cancelScheduleFromTable(${sched.id})" title="Hủy lịch đăng" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #fca5a5;border-radius:7px;background:#fff;color:#ef4444;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
             </td>
           </tr>`;
         }).join('');
 
-        if (data.rows && data.rows.length > 0) {
-          window._dashRows = data.rows;
+        // Khi filter pending/running: chỉ hiện lịch chờ, ẩn history
+        const histRows = isSchedFilter ? [] : (data.rows || []);
+        const activeRepostHtml = isSchedFilter ? '' : repostHtml;
+
+        if (histRows.length > 0) {
+          window._dashRows = histRows;
 
           // Tính batch_id nào xuất hiện nhiều hơn 1 lần → gán màu
           const BATCH_COLORS = ['#7c66ff','#06b6d4','#f59e0b','#10b981','#ef4444','#8b5cf6','#ec4899'];
           const batchCount = {};
-          data.rows.forEach(r => { if (r.batch_id) batchCount[r.batch_id] = (batchCount[r.batch_id] || 0) + 1; });
+          histRows.forEach(r => { if (r.batch_id) batchCount[r.batch_id] = (batchCount[r.batch_id] || 0) + 1; });
           const batchColorMap = {};
           let colorIdx = 0;
           Object.keys(batchCount).filter(k => batchCount[k] > 1).forEach(k => {
             batchColorMap[k] = BATCH_COLORS[colorIdx++ % BATCH_COLORS.length];
           });
 
-          tbody.innerHTML = schedHtml + data.rows.map((row, idx) => {
+          tbody.innerHTML = activeRepostHtml + schedHtml + histRows.map((row, idx) => {
             const d = new Date(row.timestamp);
             const pad = n => String(n).padStart(2,'0');
             const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
@@ -4690,7 +4736,7 @@
               ? '<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:6px; font-size:11px;">OK</span>'
               : `<span style="background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:6px; font-size:11px;" title="${(row.error||'').replace(/"/g,'&quot;')}">Lỗi</span>`;
             const target = row.target === 'personal' ? 'Cá nhân' : row.target === 'group' ? 'Group' : (row.target || '-');
-            const groupId = row.group_id || row.group_name || '-';
+            const groupId = resolveGroupLabel(row.platform, row.group_id, row.group_name);
             const fullMsg = (row.message || '').replace(/"/g,'&quot;');
             const msg = row.message ? (row.message.length > 60 ? row.message.substring(0, 60) + '…' : row.message) : '-';
             const imgCount = row.image_count || 0;
@@ -4723,32 +4769,33 @@
               <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
               <td style="padding:8px 10px; text-align:center; position:relative;">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
-                  <button onclick="openRepostModal(${idx})" style="padding:4px 9px; border:1px solid #7c66ff; border-radius:6px; background:#fff; color:#7c66ff; font-size:14px; cursor:pointer;" onmouseover="this.style.background='#7c66ff'" onmouseout="this.style.background='#fff'" title="Repost">🔄</button>
-                  <button onclick="openSingleDeleteConfirm(${row.id})" style="padding:4px 7px; border:1px solid #fca5a5; border-radius:6px; background:#fff; color:#ef4444; font-size:13px; cursor:pointer; line-height:1;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'" title="Xóa">🗑️</button>
+                  <button onclick="openRepostModal(${idx})" title="Repost" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #7c66ff;border-radius:7px;background:#fff;color:#7c66ff;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#7c66ff';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#7c66ff'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
+                  <button onclick="openSingleDeleteConfirm(${row.id})" title="Xóa" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #fca5a5;border-radius:7px;background:#fff;color:#ef4444;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
                 </div>
               </td>
             </tr>`;
           }).join('');
         } else {
           window._dashRows = [];
-          if (schedHtml) {
-            tbody.innerHTML = schedHtml;
-          } else {
-            tbody.innerHTML = '<tr><td colspan="10" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
-          }
+          const fallbackHtml = activeRepostHtml + schedHtml;
+          tbody.innerHTML = fallbackHtml || '<tr><td colspan="10" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
         }
 
-        // Pagination
-        const totalPages = Math.ceil(data.total / dashLimit);
+        // Pagination (ẩn khi đang filter pending/running)
         const paginationEl = document.getElementById('dashPagination');
-        if (totalPages > 1) {
-          let html = '';
-          if (dashPage > 0) html += `<button onclick="dashGoPage(${dashPage - 1})" style="padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer;">← Trước</button>`;
-          html += `<span style="padding:6px 12px; color:#666;">Trang ${dashPage + 1} / ${totalPages} (${data.total} bài)</span>`;
-          if (dashPage < totalPages - 1) html += `<button onclick="dashGoPage(${dashPage + 1})" style="padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer;">Sau →</button>`;
-          paginationEl.innerHTML = html;
+        if (!isSchedFilter) {
+          const totalPages = Math.ceil(data.total / dashLimit);
+          if (totalPages > 1) {
+            let html = '';
+            if (dashPage > 0) html += `<button onclick="dashGoPage(${dashPage - 1})" style="padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer;">← Trước</button>`;
+            html += `<span style="padding:6px 12px; color:#666;">Trang ${dashPage + 1} / ${totalPages} (${data.total} bài)</span>`;
+            if (dashPage < totalPages - 1) html += `<button onclick="dashGoPage(${dashPage + 1})" style="padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer;">Sau →</button>`;
+            paginationEl.innerHTML = html;
+          } else {
+            paginationEl.innerHTML = data.total > 0 ? `<span style="color:#999; font-size:12px;">Tổng: ${data.total} bài</span>` : '';
+          }
         } else {
-          paginationEl.innerHTML = data.total > 0 ? `<span style="color:#999; font-size:12px;">Tổng: ${data.total} bài</span>` : '';
+          paginationEl.innerHTML = '';
         }
       } catch (e) {
         console.error('History error:', e);
@@ -5166,6 +5213,7 @@
           } else {
             fd.append('target', ch.type === 'group' ? 'group' : 'personal');
             if (ch.type === 'group') fd.append('groupId', ch.id || ch.key || '');
+            fd.append('profile', profile);
             const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: fd });
             const initial = await parseJson(res);
             jobs.push({ ch, jobId: initial.jobId, initial, done: !initial.jobId });
@@ -5175,44 +5223,29 @@
         }
       }
 
-      // 2. Thêm hàng tạm vào bảng cho các FB job đang poll
+      // 2. Đăng ký job vào _activeRepostJobs để loadDashHistory() tự render lại khi cần
       const profileName = document.getElementById('repostProfile').options[document.getElementById('repostProfile').selectedIndex]?.text || profile;
-      const tbody = document.getElementById('dashHistoryBody');
       const now = new Date();
       const pad = n => String(n).padStart(2,'0');
       const timeLabel = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} ${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}`;
-      const msgShort = message ? (message.length > 60 ? message.substring(0, 60) + '…' : message) : '-';
-      const fullMsg = (message || '').replace(/"/g, '&quot;');
 
       jobs.forEach((job, i) => {
         if (job.done) return;
-        const tempId = `repost-temp-${i}-${Date.now()}`;
-        job.tempId = tempId;
-        const ch = job.ch;
-        const targetLabel = ch.type === 'group' ? 'Group' : 'Cá nhân';
-        const groupId = ch.id || ch.key || '-';
-        const html = `<tr id="${tempId}" style="border-bottom:1px solid #bfdbfe; background:#f0f9ff; border-left:3px solid #60a5fa;">
-          <td style="padding:10px 10px; text-align:center; color:#60a5fa; font-size:15px;">⏳</td>
-          <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${timeLabel}</td>
-          <td style="padding:10px 12px; font-size:12px;">${profileName}</td>
-          <td style="padding:10px 12px; font-size:12px;">FB</td>
-          <td style="padding:10px 12px; font-size:12px;">${targetLabel}</td>
-          <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupId}">${groupId}</td>
-          <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msgShort}</td>
-          <td style="padding:10px 12px; color:#bbb;">—</td>
-          <td style="padding:10px 12px; text-align:center;"><span style="background:#dbeafe; color:#1d4ed8; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">⚡ Đang đăng</span></td>
-          <td></td>
-        </tr>`;
-        tbody.insertAdjacentHTML('afterbegin', html);
+        job.tempId = `repost-temp-${i}-${Date.now()}`;
+        job.profileName = profileName;
+        job.timeLabel = timeLabel;
+        job.message = message;
+        _activeRepostJobs.push(job);
       });
 
-      // 3. Đóng modal ngay
+      // 3. Đóng modal ngay + render hàng tạm
       submitBtn.disabled = false;
       submitBtn.textContent = '🔄 Repost';
       editBtn.disabled = false;
       closeRepostModal();
+      loadDashHistory();
 
-      // 4. Poll background – khi xong xóa hàng tạm + reload
+      // 4. Poll background – khi từng job xong thì xóa khỏi registry + reload
       (async () => {
         for (const job of jobs) {
           if (job.done) continue;
@@ -5222,7 +5255,8 @@
           } catch (e) {
             job.ok = false;
           }
-          document.getElementById(job.tempId)?.remove();
+          const idx = _activeRepostJobs.indexOf(job);
+          if (idx !== -1) _activeRepostJobs.splice(idx, 1);
         }
         loadDashHistory();
       })();
