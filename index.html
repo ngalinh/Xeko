@@ -2565,22 +2565,32 @@
 
       // Determine target type for backward compat
       const activeSel = selected[currentProfile] || { fb: [], zalo: [] };
-      const hasFb = (activeSel.fb || []).some(c => c.id !== 'custom');
-      const hasCustomFb = (activeSel.fb || []).some(c => c.id === 'custom');
       const fbIds = (activeSel.fb || []).filter(c => c.id !== 'custom').map(c => c.id);
-      window._customGroupIds = (activeSel.fb || []).filter(c => c.id === 'custom').map(c => c.groupId);
+
+      // Separate built-in shortcuts from profile-assigned groups
+      const specialIds = ['personal', 'asale', 'tongkho'];
+      const standardIds = fbIds.filter(id => specialIds.includes(id));
+      const profileGroupKeys = fbIds.filter(id => !specialIds.includes(id));
+
+      // Profile-assigned groups: look up actual FB group IDs and post via custom group loop
+      const profileGroupFbIds = profileGroupKeys.map(key => {
+        const g = (channelsData.fbGroups || []).find(x => x.key === key);
+        return g ? g.id : null;
+      }).filter(Boolean);
+
+      // Merge profile group IDs with manually-entered custom group IDs
+      const manualCustomIds = (activeSel.fb || []).filter(c => c.id === 'custom').map(c => c.groupId);
+      window._customGroupIds = [...profileGroupFbIds, ...manualCustomIds];
 
       let target = null;
-      if (fbIds.includes('personal') && fbIds.includes('asale') && fbIds.includes('tongkho')) {
+      if (standardIds.includes('personal') && standardIds.includes('asale') && standardIds.includes('tongkho')) {
         target = 'all';
-      } else if (fbIds.includes('asale') && fbIds.includes('tongkho') && !fbIds.includes('personal')) {
+      } else if (standardIds.includes('asale') && standardIds.includes('tongkho') && !standardIds.includes('personal')) {
         target = 'allgroup';
-      } else if (fbIds.length === 1 && fbIds[0] === 'personal') {
+      } else if (standardIds.length === 1 && standardIds[0] === 'personal') {
         target = 'personal';
-      } else if (fbIds.length === 1 && (fbIds[0] === 'asale' || fbIds[0] === 'tongkho')) {
-        target = fbIds[0];
-      } else if (hasFb) {
-        target = 'all';
+      } else if (standardIds.length === 1 && (standardIds[0] === 'asale' || standardIds[0] === 'tongkho')) {
+        target = standardIds[0];
       }
 
       currentTarget = target;
