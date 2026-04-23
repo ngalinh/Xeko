@@ -3104,7 +3104,21 @@
         }
 
         if (hasZaloSelection) {
-          errors.push('Lên lịch Zalo chưa được hỗ trợ — bạn chọn "Đăng ngay" để đăng Zalo nha.');
+          const zaloSel = (window._channelSelection || {})[currentProfile] || { zalo: [], zaloAccount: '' };
+          const zaloGroups = zaloSel.zalo || [];
+          const zaloAccountName = zaloSel.zaloAccount;
+          const allZalo = channelsData.zaloGroups || [];
+          for (const z of zaloGroups) {
+            const g = allZalo.find(x => x.key === z.id);
+            if (!g) continue;
+            try {
+              const data = await postSchedule({ type: 'zalo', zaloAccount: zaloAccountName, groupName: g.name });
+              if (data.success) scheduled.push(`Zalo: ${g.name}`);
+              else errors.push(`Zalo ${g.name}: ${data.error}`);
+            } catch (e) {
+              errors.push(`Zalo ${g.name}: ${e.message}`);
+            }
+          }
         }
 
         removeTyping();

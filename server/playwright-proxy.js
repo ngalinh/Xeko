@@ -124,16 +124,33 @@ function getActiveProfile() {
   return { name: _activeProfileName || _activeProfile, key: _activeProfile };
 }
 
+// Poll /api/job/:id trên máy local cho đến khi xong
+async function pollLocalJob(jobId, maxWaitMs = 10 * 60 * 1000) {
+  const start = Date.now();
+  while (Date.now() - start < maxWaitMs) {
+    await new Promise(r => setTimeout(r, 5000));
+    const data = await callLocal('GET', `/api/job/${jobId}`);
+    if (data.status === 'done') return data.result;
+    if (data.status === 'failed') throw new Error(data.error || 'Job thất bại');
+  }
+  throw new Error('Quá 10 phút chưa xong — kiểm tra FB/Zalo tay.');
+}
+
 async function postToPersonal(message, imagePaths = []) {
-  return callLocal('POST', '/api/post',
-    { message, target: 'personal' },
-    imagePaths
-  );
+  const res = await callLocal('POST', '/api/post', { message, target: 'personal' }, imagePaths);
+  if (res.jobId) return pollLocalJob(res.jobId);
+  return res;
 }
 
 async function postToGroup(groupId, message, imagePaths = []) {
-  return callLocal('POST', '/api/post',
-    { message, target: 'group', groupId },
+  const res = await callLocal('POST', '/api/post', { message, target: 'group', groupId }, imagePaths);
+  if (res.jobId) return pollLocalJob(res.jobId);
+  return res;
+}
+
+async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths = [] }) {
+  return callLocal('POST', '/api/zalo/post',
+    { profile: zaloAccountName, groupName, message },
     imagePaths
   );
 }
@@ -148,5 +165,6 @@ module.exports = {
   getActiveProfile,
   postToPersonal,
   postToGroup,
+  postToZaloGroup,
   closeBrowser,
 };

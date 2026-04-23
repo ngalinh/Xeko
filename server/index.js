@@ -573,7 +573,7 @@ const scheduler = require('./src/utils/scheduler');
 
 // Len lich dang bai
 app.post('/api/schedule', upload.array('images', 10), (req, res) => {
-  const { time, target, groupId, message, profile, type, groupName } = req.body;
+  const { time, target, groupId, message, profile, type, groupName, zaloAccount } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
 
   if (!profile) {
@@ -582,7 +582,7 @@ app.post('/api/schedule', upload.array('images', 10), (req, res) => {
   }
 
   try {
-    const job = scheduler.addSchedule({ time, target, groupId, message, imagePaths, profile, type, groupName });
+    const job = scheduler.addSchedule({ time, target, groupId, message, imagePaths, profile, type, groupName, zaloAccount });
     res.json({
       success: true,
       message: `Đã lên lịch đăng bài lúc ${job.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`,
