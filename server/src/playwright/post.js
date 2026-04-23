@@ -3,6 +3,7 @@ const path = require('path');
 const config = require('../../config/default');
 const logger = require('../utils/logger');
 const { randomDelay } = require('../utils/delay');
+const funMsg = require('../utils/fun-messages');
 
 // Lưu browser context theo profile: { linhthao: ctx, linhduong: ctx }
 const browsers = {};
@@ -399,24 +400,24 @@ async function postToPersonal(message, imagePaths = []) {
 
     if (!(await openCreatePost(page, false))) {
       await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-open.png') });
-      throw new Error('Không mở được popup tạo bài.');
+      throw new Error(funMsg.errPopupPersonal());
     }
     await randomDelay(2000, 3000);
 
     if (imagePaths.length > 0) {
       const imgOk = await attachImages(page, imagePaths);
-      if (!imgOk) throw new Error('Không upload được ảnh. Xem logs/debug-upload.png');
+      if (!imgOk) throw new Error(funMsg.errUpload() + ' (xem logs/debug-upload.png)');
     }
     await randomDelay(1500, 2500);
 
     if (message && !(await typeMessage(page, message))) {
-      throw new Error('Không nhập được nội dung.');
+      throw new Error(funMsg.errTypeContent());
     }
     await randomDelay(1000, 2000);
 
     const result = await submitPost(page);
     if (!result.success) {
-      throw new Error('Không đăng được bài. Xem logs/debug-failed.png');
+      throw new Error(funMsg.errPost() + ' (xem logs/debug-failed.png)');
     }
 
     logger.info('Đã đăng bài cá nhân thành công!');
@@ -442,14 +443,14 @@ async function postToGroup(groupId, message, imagePaths = []) {
 
     if (!(await openCreatePost(page, true))) {
       await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-group-open.png') });
-      throw new Error('Không mở được popup tạo bài group.');
+      throw new Error(funMsg.errPopupGroup());
     }
     await randomDelay(2000, 3000);
 
     // Đính kèm ảnh TRƯỚC
     if (imagePaths.length > 0) {
       const imgOk = await attachImages(page, imagePaths);
-      if (!imgOk) throw new Error('Không upload được ảnh. Xem logs/debug-upload.png');
+      if (!imgOk) throw new Error(funMsg.errUpload() + ' (xem logs/debug-upload.png)');
     }
     await randomDelay(1500, 2500);
 
@@ -490,7 +491,7 @@ async function postToGroup(groupId, message, imagePaths = []) {
     // Nhấn Đăng
     const result = await submitPost(page);
     if (!result.success) {
-      throw new Error('Không đăng được bài group. Xem logs/debug-failed.png');
+      throw new Error(funMsg.errPost() + ' (xem logs/debug-failed.png)');
     }
 
     logger.info(`Đã đăng bài group ${groupId} thành công!`);

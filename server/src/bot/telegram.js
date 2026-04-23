@@ -5,6 +5,7 @@ const path = require('path');
 const config = require('../../config/default');
 const logger = require('../utils/logger');
 const playwright = require('../playwright/post');
+const funMsg = require('../utils/fun-messages');
 
 const bot = new TelegramBot(config.telegram.token, { polling: true });
 
@@ -85,7 +86,7 @@ async function processPost(chatId, parsed, photoFileIds) {
   checkDailyReset();
 
   if (postCount >= config.posting.maxPostsPerDay) {
-    bot.sendMessage(chatId, `Đã đạt giới hạn ${config.posting.maxPostsPerDay} bài/ngày.`);
+    bot.sendMessage(chatId, funMsg.errLimit(config.posting.maxPostsPerDay));
     return;
   }
 
@@ -101,11 +102,11 @@ async function processPost(chatId, parsed, photoFileIds) {
     // Đăng lên tất cả group
     if (parsed.target === 'allgroup') {
       const groups = Object.values(config.groups);
-      bot.sendMessage(chatId, `Đang tải ${downloadedFiles.length} ảnh và đăng lên ${groups.length} group...`);
+      bot.sendMessage(chatId, funMsg.statusDownloading(downloadedFiles.length) + ` Sắp đổ bộ ${groups.length} group liền 🎯`);
 
       for (const group of groups) {
         if (postCount >= config.posting.maxPostsPerDay) {
-          bot.sendMessage(chatId, `Đã đạt giới hạn. Dừng lại.`);
+          bot.sendMessage(chatId, funMsg.errLimit(config.posting.maxPostsPerDay));
           break;
         }
 
@@ -114,9 +115,9 @@ async function processPost(chatId, parsed, photoFileIds) {
         postCount++;
 
         if (result.success) {
-          await sendResult(chatId, `✅ ${group.name} thành công!`, result);
+          await sendResult(chatId, `✅ ${funMsg.successGroup(group.name)}`, result);
         } else {
-          bot.sendMessage(chatId, `❌ ${group.name} lỗi: ${result.error}`);
+          bot.sendMessage(chatId, `❌ ${group.name}: ${result.error}`);
         }
 
         if (groups.indexOf(group) < groups.length - 1) {
@@ -126,13 +127,13 @@ async function processPost(chatId, parsed, photoFileIds) {
         }
       }
 
-      bot.sendMessage(chatId, `🏁 Hoàn tất đăng ${groups.length} group!`);
+      bot.sendMessage(chatId, `🏁 ${funMsg.successAllGroup(groups.length)}`);
       return;
     }
 
     // Đăng 1 group hoặc cá nhân
     const targetLabel = parsed.target === 'group' ? `Group ${parsed.groupId}` : 'trang cá nhân';
-    bot.sendMessage(chatId, `Đang tải ${downloadedFiles.length} ảnh và đăng bài lên ${targetLabel}...`);
+    bot.sendMessage(chatId, funMsg.statusDownloading(downloadedFiles.length) + ` Rồi đăng lên ${targetLabel}...`);
 
     let result;
     if (parsed.target === 'group') {
@@ -143,13 +144,16 @@ async function processPost(chatId, parsed, photoFileIds) {
     postCount++;
 
     if (result.success) {
-      await sendResult(chatId, `Đăng bài ${targetLabel} kèm ${downloadedFiles.length} ảnh thành công!`, result);
+      const successText = parsed.target === 'personal'
+        ? funMsg.successPersonal()
+        : funMsg.successGroup(targetLabel);
+      await sendResult(chatId, successText, result);
     } else {
-      bot.sendMessage(chatId, `Lỗi: ${result.error}`);
+      bot.sendMessage(chatId, `❌ ${result.error}`);
     }
   } catch (error) {
     logger.error(`Lỗi: ${error.message}`);
-    bot.sendMessage(chatId, `Lỗi: ${error.message}`);
+    bot.sendMessage(chatId, `❌ ${error.message}`);
   } finally {
     cleanupTempFiles(downloadedFiles);
   }
@@ -376,20 +380,20 @@ bot.onText(/\/post(?!_) (.+)/, async (msg, match) => {
   checkDailyReset();
 
   if (postCount >= config.posting.maxPostsPerDay) {
-    bot.sendMessage(msg.chat.id, `Đã đạt giới hạn ${config.posting.maxPostsPerDay} bài/ngày.`);
+    bot.sendMessage(msg.chat.id, funMsg.errLimit(config.posting.maxPostsPerDay));
     return;
   }
 
   const content = match[1];
-  bot.sendMessage(msg.chat.id, 'Đang xử lý đăng bài lên trang cá nhân...');
+  bot.sendMessage(msg.chat.id, funMsg.statusPosting('trang cá nhân'));
 
   const result = await playwright.postToPersonal(content);
   postCount++;
 
   if (result.success) {
-    await sendResult(msg.chat.id, 'Đăng bài cá nhân thành công!', result);
+    await sendResult(msg.chat.id, funMsg.successPersonal(), result);
   } else {
-    bot.sendMessage(msg.chat.id, `Lỗi: ${result.error}`);
+    bot.sendMessage(msg.chat.id, `❌ ${result.error}`);
   }
 });
 
@@ -401,21 +405,21 @@ bot.onText(/\/post_group (\S+) (.+)/, async (msg, match) => {
   checkDailyReset();
 
   if (postCount >= config.posting.maxPostsPerDay) {
-    bot.sendMessage(msg.chat.id, `Đã đạt giới hạn ${config.posting.maxPostsPerDay} bài/ngày.`);
+    bot.sendMessage(msg.chat.id, funMsg.errLimit(config.posting.maxPostsPerDay));
     return;
   }
 
   const groupId = match[1];
   const content = match[2];
-  bot.sendMessage(msg.chat.id, `Đang xử lý đăng bài lên Group ${groupId}...`);
+  bot.sendMessage(msg.chat.id, funMsg.statusPosting(`Group ${groupId}`));
 
   const result = await playwright.postToGroup(groupId, content);
   postCount++;
 
   if (result.success) {
-    await sendResult(msg.chat.id, 'Đăng bài Group thành công!', result);
+    await sendResult(msg.chat.id, funMsg.successGroup(groupId), result);
   } else {
-    bot.sendMessage(msg.chat.id, `Lỗi: ${result.error}`);
+    bot.sendMessage(msg.chat.id, `❌ ${result.error}`);
   }
 });
 
@@ -433,7 +437,7 @@ bot.on('photo', async (msg) => {
   if (!mediaGroupId) {
     const parsed = parseCaption(caption);
     if (!parsed) {
-      bot.sendMessage(msg.chat.id, 'Caption không hợp lệ. Dùng: /post <nội dung> hoặc /post_group <id> <nội dung>');
+      bot.sendMessage(msg.chat.id, '🤔 Caption không hợp lệ nha! Dùng: /post <nội dung> hoặc /post_group <id> <nội dung>');
       return;
     }
     await processPost(msg.chat.id, parsed, [largestPhoto.file_id]);
@@ -484,21 +488,21 @@ bot.onText(/\/asale (.+)/, async (msg, match) => {
   checkDailyReset();
 
   if (postCount >= config.posting.maxPostsPerDay) {
-    bot.sendMessage(msg.chat.id, `Đã đạt giới hạn ${config.posting.maxPostsPerDay} bài/ngày.`);
+    bot.sendMessage(msg.chat.id, funMsg.errLimit(config.posting.maxPostsPerDay));
     return;
   }
 
   const content = match[1];
   const group = config.groups.asale;
-  bot.sendMessage(msg.chat.id, `Đang xử lý đăng bài lên ${group.name}...`);
+  bot.sendMessage(msg.chat.id, funMsg.statusPosting(group.name));
 
   const result = await playwright.postToGroup(group.id, content);
   postCount++;
 
   if (result.success) {
-    await sendResult(msg.chat.id, `Đăng bài ${group.name} thành công!`, result);
+    await sendResult(msg.chat.id, funMsg.successGroup(group.name), result);
   } else {
-    bot.sendMessage(msg.chat.id, `Lỗi: ${result.error}`);
+    bot.sendMessage(msg.chat.id, `❌ ${result.error}`);
   }
 });
 
@@ -510,21 +514,21 @@ bot.onText(/\/tongkho (.+)/, async (msg, match) => {
   checkDailyReset();
 
   if (postCount >= config.posting.maxPostsPerDay) {
-    bot.sendMessage(msg.chat.id, `Đã đạt giới hạn ${config.posting.maxPostsPerDay} bài/ngày.`);
+    bot.sendMessage(msg.chat.id, funMsg.errLimit(config.posting.maxPostsPerDay));
     return;
   }
 
   const content = match[1];
   const group = config.groups.tongkho;
-  bot.sendMessage(msg.chat.id, `Đang xử lý đăng bài lên ${group.name}...`);
+  bot.sendMessage(msg.chat.id, funMsg.statusPosting(group.name));
 
   const result = await playwright.postToGroup(group.id, content);
   postCount++;
 
   if (result.success) {
-    await sendResult(msg.chat.id, `Đăng bài ${group.name} thành công!`, result);
+    await sendResult(msg.chat.id, funMsg.successGroup(group.name), result);
   } else {
-    bot.sendMessage(msg.chat.id, `Lỗi: ${result.error}`);
+    bot.sendMessage(msg.chat.id, `❌ ${result.error}`);
   }
 });
 
@@ -538,11 +542,11 @@ bot.onText(/\/allgroup (.+)/, async (msg, match) => {
   const content = match[1];
   const groups = Object.values(config.groups);
 
-  bot.sendMessage(msg.chat.id, `Đang xử lý đăng bài lên ${groups.length} group...`);
+  bot.sendMessage(msg.chat.id, `Chuẩn bị đổ bộ ${groups.length} group cùng lúc 🎯`);
 
   for (const group of groups) {
     if (postCount >= config.posting.maxPostsPerDay) {
-      bot.sendMessage(msg.chat.id, `Đã đạt giới hạn ${config.posting.maxPostsPerDay} bài/ngày. Dừng lại.`);
+      bot.sendMessage(msg.chat.id, funMsg.errLimit(config.posting.maxPostsPerDay));
       break;
     }
 
@@ -551,9 +555,9 @@ bot.onText(/\/allgroup (.+)/, async (msg, match) => {
     postCount++;
 
     if (result.success) {
-      await sendResult(msg.chat.id, `✅ ${group.name} thành công!`, result);
+      await sendResult(msg.chat.id, `✅ ${funMsg.successGroup(group.name)}`, result);
     } else {
-      bot.sendMessage(msg.chat.id, `❌ ${group.name} lỗi: ${result.error}`);
+      bot.sendMessage(msg.chat.id, `❌ ${group.name}: ${result.error}`);
     }
 
     // Delay giữa các group để tránh bị Facebook chặn
@@ -564,7 +568,7 @@ bot.onText(/\/allgroup (.+)/, async (msg, match) => {
     }
   }
 
-  bot.sendMessage(msg.chat.id, `🏁 Đã hoàn tất đăng bài lên ${groups.length} group!`);
+  bot.sendMessage(msg.chat.id, `🏁 ${funMsg.successAllGroup(groups.length)}`);
 });
 
 // Xem trạng thái
