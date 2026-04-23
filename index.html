@@ -2079,6 +2079,37 @@
       return new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     }
 
+    const ENCOURAGEMENTS = [
+      'Ủa xong rồi á? Nhanh vãi 👀 Drop thêm bài đi, Xeko đang rảnh nè!',
+      'Một bài thôi hả? Yếu ớt quá bạn ơi 😂 Thả thêm đi nào!',
+      'Xeko vừa đăng xong tay còn ấm, bạn có bài nào tiếp không? 🔥',
+      'Não cá vàng nhớ không: đăng đều mới có reach nha 🐟',
+      'Một bài = khởi đầu tốt. Hai bài = slay. Ba bài = trang chủ đây rồi 👑',
+      'Xeko idle 0 giây, sẵn sàng nhận bài tiếp ngay bây giờ ⚡',
+      'Thả một bài rồi đi ngủ à? Không được đâu nha bestie 😤',
+      'Content dropped! Giờ bạn định đi đâu vậy? Ở đây drop thêm đi 👀',
+      'Xeko thấy bạn có vibe đăng bài hôm nay lắm, đừng dừng lại 🔥',
+      'Plot twist: thuật toán FB thích người đăng đều, không phải đăng 1 bài rồi mất tích 😂',
+      'Chill thôi nhưng mà... bài tiếp đâu? 👀',
+      'Bạn vừa thả bài xịn, giờ Xeko đang chờ bài tiếp đây nè 🥺',
+      'Đăng một bài = tốt. Đăng đều = rất tốt. Dùng Xeko = đỉnh của chóp 😎',
+      'GG! Bài lên rồi, Xeko đói bài lắm r còn bài nào không 😂',
+      'Xeko: sẵn sàng 100%. Bạn: còn bài không? 👀',
+      'Đừng để Xeko ngồi không tội nghiệp lắm, drop bài tiếp đi 🥺',
+      'Page đang on fire đó, đừng tắt lửa nha! 🔥',
+      'Bài vừa lên sóng rồi nè~ Giờ Xeko đang nhìn bạn chờ bài tiếp đây 👁️',
+      'Fr fr bạn đang làm tốt lắm, tiếp tục đi đừng dừng 💅',
+      'Ủa bạn chưa xong à? Xeko tưởng còn nhiều bài hơn chứ 😏',
+      'Một bài vừa bay lên FB rồi! Bài tiếp theo đang ở đâu? 🛸',
+      'Xeko không biết mệt, bạn thì sao? Drop thêm đi nào 😤',
+      'Vừa xong 1 bài mà Xeko đã hype cho bài tiếp rồi nè 🎉',
+      'Đăng bài đều là level pro đó nha, bạn có muốn lên pro không? 😏',
+      'Page cần ăn đều nha bạn ơi, một bài nữa đi 🍜',
+    ];
+    function pickEncouragement() {
+      return ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)];
+    }
+
     async function parseJson(res) {
       const text = await res.text();
       try {
@@ -2925,7 +2956,7 @@
         }
 
         // Hien nut tiep tuc
-        addBot('Mới đăng có bấy nhiêu à má? Ráng post thêm đi, content nhiều là Xeko vui lắm nè 🔥', [
+        addBot(pickEncouragement(), [
           { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
           { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
           { label: `${xekoIcon('refresh')} Đổi Profile`, handler: () => showProfileSelect() },
