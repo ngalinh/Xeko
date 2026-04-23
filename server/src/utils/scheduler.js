@@ -4,7 +4,7 @@ const scheduleStore = require('../database/schedule-store');
 const fs = require('fs');
 const path = require('path');
 
-// Luu lich dang bai trong RAM (nguon su that la DB, day chi la cache)
+// Lưu lịch đăng bài trong RAM (nguồn sự thật là DB, đây chỉ là cache)
 const scheduledPosts = [];
 let nextId = 1;
 
@@ -12,7 +12,7 @@ let nextId = 1;
 const notifications = [];
 
 /**
- * Them lich dang bai
+ * Thêm lịch đăng bài
  */
 function addSchedule({ time, target, groupId, message, imagePaths, profile, type, groupName }) {
   const id = nextId++;
@@ -26,7 +26,7 @@ function addSchedule({ time, target, groupId, message, imagePaths, profile, type
     throw new Error('Thời gian phải ở tương lai');
   }
 
-  // Copy file anh rieng cho moi lich (tranh conflict khi nhieu lich cung dung chung file)
+  // Copy file ảnh riêng cho mỗi lịch (tránh conflict khi nhiều lịch cùng dùng chung file)
   let ownImagePaths = [];
   if (imagePaths && imagePaths.length > 0) {
     const schedDir = path.resolve(__dirname, `../../temp/schedule_${id}`);
@@ -38,7 +38,7 @@ function addSchedule({ time, target, groupId, message, imagePaths, profile, type
       fs.copyFileSync(src, dest);
       return dest;
     });
-    logger.info(`Da copy ${ownImagePaths.length} anh cho lich #${id}`);
+    logger.info(`Đã copy ${ownImagePaths.length} ảnh cho lịch #${id}`);
   }
 
   const job = {
@@ -56,35 +56,35 @@ function addSchedule({ time, target, groupId, message, imagePaths, profile, type
     timer: null,
   };
 
-  // Persist xuong DB truoc khi set timer, tranh mat khi crash giua chung
+  // Persist xuống DB trước khi set timer, tránh mất khi crash giữa chừng
   scheduleStore.insert(job);
 
-  // Dat timer
+  // Đặt timer
   const delay = scheduleTime.getTime() - Date.now();
   job.timer = setTimeout(() => {
     executeSchedule(job);
   }, delay);
 
   scheduledPosts.push(job);
-  logger.info(`Len lich #${id}: ${scheduleTime.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} - ${target} - "${message?.substring(0, 30)}..."`);
+  logger.info(`Lên lịch #${id}: ${scheduleTime.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} - ${target} - "${message?.substring(0, 30)}..."`);
 
   return job;
 }
 
 /**
- * Thuc thi bai dang theo lich
+ * Thực thi bài đăng theo lịch
  */
 async function executeSchedule(job) {
-  // Khi chay tren server ai.basso.vn, playwright thuc su nam o may local —
-  // forward qua proxy. Khong thi cac profile nam trong playwright-data/ cua
-  // may local se khong tim thay va nem loi "Profile khong ton tai".
+  // Khi chạy trên server ai.basso.vn, playwright thực sự nằm ở máy local —
+  // forward qua proxy. Không thì các profile nằm trong playwright-data/ của
+  // máy local sẽ không tìm thấy và ném lỗi "Profile không tồn tại".
   const playwright = process.env.PLAYWRIGHT_LOCAL_URL
     ? require('../../playwright-proxy')
     : require('../playwright/post');
 
   job.status = 'running';
   scheduleStore.updateStatus(job.id, 'running');
-  logger.info(`Dang thuc thi lich #${job.id} (${job.type})...`);
+  logger.info(`Đang thực thi lịch #${job.id} (${job.type})...`);
 
   try {
     // Facebook
@@ -124,7 +124,7 @@ async function executeSchedule(job) {
     } else if (job.target === 'all') {
       const config = require('../../config/default');
       const results = [];
-      // Ca nhan
+      // Cá nhân
       const r1 = await playwright.postToPersonal(job.message, job.imagePaths);
       postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'personal', message: job.message, imageCount: imgCount, success: r1.success, error: r1.error, postUrl: r1.postUrl, source: 'schedule' });
       results.push({ target: 'FB Cá nhân', ...r1 });
@@ -144,9 +144,9 @@ async function executeSchedule(job) {
 
     job.status = 'done';
     job.result = result;
-    logger.info(`Lich #${job.id} hoan tat: ${result?.success ? 'thanh cong' : 'that bai'}`);
+    logger.info(`Lịch #${job.id} hoàn tất: ${result?.success ? 'thành công' : 'thất bại'}`);
 
-    // Gui notification
+    // Gửi notification
     notifications.push({
       id: job.id,
       type: 'success',
@@ -161,7 +161,7 @@ async function executeSchedule(job) {
   } catch (error) {
     job.status = 'error';
     job.result = { success: false, error: error.message };
-    logger.error(`Lich #${job.id} loi: ${error.message}`);
+    logger.error(`Lịch #${job.id} lỗi: ${error.message}`);
 
     notifications.push({
       id: job.id,
@@ -176,7 +176,7 @@ async function executeSchedule(job) {
       error: error.message,
     });
   } finally {
-    // Cleanup file anh cua lich nay
+    // Cleanup file ảnh của lịch này
     if (job.imagePaths && job.imagePaths.length > 0) {
       for (const f of job.imagePaths) {
         try { fs.unlinkSync(f); } catch {}
@@ -186,13 +186,13 @@ async function executeSchedule(job) {
         fs.rmdirSync(dir);
       } catch {}
     }
-    // Xoa khoi DB — bai da chay xong, thong tin se nam trong post_logs
+    // Xoá khỏi DB — bài đã chạy xong, thông tin sẽ nằm trong post_logs
     scheduleStore.remove(job.id);
   }
 }
 
 /**
- * Lay danh sach lich
+ * Lấy danh sách lịch
  */
 function getSchedules() {
   return scheduledPosts.map(j => ({
@@ -212,12 +212,12 @@ function getSchedules() {
 }
 
 /**
- * Xoa lich
+ * Xoá lịch
  */
 function removeSchedule(id) {
   const index = scheduledPosts.findIndex(j => j.id === id);
   if (index === -1) {
-    // Khong co trong RAM nhung co the van con trong DB (vd sau crash)
+    // Không có trong RAM nhưng có thể vẫn còn trong DB (vd sau crash)
     scheduleStore.remove(id);
     return false;
   }
@@ -226,21 +226,21 @@ function removeSchedule(id) {
   if (job.timer) clearTimeout(job.timer);
   scheduledPosts.splice(index, 1);
   scheduleStore.remove(id);
-  logger.info(`Da xoa lich #${id}`);
+  logger.info(`Đã xoá lịch #${id}`);
   return true;
 }
 
 /**
- * Khoi phuc lich tu DB khi server khoi dong.
- * Lich con trong tuong lai -> re-schedule setTimeout.
- * Lich qua han (server down dung luc no) -> chay ngay (catch-up).
+ * Khôi phục lịch từ DB khi server khởi động.
+ * Lịch còn trong tương lai -> re-schedule setTimeout.
+ * Lịch quá hạn (server down đúng lúc nó) -> chạy ngay (catch-up).
  */
 function init() {
   nextId = scheduleStore.nextId();
 
   const pending = scheduleStore.getPending();
   if (!pending.length) {
-    logger.info('Scheduler init: khong co lich pending');
+    logger.info('Scheduler init: không có lịch pending');
     return;
   }
 
@@ -267,24 +267,24 @@ function init() {
 
     const delay = p.time.getTime() - now;
     if (delay <= 0) {
-      // Da qua gio -> chay ngay
+      // Đã quá giờ -> chạy ngay
       const mins = Math.round(-delay / 60000);
-      logger.warn(`Catch-up lich #${p.id}: qua han ${mins} phut, chay ngay`);
+      logger.warn(`Catch-up lịch #${p.id}: quá hạn ${mins} phút, chạy ngay`);
       catchup++;
       executeSchedule(job);
     } else {
-      // Con trong tuong lai -> re-schedule
+      // Còn trong tương lai -> re-schedule
       job.timer = setTimeout(() => executeSchedule(job), delay);
       restored++;
-      logger.info(`Khoi phuc lich #${p.id}: ${p.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`);
+      logger.info(`Khôi phục lịch #${p.id}: ${p.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`);
     }
   }
 
-  logger.info(`Scheduler init: khoi phuc ${restored} lich, catch-up ${catchup} lich qua han`);
+  logger.info(`Scheduler init: khôi phục ${restored} lịch, catch-up ${catchup} lịch quá hạn`);
 }
 
 /**
- * Lay va xoa notifications (polling)
+ * Lấy và xoá notifications (polling)
  */
 function getNotifications() {
   const items = [...notifications];

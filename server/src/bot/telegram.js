@@ -16,7 +16,7 @@ let lastResetDate = new Date().toDateString();
 
 // Gom album: media_group_id -> { photos, caption, chatId, timer }
 const pendingAlbums = new Map();
-const ALBUM_WAIT_MS = 2000; // Doi 2 giay de gom het anh trong album
+const ALBUM_WAIT_MS = 2000; // Đợi 2 giây để gom hết ảnh trong album
 
 function checkDailyReset() {
   const today = new Date().toDateString();
@@ -53,7 +53,7 @@ function cleanupTempFiles(filePaths) {
 }
 
 /**
- * Phan tich caption de xac dinh target va noi dung
+ * Phân tích caption để xác định target và nội dung
  */
 function parseCaption(caption) {
   const groupMatch = caption.match(/^\/post_group\s+(\S+)\s*(.*)/s);
@@ -79,60 +79,60 @@ function parseCaption(caption) {
 }
 
 /**
- * Xu ly dang bai (goi sau khi da gom het anh)
+ * Xử lý đăng bài (gọi sau khi đã gom hết ảnh)
  */
 async function processPost(chatId, parsed, photoFileIds) {
   checkDailyReset();
 
   if (postCount >= config.posting.maxPostsPerDay) {
-    bot.sendMessage(chatId, `Da dat gioi han ${config.posting.maxPostsPerDay} bai/ngay.`);
+    bot.sendMessage(chatId, `Đã đạt giới hạn ${config.posting.maxPostsPerDay} bài/ngày.`);
     return;
   }
 
   const downloadedFiles = [];
   try {
-    // Tai tat ca anh
+    // Tải tất cả ảnh
     for (const fileId of photoFileIds) {
       const localPath = await downloadTelegramPhoto(fileId);
       downloadedFiles.push(localPath);
     }
-    logger.info(`Da tai ${downloadedFiles.length} anh`);
+    logger.info(`Đã tải ${downloadedFiles.length} ảnh`);
 
-    // Dang len tat ca group
+    // Đăng lên tất cả group
     if (parsed.target === 'allgroup') {
       const groups = Object.values(config.groups);
-      bot.sendMessage(chatId, `Dang tai ${downloadedFiles.length} anh va dang len ${groups.length} group...`);
+      bot.sendMessage(chatId, `Đang tải ${downloadedFiles.length} ảnh và đăng lên ${groups.length} group...`);
 
       for (const group of groups) {
         if (postCount >= config.posting.maxPostsPerDay) {
-          bot.sendMessage(chatId, `Da dat gioi han. Dung lai.`);
+          bot.sendMessage(chatId, `Đã đạt giới hạn. Dừng lại.`);
           break;
         }
 
-        bot.sendMessage(chatId, `⏳ Dang len ${group.name}...`);
+        bot.sendMessage(chatId, `⏳ Đang đăng lên ${group.name}...`);
         const result = await playwright.postToGroup(group.id, parsed.message, downloadedFiles);
         postCount++;
 
         if (result.success) {
-          await sendResult(chatId, `✅ ${group.name} thanh cong!`, result);
+          await sendResult(chatId, `✅ ${group.name} thành công!`, result);
         } else {
-          bot.sendMessage(chatId, `❌ ${group.name} loi: ${result.error}`);
+          bot.sendMessage(chatId, `❌ ${group.name} lỗi: ${result.error}`);
         }
 
         if (groups.indexOf(group) < groups.length - 1) {
           const delay = Math.floor(Math.random() * (config.posting.maxDelay - config.posting.minDelay)) + config.posting.minDelay;
-          bot.sendMessage(chatId, `⏰ Doi ${Math.round(delay/1000)}s...`);
+          bot.sendMessage(chatId, `⏰ Đợi ${Math.round(delay/1000)}s...`);
           await new Promise(r => setTimeout(r, delay));
         }
       }
 
-      bot.sendMessage(chatId, `🏁 Hoan tat dang ${groups.length} group!`);
+      bot.sendMessage(chatId, `🏁 Hoàn tất đăng ${groups.length} group!`);
       return;
     }
 
-    // Dang 1 group hoac ca nhan
-    const targetLabel = parsed.target === 'group' ? `Group ${parsed.groupId}` : 'trang ca nhan';
-    bot.sendMessage(chatId, `Dang tai ${downloadedFiles.length} anh va dang bai len ${targetLabel}...`);
+    // Đăng 1 group hoặc cá nhân
+    const targetLabel = parsed.target === 'group' ? `Group ${parsed.groupId}` : 'trang cá nhân';
+    bot.sendMessage(chatId, `Đang tải ${downloadedFiles.length} ảnh và đăng bài lên ${targetLabel}...`);
 
     let result;
     if (parsed.target === 'group') {
@@ -143,20 +143,20 @@ async function processPost(chatId, parsed, photoFileIds) {
     postCount++;
 
     if (result.success) {
-      await sendResult(chatId, `Dang bai ${targetLabel} kem ${downloadedFiles.length} anh thanh cong!`, result);
+      await sendResult(chatId, `Đăng bài ${targetLabel} kèm ${downloadedFiles.length} ảnh thành công!`, result);
     } else {
-      bot.sendMessage(chatId, `Loi: ${result.error}`);
+      bot.sendMessage(chatId, `Lỗi: ${result.error}`);
     }
   } catch (error) {
-    logger.error(`Loi: ${error.message}`);
-    bot.sendMessage(chatId, `Loi: ${error.message}`);
+    logger.error(`Lỗi: ${error.message}`);
+    bot.sendMessage(chatId, `Lỗi: ${error.message}`);
   } finally {
     cleanupTempFiles(downloadedFiles);
   }
 }
 
 /**
- * Gui ket qua ve Telegram: text + link (neu co) + screenshot
+ * Gửi kết quả về Telegram: text + link (nếu có) + screenshot
  */
 async function sendResult(chatId, message, result) {
   let text = message;
@@ -165,17 +165,17 @@ async function sendResult(chatId, message, result) {
   }
   await bot.sendMessage(chatId, text);
 
-  // Gui screenshot bai viet
+  // Gửi screenshot bài viết
   if (result.screenshot && fs.existsSync(result.screenshot)) {
     try {
-      await bot.sendPhoto(chatId, result.screenshot, { caption: 'Screenshot bai viet' });
+      await bot.sendPhoto(chatId, result.screenshot, { caption: 'Screenshot bài viết' });
     } catch (e) {
-      logger.error(`Loi gui screenshot: ${e.message}`);
+      logger.error(`Lỗi gửi screenshot: ${e.message}`);
     }
   }
 }
 
-// Chon profile va gui thong bao
+// Chọn profile và gửi thông báo
 function selectProfile(chatId, profileKey) {
   try {
     playwright.setProfile(profileKey);
@@ -196,23 +196,23 @@ function selectProfile(chatId, profileKey) {
       },
     });
   } catch (e) {
-    bot.sendMessage(chatId, `Loi: ${e.message}`);
+    bot.sendMessage(chatId, `Lỗi: ${e.message}`);
   }
 }
 
-// Chon profile /linhthao
+// Chọn profile /linhthao
 bot.onText(/\/linhthao/, (msg) => {
   if (!isAuthorized(msg.from.id)) return;
   selectProfile(msg.chat.id, 'linhthao');
 });
 
-// Chon profile /linhduong
+// Chọn profile /linhduong
 bot.onText(/\/linhduong/, (msg) => {
   if (!isAuthorized(msg.from.id)) return;
   selectProfile(msg.chat.id, 'linhduong');
 });
 
-// Kiem tra profile truoc khi dang bai
+// Kiểm tra profile trước khi đăng bài
 function requireProfile(chatId) {
   try {
     playwright.getActiveProfile();
@@ -232,7 +232,7 @@ function requireProfile(chatId) {
   }
 }
 
-// Xu ly callback buttons
+// Xử lý callback buttons
 bot.on('callback_query', async (query) => {
   if (!isAuthorized(query.from.id)) return;
   const chatId = query.message.chat.id;
@@ -340,7 +340,7 @@ Gửi ảnh + caption \`/post_group <group_id> nội dung\``, {
   }
 });
 
-// Lenh /start
+// Lệnh /start
 bot.onText(/\/start/, (msg) => {
   if (!isAuthorized(msg.from.id)) {
     bot.sendMessage(msg.chat.id, 'Bạn không có quyền sử dụng bot này.');
@@ -368,7 +368,7 @@ bot.onText(/\/start/, (msg) => {
   });
 });
 
-// Dang len trang ca nhan (chi text)
+// Đăng lên trang cá nhân (chỉ text)
 bot.onText(/\/post(?!_) (.+)/, async (msg, match) => {
   if (!isAuthorized(msg.from.id)) return;
   if (msg.photo) return;
@@ -376,24 +376,24 @@ bot.onText(/\/post(?!_) (.+)/, async (msg, match) => {
   checkDailyReset();
 
   if (postCount >= config.posting.maxPostsPerDay) {
-    bot.sendMessage(msg.chat.id, `Da dat gioi han ${config.posting.maxPostsPerDay} bai/ngay.`);
+    bot.sendMessage(msg.chat.id, `Đã đạt giới hạn ${config.posting.maxPostsPerDay} bài/ngày.`);
     return;
   }
 
   const content = match[1];
-  bot.sendMessage(msg.chat.id, 'Dang xu ly dang bai len trang ca nhan...');
+  bot.sendMessage(msg.chat.id, 'Đang xử lý đăng bài lên trang cá nhân...');
 
   const result = await playwright.postToPersonal(content);
   postCount++;
 
   if (result.success) {
-    await sendResult(msg.chat.id, 'Dang bai ca nhan thanh cong!', result);
+    await sendResult(msg.chat.id, 'Đăng bài cá nhân thành công!', result);
   } else {
-    bot.sendMessage(msg.chat.id, `Loi: ${result.error}`);
+    bot.sendMessage(msg.chat.id, `Lỗi: ${result.error}`);
   }
 });
 
-// Dang len Group (chi text)
+// Đăng lên Group (chỉ text)
 bot.onText(/\/post_group (\S+) (.+)/, async (msg, match) => {
   if (!isAuthorized(msg.from.id)) return;
   if (msg.photo) return;
@@ -401,25 +401,25 @@ bot.onText(/\/post_group (\S+) (.+)/, async (msg, match) => {
   checkDailyReset();
 
   if (postCount >= config.posting.maxPostsPerDay) {
-    bot.sendMessage(msg.chat.id, `Da dat gioi han ${config.posting.maxPostsPerDay} bai/ngay.`);
+    bot.sendMessage(msg.chat.id, `Đã đạt giới hạn ${config.posting.maxPostsPerDay} bài/ngày.`);
     return;
   }
 
   const groupId = match[1];
   const content = match[2];
-  bot.sendMessage(msg.chat.id, `Dang xu ly dang bai len Group ${groupId}...`);
+  bot.sendMessage(msg.chat.id, `Đang xử lý đăng bài lên Group ${groupId}...`);
 
   const result = await playwright.postToGroup(groupId, content);
   postCount++;
 
   if (result.success) {
-    await sendResult(msg.chat.id, 'Dang bai Group thanh cong!', result);
+    await sendResult(msg.chat.id, 'Đăng bài Group thành công!', result);
   } else {
-    bot.sendMessage(msg.chat.id, `Loi: ${result.error}`);
+    bot.sendMessage(msg.chat.id, `Lỗi: ${result.error}`);
   }
 });
 
-// Xu ly khi nguoi dung gui ANH
+// Xử lý khi người dùng gửi ẢNH
 bot.on('photo', async (msg) => {
   if (!isAuthorized(msg.from.id)) return;
   if (!requireProfile(msg.chat.id)) return;
@@ -429,26 +429,26 @@ bot.on('photo', async (msg) => {
   const largestPhoto = photoSizes[photoSizes.length - 1];
   const mediaGroupId = msg.media_group_id;
 
-  // Truong hop 1 anh (khong co media_group_id)
+  // Trường hợp 1 ảnh (không có media_group_id)
   if (!mediaGroupId) {
     const parsed = parseCaption(caption);
     if (!parsed) {
-      bot.sendMessage(msg.chat.id, 'Caption khong hop le. Dung: /post <noi dung> hoac /post_group <id> <noi dung>');
+      bot.sendMessage(msg.chat.id, 'Caption không hợp lệ. Dùng: /post <nội dung> hoặc /post_group <id> <nội dung>');
       return;
     }
     await processPost(msg.chat.id, parsed, [largestPhoto.file_id]);
     return;
   }
 
-  // Truong hop album (nhieu anh) - gom lai
+  // Trường hợp album (nhiều ảnh) - gom lại
   if (pendingAlbums.has(mediaGroupId)) {
-    // Album da co, them anh vao
+    // Album đã có, thêm ảnh vào
     const album = pendingAlbums.get(mediaGroupId);
     album.photos.push(largestPhoto.file_id);
-    // Cap nhat caption neu anh nay co caption (chi anh dau tien co caption)
+    // Cập nhật caption nếu ảnh này có caption (chỉ ảnh đầu tiên có caption)
     if (caption) album.caption = caption;
   } else {
-    // Album moi
+    // Album mới
     pendingAlbums.set(mediaGroupId, {
       photos: [largestPhoto.file_id],
       caption: caption,
@@ -456,27 +456,27 @@ bot.on('photo', async (msg) => {
     });
   }
 
-  // Reset timer moi khi co anh moi
+  // Reset timer mỗi khi có ảnh mới
   const album = pendingAlbums.get(mediaGroupId);
   if (album.timer) clearTimeout(album.timer);
 
   album.timer = setTimeout(async () => {
-    // Da gom het anh, xu ly
+    // Đã gom hết ảnh, xử lý
     const finalAlbum = pendingAlbums.get(mediaGroupId);
     pendingAlbums.delete(mediaGroupId);
 
     const parsed = parseCaption(finalAlbum.caption);
     if (!parsed) {
-      bot.sendMessage(finalAlbum.chatId, 'Caption khong hop le. Dung: /post <noi dung> hoac /post_group <id> <noi dung>');
+      bot.sendMessage(finalAlbum.chatId, 'Caption không hợp lệ. Dùng: /post <nội dung> hoặc /post_group <id> <nội dung>');
       return;
     }
 
-    logger.info(`Album ${mediaGroupId}: ${finalAlbum.photos.length} anh, caption: ${finalAlbum.caption}`);
+    logger.info(`Album ${mediaGroupId}: ${finalAlbum.photos.length} ảnh, caption: ${finalAlbum.caption}`);
     await processPost(finalAlbum.chatId, parsed, finalAlbum.photos);
   }, ALBUM_WAIT_MS);
 });
 
-// Dang nhanh vao group Asale (chi text)
+// Đăng nhanh vào group Asale (chỉ text)
 bot.onText(/\/asale (.+)/, async (msg, match) => {
   if (!isAuthorized(msg.from.id)) return;
   if (msg.photo) return;
@@ -484,25 +484,25 @@ bot.onText(/\/asale (.+)/, async (msg, match) => {
   checkDailyReset();
 
   if (postCount >= config.posting.maxPostsPerDay) {
-    bot.sendMessage(msg.chat.id, `Da dat gioi han ${config.posting.maxPostsPerDay} bai/ngay.`);
+    bot.sendMessage(msg.chat.id, `Đã đạt giới hạn ${config.posting.maxPostsPerDay} bài/ngày.`);
     return;
   }
 
   const content = match[1];
   const group = config.groups.asale;
-  bot.sendMessage(msg.chat.id, `Dang xu ly dang bai len ${group.name}...`);
+  bot.sendMessage(msg.chat.id, `Đang xử lý đăng bài lên ${group.name}...`);
 
   const result = await playwright.postToGroup(group.id, content);
   postCount++;
 
   if (result.success) {
-    await sendResult(msg.chat.id, `Dang bai ${group.name} thanh cong!`, result);
+    await sendResult(msg.chat.id, `Đăng bài ${group.name} thành công!`, result);
   } else {
-    bot.sendMessage(msg.chat.id, `Loi: ${result.error}`);
+    bot.sendMessage(msg.chat.id, `Lỗi: ${result.error}`);
   }
 });
 
-// Dang nhanh vao group Tong Kho (chi text)
+// Đăng nhanh vào group Tổng Kho (chỉ text)
 bot.onText(/\/tongkho (.+)/, async (msg, match) => {
   if (!isAuthorized(msg.from.id)) return;
   if (msg.photo) return;
@@ -510,25 +510,25 @@ bot.onText(/\/tongkho (.+)/, async (msg, match) => {
   checkDailyReset();
 
   if (postCount >= config.posting.maxPostsPerDay) {
-    bot.sendMessage(msg.chat.id, `Da dat gioi han ${config.posting.maxPostsPerDay} bai/ngay.`);
+    bot.sendMessage(msg.chat.id, `Đã đạt giới hạn ${config.posting.maxPostsPerDay} bài/ngày.`);
     return;
   }
 
   const content = match[1];
   const group = config.groups.tongkho;
-  bot.sendMessage(msg.chat.id, `Dang xu ly dang bai len ${group.name}...`);
+  bot.sendMessage(msg.chat.id, `Đang xử lý đăng bài lên ${group.name}...`);
 
   const result = await playwright.postToGroup(group.id, content);
   postCount++;
 
   if (result.success) {
-    await sendResult(msg.chat.id, `Dang bai ${group.name} thanh cong!`, result);
+    await sendResult(msg.chat.id, `Đăng bài ${group.name} thành công!`, result);
   } else {
-    bot.sendMessage(msg.chat.id, `Loi: ${result.error}`);
+    bot.sendMessage(msg.chat.id, `Lỗi: ${result.error}`);
   }
 });
 
-// Dang vao tat ca group (chi text)
+// Đăng vào tất cả group (chỉ text)
 bot.onText(/\/allgroup (.+)/, async (msg, match) => {
   if (!isAuthorized(msg.from.id)) return;
   if (msg.photo) return;
@@ -538,53 +538,53 @@ bot.onText(/\/allgroup (.+)/, async (msg, match) => {
   const content = match[1];
   const groups = Object.values(config.groups);
 
-  bot.sendMessage(msg.chat.id, `Dang xu ly dang bai len ${groups.length} group...`);
+  bot.sendMessage(msg.chat.id, `Đang xử lý đăng bài lên ${groups.length} group...`);
 
   for (const group of groups) {
     if (postCount >= config.posting.maxPostsPerDay) {
-      bot.sendMessage(msg.chat.id, `Da dat gioi han ${config.posting.maxPostsPerDay} bai/ngay. Dung lai.`);
+      bot.sendMessage(msg.chat.id, `Đã đạt giới hạn ${config.posting.maxPostsPerDay} bài/ngày. Dừng lại.`);
       break;
     }
 
-    bot.sendMessage(msg.chat.id, `⏳ Dang len ${group.name}...`);
+    bot.sendMessage(msg.chat.id, `⏳ Đang đăng lên ${group.name}...`);
     const result = await playwright.postToGroup(group.id, content);
     postCount++;
 
     if (result.success) {
-      await sendResult(msg.chat.id, `✅ ${group.name} thanh cong!`, result);
+      await sendResult(msg.chat.id, `✅ ${group.name} thành công!`, result);
     } else {
-      bot.sendMessage(msg.chat.id, `❌ ${group.name} loi: ${result.error}`);
+      bot.sendMessage(msg.chat.id, `❌ ${group.name} lỗi: ${result.error}`);
     }
 
-    // Delay giua cac group de tranh bi Facebook chan
+    // Delay giữa các group để tránh bị Facebook chặn
     if (groups.indexOf(group) < groups.length - 1) {
       const delay = Math.floor(Math.random() * (config.posting.maxDelay - config.posting.minDelay)) + config.posting.minDelay;
-      bot.sendMessage(msg.chat.id, `⏰ Doi ${Math.round(delay/1000)}s truoc khi dang group tiep...`);
+      bot.sendMessage(msg.chat.id, `⏰ Đợi ${Math.round(delay/1000)}s trước khi đăng group tiếp...`);
       await new Promise(r => setTimeout(r, delay));
     }
   }
 
-  bot.sendMessage(msg.chat.id, `🏁 Da hoan tat dang bai len ${groups.length} group!`);
+  bot.sendMessage(msg.chat.id, `🏁 Đã hoàn tất đăng bài lên ${groups.length} group!`);
 });
 
-// Xem trang thai
+// Xem trạng thái
 bot.onText(/\/status/, (msg) => {
   if (!isAuthorized(msg.from.id)) return;
   checkDailyReset();
 
   bot.sendMessage(msg.chat.id,
-    `Trang thai:
-- Bai da dang hom nay: ${postCount}/${config.posting.maxPostsPerDay}
-- Ngay: ${lastResetDate}`
+    `Trạng thái:
+- Bài đã đăng hôm nay: ${postCount}/${config.posting.maxPostsPerDay}
+- Ngày: ${lastResetDate}`
   );
 });
 
-// Cleanup khi tat
+// Cleanup khi tắt
 process.on('SIGINT', async () => {
-  logger.info('Dang tat bot...');
+  logger.info('Đang tắt bot...');
   await playwright.closeBrowser();
   process.exit(0);
 });
 
-logger.info('Telegram bot da khoi dong!');
-logger.info(`Cho phep user IDs: ${config.telegram.allowedUsers.join(', ')}`);
+logger.info('Telegram bot đã khởi động!');
+logger.info(`Cho phép user IDs: ${config.telegram.allowedUsers.join(', ')}`);
