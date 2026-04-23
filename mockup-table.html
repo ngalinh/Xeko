@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup – Bảng lịch sử + lên lịch</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f3f4f6; margin: 0; padding: 24px; }
+  h2 { color: #4f46e5; margin-bottom: 4px; font-size: 16px; }
+  p.note { color: #666; font-size: 13px; margin-bottom: 16px; }
+
+  /* Filter bar */
+  .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .filter-bar select, .filter-bar input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; background: #fff; }
+  .filter-bar button { padding: 8px 16px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; }
+
+  /* Table wrapper */
+  .table-wrap { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  thead th { background: #f9fafb; padding: 10px 12px; text-align: left; font-weight: 600; color: #374151; font-size: 12px; border-bottom: 1px solid #e5e7eb; }
+  thead th:first-child { width: 36px; text-align: center; }
+
+  /* ── Scheduled rows ── */
+  tr.sched { background: #f8f7ff; border-left: 3px solid #a5b4fc; }
+  tr.sched-running { background: #eff6ff; border-left: 3px solid #60a5fa; }
+  tr.sched td, tr.sched-running td { border-bottom: 1px solid #e8e4ff; }
+
+  /* ── Normal rows ── */
+  tr.hist td { border-bottom: 1px solid #f3f4f6; }
+
+  td { padding: 10px 12px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+  td:first-child { text-align: center; }
+
+  /* Badges */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+  .badge-ok       { background: #dcfce7; color: #16a34a; }
+  .badge-err      { background: #fef2f2; color: #dc2626; }
+  .badge-pending  { background: #fff7ed; color: #c2410c; }
+  .badge-running  { background: #dbeafe; color: #1d4ed8; }
+
+  /* Buttons */
+  .btn-repost { padding: 4px 9px; border: 1px solid #7c66ff; border-radius: 6px; background: #fff; color: #7c66ff; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .btn-del    { padding: 4px 7px; border: 1px solid #fca5a5; border-radius: 6px; background: #fff; color: #ef4444; font-size: 13px; cursor: pointer; }
+  .btn-cancel { padding: 4px 9px; border: 1px solid #fca5a5; border-radius: 6px; background: #fff; color: #ef4444; font-size: 12px; font-weight: 600; cursor: pointer; }
+
+  /* Thumbs */
+  .thumbs { display: flex; gap: 3px; align-items: center; }
+  .thumb { width: 32px; height: 32px; object-fit: cover; border: 1px solid #e5e7eb; border-radius: 4px; display: block; }
+  .thumb-placeholder { display: inline-flex; width: 32px; height: 32px; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; align-items: center; justify-content: center; font-size: 14px; }
+
+  /* Legend */
+  .legend { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; }
+  .legend-swatch { width: 14px; height: 14px; border-radius: 3px; border-left: 3px solid; }
+  .ls-sched   { background: #f8f7ff; border-left-color: #a5b4fc; border: 1px solid #e8e4ff; border-left: 3px solid #a5b4fc; }
+  .ls-running { background: #eff6ff; border-left: 3px solid #60a5fa; border: 1px solid #dbeafe; border-left: 3px solid #60a5fa; }
+  .ls-hist    { background: #fff;    border-left: 3px solid #e5e7eb; border: 1px solid #e5e7eb; }
+</style>
+</head>
+<body>
+
+<h2>Mockup – Bảng lịch sử bài đăng (có tích hợp bài lên lịch)</h2>
+<p class="note">Bài lên lịch hiển thị ở <strong>đầu bảng</strong>, phân biệt rõ bằng màu nền và icon ⏰</p>
+
+<!-- Filter bar -->
+<div class="filter-bar">
+  <select><option>Tất cả tài khoản</option></select>
+  <select><option>Tất cả nền tảng</option></select>
+  <select><option>Tất cả nơi đăng</option></select>
+  <select><option>Tất cả trạng thái</option></select>
+  <input type="date" placeholder="dd/mm/yyyy">
+  <input type="date" placeholder="dd/mm/yyyy">
+  <button>Lọc</button>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch ls-sched"></div> Bài chờ đăng (pending)</div>
+  <div class="legend-item"><div class="legend-swatch ls-running"></div> Đang đăng (running)</div>
+  <div class="legend-item"><div class="legend-swatch ls-hist"></div> Đã đăng (history)</div>
+</div>
+
+<!-- Table -->
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th></th>
+        <th>Thời gian</th>
+        <th>Tài khoản</th>
+        <th style="width:46px;">Nền tảng</th>
+        <th style="width:80px;">Nơi đăng</th>
+        <th style="width:150px;">ID nhóm</th>
+        <th>Nội dung</th>
+        <th style="width:120px;">Ảnh</th>
+        <th style="width:110px;">Trạng thái</th>
+        <th style="width:140px;">Thao tác</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <!-- ── SCHEDULED: running ── -->
+      <tr class="sched-running">
+        <td style="font-size:15px; color:#60a5fa;">⏰</td>
+        <td style="white-space:nowrap;">16:55:00 23/04/2026</td>
+        <td>khanhinh</td>
+        <td>FB</td>
+        <td>Group</td>
+        <td title="846718511673167">846718511673167</td>
+        <td title="son môi đỏ nhung mịn">son môi đỏ nhung mịn</td>
+        <td>
+          <div class="thumbs">
+            <span class="thumb-placeholder">🖼️</span>
+            <span class="thumb-placeholder">🖼️</span>
+          </div>
+        </td>
+        <td><span class="badge badge-running">⚡ Đang đăng</span></td>
+        <td>
+          <button class="btn-cancel">✕ Hủy</button>
+        </td>
+      </tr>
+
+      <!-- ── SCHEDULED: pending 1 ── -->
+      <tr class="sched">
+        <td style="font-size:15px; color:#a5b4fc;">⏰</td>
+        <td style="white-space:nowrap;">17:30:00 23/04/2026</td>
+        <td>khanhinh</td>
+        <td>FB</td>
+        <td>Cá nhân</td>
+        <td>-</td>
+        <td title="kem dưỡng da ban đêm">kem dưỡng da ban đêm</td>
+        <td>
+          <div class="thumbs">
+            <span class="thumb-placeholder">🖼️</span>
+            <span class="thumb-placeholder">🖼️</span>
+            <span class="thumb-placeholder">🖼️</span>
+          </div>
+        </td>
+        <td><span class="badge badge-pending">⏳ Chờ đăng</span></td>
+        <td>
+          <button class="btn-cancel">✕ Hủy</button>
+        </td>
+      </tr>
+
+      <!-- ── SCHEDULED: pending 2 ── -->
+      <tr class="sched">
+        <td style="font-size:15px; color:#a5b4fc;">⏰</td>
+        <td style="white-space:nowrap;">19:00:00 23/04/2026</td>
+        <td>khanhinh</td>
+        <td>FB</td>
+        <td>Group</td>
+        <td title="1007287038631706">1007287038631706</td>
+        <td title="phấn phủ kiềm dầu siêu mịn">phấn phủ kiềm dầu siêu mịn</td>
+        <td>
+          <div class="thumbs">
+            <span class="thumb-placeholder">🖼️</span>
+            <span style="font-size:11px; color:#666;">+3</span>
+          </div>
+        </td>
+        <td><span class="badge badge-pending">⏳ Chờ đăng</span></td>
+        <td>
+          <button class="btn-cancel">✕ Hủy</button>
+        </td>
+      </tr>
+
+      <!-- divider row -->
+      <tr>
+        <td colspan="10" style="padding:4px 14px; background:#f3f4f6; font-size:11px; color:#9ca3af; font-weight:600; letter-spacing:.5px; border-bottom:1px solid #e5e7eb;">
+          ▼ ĐÃ ĐĂNG
+        </td>
+      </tr>
+
+      <!-- ── HISTORY rows ── -->
+      <tr class="hist">
+        <td><input type="checkbox"></td>
+        <td style="white-space:nowrap;">16:47:22 23/04/2026</td>
+        <td>khanhinh</td>
+        <td>FB</td>
+        <td>Group</td>
+        <td title="1007287038631706">1007287038631706</td>
+        <td title="phấn má">phấn má</td>
+        <td>
+          <div class="thumbs">
+            <img class="thumb" src="https://placehold.co/32x32/fcd5c0/f97316?text=1">
+            <img class="thumb" src="https://placehold.co/32x32/fcd5c0/f97316?text=2">
+            <img class="thumb" src="https://placehold.co/32x32/fcd5c0/f97316?text=3">
+            <img class="thumb" src="https://placehold.co/32x32/fcd5c0/f97316?text=4">
+          </div>
+        </td>
+        <td><span class="badge badge-ok">OK</span></td>
+        <td>
+          <div style="display:flex;gap:5px;">
+            <button class="btn-repost">🔄 Repost</button>
+            <button class="btn-del">🗑️</button>
+          </div>
+        </td>
+      </tr>
+
+      <tr class="hist">
+        <td><input type="checkbox"></td>
+        <td style="white-space:nowrap;">16:31:42 23/04/2026</td>
+        <td>khanhinh</td>
+        <td>FB</td>
+        <td>Cá nhân</td>
+        <td>-</td>
+        <td title="son">son</td>
+        <td>
+          <div class="thumbs">
+            <img class="thumb" src="https://placehold.co/32x32/fce7f3/ec4899?text=1">
+          </div>
+        </td>
+        <td><span class="badge badge-ok">OK</span></td>
+        <td>
+          <div style="display:flex;gap:5px;">
+            <button class="btn-repost">🔄 Repost</button>
+            <button class="btn-del">🗑️</button>
+          </div>
+        </td>
+      </tr>
+
+      <tr class="hist">
+        <td><input type="checkbox"></td>
+        <td style="white-space:nowrap;">16:26:07 23/04/2026</td>
+        <td>khanhinh</td>
+        <td>FB</td>
+        <td>Group</td>
+        <td title="846718511673167">846718511673167</td>
+        <td title="makup">makup</td>
+        <td>
+          <div class="thumbs">
+            <img class="thumb" src="https://placehold.co/32x32/ede9fe/7c3aed?text=1">
+            <img class="thumb" src="https://placehold.co/32x32/ede9fe/7c3aed?text=2">
+            <img class="thumb" src="https://placehold.co/32x32/ede9fe/7c3aed?text=3">
+            <span style="font-size:11px;color:#666;">+3</span>
+          </div>
+        </td>
+        <td><span class="badge badge-ok">OK</span></td>
+        <td>
+          <div style="display:flex;gap:5px;">
+            <button class="btn-repost">🔄 Repost</button>
+            <button class="btn-del">🗑️</button>
+          </div>
+        </td>
+      </tr>
+
+      <tr class="hist">
+        <td><input type="checkbox"></td>
+        <td style="white-space:nowrap;">16:10:05 23/04/2026</td>
+        <td>khanhinh</td>
+        <td>FB</td>
+        <td>Group</td>
+        <td title="1007287038631706">1007287038631706</td>
+        <td title="serum vitamin c dưỡng trắng">serum vitamin c dưỡng trắng</td>
+        <td><span style="color:#bbb;">—</span></td>
+        <td><span class="badge badge-err">Lỗi</span></td>
+        <td>
+          <div style="display:flex;gap:5px;">
+            <button class="btn-repost">🔄 Repost</button>
+            <button class="btn-del">🗑️</button>
+          </div>
+        </td>
+      </tr>
+
+    </tbody>
+  </table>
+</div>
+
+<p style="font-size:12px; color:#9ca3af; margin-top:12px;">
+  Lưu ý: Khi filter "Thành công" / "Thất bại" → hàng lên lịch tự ẩn đi vì chưa có kết quả.
+</p>
+
+</body>
+</html>
