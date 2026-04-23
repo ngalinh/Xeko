@@ -6,7 +6,7 @@
   <title>Xeko - FB Auto Post</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#6b5bff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#1a1a2e" media="(prefers-color-scheme: dark)">
   <meta name="description" content="Xeko - Đăng bài tự động Facebook & Zalo">
@@ -5100,7 +5100,7 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch((err) => {
+        navigator.serviceWorker.register('sw.js').catch((err) => {
           console.warn('[SW] registration failed:', err);
         });
       });
