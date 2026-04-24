@@ -143,12 +143,12 @@ function getStatistics({ from, to } = {}) {
   // Theo profile
   const byProfile = db.prepare(`
     SELECT
-      profile, profile_name,
+      profile, profile_name, platform,
       COUNT(*) as total,
       SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
       SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as fail_count
     FROM post_logs WHERE 1=1 ${dateFilter}
-    GROUP BY profile
+    GROUP BY profile, platform
     ORDER BY total DESC
   `).all(params);
 

@@ -1777,7 +1777,10 @@
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:24px;">
         <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px;">
           <div style="font-weight:600; margin-bottom:12px; font-size:14px;">Theo tài khoản</div>
-          <div id="statByProfile" style="font-size:13px;"></div>
+          <div id="statByProfile" style="font-size:13px;">
+            <div id="statByProfileFbRows"></div>
+            <div id="statByProfileZaloRows"></div>
+          </div>
         </div>
         <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px;">
           <div style="font-weight:600; margin-bottom:12px; font-size:14px;">Theo nhóm</div>
@@ -4579,18 +4582,28 @@
         document.getElementById('statFail').textContent = stats.today?.fail_count || 0;
         document.getElementById('statTotal').textContent = stats.summary?.total || 0;
 
-        // By profile
-        const profileEl = document.getElementById('statByProfile');
-        if (stats.byProfile && stats.byProfile.length > 0) {
-          profileEl.innerHTML = stats.byProfile.map(p => {
-            const rate = p.total > 0 ? Math.round(p.success_count / p.total * 100) : 0;
-            return `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f3f4f6;">
-              <span>${p.profile_name || p.profile}</span>
-              <span><strong>${p.total}</strong> bài · <span style="color:#16a34a">${p.success_count}</span> / <span style="color:#dc2626">${p.fail_count}</span> · ${rate}%</span>
-            </div>`;
-          }).join('');
-        } else {
-          profileEl.innerHTML = '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>';
+        // By profile — split FB vs Zalo
+        const allProfiles = stats.byProfile || [];
+        const fbProfiles = allProfiles.filter(p => p.platform !== 'zalo');
+        const zaloProfiles = allProfiles.filter(p => p.platform === 'zalo');
+        const renderProfileRow = p => {
+          const rate = p.total > 0 ? Math.round(p.success_count / p.total * 100) : 0;
+          return `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f3f4f6;">
+            <span>${escapeHtml(p.profile_name || p.profile)}</span>
+            <span><strong>${p.total}</strong> bài · <span style="color:#16a34a">${p.success_count}</span> / <span style="color:#dc2626">${p.fail_count}</span> · ${rate}%</span>
+          </div>`;
+        };
+        const profileFbEl = document.getElementById('statByProfileFbRows');
+        const profileZaloEl = document.getElementById('statByProfileZaloRows');
+        if (profileFbEl) {
+          profileFbEl.innerHTML = fbProfiles.length
+            ? `<div style="color:#1877f2; font-size:11px; font-weight:600; margin-bottom:4px; margin-top:2px;">Facebook</div>` + fbProfiles.map(renderProfileRow).join('')
+            : (!allProfiles.length ? '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>' : '');
+        }
+        if (profileZaloEl) {
+          profileZaloEl.innerHTML = zaloProfiles.length
+            ? `<div style="color:#0068ff; font-size:11px; font-weight:600; margin-bottom:4px; margin-top:${fbProfiles.length ? 10 : 2}px;">Zalo</div>` + zaloProfiles.map(renderProfileRow).join('')
+            : '';
         }
 
         // By group — split FB vs Zalo
@@ -4614,13 +4627,17 @@
             : '';
         }
 
-        // Populate profile filter
+        // Populate profile filter (deduplicate by profile key)
         const filterProfile = document.getElementById('dashFilterProfile');
         const currentVal = filterProfile.value;
         filterProfile.innerHTML = '<option value="">Tất cả tài khoản</option>';
         if (stats.byProfile) {
+          const seen = new Set();
           stats.byProfile.forEach(p => {
-            filterProfile.innerHTML += `<option value="${p.profile}">${p.profile_name || p.profile}</option>`;
+            if (!seen.has(p.profile)) {
+              seen.add(p.profile);
+              filterProfile.innerHTML += `<option value="${p.profile}">${escapeHtml(p.profile_name || p.profile)}</option>`;
+            }
           });
         }
         filterProfile.value = currentVal;
