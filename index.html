@@ -2997,7 +2997,7 @@
             addTyping();
             try {
               const zf = new FormData();
-              zf.append('profile', zaloAccount);
+              zf.append('zaloAccountName', zaloAccount);
               zf.append('groupName', g.name);
               zf.append('message', message);
               await appendImages(zf, filesToUpload);
@@ -5158,14 +5158,29 @@
         .map(u => u.startsWith('/uploads/') ? '/api/image/' + u.slice('/uploads/'.length) : u);
 
       // Determine original channel from row data
-      const originalGroupId = row.group_id || '';
-      if (row.target === 'personal' || !originalGroupId) {
-        _repostSelectedChannels = [{ type: 'personal', platform: 'fb', label: '🏠 Cá nhân', sub: '' }];
+      if (row.platform === 'zalo') {
+        // Zalo: group_id is null, match by group_name
+        const matchedZalo = (channelsData.zaloGroups || []).find(g => g.name === row.group_name);
+        const profileKey = row.profile || '';
+        const pCh = (channelsData.profileChannels || {})[profileKey] || {};
+        _repostSelectedChannels = [{
+          type: 'group', platform: 'zalo',
+          key: matchedZalo ? matchedZalo.key : '',
+          name: row.group_name || '',
+          zaloAccount: pCh.zaloAccount || row.profile || '',
+          label: '💬 ' + (row.group_name || ''),
+          sub: 'Zalo',
+        }];
       } else {
-        const matchedGroup = (channelsData.fbGroups || []).find(g => g.id === originalGroupId || g.key === originalGroupId);
-        _repostSelectedChannels = [matchedGroup
-          ? { type: 'group', platform: 'fb', key: matchedGroup.key, id: matchedGroup.id, name: matchedGroup.name }
-          : { type: 'group', platform: 'fb', key: originalGroupId, id: originalGroupId, name: row.group_name || originalGroupId }];
+        const originalGroupId = row.group_id || '';
+        if (row.target === 'personal' || !originalGroupId) {
+          _repostSelectedChannels = [{ type: 'personal', platform: 'fb', label: '🏠 Cá nhân', sub: '' }];
+        } else {
+          const matchedGroup = (channelsData.fbGroups || []).find(g => g.id === originalGroupId || g.key === originalGroupId);
+          _repostSelectedChannels = [matchedGroup
+            ? { type: 'group', platform: 'fb', key: matchedGroup.key, id: matchedGroup.id, name: matchedGroup.name }
+            : { type: 'group', platform: 'fb', key: originalGroupId, id: originalGroupId, name: row.group_name || originalGroupId }];
+        }
       }
 
       // Load accounts into dropdown
