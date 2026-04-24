@@ -10,6 +10,7 @@ const playwright = process.env.PLAYWRIGHT_LOCAL_URL
   ? require('./playwright-proxy')
   : require('./src/playwright/post');
 const postLogger = require('./src/database/post-logger');
+const { queuePost } = require('./src/utils/post-queue');
 
 const app = express();
 app.use(express.json());
@@ -21,7 +22,7 @@ async function getFetch() {
   return nodeFetch;
 }
 
-// Multer: luu anh upload vao temp/
+// Multer: lưu ảnh upload vào temp/
 const TEMP_DIR = path.resolve(__dirname, '../temp');
 if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 
@@ -77,7 +78,7 @@ const upload = multer({
   }),
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('Chi chap nhan file anh'));
+    else cb(new Error('Chỉ chấp nhận file ảnh'));
   },
 });
 
@@ -157,18 +158,24 @@ setInterval(() => {
   }
 }, 3600_000);
 
-async function executePost({ message, target, groupId, imagePaths, imageUrls }) {
+async function executePost({ profile, message, target, groupId, imagePaths, imageUrls }) {
+  if (profile) playwright.setProfile(profile);
+
+  // Snapshot 1 lần ngay đầu — không gọi getActiveProfile() sau await (global có thể bị đổi)
+  const _pData = playwright.getActiveProfile();
+  const profileKey  = profile || _pData.key || '';
+  const profileName = _pData.name || profileKey;
+
   const batchId = crypto.randomUUID();
 
-  // Dang len ca nhan + tat ca group
+  // Đăng lên cá nhân + tất cả group
   if (target === 'all') {
     const results = [];
-    const activeProfile = playwright.getActiveProfile();
     if (postCount < config.posting.maxPostsPerDay) {
-      logger.info('Dang len FB ca nhan...');
+      logger.info('Đang đăng lên FB cá nhân...');
       const r = await playwright.postToPersonal(message, imagePaths);
       postCount++;
-      postLogger.logPost({ profile: activeProfile.key, profileName: activeProfile.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+      postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
       results.push({ target: 'FB Cá nhân', success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
     }
@@ -176,10 +183,10 @@ async function executePost({ message, target, groupId, imagePaths, imageUrls }) 
     const groups = Object.values(config.groups);
     for (const group of groups) {
       if (postCount >= config.posting.maxPostsPerDay) break;
-      logger.info(`Dang len ${group.name}...`);
+      logger.info(`Đang đăng lên ${group.name}...`);
       const r = await playwright.postToGroup(group.id, message, imagePaths);
       postCount++;
-      postLogger.logPost({ profile: activeProfile.key, profileName: activeProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+      postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
       results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       if (groups.indexOf(group) < groups.length - 1) {
         await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
@@ -191,13 +198,12 @@ async function executePost({ message, target, groupId, imagePaths, imageUrls }) 
   if (target === 'allgroup') {
     const groups = Object.values(config.groups);
     const results = [];
-    const agProfile = playwright.getActiveProfile();
     for (const group of groups) {
       if (postCount >= config.posting.maxPostsPerDay) break;
-      logger.info(`Dang len ${group.name}...`);
+      logger.info(`Đang đăng lên ${group.name}...`);
       const r = await playwright.postToGroup(group.id, message, imagePaths);
       postCount++;
-      postLogger.logPost({ profile: agProfile.key, profileName: agProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+      postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
       results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       if (groups.indexOf(group) < groups.length - 1) {
         await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
@@ -210,24 +216,21 @@ async function executePost({ message, target, groupId, imagePaths, imageUrls }) 
     const group = config.groups[groupId];
     const r = await playwright.postToGroup(group.id, message, imagePaths);
     postCount++;
-    const scProfile = playwright.getActiveProfile();
-    postLogger.logPost({ profile: scProfile.key, profileName: scProfile.name, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
+    postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
   }
 
   if (target === 'group') {
     const r = await playwright.postToGroup(groupId, message, imagePaths);
     postCount++;
-    const gProfile = playwright.getActiveProfile();
-    postLogger.logPost({ profile: gProfile.key, profileName: gProfile.name, platform: 'facebook', target: 'group', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
+    postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
   }
 
   // personal (default)
   const r = await playwright.postToPersonal(message, imagePaths);
   postCount++;
-  const pProfile = playwright.getActiveProfile();
-  postLogger.logPost({ profile: pProfile.key, profileName: pProfile.name, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
+  postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls });
   return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
 }
 
@@ -235,25 +238,26 @@ async function executePost({ message, target, groupId, imagePaths, imageUrls }) 
 app.post('/api/post', upload.array('images', 10), async (req, res) => {
   checkDailyReset();
 
-  const { message, target, groupId } = req.body;
+  const { message, target, groupId, profile } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
 
   // Kiem tra nhanh (sync) — trả lỗi luôn nếu sai
   try {
-    playwright.getActiveProfile();
+    if (profile) playwright.setProfile(profile);
+    else playwright.getActiveProfile();
   } catch {
     cleanupFiles(imagePaths);
-    return res.status(400).json({ error: 'Chua chon profile!' });
+    return res.status(400).json({ error: 'Chưa chọn profile!' });
   }
 
   if (postCount >= config.posting.maxPostsPerDay) {
     cleanupFiles(imagePaths);
-    return res.json({ error: `Da dat gioi han ${config.posting.maxPostsPerDay} bai/ngay.` });
+    return res.json({ error: `Đã đạt giới hạn ${config.posting.maxPostsPerDay} bài/ngày.` });
   }
 
   if (target === 'shortcut' && !config.groups[groupId]) {
     cleanupFiles(imagePaths);
-    return res.status(400).json({ error: `Group "${groupId}" khong ton tai` });
+    return res.status(400).json({ error: `Group "${groupId}" không tồn tại` });
   }
 
   // Copy ảnh sang uploads/ (persistent) để DB log URL + browser render thumbnail
@@ -264,18 +268,14 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
   const jobId = createJob();
   res.json({ jobId, status: 'pending' });
 
-  // Chạy post ở background
-  (async () => {
-    try {
-      const result = await executePost({ message, target, groupId, imagePaths, imageUrls });
-      setJobResult(jobId, result);
-    } catch (error) {
-      logger.error(`Loi job ${jobId}: ${error.message}`);
+  // Chạy post qua serial queue — tránh race condition profile
+  queuePost(() => executePost({ profile, message, target, groupId, imagePaths, imageUrls }))
+    .then(result => setJobResult(jobId, result))
+    .catch(error => {
+      logger.error(`Lỗi job ${jobId}: ${error.message}`);
       setJobError(jobId, error.message);
-    } finally {
-      cleanupFiles(imagePaths);
-    }
-  })();
+    })
+    .finally(() => cleanupFiles(imagePaths));
 });
 
 app.get('/api/job/:id', (req, res) => {
@@ -290,7 +290,7 @@ app.get('/api/screenshot', (req, res) => {
   if (fs.existsSync(screenshotPath)) {
     res.sendFile(screenshotPath);
   } else {
-    res.status(404).json({ error: 'Khong co screenshot' });
+    res.status(404).json({ error: 'Không có screenshot' });
   }
 });
 
@@ -319,7 +319,7 @@ const sessionCheck = require('./src/utils/session-check');
 
 const loginHistory = require('./src/utils/login-history');
 
-// Them tai khoan moi + mo trinh duyet de login thu cong
+// Thêm tài khoản mới + mở trình duyệt để login thủ công
 app.post('/api/accounts', async (req, res) => {
   const { type, key, name, email, password, saleworkName } = req.body;
 
@@ -346,7 +346,7 @@ app.post('/api/accounts', async (req, res) => {
   }
 
   if (type === 'facebook') {
-    // Tao thu muc profile moi
+    // Tạo thư mục profile mới
     const profileDir = path.resolve(__dirname, `../playwright-data/${key}`);
     if (!fs.existsSync(profileDir)) {
       fs.mkdirSync(profileDir, { recursive: true });
@@ -364,7 +364,7 @@ app.post('/api/accounts', async (req, res) => {
       const page = browser.pages()[0] || await browser.newPage();
       await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-      // Neu co email/pass thi dien san
+      // Nếu có email/pass thì điền sẵn
       if (email && password) {
         try {
           const emailInput = await page.$('input[name="email"]');
@@ -382,10 +382,10 @@ app.post('/api/accounts', async (req, res) => {
         message: `Đã mở Chromium cho profile "${name}". Hãy đăng nhập thủ công trên trình duyệt, sau đó đóng trình duyệt lại.`,
       });
 
-      // Doi trinh duyet dong (user dong thu cong)
+      // Đợi trình duyệt đóng (user đóng thủ công)
       browser.on('close', () => {
         loginHistory.addEntry(key, name, 'login', 'Đã đóng trình duyệt - session được lưu');
-        logger.info(`Profile ${name}: da dong trinh duyet, session luu tai ${profileDir}`);
+        logger.info(`Profile ${name}: đã đóng trình duyệt, session lưu tại ${profileDir}`);
       });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -399,7 +399,7 @@ app.post('/api/accounts', async (req, res) => {
 app.delete('/api/accounts/:type/:key', async (req, res) => {
   const { type, key } = req.params;
 
-  // Neu dang chay o che do proxy, forward sang local server
+  // Nếu đang chạy ở chế độ proxy, forward sang local server
   if (getLocalUrl()) {
     try {
       const LOCAL_URL = getLocalUrl();
@@ -433,14 +433,14 @@ app.delete('/api/accounts/:type/:key', async (req, res) => {
     loginHistory.addEntry(key, key, 'delete', `Đã xoá tài khoản`);
     res.json({ success: true, message: `Đã xoá tài khoản "${key}"` });
   } catch (e) {
-    logger.error(`Loi xoa profile: ${e.message}`);
+    logger.error(`Lỗi xoá profile: ${e.message}`);
     res.status(500).json({ error: e.message });
   }
 });
 
-// Lay danh sach profiles tu thu muc playwright-data
+// Lấy danh sách profiles từ thư mục playwright-data
 app.get('/api/accounts', async (req, res) => {
-  // Neu dang chay o che do proxy, lay tu local server
+  // Nếu đang chạy ở chế độ proxy, lấy từ local server
   if (getLocalUrl()) {
     try {
       const LOCAL_URL = getLocalUrl();
@@ -485,7 +485,7 @@ app.get('/api/accounts', async (req, res) => {
   }
 });
 
-// Luu thong tin profile dong vao file JSON
+// Lưu thông tin profile động vào file JSON
 const PROFILES_META_FILE = path.resolve(__dirname, './config/profiles-meta.json');
 function loadProfilesMeta() {
   try {
@@ -499,14 +499,14 @@ function saveProfilesMeta(data) {
   fs.writeFileSync(PROFILES_META_FILE, JSON.stringify(data, null, 2));
 }
 
-// Cap nhat thong tin profile
+// Cập nhật thông tin profile
 app.put('/api/accounts/:key', async (req, res) => {
   const { key } = req.params;
   const { name, email, password, type, saleworkName } = req.body;
 
   if (!name) return res.status(400).json({ error: 'Thiếu tên hiển thị' });
 
-  // Proxy sang local server de dong bo voi GET /api/accounts
+  // Proxy sang local server để đồng bộ với GET /api/accounts
   if (getLocalUrl()) {
     try {
       const LOCAL_URL = getLocalUrl();
@@ -571,7 +571,7 @@ app.get('/api/sessions', async (req, res) => {
 // === Scheduler API ===
 const scheduler = require('./src/utils/scheduler');
 
-// Len lich dang bai
+// Lên lịch đăng bài
 app.post('/api/schedule', upload.array('images', 10), (req, res) => {
   const { time, target, groupId, message, profile, type, groupName, zaloAccount } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
@@ -594,12 +594,12 @@ app.post('/api/schedule', upload.array('images', 10), (req, res) => {
   }
 });
 
-// Xem danh sach lich
+// Xem danh sách lịch
 app.get('/api/schedules', (req, res) => {
   res.json(scheduler.getSchedules());
 });
 
-// Xoa lich
+// Xoá lịch
 app.delete('/api/schedule/:id', (req, res) => {
   const id = parseInt(req.params.id);
   if (scheduler.removeSchedule(id)) {
@@ -609,12 +609,12 @@ app.delete('/api/schedule/:id', (req, res) => {
   }
 });
 
-// Polling notifications (lich da chay xong)
+// Polling notifications (lịch đã chạy xong)
 app.get('/api/notifications', (req, res) => {
   res.json(scheduler.getNotifications());
 });
 
-// Serve anh tu temp/schedule folders
+// Serve ảnh từ temp/schedule folders
 app.get('/api/schedule-image/:id/:index', (req, res) => {
   const schedules = scheduler.getSchedules();
   const schedule = schedules.find(s => s.id === parseInt(req.params.id));
@@ -635,10 +635,10 @@ app.get('/api/schedule-image/:id/:index', (req, res) => {
 
 // === Post History & Statistics API ===
 app.get('/api/post-history', (req, res) => {
-  const { profile, platform, target, success, from, to, limit, offset } = req.query;
+  const { profile, platform, target, groupId, success, from, to, limit, offset } = req.query;
   try {
     const result = postLogger.getPostHistory({
-      profile, platform, target,
+      profile, platform, target, groupId: groupId || undefined,
       success: success !== undefined && success !== '' ? success : undefined,
       from, to,
       limit: parseInt(limit) || 50,
@@ -741,6 +741,8 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
   if (!LOCAL_URL) return res.status(503).json({ error: 'Local server chưa kết nối' });
 
   const imagePaths = (req.files || []).map(f => f.path);
+  // Persist ảnh trước khi proxy — đảm bảo files còn tồn tại (ReadStream chưa consume)
+  const zaloImageUrls = persistImages(imagePaths);
   try {
     const fetchFn = await getFetch();
     const FormData = (await import('form-data')).default;
@@ -782,6 +784,23 @@ app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
     let data;
     try { data = JSON.parse(text); }
     catch { data = { error: `Local trả non-JSON (${response.status}): ${text.slice(0, 200)}` }; }
+
+    // Ghi log vào thống kê
+    postLogger.logPost({
+      profile: accountName || 'zalo',
+      profileName: accountName || 'Zalo',
+      platform: 'zalo',
+      target: 'group',
+      groupName: groupName || '',
+      message: message || '',
+      imageCount: imagePaths.length,
+      success: !!(data.success || data.processing),
+      error: data.error || null,
+      postUrl: data.postUrl || null,
+      source: 'web',
+      images: zaloImageUrls,
+    });
+
     return res.status(response.status).json(data);
   } catch (e) {
     return res.status(500).json({ error: `Lỗi proxy Zalo post: ${e.message}` });
@@ -812,7 +831,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Local server tu dang ky URL tunnel moi khi khoi dong
+// Local server tự đăng ký URL tunnel mới khi khởi động
 let dynamicLocalUrl = process.env.PLAYWRIGHT_LOCAL_URL || null;
 
 app.post('/api/register-local', (req, res) => {
@@ -824,17 +843,17 @@ app.post('/api/register-local', (req, res) => {
   if (!url) return res.status(400).json({ error: 'Missing url' });
   dynamicLocalUrl = url;
   process.env.PLAYWRIGHT_LOCAL_URL = url; // Cập nhật để playwright-proxy đọc URL mới
-  logger.info(`Local server da dang ky URL moi: ${url}`);
+  logger.info(`Local server đã đăng ký URL mới: ${url}`);
   res.json({ success: true, message: `Đã cập nhật URL: ${url}` });
 });
 
-// Override PLAYWRIGHT_LOCAL_URL bang dynamicLocalUrl neu co
+// Override PLAYWRIGHT_LOCAL_URL bằng dynamicLocalUrl nếu có
 function getLocalUrl() {
   return dynamicLocalUrl || process.env.PLAYWRIGHT_LOCAL_URL;
 }
 
 app.listen(config.server.port, () => {
-  logger.info(`Web server dang chay: http://localhost:${config.server.port}`);
+  logger.info(`Web server đang chạy: http://localhost:${config.server.port}`);
   // Khoi phuc lich tu DB: re-schedule lich tuong lai + catch-up lich qua han
   try {
     scheduler.init();

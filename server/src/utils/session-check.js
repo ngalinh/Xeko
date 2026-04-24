@@ -5,8 +5,8 @@ const logger = require('./logger');
 const loginHistory = require('./login-history');
 
 /**
- * Kiem tra session Facebook cua tat ca profile
- * Tra ve danh sach trang thai: { profile, name, status, message }
+ * Kiểm tra session Facebook của tất cả profile
+ * Trả về danh sách trạng thái: { profile, name, status, message }
  */
 async function checkAllSessions() {
   const results = [];
@@ -20,7 +20,7 @@ async function checkAllSessions() {
 }
 
 /**
- * Kiem tra session 1 profile
+ * Kiểm tra session 1 profile
  */
 async function checkSession(profileKey, profile) {
   const userDataDir = path.resolve(__dirname, '../../', profile.userDataDir);
@@ -40,9 +40,9 @@ async function checkSession(profileKey, profile) {
 
     const url = page.url();
 
-    // Kiem tra co bi redirect ve trang login khong
+    // Kiểm tra có bị redirect về trang login không
     if (url.includes('login') || url.includes('checkpoint') || url.includes('recover')) {
-      logger.info(`Session ${profile.name}: HET HAN`);
+      logger.info(`Session ${profile.name}: HẾT HẠN`);
       loginHistory.addEntry(profileKey, profile.name, 'session_expired', 'Session hết hạn');
       await page.close();
       await browser.close();
@@ -54,9 +54,9 @@ async function checkSession(profileKey, profile) {
       };
     }
 
-    // Kiem tra co thay element cua trang chu khong
+    // Kiểm tra có thấy element của trang chủ không
     const isLoggedIn = await page.evaluate(() => {
-      // Tim cac dau hieu da dang nhap
+      // Tìm các dấu hiệu đã đăng nhập
       return document.querySelector('[aria-label="Facebook"]') !== null ||
         document.querySelector('[aria-label="Trang chủ"]') !== null ||
         document.querySelector('[aria-label="Home"]') !== null ||
@@ -77,7 +77,7 @@ async function checkSession(profileKey, profile) {
         message: 'Session hoạt động bình thường',
       };
     } else {
-      logger.info(`Session ${profile.name}: KHONG XAC DINH`);
+      logger.info(`Session ${profile.name}: KHÔNG XÁC ĐỊNH`);
       loginHistory.addEntry(profileKey, profile.name, 'session_check', 'Không xác định');
       return {
         profile: profileKey,
@@ -90,7 +90,7 @@ async function checkSession(profileKey, profile) {
     if (browser) {
       try { await browser.close(); } catch {}
     }
-    logger.error(`Loi kiem tra session ${profile.name}: ${error.message}`);
+    logger.error(`Lỗi kiểm tra session ${profile.name}: ${error.message}`);
     return {
       profile: profileKey,
       name: profile.name,
