@@ -33,7 +33,7 @@ function logPost({ profile, profileName, platform, target, groupName, groupId, m
 /**
  * Lay lich su bai dang voi filter
  */
-function getPostHistory({ profile, platform, target, success, from, to, limit = 50, offset = 0 } = {}) {
+function getPostHistory({ profile, platform, target, groupId, success, from, to, limit = 50, offset = 0 } = {}) {
   let sql = 'SELECT * FROM post_logs WHERE 1=1';
   const params = {};
 
@@ -65,6 +65,10 @@ function getPostHistory({ profile, platform, target, success, from, to, limit = 
   if (to) {
     sql += ' AND timestamp <= @to';
     params.to = to;
+  }
+  if (groupId) {
+    sql += ' AND (group_id = @groupId OR group_name = @groupId)';
+    params.groupId = groupId;
   }
 
   // Dem tong
@@ -139,12 +143,12 @@ function getStatistics({ from, to } = {}) {
   // Theo profile
   const byProfile = db.prepare(`
     SELECT
-      profile, profile_name,
+      profile, profile_name, platform,
       COUNT(*) as total,
       SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
       SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as fail_count
     FROM post_logs WHERE 1=1 ${dateFilter}
-    GROUP BY profile
+    GROUP BY profile, platform
     ORDER BY total DESC
   `).all(params);
 

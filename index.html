@@ -1484,6 +1484,12 @@
         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="12" cy="10" r="3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
       </symbol>
+      <symbol id="ic-trash" viewBox="0 0 24 24">
+        <polyline points="3 6 5 6 21 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
     </defs>
   </svg>
 
@@ -1572,6 +1578,7 @@
       <h1>Đăng bài</h1>
       <span id="headerStatus">Đăng bài tự động</span>
     </div>
+    <button id="btnChangeProfile" onclick="showProfileSelect()" style="display:none;margin-left:auto;padding:5px 12px;border-radius:8px;border:1px solid #e0d4ff;background:#f5f0ff;color:#6b5bff;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">👤 Đổi Profile</button>
   </div>
 
   <div class="chat-area" id="chatArea"></div>
@@ -1635,8 +1642,23 @@
       <!-- Tab: Cai dat kenh -->
       <div id="panelChannels" style="display:none;">
 
+        <!-- Gán kênh cho từng Profile -->
+        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px; margin-bottom:16px;">
+          <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:4px; display:flex; align-items:center; gap:8px;"><svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-user"/></svg> Gán kênh cho từng Profile</h3>
+          <p style="font-size:12px; color:#999; margin-bottom:14px;">Chọn profile bên trái rồi tick các kênh muốn tự động đăng bài.</p>
+          <div id="profileChannelError" style="color:#e53e3e; font-size:13px; display:none; margin-bottom:10px;">Lỗi tải danh sách profile</div>
+          <div id="profileChannelMaster" style="display:grid; grid-template-columns:240px 1fr; gap:14px; min-height:320px;">
+            <!-- Sidebar -->
+            <div id="profileSidebar" class="profile-sidebar" style="background:#f8f6ff; border:1px solid #e8e4ff; border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:4px; overflow-y:auto; max-height:560px;"></div>
+            <!-- Detail panel -->
+            <div id="profileDetail" style="background:#fcfbff; border:1px solid #e8e4ff; border-radius:10px; padding:16px; min-height:320px;">
+              <p style="color:#999; font-size:13px; margin:0;">Chưa có profile nào.</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Danh sách group (FB + Zalo gộp) -->
-        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:18px; margin-bottom:16px;">
+        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:18px;">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
             <h3 style="font-size:15px; color:#1e1e2e; margin:0; display:flex; align-items:center; gap:8px;">
               <svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-chat"/></svg> Danh sách group
@@ -1672,21 +1694,6 @@
               <tbody id="groupsTableBody"></tbody>
             </table>
             <p id="noGroupsMsg" style="font-size:13px; color:#999; margin:16px 0 0; text-align:center; display:none;">Chưa có group nào. Bấm "+ Thêm group" để bắt đầu.</p>
-          </div>
-        </div>
-
-        <!-- Gán kênh cho từng Profile -->
-        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px;">
-          <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:4px; display:flex; align-items:center; gap:8px;"><svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-user"/></svg> Gán kênh cho từng Profile</h3>
-          <p style="font-size:12px; color:#999; margin-bottom:14px;">Chọn profile bên trái rồi tick các kênh muốn tự động đăng bài.</p>
-          <div id="profileChannelError" style="color:#e53e3e; font-size:13px; display:none; margin-bottom:10px;">Lỗi tải danh sách profile</div>
-          <div id="profileChannelMaster" style="display:grid; grid-template-columns:240px 1fr; gap:14px; min-height:320px;">
-            <!-- Sidebar -->
-            <div id="profileSidebar" class="profile-sidebar" style="background:#f8f6ff; border:1px solid #e8e4ff; border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:4px; overflow-y:auto; max-height:560px;"></div>
-            <!-- Detail panel -->
-            <div id="profileDetail" style="background:#fcfbff; border:1px solid #e8e4ff; border-radius:10px; padding:16px; min-height:320px;">
-              <p style="color:#999; font-size:13px; margin:0;">Chưa có profile nào.</p>
-            </div>
           </div>
         </div>
 
@@ -1770,11 +1777,17 @@
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:24px;">
         <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px;">
           <div style="font-weight:600; margin-bottom:12px; font-size:14px;">Theo tài khoản</div>
-          <div id="statByProfile" style="font-size:13px;"></div>
+          <div id="statByProfile" style="font-size:13px;">
+            <div id="statByProfileFbRows"></div>
+            <div id="statByProfileZaloRows"></div>
+          </div>
         </div>
         <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px;">
           <div style="font-weight:600; margin-bottom:12px; font-size:14px;">Theo nhóm</div>
-          <div id="statByGroupFb" style="font-size:13px;"></div>
+          <div id="statByGroupFb" style="font-size:13px;">
+            <div id="statByGroupFbRows"></div>
+            <div id="statByGroupZaloRows"></div>
+          </div>
         </div>
       </div>
 
@@ -1814,10 +1827,15 @@
           <option value="personal">Cá nhân</option>
           <option value="group">Group</option>
         </select>
+        <select id="dashFilterGroup" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+          <option value="">Tất cả nhóm</option>
+        </select>
         <select id="dashFilterStatus" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
           <option value="">Tất cả trạng thái</option>
           <option value="1">Thành công</option>
           <option value="0">Thất bại</option>
+          <option value="pending">Chờ đăng</option>
+          <option value="running">Đang đăng</option>
         </select>
         <input type="date" id="dashFilterFrom" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
         <input type="date" id="dashFilterTo" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
@@ -1837,16 +1855,16 @@
       <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
         <table style="width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed;">
           <colgroup>
-            <col style="width:36px;">
-            <col style="width:138px;">
-            <col style="width:120px;">
-            <col style="width:46px;">
-            <col style="width:70px;">
-            <col style="width:100px;">
-            <col style="width:180px;">
-            <col style="width:88px;">
-            <col style="width:78px;">
-            <col style="width:148px;">
+            <col style="width:3%;">
+            <col style="width:13%;">
+            <col style="width:11%;">
+            <col style="width:4%;">
+            <col style="width:6%;">
+            <col style="width:11%;">
+            <col style="width:18%;">
+            <col style="width:13%;">
+            <col style="width:8%;">
+            <col style="width:6%;">
           </colgroup>
           <thead>
             <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
@@ -2079,6 +2097,37 @@
       return new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     }
 
+    const ENCOURAGEMENTS = [
+      'Ủa xong rồi á? Nhanh vãi 👀 Drop thêm bài đi, Xeko đang rảnh nè!',
+      'Một bài thôi hả? Yếu ớt quá bạn ơi 😂 Thả thêm đi nào!',
+      'Xeko vừa đăng xong tay còn ấm, bạn có bài nào tiếp không? 🔥',
+      'Não cá vàng nhớ không: đăng đều mới có reach nha 🐟',
+      'Một bài = khởi đầu tốt. Hai bài = slay. Ba bài = trang chủ đây rồi 👑',
+      'Xeko idle 0 giây, sẵn sàng nhận bài tiếp ngay bây giờ ⚡',
+      'Thả một bài rồi đi ngủ à? Không được đâu nha bestie 😤',
+      'Content dropped! Giờ bạn định đi đâu vậy? Ở đây drop thêm đi 👀',
+      'Xeko thấy bạn có vibe đăng bài hôm nay lắm, đừng dừng lại 🔥',
+      'Plot twist: thuật toán FB thích người đăng đều, không phải đăng 1 bài rồi mất tích 😂',
+      'Chill thôi nhưng mà... bài tiếp đâu? 👀',
+      'Bạn vừa thả bài xịn, giờ Xeko đang chờ bài tiếp đây nè 🥺',
+      'Đăng một bài = tốt. Đăng đều = rất tốt. Dùng Xeko = đỉnh của chóp 😎',
+      'GG! Bài lên rồi, Xeko đói bài lắm r còn bài nào không 😂',
+      'Xeko: sẵn sàng 100%. Bạn: còn bài không? 👀',
+      'Đừng để Xeko ngồi không tội nghiệp lắm, drop bài tiếp đi 🥺',
+      'Page đang on fire đó, đừng tắt lửa nha! 🔥',
+      'Bài vừa lên sóng rồi nè~ Giờ Xeko đang nhìn bạn chờ bài tiếp đây 👁️',
+      'Fr fr bạn đang làm tốt lắm, tiếp tục đi đừng dừng 💅',
+      'Ủa bạn chưa xong à? Xeko tưởng còn nhiều bài hơn chứ 😏',
+      'Một bài vừa bay lên FB rồi! Bài tiếp theo đang ở đâu? 🛸',
+      'Xeko không biết mệt, bạn thì sao? Drop thêm đi nào 😤',
+      'Vừa xong 1 bài mà Xeko đã hype cho bài tiếp rồi nè 🎉',
+      'Đăng bài đều là level pro đó nha, bạn có muốn lên pro không? 😏',
+      'Page cần ăn đều nha bạn ơi, một bài nữa đi 🍜',
+    ];
+    function pickEncouragement() {
+      return ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)];
+    }
+
     async function parseJson(res) {
       const text = await res.text();
       try {
@@ -2134,11 +2183,22 @@
       return e && (e.status === 504 || e.status === 502 || e.status === 524);
     }
 
+    // Flag huỷ đăng bài — set true để dừng vòng lặp sau khi post hiện tại xong
+    let _postCancelled = false;
+
+    function cancelPosting() {
+      _postCancelled = true;
+      removeTyping();
+      addBot('🚫 Đã huỷ — Xeko sẽ không đăng thêm kênh nào nữa nha. Bài đang đăng dở (nếu có) vẫn sẽ lên bình thường.');
+    }
+
     // Polling job status (backend dùng async job để tránh proxy timeout)
     async function pollJob(jobId, maxWaitMs = 10 * 60 * 1000) {
       const start = Date.now();
       while (Date.now() - start < maxWaitMs) {
+        if (_postCancelled) throw new Error('__cancelled__');
         await new Promise(r => setTimeout(r, 5000));
+        if (_postCancelled) throw new Error('__cancelled__');
         try {
           const r = await fetch(BASE_URL + '/api/job/' + jobId);
           const data = await parseJson(r);
@@ -2258,6 +2318,8 @@
     }
     function updateHeaderProfile(name) {
       document.getElementById('headerStatus').textContent = `Profile: ${name}`;
+      const btn = document.getElementById('btnChangeProfile');
+      if (btn) btn.style.display = 'block';
     }
 
     let postMode = 'now'; // 'now' hoac 'schedule'
@@ -2271,11 +2333,29 @@
       custom: 'Group khác',
     };
 
+    const WELCOMES = [
+      'Xeko nè! Mình là trợ lý đăng bài Facebook xịn sò của bạn đây 🤗\nHôm nay bạn ráng làm content nhiều nhiều để mình đăng tất cả mọi mặt trận nhé!',
+      'Alo alo! Xeko online rồi đây 📡\nBạn có bài nào cần đăng không? Thả vào đây Xeko xử liền!',
+      'Chào buổi sáng (hoặc tối, Xeko không phân biệt) ☀️🌙\nXeko sẵn sàng đăng bài cho bạn rồi, bắt đầu thôi nào!',
+      'Heyyy! Xeko đây~ Hôm nay mình năng lượng lắm, bạn có bài nào không? 🔥',
+      'Ui bạn vào rồi! Xeko đang chờ bạn từ nãy giờ đó 🥺\nNhanh chọn profile rồi mình đăng bài liền nha!',
+      'Bestie ơi Xeko đây! 🫶\nContent hôm nay của bạn đâu? Xeko đăng cho, nhanh lên nào!',
+      'Ting ting! Xeko báo thức đây~ 🔔\nĐã đến giờ đăng bài rồi bạn ơi, không được lười nha!',
+      'Xeko nè! Đừng để page nguội nha bạn 🌡️\nMình đây rồi, chọn profile là chiến thôi!',
+      'Bạn ơi bạn ơi Xeko nhớ bạn lắm 🥹\nThôi nhanh chọn profile đi để mình đăng bài cho!',
+      'GM bestie! ☀️ Xeko sạc đầy 100% rồi\nHôm nay mình với bạn phủ sóng FB nha, bắt đầu thôi!',
+      'Xeko online! 🟢 Tất cả hệ thống hoạt động bình thường\nBạn có bài nào cần "phóng" lên FB không? 🚀',
+      'Yo! Xeko đây~ Hôm nay bạn có bao nhiêu bài cần đăng? Nhiều bao nhiêu cũng được nha 😤',
+    ];
+    function pickWelcome() {
+      return WELCOMES[Math.floor(Math.random() * WELCOMES.length)];
+    }
+
     // ===== STEP 1: Welcome =====
     function showWelcome() {
       step = 'welcome';
       addBot(
-        'Xeko nè! Mình là trợ lý đăng bài Facebook xịn sò của bạn đây 🤗\nHôm nay bạn ráng làm content nhiều nhiều để mình đăng tất cả mọi mặt trận nhé!',
+        pickWelcome(),
         [
           { label: `${xekoIcon('user')} Chọn Profile`, handler: () => showProfileSelect() },
         ]
@@ -2322,7 +2402,6 @@
           [
             { label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') },
             { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
-            { label: `${xekoIcon('refresh')} Đổi Profile`, handler: () => showProfileSelect() },
           ]
         );
         step = 'mode';
@@ -2377,7 +2456,7 @@
       await loadChannels();
       channelPanelId++;
       const pid = channelPanelId;
-      const modeIcon = postMode === 'now' ? xekoIcon('post','xi xi-md') : xekoIcon('clock','xi xi-md');
+      const modeEmoji = postMode === 'now' ? '✏️' : '🕐';
       const modeLabel = postMode === 'now' ? 'Đăng ngay' : 'Lên lịch';
 
       const p = buildTargetChannels(currentProfile, currentProfileName);
@@ -2441,7 +2520,7 @@
         <div class="msg-wrapper">
           <div class="msg-header">Xeko <span class="time">${now()}</span></div>
           <div class="msg bot">
-            <strong style="display:inline-flex; align-items:center; gap:6px;">${modeIcon} Đăng bài</strong> — Chế độ: ${modeLabel}<br>
+            ${modeEmoji} <strong>Đăng bài</strong> — Chế độ: ${modeLabel}<br>
             Bạn tick kênh để Xeko đăng nha:
             ${panelHtml}
           </div>
@@ -2604,7 +2683,6 @@
           `Xeko sẽ đăng lên:\n${summaryText}\n\nBạn soạn content xuống dưới nha, bấm 📷 để kèm ảnh rồi nhấn ➤ là mình đăng liền 🚀`,
           [
             { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
-            { label: `${xekoIcon('refresh')} Đổi Profile`, handler: () => showProfileSelect() },
           ]
         );
       }
@@ -2642,7 +2720,6 @@
           `Xeko sẽ đăng lên: <strong>${targetText}</strong>\n\nBạn soạn content xuống dưới, kèm ảnh qua 📷 rồi nhấn ➤ là mình đăng ngay 🚀`,
           [
             { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
-            { label: `${xekoIcon('refresh')} Đổi Profile`, handler: () => showProfileSelect() },
           ]
         );
       }
@@ -2766,9 +2843,7 @@
       if (!message && selectedFiles.length === 0) return;
       if (!currentProfile) {
         input.value = '';
-        addBot('Bạn chốt profile cho Xeko trước đã nha!', [
-          { label: `${xekoIcon('user')} Chọn Profile`, handler: () => showProfileSelect() },
-        ]);
+        addBot('Bạn chốt profile cho Xeko trước đã nha! Bấm 👤 Đổi Profile ở góc trên phải nhé.');
         return;
       }
       const zaloSelCheck = (window._channelSelection || {})[currentProfile] || { zalo: [] };
@@ -2806,6 +2881,7 @@
 
       clearImages();
       document.getElementById('sendBtn').disabled = true;
+      _postCancelled = false;
 
       const sessionBatchId = crypto.randomUUID();
 
@@ -2816,6 +2892,7 @@
           formData.append('target', target);
           if (groupId) formData.append('groupId', groupId);
           formData.append('batchId', sessionBatchId);
+          if (currentProfile) formData.append('profile', currentProfile);
           await appendImages(formData, filesToUpload);
 
           addTyping();
@@ -2825,7 +2902,9 @@
           let data;
           if (initial.jobId) {
             removeTyping();
-            addBot('⏳ Xeko đang đăng bài nè, bạn chờ xíu nha...');
+            addBot('⏳ Xeko đang đăng bài nè, bạn chờ xíu nha...', [
+              { label: '🚫 Huỷ', handler: () => cancelPosting() },
+            ]);
             addTyping();
             data = await pollJob(initial.jobId);
           } else {
@@ -2865,6 +2944,7 @@
         // Post to custom groups if any
         const customIds = window._customGroupIds || [];
         for (const gid of customIds) {
+          if (_postCancelled) break;
           addTyping();
           try {
             const cf = new FormData();
@@ -2875,6 +2955,13 @@
             await appendImages(cf, filesToUpload);
             const cr = await fetch(BASE_URL + '/api/post', { method: 'POST', body: cf });
             const initial = await parseJson(cr);
+            if (initial.jobId) {
+              removeTyping();
+              addBot(`⏳ Xeko đang đăng Group <strong>#${gid}</strong>...`, [
+                { label: '🚫 Huỷ', handler: () => cancelPosting() },
+              ]);
+              addTyping();
+            }
             const cd = initial.jobId ? await pollJob(initial.jobId) : initial;
             removeTyping();
             if (cd.success) {
@@ -2886,6 +2973,7 @@
             }
           } catch (ce) {
             removeTyping();
+            if (ce.message === '__cancelled__') break;
             if (isProxyTimeout(ce)) {
               addBot(`⏳ Group #${gid}: Xeko đang đăng nè, bạn check FB sau vài phút nha!`);
             } else {
@@ -2903,6 +2991,7 @@
           for (const z of zaloGroups) {
             const g = allZalo.find(x => x.key === z.id);
             if (!g) continue;
+            if (_postCancelled) break;
             addTyping();
             try {
               const zf = new FormData();
@@ -2929,18 +3018,18 @@
         }
 
         // Hien nut tiep tuc
-        addBot('Mới đăng có bấy nhiêu à má? Ráng post thêm đi, content nhiều là Xeko vui lắm nè 🔥', [
+        addBot(pickEncouragement(), [
           { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
           { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
-          { label: `${xekoIcon('refresh')} Đổi Profile`, handler: () => showProfileSelect() },
         ]);
       } catch (e) {
         removeTyping();
-        if (isProxyTimeout(e)) {
+        if (e.message === '__cancelled__') {
+          // cancelPosting() đã show message rồi, không cần làm gì thêm
+        } else if (isProxyTimeout(e)) {
           addBot('⏳ Xeko đang đăng bài nè (chắc 1–2 phút thôi). Bạn ghé Facebook check sau nha, đừng bấm đăng lại không lại trùng bài đó!', [
             { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
             { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
-            { label: `${xekoIcon('refresh')} Đổi Profile`, handler: () => showProfileSelect() },
           ]);
         } else {
           addBot(`Ui có lỗi rồi nè: ${e.message}`);
@@ -3015,9 +3104,7 @@
       }
       if (!currentProfile) {
         input.value = '';
-        addBot('Bạn chốt profile cho Xeko trước đã nha!', [
-          { label: `${xekoIcon('user')} Chọn Profile`, handler: () => showProfileSelect() },
-        ]);
+        addBot('Bạn chốt profile cho Xeko trước đã nha! Bấm 👤 Đổi Profile ở góc trên phải nhé.');
         return;
       }
 
@@ -3088,7 +3175,21 @@
         }
 
         if (hasZaloSelection) {
-          errors.push('Lên lịch Zalo chưa được hỗ trợ — bạn chọn "Đăng ngay" để đăng Zalo nha.');
+          const zaloSel = (window._channelSelection || {})[currentProfile] || { zalo: [], zaloAccount: '' };
+          const zaloGroups = zaloSel.zalo || [];
+          const zaloAccountName = zaloSel.zaloAccount;
+          const allZalo = channelsData.zaloGroups || [];
+          for (const z of zaloGroups) {
+            const g = allZalo.find(x => x.key === z.id);
+            if (!g) continue;
+            try {
+              const data = await postSchedule({ type: 'zalo', zaloAccount: zaloAccountName, groupName: g.name });
+              if (data.success) scheduled.push(`Zalo: ${g.name}`);
+              else errors.push(`Zalo ${g.name}: ${data.error}`);
+            } catch (e) {
+              errors.push(`Zalo ${g.name}: ${e.message}`);
+            }
+          }
         }
 
         removeTyping();
@@ -3900,6 +4001,28 @@
       }
       renderGroupsTable();
       renderProfileChannels();
+      populateDashGroupFilter();
+    }
+
+    function populateDashGroupFilter() {
+      const sel = document.getElementById('dashFilterGroup');
+      if (!sel) return;
+      const prev = sel.value;
+      const fb = (channelsData.fbGroups || []);
+      const zalo = (channelsData.zaloGroups || []);
+      let opts = '<option value="">Tất cả nhóm</option>';
+      if (fb.length) {
+        opts += '<optgroup label="Facebook">';
+        fb.forEach(g => { opts += `<option value="${g.id || g.key}">${g.name || g.key}</option>`; });
+        opts += '</optgroup>';
+      }
+      if (zalo.length) {
+        opts += '<optgroup label="Zalo">';
+        zalo.forEach(g => { opts += `<option value="${g.name || g.key}">${g.name || g.key}</option>`; });
+        opts += '</optgroup>';
+      }
+      sel.innerHTML = opts;
+      if (prev) sel.value = prev;
     }
 
     let currentGroupFilter = 'all';
@@ -4397,7 +4520,10 @@
             shortcut: 'Group',
             all: 'Cá nhân + 2 Group',
           };
-          const targetText = targetLabels[n.target] || n.target;
+          const isZalo = n.jobType === 'zalo';
+          const targetText = isZalo
+            ? `Zalo: ${n.groupName || n.zaloAccount || 'nhóm'}`
+            : (targetLabels[n.target] || n.target || '-');
 
           if (n.type === 'success') {
             let msg = `✅ <strong>Xong rồi má ơi, Xeko canh giờ đăng bài cho bạn chuẩn ko cần chỉnh luôn á!</strong>\n\n`;
@@ -4407,14 +4533,19 @@
             if (n.message) msg += `📝 Nội dung: ${n.message}\n`;
             if (n.imageCount > 0) msg += `📷 ${n.imageCount} ảnh đính kèm\n`;
             msg += `\n🕐 Đã đăng lúc: ${n.time}`;
-            addBot(msg);
+            addBot(msg, [
+              { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
+              { label: `${xekoIcon('clock')} Lên lịch thêm`, handler: () => { selectMode('schedule'); showScheduleForm(); } },
+            ]);
           } else {
             let msg = `❌ <strong>Huhu bài lên lịch bị lỗi mất rồi!</strong>\n\n`;
             msg += `⏰ Lịch hẹn: ${n.scheduledTime}\n`;
             msg += `📍 Nơi đăng: ${targetText}\n`;
             if (n.message) msg += `📝 Nội dung: ${n.message}\n`;
             msg += `\n❗ Lỗi: ${n.error}`;
-            addBot(msg);
+            addBot(msg, [
+              { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
+            ]);
           }
         }
       } catch {}
@@ -4432,9 +4563,19 @@
     // ===== DASHBOARD =====
     let dashPage = 0;
     const dashLimit = 20;
+    const _activeRepostJobs = []; // jobs đang poll background
 
     async function loadDashboard() {
       try {
+        // Đảm bảo channelsData đã được tải (cần cho group filter)
+        if (!(channelsData.fbGroups?.length) && !(channelsData.zaloGroups?.length)) {
+          try {
+            const chRes = await fetch(`${BASE_URL}/api/channels`);
+            if (chRes.ok) channelsData = await parseJson(chRes);
+          } catch {}
+          populateDashGroupFilter();
+        }
+
         // Load statistics
         const statsRes = await fetch(BASE_URL + '/api/statistics');
         const stats = await parseJson(statsRes);
@@ -4445,36 +4586,62 @@
         document.getElementById('statFail').textContent = stats.today?.fail_count || 0;
         document.getElementById('statTotal').textContent = stats.summary?.total || 0;
 
-        // By profile
-        const profileEl = document.getElementById('statByProfile');
-        if (stats.byProfile && stats.byProfile.length > 0) {
-          profileEl.innerHTML = stats.byProfile.map(p => {
-            const rate = p.total > 0 ? Math.round(p.success_count / p.total * 100) : 0;
-            return `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f3f4f6;">
-              <span>${p.profile_name || p.profile}</span>
-              <span><strong>${p.total}</strong> bài · <span style="color:#16a34a">${p.success_count}</span> / <span style="color:#dc2626">${p.fail_count}</span> · ${rate}%</span>
-            </div>`;
-          }).join('');
-        } else {
-          profileEl.innerHTML = '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>';
+        // By profile — split FB vs Zalo
+        const allProfiles = stats.byProfile || [];
+        const fbProfiles = allProfiles.filter(p => p.platform !== 'zalo');
+        const zaloProfiles = allProfiles.filter(p => p.platform === 'zalo');
+        const renderProfileRow = p => {
+          const rate = p.total > 0 ? Math.round(p.success_count / p.total * 100) : 0;
+          return `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f3f4f6;">
+            <span>${escapeHtml(p.profile_name || p.profile)}</span>
+            <span><strong>${p.total}</strong> bài · <span style="color:#16a34a">${p.success_count}</span> / <span style="color:#dc2626">${p.fail_count}</span> · ${rate}%</span>
+          </div>`;
+        };
+        const profileFbEl = document.getElementById('statByProfileFbRows');
+        const profileZaloEl = document.getElementById('statByProfileZaloRows');
+        if (profileFbEl) {
+          profileFbEl.innerHTML = fbProfiles.length
+            ? `<div style="color:#1877f2; font-size:11px; font-weight:600; margin-bottom:4px; margin-top:2px;">Facebook</div>` + fbProfiles.map(renderProfileRow).join('')
+            : (!allProfiles.length ? '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>' : '');
+        }
+        if (profileZaloEl) {
+          profileZaloEl.innerHTML = zaloProfiles.length
+            ? `<div style="color:#0068ff; font-size:11px; font-weight:600; margin-bottom:4px; margin-top:${fbProfiles.length ? 10 : 2}px;">Zalo</div>` + zaloProfiles.map(renderProfileRow).join('')
+            : '';
         }
 
-        // By group
-        const fbEl = document.getElementById('statByGroupFb');
+        // By group — split FB vs Zalo
         const groups = stats.byGroup || [];
-        const renderRow = g => `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f3f4f6;">
-          <span>${g.group_name}</span>
+        const fbGroups = groups.filter(g => g.platform !== 'zalo');
+        const zaloGroups = groups.filter(g => g.platform === 'zalo');
+        const renderGroupRow = g => `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f3f4f6;">
+          <span>${escapeHtml(g.group_name)}</span>
           <span><strong>${g.total}</strong> bài · <span style="color:#16a34a">${g.success_count}</span> / <span style="color:#dc2626">${g.fail_count}</span></span>
         </div>`;
-        fbEl.innerHTML = groups.length ? groups.map(renderRow).join('') : '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>';
+        const fbRowsEl = document.getElementById('statByGroupFbRows');
+        const zaloRowsEl = document.getElementById('statByGroupZaloRows');
+        if (fbRowsEl) {
+          fbRowsEl.innerHTML = fbGroups.length
+            ? `<div style="color:#1877f2; font-size:11px; font-weight:600; margin-bottom:4px; margin-top:2px;">Facebook</div>` + fbGroups.map(renderGroupRow).join('')
+            : (!groups.length ? '<div style="color:#999; padding:4px 0; font-size:12px;">Chưa có dữ liệu</div>' : '');
+        }
+        if (zaloRowsEl) {
+          zaloRowsEl.innerHTML = zaloGroups.length
+            ? `<div style="color:#0068ff; font-size:11px; font-weight:600; margin-bottom:4px; margin-top:${fbGroups.length ? 10 : 2}px;">Zalo</div>` + zaloGroups.map(renderGroupRow).join('')
+            : '';
+        }
 
-        // Populate profile filter
+        // Populate profile filter (deduplicate by profile key)
         const filterProfile = document.getElementById('dashFilterProfile');
         const currentVal = filterProfile.value;
         filterProfile.innerHTML = '<option value="">Tất cả tài khoản</option>';
         if (stats.byProfile) {
+          const seen = new Set();
           stats.byProfile.forEach(p => {
-            filterProfile.innerHTML += `<option value="${p.profile}">${p.profile_name || p.profile}</option>`;
+            if (!seen.has(p.profile)) {
+              seen.add(p.profile);
+              filterProfile.innerHTML += `<option value="${p.profile}">${escapeHtml(p.profile_name || p.profile)}</option>`;
+            }
           });
         }
         filterProfile.value = currentVal;
@@ -4556,6 +4723,7 @@
       const profile = document.getElementById('dashFilterProfile').value;
       const platform = document.getElementById('dashFilterPlatform').value;
       const target = document.getElementById('dashFilterTarget').value;
+      const groupId = document.getElementById('dashFilterGroup').value;
       const success = document.getElementById('dashFilterStatus').value;
       const from = document.getElementById('dashFilterFrom').value;
       const to = document.getElementById('dashFilterTo').value;
@@ -4564,42 +4732,132 @@
       if (profile) params.set('profile', profile);
       if (platform) params.set('platform', platform);
       if (target) params.set('target', target);
-      if (success !== '') params.set('success', success);
+      if (groupId) params.set('groupId', groupId);
+      if (success === '1' || success === '0') params.set('success', success);
       if (from) params.set('from', from + 'T00:00:00.000Z');
       if (to) params.set('to', to + 'T23:59:59.999Z');
       params.set('limit', dashLimit);
       params.set('offset', dashPage * dashLimit);
 
       try {
-        const res = await fetch(BASE_URL + '/api/post-history?' + params.toString());
-        const data = await parseJson(res);
+        const [schedRes, histRes] = await Promise.all([
+          fetch(BASE_URL + '/api/schedules').catch(() => null),
+          fetch(BASE_URL + '/api/post-history?' + params.toString()),
+        ]);
+        const allSchedules = schedRes ? await parseJson(schedRes).catch(() => []) : [];
+        const data = await parseJson(histRes);
+
+        // Lọc lịch chờ/đang đăng
+        const isSchedFilter = success === 'pending' || success === 'running';
+        let schedToShow = (Array.isArray(allSchedules) ? allSchedules : [])
+          .filter(s => isSchedFilter ? s.status === success : (s.status === 'pending' || s.status === 'running'));
+        if (profile) schedToShow = schedToShow.filter(s => s.profile === profile);
+        if (target) schedToShow = schedToShow.filter(s => s.target === target);
+        if (groupId) schedToShow = schedToShow.filter(s => s.groupId === groupId || s.groupName === groupId);
+        // Lọc theo thành công/thất bại → ẩn lịch chờ; lọc pending/running → ẩn _activeRepostJobs
+        if (success === '1' || success === '0') schedToShow = [];
+
+        // Lookup: FB group ID → tên group (từ danh sách kênh đã lưu)
+        const fbGroupIdToName = {};
+        (channelsData.fbGroups || []).forEach(g => { if (g.id) fbGroupIdToName[g.id] = g.name; });
+        function resolveGroupLabel(platform, groupId, groupName) {
+          if (platform === 'zalo') return groupName || groupId || '-';
+          if (groupId && fbGroupIdToName[groupId]) return fbGroupIdToName[groupId];
+          return groupId || groupName || '-';
+        }
 
         const tbody = document.getElementById('dashHistoryBody');
         if (typeof _dashSelectedIds !== 'undefined') { _dashSelectedIds.clear(); _updateBulkBar(); }
-        if (data.rows && data.rows.length > 0) {
-          window._dashRows = data.rows;
+
+        // --- Render repost-in-progress rows (giữ lại khi reload) ---
+        const repostHtml = _activeRepostJobs.map(job => {
+          const ch = job.ch;
+          const targetLabel = ch.type === 'group' ? 'Group' : 'Cá nhân';
+          const groupId = ch.id || ch.key || '-';
+          const msgShort = job.message ? (job.message.length > 60 ? job.message.substring(0, 60) + '…' : job.message) : '-';
+          const fullMsg = (job.message || '').replace(/"/g, '&quot;');
+          return `<tr id="${job.tempId}" style="border-bottom:1px solid #bfdbfe; background:#f0f9ff; border-left:3px solid #60a5fa;">
+            <td style="padding:10px 10px; text-align:center; color:#60a5fa; font-size:15px;">⏳</td>
+            <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${job.timeLabel}</td>
+            <td style="padding:10px 12px; font-size:12px;">${job.profileName}</td>
+            <td style="padding:10px 12px; font-size:12px;">FB</td>
+            <td style="padding:10px 12px; font-size:12px;">${targetLabel}</td>
+            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupId}">${groupId}</td>
+            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msgShort}</td>
+            <td style="padding:10px 12px; color:#bbb;">—</td>
+            <td style="padding:10px 12px; text-align:center;"><span style="background:#dbeafe; color:#1d4ed8; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">⚡ Đang đăng</span></td>
+            <td></td>
+          </tr>`;
+        }).join('');
+
+        // --- Render scheduled rows ---
+        const schedHtml = schedToShow.map(sched => {
+          const d = new Date(sched.timeISO || sched.time);
+          const pad = n => String(n).padStart(2,'0');
+          const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+          const targetLabel = sched.target === 'personal' ? 'Cá nhân' : sched.target === 'group' ? 'Group' : sched.target === 'all' ? 'Tất cả' : sched.target === 'allgroup' ? 'Tất cả Group' : (sched.target || '-');
+          const groupId = resolveGroupLabel(sched.type, sched.groupId, sched.groupName);
+          const groupIdRaw = sched.groupId || sched.groupName || '';
+          const fullMsg = (sched.message || '').replace(/"/g,'&quot;');
+          const msg = sched.message ? (sched.message.length > 60 ? sched.message.substring(0, 60) + '…' : sched.message) : '-';
+          const imgCount = sched.imageCount || 0;
+          let thumbs;
+          if (imgCount > 0) {
+            const shown = Math.min(imgCount, 4);
+            const imgUrls = Array.from({length: shown}, (_, i) => `${BASE_URL}/api/schedule-image/${sched.id}/${i}`);
+            thumbs = `<div style="display:flex; gap:3px; align-items:center;">${imgUrls.map(u => `<a href="${u}" target="_blank"><img src="${u}" style="width:32px; height:32px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\'font-size:18px;\'>🖼️</span>'"></a>`).join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
+          } else {
+            thumbs = '<span style="color:#bbb;">—</span>';
+          }
+          const isRunning = sched.status === 'running';
+          const statusBadge = isRunning
+            ? '<span style="background:#dbeafe; color:#1d4ed8; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">⚡ Đang đăng</span>'
+            : '<span style="background:#fff7ed; color:#c2410c; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">⏳ Chờ đăng</span>';
+          const rowBg = isRunning ? '#eff6ff' : '#f8f7ff';
+          return `<tr id="schedRow-${sched.id}" style="border-bottom:1px solid #e8e4ff; background:${rowBg}; border-left:3px solid #a5b4fc;">
+            <td style="padding:10px 10px; text-align:center; color:#a5b4fc; font-size:15px;">⏰</td>
+            <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
+            <td style="padding:10px 12px; font-size:12px; white-space:nowrap;">${sched.profile || '-'}</td>
+            <td style="padding:10px 12px; font-size:12px;">FB</td>
+            <td style="padding:10px 12px; font-size:12px;">${targetLabel}</td>
+            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupIdRaw.replace(/"/g,'&quot;')}">${groupId}</td>
+            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msg}</td>
+            <td style="padding:10px 12px;">${thumbs}</td>
+            <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
+            <td style="padding:8px 10px; text-align:center;">
+              <button onclick="cancelScheduleFromTable(${sched.id})" title="Hủy lịch đăng" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #fca5a5;border-radius:7px;background:#fff;color:#ef4444;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
+            </td>
+          </tr>`;
+        }).join('');
+
+        // Khi filter pending/running: chỉ hiện lịch chờ, ẩn history
+        const histRows = isSchedFilter ? [] : (data.rows || []);
+        const activeRepostHtml = isSchedFilter ? '' : repostHtml;
+
+        if (histRows.length > 0) {
+          window._dashRows = histRows;
 
           // Tính batch_id nào xuất hiện nhiều hơn 1 lần → gán màu
           const BATCH_COLORS = ['#7c66ff','#06b6d4','#f59e0b','#10b981','#ef4444','#8b5cf6','#ec4899'];
           const batchCount = {};
-          data.rows.forEach(r => { if (r.batch_id) batchCount[r.batch_id] = (batchCount[r.batch_id] || 0) + 1; });
+          histRows.forEach(r => { if (r.batch_id) batchCount[r.batch_id] = (batchCount[r.batch_id] || 0) + 1; });
           const batchColorMap = {};
           let colorIdx = 0;
           Object.keys(batchCount).filter(k => batchCount[k] > 1).forEach(k => {
             batchColorMap[k] = BATCH_COLORS[colorIdx++ % BATCH_COLORS.length];
           });
 
-          tbody.innerHTML = data.rows.map((row, idx) => {
+          tbody.innerHTML = activeRepostHtml + schedHtml + histRows.map((row, idx) => {
             const d = new Date(row.timestamp);
             const pad = n => String(n).padStart(2,'0');
             const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
-            const platformLabel = 'FB';
+            const platformLabel = row.platform === 'zalo' ? 'Zalo' : 'FB';
             const batchColor = row.batch_id ? batchColorMap[row.batch_id] : null;
             const statusBadge = row.success
               ? '<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:6px; font-size:11px;">OK</span>'
               : `<span style="background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:6px; font-size:11px;" title="${(row.error||'').replace(/"/g,'&quot;')}">Lỗi</span>`;
             const target = row.target === 'personal' ? 'Cá nhân' : row.target === 'group' ? 'Group' : (row.target || '-');
-            const groupId = row.group_id || row.group_name || '-';
+            const groupId = resolveGroupLabel(row.platform, row.group_id, row.group_name);
             const fullMsg = (row.message || '').replace(/"/g,'&quot;');
             const msg = row.message ? (row.message.length > 60 ? row.message.substring(0, 60) + '…' : row.message) : '-';
             const imgCount = row.image_count || 0;
@@ -4609,7 +4867,7 @@
             let thumbs;
             if (images.length > 0) {
               const shown = images.slice(0, 4);
-              thumbs = `<div style="display:flex; gap:3px; align-items:center;">${shown.map(u => `<a href="${u}" target="_blank"><img src="${u}" style="width:32px; height:32px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
+              thumbs = `<div style="display:flex; gap:3px; align-items:center;">${shown.map(u => `<a href="${u}" target="_blank"><img src="${u}" style="width:32px; height:32px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:32px;height:32px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;align-items:center;justify-content:center;font-size:14px;'}))"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
             } else if (imgCount > 0) {
               thumbs = `<div style="display:flex; gap:3px; align-items:center;">${Array.from({length: Math.min(imgCount, 4)}).map(() => '<span style="display:inline-flex; width:32px; height:32px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:14px;">🖼️</span>').join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
             } else {
@@ -4632,28 +4890,33 @@
               <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
               <td style="padding:8px 10px; text-align:center; position:relative;">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
-                  <button onclick="openRepostModal(${idx})" style="padding:4px 9px; border:1px solid #7c66ff; border-radius:6px; background:#fff; color:#7c66ff; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;" onmouseover="this.style.background='#7c66ff';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#7c66ff'">🔄 Repost</button>
-                  <button onclick="openSingleDeleteConfirm(${row.id})" style="padding:4px 7px; border:1px solid #fca5a5; border-radius:6px; background:#fff; color:#ef4444; font-size:13px; cursor:pointer; line-height:1;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'" title="Xóa">🗑️</button>
+                  <button onclick="openRepostModal(${idx})" title="Repost" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #7c66ff;border-radius:7px;background:#fff;color:#7c66ff;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#7c66ff';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#7c66ff'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
+                  <button onclick="openSingleDeleteConfirm(${row.id})" title="Xóa" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #fca5a5;border-radius:7px;background:#fff;color:#ef4444;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
                 </div>
               </td>
             </tr>`;
           }).join('');
         } else {
           window._dashRows = [];
-          tbody.innerHTML = '<tr><td colspan="10" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
+          const fallbackHtml = activeRepostHtml + schedHtml;
+          tbody.innerHTML = fallbackHtml || '<tr><td colspan="10" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
         }
 
-        // Pagination
-        const totalPages = Math.ceil(data.total / dashLimit);
+        // Pagination (ẩn khi đang filter pending/running)
         const paginationEl = document.getElementById('dashPagination');
-        if (totalPages > 1) {
-          let html = '';
-          if (dashPage > 0) html += `<button onclick="dashGoPage(${dashPage - 1})" style="padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer;">← Trước</button>`;
-          html += `<span style="padding:6px 12px; color:#666;">Trang ${dashPage + 1} / ${totalPages} (${data.total} bài)</span>`;
-          if (dashPage < totalPages - 1) html += `<button onclick="dashGoPage(${dashPage + 1})" style="padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer;">Sau →</button>`;
-          paginationEl.innerHTML = html;
+        if (!isSchedFilter) {
+          const totalPages = Math.ceil(data.total / dashLimit);
+          if (totalPages > 1) {
+            let html = '';
+            if (dashPage > 0) html += `<button onclick="dashGoPage(${dashPage - 1})" style="padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer;">← Trước</button>`;
+            html += `<span style="padding:6px 12px; color:#666;">Trang ${dashPage + 1} / ${totalPages} (${data.total} bài)</span>`;
+            if (dashPage < totalPages - 1) html += `<button onclick="dashGoPage(${dashPage + 1})" style="padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer;">Sau →</button>`;
+            paginationEl.innerHTML = html;
+          } else {
+            paginationEl.innerHTML = data.total > 0 ? `<span style="color:#999; font-size:12px;">Tổng: ${data.total} bài</span>` : '';
+          }
         } else {
-          paginationEl.innerHTML = data.total > 0 ? `<span style="color:#999; font-size:12px;">Tổng: ${data.total} bài</span>` : '';
+          paginationEl.innerHTML = '';
         }
       } catch (e) {
         console.error('History error:', e);
@@ -4663,6 +4926,20 @@
     function dashGoPage(page) {
       dashPage = page;
       loadDashHistory();
+    }
+
+    async function cancelScheduleFromTable(id) {
+      if (!confirm('Hủy bài đăng đã lên lịch này?')) return;
+      try {
+        const res = await fetch(`${BASE_URL}/api/schedule/${id}`, { method: 'DELETE' });
+        const data = await parseJson(res);
+        if (data.success) {
+          const row = document.getElementById('schedRow-' + id);
+          if (row) row.remove();
+        }
+      } catch (e) {
+        console.error('Cancel schedule error:', e);
+      }
     }
 
     // ===== Bulk Selection =====
@@ -4945,7 +5222,7 @@
         const src = item instanceof File ? URL.createObjectURL(item) : (item.startsWith('/') ? BASE_URL + item : item);
         const href = item instanceof File ? src : src;
         return `<div style="position:relative; display:inline-block; flex-shrink:0;">
-          <a href="${href}" target="_blank"><img src="${src}" style="width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid #e5e7eb; display:block;" loading="lazy"></a>
+          <a href="${href}" target="_blank"><img src="${src}" style="width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid #e5e7eb; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:72px;height:72px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:8px;align-items:center;justify-content:center;font-size:28px;'}))"></a>
           ${_repostEditMode ? `<button type="button" onclick="_removeRepostImage(${i})" style="position:absolute; top:-6px; right:-6px; background:#ef4444; color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:13px; cursor:pointer; line-height:1; padding:0; display:flex; align-items:center; justify-content:center;">×</button>` : ''}
         </div>`;
       }).join('') + addBtn;
@@ -5034,57 +5311,76 @@
       const editBtn = document.getElementById('repostEditBtn');
       submitBtn.disabled = true;
       editBtn.disabled = true;
+      submitBtn.textContent = '⏳ Đang gửi...';
 
-      // Switch FB profile once
       await fetch(BASE_URL + '/api/profile', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ profile })
       }).catch(() => {});
 
-      const errors = [];
-      let successCount = 0;
-      const total = channels.length;
-
+      // 1. Submit tất cả jobs (modal vẫn mở để đọc ảnh từ DOM)
+      const jobs = [];
       for (let i = 0; i < channels.length; i++) {
         const ch = channels[i];
-        submitBtn.textContent = `⏳ Đang đăng ${i + 1}/${total}...`;
+        submitBtn.textContent = `⏳ ${i + 1}/${channels.length}...`;
         try {
+          const fd = await _buildRepostFormData(message);
           if (ch.platform === 'zalo') {
-            const fd = await _buildRepostFormData(message);
             fd.append('zaloAccountName', ch.zaloAccount || '');
             fd.append('groupName', ch.name || '');
             const res = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: fd });
             const d = await parseJson(res);
-            if (d.success || d.jobId || d.processing) successCount++;
-            else errors.push(`${ch.label || ch.name}: ${d.error || 'Lỗi'}`);
+            jobs.push({ ch, done: true, ok: !!(d.success || d.jobId || d.processing) });
           } else {
-            const fd = await _buildRepostFormData(message);
             fd.append('target', ch.type === 'group' ? 'group' : 'personal');
             if (ch.type === 'group') fd.append('groupId', ch.id || ch.key || '');
+            fd.append('profile', profile);
             const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: fd });
             const initial = await parseJson(res);
-            const d = initial.jobId ? await pollJob(initial.jobId) : initial;
-            const ok = d.success || (d.results && d.results.some(r => r.success));
-            if (ok) successCount++;
-            else errors.push(`${ch.label || ch.name}: ${d.error || 'Lỗi'}`);
+            jobs.push({ ch, jobId: initial.jobId, initial, done: !initial.jobId });
           }
         } catch (e) {
-          errors.push(`${ch.label || ch.name}: ${e.message}`);
+          jobs.push({ ch, done: true, ok: false, error: e.message });
         }
       }
 
+      // 2. Đăng ký job vào _activeRepostJobs để loadDashHistory() tự render lại khi cần
+      const profileName = document.getElementById('repostProfile').options[document.getElementById('repostProfile').selectedIndex]?.text || profile;
+      const now = new Date();
+      const pad = n => String(n).padStart(2,'0');
+      const timeLabel = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} ${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}`;
+
+      jobs.forEach((job, i) => {
+        if (job.done) return;
+        job.tempId = `repost-temp-${i}-${Date.now()}`;
+        job.profileName = profileName;
+        job.timeLabel = timeLabel;
+        job.message = message;
+        _activeRepostJobs.push(job);
+      });
+
+      // 3. Đóng modal ngay + render hàng tạm
       submitBtn.disabled = false;
       submitBtn.textContent = '🔄 Repost';
       editBtn.disabled = false;
+      closeRepostModal();
+      loadDashHistory();
 
-      if (errors.length === 0) {
-        alert(`✅ Đã repost thành công ${successCount}/${total} kênh!`);
-        closeRepostModal();
+      // 4. Poll background – khi từng job xong thì xóa khỏi registry + reload
+      (async () => {
+        for (const job of jobs) {
+          if (job.done) continue;
+          try {
+            const d = job.jobId ? await pollJob(job.jobId) : job.initial;
+            job.ok = !!(d.success || (d.results && d.results.some(r => r.success)));
+          } catch (e) {
+            job.ok = false;
+          }
+          const idx = _activeRepostJobs.indexOf(job);
+          if (idx !== -1) _activeRepostJobs.splice(idx, 1);
+        }
         loadDashHistory();
-      } else {
-        alert(`✅ ${successCount}/${total} thành công\n❌ Lỗi:\n${errors.join('\n')}`);
-        if (successCount > 0) loadDashHistory();
-      }
+      })();
     }
   </script>
 
