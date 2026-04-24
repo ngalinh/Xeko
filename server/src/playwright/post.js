@@ -199,6 +199,23 @@ async function openCreatePost(page, isGroup = false) {
   return await tryClick(page, selectors, 'Mở popup tạo bài');
 }
 
+// Nhập text vào contenteditable: clipboard paste → execCommand → keyboard.type
+async function pasteText(page, message) {
+  // 1. Clipboard paste (instant, hoạt động tốt với React)
+  try {
+    await page.evaluate(async (txt) => navigator.clipboard.writeText(txt), message);
+    await page.keyboard.press('Control+v');
+    return;
+  } catch {}
+
+  // 2. execCommand insertText
+  const ok = await page.evaluate((txt) => document.execCommand('insertText', false, txt), message);
+  if (ok) return;
+
+  // 3. keyboard.type toàn bộ một lần (không delay từng ký tự)
+  await page.keyboard.type(message);
+}
+
 async function typeMessage(page, message) {
   if (!message) return true;
 
@@ -223,12 +240,7 @@ async function typeMessage(page, message) {
         await randomDelay(300, 600);
         await editor.click({ force: true });
         await randomDelay(300, 500);
-        const ok = await page.evaluate((txt) => document.execCommand('insertText', false, txt), message);
-        if (!ok) {
-          for (const char of message) {
-            await page.keyboard.type(char, { delay: Math.random() * 50 + 30 });
-          }
-        }
+        await pasteText(page, message);
         logger.info('Đã nhập nội dung bài viết');
         return true;
       }
@@ -242,12 +254,7 @@ async function typeMessage(page, message) {
     if (placeholder) {
       await placeholder.click({ force: true });
       await randomDelay(300, 500);
-      const ok = await page.evaluate((txt) => document.execCommand('insertText', false, txt), message);
-      if (!ok) {
-        for (const char of message) {
-          await page.keyboard.type(char, { delay: Math.random() * 50 + 30 });
-        }
-      }
+      await pasteText(page, message);
       return true;
     }
   } catch {}
@@ -477,12 +484,7 @@ async function postToGroup(groupId, message, imagePaths = []) {
           await targetEditor.scrollIntoViewIfNeeded();
           await targetEditor.click({ force: true });
           await randomDelay(300, 500);
-          const ok = await page.evaluate((txt) => document.execCommand('insertText', false, txt), message);
-          if (!ok) {
-            for (const char of message) {
-              await page.keyboard.type(char, { delay: Math.random() * 50 + 30 });
-            }
-          }
+          await pasteText(page, message);
           typed = true;
           logger.info('Đã nhập nội dung group (ô thứ 2)');
         }
