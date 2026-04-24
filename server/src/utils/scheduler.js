@@ -183,12 +183,20 @@ async function executeSchedule(job) {
 
     job.status = 'done';
     job.result = result;
-    logger.info(`Lịch #${job.id} hoàn tất: ${result?.success ? 'thành công' : 'thất bại'}`);
 
-    // Gửi notification
-    notifications.push({
+    // Kiểm tra kết quả thực tế — postToGroup/postToPersonal trả về { success: false }
+    // thay vì throw, nên phải check tường minh ở đây.
+    const overallSuccess = result?.results
+      ? result.results.every(r => r.success)
+      : result?.success === true;
+    const errorMsg = result?.results
+      ? result.results.filter(r => !r.success).map(r => `${r.target}: ${r.error}`).join('; ')
+      : (result?.error || 'Không rõ lỗi');
+
+    logger.info(`Lịch #${job.id} hoàn tất: ${overallSuccess ? 'thành công' : 'thất bại'}`);
+
+    const baseNotif = {
       id: job.id,
-      type: 'success',
       jobType: job.type || 'facebook',
       time: new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
       scheduledTime: job.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
@@ -199,7 +207,14 @@ async function executeSchedule(job) {
       message: job.message,
       imageCount: job.imagePaths?.length || 0,
       profile: job.profile,
-    });
+    };
+
+    if (overallSuccess) {
+      notifications.push({ ...baseNotif, type: 'success' });
+    } else {
+      job.status = 'error';
+      notifications.push({ ...baseNotif, type: 'error', error: errorMsg });
+    }
   } catch (error) {
     job.status = 'error';
     job.result = { success: false, error: error.message };

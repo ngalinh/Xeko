@@ -2683,6 +2683,7 @@
           `Xeko sẽ đăng lên:\n${summaryText}\n\nBạn soạn content xuống dưới nha, bấm 📷 để kèm ảnh rồi nhấn ➤ là mình đăng liền 🚀`,
           [
             { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
+            { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
           ]
         );
       }
@@ -2720,6 +2721,7 @@
           `Xeko sẽ đăng lên: <strong>${targetText}</strong>\n\nBạn soạn content xuống dưới, kèm ảnh qua 📷 rồi nhấn ➤ là mình đăng ngay 🚀`,
           [
             { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
+            { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
           ]
         );
       }
@@ -3017,6 +3019,7 @@
         addBot(pickEncouragement(), [
           { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
           { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
+          { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
         ]);
       } catch (e) {
         removeTyping();
@@ -3026,6 +3029,7 @@
           addBot('⏳ Xeko đang đăng bài nè (chắc 1–2 phút thôi). Bạn ghé Facebook check sau nha, đừng bấm đăng lại không lại trùng bài đó!', [
             { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
             { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
+            { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
           ]);
         } else {
           addBot(`Ui có lỗi rồi nè: ${e.message}`);
@@ -4532,6 +4536,7 @@
             addBot(msg, [
               { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
               { label: `${xekoIcon('clock')} Lên lịch thêm`, handler: () => { selectMode('schedule'); showScheduleForm(); } },
+              { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
             ]);
           } else {
             let msg = `❌ <strong>Huhu bài lên lịch bị lỗi mất rồi!</strong>\n\n`;
@@ -4541,6 +4546,7 @@
             msg += `\n❗ Lỗi: ${n.error}`;
             addBot(msg, [
               { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
+              { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
             ]);
           }
         }
