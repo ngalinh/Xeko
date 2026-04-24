@@ -304,7 +304,7 @@
       background: #fff;
       display: flex;
       gap: 10px;
-      align-items: center;
+      align-items: flex-end;
       border-top: 1px solid #eee;
     }
     .input-area input[type="text"] {
@@ -319,6 +319,24 @@
     }
     .input-area input[type="text"]:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
     .input-area input[type="file"] { display: none; }
+    .input-area #msgInput {
+      flex: 1;
+      padding: 10px 18px;
+      border-radius: 20px;
+      border: 1px solid #e0e0e0;
+      background: #f8f9fe;
+      color: #1e1e2e;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      resize: none;
+      overflow-y: auto;
+      min-height: 40px;
+      max-height: 100px;
+      line-height: 1.5;
+      display: block;
+    }
+    .input-area #msgInput:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
     .btn-icon {
       width: 40px; height: 40px;
       border-radius: 50%;
@@ -430,6 +448,8 @@
     [data-theme="dark"] .input-area { background: #16172b; border-color: #2a2a4a; }
     [data-theme="dark"] .input-area input[type="text"] { background: #1e1e3a; border-color: #3a3a5a; color: #e0e0e0; }
     [data-theme="dark"] .input-area input[type="text"]:focus { border-color: #a78bfa; box-shadow: 0 0 0 3px rgba(167,139,250,0.15); }
+    [data-theme="dark"] .input-area #msgInput { background: #1e1e3a; border-color: #3a3a5a; color: #e0e0e0; }
+    [data-theme="dark"] .input-area #msgInput:focus { border-color: #a78bfa; box-shadow: 0 0 0 3px rgba(167,139,250,0.15); }
     [data-theme="dark"] .btn-attach { background: #1e1e3a; color: #a78bfa; }
     [data-theme="dark"] .btn-attach:hover { background: #2d2b55; }
 
@@ -581,6 +601,7 @@
         font-size: 16px; /* prevent iOS zoom */
         padding: 9px 13px;
       }
+      .input-area #msgInput { font-size: 16px; padding: 9px 13px; }
       .btn-icon { width: 38px; height: 38px; font-size: 16px; }
 
 
@@ -761,6 +782,13 @@
       .input-area input[type="text"]:focus {
         box-shadow: none !important;
       }
+      .input-area #msgInput {
+        background: transparent !important;
+        border: none !important;
+        padding: 10px 8px !important;
+        font-size: 15px !important;
+      }
+      .input-area #msgInput:focus { box-shadow: none !important; }
       .btn-icon {
         width: 42px; height: 42px;
         border-radius: 50%;
@@ -1211,6 +1239,15 @@
         border-color: #7c66ff;
         box-shadow: 0 0 0 3px rgba(124,102,255,0.12);
       }
+      .input-area #msgInput {
+        background: #fff;
+        border: 1px solid rgba(124,102,255,0.15);
+        box-shadow: 0 2px 8px rgba(124,102,255,0.05);
+      }
+      .input-area #msgInput:focus {
+        border-color: #7c66ff;
+        box-shadow: 0 0 0 3px rgba(124,102,255,0.12);
+      }
       .btn-attach {
         background: #f2ecff;
         color: #6b5bff;
@@ -1591,7 +1628,7 @@
   <div class="input-area" id="inputArea">
     <button class="btn-icon btn-attach" onclick="document.getElementById('fileInput').click()" aria-label="Đính kèm ảnh"><svg class="xi xi-md"><use href="#ic-camera"/></svg></button>
     <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this)">
-    <input type="text" id="msgInput" placeholder="Nhập nội dung bài viết..." autocomplete="off" onkeydown="if(event.key==='Enter')sendMessage()">
+    <textarea id="msgInput" rows="1" placeholder="Nhập nội dung bài viết... (Ctrl+Enter để gửi)" autocomplete="off" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();sendMessage();}" oninput="autoGrowMsgInput(this)"></textarea>
     <input type="text" id="groupIdInput" placeholder="Nhập Group ID..." autocomplete="off" style="display:none; width:140px;">
     <button class="btn-icon btn-send" id="sendBtn" onclick="sendMessage()" aria-label="Gửi"><svg class="xi xi-md"><use href="#ic-send"/></svg></button>
   </div>
@@ -2095,6 +2132,11 @@
 
     function now() {
       return new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function autoGrowMsgInput(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 100) + 'px';
     }
 
     const ENCOURAGEMENTS = [
