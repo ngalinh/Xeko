@@ -2807,12 +2807,15 @@
       clearImages();
       document.getElementById('sendBtn').disabled = true;
 
+      const sessionBatchId = crypto.randomUUID();
+
       try {
         if (target) {
           const formData = new FormData();
           formData.append('message', message);
           formData.append('target', target);
           if (groupId) formData.append('groupId', groupId);
+          formData.append('batchId', sessionBatchId);
           await appendImages(formData, filesToUpload);
 
           addTyping();
@@ -2868,6 +2871,7 @@
             cf.append('message', message);
             cf.append('target', 'group');
             cf.append('groupId', gid);
+            cf.append('batchId', sessionBatchId);
             await appendImages(cf, filesToUpload);
             const cr = await fetch(BASE_URL + '/api/post', { method: 'POST', body: cf });
             const initial = await parseJson(cr);
