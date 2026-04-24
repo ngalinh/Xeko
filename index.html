@@ -632,6 +632,54 @@
       /* Dashboard page padding */
       #pageDashboard > div:last-child { padding: 14px !important; }
 
+      /* Dashboard filter bar: tiết kiệm chiều ngang, không để select nào
+         tự dãn full width. Chia 2 cột đều cho các select/date. */
+      #pageDashboard > div:last-child > div[style*="margin-bottom:16px"][style*="flex-wrap:wrap"] {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px !important;
+      }
+      #pageDashboard #dashFilterProfile,
+      #pageDashboard #dashFilterPlatform,
+      #pageDashboard #dashFilterTarget,
+      #pageDashboard #dashFilterGroup,
+      #pageDashboard #dashFilterStatus,
+      #pageDashboard #dashFilterFrom,
+      #pageDashboard #dashFilterTo {
+        width: 100%;
+        min-width: 0;
+        font-size: 12px !important;
+        padding: 7px 10px !important;
+      }
+      /* "Tất cả nhóm" chiếm full row vì tên group dài */
+      #pageDashboard #dashFilterGroup { grid-column: 1 / -1; }
+      #pageDashboard > div:last-child > div[style*="margin-bottom:16px"] > button {
+        grid-column: 1 / -1;
+        justify-self: start;
+        padding: 8px 18px !important;
+      }
+
+      /* Stats summary 2-column grid → 1 column */
+      #pageDashboard > div:last-child > div[style*="grid-template-columns:1fr 1fr"],
+      #pageDashboard > div:last-child > div[style*="grid-template-columns: 1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+      }
+      /* Row: name trên 1 hàng, stats trên hàng 2 (hoặc wrap gọn) */
+      #statByProfile > div > div,
+      #statByGroupFb > div > div {
+        flex-wrap: wrap;
+        gap: 2px 10px;
+      }
+      #statByProfile > div > div > span:first-child,
+      #statByGroupFb > div > div > span:first-child {
+        word-break: break-all;
+        min-width: 0;
+      }
+      #statByProfile > div > div > span:last-child,
+      #statByGroupFb > div > div > span:last-child {
+        white-space: nowrap;
+      }
+
       /* Stats table horizontal scroll */
       table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
 
