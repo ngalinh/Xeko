@@ -222,9 +222,12 @@ async function typeMessage(page, message) {
         await editor.scrollIntoViewIfNeeded();
         await randomDelay(300, 600);
         await editor.click({ force: true });
-        await randomDelay(500, 1000);
-        for (const char of message) {
-          await page.keyboard.type(char, { delay: Math.random() * 50 + 30 });
+        await randomDelay(300, 500);
+        const ok = await page.evaluate((txt) => document.execCommand('insertText', false, txt), message);
+        if (!ok) {
+          for (const char of message) {
+            await page.keyboard.type(char, { delay: Math.random() * 50 + 30 });
+          }
         }
         logger.info('Đã nhập nội dung bài viết');
         return true;
@@ -238,9 +241,12 @@ async function typeMessage(page, message) {
     const placeholder = await page.$('div[role="dialog"] span:has-text("nghĩ gì")');
     if (placeholder) {
       await placeholder.click({ force: true });
-      await randomDelay(500, 1000);
-      for (const char of message) {
-        await page.keyboard.type(char, { delay: Math.random() * 50 + 30 });
+      await randomDelay(300, 500);
+      const ok = await page.evaluate((txt) => document.execCommand('insertText', false, txt), message);
+      if (!ok) {
+        for (const char of message) {
+          await page.keyboard.type(char, { delay: Math.random() * 50 + 30 });
+        }
       }
       return true;
     }
@@ -470,9 +476,12 @@ async function postToGroup(groupId, message, imagePaths = []) {
         if (targetEditor) {
           await targetEditor.scrollIntoViewIfNeeded();
           await targetEditor.click({ force: true });
-          await randomDelay(500, 1000);
-          for (const char of message) {
-            await page.keyboard.type(char, { delay: Math.random() * 50 + 30 });
+          await randomDelay(300, 500);
+          const ok = await page.evaluate((txt) => document.execCommand('insertText', false, txt), message);
+          if (!ok) {
+            for (const char of message) {
+              await page.keyboard.type(char, { delay: Math.random() * 50 + 30 });
+            }
           }
           typed = true;
           logger.info('Đã nhập nội dung group (ô thứ 2)');
