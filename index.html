@@ -1806,21 +1806,12 @@
         </div>
       </div>
 
-      <!-- Stats by Profile & Group -->
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:24px;">
-        <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px;">
-          <div style="font-weight:600; margin-bottom:12px; font-size:14px;">Theo tài khoản</div>
-          <div id="statByProfile" style="font-size:13px;">
-            <div id="statByProfileFbRows"></div>
-            <div id="statByProfileZaloRows"></div>
-          </div>
-        </div>
-        <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px;">
-          <div style="font-weight:600; margin-bottom:12px; font-size:14px;">Theo nhóm</div>
-          <div id="statByGroupFb" style="font-size:13px;">
-            <div id="statByGroupFbRows"></div>
-            <div id="statByGroupZaloRows"></div>
-          </div>
+      <!-- Stats by Profile -->
+      <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px; margin-bottom:24px;">
+        <div style="font-weight:600; margin-bottom:12px; font-size:14px;">Theo tài khoản</div>
+        <div id="statByProfile" style="font-size:13px; display:grid; grid-template-columns:1fr 1fr; gap:0 24px;">
+          <div id="statByProfileFbRows"></div>
+          <div id="statByProfileZaloRows"></div>
         </div>
       </div>
 
@@ -4692,27 +4683,6 @@
         if (profileZaloEl) {
           profileZaloEl.innerHTML = zaloProfiles.length
             ? `<div style="color:#0068ff; font-size:11px; font-weight:600; margin-bottom:4px; margin-top:${fbProfiles.length ? 10 : 2}px;">Zalo</div>` + zaloProfiles.map(renderProfileRow).join('')
-            : '';
-        }
-
-        // By group — split FB vs Zalo
-        const groups = stats.byGroup || [];
-        const fbGroups = groups.filter(g => g.platform !== 'zalo');
-        const zaloGroups = groups.filter(g => g.platform === 'zalo');
-        const renderGroupRow = g => `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f3f4f6;">
-          <span>${escapeHtml(g.group_name)}</span>
-          <span><strong>${g.total}</strong> bài · <span style="color:#16a34a">${g.success_count}</span> / <span style="color:#dc2626">${g.fail_count}</span></span>
-        </div>`;
-        const fbRowsEl = document.getElementById('statByGroupFbRows');
-        const zaloRowsEl = document.getElementById('statByGroupZaloRows');
-        if (fbRowsEl) {
-          fbRowsEl.innerHTML = fbGroups.length
-            ? `<div style="color:#1877f2; font-size:11px; font-weight:600; margin-bottom:4px; margin-top:2px;">Facebook</div>` + fbGroups.map(renderGroupRow).join('')
-            : (!groups.length ? '<div style="color:#999; padding:4px 0; font-size:12px;">Chưa có dữ liệu</div>' : '');
-        }
-        if (zaloRowsEl) {
-          zaloRowsEl.innerHTML = zaloGroups.length
-            ? `<div style="color:#0068ff; font-size:11px; font-weight:600; margin-bottom:4px; margin-top:${fbGroups.length ? 10 : 2}px;">Zalo</div>` + zaloGroups.map(renderGroupRow).join('')
             : '';
         }
 
