@@ -706,8 +706,9 @@ app.get('/api/statistics/by-profile', (req, res) => {
 
 app.get('/api/statistics/daily-by-profile', (req, res) => {
   try {
+    const { from, to } = req.query;
     const days = Math.min(parseInt(req.query.days) || 30, 90);
-    const rows = postLogger.getDailyByProfile({ days });
+    const rows = postLogger.getDailyByProfile({ days, from, to });
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });

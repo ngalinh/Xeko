@@ -2421,9 +2421,13 @@
       <!-- Chart: bài đăng theo ngày / tài khoản -->
       <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:20px; margin-bottom:16px;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
-          <div style="font-weight:600; font-size:14px; color:#1e1e2e;">📊 Bài đăng theo ngày</div>
-          <div style="display:flex; gap:8px; align-items:center;">
-            <select id="chartDays" onchange="loadDashChart()" style="padding:6px 10px; border:1px solid #ddd; border-radius:7px; font-size:12px; color:#555;">
+          <div style="font-weight:600; font-size:14px; color:#1e1e2e;">Theo ngày</div>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <input type="date" id="chartFrom" onchange="loadDashChart()" style="padding:5px 8px; border:1px solid #ddd; border-radius:7px; font-size:12px; color:#555;">
+            <span style="font-size:12px; color:#999;">—</span>
+            <input type="date" id="chartTo" onchange="loadDashChart()" style="padding:5px 8px; border:1px solid #ddd; border-radius:7px; font-size:12px; color:#555;">
+            <select id="chartDays" onchange="_chartDaysPreset()" style="padding:5px 8px; border:1px solid #ddd; border-radius:7px; font-size:12px; color:#555;">
+              <option value="">Tùy chọn</option>
               <option value="7">7 ngày</option>
               <option value="14">14 ngày</option>
               <option value="30" selected>30 ngày</option>
@@ -5353,10 +5357,6 @@
       const zaloStatMap = {};
       zaloStats.forEach(p => { zaloStatMap[p.profile] = p; });
       const claimedZalo = new Set();
-      const renderBar = (rate) => {
-        const c = rate >= 80 ? '#16a34a' : rate >= 50 ? '#f59e0b' : '#dc2626';
-        return `<div style="height:3px; background:#eee; border-radius:3px; overflow:hidden; margin-top:5px;"><div style="height:100%; width:${rate}%; background:${c}; border-radius:3px;"></div></div>`;
-      };
       const renderPlatformRow = (p, label, badgeBg, badgeColor) => {
         const rate = p.total > 0 ? Math.round(p.success_count / p.total * 100) : 0;
         return `<div style="margin-top:8px;">
@@ -5372,7 +5372,6 @@
               <span style="color:#aaa;"> ${rate}%</span>
             </span>
           </div>
-          ${renderBar(rate)}
         </div>`;
       };
       const cards = [];
@@ -5454,10 +5453,31 @@
       loadDashChart();
     }
 
+    function _chartDaysPreset() {
+      const days = document.getElementById('chartDays')?.value;
+      if (!days) return;
+      const to = new Date();
+      const from = new Date();
+      from.setDate(from.getDate() - parseInt(days) + 1);
+      const fmt = d => d.toISOString().slice(0, 10);
+      document.getElementById('chartFrom').value = fmt(from);
+      document.getElementById('chartTo').value = fmt(to);
+      loadDashChart();
+    }
+
     async function loadDashChart() {
+      const from = document.getElementById('chartFrom')?.value;
+      const to = document.getElementById('chartTo')?.value;
       const days = document.getElementById('chartDays')?.value || 30;
+      const params = new URLSearchParams();
+      if (from && to) {
+        params.set('from', from + 'T00:00:00.000Z');
+        params.set('to', to + 'T23:59:59.999Z');
+      } else {
+        params.set('days', days);
+      }
       try {
-        const rows = await fetch(BASE_URL + '/api/statistics/daily-by-profile?days=' + days).then(r => r.json());
+        const rows = await fetch(BASE_URL + '/api/statistics/daily-by-profile?' + params.toString()).then(r => r.json());
 
         // Build labels (dates) and datasets per profile
         const dateSet = new Set(rows.map(r => r.date));

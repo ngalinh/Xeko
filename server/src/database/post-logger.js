@@ -185,17 +185,24 @@ function getStatistics({ from, to } = {}) {
   return { summary, today, daily, byProfile, byGroup, byPlatform };
 }
 
-function getDailyByProfile({ days = 30 } = {}) {
+function getDailyByProfile({ days = 30, from, to } = {}) {
+  if (from || to) {
+    const params = {};
+    let where = '1=1';
+    if (from) { where += ' AND timestamp >= @from'; params.from = from; }
+    if (to) { where += ' AND timestamp <= @to'; params.to = to; }
+    return db.prepare(`
+      SELECT DATE(timestamp) as date, profile,
+        COALESCE(profile_name, profile) as profile_name, COUNT(*) as count
+      FROM post_logs WHERE ${where}
+      GROUP BY DATE(timestamp), profile ORDER BY date ASC
+    `).all(params);
+  }
   return db.prepare(`
-    SELECT
-      DATE(timestamp) as date,
-      profile,
-      COALESCE(profile_name, profile) as profile_name,
-      COUNT(*) as count
-    FROM post_logs
-    WHERE timestamp >= DATE('now', '-' || ? || ' days')
-    GROUP BY DATE(timestamp), profile
-    ORDER BY date ASC
+    SELECT DATE(timestamp) as date, profile,
+      COALESCE(profile_name, profile) as profile_name, COUNT(*) as count
+    FROM post_logs WHERE timestamp >= DATE('now', '-' || ? || ' days')
+    GROUP BY DATE(timestamp), profile ORDER BY date ASC
   `).all(days);
 }
 
