@@ -272,6 +272,11 @@
 
     /* === Multi-select filter component === */
     .msel { position:relative; display:inline-block; }
+    .dash-filter-bar { display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
+    .dash-filter-bar > .msel { flex:1; min-width:100px; }
+    .dash-filter-bar > .msel .msel-btn { width:100%; box-sizing:border-box; }
+    .dash-filter-bar > .dash-search-wrap { flex:1.2; min-width:120px; }
+    .dash-filter-bar > input[type=date] { flex:0 0 auto; }
     .msel-btn {
       display:flex; align-items:center; gap:6px; cursor:pointer;
       padding:8px 10px; border:1px solid #ddd; border-radius:8px;
@@ -2454,7 +2459,10 @@
       </div>
 
       <!-- Filter bar -->
-      <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
+      <div class="dash-filter-bar">
+        <!-- Ngày từ / đến (đầu tiên) -->
+        <input type="date" id="dashFilterFrom" style="padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+        <input type="date" id="dashFilterTo" style="padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
         <!-- Tài khoản -->
         <div class="msel" id="msel-profile" data-placeholder="Tất cả tài khoản">
           <div class="msel-btn" onclick="toggleMsel('msel-profile')">
@@ -2487,16 +2495,14 @@
             <label class="msel-option"><input type="checkbox" value="group" onchange="_mselChange('msel-target',this,'group')"><span>Group</span></label>
           </div>
         </div>
-        <!-- Nhóm (truncated, max-width) -->
-        <div class="msel" id="msel-group" data-placeholder="Tất cả nhóm" style="max-width:200px;">
-          <div class="msel-btn" onclick="toggleMsel('msel-group')" style="max-width:200px;">
-            <span class="msel-label" id="msel-group-label" style="max-width:150px;">Tất cả nhóm</span>
+        <!-- Nhóm -->
+        <div class="msel" id="msel-group" data-placeholder="Tất cả nhóm">
+          <div class="msel-btn" onclick="toggleMsel('msel-group')">
+            <span class="msel-label" id="msel-group-label">Tất cả nhóm</span>
             <span class="msel-arrow">▾</span>
           </div>
           <div class="msel-panel" id="msel-group-panel"></div>
         </div>
-        <!-- Tìm kiếm (moved here, after group) -->
-        <input type="text" id="dashFilterSearch" placeholder="🔍 Tìm kiếm..." onkeydown="if(event.key==='Enter')loadDashHistory()" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px; width:160px;">
         <!-- Trạng thái -->
         <div class="msel" id="msel-status" data-placeholder="Tất cả trạng thái">
           <div class="msel-btn" onclick="toggleMsel('msel-status')">
@@ -2511,8 +2517,11 @@
             <label class="msel-option"><input type="checkbox" value="running" onchange="_mselChange('msel-status',this,'running')"><span>Đang đăng</span></label>
           </div>
         </div>
-        <input type="date" id="dashFilterFrom" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-        <input type="date" id="dashFilterTo" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+        <!-- Tìm kiếm (sau Trạng thái) -->
+        <div class="dash-search-wrap" style="position:relative; display:inline-flex; align-items:center;">
+          <svg style="position:absolute; left:9px; color:#9ca3af; pointer-events:none;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="dashFilterSearch" placeholder="Tìm kiếm..." onkeydown="if(event.key==='Enter')loadDashHistory()" style="padding:8px 12px 8px 30px; border:1px solid #ddd; border-radius:8px; font-size:13px; width:100%; box-sizing:border-box;">
+        </div>
         <button onclick="loadDashboard()" style="padding:8px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:13px;">Lọc</button>
       </div>
 
