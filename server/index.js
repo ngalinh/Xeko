@@ -694,6 +694,16 @@ app.get('/api/statistics', (req, res) => {
   }
 });
 
+app.get('/api/statistics/by-profile', (req, res) => {
+  const { profile, platform, target, groupId, from, to } = req.query;
+  try {
+    const rows = postLogger.getByProfileStats({ profile, platform, target, groupId, from, to });
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/statistics/daily-by-profile', (req, res) => {
   try {
     const days = Math.min(parseInt(req.query.days) || 30, 90);
