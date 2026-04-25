@@ -1815,6 +1815,7 @@
 
       <!-- Filter bar -->
       <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
+        <input type="text" id="dashFilterSearch" placeholder="🔍 Tìm kiếm nội dung..." onkeydown="if(event.key==='Enter')loadDashHistory()" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px; min-width:180px;">
         <select id="dashFilterProfile" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
           <option value="">Tất cả tài khoản</option>
         </select>
@@ -4657,6 +4658,7 @@
       const success = document.getElementById('dashFilterStatus').value;
       const from = document.getElementById('dashFilterFrom').value;
       const to = document.getElementById('dashFilterTo').value;
+      const search = (document.getElementById('dashFilterSearch')?.value || '').trim().toLowerCase();
 
       const params = new URLSearchParams();
       if (profile) params.set('profile', profile);
@@ -4761,7 +4763,16 @@
         }).join('');
 
         // Khi filter pending/running: chỉ hiện lịch chờ, ẩn history
-        const histRows = isSchedFilter ? [] : (data.rows || []);
+        let histRows = isSchedFilter ? [] : (data.rows || []);
+        // Lọc client-side theo từ khóa tìm kiếm
+        if (search) {
+          histRows = histRows.filter(r => {
+            const msg = (r.message || '').toLowerCase();
+            const grp = (r.group_name || r.group_id || '').toLowerCase();
+            const acc = (r.profile_name || r.profile || '').toLowerCase();
+            return msg.includes(search) || grp.includes(search) || acc.includes(search);
+          });
+        }
         const activeRepostHtml = isSchedFilter ? '' : repostHtml;
 
         if (histRows.length > 0) {
