@@ -1809,7 +1809,7 @@
       <!-- Chart: bài đăng theo ngày / tài khoản -->
       <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:20px; margin-bottom:16px;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
-          <div style="font-weight:600; font-size:14px; color:#1e1e2e;">📊 Bài đăng theo ngày</div>
+          <div style="font-weight:600; font-size:14px; color:#1e1e2e;">Theo ngày</div>
           <div style="display:flex; gap:8px; align-items:center;">
             <select id="chartDays" onchange="loadDashChart()" style="padding:6px 10px; border:1px solid #ddd; border-radius:7px; font-size:12px; color:#555;">
               <option value="7">7 ngày</option>
@@ -4656,10 +4656,6 @@
       const zaloStatMap = {};
       zaloStats.forEach(p => { zaloStatMap[p.profile] = p; });
       const claimedZalo = new Set();
-      const renderBar = (rate) => {
-        const c = rate >= 80 ? '#16a34a' : rate >= 50 ? '#f59e0b' : '#dc2626';
-        return `<div style="height:3px; background:#eee; border-radius:3px; overflow:hidden; margin-top:5px;"><div style="height:100%; width:${rate}%; background:${c}; border-radius:3px;"></div></div>`;
-      };
       const renderPlatformRow = (p, label, badgeBg, badgeColor) => {
         const rate = p.total > 0 ? Math.round(p.success_count / p.total * 100) : 0;
         return `<div style="margin-top:8px;">
@@ -4675,7 +4671,6 @@
               <span style="color:#aaa;"> ${rate}%</span>
             </span>
           </div>
-          ${renderBar(rate)}
         </div>`;
       };
       const cards = [];
