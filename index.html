@@ -1891,9 +1891,33 @@
 
     /* Strong-accent surfaces (was xk-ink black) → deep violet */
     .sidebar {
-      background: var(--xk-surface-violet) !important;
-      box-shadow: 0 12px 40px rgba(59, 13, 122, 0.22) !important;
+      background: linear-gradient(180deg, #a78bfa 0%, #8b5cf6 100%) !important;
+      box-shadow: 0 12px 40px rgba(124, 58, 237, 0.18) !important;
     }
+    /* Sidebar text/labels — bump contrast against lighter violet bg */
+    .sidebar-section { color: rgba(255, 255, 255, 0.65) !important; }
+    .sidebar-item { color: rgba(255, 255, 255, 0.88) !important; }
+    .sidebar-item:hover {
+      background: rgba(255, 255, 255, 0.14) !important;
+      color: #fff !important;
+    }
+    /* Active pill: darker violet so it pops on the lighter gradient */
+    .sidebar-item.active {
+      background: var(--xk-primary-d) !important;
+      box-shadow: 0 6px 18px rgba(109, 40, 217, 0.45) !important;
+      color: #fff !important;
+    }
+    .sidebar-item .icon {
+      background: rgba(255, 255, 255, 0.18) !important;
+      color: #fff !important;
+    }
+    .sidebar-item.active .icon { background: rgba(255, 255, 255, 0.28) !important; }
+    .sidebar-item .badge {
+      background: rgba(255, 255, 255, 0.22) !important;
+      color: #fff !important;
+    }
+    .sidebar-footer { border-top-color: rgba(255, 255, 255, 0.18) !important; }
+    .sidebar-footer .footer-text { color: rgba(255, 255, 255, 0.78) !important; }
     .msg.user {
       background: var(--xk-primary) !important;
       box-shadow: 0 8px 22px var(--xk-primary-shadow) !important;
@@ -1917,10 +1941,6 @@
     }
 
     /* Indigo CTA (#4f46e5) → vibrant violet */
-    .sidebar-item.active {
-      background: var(--xk-primary) !important;
-      box-shadow: 0 6px 16px rgba(124, 58, 237, 0.45) !important;
-    }
     .btn-send {
       background: var(--xk-primary) !important;
       box-shadow: 0 8px 22px var(--xk-primary-shadow) !important;
