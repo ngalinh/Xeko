@@ -1809,10 +1809,7 @@
       <!-- Stats by Profile -->
       <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px; margin-bottom:24px;">
         <div style="font-weight:600; margin-bottom:12px; font-size:14px;">Theo tài khoản</div>
-        <div id="statByProfile" style="font-size:13px; display:grid; grid-template-columns:1fr 1fr; gap:0 24px;">
-          <div id="statByProfileFbRows"></div>
-          <div id="statByProfileZaloRows"></div>
-        </div>
+        <div id="statByProfile" style="font-size:13px;"></div>
       </div>
 
       <!-- Chart: bài đăng theo ngày / tài khoản -->
@@ -4662,28 +4659,40 @@
         document.getElementById('statFail').textContent = stats.today?.fail_count || 0;
         document.getElementById('statTotal').textContent = stats.summary?.total || 0;
 
-        // By profile — split FB vs Zalo
+        // By profile — single flat list with platform badge + progress bar
         const allProfiles = stats.byProfile || [];
-        const fbProfiles = allProfiles.filter(p => p.platform !== 'zalo');
-        const zaloProfiles = allProfiles.filter(p => p.platform === 'zalo');
-        const renderProfileRow = p => {
-          const rate = p.total > 0 ? Math.round(p.success_count / p.total * 100) : 0;
-          return `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f3f4f6;">
-            <span>${escapeHtml(p.profile_name || p.profile)}</span>
-            <span><strong>${p.total}</strong> bài · <span style="color:#16a34a">${p.success_count}</span> / <span style="color:#dc2626">${p.fail_count}</span> · ${rate}%</span>
-          </div>`;
-        };
-        const profileFbEl = document.getElementById('statByProfileFbRows');
-        const profileZaloEl = document.getElementById('statByProfileZaloRows');
-        if (profileFbEl) {
-          profileFbEl.innerHTML = fbProfiles.length
-            ? `<div style="color:#1877f2; font-size:11px; font-weight:600; margin-bottom:4px; margin-top:2px;">Facebook</div>` + fbProfiles.map(renderProfileRow).join('')
-            : (!allProfiles.length ? '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>' : '');
-        }
-        if (profileZaloEl) {
-          profileZaloEl.innerHTML = zaloProfiles.length
-            ? `<div style="color:#0068ff; font-size:11px; font-weight:600; margin-bottom:4px; margin-top:${fbProfiles.length ? 10 : 2}px;">Zalo</div>` + zaloProfiles.map(renderProfileRow).join('')
-            : '';
+        const profileEl = document.getElementById('statByProfile');
+        if (profileEl) {
+          if (!allProfiles.length) {
+            profileEl.innerHTML = '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>';
+          } else {
+            profileEl.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px;">` +
+              allProfiles.map(p => {
+                const rate = p.total > 0 ? Math.round(p.success_count / p.total * 100) : 0;
+                const isZalo = p.platform === 'zalo';
+                const badgeColor = isZalo ? '#0068ff' : '#1877f2';
+                const badgeBg = isZalo ? '#e8f0ff' : '#e8f0fe';
+                const barColor = rate >= 80 ? '#16a34a' : rate >= 50 ? '#f59e0b' : '#dc2626';
+                return `<div style="background:#fafafa; border:1px solid #f0f0f0; border-radius:10px; padding:12px 14px;">
+                  <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                    <span style="font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px; background:${badgeBg}; color:${badgeColor}; flex-shrink:0;">${isZalo ? 'Zalo' : 'FB'}</span>
+                    <span style="font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(p.profile_name || p.profile)}">${escapeHtml(p.profile_name || p.profile)}</span>
+                  </div>
+                  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                    <span style="font-size:12px; color:#666;"><strong style="color:#111; font-size:15px;">${p.total}</strong> bài</span>
+                    <span style="font-size:12px;">
+                      <span style="color:#16a34a;">✓ ${p.success_count}</span>
+                      <span style="color:#ccc; margin:0 3px;">·</span>
+                      <span style="color:#dc2626;">✗ ${p.fail_count}</span>
+                      <span style="color:#888; margin-left:6px;">${rate}%</span>
+                    </span>
+                  </div>
+                  <div style="height:4px; background:#eee; border-radius:4px; overflow:hidden;">
+                    <div style="height:100%; width:${rate}%; background:${barColor}; border-radius:4px; transition:width .4s;"></div>
+                  </div>
+                </div>`;
+              }).join('') + `</div>`;
+          }
         }
 
         // Populate profile multi-select (deduplicate by profile key)
