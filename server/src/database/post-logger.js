@@ -221,4 +221,44 @@ function deleteByFilter({ profile, success, from, to } = {}) {
   return db.prepare(sql).run(params);
 }
 
-module.exports = { logPost, getPostHistory, getStatistics, getDailyByProfile, deleteById, deleteByIds, deleteByFilter };
+function getByProfileStats({ profile, platform, target, groupId, from, to } = {}) {
+  let sql = `SELECT profile, profile_name, platform,
+    COUNT(*) as total,
+    SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
+    SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as fail_count
+    FROM post_logs WHERE 1=1`;
+  const params = {};
+
+  if (profile) {
+    const vals = String(profile).split(',').map(s => s.trim()).filter(Boolean);
+    if (vals.length === 1) { sql += ' AND profile = @profile'; params.profile = vals[0]; }
+    else if (vals.length > 1) { vals.forEach((v, i) => { params[`profile${i}`] = v; }); sql += ` AND profile IN (${vals.map((_, i) => `@profile${i}`).join(',')})`; }
+  }
+  if (platform) {
+    const vals = String(platform).split(',').map(s => s.trim()).filter(Boolean);
+    if (vals.length === 1) { sql += ' AND platform = @platform'; params.platform = vals[0]; }
+    else if (vals.length > 1) { vals.forEach((v, i) => { params[`platform${i}`] = v; }); sql += ` AND platform IN (${vals.map((_, i) => `@platform${i}`).join(',')})`; }
+  }
+  if (target) {
+    const vals = String(target).split(',').map(s => s.trim()).filter(s => s === 'personal' || s === 'group');
+    if (vals.length === 1) { sql += ' AND target = @target'; params.target = vals[0]; }
+    else if (vals.length > 1) { sql += ' AND target IN (@targetA,@targetB)'; params.targetA = 'personal'; params.targetB = 'group'; }
+  }
+  if (groupId) {
+    const vals = String(groupId).split(',').map(s => s.trim()).filter(Boolean);
+    if (vals.length === 1) {
+      sql += ' AND (group_id = @groupId OR group_name = @groupId)';
+      params.groupId = vals[0];
+    } else if (vals.length > 1) {
+      const clauses = vals.map((v, i) => { params[`gid${i}`] = v; return `(group_id = @gid${i} OR group_name = @gid${i})`; });
+      sql += ` AND (${clauses.join(' OR ')})`;
+    }
+  }
+  if (from) { sql += ' AND timestamp >= @from'; params.from = from; }
+  if (to) { sql += ' AND timestamp <= @to'; params.to = to; }
+
+  sql += ' GROUP BY profile, platform ORDER BY total DESC';
+  return db.prepare(sql).all(params);
+}
+
+module.exports = { logPost, getPostHistory, getStatistics, getDailyByProfile, getByProfileStats, deleteById, deleteByIds, deleteByFilter };
