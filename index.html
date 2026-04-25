@@ -1873,6 +1873,185 @@
       color: #fff !important;
     }
     [data-theme="dark"] .pc-btn-edit { background: rgba(255,255,255,0.06) !important; color: #fff !important; }
+
+    /* ================================================================
+       TOPNAV v3 — Violet horizontal top navigation (desktop only)
+       Replaces left sidebar on desktop ≥ 769px. Mobile keeps sidebar
+       drawer + bottom nav untouched.
+       ================================================================ */
+    .xk-topnav { display: none; }
+
+    @media (min-width: 769px) {
+      /* Violet primary for desktop, overrides glass v2 indigo */
+      :root {
+        --xk-primary: #7c3aed;
+        --xk-primary-2: #8b5cf6;
+        --xk-primary-d: #6d28d9;
+        --xk-primary-soft: rgba(124, 58, 237, 0.10);
+        --xk-primary-shadow: rgba(124, 58, 237, 0.32);
+      }
+
+      /* Hide sidebar on desktop, show topnav */
+      body { flex-direction: column !important; }
+      .sidebar { display: none !important; }
+
+      .xk-topnav {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 10px 22px;
+        height: 64px;
+        position: sticky; top: 0; z-index: 80;
+        background: var(--xk-glass-bg);
+        backdrop-filter: blur(22px) saturate(180%);
+        -webkit-backdrop-filter: blur(22px) saturate(180%);
+        border-bottom: 1px solid var(--xk-glass-edge);
+        box-shadow:
+          0 6px 22px rgba(15,15,26,0.06),
+          inset 0 1px 0 rgba(255,255,255,0.7);
+        flex-shrink: 0;
+      }
+
+      .xk-topnav-brand {
+        display: flex; align-items: center; gap: 10px;
+        min-width: 160px;
+      }
+      .xk-topnav-brand img { width: 32px; height: 32px; border-radius: 50%; }
+      .xk-topnav-brand span {
+        font-size: 18px; font-weight: 800; color: var(--xk-ink);
+        letter-spacing: -0.02em;
+      }
+
+      .xk-topnav-menu {
+        display: flex; align-items: center; gap: 4px;
+        flex: 1; justify-content: center;
+      }
+
+      .xk-topnav-item {
+        position: relative;
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 9px 16px; border-radius: 12px;
+        border: none; background: none; cursor: pointer;
+        font-size: 14px; font-weight: 500; color: #6b6790;
+        transition: background 0.18s, color 0.18s, box-shadow 0.18s, transform 0.12s;
+        white-space: nowrap;
+      }
+      .xk-topnav-item:hover {
+        background: var(--xk-primary-soft);
+        color: var(--xk-primary);
+      }
+      .xk-topnav-item.active {
+        background: var(--xk-primary);
+        color: #fff;
+        box-shadow: 0 8px 20px var(--xk-primary-shadow);
+      }
+      .xk-topnav-item:active { transform: translateY(1px); }
+      .xk-topnav-item .xi { width: 17px; height: 17px; }
+      .xk-topnav-item .xk-badge {
+        background: #ffd2a4; color: #7a3e06;
+        font-size: 10px; font-weight: 700;
+        padding: 2px 7px; border-radius: 10px;
+        margin-left: 2px;
+      }
+      .xk-topnav-item.active .xk-badge {
+        background: rgba(255,255,255,0.28); color: #fff;
+      }
+
+      .xk-topnav-actions {
+        display: flex; align-items: center; gap: 8px;
+        min-width: 160px; justify-content: flex-end;
+      }
+      .xk-topnav-icon {
+        width: 38px; height: 38px;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: rgba(255,255,255,0.7);
+        border: 1px solid var(--xk-glass-edge);
+        color: var(--xk-ink); border-radius: 10px; cursor: pointer;
+        transition: background 0.18s, color 0.18s, border-color 0.18s;
+      }
+      .xk-topnav-icon:hover {
+        background: var(--xk-primary);
+        color: #fff;
+        border-color: var(--xk-primary);
+      }
+      .xk-topnav-restart {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 8px 14px; border-radius: 10px;
+        background: #fff3cd; color: #856404;
+        border: 1px solid #ffe08a;
+        font-size: 13px; font-weight: 600; cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.18s;
+      }
+      .xk-topnav-restart:hover { background: #ffeaa0; }
+      .xk-topnav-restart .xi { width: 15px; height: 15px; color: #856404; }
+
+      /* Main content sits under the sticky topnav; keep body column */
+      .main-content {
+        height: calc(100vh - 64px) !important;
+      }
+
+      /* Re-theme remaining indigo accents → violet on desktop */
+      .msg.user {
+        background: var(--xk-primary) !important;
+        box-shadow: 0 8px 22px var(--xk-primary-shadow) !important;
+      }
+      .msg .link { color: var(--xk-primary) !important; }
+      .msg-btn:hover {
+        background: var(--xk-primary) !important;
+        color: #fff !important;
+      }
+      .btn-send {
+        background: var(--xk-primary) !important;
+        box-shadow: 0 8px 22px var(--xk-primary-shadow) !important;
+      }
+      .btn-send:hover { background: var(--xk-primary-d) !important; }
+      .input-area input[type="text"]:focus,
+      .input-area #msgInput:focus {
+        border-color: var(--xk-primary) !important;
+        box-shadow: 0 0 0 3px rgba(124,58,237,0.15) !important;
+      }
+      .acc-tab.active {
+        background: var(--xk-primary) !important;
+        box-shadow: 0 4px 12px var(--xk-primary-shadow) !important;
+      }
+      .pc-btn-login {
+        background: rgba(124,58,237,0.10) !important;
+        border-color: rgba(124,58,237,0.22) !important;
+        color: var(--xk-primary) !important;
+      }
+      .channel-platform-toggle.checked {
+        background: var(--xk-primary) !important;
+        box-shadow: 0 6px 16px var(--xk-primary-shadow) !important;
+      }
+      button[style*="background:#4f46e5"],
+      button[style*="background: #4f46e5"] {
+        background: var(--xk-primary) !important;
+        box-shadow: 0 6px 16px var(--xk-primary-shadow) !important;
+      }
+      /* Profile card avatar: violet accent instead of ink-black */
+      .profile-card .avatar {
+        background: var(--xk-primary) !important;
+      }
+      /* Header emoji tile switches to violet as brand accent */
+      .header-emoji {
+        background: var(--xk-primary-soft) !important;
+        color: var(--xk-primary) !important;
+      }
+    }
+
+    [data-theme="dark"] .xk-topnav {
+      background: rgba(20,20,40,0.55);
+      border-bottom-color: rgba(255,255,255,0.08);
+    }
+    [data-theme="dark"] .xk-topnav-brand span { color: #fff; }
+    [data-theme="dark"] .xk-topnav-item { color: #a0a0c8; }
+    [data-theme="dark"] .xk-topnav-item:hover { background: rgba(124,58,237,0.22); color: #c4b5fd; }
+    [data-theme="dark"] .xk-topnav-icon {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.08);
+      color: #fff;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
@@ -2026,6 +2205,34 @@
       </button>
     </div>
   </div>
+
+  <!-- Topnav v3 (desktop only; hidden on mobile via CSS) -->
+  <nav class="xk-topnav" id="xkTopnav" aria-label="Main navigation">
+    <div class="xk-topnav-brand">
+      <img src="https://raw.githubusercontent.com/ngalinh/Xeko/main/xeko-avatar.png" alt="Xeko">
+      <span>Xeko</span>
+    </div>
+    <div class="xk-topnav-menu">
+      <button class="xk-topnav-item" data-nav="dashboard" onclick="switchPage('dashboard')">
+        <svg class="xi"><use href="#ic-dash"/></svg> Dashboard
+      </button>
+      <button class="xk-topnav-item active" data-nav="post" onclick="switchPage('post')">
+        <svg class="xi"><use href="#ic-post"/></svg> Đăng bài
+      </button>
+      <button class="xk-topnav-item" data-nav="session" onclick="switchPage('session')">
+        <svg class="xi"><use href="#ic-users"/></svg> Quản lý tài khoản
+      </button>
+      <button class="xk-topnav-item" data-nav="spy" onclick="switchPage('spy')">
+        <svg class="xi"><use href="#ic-search"/></svg> Spy
+        <span class="xk-badge">Soon</span>
+      </button>
+    </div>
+    <div class="xk-topnav-actions">
+      <button class="xk-topnav-restart" onclick="restartLocalServer()" title="Khởi động lại local server">
+        <svg class="xi"><use href="#ic-refresh"/></svg> Restart
+      </button>
+    </div>
+  </nav>
 
   <!-- Main content -->
   <div class="main-content">
@@ -3818,6 +4025,7 @@
     function switchPage(pg) {
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.xk-topnav-item').forEach(b => b.classList.remove('active'));
 
       const pageMap = {
         home: { page: 'pageMobileHome', nav: null },
@@ -3834,6 +4042,11 @@
         document.getElementById(target.page).classList.add('active');
         if (target.nav) document.getElementById(target.nav).classList.add('active');
       }
+
+      // Sync topnav active state (desktop only, dataset-based)
+      const topNavKey = pg === 'calendar' ? 'dashboard' : pg;
+      const topBtn = document.querySelector(`.xk-topnav-item[data-nav="${topNavKey}"]`);
+      if (topBtn) topBtn.classList.add('active');
 
       if (pg === 'dashboard') {
         loadDashboard();
