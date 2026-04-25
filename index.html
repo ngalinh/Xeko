@@ -1560,12 +1560,15 @@
         inset 0 1px 0 rgba(255,255,255,0.7);
     }
 
-    /* Backdrop: pastel violet/lavender (đồng tông cùng brand) */
+    /* Backdrop: pastel violet/lavender (đồng tông cùng brand).
+       Top khởi đầu bằng #ffffff để blend với iOS status bar (default style),
+       transition vào pastel violet sau ~80px. Blob violet shift xuống tránh
+       đụng status bar area. */
     body {
       background:
-        radial-gradient(36rem 28rem at 100% 0%, rgba(196, 181, 253, 0.45) 0%, transparent 55%),
+        radial-gradient(36rem 28rem at 100% 12%, rgba(196, 181, 253, 0.45) 0%, transparent 55%),
         radial-gradient(34rem 26rem at 0% 100%, rgba(167, 139, 250, 0.32) 0%, transparent 55%),
-        linear-gradient(180deg, #f5f0ff 0%, #faf7ff 100%) !important;
+        linear-gradient(180deg, #ffffff 0%, #faf7ff 12%, #f5f0ff 100%) !important;
     }
     .main-content { background: transparent !important; }
     .chat-area { background: transparent !important; }
