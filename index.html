@@ -4659,39 +4659,78 @@
         document.getElementById('statFail').textContent = stats.today?.fail_count || 0;
         document.getElementById('statTotal').textContent = stats.summary?.total || 0;
 
-        // By profile — single flat list with platform badge + progress bar
+        // By profile — grouped by person (FB + Zalo cùng người trong 1 card)
         const allProfiles = stats.byProfile || [];
         const profileEl = document.getElementById('statByProfile');
         if (profileEl) {
           if (!allProfiles.length) {
             profileEl.innerHTML = '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>';
           } else {
-            profileEl.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px;">` +
-              allProfiles.map(p => {
-                const rate = p.total > 0 ? Math.round(p.success_count / p.total * 100) : 0;
-                const isZalo = p.platform === 'zalo';
-                const badgeColor = isZalo ? '#0068ff' : '#1877f2';
-                const badgeBg = isZalo ? '#e8f0ff' : '#e8f0fe';
-                const barColor = rate >= 80 ? '#16a34a' : rate >= 50 ? '#f59e0b' : '#dc2626';
-                return `<div style="background:#fafafa; border:1px solid #f0f0f0; border-radius:10px; padding:12px 14px;">
-                  <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-                    <span style="font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px; background:${badgeBg}; color:${badgeColor}; flex-shrink:0;">${isZalo ? 'Zalo' : 'FB'}</span>
-                    <span style="font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(p.profile_name || p.profile)}">${escapeHtml(p.profile_name || p.profile)}</span>
+            // Build lookup maps from profileChannels
+            const pChs = channelsData.profileChannels || {};
+            const fbToZalo = {}; // fbProfileKey -> zaloAccountName
+            const zaloToFb = {}; // zaloAccountName -> fbProfileKey
+            Object.entries(pChs).forEach(([fbKey, cfg]) => {
+              if (cfg.zaloAccount) {
+                fbToZalo[fbKey] = cfg.zaloAccount;
+                zaloToFb[cfg.zaloAccount] = fbKey;
+              }
+            });
+
+            const fbStats = allProfiles.filter(p => p.platform !== 'zalo');
+            const zaloStats = allProfiles.filter(p => p.platform === 'zalo');
+            const zaloStatMap = {}; // zaloAccountName -> stat row
+            zaloStats.forEach(p => { zaloStatMap[p.profile] = p; });
+            const claimedZalo = new Set();
+
+            const renderBar = (rate) => {
+              const c = rate >= 80 ? '#16a34a' : rate >= 50 ? '#f59e0b' : '#dc2626';
+              return `<div style="height:3px; background:#eee; border-radius:3px; overflow:hidden; margin-top:5px;">
+                <div style="height:100%; width:${rate}%; background:${c}; border-radius:3px;"></div>
+              </div>`;
+            };
+            const renderPlatformRow = (p, label, badgeBg, badgeColor) => {
+              const rate = p.total > 0 ? Math.round(p.success_count / p.total * 100) : 0;
+              return `<div style="margin-top:8px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                  <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+                    <span style="font-size:10px; font-weight:700; padding:1px 6px; border-radius:20px; background:${badgeBg}; color:${badgeColor}; flex-shrink:0;">${label}</span>
+                    <span style="font-size:12px; color:#555; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(p.profile_name || p.profile)}</span>
                   </div>
-                  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-                    <span style="font-size:12px; color:#666;"><strong style="color:#111; font-size:15px;">${p.total}</strong> bài</span>
-                    <span style="font-size:12px;">
-                      <span style="color:#16a34a;">✓ ${p.success_count}</span>
-                      <span style="color:#ccc; margin:0 3px;">·</span>
-                      <span style="color:#dc2626;">✗ ${p.fail_count}</span>
-                      <span style="color:#888; margin-left:6px;">${rate}%</span>
-                    </span>
-                  </div>
-                  <div style="height:4px; background:#eee; border-radius:4px; overflow:hidden;">
-                    <div style="height:100%; width:${rate}%; background:${barColor}; border-radius:4px; transition:width .4s;"></div>
-                  </div>
-                </div>`;
-              }).join('') + `</div>`;
+                  <span style="font-size:12px; white-space:nowrap; flex-shrink:0;">
+                    <strong>${p.total}</strong>
+                    <span style="color:#16a34a; margin-left:4px;">✓${p.success_count}</span>
+                    <span style="color:#dc2626;"> ✗${p.fail_count}</span>
+                    <span style="color:#aaa;"> ${rate}%</span>
+                  </span>
+                </div>
+                ${renderBar(rate)}
+              </div>`;
+            };
+
+            // Build cards: one per FB profile (+ its Zalo), then leftover Zalo-only
+            const cards = [];
+            fbStats.forEach(fb => {
+              const zaloName = fbToZalo[fb.profile];
+              const zalo = zaloName ? zaloStatMap[zaloName] : null;
+              if (zalo) claimedZalo.add(zaloName);
+              const fbRow = renderPlatformRow(fb, 'FB', '#e8f0fe', '#1877f2');
+              const zaloRow = zalo ? renderPlatformRow(zalo, 'Zalo', '#e8f0ff', '#0068ff') : '';
+              const divider = zalo ? `<div style="height:1px; background:#f3f4f6; margin-top:8px;"></div>` : '';
+              cards.push(`<div style="background:#fafafa; border:1px solid #f0f0f0; border-radius:10px; padding:12px 14px;">
+                <div style="font-weight:600; font-size:13px; color:#1e1e2e; margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(fb.profile_name || fb.profile)}">${escapeHtml(fb.profile_name || fb.profile)}</div>
+                ${divider}${fbRow}${zaloRow}
+              </div>`);
+            });
+            // Zalo accounts not linked to any FB profile
+            zaloStats.filter(p => !claimedZalo.has(p.profile)).forEach(zalo => {
+              cards.push(`<div style="background:#fafafa; border:1px solid #f0f0f0; border-radius:10px; padding:12px 14px;">
+                <div style="font-weight:600; font-size:13px; color:#1e1e2e; margin-bottom:2px;">${escapeHtml(zalo.profile_name || zalo.profile)}</div>
+                ${renderPlatformRow(zalo, 'Zalo', '#e8f0ff', '#0068ff')}
+              </div>`);
+            });
+
+            profileEl.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px;">${cards.join('')}</div>`;
           }
         }
 
