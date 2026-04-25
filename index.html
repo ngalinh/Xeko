@@ -1540,6 +1540,339 @@
       [data-theme="dark"] .msg.bot { background: #1e1e3a; box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
       [data-theme="dark"] .msg-btn { background: #1e1e3a; border-color: #3a3a5a; color: #a78bfa; }
     }
+
+    /* ================================================================
+       GLASSMORPHISM v2 — Black sidebar + Indigo CTA + Glass cards
+       Override layer (loaded last, wins via !important + cascade order).
+       Reference: pricing-card style với card đen + indigo button.
+       ================================================================ */
+    :root {
+      --xk-ink: #0f0f1a;
+      --xk-ink-soft: #1a1a2e;
+      --xk-primary: #4f46e5;
+      --xk-primary-2: #6c63ff;
+      --xk-primary-d: #3a2fd0;
+      --xk-glass-bg: rgba(255,255,255,0.62);
+      --xk-glass-edge: rgba(255,255,255,0.7);
+      --xk-glass-shadow:
+        0 10px 36px rgba(15,15,26,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+
+    /* Backdrop: pink-peach + lavender mềm */
+    body {
+      background:
+        radial-gradient(36rem 28rem at 100% 0%, rgba(255,210,220,0.45) 0%, transparent 55%),
+        radial-gradient(34rem 26rem at 0% 100%, rgba(218,212,255,0.40) 0%, transparent 55%),
+        linear-gradient(180deg, #fbf9fc 0%, #ffffff 100%) !important;
+    }
+    .main-content { background: transparent !important; }
+    .chat-area { background: transparent !important; }
+
+    /* SIDEBAR — solid dark */
+    .sidebar {
+      background: var(--xk-ink) !important;
+      border-right: none !important;
+      box-shadow: 0 12px 40px rgba(15,15,26,0.18);
+    }
+    .sidebar-logo span { color: #fff !important; }
+    .sidebar-logo .edit-icon {
+      background: rgba(255,255,255,0.08) !important;
+      color: #fff !important;
+    }
+    .sidebar-logo .edit-icon:hover { background: rgba(255,255,255,0.16) !important; }
+    .sidebar-section { color: rgba(255,255,255,0.4) !important; }
+    .sidebar-item { color: rgba(255,255,255,0.72) !important; }
+    .sidebar-item:hover {
+      background: rgba(255,255,255,0.06) !important;
+      color: #fff !important;
+    }
+    .sidebar-item.active {
+      background: var(--xk-primary) !important;
+      color: #fff !important;
+      box-shadow: 0 6px 16px rgba(79,70,229,0.45);
+    }
+    .sidebar-item .icon {
+      background: rgba(255,255,255,0.10) !important;
+      color: #fff !important;
+      box-shadow: none !important;
+    }
+    .sidebar-item.active .icon {
+      background: rgba(255,255,255,0.20) !important;
+    }
+    .sidebar-item .badge {
+      background: rgba(255,255,255,0.14) !important;
+      color: #ffd2a4 !important;
+    }
+    .sidebar-footer {
+      border-top-color: rgba(255,255,255,0.10) !important;
+    }
+    .sidebar-footer .footer-text { color: rgba(255,255,255,0.5) !important; }
+
+    /* HEADER — glass */
+    .header {
+      background: var(--xk-glass-bg) !important;
+      backdrop-filter: blur(22px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(22px) saturate(180%) !important;
+      border: 1px solid var(--xk-glass-edge) !important;
+      border-bottom-color: var(--xk-glass-edge) !important;
+      border-radius: 18px;
+      box-shadow:
+        0 8px 28px rgba(15,15,26,0.06),
+        inset 0 1px 0 rgba(255,255,255,0.7);
+      margin: 12px 14px 0;
+      padding: 12px 18px;
+    }
+    .header-info h1 { color: var(--xk-ink) !important; }
+    .header-info span { color: #6b6790 !important; }
+    .header-emoji {
+      background: var(--xk-ink) !important;
+      color: #fff !important;
+      border-radius: 12px;
+    }
+    .theme-toggle {
+      background: rgba(255,255,255,0.7) !important;
+      border: 1px solid var(--xk-glass-edge);
+      color: var(--xk-ink) !important;
+      box-shadow: 0 4px 12px rgba(15,15,26,0.06) !important;
+    }
+    .theme-toggle:hover { background: rgba(255,255,255,0.9) !important; }
+    .mobile-hamburger {
+      background: rgba(255,255,255,0.7) !important;
+      color: var(--xk-ink) !important;
+      box-shadow: 0 4px 12px rgba(15,15,26,0.06) !important;
+    }
+
+    /* CHAT bubbles */
+    .msg.bot {
+      background: rgba(255,255,255,0.7) !important;
+      backdrop-filter: blur(14px) saturate(180%);
+      -webkit-backdrop-filter: blur(14px) saturate(180%);
+      border: 1px solid var(--xk-glass-edge) !important;
+      box-shadow: 0 4px 14px rgba(15,15,26,0.06) !important;
+    }
+    .msg.user {
+      background: var(--xk-ink) !important;
+      color: #fff !important;
+      box-shadow: 0 8px 22px rgba(15,15,26,0.20) !important;
+    }
+    .msg.user .link { color: #fff !important; }
+    .msg .link { color: var(--xk-primary) !important; }
+    .msg-btn {
+      background: rgba(255,255,255,0.7) !important;
+      border: 1px solid var(--xk-glass-edge) !important;
+      color: var(--xk-ink) !important;
+      box-shadow: 0 2px 8px rgba(15,15,26,0.05) !important;
+    }
+    .msg-btn:hover {
+      background: var(--xk-ink) !important;
+      color: #fff !important;
+      border-color: transparent !important;
+    }
+
+    /* INPUT area + send/attach */
+    .input-area {
+      background: rgba(255,255,255,0.55) !important;
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      border-top: 1px solid var(--xk-glass-edge) !important;
+    }
+    .input-area input[type="text"] {
+      background: rgba(255,255,255,0.9) !important;
+      border: 1px solid var(--xk-glass-edge) !important;
+    }
+    .input-area input[type="text"]:focus {
+      border-color: var(--xk-primary) !important;
+      box-shadow: 0 0 0 3px rgba(79,70,229,0.12) !important;
+    }
+    .btn-attach {
+      background: rgba(255,255,255,0.8) !important;
+      color: var(--xk-ink) !important;
+      border: 1px solid var(--xk-glass-edge);
+    }
+    .btn-attach:hover { background: rgba(255,255,255,1) !important; }
+    .btn-send {
+      background: var(--xk-primary) !important;
+      color: #fff !important;
+      box-shadow: 0 8px 22px rgba(79,70,229,0.32) !important;
+    }
+    .btn-send:hover { background: var(--xk-primary-d) !important; }
+    .btn-send:disabled {
+      background: rgba(15,15,26,0.18) !important;
+      box-shadow: none !important;
+    }
+
+    /* PROFILE cards & panels */
+    .profile-card {
+      background: var(--xk-glass-bg) !important;
+      backdrop-filter: blur(18px) saturate(180%);
+      -webkit-backdrop-filter: blur(18px) saturate(180%);
+      border: 1px solid var(--xk-glass-edge) !important;
+      box-shadow:
+        0 6px 20px rgba(15,15,26,0.06),
+        inset 0 1px 0 rgba(255,255,255,0.6) !important;
+    }
+    .profile-card:hover {
+      box-shadow:
+        0 10px 28px rgba(15,15,26,0.12),
+        inset 0 1px 0 rgba(255,255,255,0.6) !important;
+    }
+    .profile-card .avatar {
+      background: var(--xk-ink) !important;
+      color: #fff !important;
+      border-radius: 12px;
+    }
+    .profile-card .info .name { color: var(--xk-ink) !important; }
+
+    .pc-btn-edit  {
+      background: rgba(255,255,255,0.7) !important;
+      border-color: var(--xk-glass-edge) !important;
+      color: var(--xk-ink) !important;
+    }
+    .pc-btn-login {
+      background: rgba(79,70,229,0.10) !important;
+      border-color: rgba(79,70,229,0.20) !important;
+      color: var(--xk-primary) !important;
+    }
+    .pc-btn-login.pc-btn-zalo {
+      background: rgba(0,104,255,0.10) !important;
+      border-color: rgba(0,104,255,0.20) !important;
+      color: #0068ff !important;
+    }
+    .pc-btn-del {
+      background: rgba(220,38,38,0.08) !important;
+      border-color: rgba(220,38,38,0.18) !important;
+      color: #c1331f !important;
+    }
+
+    /* ACCOUNT TAB BAR */
+    .acc-tab-bar {
+      background: rgba(255,255,255,0.55) !important;
+      backdrop-filter: blur(14px) saturate(180%);
+      -webkit-backdrop-filter: blur(14px) saturate(180%);
+      border: 1px solid var(--xk-glass-edge);
+      border-radius: 14px;
+      box-shadow: 0 4px 14px rgba(15,15,26,0.05);
+    }
+    .acc-tab { color: #6b6790 !important; }
+    .acc-tab:hover { background: rgba(255,255,255,0.5); color: var(--xk-ink) !important; }
+    .acc-tab.active {
+      background: var(--xk-primary) !important;
+      color: #fff !important;
+      box-shadow: 0 4px 12px rgba(79,70,229,0.28) !important;
+      border-bottom-color: transparent !important;
+    }
+
+    /* PANEL CARDS (channels, groups) */
+    #panelChannels > div[style*="background:#fff"] {
+      background: var(--xk-glass-bg) !important;
+      backdrop-filter: blur(18px) saturate(180%);
+      -webkit-backdrop-filter: blur(18px) saturate(180%);
+      border: 1px solid var(--xk-glass-edge) !important;
+      box-shadow:
+        0 6px 20px rgba(15,15,26,0.06),
+        inset 0 1px 0 rgba(255,255,255,0.6) !important;
+    }
+    #panelChannels input[type="text"] {
+      background: rgba(255,255,255,0.7) !important;
+      border-color: var(--xk-glass-edge) !important;
+    }
+
+    /* PRIMARY BUTTONS (any inline #4f46e5) → solid indigo with shadow */
+    button[style*="background:#4f46e5"],
+    button[style*="background: #4f46e5"] {
+      background: var(--xk-primary) !important;
+      box-shadow: 0 6px 16px rgba(79,70,229,0.28) !important;
+      border-radius: 10px !important;
+    }
+
+    /* CHANNEL platform toggle checked = solid black instead of indigo */
+    .channel-platform-toggle.checked {
+      background: var(--xk-ink) !important;
+      border-color: transparent !important;
+      color: #fff !important;
+      box-shadow: 0 6px 16px rgba(15,15,26,0.18) !important;
+    }
+
+    /* DASHBOARD tiles: glass */
+    #pageDashboard div[style*="background:#fff"],
+    #pageDashboard div[style*="background:#f0fdf4"],
+    #pageDashboard div[style*="background:#eff6ff"],
+    #pageDashboard div[style*="background:#fef2f2"],
+    #pageDashboard div[style*="background:#fdf4ff"] {
+      background: var(--xk-glass-bg) !important;
+      backdrop-filter: blur(18px) saturate(180%);
+      -webkit-backdrop-filter: blur(18px) saturate(180%);
+      border: 1px solid var(--xk-glass-edge) !important;
+      box-shadow:
+        0 6px 20px rgba(15,15,26,0.06),
+        inset 0 1px 0 rgba(255,255,255,0.6) !important;
+    }
+
+    /* Mobile home page: bỏ tone tím active, dùng indigo */
+    #pageMobileHome.active { background: transparent !important; }
+    .mhome-back-btn {
+      background: var(--xk-ink) !important;
+      color: #fff !important;
+      box-shadow: 0 4px 12px rgba(15,15,26,0.18) !important;
+    }
+    .mhome-foot-btn {
+      background: rgba(255,255,255,0.7) !important;
+      color: var(--xk-ink) !important;
+      box-shadow: var(--xk-glass-shadow) !important;
+    }
+    .mhome-avatar {
+      background: var(--xk-ink) !important;
+      box-shadow: 0 8px 20px rgba(15,15,26,0.20) !important;
+    }
+    .mhome-title { color: var(--xk-ink) !important; }
+    .mhome-hello { color: #6b6790 !important; }
+
+    /* Image preview */
+    .image-preview {
+      background: rgba(255,255,255,0.7) !important;
+      border-top-color: var(--xk-glass-edge) !important;
+      backdrop-filter: blur(14px) saturate(180%);
+      -webkit-backdrop-filter: blur(14px) saturate(180%);
+    }
+
+    /* PWA install FAB */
+    .pwa-install-btn {
+      background: var(--xk-ink) !important;
+      box-shadow: 0 10px 24px rgba(15,15,26,0.30) !important;
+    }
+
+    /* DARK mode adjustments — giữ tinh thần glass đen */
+    [data-theme="dark"] body {
+      background:
+        radial-gradient(36rem 28rem at 100% 0%, rgba(80,60,140,0.30) 0%, transparent 55%),
+        radial-gradient(34rem 26rem at 0% 100%, rgba(40,30,80,0.30) 0%, transparent 55%),
+        linear-gradient(180deg, #0a0a16 0%, #13132a 100%) !important;
+    }
+    [data-theme="dark"] .header {
+      background: rgba(20,20,40,0.55) !important;
+      border-color: rgba(255,255,255,0.08) !important;
+    }
+    [data-theme="dark"] .input-area {
+      background: rgba(20,20,40,0.55) !important;
+      border-top-color: rgba(255,255,255,0.06) !important;
+    }
+    [data-theme="dark"] .profile-card {
+      background: rgba(30,30,58,0.55) !important;
+      border-color: rgba(255,255,255,0.08) !important;
+    }
+    [data-theme="dark"] .acc-tab-bar { background: rgba(20,20,40,0.55) !important; }
+    [data-theme="dark"] .msg.bot {
+      background: rgba(30,30,58,0.7) !important;
+      border-color: rgba(255,255,255,0.08) !important;
+    }
+    [data-theme="dark"] .msg.user { background: var(--xk-primary) !important; }
+    [data-theme="dark"] .msg-btn {
+      background: rgba(30,30,58,0.7) !important;
+      border-color: rgba(255,255,255,0.10) !important;
+      color: #fff !important;
+    }
+    [data-theme="dark"] .pc-btn-edit { background: rgba(255,255,255,0.06) !important; color: #fff !important; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
