@@ -1560,12 +1560,15 @@
         inset 0 1px 0 rgba(255,255,255,0.7);
     }
 
-    /* Backdrop: pastel violet/lavender (đồng tông cùng brand) */
+    /* Backdrop: pastel violet/lavender (đồng tông cùng brand).
+       Top khởi đầu bằng #ffffff để blend với iOS status bar (default style),
+       transition vào pastel violet sau ~80px. Blob violet shift xuống tránh
+       đụng status bar area. */
     body {
       background:
-        radial-gradient(36rem 28rem at 100% 0%, rgba(196, 181, 253, 0.45) 0%, transparent 55%),
+        radial-gradient(36rem 28rem at 100% 12%, rgba(196, 181, 253, 0.45) 0%, transparent 55%),
         radial-gradient(34rem 26rem at 0% 100%, rgba(167, 139, 250, 0.32) 0%, transparent 55%),
-        linear-gradient(180deg, #f5f0ff 0%, #faf7ff 100%) !important;
+        linear-gradient(180deg, #ffffff 0%, #faf7ff 12%, #f5f0ff 100%) !important;
     }
     .main-content { background: transparent !important; }
     .chat-area { background: transparent !important; }
@@ -1895,33 +1898,37 @@
 
     /* Strong-accent surfaces (was xk-ink black) → deep violet */
     .sidebar {
-      background: linear-gradient(180deg, #a78bfa 0%, #8b5cf6 100%) !important;
-      box-shadow: 0 12px 40px rgba(124, 58, 237, 0.18) !important;
+      background: linear-gradient(180deg, #ddd6fe 0%, #c7d2fe 100%) !important;
+      box-shadow: 0 12px 40px rgba(124, 58, 237, 0.12) !important;
     }
-    /* Sidebar text/labels — bump contrast against lighter violet bg */
-    .sidebar-section { color: rgba(255, 255, 255, 0.65) !important; }
-    .sidebar-item { color: rgba(255, 255, 255, 0.88) !important; }
+    /* Sidebar text/labels — dark contrast trên nền lavender-indigo nhạt */
+    .sidebar-logo span { color: #4c1d95 !important; }
+    .sidebar-section { color: #6b21a8 !important; opacity: 0.65; }
+    .sidebar-item { color: #4338ca !important; font-weight: 500; }
     .sidebar-item:hover {
-      background: rgba(255, 255, 255, 0.14) !important;
-      color: #fff !important;
+      background: rgba(124, 58, 237, 0.10) !important;
+      color: #5b21b6 !important;
     }
-    /* Active pill: darker violet so it pops on the lighter gradient */
+    /* Active pill: deep violet với chữ trắng — pop trên nền nhạt */
     .sidebar-item.active {
       background: var(--xk-primary-d) !important;
-      box-shadow: 0 6px 18px rgba(109, 40, 217, 0.45) !important;
+      box-shadow: 0 6px 18px rgba(109, 40, 217, 0.40) !important;
       color: #fff !important;
     }
     .sidebar-item .icon {
-      background: rgba(255, 255, 255, 0.18) !important;
+      background: rgba(255, 255, 255, 0.65) !important;
+      color: var(--xk-primary-d) !important;
+    }
+    .sidebar-item.active .icon {
+      background: rgba(255, 255, 255, 0.28) !important;
       color: #fff !important;
     }
-    .sidebar-item.active .icon { background: rgba(255, 255, 255, 0.28) !important; }
     .sidebar-item .badge {
-      background: rgba(255, 255, 255, 0.22) !important;
-      color: #fff !important;
+      background: rgba(124, 58, 237, 0.18) !important;
+      color: #6d28d9 !important;
     }
-    .sidebar-footer { border-top-color: rgba(255, 255, 255, 0.18) !important; }
-    .sidebar-footer .footer-text { color: rgba(255, 255, 255, 0.78) !important; }
+    .sidebar-footer { border-top-color: rgba(124, 58, 237, 0.18) !important; }
+    .sidebar-footer .footer-text { color: #6b21a8 !important; opacity: 0.75; }
     .msg.user {
       background: var(--xk-cta-gradient) !important;
       box-shadow: 0 8px 22px var(--xk-primary-shadow) !important;
