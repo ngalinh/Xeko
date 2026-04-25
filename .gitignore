@@ -6,4 +6,7 @@ logs/
 temp/
 data/
 cloudflared.exe
-data/cloudflared.exe.exe 
+data/cloudflared.exe.exe
+
+# Local design / mockup tooling — not part of app
+tools/
