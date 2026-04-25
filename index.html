@@ -270,6 +270,34 @@
     [data-theme="dark"] [id^="customGroupInput_"] input { background: #1e1e3a; border-color: #3a3a5a; color: #e0e0e0; }
     [data-theme="dark"] .channel-item .ch-tag.fb { background: #1a2a4a; color: #5b9cf6; }
 
+    /* === Multi-select filter component === */
+    .msel { position:relative; display:inline-block; }
+    .msel-btn {
+      display:flex; align-items:center; gap:6px; cursor:pointer;
+      padding:8px 10px; border:1px solid #ddd; border-radius:8px;
+      background:#fff; font-size:13px; white-space:nowrap;
+      min-width:0; max-width:100%;
+    }
+    .msel-btn:hover { border-color:#a5b4fc; }
+    .msel-btn.active { border-color:#7c3aed; }
+    .msel-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
+    .msel-arrow { flex-shrink:0; opacity:0.5; font-size:10px; }
+    .msel-panel {
+      display:none; position:absolute; top:calc(100% + 4px); left:0; z-index:200;
+      background:#fff; border:1px solid #e5e7eb; border-radius:10px;
+      box-shadow:0 8px 24px rgba(0,0,0,0.12); padding:8px 0;
+      min-width:180px; max-width:280px; max-height:280px; overflow-y:auto;
+    }
+    .msel-panel.open { display:block; }
+    .msel-option {
+      display:flex; align-items:center; gap:8px; padding:7px 14px;
+      cursor:pointer; font-size:13px; color:#333;
+    }
+    .msel-option:hover { background:#f5f3ff; }
+    .msel-option input[type=checkbox] { accent-color:#7c3aed; flex-shrink:0; cursor:pointer; }
+    .msel-option span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .msel-divider { height:1px; background:#f3f4f6; margin:4px 0; }
+
     /* Image preview */
     .image-preview {
       padding: 8px 24px;
@@ -2426,30 +2454,63 @@
       </div>
 
       <!-- Filter bar -->
-      <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
-        <input type="text" id="dashFilterSearch" placeholder="🔍 Tìm kiếm nội dung..." onkeydown="if(event.key==='Enter')loadDashHistory()" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px; min-width:180px;">
-        <select id="dashFilterProfile" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-          <option value="">Tất cả tài khoản</option>
-        </select>
-        <select id="dashFilterPlatform" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-          <option value="">Tất cả nền tảng</option>
-          <option value="facebook">Facebook</option>
-        </select>
-        <select id="dashFilterTarget" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-          <option value="">Tất cả nơi đăng</option>
-          <option value="personal">Cá nhân</option>
-          <option value="group">Group</option>
-        </select>
-        <select id="dashFilterGroup" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-          <option value="">Tất cả nhóm</option>
-        </select>
-        <select id="dashFilterStatus" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-          <option value="">Tất cả trạng thái</option>
-          <option value="1">Thành công</option>
-          <option value="0">Thất bại</option>
-          <option value="pending">Chờ đăng</option>
-          <option value="running">Đang đăng</option>
-        </select>
+      <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
+        <!-- Tài khoản -->
+        <div class="msel" id="msel-profile" data-placeholder="Tất cả tài khoản">
+          <div class="msel-btn" onclick="toggleMsel('msel-profile')">
+            <span class="msel-label" id="msel-profile-label">Tất cả tài khoản</span>
+            <span class="msel-arrow">▾</span>
+          </div>
+          <div class="msel-panel" id="msel-profile-panel"></div>
+        </div>
+        <!-- Nền tảng -->
+        <div class="msel" id="msel-platform" data-placeholder="Tất cả nền tảng">
+          <div class="msel-btn" onclick="toggleMsel('msel-platform')">
+            <span class="msel-label" id="msel-platform-label">Tất cả nền tảng</span>
+            <span class="msel-arrow">▾</span>
+          </div>
+          <div class="msel-panel" id="msel-platform-panel">
+            <label class="msel-option"><input type="checkbox" value="" checked onchange="_mselChange('msel-platform',this,'')"><span>Tất cả nền tảng</span></label>
+            <label class="msel-option"><input type="checkbox" value="facebook" onchange="_mselChange('msel-platform',this,'facebook')"><span>Facebook</span></label>
+            <label class="msel-option"><input type="checkbox" value="zalo" onchange="_mselChange('msel-platform',this,'zalo')"><span>Zalo</span></label>
+          </div>
+        </div>
+        <!-- Nơi đăng -->
+        <div class="msel" id="msel-target" data-placeholder="Tất cả nơi đăng">
+          <div class="msel-btn" onclick="toggleMsel('msel-target')">
+            <span class="msel-label" id="msel-target-label">Tất cả nơi đăng</span>
+            <span class="msel-arrow">▾</span>
+          </div>
+          <div class="msel-panel" id="msel-target-panel">
+            <label class="msel-option"><input type="checkbox" value="" checked onchange="_mselChange('msel-target',this,'')"><span>Tất cả nơi đăng</span></label>
+            <label class="msel-option"><input type="checkbox" value="personal" onchange="_mselChange('msel-target',this,'personal')"><span>Cá nhân</span></label>
+            <label class="msel-option"><input type="checkbox" value="group" onchange="_mselChange('msel-target',this,'group')"><span>Group</span></label>
+          </div>
+        </div>
+        <!-- Nhóm (truncated, max-width) -->
+        <div class="msel" id="msel-group" data-placeholder="Tất cả nhóm" style="max-width:200px;">
+          <div class="msel-btn" onclick="toggleMsel('msel-group')" style="max-width:200px;">
+            <span class="msel-label" id="msel-group-label" style="max-width:150px;">Tất cả nhóm</span>
+            <span class="msel-arrow">▾</span>
+          </div>
+          <div class="msel-panel" id="msel-group-panel"></div>
+        </div>
+        <!-- Tìm kiếm (moved here, after group) -->
+        <input type="text" id="dashFilterSearch" placeholder="🔍 Tìm kiếm..." onkeydown="if(event.key==='Enter')loadDashHistory()" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px; width:160px;">
+        <!-- Trạng thái -->
+        <div class="msel" id="msel-status" data-placeholder="Tất cả trạng thái">
+          <div class="msel-btn" onclick="toggleMsel('msel-status')">
+            <span class="msel-label" id="msel-status-label">Tất cả trạng thái</span>
+            <span class="msel-arrow">▾</span>
+          </div>
+          <div class="msel-panel" id="msel-status-panel">
+            <label class="msel-option"><input type="checkbox" value="" checked onchange="_mselChange('msel-status',this,'')"><span>Tất cả trạng thái</span></label>
+            <label class="msel-option"><input type="checkbox" value="1" onchange="_mselChange('msel-status',this,'1')"><span>Thành công</span></label>
+            <label class="msel-option"><input type="checkbox" value="0" onchange="_mselChange('msel-status',this,'0')"><span>Thất bại</span></label>
+            <label class="msel-option"><input type="checkbox" value="pending" onchange="_mselChange('msel-status',this,'pending')"><span>Chờ đăng</span></label>
+            <label class="msel-option"><input type="checkbox" value="running" onchange="_mselChange('msel-status',this,'running')"><span>Đang đăng</span></label>
+          </div>
+        </div>
         <input type="date" id="dashFilterFrom" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
         <input type="date" id="dashFilterTo" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
         <button onclick="loadDashboard()" style="padding:8px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:13px;">Lọc</button>
@@ -4631,24 +4692,12 @@
     }
 
     function populateDashGroupFilter() {
-      const sel = document.getElementById('dashFilterGroup');
-      if (!sel) return;
-      const prev = sel.value;
       const fb = (channelsData.fbGroups || []);
       const zalo = (channelsData.zaloGroups || []);
-      let opts = '<option value="">Tất cả nhóm</option>';
-      if (fb.length) {
-        opts += '<optgroup label="Facebook">';
-        fb.forEach(g => { opts += `<option value="${g.id || g.key}">${g.name || g.key}</option>`; });
-        opts += '</optgroup>';
-      }
-      if (zalo.length) {
-        opts += '<optgroup label="Zalo">';
-        zalo.forEach(g => { opts += `<option value="${g.name || g.key}">${g.name || g.key}</option>`; });
-        opts += '</optgroup>';
-      }
-      sel.innerHTML = opts;
-      if (prev) sel.value = prev;
+      const opts = [{ value: '', label: 'Tất cả nhóm' }];
+      fb.forEach(g => opts.push({ value: g.id || g.key, label: g.name || g.key }));
+      zalo.forEach(g => opts.push({ value: g.name || g.key, label: g.name || g.key }));
+      setMselOptions('msel-group', opts, 'Tất cả nhóm');
     }
 
     let currentGroupFilter = 'all';
@@ -5193,6 +5242,102 @@
     const dashLimit = 20;
     const _activeRepostJobs = []; // jobs đang poll background
 
+    // === Multi-select filter component ===
+    const _mselState = {}; // id -> Set of selected values (empty Set = "all")
+
+    function _mselInit(id) {
+      if (!_mselState[id]) _mselState[id] = new Set();
+    }
+
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.msel')) {
+        document.querySelectorAll('.msel-panel').forEach(p => p.classList.remove('open'));
+      }
+    });
+
+    function toggleMsel(id) {
+      const panel = document.getElementById(id + '-panel');
+      if (!panel) return;
+      const isOpen = panel.classList.contains('open');
+      document.querySelectorAll('.msel-panel').forEach(p => p.classList.remove('open'));
+      if (!isOpen) panel.classList.add('open');
+    }
+
+    function setMselOptions(id, opts, placeholder) {
+      // opts: array of {value, label}
+      _mselInit(id);
+      const panel = document.getElementById(id + '-panel');
+      if (!panel) return;
+      const state = _mselState[id];
+      panel.innerHTML = opts.map(o => {
+        const isAll = o.value === '';
+        const checked = isAll ? state.size === 0 : state.has(o.value);
+        return `<label class="msel-option" title="${escapeHtml(o.label)}">
+      <input type="checkbox" value="${escapeHtml(o.value)}" ${checked ? 'checked' : ''}
+        onchange="_mselChange('${id}', this, '${escapeHtml(o.value)}')">
+      <span>${escapeHtml(o.label)}</span>
+    </label>`;
+      }).join('');
+      _mselUpdateLabel(id, placeholder);
+    }
+
+    function _mselChange(id, el, value) {
+      _mselInit(id);
+      const state = _mselState[id];
+      const panel = document.getElementById(id + '-panel');
+      if (value === '') {
+        state.clear();
+        if (panel) panel.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = cb.value === ''; });
+      } else {
+        if (el.checked) {
+          state.add(value);
+          const allCb = panel && panel.querySelector('input[value=""]');
+          if (allCb) allCb.checked = false;
+        } else {
+          state.delete(value);
+          if (state.size === 0) {
+            const allCb = panel && panel.querySelector('input[value=""]');
+            if (allCb) allCb.checked = true;
+          }
+        }
+      }
+      const placeholder = document.getElementById(id)?.dataset.placeholder || 'Tất cả';
+      _mselUpdateLabel(id, placeholder);
+    }
+
+    function _mselUpdateLabel(id, placeholder) {
+      const label = document.getElementById(id + '-label');
+      const state = _mselState[id] || new Set();
+      if (!label) return;
+      if (state.size === 0) {
+        label.textContent = placeholder;
+        return;
+      }
+      const panel = document.getElementById(id + '-panel');
+      if (state.size === 1) {
+        const v = [...state][0];
+        const opt = panel && panel.querySelector(`input[value="${CSS.escape(v)}"]`);
+        label.textContent = opt ? (opt.closest('.msel-option')?.querySelector('span')?.textContent || v) : v;
+      } else {
+        label.textContent = `${state.size} đã chọn`;
+      }
+    }
+
+    function getMselValues(id) {
+      const state = _mselState[id] || new Set();
+      return [...state]; // empty array = no filter (all)
+    }
+
+    function resetAllMsel() {
+      Object.keys(_mselState).forEach(id => {
+        _mselState[id] = new Set();
+        const placeholder = document.getElementById(id)?.dataset.placeholder || 'Tất cả';
+        _mselUpdateLabel(id, placeholder);
+        const panel = document.getElementById(id + '-panel');
+        if (panel) panel.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = cb.value === ''; });
+      });
+    }
+
     async function loadDashboard() {
       try {
         // Đảm bảo channelsData đã được tải (cần cho group filter)
@@ -5259,20 +5404,18 @@
             : '';
         }
 
-        // Populate profile filter (deduplicate by profile key)
-        const filterProfile = document.getElementById('dashFilterProfile');
-        const currentVal = filterProfile.value;
-        filterProfile.innerHTML = '<option value="">Tất cả tài khoản</option>';
+        // Populate profile multi-select (deduplicate by profile key)
         if (stats.byProfile) {
           const seen = new Set();
+          const profileOpts = [{ value: '', label: 'Tất cả tài khoản' }];
           stats.byProfile.forEach(p => {
             if (!seen.has(p.profile)) {
               seen.add(p.profile);
-              filterProfile.innerHTML += `<option value="${p.profile}">${escapeHtml(p.profile_name || p.profile)}</option>`;
+              profileOpts.push({ value: p.profile, label: p.profile_name || p.profile });
             }
           });
+          setMselOptions('msel-profile', profileOpts, 'Tất cả tài khoản');
         }
-        filterProfile.value = currentVal;
 
         // Load history + chart
         await Promise.all([loadDashHistory(), loadDashChart()]);
@@ -5348,21 +5491,22 @@
     }
 
     async function loadDashHistory() {
-      const profile = document.getElementById('dashFilterProfile').value;
-      const platform = document.getElementById('dashFilterPlatform').value;
-      const target = document.getElementById('dashFilterTarget').value;
-      const groupId = document.getElementById('dashFilterGroup').value;
-      const success = document.getElementById('dashFilterStatus').value;
+      const profiles = getMselValues('msel-profile');
+      const platforms = getMselValues('msel-platform');
+      const targets = getMselValues('msel-target');
+      const groupIds = getMselValues('msel-group');
+      const statuses = getMselValues('msel-status');
       const from = document.getElementById('dashFilterFrom').value;
       const to = document.getElementById('dashFilterTo').value;
       const search = (document.getElementById('dashFilterSearch')?.value || '').trim().toLowerCase();
 
       const params = new URLSearchParams();
-      if (profile) params.set('profile', profile);
-      if (platform) params.set('platform', platform);
-      if (target) params.set('target', target);
-      if (groupId) params.set('groupId', groupId);
-      if (success === '1' || success === '0') params.set('success', success);
+      if (profiles.length) params.set('profile', profiles.join(','));
+      if (platforms.length) params.set('platform', platforms.join(','));
+      if (targets.length) params.set('target', targets.join(','));
+      if (groupIds.length) params.set('groupId', groupIds.join(','));
+      const dbStatuses = statuses.filter(s => s === '1' || s === '0');
+      if (dbStatuses.length) params.set('success', dbStatuses.join(','));
       if (from) params.set('from', from + 'T00:00:00.000Z');
       if (to) params.set('to', to + 'T23:59:59.999Z');
       params.set('limit', dashLimit);
@@ -5377,14 +5521,17 @@
         const data = await parseJson(histRes);
 
         // Lọc lịch chờ/đang đăng
-        const isSchedFilter = success === 'pending' || success === 'running';
+        const hasPendingFilter = statuses.some(s => s === 'pending' || s === 'running');
+        const hasHistoryFilter = statuses.some(s => s === '1' || s === '0');
+        const showSchedules = statuses.length === 0 || hasPendingFilter;
+        const showHistory = statuses.length === 0 || hasHistoryFilter;
+        const schedStatusFilter = hasPendingFilter ? statuses.filter(s => s === 'pending' || s === 'running') : null;
         let schedToShow = (Array.isArray(allSchedules) ? allSchedules : [])
-          .filter(s => isSchedFilter ? s.status === success : (s.status === 'pending' || s.status === 'running'));
-        if (profile) schedToShow = schedToShow.filter(s => s.profile === profile);
-        if (target) schedToShow = schedToShow.filter(s => s.target === target);
-        if (groupId) schedToShow = schedToShow.filter(s => s.groupId === groupId || s.groupName === groupId);
-        // Lọc theo thành công/thất bại → ẩn lịch chờ; lọc pending/running → ẩn _activeRepostJobs
-        if (success === '1' || success === '0') schedToShow = [];
+          .filter(s => schedStatusFilter ? schedStatusFilter.includes(s.status) : (s.status === 'pending' || s.status === 'running'));
+        if (profiles.length) schedToShow = schedToShow.filter(s => profiles.includes(s.profile));
+        if (targets.length) schedToShow = schedToShow.filter(s => targets.includes(s.target));
+        if (groupIds.length) schedToShow = schedToShow.filter(s => groupIds.includes(s.groupId) || groupIds.includes(s.groupName));
+        if (!showSchedules) schedToShow = [];
 
         // Lookup: FB group ID → tên group (từ danh sách kênh đã lưu)
         const fbGroupIdToName = {};
@@ -5460,7 +5607,7 @@
         }).join('');
 
         // Khi filter pending/running: chỉ hiện lịch chờ, ẩn history
-        let histRows = isSchedFilter ? [] : (data.rows || []);
+        let histRows = showHistory ? (data.rows || []) : [];
         // Lọc client-side theo từ khóa tìm kiếm
         if (search) {
           histRows = histRows.filter(r => {
@@ -5470,7 +5617,7 @@
             return msg.includes(search) || grp.includes(search) || acc.includes(search);
           });
         }
-        const activeRepostHtml = isSchedFilter ? '' : repostHtml;
+        const activeRepostHtml = showHistory ? repostHtml : '';
 
         if (histRows.length > 0) {
           window._dashRows = histRows;
@@ -5542,7 +5689,7 @@
 
         // Pagination (ẩn khi đang filter pending/running)
         const paginationEl = document.getElementById('dashPagination');
-        if (!isSchedFilter) {
+        if (showHistory) {
           const totalPages = Math.ceil(data.total / dashLimit);
           if (totalPages > 1) {
             let html = '';

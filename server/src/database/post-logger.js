@@ -38,25 +38,24 @@ function getPostHistory({ profile, platform, target, groupId, success, from, to,
   const params = {};
 
   if (profile) {
-    sql += ' AND profile = @profile';
-    params.profile = profile;
+    const vals = String(profile).split(',').map(s => s.trim()).filter(Boolean);
+    if (vals.length === 1) { sql += ' AND profile = @profile'; params.profile = vals[0]; }
+    else if (vals.length > 1) { vals.forEach((v, i) => { params[`profile${i}`] = v; }); sql += ` AND profile IN (${vals.map((_, i) => `@profile${i}`).join(',')})`; }
   }
   if (platform) {
-    sql += ' AND platform = @platform';
-    params.platform = platform;
+    const vals = String(platform).split(',').map(s => s.trim()).filter(Boolean);
+    if (vals.length === 1) { sql += ' AND platform = @platform'; params.platform = vals[0]; }
+    else if (vals.length > 1) { vals.forEach((v, i) => { params[`platform${i}`] = v; }); sql += ` AND platform IN (${vals.map((_, i) => `@platform${i}`).join(',')})`; }
   }
   if (target) {
-    if (target === 'personal') {
-      sql += ' AND target = @target';
-      params.target = 'personal';
-    } else if (target === 'group') {
-      sql += ' AND target = @target';
-      params.target = 'group';
-    }
+    const vals = String(target).split(',').map(s => s.trim()).filter(s => s === 'personal' || s === 'group');
+    if (vals.length === 1) { sql += ' AND target = @target'; params.target = vals[0]; }
+    else if (vals.length > 1) { sql += ' AND target IN (@targetA,@targetB)'; params.targetA = 'personal'; params.targetB = 'group'; }
   }
   if (success !== undefined && success !== null && success !== '') {
-    sql += ' AND success = @success';
-    params.success = Number(success);
+    const vals = String(success).split(',').map(s => s.trim()).filter(s => s === '0' || s === '1');
+    if (vals.length === 1) { sql += ' AND success = @success'; params.success = Number(vals[0]); }
+    // vals.length > 1 means both 0 and 1 → no filter needed
   }
   if (from) {
     sql += ' AND timestamp >= @from';
@@ -67,8 +66,14 @@ function getPostHistory({ profile, platform, target, groupId, success, from, to,
     params.to = to;
   }
   if (groupId) {
-    sql += ' AND (group_id = @groupId OR group_name = @groupId)';
-    params.groupId = groupId;
+    const vals = String(groupId).split(',').map(s => s.trim()).filter(Boolean);
+    if (vals.length === 1) {
+      sql += ' AND (group_id = @groupId OR group_name = @groupId)';
+      params.groupId = vals[0];
+    } else if (vals.length > 1) {
+      const clauses = vals.map((v, i) => { params[`gid${i}`] = v; return `(group_id = @gid${i} OR group_name = @gid${i})`; });
+      sql += ` AND (${clauses.join(' OR ')})`;
+    }
   }
 
   // Dem tong
