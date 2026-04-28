@@ -2168,22 +2168,20 @@
       </button>
     </div>
     <div class="sidebar-footer">
-      <div id="currentUserBox" style="display:none; padding:10px 12px; background:#f5f3ff; border-radius:10px; margin-bottom:10px; font-size:12px;">
+      <div id="currentUserBox" style="display:none; padding:10px 12px; background:#f5f3ff; border-radius:10px; font-size:12px;">
         <div style="display:flex; align-items:center; gap:8px;">
           <div style="width:28px; height:28px; border-radius:50%; background:#4f46e5; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;" id="currentUserAvatar">?</div>
           <div style="flex:1; min-width:0;">
             <div id="currentUserEmail" style="font-weight:600; color:#4f46e5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">-</div>
             <div id="currentUserRole" style="color:#888; font-size:11px;">-</div>
           </div>
+          <button id="restartServerBtn" onclick="restartLocalServer()" title="Khởi động lại local server"
+            style="padding:5px 7px; background:#fff3cd; border:1px solid #ffc107; border-radius:6px; cursor:pointer; color:#856404; display:flex; align-items:center; justify-content:center;">
+            <svg class="xi" style="color:#856404; width:14px; height:14px;"><use href="#ic-refresh"/></svg>
+          </button>
           <button onclick="logoutXeko()" title="Đăng xuất" style="padding:4px 8px; background:#fff; border:1px solid #e0d4ff; border-radius:6px; cursor:pointer; font-size:11px; color:#4f46e5;">↪</button>
         </div>
       </div>
-      <img src="https://raw.githubusercontent.com/ngalinh/Xeko/main/xeko-avatar.png" alt="Xeko">
-      <div class="footer-text">Xeko v1.0</div>
-      <button id="restartServerBtn" onclick="restartLocalServer()" title="Khởi động lại local server"
-        style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px 14px; background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:8px; font-size:13px; cursor:pointer; font-weight:600; white-space:nowrap; width:100%; margin-top:10px;">
-        <svg class="xi" style="color:#856404;"><use href="#ic-refresh"/></svg> Restart Server
-      </button>
     </div>
   </div>
 
@@ -2417,6 +2415,7 @@
         <table style="width:100%; border-collapse:collapse;">
           <thead style="background:#f9fafb;">
             <tr>
+              <th style="text-align:left; padding:12px 16px; font-size:13px; color:#555; border-bottom:1px solid #e5e7eb;">Tên</th>
               <th style="text-align:left; padding:12px 16px; font-size:13px; color:#555; border-bottom:1px solid #e5e7eb;">Email</th>
               <th style="text-align:left; padding:12px 16px; font-size:13px; color:#555; border-bottom:1px solid #e5e7eb;">Profile FB được phép</th>
               <th style="text-align:left; padding:12px 16px; font-size:13px; color:#555; border-bottom:1px solid #e5e7eb;">Vai trò Xeko</th>
@@ -2424,7 +2423,7 @@
             </tr>
           </thead>
           <tbody id="permissionsTableBody">
-            <tr><td colspan="4" style="padding:30px; text-align:center; color:#999;">Đang tải...</td></tr>
+            <tr><td colspan="5" style="padding:30px; text-align:center; color:#999;">Đang tải...</td></tr>
           </tbody>
         </table>
       </div>
@@ -2441,6 +2440,12 @@
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
         <h2 id="permissionModalTitle" style="margin:0; font-size:18px;">Thêm user</h2>
         <button onclick="closePermissionModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999;">×</button>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="display:block; font-size:13px; font-weight:600; color:#555; margin-bottom:4px;">Tên</label>
+        <input type="text" id="permName" placeholder="vd: Linh Dương"
+          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
       </div>
 
       <div style="margin-bottom:14px;">
@@ -6456,14 +6461,14 @@
 
     async function loadPermissions() {
       const tbody = document.getElementById('permissionsTableBody');
-      tbody.innerHTML = '<tr><td colspan="4" style="padding:30px; text-align:center; color:#999;">Đang tải...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:30px; text-align:center; color:#999;">Đang tải...</td></tr>';
       try {
         const [usersRes, profilesRes] = await Promise.all([
           fetch(BASE_URL + '/api/admin/users', { credentials: 'include' }),
           fetch(BASE_URL + '/api/accounts?all=1', { credentials: 'include' }),
         ]);
         if (!usersRes.ok) {
-          tbody.innerHTML = `<tr><td colspan="4" style="padding:30px; text-align:center; color:#dc2626;">Lỗi: ${usersRes.status}</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="5" style="padding:30px; text-align:center; color:#dc2626;">Lỗi: ${usersRes.status}</td></tr>`;
           return;
         }
         const { users, superAdmin } = await usersRes.json();
@@ -6474,7 +6479,7 @@
         _allProfilesCache.forEach(p => { profileNameMap[p.key] = p.name; });
 
         if (!users || !users.length) {
-          tbody.innerHTML = '<tr><td colspan="4" style="padding:30px; text-align:center; color:#999;">Chưa có user nào.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="5" style="padding:30px; text-align:center; color:#999;">Chưa có user nào.</td></tr>';
           return;
         }
 
@@ -6492,15 +6497,17 @@
             ? '<span style="color:#999; font-size:12px;">Super-admin</span>'
             : `<button onclick="editPermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; font-size:12px; cursor:pointer; color:#4f46e5; margin-right:6px;">Sửa</button>
                <button onclick="deletePermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#fee2e2; border:1px solid #fecaca; border-radius:6px; font-size:12px; cursor:pointer; color:#dc2626;">Xoá</button>`;
+          const nameDisplay = u.name ? escapeHtml(u.name) : '<em style="color:#999;">—</em>';
           return `<tr style="border-bottom:1px solid #f3f4f6;">
-            <td style="padding:14px 16px; font-size:14px;"><strong>${escapeHtml(u.email)}</strong>${isSuper ? ' <span style="background:#fef3c7; color:#78350f; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:4px;">SUPER</span>' : ''}</td>
+            <td style="padding:14px 16px; font-size:14px;"><strong>${nameDisplay}</strong></td>
+            <td style="padding:14px 16px; font-size:14px;">${escapeHtml(u.email)}${isSuper ? ' <span style="background:#fef3c7; color:#78350f; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:4px;">SUPER</span>' : ''}</td>
             <td style="padding:14px 16px; font-size:13px; color:#555;">${profileText}</td>
             <td style="padding:14px 16px;">${roleBadge}</td>
             <td style="padding:14px 16px; text-align:right;">${actions}</td>
           </tr>`;
         }).join('');
       } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="4" style="padding:30px; text-align:center; color:#dc2626;">Lỗi: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="padding:30px; text-align:center; color:#dc2626;">Lỗi: ${e.message}</td></tr>`;
       }
     }
 
@@ -6516,6 +6523,7 @@
     function openPermissionModal() {
       _editingEmail = null;
       document.getElementById('permissionModalTitle').textContent = 'Thêm user';
+      document.getElementById('permName').value = '';
       document.getElementById('permEmail').value = '';
       document.getElementById('permEmail').readOnly = false;
       document.getElementById('permIsAdmin').checked = false;
@@ -6533,6 +6541,7 @@
         if (!u) return alert('Không tìm thấy user');
         _editingEmail = email;
         document.getElementById('permissionModalTitle').textContent = 'Sửa phân quyền: ' + email;
+        document.getElementById('permName').value = u.name || '';
         document.getElementById('permEmail').value = email;
         document.getElementById('permEmail').readOnly = true;
         document.getElementById('permIsAdmin').checked = !!u.isXekoAdmin;
@@ -6573,6 +6582,7 @@
 
     async function savePermission() {
       const email = document.getElementById('permEmail').value.trim().toLowerCase();
+      const name = document.getElementById('permName').value.trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return alert('Email không hợp lệ');
       const isAdmin = document.getElementById('permIsAdmin').checked;
       const allProfiles = document.getElementById('permAllProfiles').checked;
@@ -6582,7 +6592,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ email, isXekoAdmin: isAdmin, allProfiles, profiles }),
+          body: JSON.stringify({ email, name, isXekoAdmin: isAdmin, allProfiles, profiles }),
         });
         const data = await res.json();
         if (!res.ok) return alert('Lỗi: ' + (data.error || res.status));

@@ -934,8 +934,8 @@ app.get('/api/admin/users', auth.requireAdmin(), (req, res) => {
 // Tạo / cập nhật user (admin Xeko)
 app.post('/api/admin/users', auth.requireAdmin(), (req, res) => {
   try {
-    const { email, isXekoAdmin: admin, allProfiles, profiles, note } = req.body || {};
-    const u = permissions.upsertUser({ email, isXekoAdmin: admin, allProfiles, profiles, note });
+    const { email, name, isXekoAdmin: admin, allProfiles, profiles, note } = req.body || {};
+    const u = permissions.upsertUser({ email, name, isXekoAdmin: admin, allProfiles, profiles, note });
     res.json({ success: true, user: u });
   } catch (e) {
     res.status(400).json({ error: e.message });
