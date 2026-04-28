@@ -1201,22 +1201,22 @@
       }
 
       /* Color per tile — inspired by reference */
-      /* All 4 tiles in violet family — subtle hue shift để vẫn phân biệt */
+      /* All 4 tiles in slate-blue family — subtle hue shift để vẫn phân biệt */
       .tile-post {
-        background: linear-gradient(140deg, #f3e8ff 0%, #e9d5ff 100%);
-        color: #86198f;
+        background: linear-gradient(140deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #1e40af;
       }
       .tile-dash {
-        background: linear-gradient(140deg, #ddd6fe 0%, #c4b5fd 100%);
-        color: #5b21b6;
+        background: linear-gradient(140deg, #e0eaf2 0%, #c5d3df 100%);
+        color: #1e293b;
       }
       .tile-acc {
-        background: linear-gradient(140deg, #e0e7ff 0%, #c7d2fe 100%);
-        color: #3730a3;
+        background: linear-gradient(140deg, #d1fae5 0%, #a7f3d0 100%);
+        color: #065f46;
       }
       .tile-spy {
-        background: linear-gradient(140deg, #ede9fe 0%, #d8d4fb 100%);
-        color: #6d28d9;
+        background: linear-gradient(140deg, #e2e8f0 0%, #cbd5e1 100%);
+        color: #334155;
       }
 
       .mhome-foot {
@@ -1560,15 +1560,13 @@
         inset 0 1px 0 rgba(255,255,255,0.7);
     }
 
-    /* Backdrop: pastel violet/lavender (đồng tông cùng brand).
-       Top khởi đầu bằng #ffffff để blend với iOS status bar (default style),
-       transition vào pastel violet sau ~80px. Blob violet shift xuống tránh
-       đụng status bar area. */
+    /* Backdrop: cool slate-blue (đồng tông brand mới).
+       Top trắng để blend iOS status bar; transition vào pastel slate. */
     body {
       background:
-        radial-gradient(36rem 28rem at 100% 12%, rgba(196, 181, 253, 0.45) 0%, transparent 55%),
-        radial-gradient(34rem 26rem at 0% 100%, rgba(167, 139, 250, 0.32) 0%, transparent 55%),
-        linear-gradient(180deg, #ffffff 0%, #faf7ff 12%, #f5f0ff 100%) !important;
+        radial-gradient(36rem 28rem at 100% 12%, rgba(143, 168, 196, 0.35) 0%, transparent 55%),
+        radial-gradient(34rem 26rem at 0% 100%, rgba(174, 191, 211, 0.30) 0%, transparent 55%),
+        linear-gradient(180deg, #ffffff 0%, #f1f5f9 12%, #e8eef4 100%) !important;
     }
     .main-content { background: transparent !important; }
     .chat-area { background: transparent !important; }
@@ -1879,44 +1877,46 @@
     [data-theme="dark"] .pc-btn-edit { background: rgba(255,255,255,0.06) !important; color: #fff !important; }
 
     /* ================================================================
-       VIOLET v3 — Replace black/indigo from glass v2 with violet tone.
-       Áp dụng cho cả mobile + desktop (giữ sidebar layout, chỉ đổi màu).
-       Sidebar bg, msg.user, avatar, mhome-* surfaces → deep violet.
-       Indigo CTA (#4f46e5) → vibrant violet (#7c3aed).
+       SLATE-BLUE v4 — Cool palette theo reference card Xeko (slate +
+       mint accent). Replaces violet from v3.
+       Áp dụng cả mobile + desktop.
        ================================================================ */
     :root {
-      --xk-primary: #7c3aed;
-      --xk-primary-2: #8b5cf6;
-      --xk-primary-d: #6d28d9;
-      --xk-primary-soft: rgba(124, 58, 237, 0.10);
-      --xk-primary-shadow: rgba(124, 58, 237, 0.32);
-      --xk-surface-violet: #3b0d7a;
-      /* Gradient pill cho big CTA (theo reference medical app) */
-      --xk-cta-gradient: linear-gradient(135deg, #7c5fff 0%, #a78bfa 100%);
-      --xk-cta-gradient-hover: linear-gradient(135deg, #6d4dff 0%, #9474f3 100%);
+      --xk-primary: #4a6585;
+      --xk-primary-2: #5b7794;
+      --xk-primary-d: #364e6c;
+      --xk-primary-soft: rgba(74, 101, 133, 0.10);
+      --xk-primary-shadow: rgba(74, 101, 133, 0.30);
+      --xk-surface-violet: #1e3a5f;
+      /* Gradient pill cho big CTA (slate-blue cool) */
+      --xk-cta-gradient: linear-gradient(135deg, #5b7794 0%, #8aa2bc 100%);
+      --xk-cta-gradient-hover: linear-gradient(135deg, #4a6585 0%, #7693b1 100%);
+      /* Mint accent (ONLINE / success) */
+      --xk-accent-mint: #22c55e;
+      --xk-accent-mint-soft: rgba(34, 197, 94, 0.12);
     }
 
-    /* Strong-accent surfaces (was xk-ink black) → deep violet */
+    /* Strong-accent surfaces — slate-blue */
     .sidebar {
-      background: linear-gradient(180deg, #ddd6fe 0%, #c7d2fe 100%) !important;
-      box-shadow: 0 12px 40px rgba(124, 58, 237, 0.12) !important;
+      background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%) !important;
+      box-shadow: 0 12px 40px rgba(74, 101, 133, 0.12) !important;
     }
-    /* Sidebar text/labels — dark contrast trên nền lavender-indigo nhạt */
-    .sidebar-logo span { color: #4c1d95 !important; }
-    .sidebar-section { color: #6b21a8 !important; opacity: 0.65; }
-    .sidebar-item { color: #4338ca !important; font-weight: 500; }
+    /* Sidebar text/labels — dark slate contrast trên nền slate nhạt */
+    .sidebar-logo span { color: #0f172a !important; }
+    .sidebar-section { color: #64748b !important; opacity: 0.85; }
+    .sidebar-item { color: #334155 !important; font-weight: 500; }
     .sidebar-item:hover {
-      background: rgba(124, 58, 237, 0.10) !important;
-      color: #5b21b6 !important;
+      background: rgba(74, 101, 133, 0.10) !important;
+      color: var(--xk-primary-d) !important;
     }
-    /* Active pill: deep violet với chữ trắng — pop trên nền nhạt */
+    /* Active pill: deep slate với chữ trắng — pop trên nền sáng */
     .sidebar-item.active {
       background: var(--xk-primary-d) !important;
-      box-shadow: 0 6px 18px rgba(109, 40, 217, 0.40) !important;
+      box-shadow: 0 6px 18px rgba(54, 78, 108, 0.35) !important;
       color: #fff !important;
     }
     .sidebar-item .icon {
-      background: rgba(255, 255, 255, 0.65) !important;
+      background: rgba(255, 255, 255, 0.70) !important;
       color: var(--xk-primary-d) !important;
     }
     .sidebar-item.active .icon {
@@ -1924,11 +1924,11 @@
       color: #fff !important;
     }
     .sidebar-item .badge {
-      background: rgba(124, 58, 237, 0.18) !important;
-      color: #6d28d9 !important;
+      background: var(--xk-accent-mint-soft) !important;
+      color: #15803d !important;
     }
-    .sidebar-footer { border-top-color: rgba(124, 58, 237, 0.18) !important; }
-    .sidebar-footer .footer-text { color: #6b21a8 !important; opacity: 0.75; }
+    .sidebar-footer { border-top-color: rgba(74, 101, 133, 0.18) !important; }
+    .sidebar-footer .footer-text { color: #475569 !important; opacity: 0.85; }
     .msg.user {
       background: var(--xk-cta-gradient) !important;
       box-shadow: 0 8px 22px var(--xk-primary-shadow) !important;
@@ -1962,8 +1962,8 @@
       box-shadow: 0 4px 12px var(--xk-primary-shadow) !important;
     }
     .pc-btn-login {
-      background: rgba(124, 58, 237, 0.10) !important;
-      border-color: rgba(124, 58, 237, 0.22) !important;
+      background: var(--xk-primary-soft) !important;
+      border-color: rgba(74, 101, 133, 0.22) !important;
       color: var(--xk-primary) !important;
     }
     .msg .link { color: var(--xk-primary) !important; }
@@ -1978,7 +1978,7 @@
     .input-area input[type="text"]:focus,
     .input-area #msgInput:focus {
       border-color: var(--xk-primary) !important;
-      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15) !important;
+      box-shadow: 0 0 0 3px rgba(74, 101, 133, 0.15) !important;
     }
     button[style*="background:#4f46e5"],
     button[style*="background: #4f46e5"] {
