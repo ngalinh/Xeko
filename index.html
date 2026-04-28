@@ -2044,13 +2044,13 @@
       --xk-primary-d: #5d88cc;          /* hover/focus, text trên bg sáng */
       --xk-primary-soft: rgba(127, 168, 232, 0.06);
       --xk-primary-soft-2: rgba(127, 168, 232, 0.12);
-      --xk-primary-shadow: rgba(127, 168, 232, 0.28);
-      --xk-brand-border: rgba(127, 168, 232, 0.20);
-      /* Sky blue → vibrant violet — rõ và sang hơn pastel */
-      --xk-cta-gradient: linear-gradient(135deg, #6b9bf5 0%, #a78bfa 100%);
-      --xk-cta-gradient-hover: linear-gradient(135deg, #5d88cc 0%, #8b6dd1 100%);
-      /* Logo gradient — đậm hơn để clip text rõ trên nền sáng */
-      --xk-logo-gradient: linear-gradient(135deg, #5d88cc 0%, #8b6dd1 100%);
+      --xk-primary-shadow: rgba(139, 133, 237, 0.30);
+      --xk-brand-border: rgba(139, 133, 237, 0.22);
+      /* Periwinkle → soft violet — tím nhiều hơn xanh */
+      --xk-cta-gradient: linear-gradient(135deg, #8b85ed 0%, #b39ef0 100%);
+      --xk-cta-gradient-hover: linear-gradient(135deg, #7868c4 0%, #9b85d8 100%);
+      /* Logo gradient — periwinkle deep → violet, đủ đậm để clip text */
+      --xk-logo-gradient: linear-gradient(135deg, #6b62c8 0%, #8b6dd1 100%);
 
       /* Surfaces (glassmorphism) */
       --xk-sky-surface: rgba(255, 255, 255, 0.78);
@@ -2979,7 +2979,7 @@
               <option value="60">60 ngày</option>
             </select>
             <div style="display:flex; gap:4px;">
-              <button onclick="setChartType('bar')" id="chartTypeBar" style="padding:5px 10px; border:1px solid transparent; border-radius:6px; background:linear-gradient(135deg, #6b9bf5 0%, #a78bfa 100%); color:#fff; font-size:12px; cursor:pointer; font-weight:600; box-shadow:0 3px 10px rgba(127, 168, 232, 0.30);">Bar</button>
+              <button onclick="setChartType('bar')" id="chartTypeBar" style="padding:5px 10px; border:1px solid transparent; border-radius:6px; background:linear-gradient(135deg, #8b85ed 0%, #b39ef0 100%); color:#fff; font-size:12px; cursor:pointer; font-weight:600; box-shadow:0 3px 10px rgba(139, 133, 237, 0.30);">Bar</button>
               <button onclick="setChartType('line')" id="chartTypeLine" style="padding:5px 10px; border:1px solid #d8dde6; border-radius:6px; background:#fff; color:#506580; font-size:12px; cursor:pointer; font-weight:600;">Line</button>
             </div>
           </div>
@@ -6017,12 +6017,12 @@
     // ===== Dashboard Chart =====
     let _dashChart = null;
     let _chartType = 'bar';
-    const CHART_PALETTE = ['#6b9bf5','#a78bfa','#06b6d4','#10b981','#f59e0b','#ec4899','#f97316','#8b5cf6'];
+    const CHART_PALETTE = ['#8b85ed','#b39ef0','#a78bfa','#06b6d4','#10b981','#f59e0b','#ec4899','#f97316'];
 
     function setChartType(type) {
       _chartType = type;
-      const SKY_ACTIVE_BG = 'linear-gradient(135deg, #6b9bf5 0%, #a78bfa 100%)';
-      const SKY_ACTIVE_SHADOW = '0 3px 10px rgba(127, 168, 232, 0.30)';
+      const SKY_ACTIVE_BG = 'linear-gradient(135deg, #8b85ed 0%, #b39ef0 100%)';
+      const SKY_ACTIVE_SHADOW = '0 3px 10px rgba(139, 133, 237, 0.30)';
       document.getElementById('chartTypeBar').style.background   = type === 'bar'  ? SKY_ACTIVE_BG : '#fff';
       document.getElementById('chartTypeBar').style.color        = type === 'bar'  ? '#fff'        : '#506580';
       document.getElementById('chartTypeBar').style.borderColor  = type === 'bar'  ? 'transparent' : '#d8dde6';
