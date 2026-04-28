@@ -2,7 +2,10 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-const DB_PATH = path.resolve(__dirname, '../../data/posts.db');
+const DATA_DIR = process.env.XEKO_DATA_DIR
+  ? path.resolve(process.env.XEKO_DATA_DIR)
+  : path.resolve(__dirname, '../..');
+const DB_PATH = path.join(DATA_DIR, 'data/posts.db');
 
 // Dam bao thu muc data ton tai
 const dataDir = path.dirname(DB_PATH);
