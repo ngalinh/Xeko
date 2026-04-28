@@ -1201,22 +1201,22 @@
       }
 
       /* Color per tile — inspired by reference */
-      /* All 4 tiles in slate-blue family — subtle hue shift để vẫn phân biệt */
+      /* 4 tiles cool family: blue / cyan / mint / slate (theo Greenfly pal) */
       .tile-post {
         background: linear-gradient(140deg, #dbeafe 0%, #bfdbfe 100%);
         color: #1e40af;
       }
       .tile-dash {
-        background: linear-gradient(140deg, #e0eaf2 0%, #c5d3df 100%);
-        color: #1e293b;
+        background: linear-gradient(140deg, #cffafe 0%, #a5f3fc 100%);
+        color: #155e75;
       }
       .tile-acc {
         background: linear-gradient(140deg, #d1fae5 0%, #a7f3d0 100%);
         color: #065f46;
       }
       .tile-spy {
-        background: linear-gradient(140deg, #e2e8f0 0%, #cbd5e1 100%);
-        color: #334155;
+        background: linear-gradient(140deg, #e0e7ff 0%, #c7d2fe 100%);
+        color: #3730a3;
       }
 
       .mhome-foot {
@@ -1560,13 +1560,14 @@
         inset 0 1px 0 rgba(255,255,255,0.7);
     }
 
-    /* Backdrop: cool slate-blue (đồng tông brand mới).
-       Top trắng để blend iOS status bar; transition vào pastel slate. */
+    /* Backdrop: white → pale mint (theo reference Greenfly).
+       Top trắng để blend iOS status bar; mint blob top-right + cyan
+       blob bottom-left tạo gradient mềm. */
     body {
       background:
-        radial-gradient(36rem 28rem at 100% 12%, rgba(143, 168, 196, 0.35) 0%, transparent 55%),
-        radial-gradient(34rem 26rem at 0% 100%, rgba(174, 191, 211, 0.30) 0%, transparent 55%),
-        linear-gradient(180deg, #ffffff 0%, #f1f5f9 12%, #e8eef4 100%) !important;
+        radial-gradient(40rem 32rem at 100% 8%, rgba(167, 243, 208, 0.45) 0%, transparent 55%),
+        radial-gradient(34rem 26rem at 0% 100%, rgba(186, 230, 253, 0.38) 0%, transparent 55%),
+        linear-gradient(180deg, #ffffff 0%, #f4fbf7 14%, #ecf8f1 100%) !important;
     }
     .main-content { background: transparent !important; }
     .chat-area { background: transparent !important; }
@@ -1877,47 +1878,46 @@
     [data-theme="dark"] .pc-btn-edit { background: rgba(255,255,255,0.06) !important; color: #fff !important; }
 
     /* ================================================================
-       SLATE-BLUE v4 — Cool palette theo reference card Xeko (slate +
-       mint accent). Replaces violet from v3.
-       Áp dụng cả mobile + desktop.
+       BLUE-MINT v5 — Bright cobalt + pale mint backdrop (Greenfly-style).
+       Replaces slate-blue v4. Áp dụng cả mobile + desktop.
        ================================================================ */
     :root {
-      --xk-primary: #4a6585;
-      --xk-primary-2: #5b7794;
-      --xk-primary-d: #364e6c;
-      --xk-primary-soft: rgba(74, 101, 133, 0.10);
-      --xk-primary-shadow: rgba(74, 101, 133, 0.30);
-      --xk-surface-violet: #1e3a5f;
-      /* Gradient pill cho big CTA (slate-blue cool) */
-      --xk-cta-gradient: linear-gradient(135deg, #5b7794 0%, #8aa2bc 100%);
-      --xk-cta-gradient-hover: linear-gradient(135deg, #4a6585 0%, #7693b1 100%);
-      /* Mint accent (ONLINE / success) */
-      --xk-accent-mint: #22c55e;
-      --xk-accent-mint-soft: rgba(34, 197, 94, 0.12);
+      --xk-primary: #2563eb;
+      --xk-primary-2: #3b82f6;
+      --xk-primary-d: #1d4ed8;
+      --xk-primary-soft: rgba(37, 99, 235, 0.10);
+      --xk-primary-shadow: rgba(37, 99, 235, 0.30);
+      --xk-surface-violet: #1e3a8a;
+      /* Subtle gradient cho big CTA (giữ giống reference: solid xanh) */
+      --xk-cta-gradient: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+      --xk-cta-gradient-hover: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+      /* Mint accent (success/ONLINE) */
+      --xk-accent-mint: #10b981;
+      --xk-accent-mint-soft: rgba(16, 185, 129, 0.12);
     }
 
-    /* Strong-accent surfaces — slate-blue */
+    /* Strong-accent surfaces — pale mint gradient (theo reference) */
     .sidebar {
-      background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%) !important;
-      box-shadow: 0 12px 40px rgba(74, 101, 133, 0.12) !important;
+      background: linear-gradient(180deg, #f0faf5 0%, #d8eee3 100%) !important;
+      box-shadow: 0 12px 40px rgba(16, 185, 129, 0.10) !important;
     }
-    /* Sidebar text/labels — dark slate contrast trên nền slate nhạt */
+    /* Sidebar text/labels — dark slate contrast trên nền mint nhạt */
     .sidebar-logo span { color: #0f172a !important; }
-    .sidebar-section { color: #64748b !important; opacity: 0.85; }
-    .sidebar-item { color: #334155 !important; font-weight: 500; }
+    .sidebar-section { color: #475569 !important; opacity: 0.85; }
+    .sidebar-item { color: #1e293b !important; font-weight: 500; }
     .sidebar-item:hover {
-      background: rgba(74, 101, 133, 0.10) !important;
+      background: var(--xk-primary-soft) !important;
       color: var(--xk-primary-d) !important;
     }
-    /* Active pill: deep slate với chữ trắng — pop trên nền sáng */
+    /* Active pill: bright blue với chữ trắng — pop trên nền mint */
     .sidebar-item.active {
-      background: var(--xk-primary-d) !important;
-      box-shadow: 0 6px 18px rgba(54, 78, 108, 0.35) !important;
+      background: var(--xk-primary) !important;
+      box-shadow: 0 6px 18px var(--xk-primary-shadow) !important;
       color: #fff !important;
     }
     .sidebar-item .icon {
-      background: rgba(255, 255, 255, 0.70) !important;
-      color: var(--xk-primary-d) !important;
+      background: rgba(255, 255, 255, 0.78) !important;
+      color: var(--xk-primary) !important;
     }
     .sidebar-item.active .icon {
       background: rgba(255, 255, 255, 0.28) !important;
@@ -1925,9 +1925,9 @@
     }
     .sidebar-item .badge {
       background: var(--xk-accent-mint-soft) !important;
-      color: #15803d !important;
+      color: #047857 !important;
     }
-    .sidebar-footer { border-top-color: rgba(74, 101, 133, 0.18) !important; }
+    .sidebar-footer { border-top-color: rgba(16, 185, 129, 0.18) !important; }
     .sidebar-footer .footer-text { color: #475569 !important; opacity: 0.85; }
     .msg.user {
       background: var(--xk-cta-gradient) !important;
