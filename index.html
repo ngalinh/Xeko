@@ -1234,22 +1234,22 @@
       }
 
       /* Color per tile — inspired by reference */
-      /* 4 tiles cool family: blue / cyan / mint / slate (theo Greenfly pal) */
+      /* 4 tiles cùng họ lavender Prodify — light → dark progression */
       .tile-post {
-        background: linear-gradient(140deg, #dbeafe 0%, #bfdbfe 100%);
-        color: #1e40af;
+        background: linear-gradient(140deg, #FCFCFE 0%, #E7E9EF 100%);
+        color: #5b54a8;
       }
       .tile-dash {
-        background: linear-gradient(140deg, #cffafe 0%, #a5f3fc 100%);
-        color: #155e75;
+        background: linear-gradient(140deg, #E7E9EF 0%, #CAC8F9 100%);
+        color: #5b54a8;
       }
       .tile-acc {
-        background: linear-gradient(140deg, #d1fae5 0%, #a7f3d0 100%);
-        color: #065f46;
+        background: linear-gradient(140deg, #CAC8F9 0%, #B2AEF2 100%);
+        color: #312e81;
       }
       .tile-spy {
-        background: linear-gradient(140deg, #e0e7ff 0%, #c7d2fe 100%);
-        color: #3730a3;
+        background: linear-gradient(140deg, #B2AEF2 0%, #928DDD 100%);
+        color: #fff;
       }
 
       .mhome-foot {
@@ -1593,14 +1593,13 @@
         inset 0 1px 0 rgba(255,255,255,0.7);
     }
 
-    /* Backdrop: white → pale mint (theo reference Greenfly).
-       Top trắng để blend iOS status bar; mint blob top-right + cyan
-       blob bottom-left tạo gradient mềm. */
+    /* Backdrop: Pale Grey base + Lavender Blue / Purple Illusion blob.
+       Top trắng để blend iOS status bar; transition vào pale grey. */
     body {
       background:
-        radial-gradient(40rem 32rem at 100% 8%, rgba(167, 243, 208, 0.45) 0%, transparent 55%),
-        radial-gradient(34rem 26rem at 0% 100%, rgba(186, 230, 253, 0.38) 0%, transparent 55%),
-        linear-gradient(180deg, #ffffff 0%, #f4fbf7 14%, #ecf8f1 100%) !important;
+        radial-gradient(40rem 32rem at 100% 8%, rgba(202, 200, 249, 0.55) 0%, transparent 55%),
+        radial-gradient(34rem 26rem at 0% 100%, rgba(178, 174, 242, 0.40) 0%, transparent 55%),
+        linear-gradient(180deg, #ffffff 0%, #FCFCFE 14%, #E7E9EF 100%) !important;
     }
     .main-content { background: transparent !important; }
     .chat-area { background: transparent !important; }
@@ -1911,57 +1910,64 @@
     [data-theme="dark"] .pc-btn-edit { background: rgba(255,255,255,0.06) !important; color: #fff !important; }
 
     /* ================================================================
-       BLUE-MINT v5 — Bright cobalt + pale mint backdrop (Greenfly-style).
-       Replaces slate-blue v4. Áp dụng cả mobile + desktop.
+       PRODIFY v6 — Lavender Blue / Purple Illusion / Perrywinkle palette.
+       Reference Prodify (Akansha Gupta) — 6 hex codes user-provided:
+         #FCFCFE Pale Grey  · #E7E9EF Diamond Cut  · #CAC8F9 Lavender Blue
+         #C3C1C1 Stonewall  · #B2AEF2 Purple Illusion · #928DDD Perrywinkle
+       Áp dụng cả mobile + desktop.
        ================================================================ */
     :root {
-      --xk-primary: #2563eb;
-      --xk-primary-2: #3b82f6;
-      --xk-primary-d: #1d4ed8;
-      --xk-primary-soft: rgba(37, 99, 235, 0.10);
-      --xk-primary-shadow: rgba(37, 99, 235, 0.30);
-      --xk-surface-violet: #1e3a8a;
-      /* Subtle gradient cho big CTA (giữ giống reference: solid xanh) */
-      --xk-cta-gradient: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
-      --xk-cta-gradient-hover: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
-      /* Mint accent (success/ONLINE) */
+      --xk-primary: #928DDD;          /* Perrywinkle */
+      --xk-primary-2: #B2AEF2;        /* Purple Illusion */
+      --xk-primary-d: #7B75CC;        /* deeper hover/active */
+      --xk-primary-soft: rgba(146, 141, 221, 0.12);
+      --xk-primary-shadow: rgba(146, 141, 221, 0.32);
+      --xk-surface-violet: #5b54a8;
+      /* CTA gradient (Perrywinkle → Purple Illusion) */
+      --xk-cta-gradient: linear-gradient(135deg, #928DDD 0%, #B2AEF2 100%);
+      --xk-cta-gradient-hover: linear-gradient(135deg, #7B75CC 0%, #928DDD 100%);
+      /* Accent mint (giữ cho success/ONLINE) */
       --xk-accent-mint: #10b981;
       --xk-accent-mint-soft: rgba(16, 185, 129, 0.12);
+      /* Named Prodify shades — sẵn dùng */
+      --xk-pale-grey: #FCFCFE;
+      --xk-diamond-cut: #E7E9EF;
+      --xk-lavender-blue: #CAC8F9;
     }
 
-    /* Strong-accent surfaces — pale mint gradient (theo reference) */
+    /* Sidebar — Lavender Blue → Purple Illusion gradient (theo Prodify) */
     .sidebar {
-      background: linear-gradient(180deg, #f0faf5 0%, #d8eee3 100%) !important;
-      box-shadow: 0 12px 40px rgba(16, 185, 129, 0.10) !important;
+      background: linear-gradient(180deg, #CAC8F9 0%, #B2AEF2 100%) !important;
+      box-shadow: 0 12px 40px rgba(146, 141, 221, 0.20) !important;
     }
-    /* Sidebar text/labels — dark slate contrast trên nền mint nhạt */
-    .sidebar-logo span { color: #0f172a !important; }
-    .sidebar-section { color: #475569 !important; opacity: 0.85; }
-    .sidebar-item { color: #1e293b !important; font-weight: 500; }
+    /* Text trên nền lavender medium — dark indigo cho contrast tốt */
+    .sidebar-logo span { color: #1e1b4b !important; }
+    .sidebar-section { color: #312e81 !important; opacity: 0.75; }
+    .sidebar-item { color: #1e1b4b !important; font-weight: 500; }
     .sidebar-item:hover {
-      background: var(--xk-primary-soft) !important;
-      color: var(--xk-primary-d) !important;
+      background: rgba(255, 255, 255, 0.30) !important;
+      color: #312e81 !important;
     }
-    /* Active pill: bright blue với chữ trắng — pop trên nền mint */
+    /* Active pill: Perrywinkle deep với chữ trắng — pop trên nền lavender */
     .sidebar-item.active {
-      background: var(--xk-primary) !important;
-      box-shadow: 0 6px 18px var(--xk-primary-shadow) !important;
+      background: var(--xk-primary-d) !important;
+      box-shadow: 0 6px 18px rgba(123, 117, 204, 0.40) !important;
       color: #fff !important;
     }
     .sidebar-item .icon {
-      background: rgba(255, 255, 255, 0.78) !important;
-      color: var(--xk-primary) !important;
+      background: rgba(255, 255, 255, 0.55) !important;
+      color: var(--xk-primary-d) !important;
     }
     .sidebar-item.active .icon {
       background: rgba(255, 255, 255, 0.28) !important;
       color: #fff !important;
     }
     .sidebar-item .badge {
-      background: var(--xk-accent-mint-soft) !important;
-      color: #047857 !important;
+      background: rgba(255, 255, 255, 0.55) !important;
+      color: var(--xk-primary-d) !important;
     }
-    .sidebar-footer { border-top-color: rgba(16, 185, 129, 0.18) !important; }
-    .sidebar-footer .footer-text { color: #475569 !important; opacity: 0.85; }
+    .sidebar-footer { border-top-color: rgba(255, 255, 255, 0.30) !important; }
+    .sidebar-footer .footer-text { color: #312e81 !important; opacity: 0.85; }
     .msg.user {
       background: var(--xk-cta-gradient) !important;
       box-shadow: 0 8px 22px var(--xk-primary-shadow) !important;
@@ -1996,7 +2002,7 @@
     }
     .pc-btn-login {
       background: var(--xk-primary-soft) !important;
-      border-color: rgba(74, 101, 133, 0.22) !important;
+      border-color: rgba(146, 141, 221, 0.22) !important;
       color: var(--xk-primary) !important;
     }
     .msg .link { color: var(--xk-primary) !important; }
@@ -2011,7 +2017,7 @@
     .input-area input[type="text"]:focus,
     .input-area #msgInput:focus {
       border-color: var(--xk-primary) !important;
-      box-shadow: 0 0 0 3px rgba(74, 101, 133, 0.15) !important;
+      box-shadow: 0 0 0 3px rgba(146, 141, 221, 0.20) !important;
     }
     button[style*="background:#4f46e5"],
     button[style*="background: #4f46e5"] {
