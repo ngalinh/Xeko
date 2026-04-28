@@ -7,8 +7,13 @@
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#6b5bff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#7fa8e8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#1a1a2e" media="(prefers-color-scheme: dark)">
+
+  <!-- Sky theme fonts: Plus Jakarta Sans (UI) + JetBrains Mono (numeric/IDs) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
   <meta name="description" content="Xeko - Đăng bài tự động Facebook & Zalo">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2026,6 +2031,435 @@
     }
 
     [data-theme="dark"] .msg.user { background: var(--xk-cta-gradient) !important; }
+
+    /* ================================================================
+       SKY THEME — design_handoff_xeko_sky (final layer, wins by cascade).
+       Light, airy glassmorphism với palette Sky (xanh trời + tím nhạt).
+       Tokens lấy từ design_handoff_xeko_sky/README.md.
+       ================================================================ */
+    :root {
+      /* Brand — Sky */
+      --xk-primary: #7fa8e8;            /* primary accent */
+      --xk-primary-2: #c5b5f0;          /* gradient end (lavender) */
+      --xk-primary-d: #5d88cc;          /* hover/focus, text trên bg sáng */
+      --xk-primary-soft: rgba(127, 168, 232, 0.06);
+      --xk-primary-soft-2: rgba(127, 168, 232, 0.12);
+      --xk-primary-shadow: rgba(127, 168, 232, 0.25);
+      --xk-brand-border: rgba(127, 168, 232, 0.16);
+      --xk-cta-gradient: linear-gradient(135deg, #a5c5f4 0%, #c5b5f0 100%);
+      --xk-cta-gradient-hover: linear-gradient(135deg, #7fa8e8 0%, #b399e8 100%);
+
+      /* Surfaces (glassmorphism) */
+      --xk-sky-surface: rgba(255, 255, 255, 0.78);
+      --xk-sky-surface-solid: #ffffff;
+      --xk-sky-surface-soft: rgba(255, 255, 255, 0.62);
+
+      /* Borders */
+      --xk-sky-border: rgba(100, 150, 220, 0.12);
+      --xk-sky-border-soft: rgba(100, 150, 220, 0.05);
+
+      /* Text */
+      --xk-sky-text: #0c1a2e;
+      --xk-sky-text-muted: #506580;
+      --xk-sky-text-dim: #8a9cb5;
+
+      /* Avatar fallback */
+      --xk-sky-avatar-bg: linear-gradient(135deg, #dbeafe, #e0e7ff);
+      --xk-sky-avatar-fg: #3a6cb4;
+
+      /* Platform tints */
+      --xk-fb-tint: #eff6ff;
+      --xk-zalo-tint: #ecfeff;
+      --xk-zalo-color: #0068ff;
+
+      /* Shadows */
+      --xk-shadow-card: 0 4px 18px rgba(20, 30, 60, 0.04);
+      --xk-shadow-cta: 0 4px 14px rgba(127, 168, 232, 0.25);
+      --xk-shadow-cta-sm: 0 3px 10px rgba(127, 168, 232, 0.35);
+      --xk-shadow-bubble: 0 4px 12px rgba(127, 168, 232, 0.30);
+    }
+
+    /* Body — Sky mesh backdrop + Plus Jakarta Sans */
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+      color: var(--xk-sky-text) !important;
+      background:
+        radial-gradient(circle at 0% 0%, #eff6ff 0%, transparent 55%),
+        radial-gradient(circle at 100% 20%, #f0f9ff 0%, transparent 55%),
+        radial-gradient(circle at 50% 100%, #f5f3ff 0%, transparent 55%),
+        linear-gradient(160deg, #fafdff, #fcfbff) !important;
+      background-attachment: fixed !important;
+    }
+
+    /* SIDEBAR — light glass thay vì lavender gradient */
+    .sidebar {
+      background: var(--xk-sky-surface) !important;
+      backdrop-filter: blur(20px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+      border-right: 1px solid var(--xk-sky-border) !important;
+      box-shadow: none !important;
+    }
+    .sidebar-logo span {
+      color: var(--xk-sky-text) !important;
+      background: var(--xk-cta-gradient);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-weight: 800 !important;
+    }
+    .sidebar-section {
+      color: var(--xk-sky-text-dim) !important;
+      opacity: 1 !important;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-size: 10.5px !important;
+      font-weight: 700 !important;
+    }
+    .sidebar-item {
+      color: var(--xk-sky-text-muted) !important;
+      font-weight: 600 !important;
+      border-left: 2px solid transparent;
+      transition: background 150ms ease, color 150ms ease;
+    }
+    .sidebar-item:hover {
+      background: rgba(255, 255, 255, 0.4) !important;
+      color: var(--xk-sky-text) !important;
+    }
+    .sidebar-item.active {
+      background: var(--xk-primary-soft-2) !important;
+      border-left: 2px solid var(--xk-primary) !important;
+      color: var(--xk-primary-d) !important;
+      box-shadow: none !important;
+    }
+    .sidebar-item .icon {
+      background: rgba(255, 255, 255, 0.6) !important;
+      color: var(--xk-sky-text-muted) !important;
+      box-shadow: none !important;
+    }
+    .sidebar-item:hover .icon {
+      color: var(--xk-primary-d) !important;
+    }
+    .sidebar-item.active .icon {
+      background: rgba(127, 168, 232, 0.18) !important;
+      color: var(--xk-primary-d) !important;
+    }
+    .sidebar-item .badge {
+      background: var(--xk-primary-soft-2) !important;
+      color: var(--xk-primary-d) !important;
+      font-weight: 700 !important;
+      font-size: 10px !important;
+    }
+    .sidebar-footer {
+      border-top-color: var(--xk-sky-border) !important;
+    }
+    .sidebar-footer .footer-text {
+      color: var(--xk-sky-text-dim) !important;
+      opacity: 1 !important;
+    }
+
+    /* HEADER — Sky glass, ko cần margin nổi như cũ */
+    .header {
+      background: var(--xk-sky-surface) !important;
+      backdrop-filter: blur(14px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+      border-bottom: 1px solid var(--xk-sky-border) !important;
+      border-radius: 14px;
+      box-shadow: var(--xk-shadow-card) !important;
+    }
+    .header-info h1 {
+      color: var(--xk-sky-text) !important;
+      font-weight: 800 !important;
+      font-size: 22px !important;
+      line-height: 1.2 !important;
+    }
+    .header-info span {
+      color: var(--xk-sky-text-muted) !important;
+      font-size: 12px !important;
+    }
+    .header-emoji {
+      background: var(--xk-primary-soft-2) !important;
+      color: var(--xk-primary-d) !important;
+      border-radius: 10px !important;
+    }
+    .theme-toggle,
+    .mobile-hamburger {
+      background: var(--xk-sky-surface-solid) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+      color: var(--xk-sky-text) !important;
+      box-shadow: var(--xk-shadow-card) !important;
+    }
+    .theme-toggle:hover { background: rgba(255, 255, 255, 0.95) !important; }
+
+    /* CHAT bubbles — Sky */
+    .msg.bot {
+      background: var(--xk-primary-soft) !important;
+      backdrop-filter: blur(10px) !important;
+      -webkit-backdrop-filter: blur(10px) !important;
+      border: 1px solid var(--xk-brand-border) !important;
+      box-shadow: var(--xk-shadow-card) !important;
+      color: var(--xk-sky-text) !important;
+      border-radius: 3px 14px 14px 14px !important;
+    }
+    .msg.user {
+      background: var(--xk-cta-gradient) !important;
+      color: #fff !important;
+      box-shadow: var(--xk-shadow-bubble) !important;
+      border-radius: 14px 3px 14px 14px !important;
+    }
+    .msg.user .link { color: #fff !important; }
+    .msg .link {
+      color: var(--xk-primary-d) !important;
+      font-weight: 600 !important;
+    }
+    .msg-btn {
+      background: #fff !important;
+      border: 1px solid var(--xk-brand-border) !important;
+      color: var(--xk-primary-d) !important;
+      box-shadow: 0 1px 4px rgba(127, 168, 232, 0.08) !important;
+      font-weight: 600 !important;
+    }
+    .msg-btn:hover {
+      background: var(--xk-primary-soft-2) !important;
+      color: var(--xk-primary-d) !important;
+      border-color: var(--xk-primary) !important;
+    }
+
+    /* INPUT area — Sky glass */
+    .input-area {
+      background: var(--xk-sky-surface) !important;
+      backdrop-filter: blur(14px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+      border-top: 1px solid var(--xk-sky-border) !important;
+    }
+    .input-area input[type="text"],
+    .input-area textarea {
+      background: var(--xk-sky-surface-solid) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+      color: var(--xk-sky-text) !important;
+    }
+    .input-area input[type="text"]:focus,
+    .input-area textarea:focus,
+    .input-area #msgInput:focus {
+      border-color: var(--xk-primary) !important;
+      box-shadow: 0 0 0 3px rgba(127, 168, 232, 0.16) !important;
+    }
+    .btn-attach {
+      background: #fff !important;
+      color: var(--xk-sky-text-muted) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+    }
+    .btn-attach:hover {
+      background: var(--xk-primary-soft-2) !important;
+      color: var(--xk-primary-d) !important;
+    }
+    .btn-send {
+      background: var(--xk-cta-gradient) !important;
+      color: #fff !important;
+      box-shadow: var(--xk-shadow-cta) !important;
+    }
+    .btn-send:hover {
+      background: var(--xk-cta-gradient-hover) !important;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(127, 168, 232, 0.35) !important;
+    }
+    .btn-send:disabled {
+      background: rgba(100, 150, 220, 0.18) !important;
+      box-shadow: none !important;
+      transform: none;
+    }
+
+    /* PROFILE cards — Sky glass */
+    .profile-card {
+      background: var(--xk-sky-surface) !important;
+      backdrop-filter: blur(14px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+      box-shadow: var(--xk-shadow-card) !important;
+      border-radius: 14px !important;
+    }
+    .profile-card:hover {
+      box-shadow: 0 8px 24px rgba(20, 30, 60, 0.08) !important;
+    }
+    .profile-card .avatar {
+      background: var(--xk-sky-avatar-bg) !important;
+      color: var(--xk-sky-avatar-fg) !important;
+      border-radius: 10px !important;
+      font-weight: 800 !important;
+    }
+    .profile-card .info .name {
+      color: var(--xk-sky-text) !important;
+      font-weight: 700 !important;
+    }
+
+    .pc-btn-edit {
+      background: var(--xk-primary-soft-2) !important;
+      border: 1px solid var(--xk-brand-border) !important;
+      color: var(--xk-primary-d) !important;
+      font-weight: 700 !important;
+    }
+    .pc-btn-login {
+      background: var(--xk-cta-gradient) !important;
+      border-color: transparent !important;
+      color: #fff !important;
+      font-weight: 700 !important;
+      box-shadow: var(--xk-shadow-cta-sm) !important;
+    }
+    .pc-btn-login:hover {
+      background: var(--xk-cta-gradient-hover) !important;
+    }
+    .pc-btn-login.pc-btn-zalo {
+      background: var(--xk-zalo-tint) !important;
+      border: 1px solid #cffafe !important;
+      color: var(--xk-zalo-color) !important;
+      box-shadow: none !important;
+    }
+    .pc-btn-del {
+      background: #fef2f2 !important;
+      border: 1px solid #fecaca !important;
+      color: #c1331f !important;
+    }
+
+    /* ACCOUNT TAB BAR — Sky pill */
+    .acc-tab-bar {
+      background: var(--xk-sky-surface) !important;
+      backdrop-filter: blur(14px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+      border-radius: 12px !important;
+      box-shadow: var(--xk-shadow-card) !important;
+      padding: 4px !important;
+      border-bottom: 1px solid var(--xk-sky-border) !important;
+    }
+    .acc-tab {
+      color: var(--xk-sky-text-muted) !important;
+      font-weight: 700 !important;
+      border-radius: 9px !important;
+    }
+    .acc-tab:hover {
+      background: rgba(255, 255, 255, 0.5) !important;
+      color: var(--xk-sky-text) !important;
+    }
+    .acc-tab.active {
+      background: var(--xk-cta-gradient) !important;
+      color: #fff !important;
+      box-shadow: var(--xk-shadow-cta) !important;
+      border-bottom-color: transparent !important;
+    }
+
+    /* PANEL CARDS (channels, groups) — Sky glass */
+    #panelChannels > div[style*="background:#fff"] {
+      background: var(--xk-sky-surface) !important;
+      backdrop-filter: blur(14px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+      box-shadow: var(--xk-shadow-card) !important;
+      border-radius: 14px !important;
+    }
+    #panelChannels input[type="text"] {
+      background: #fff !important;
+      border-color: var(--xk-sky-border) !important;
+    }
+
+    /* PRIMARY BUTTONS — bất cứ inline #4f46e5 → Sky CTA */
+    button[style*="background:#4f46e5"],
+    button[style*="background: #4f46e5"] {
+      background: var(--xk-cta-gradient) !important;
+      box-shadow: var(--xk-shadow-cta) !important;
+      border-radius: 8px !important;
+    }
+    button[style*="background:#4f46e5"]:hover,
+    button[style*="background: #4f46e5"]:hover {
+      background: var(--xk-cta-gradient-hover) !important;
+    }
+
+    /* CHANNEL platform toggle checked — Sky brand */
+    .channel-platform-toggle.checked {
+      background: var(--xk-cta-gradient) !important;
+      border-color: transparent !important;
+      color: #fff !important;
+      box-shadow: var(--xk-shadow-cta) !important;
+    }
+
+    /* DASHBOARD tiles — Sky glass */
+    #pageDashboard div[style*="background:#fff"],
+    #pageDashboard div[style*="background:#f0fdf4"],
+    #pageDashboard div[style*="background:#eff6ff"],
+    #pageDashboard div[style*="background:#fef2f2"],
+    #pageDashboard div[style*="background:#fdf4ff"] {
+      background: var(--xk-sky-surface) !important;
+      backdrop-filter: blur(14px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+      box-shadow: var(--xk-shadow-card) !important;
+      border-radius: 14px !important;
+    }
+
+    /* Mobile home page */
+    .mhome-back-btn {
+      background: var(--xk-cta-gradient) !important;
+      color: #fff !important;
+      box-shadow: var(--xk-shadow-cta) !important;
+    }
+    .mhome-foot-btn {
+      background: var(--xk-sky-surface) !important;
+      color: var(--xk-sky-text) !important;
+      box-shadow: var(--xk-shadow-card) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+    }
+    .mhome-avatar {
+      background: var(--xk-cta-gradient) !important;
+      box-shadow: var(--xk-shadow-cta) !important;
+    }
+    .mhome-title { color: var(--xk-sky-text) !important; }
+    .mhome-hello { color: var(--xk-sky-text-muted) !important; }
+
+    /* Image preview */
+    .image-preview {
+      background: var(--xk-sky-surface) !important;
+      border-top-color: var(--xk-sky-border) !important;
+      backdrop-filter: blur(14px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+    }
+
+    /* PWA install FAB */
+    .pwa-install-btn {
+      background: var(--xk-cta-gradient) !important;
+      box-shadow: 0 8px 22px rgba(127, 168, 232, 0.40) !important;
+    }
+
+    /* Numeric / mono — stats, IDs, timestamps */
+    .stat-value,
+    [data-mono],
+    code, kbd, pre, samp {
+      font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace !important;
+    }
+
+    /* Dark mode adjustments giữ Sky tones nhạt hơn */
+    [data-theme="dark"] body {
+      background:
+        radial-gradient(circle at 0% 0%, rgba(127, 168, 232, 0.08) 0%, transparent 55%),
+        radial-gradient(circle at 100% 100%, rgba(197, 181, 240, 0.08) 0%, transparent 55%),
+        linear-gradient(180deg, #0a1220 0%, #0f1a2e 100%) !important;
+    }
+    [data-theme="dark"] .header,
+    [data-theme="dark"] .input-area,
+    [data-theme="dark"] .acc-tab-bar,
+    [data-theme="dark"] .profile-card,
+    [data-theme="dark"] .sidebar {
+      background: rgba(20, 35, 60, 0.55) !important;
+      border-color: rgba(127, 168, 232, 0.12) !important;
+    }
+    [data-theme="dark"] .msg.bot {
+      background: rgba(127, 168, 232, 0.10) !important;
+      border-color: rgba(127, 168, 232, 0.16) !important;
+      color: #e6eef9 !important;
+    }
+    [data-theme="dark"] .sidebar-item { color: #cfd8e8 !important; }
+    [data-theme="dark"] .sidebar-item.active {
+      background: rgba(127, 168, 232, 0.18) !important;
+      color: #fff !important;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
