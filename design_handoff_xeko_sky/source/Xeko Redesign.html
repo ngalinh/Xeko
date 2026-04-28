@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<title>Xeko — Redesign exploration</title>
+<meta name="viewport" content="width=1600" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #f5f5f7; font-family: 'Plus Jakarta Sans', sans-serif; }
+  * { box-sizing: border-box; }
+  input[type="checkbox"] { accent-color: #6d4aff; }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: .25; }
+    50% { transform: scale(1.6); opacity: 0; }
+  }
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(0,0,0,.1); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,.2); }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="variant-conservative.jsx"></script>
+<script type="text/babel" src="variant-balanced.jsx"></script>
+<script type="text/babel" src="variant-bold.jsx"></script>
+<script type="text/babel" src="variant-chatbot-accounts.jsx"></script>
+<script type="text/babel" src="variant-colors.jsx"></script>
+<script type="text/babel" src="variant-gradient.jsx"></script>
+<script type="text/babel" src="variant-sky-final.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const W = 1280;
+const H_DASH = 920;
+const H_POSTS = 900;
+const H_ACC = 820;
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="final-sky" title="✦ FINAL · Sky Gradient" subtitle="Phương án chốt — đầy đủ Dashboard, Chatbot và 3 tabs Quản lý tài khoản trong tone Sky">
+        <DCArtboard id="sky-dash"     label="Dashboard"               width={1280} height={820}><GrDashboard T={GRADIENT_THEMES.sky} /></DCArtboard>
+        <DCArtboard id="sky-chat"     label="Đăng bài · Chatbot"      width={1280} height={820}><GrChatbot   T={GRADIENT_THEMES.sky} /></DCArtboard>
+        <DCArtboard id="sky-acc-1"    label="Tài khoản · Tab 1"       width={1280} height={820}><SkyAccounts tab="accounts" /></DCArtboard>
+        <DCArtboard id="sky-acc-2"    label="Tài khoản · Tab 2 Kênh"  width={1280} height={920}><SkyAccounts tab="channels" /></DCArtboard>
+        <DCArtboard id="sky-acc-3"    label="Tài khoản · Tab 3 Lịch sử" width={1280} height={620}><SkyAccounts tab="history" /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="notes" title="Design notes" subtitle="Lưu ý trước khi đi vào chi tiết">
+        <DCArtboard id="notes-card" label="System" width={1280} height={360}>
+          <div style={{ padding: "40px 56px", fontFamily: "'Plus Jakarta Sans', sans-serif", background: "#fff", height: "100%", color: "#0a0a0a" }}>
+            <div style={{ fontSize: 12, color: "#71717a", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Design system</div>
+            <h1 style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-0.03em", margin: 0, marginBottom: 8 }}>Xeko redesign · 3 hướng</h1>
+            <p style={{ fontSize: 15, color: "#52525b", maxWidth: 760, lineHeight: 1.5, margin: "0 0 28px" }}>
+              Dashboard thống kê, bảng Đăng bài, và màn Quản lý tài khoản — thiết kế lại theo hướng Modern SaaS với hệ thống spacing/typography nhất quán. Phóng to từng artboard để xem chi tiết; kéo thả để sắp xếp lại.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+              {[
+                { k: "Conservative", c: "#6d4aff", desc: "Light mode, border mảnh, tone trung tính. An toàn, dễ đọc, giống Linear/Vercel.", who: "Dùng khi muốn giảm nhiễu, tập trung vào data." },
+                { k: "Balanced", c: "#6d4aff", desc: "Vẫn light nhưng accent violet đậm hơn, có activity feed và health indicator.", who: "Cân bằng giữa thông tin và nhận diện thương hiệu." },
+                { k: "Bold · Dark", c: "#8b6eff", desc: "Dark mode, gradient, glow, font metric số lớn. Premium & hiện đại.", who: "Cho user dùng lâu, thích cảm giác 'pro tool'." },
+              ].map(v => (
+                <div key={v.k} style={{ border: "1px solid #ececed", borderRadius: 12, padding: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 3, background: v.c }} />
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{v.k}</div>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: "#3f3f46", lineHeight: 1.5, marginBottom: 8 }}>{v.desc}</div>
+                  <div style={{ fontSize: 11.5, color: "#71717a", fontStyle: "italic" }}>{v.who}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="conservative" title="Option 1 — Conservative" subtitle="Tối giản, tinh tế · border 1px, tone trung tính, accent violet nhạt">
+        <DCArtboard id="c-dash"  label="Dashboard"        width={W} height={H_DASH}><ConDashboard /></DCArtboard>
+        <DCArtboard id="c-posts" label="Đăng bài"         width={W} height={H_POSTS}><ConPosts /></DCArtboard>
+        <DCArtboard id="c-acc"   label="Quản lý tài khoản" width={W} height={H_ACC}><ConAccounts /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="balanced" title="Option 2 — Balanced" subtitle="Brand presence mạnh hơn · stat strip, activity feed, bar chart có gradient">
+        <DCArtboard id="b-dash"  label="Dashboard"        width={W} height={H_DASH}><BalDashboard /></DCArtboard>
+        <DCArtboard id="b-posts" label="Đăng bài"         width={W} height={H_POSTS}><BalPosts /></DCArtboard>
+        <DCArtboard id="b-acc"   label="Quản lý tài khoản" width={W} height={H_ACC}><BalAccounts /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="real" title="Rework — bám đúng luồng gốc" subtitle="Đăng bài = chatbot hội thoại · Quản lý tài khoản = 3 tabs (Tài khoản / Cài đặt kênh / Lịch sử)">
+        <DCArtboard id="r-chat"     label="Đăng bài · Chatbot"        width={1280} height={820}><BalChatbot /></DCArtboard>
+        <DCArtboard id="r-acc-tab1" label="Tài khoản · Tab 1"          width={1280} height={820}><BalAccountsV2 tab="accounts" /></DCArtboard>
+        <DCArtboard id="r-acc-tab2" label="Tài khoản · Tab 2 Kênh"     width={1280} height={920}><BalAccountsV2 tab="channels" /></DCArtboard>
+        <DCArtboard id="r-acc-tab3" label="Tài khoản · Tab 3 Lịch sử"  width={1280} height={620}><BalAccountsV2 tab="history" /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="gradient" title="Gradient · Sáng & có cá tính" subtitle="Mesh gradient background + glass card + gradient button — pastel airy, không chói mắt">
+        <DCArtboard id="gr-aurora-dash"   label="Aurora · Dashboard"    width={1280} height={820}><GrDashboard T={GRADIENT_THEMES.aurora} /></DCArtboard>
+        <DCArtboard id="gr-aurora-chat"   label="Aurora · Chatbot"      width={1280} height={820}><GrChatbot   T={GRADIENT_THEMES.aurora} /></DCArtboard>
+        <DCArtboard id="gr-lavender-dash" label="Lavender · Dashboard"  width={1280} height={820}><GrDashboard T={GRADIENT_THEMES.lavender} /></DCArtboard>
+        <DCArtboard id="gr-lavender-chat" label="Lavender · Chatbot"    width={1280} height={820}><GrChatbot   T={GRADIENT_THEMES.lavender} /></DCArtboard>
+        <DCArtboard id="gr-rose-dash"     label="Rose · Dashboard"      width={1280} height={820}><GrDashboard T={GRADIENT_THEMES.rose} /></DCArtboard>
+        <DCArtboard id="gr-rose-chat"     label="Rose · Chatbot"        width={1280} height={820}><GrChatbot   T={GRADIENT_THEMES.rose} /></DCArtboard>
+        <DCArtboard id="gr-peach-dash"    label="Peach · Dashboard"     width={1280} height={820}><GrDashboard T={GRADIENT_THEMES.peach} /></DCArtboard>
+        <DCArtboard id="gr-peach-chat"    label="Peach · Chatbot"       width={1280} height={820}><GrChatbot   T={GRADIENT_THEMES.peach} /></DCArtboard>
+        <DCArtboard id="gr-mint-dash"     label="Mint · Dashboard"      width={1280} height={820}><GrDashboard T={GRADIENT_THEMES.mint} /></DCArtboard>
+        <DCArtboard id="gr-mint-chat"     label="Mint · Chatbot"        width={1280} height={820}><GrChatbot   T={GRADIENT_THEMES.mint} /></DCArtboard>
+        <DCArtboard id="gr-ocean-dash"    label="Ocean · Dashboard"     width={1280} height={820}><GrDashboard T={GRADIENT_THEMES.ocean} /></DCArtboard>
+        <DCArtboard id="gr-ocean-chat"    label="Ocean · Chatbot"       width={1280} height={820}><GrChatbot   T={GRADIENT_THEMES.ocean} /></DCArtboard>
+        <DCArtboard id="gr-sky-dash"      label="Sky · Dashboard"       width={1280} height={820}><GrDashboard T={GRADIENT_THEMES.sky} /></DCArtboard>
+        <DCArtboard id="gr-sky-chat"      label="Sky · Chatbot"         width={1280} height={820}><GrChatbot   T={GRADIENT_THEMES.sky} /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="colors" title="Tùy chọn màu · chọn thêm accent khác" subtitle="Áp dụng lên layout Balanced · Dashboard + Chatbot. Click vào artboard để xem full screen">
+        <DCArtboard id="col-blue-dash"  label="Blue · Dashboard" width={1280} height={820}><ThDashboard T={COLOR_THEMES.blue} /></DCArtboard>
+        <DCArtboard id="col-blue-chat"  label="Blue · Chatbot"   width={1280} height={820}><ThChatbot   T={COLOR_THEMES.blue} /></DCArtboard>
+        <DCArtboard id="col-sky-dash"   label="Sky · Dashboard"  width={1280} height={820}><ThDashboard T={COLOR_THEMES.sky} /></DCArtboard>
+        <DCArtboard id="col-sky-chat"   label="Sky · Chatbot"    width={1280} height={820}><ThChatbot   T={COLOR_THEMES.sky} /></DCArtboard>
+        <DCArtboard id="col-amber-dash" label="Amber · Dashboard" width={1280} height={820}><ThDashboard T={COLOR_THEMES.amber} /></DCArtboard>
+        <DCArtboard id="col-amber-chat" label="Amber · Chatbot"   width={1280} height={820}><ThChatbot   T={COLOR_THEMES.amber} /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="bold" title="Option 3 — Bold · Dark" subtitle="Dark mode · hero number, glow, gradient. 'Pro tool' vibe">
+        <DCArtboard id="d-dash"  label="Dashboard"        width={W} height={H_DASH}><BoldDashboard /></DCArtboard>
+        <DCArtboard id="d-posts" label="Đăng bài"         width={W} height={H_POSTS}><BoldPosts /></DCArtboard>
+        <DCArtboard id="d-acc"   label="Quản lý tài khoản" width={W} height={H_ACC}><BoldAccounts /></DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
