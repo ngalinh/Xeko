@@ -2039,11 +2039,11 @@
        ================================================================ */
     :root {
       /* Brand — Sky */
-      --xk-primary: #7fa8e8;            /* primary accent */
-      --xk-primary-2: #c5b5f0;          /* gradient end (lavender) */
-      --xk-primary-d: #5d88cc;          /* hover/focus, text trên bg sáng */
-      --xk-primary-soft: rgba(127, 168, 232, 0.06);
-      --xk-primary-soft-2: rgba(127, 168, 232, 0.12);
+      --xk-primary: #8b85ed;            /* periwinkle accent */
+      --xk-primary-2: #b39ef0;          /* gradient end (lavender) */
+      --xk-primary-d: #6b62c8;          /* hover/focus, text trên bg sáng */
+      --xk-primary-soft: rgba(139, 133, 237, 0.06);
+      --xk-primary-soft-2: rgba(139, 133, 237, 0.14);
       --xk-primary-shadow: rgba(139, 133, 237, 0.30);
       --xk-brand-border: rgba(139, 133, 237, 0.22);
       /* Periwinkle → soft violet — tím nhiều hơn xanh */
@@ -2112,7 +2112,7 @@
       letter-spacing: -0.01em;
     }
     .sidebar-section {
-      color: var(--xk-sky-text-dim) !important;
+      color: #8a85b8 !important;
       opacity: 1 !important;
       letter-spacing: 0.06em;
       text-transform: uppercase;
@@ -2120,14 +2120,14 @@
       font-weight: 700 !important;
     }
     .sidebar-item {
-      color: var(--xk-sky-text-muted) !important;
+      color: #4a4570 !important;
       font-weight: 600 !important;
       border-left: 2px solid transparent;
       transition: background 150ms ease, color 150ms ease;
     }
     .sidebar-item:hover {
-      background: rgba(255, 255, 255, 0.4) !important;
-      color: var(--xk-sky-text) !important;
+      background: rgba(139, 133, 237, 0.06) !important;
+      color: var(--xk-primary-d) !important;
     }
     .sidebar-item.active {
       background: var(--xk-primary-soft-2) !important;
@@ -2136,15 +2136,16 @@
       box-shadow: none !important;
     }
     .sidebar-item .icon {
-      background: rgba(255, 255, 255, 0.6) !important;
-      color: var(--xk-sky-text-muted) !important;
+      background: rgba(139, 133, 237, 0.10) !important;
+      color: #6b62c8 !important;
       box-shadow: none !important;
     }
     .sidebar-item:hover .icon {
+      background: rgba(139, 133, 237, 0.18) !important;
       color: var(--xk-primary-d) !important;
     }
     .sidebar-item.active .icon {
-      background: rgba(127, 168, 232, 0.18) !important;
+      background: rgba(139, 133, 237, 0.22) !important;
       color: var(--xk-primary-d) !important;
     }
     .sidebar-item .badge {
@@ -2157,8 +2158,20 @@
       border-top-color: var(--xk-sky-border) !important;
     }
     .sidebar-footer .footer-text {
-      color: var(--xk-sky-text-dim) !important;
+      color: #8a85b8 !important;
       opacity: 1 !important;
+    }
+    .sidebar-footer #currentUserBox {
+      background: var(--xk-primary-soft-2) !important;
+    }
+    .sidebar-footer #currentUserAvatar {
+      background: var(--xk-cta-gradient) !important;
+    }
+    .sidebar-footer #currentUserEmail {
+      color: var(--xk-primary-d) !important;
+    }
+    .sidebar-footer #currentUserRole {
+      color: #8a85b8 !important;
     }
 
     /* HEADER — Sky glass, ko cần margin nổi như cũ */
