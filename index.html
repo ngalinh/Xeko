@@ -2044,10 +2044,13 @@
       --xk-primary-d: #5d88cc;          /* hover/focus, text trên bg sáng */
       --xk-primary-soft: rgba(127, 168, 232, 0.06);
       --xk-primary-soft-2: rgba(127, 168, 232, 0.12);
-      --xk-primary-shadow: rgba(127, 168, 232, 0.25);
-      --xk-brand-border: rgba(127, 168, 232, 0.16);
-      --xk-cta-gradient: linear-gradient(135deg, #a5c5f4 0%, #c5b5f0 100%);
-      --xk-cta-gradient-hover: linear-gradient(135deg, #7fa8e8 0%, #b399e8 100%);
+      --xk-primary-shadow: rgba(127, 168, 232, 0.28);
+      --xk-brand-border: rgba(127, 168, 232, 0.20);
+      /* Sky blue → vibrant violet — rõ và sang hơn pastel */
+      --xk-cta-gradient: linear-gradient(135deg, #6b9bf5 0%, #a78bfa 100%);
+      --xk-cta-gradient-hover: linear-gradient(135deg, #5d88cc 0%, #8b6dd1 100%);
+      /* Logo gradient — đậm hơn để clip text rõ trên nền sáng */
+      --xk-logo-gradient: linear-gradient(135deg, #5d88cc 0%, #8b6dd1 100%);
 
       /* Surfaces (glassmorphism) */
       --xk-sky-surface: rgba(255, 255, 255, 0.78);
@@ -2100,12 +2103,13 @@
       box-shadow: none !important;
     }
     .sidebar-logo span {
-      color: var(--xk-sky-text) !important;
-      background: var(--xk-cta-gradient);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
+      background: var(--xk-logo-gradient) !important;
+      -webkit-background-clip: text !important;
+      background-clip: text !important;
+      -webkit-text-fill-color: transparent !important;
+      color: transparent !important;
       font-weight: 800 !important;
+      letter-spacing: -0.01em;
     }
     .sidebar-section {
       color: var(--xk-sky-text-dim) !important;
@@ -2975,8 +2979,8 @@
               <option value="60">60 ngày</option>
             </select>
             <div style="display:flex; gap:4px;">
-              <button onclick="setChartType('bar')" id="chartTypeBar" style="padding:5px 10px; border:1px solid #7c66ff; border-radius:6px; background:#7c66ff; color:#fff; font-size:12px; cursor:pointer; font-weight:600;">Bar</button>
-              <button onclick="setChartType('line')" id="chartTypeLine" style="padding:5px 10px; border:1px solid #ddd; border-radius:6px; background:#fff; color:#555; font-size:12px; cursor:pointer;">Line</button>
+              <button onclick="setChartType('bar')" id="chartTypeBar" style="padding:5px 10px; border:1px solid transparent; border-radius:6px; background:linear-gradient(135deg, #6b9bf5 0%, #a78bfa 100%); color:#fff; font-size:12px; cursor:pointer; font-weight:600; box-shadow:0 3px 10px rgba(127, 168, 232, 0.30);">Bar</button>
+              <button onclick="setChartType('line')" id="chartTypeLine" style="padding:5px 10px; border:1px solid #d8dde6; border-radius:6px; background:#fff; color:#506580; font-size:12px; cursor:pointer; font-weight:600;">Line</button>
             </div>
           </div>
         </div>
@@ -6013,16 +6017,20 @@
     // ===== Dashboard Chart =====
     let _dashChart = null;
     let _chartType = 'bar';
-    const CHART_PALETTE = ['#7c66ff','#06b6d4','#f59e0b','#10b981','#ef4444','#8b5cf6','#ec4899','#f97316'];
+    const CHART_PALETTE = ['#6b9bf5','#a78bfa','#06b6d4','#10b981','#f59e0b','#ec4899','#f97316','#8b5cf6'];
 
     function setChartType(type) {
       _chartType = type;
-      document.getElementById('chartTypeBar').style.background  = type === 'bar'  ? '#7c66ff' : '#fff';
-      document.getElementById('chartTypeBar').style.color       = type === 'bar'  ? '#fff'    : '#555';
-      document.getElementById('chartTypeBar').style.borderColor = type === 'bar'  ? '#7c66ff' : '#ddd';
-      document.getElementById('chartTypeLine').style.background  = type === 'line' ? '#7c66ff' : '#fff';
-      document.getElementById('chartTypeLine').style.color       = type === 'line' ? '#fff'    : '#555';
-      document.getElementById('chartTypeLine').style.borderColor = type === 'line' ? '#7c66ff' : '#ddd';
+      const SKY_ACTIVE_BG = 'linear-gradient(135deg, #6b9bf5 0%, #a78bfa 100%)';
+      const SKY_ACTIVE_SHADOW = '0 3px 10px rgba(127, 168, 232, 0.30)';
+      document.getElementById('chartTypeBar').style.background   = type === 'bar'  ? SKY_ACTIVE_BG : '#fff';
+      document.getElementById('chartTypeBar').style.color        = type === 'bar'  ? '#fff'        : '#506580';
+      document.getElementById('chartTypeBar').style.borderColor  = type === 'bar'  ? 'transparent' : '#d8dde6';
+      document.getElementById('chartTypeBar').style.boxShadow    = type === 'bar'  ? SKY_ACTIVE_SHADOW : 'none';
+      document.getElementById('chartTypeLine').style.background  = type === 'line' ? SKY_ACTIVE_BG : '#fff';
+      document.getElementById('chartTypeLine').style.color       = type === 'line' ? '#fff'        : '#506580';
+      document.getElementById('chartTypeLine').style.borderColor = type === 'line' ? 'transparent' : '#d8dde6';
+      document.getElementById('chartTypeLine').style.boxShadow   = type === 'line' ? SKY_ACTIVE_SHADOW : 'none';
       loadDashChart();
     }
 
