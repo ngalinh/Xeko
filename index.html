@@ -2868,8 +2868,15 @@
         </button>
       </div>
 
-      <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
-        <table style="width:100%; border-collapse:collapse;">
+      <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; table-layout:fixed; min-width:760px;">
+          <colgroup>
+            <col style="width:14%;">
+            <col style="width:24%;">
+            <col>
+            <col style="width:14%;">
+            <col style="width:160px;">
+          </colgroup>
           <thead style="background:#f9fafb;">
             <tr>
               <th style="text-align:left; padding:12px 16px; font-size:13px; color:#555; border-bottom:1px solid #e5e7eb;">Tên</th>
@@ -6983,16 +6990,16 @@
               ? u.profiles.map(k => profileNameMap[k] || k).join(', ')
               : '<em style="color:#999;">— chưa gán —</em>');
           const actions = isSuper
-            ? '<span style="color:#999; font-size:12px;">Super-admin</span>'
+            ? `<button onclick="editPermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; font-size:12px; cursor:pointer; color:#4f46e5;">Sửa tên</button>`
             : `<button onclick="editPermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; font-size:12px; cursor:pointer; color:#4f46e5; margin-right:6px;">Sửa</button>
                <button onclick="deletePermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#fee2e2; border:1px solid #fecaca; border-radius:6px; font-size:12px; cursor:pointer; color:#dc2626;">Xoá</button>`;
           const nameDisplay = u.name ? escapeHtml(u.name) : '<em style="color:#999;">—</em>';
           return `<tr style="border-bottom:1px solid #f3f4f6;">
-            <td style="padding:14px 16px; font-size:14px;"><strong>${nameDisplay}</strong></td>
-            <td style="padding:14px 16px; font-size:14px;">${escapeHtml(u.email)}${isSuper ? ' <span style="background:#fef3c7; color:#78350f; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:4px;">SUPER</span>' : ''}</td>
-            <td style="padding:14px 16px; font-size:13px; color:#555;">${profileText}</td>
+            <td style="padding:14px 16px; font-size:14px; word-break:break-word;"><strong>${nameDisplay}</strong></td>
+            <td style="padding:14px 16px; font-size:14px; word-break:break-all;">${escapeHtml(u.email)}${isSuper ? ' <span style="background:#fef3c7; color:#78350f; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:4px;">SUPER</span>' : ''}</td>
+            <td style="padding:14px 16px; font-size:13px; color:#555; word-break:break-word;">${profileText}</td>
             <td style="padding:14px 16px;">${roleBadge}</td>
-            <td style="padding:14px 16px; text-align:right;">${actions}</td>
+            <td style="padding:14px 16px; text-align:right; white-space:nowrap;">${actions}</td>
           </tr>`;
         }).join('');
       } catch (e) {
@@ -7009,6 +7016,22 @@
 
     let _editingEmail = null;
 
+    let _editingIsSuper = false;
+
+    function setPermFormSuperLock(isSuper) {
+      _editingIsSuper = isSuper;
+      const isAdminCb = document.getElementById('permIsAdmin');
+      const allProfCb = document.getElementById('permAllProfiles');
+      const profilesWrap = document.getElementById('permProfilesWrap');
+      const adminLabel = isAdminCb.closest('label');
+      const allLabel = allProfCb.closest('label');
+      isAdminCb.disabled = isSuper;
+      allProfCb.disabled = isSuper;
+      if (adminLabel) adminLabel.style.opacity = isSuper ? '0.5' : '';
+      if (allLabel) allLabel.style.opacity = isSuper ? '0.5' : '';
+      if (profilesWrap) profilesWrap.style.display = isSuper ? 'none' : '';
+    }
+
     function openPermissionModal() {
       _editingEmail = null;
       document.getElementById('permissionModalTitle').textContent = 'Thêm user';
@@ -7017,6 +7040,7 @@
       document.getElementById('permEmail').readOnly = false;
       document.getElementById('permIsAdmin').checked = false;
       document.getElementById('permAllProfiles').checked = false;
+      setPermFormSuperLock(false);
       renderPermProfilesList([]);
       togglePermAllProfiles();
       document.getElementById('permissionModal').style.display = 'flex';
@@ -7025,16 +7049,19 @@
     async function editPermission(email) {
       try {
         const res = await fetch(BASE_URL + '/api/admin/users', { credentials: 'include' });
-        const { users } = await res.json();
+        const { users, superAdmin } = await res.json();
         const u = users.find(x => x.email === email);
         if (!u) return alert('Không tìm thấy user');
+        const isSuper = email === superAdmin;
         _editingEmail = email;
-        document.getElementById('permissionModalTitle').textContent = 'Sửa phân quyền: ' + email;
+        document.getElementById('permissionModalTitle').textContent =
+          (isSuper ? 'Sửa tên Super-admin: ' : 'Sửa phân quyền: ') + email;
         document.getElementById('permName').value = u.name || '';
         document.getElementById('permEmail').value = email;
         document.getElementById('permEmail').readOnly = true;
         document.getElementById('permIsAdmin').checked = !!u.isXekoAdmin;
         document.getElementById('permAllProfiles').checked = !!u.allProfiles;
+        setPermFormSuperLock(isSuper);
         renderPermProfilesList(u.profiles || []);
         togglePermAllProfiles();
         document.getElementById('permissionModal').style.display = 'flex';
