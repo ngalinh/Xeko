@@ -3133,14 +3133,62 @@
     }
 
     // ===== STEP 1: Welcome =====
-    function showWelcome() {
+    async function showWelcome() {
       step = 'welcome';
-      addBot(
-        pickWelcome(),
-        [
-          { label: `${xekoIcon('user')} Chọn Profile`, handler: () => showProfileSelect() },
-        ]
-      );
+      try {
+        const res = await fetch(BASE_URL + '/api/accounts');
+        const data = await parseJson(res);
+        const profiles = (data && data.facebook) || [];
+
+        if (profiles.length === 0) {
+          addBot(
+            'Chưa có profile FB nào được gán cho bạn 😢\nLiên hệ admin để được phân quyền profile nha!'
+          );
+          return;
+        }
+
+        if (profiles.length === 1) {
+          // Smart-skip: chỉ có 1 profile thì tự chọn luôn, đỡ thừa 1 click
+          autoSelectProfile(profiles[0]);
+          return;
+        }
+
+        // 2+ profiles: giữ flow cũ, để user tự chọn
+        addBot(
+          pickWelcome(),
+          [
+            { label: `${xekoIcon('user')} Chọn Profile`, handler: () => showProfileSelect() },
+          ]
+        );
+      } catch (e) {
+        addBot(`Ui Xeko load danh sách profile không nổi rồi: ${e.message}`);
+      }
+    }
+
+    // Auto-set profile khi user chỉ có đúng 1 profile được gán
+    async function autoSelectProfile(profile) {
+      try {
+        const res = await fetch(BASE_URL + '/api/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profile: profile.key }),
+        });
+        const data = await parseJson(res);
+        if (!res.ok) throw new Error(data.error || `Lỗi ${res.status}`);
+        currentProfile = profile.key;
+        currentProfileName = data.name || profile.name;
+        updateHeaderProfile(currentProfileName);
+        addBot(
+          `Xeko chào bạn 👋 Profile <strong>${currentProfileName}</strong> đã sẵn sàng rồi nha!\nBạn muốn Xeko đăng liền hay lên lịch?`,
+          [
+            { label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') },
+            { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
+          ]
+        );
+        step = 'mode';
+      } catch (e) {
+        addBot(`Ui set profile không được: ${e.message}`);
+      }
     }
 
     // ===== STEP 2: Chọn Profile =====
