@@ -364,7 +364,7 @@ const loginHistory = require('./src/utils/login-history');
 
 // Thêm tài khoản mới + mở trình duyệt để login thủ công
 app.post('/api/accounts', async (req, res) => {
-  const { type, key, name, email, password, saleworkName } = req.body;
+  const { type, key, name, email, password, saleworkName, proxy } = req.body;
 
   if (!key || !name) {
     return res.status(400).json({ error: 'Thiếu tên profile hoặc tên hiển thị' });
@@ -379,7 +379,7 @@ app.post('/api/accounts', async (req, res) => {
       const response = await fetchFn(`${LOCAL_URL}/api/accounts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
-        body: JSON.stringify({ type, key, name, email, password, saleworkName }),
+        body: JSON.stringify({ type, key, name, email, password, saleworkName, proxy }),
       });
       const data = await response.json();
       return res.status(response.status).json(data);
@@ -398,10 +398,14 @@ app.post('/api/accounts', async (req, res) => {
     // Mo trinh duyet de login thu cong
     try {
       const { chromium } = require('playwright');
+      const { parseProxy } = require('./src/utils/proxy');
+      const proxyOpt = parseProxy(proxy);
+      if (proxyOpt) logger.info(`FB "${name}" dùng proxy: ${proxyOpt.server}`);
       const browser = await chromium.launchPersistentContext(profileDir, {
         headless: false,
         slowMo: 500,
         viewport: { width: 1280, height: 720 },
+        ...(proxyOpt ? { proxy: proxyOpt } : {}),
       });
 
       const page = browser.pages()[0] || await browser.newPage();
@@ -525,6 +529,7 @@ app.get('/api/accounts', async (req, res) => {
           key,
           name: (meta && meta.name) || (cfgProfile ? cfgProfile.name : key),
           email: (meta && meta.email) || (cfgProfile ? (cfgProfile.email || '') : ''),
+          proxy: (meta && meta.proxy) || (cfgProfile ? (cfgProfile.proxy || '') : ''),
           fromConfig: !!cfgProfile,
         };
       });
@@ -556,7 +561,7 @@ function saveProfilesMeta(data) {
 // Cập nhật thông tin profile
 app.put('/api/accounts/:key', async (req, res) => {
   const { key } = req.params;
-  const { name, email, password, type, saleworkName } = req.body;
+  const { name, email, password, type, saleworkName, proxy } = req.body;
 
   if (!name) return res.status(400).json({ error: 'Thiếu tên hiển thị' });
 
@@ -569,7 +574,7 @@ app.put('/api/accounts/:key', async (req, res) => {
       const response = await fetchFn(`${LOCAL_URL}/api/accounts/${key}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
-        body: JSON.stringify({ name, email, password, type, saleworkName }),
+        body: JSON.stringify({ name, email, password, type, saleworkName, proxy }),
       });
       const data = await response.json();
       return res.status(response.status).json(data);
@@ -583,7 +588,13 @@ app.put('/api/accounts/:key', async (req, res) => {
       return res.status(400).json({ error: 'Zalo accounts managed by local server' });
     }
     const meta = loadProfilesMeta();
-    meta[key] = { name, email: email || '', password: password || (meta[key] && meta[key].password) || '' };
+    const proxyTrimmed = typeof proxy === 'string' ? proxy.trim() : undefined;
+    meta[key] = {
+      name,
+      email: email || '',
+      password: password || (meta[key] && meta[key].password) || '',
+      proxy: proxyTrimmed !== undefined ? proxyTrimmed : ((meta[key] && meta[key].proxy) || ''),
+    };
     saveProfilesMeta(meta);
     res.json({ success: true });
   } catch (e) {

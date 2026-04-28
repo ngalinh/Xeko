@@ -17,6 +17,7 @@ const salework = require('./src/playwright/salework');
 const sessionCheck = require('./src/utils/session-check');
 const loginHistory = require('./src/utils/login-history');
 const logger = require('./src/utils/logger');
+const { parseProxy } = require('./src/utils/proxy');
 
 const ZALO_ACCOUNTS_FILE = path.resolve(__dirname, 'config/zalo-accounts.json');
 
@@ -228,7 +229,7 @@ app.get('/api/zalo/status/:jobId', (req, res) => {
 
 // ===== ACCOUNTS =====
 app.post('/api/accounts', (req, res) => {
-  const { type, key, name, email, password, saleworkName } = req.body;
+  const { type, key, name, email, password, saleworkName, proxy } = req.body;
   if (!key || !name) return res.status(400).json({ error: 'Thiếu key hoặc tên' });
 
   if (type === 'zalo') {
@@ -236,13 +237,13 @@ app.post('/api/accounts', (req, res) => {
 
     const accounts = loadZaloAccounts();
     if (accounts.find(a => a.key === key)) return res.status(400).json({ error: 'Key đã tồn tại' });
-    accounts.push({ key, name, saleworkName, fbProfileKey: '' });
+    accounts.push({ key, name, saleworkName, fbProfileKey: '', proxy: (proxy || '').trim() });
     saveZaloAccounts(accounts);
 
     const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
     try {
       const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8')) : {};
-      meta[key] = { name, saleworkName };
+      meta[key] = { name, saleworkName, proxy: (proxy || '').trim() };
       fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2));
     } catch {}
 
@@ -259,10 +260,13 @@ app.post('/api/accounts', (req, res) => {
         try {
           const { chromium } = require('playwright');
           fs.mkdirSync(saleworkProfileDir, { recursive: true });
+          const proxyOpt = parseProxy(proxy);
+          if (proxyOpt) logger.info(`Salework "${name}" dùng proxy: ${proxyOpt.server}`);
           const browser = await chromium.launchPersistentContext(saleworkProfileDir, {
             headless: false,
             slowMo: 500,
             viewport: { width: 1280, height: 720 },
+            ...(proxyOpt ? { proxy: proxyOpt } : {}),
           });
           const page = browser.pages()[0] || await browser.newPage();
           await page.goto('https://zalo.salework.net/', { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -279,11 +283,16 @@ app.post('/api/accounts', (req, res) => {
   }
 
   // Facebook (default)
-  // Lưu tên hiển thị + email vào meta ngay (trước khi launch browser)
+  // Lưu tên hiển thị + email + proxy vào meta ngay (trước khi launch browser)
   const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
   try {
     const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8')) : {};
-    meta[key] = { name, email: email || '', password: password || meta[key]?.password || '' };
+    meta[key] = {
+      name,
+      email: email || '',
+      password: password || meta[key]?.password || '',
+      proxy: (proxy || '').trim(),
+    };
     fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2));
   } catch {}
 
@@ -295,10 +304,13 @@ app.post('/api/accounts', (req, res) => {
       const profileDir = path.resolve(__dirname, `playwright-data/${key}`);
       if (!fs.existsSync(profileDir)) fs.mkdirSync(profileDir, { recursive: true });
 
+      const proxyOpt = parseProxy(proxy);
+      if (proxyOpt) logger.info(`FB "${name}" dùng proxy: ${proxyOpt.server}`);
       const browser = await chromium.launchPersistentContext(profileDir, {
         headless: false,
         slowMo: 500,
         viewport: { width: 1280, height: 720 },
+        ...(proxyOpt ? { proxy: proxyOpt } : {}),
       });
       const page = browser.pages()[0] || await browser.newPage();
       await page.goto('https://www.facebook.com/', {
@@ -370,6 +382,7 @@ app.get('/api/accounts', (req, res) => {
         key: e.name,
         name: (meta[e.name] && meta[e.name].name) || config.profiles[e.name]?.name || e.name,
         email: (meta[e.name] && meta[e.name].email) || config.profiles[e.name]?.email || '',
+        proxy: (meta[e.name] && meta[e.name].proxy) || config.profiles[e.name]?.proxy || '',
       }));
 
     const zaloAccounts = loadZaloAccounts();
@@ -382,19 +395,30 @@ app.get('/api/accounts', (req, res) => {
 
 app.put('/api/accounts/:key', (req, res) => {
   const { key } = req.params;
-  const { name, email, password, saleworkName, type } = req.body;
+  const { name, email, password, saleworkName, type, proxy } = req.body;
+  const proxyTrimmed = typeof proxy === 'string' ? proxy.trim() : undefined;
   try {
     if (type === 'zalo') {
       const accounts = loadZaloAccounts();
       const idx = accounts.findIndex(a => a.key === key);
       if (idx === -1) return res.status(404).json({ error: 'Không tìm thấy tài khoản Zalo' });
-      accounts[idx] = { ...accounts[idx], name: name || accounts[idx].name, saleworkName: saleworkName || accounts[idx].saleworkName };
+      accounts[idx] = {
+        ...accounts[idx],
+        name: name || accounts[idx].name,
+        saleworkName: saleworkName || accounts[idx].saleworkName,
+        ...(proxyTrimmed !== undefined ? { proxy: proxyTrimmed } : {}),
+      };
       saveZaloAccounts(accounts);
       return res.json({ success: true });
     }
     const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
     const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8')) : {};
-    meta[key] = { name, email: email || '', password: password || meta[key]?.password || '' };
+    meta[key] = {
+      name,
+      email: email || '',
+      password: password || meta[key]?.password || '',
+      proxy: proxyTrimmed !== undefined ? proxyTrimmed : (meta[key]?.proxy || ''),
+    };
     fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2));
     res.json({ success: true });
   } catch (e) {

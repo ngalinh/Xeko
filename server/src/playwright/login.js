@@ -4,6 +4,7 @@ const config = require('../../config/default');
 const logger = require('../utils/logger');
 const { randomDelay } = require('../utils/delay');
 const loginHistory = require('../utils/login-history');
+const { getFbProxyForProfile } = require('../utils/proxy');
 
 const profileName = process.argv[2]; // node login.js linhthao
 
@@ -19,11 +20,15 @@ const USER_DATA_DIR = path.resolve(__dirname, '../../', profile.userDataDir);
 async function login() {
   logger.info(`Dang nhap profile: ${profile.name} (${profileName})`);
 
+  const proxy = getFbProxyForProfile(profileName, profile);
+  if (proxy) logger.info(`Profile "${profileName}" dùng proxy: ${proxy.server}`);
+
   const browser = await chromium.launchPersistentContext(USER_DATA_DIR, {
     headless: false,
     slowMo: 800,
     viewport: { width: 1280, height: 720 },
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    ...(proxy ? { proxy } : {}),
   });
 
   const page = browser.pages()[0] || await browser.newPage();

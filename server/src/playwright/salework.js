@@ -2,6 +2,7 @@ const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
 const logger = require('../utils/logger');
+const { getZaloProxyForAccount } = require('../utils/proxy');
 
 const DEBUG_SCREENSHOT_DIR = '/tmp/salework-debug';
 
@@ -217,12 +218,16 @@ async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message
     };
   }
 
+  const proxy = getZaloProxyForAccount(accountKey);
+  if (proxy) logger.info(`[salework] Account "${zaloAccountName}" dùng proxy: ${proxy.server}`);
+
   const browser = await chromium.launchPersistentContext(profilePath, {
     headless: false,
     slowMo: 500,
     viewport: { width: 1400, height: 800 },
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
     args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
+    ...(proxy ? { proxy } : {}),
   });
 
   const page = await browser.newPage();
