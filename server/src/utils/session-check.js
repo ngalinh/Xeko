@@ -3,6 +3,7 @@ const path = require('path');
 const config = require('../../config/default');
 const logger = require('./logger');
 const loginHistory = require('./login-history');
+const { getFbProxyForProfile } = require('./proxy');
 
 /**
  * Kiểm tra session Facebook của tất cả profile
@@ -27,11 +28,13 @@ async function checkSession(profileKey, profile) {
 
   let browser = null;
   try {
+    const proxy = getFbProxyForProfile(profileKey, profile);
     browser = await chromium.launchPersistentContext(userDataDir, {
       headless: true,
       viewport: { width: 1280, height: 720 },
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
       args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
+      ...(proxy ? { proxy } : {}),
     });
 
     const page = await browser.newPage();

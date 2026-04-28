@@ -2684,9 +2684,14 @@
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Email / SĐT</label>
         <input type="text" id="editEmail" autocomplete="off" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
       </div>
-      <div style="margin-bottom:16px;">
+      <div style="margin-bottom:12px;">
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Mật khẩu</label>
         <input type="password" id="editPassword" placeholder="Để trống nếu không đổi" autocomplete="new-password" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Proxy IP (tuỳ chọn)</label>
+        <input type="text" id="editProxy" placeholder="vd: host:port:user:pass hoặc http://user:pass@host:port" autocomplete="off" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+        <p style="font-size:11px; color:#888; margin:4px 0 0;">Hỗ trợ: <code>host:port</code>, <code>host:port:user:pass</code>, <code>user:pass@host:port</code>, <code>http(s)://...</code>, <code>socks5://...</code></p>
       </div>
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button onclick="closeEditModal()" style="padding:8px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
@@ -2737,6 +2742,12 @@
           <input type="text" id="newZaloSaleworkName" placeholder="vd: Linh Duong Us, Basso Order Hàng Mỹ" autocomplete="off"
             style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
         </div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Proxy IP (tuỳ chọn)</label>
+        <input type="text" id="newAccProxy" placeholder="vd: 1.2.3.4:8080:user:pass hoặc http://user:pass@host:port" autocomplete="off"
+          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:13px; box-sizing:border-box;">
+        <p style="font-size:11px; color:#888; margin:4px 0 0;">Hỗ trợ: <code>host:port</code>, <code>host:port:user:pass</code>, <code>user:pass@host:port</code>, <code>http(s)://...</code>, <code>socks5://...</code></p>
       </div>
       <button onclick="addNewAccount()" style="width:100%; padding:12px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer; margin-top:4px; box-sizing:border-box;">
         ➕ Thêm và đăng nhập
@@ -4438,11 +4449,11 @@
             <div class="avatar">${xekoIcon('user','xi xi-md')}</div>
             <div class="info">
               <div class="name">${p.name}</div>
-              <div class="detail">${p.email || p.key} · Chromium profile: ${p.key}</div>
+              <div class="detail">${p.email || p.key} · Chromium profile: ${p.key}${p.proxy ? ` · 🌐 <code style="font-size:11px;">${escapeHtml(proxyDisplay(p.proxy))}</code>` : ''}</div>
             </div>
             <div class="status-dot unknown" id="dot_fb_${p.key}" title="Chưa kiểm tra"></div>
             <div class="pc-actions">
-              <button class="pc-btn pc-btn-edit" onclick="editProfile('${p.key}','${p.name.replace(/'/g, "\\'")}','${(p.email||'').replace(/'/g, "\\'")}')" aria-label="Sửa" title="Sửa">
+              <button class="pc-btn pc-btn-edit" onclick="editProfile('${p.key}','${p.name.replace(/'/g, "\\'")}','${(p.email||'').replace(/'/g, "\\'")}','${(p.proxy||'').replace(/'/g, "\\'")}')" aria-label="Sửa" title="Sửa">
                 ${xekoIcon('edit')}<span class="pc-btn-label">Sửa</span>
               </button>
               <button class="pc-btn pc-btn-login" onclick="loginProfile('${p.key}')" aria-label="Login" title="Login">
@@ -4472,10 +4483,10 @@
                   <div class="avatar" style="background:#e8f4ff; color:#0068ff;">${xekoIcon('chat','xi xi-md')}</div>
                   <div class="info">
                     <div class="name">${z.name}</div>
-                    <div class="detail">Key: ${z.key} · Salework: ${z.saleworkName}</div>
+                    <div class="detail">Key: ${z.key} · Salework: ${z.saleworkName}${z.proxy ? ` · 🌐 <code style="font-size:11px;">${escapeHtml(proxyDisplay(z.proxy))}</code>` : ''}</div>
                   </div>
                   <div class="pc-actions">
-                    <button class="pc-btn pc-btn-edit" onclick="editZaloProfile('${z.key}','${z.name.replace(/'/g, "\\'")}','${z.saleworkName.replace(/'/g, "\\'")}')" aria-label="Sửa" title="Sửa">
+                    <button class="pc-btn pc-btn-edit" onclick="editZaloProfile('${z.key}','${z.name.replace(/'/g, "\\'")}','${z.saleworkName.replace(/'/g, "\\'")}','${(z.proxy||'').replace(/'/g, "\\'")}')" aria-label="Sửa" title="Sửa">
                       ${xekoIcon('edit')}<span class="pc-btn-label">Sửa</span>
                     </button>
                     <button class="pc-btn pc-btn-login pc-btn-zalo" onclick="loginZaloProfile()" aria-label="Login" title="Login">
@@ -4499,20 +4510,34 @@
       alert('Mở Salework: chạy lại lệnh thêm tài khoản Zalo để mở lại trình duyệt Salework.');
     }
 
-    function editZaloProfile(key, name, saleworkName) {
+    function proxyDisplay(p) {
+      if (!p) return '';
+      // Chỉ hiện host:port để giấu credentials
+      try {
+        let s = String(p).replace(/^\w+:\/\//, '');
+        if (s.includes('@')) s = s.split('@').pop();
+        const parts = s.split(':');
+        if (parts.length >= 2) return `${parts[0]}:${parts[1]}`;
+        return s;
+      } catch { return ''; }
+    }
+
+    function editZaloProfile(key, name, saleworkName, proxy) {
       document.getElementById('editKey').value = key;
       document.getElementById('editName').value = name;
       document.getElementById('editEmail').value = saleworkName;
       document.getElementById('editPassword').value = '';
+      document.getElementById('editProxy').value = proxy || '';
       document.getElementById('editProfileModal').style.display = 'flex';
       document.getElementById('editProfileModal').dataset.editType = 'zalo';
     }
 
-    function editProfile(key, name, email) {
+    function editProfile(key, name, email, proxy) {
       document.getElementById('editKey').value = key;
       document.getElementById('editName').value = name;
       document.getElementById('editEmail').value = email;
       document.getElementById('editPassword').value = '';
+      document.getElementById('editProxy').value = proxy || '';
       document.getElementById('editProfileModal').dataset.editType = 'facebook';
       document.getElementById('editProfileModal').style.display = 'flex';
     }
@@ -4527,12 +4552,13 @@
       const name = document.getElementById('editName').value.trim();
       const emailOrSalework = document.getElementById('editEmail').value.trim();
       const password = document.getElementById('editPassword').value;
+      const proxy = document.getElementById('editProxy').value.trim();
       const editType = document.getElementById('editProfileModal').dataset.editType || 'facebook';
 
       if (!name) { alert('Vui lòng nhập tên hiển thị!'); return; }
 
       try {
-        const body = { name, type: editType };
+        const body = { name, type: editType, proxy };
         if (editType === 'zalo') {
           body.saleworkName = emailOrSalework;
         } else {
@@ -4586,6 +4612,7 @@
       const email = document.getElementById('newAccEmail')?.value.trim();
       const pass = document.getElementById('newAccPass')?.value.trim();
       const saleworkName = document.getElementById('newZaloSaleworkName')?.value.trim();
+      const proxy = document.getElementById('newAccProxy')?.value.trim();
 
       if (!key || !name) {
         alert('Vui lòng nhập tên profile và tên hiển thị!');
@@ -4603,7 +4630,7 @@
       }
 
       try {
-        const body = { type, key, name };
+        const body = { type, key, name, proxy };
         if (type === 'facebook') { body.email = email; body.password = pass; }
         if (type === 'zalo') { body.saleworkName = saleworkName; }
 
@@ -4621,6 +4648,7 @@
           if (document.getElementById('newAccEmail')) document.getElementById('newAccEmail').value = '';
           if (document.getElementById('newAccPass')) document.getElementById('newAccPass').value = '';
           if (document.getElementById('newZaloSaleworkName')) document.getElementById('newZaloSaleworkName').value = '';
+          if (document.getElementById('newAccProxy')) document.getElementById('newAccProxy').value = '';
           closeAddAccountModal();
           renderProfileList();
         } else {

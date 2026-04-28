@@ -4,6 +4,7 @@ const config = require('../../config/default');
 const logger = require('../utils/logger');
 const { randomDelay } = require('../utils/delay');
 const funMsg = require('../utils/fun-messages');
+const { getFbProxyForProfile } = require('../utils/proxy');
 
 // Lưu browser context theo profile: { linhthao: ctx, linhduong: ctx }
 const browsers = {};
@@ -78,6 +79,8 @@ async function getBrowser() {
         await new Promise(r => setTimeout(r, 3000 * attempt));
       }
       try {
+        const proxy = getFbProxyForProfile(key, profile);
+        if (proxy && attempt === 0) logger.info(`Profile "${key}" dùng proxy: ${proxy.server}`);
         const ctx = await chromium.launchPersistentContext(userDataDir, {
           headless: false,
           slowMo: config.playwright.slowMo,
@@ -85,6 +88,7 @@ async function getBrowser() {
           userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
           args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
           permissions: ['clipboard-read', 'clipboard-write'],
+          ...(proxy ? { proxy } : {}),
         });
 
         // Khi user đóng tay cửa sổ Chromium, clear cache để lần sau tạo mới.
