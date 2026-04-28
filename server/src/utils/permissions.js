@@ -100,7 +100,7 @@ function listUsers() {
   });
 }
 
-function upsertUser({ email, isXekoAdmin: admin, allProfiles, profiles, note }) {
+function upsertUser({ email, name, isXekoAdmin: admin, allProfiles, profiles, note }) {
   const e = normalize(email);
   if (!e) throw new Error('Email không hợp lệ');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) throw new Error('Email không hợp lệ');
@@ -109,6 +109,7 @@ function upsertUser({ email, isXekoAdmin: admin, allProfiles, profiles, note }) 
   data.users[e] = {
     ...existing,
     email: e,
+    name: typeof name === 'string' ? name.trim() : (existing.name || ''),
     isXekoAdmin: !!admin,
     allProfiles: !!allProfiles,
     profiles: Array.isArray(profiles) ? profiles : [],
