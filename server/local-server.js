@@ -363,7 +363,6 @@ app.delete('/api/accounts/:type/:key', (req, res) => {
 
 app.get('/api/accounts', (req, res) => {
   const dataDir = path.resolve(__dirname, 'playwright-data');
-  const config = require('./config/default');
   const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
   const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8')) : {};
   const knownNonProfiles = [
@@ -380,9 +379,9 @@ app.get('/api/accounts', (req, res) => {
         && !e.name.startsWith('salework')) // exclude salework and salework-{key} folders
       .map(e => ({
         key: e.name,
-        name: (meta[e.name] && meta[e.name].name) || config.profiles[e.name]?.name || e.name,
-        email: (meta[e.name] && meta[e.name].email) || config.profiles[e.name]?.email || '',
-        proxy: (meta[e.name] && meta[e.name].proxy) || config.profiles[e.name]?.proxy || '',
+        name: meta[e.name]?.name || e.name,
+        email: meta[e.name]?.email || '',
+        proxy: meta[e.name]?.proxy || '',
       }));
 
     const zaloAccounts = loadZaloAccounts();

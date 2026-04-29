@@ -506,14 +506,12 @@ app.get('/api/accounts', async (req, res) => {
         && !e.name.includes('.'))
       .map(e => {
         const key = e.name;
-        const cfgProfile = config.profiles[key];
         const meta = loadProfilesMeta()[key];
         return {
           key,
-          name: (meta && meta.name) || (cfgProfile ? cfgProfile.name : key),
-          email: (meta && meta.email) || (cfgProfile ? (cfgProfile.email || '') : ''),
-          proxy: (meta && meta.proxy) || (cfgProfile ? (cfgProfile.proxy || '') : ''),
-          fromConfig: !!cfgProfile,
+          name: meta?.name || key,
+          email: meta?.email || '',
+          proxy: meta?.proxy || '',
         };
       });
 

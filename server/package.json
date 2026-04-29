@@ -5,9 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "playwright:install": "npx playwright install chromium",
-    "playwright:login:linhthao": "node src/playwright/login.js linhthao",
-    "playwright:login:linhduong": "node src/playwright/login.js linhduong"
+    "playwright:install": "npx playwright install chromium"
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
