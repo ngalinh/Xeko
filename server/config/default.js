@@ -23,9 +23,6 @@ module.exports = {
     asale: { id: '350987965423767', name: 'Asale' },
     tongkho: { id: '532093344311571', name: 'Tổng Kho' },
   },
-  n8n: {
-    webhookUrl: process.env.N8N_WEBHOOK_URL,
-  },
   playwright: {
     headless: false,
     slowMo: 800,

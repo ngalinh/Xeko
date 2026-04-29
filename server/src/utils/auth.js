@@ -79,8 +79,4 @@ function requireAdmin() {
   };
 }
 
-function clearCache() {
-  sessionCache.clear();
-}
-
-module.exports = { verifyBassoSession, requireAuth, requireAdmin, clearCache };
+module.exports = { verifyBassoSession, requireAuth, requireAdmin };
