@@ -6,7 +6,12 @@
  */
 
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+require('dotenv').config({
+  path: [
+    path.resolve(__dirname, '.env'),       // server/.env (theo .env.example)
+    path.resolve(__dirname, '../.env'),    // root .env (theo start.js)
+  ],
+});
 const express = require('express');
 const multer = require('multer');
 const crypto = require('crypto');
