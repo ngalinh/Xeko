@@ -5215,8 +5215,15 @@
       btn.textContent = '🔍 Kiểm tra lại';
     }
 
-    function loginProfile(profileKey) {
-      alert(`Chạy lệnh trong terminal:\n\ncd C:\\Users\\tramm\\projects\\fb-auto-poster\nnode src\\playwright\\login.js ${profileKey}`);
+    async function loginProfile(profileKey) {
+      try {
+        const res = await fetch(`${BASE_URL}/api/accounts/${encodeURIComponent(profileKey)}/login`, { method: 'POST' });
+        const data = await parseJson(res);
+        if (data.success) alert(`✅ ${data.message}`);
+        else alert(`❌ Lỗi: ${data.error}`);
+      } catch (e) {
+        alert(`❌ Lỗi: ${e.message}`);
+      }
     }
 
     async function restartLocalServer() {

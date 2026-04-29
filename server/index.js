@@ -422,6 +422,29 @@ app.post('/api/accounts', async (req, res) => {
   }
 });
 
+// Re-login profile FB có sẵn — mở lại Chromium cho profile đã tồn tại
+app.post('/api/accounts/:key/login', async (req, res) => {
+  const { key } = req.params;
+
+  if (getLocalUrl()) {
+    try {
+      const LOCAL_URL = getLocalUrl();
+      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const fetchFn = await getFetch();
+      const response = await fetchFn(`${LOCAL_URL}/api/accounts/${encodeURIComponent(key)}/login`, {
+        method: 'POST',
+        headers: { 'x-api-key': API_KEY },
+      });
+      const data = await response.json();
+      return res.status(response.status).json(data);
+    } catch (e) {
+      return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
+    }
+  }
+
+  return res.status(503).json({ error: 'Chưa cấu hình PLAYWRIGHT_LOCAL_URL — không có máy nào để mở Chromium.' });
+});
+
 // Xoa profile
 app.delete('/api/accounts/:type/:key', async (req, res) => {
   const { type, key } = req.params;
