@@ -1,10 +1,6 @@
 require('dotenv').config();
 
 module.exports = {
-  telegram: {
-    token: process.env.TELEGRAM_BOT_TOKEN,
-    allowedUsers: (process.env.TELEGRAM_ALLOWED_USERS || '').split(',').map(Number),
-  },
   profiles: {
     linhthao: {
       email: process.env.FB_LINHTHAO_EMAIL,
@@ -28,8 +24,6 @@ module.exports = {
     slowMo: 800,
   },
   posting: {
-    minDelay: 30000,
-    maxDelay: 120000,
     maxPostsPerDay: 50,
   },
   server: {

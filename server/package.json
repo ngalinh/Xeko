@@ -5,19 +5,16 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "bot": "node src/bot/telegram.js",
     "playwright:install": "npx playwright install chromium",
     "playwright:login:linhthao": "node src/playwright/login.js linhthao",
     "playwright:login:linhduong": "node src/playwright/login.js linhduong"
   },
   "dependencies": {
-    "axios": "^1.7.0",
     "better-sqlite3": "^12.9.0",
     "dotenv": "^16.4.0",
     "express": "^4.21.0",
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",
-    "node-telegram-bot-api": "^0.66.0",
     "playwright": "^1.48.0",
     "winston": "^3.14.0"
   }
