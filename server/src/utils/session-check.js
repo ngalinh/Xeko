@@ -1,30 +1,45 @@
 const { chromium } = require('playwright');
 const path = require('path');
-const config = require('../../config/default');
+const fs = require('fs');
 const logger = require('./logger');
 const loginHistory = require('./login-history');
 const { getFbProxyForProfile } = require('./proxy');
 
-/**
- * Kiểm tra session Facebook của tất cả profile
- * Trả về danh sách trạng thái: { profile, name, status, message }
- */
+const PLAYWRIGHT_DATA_DIR = path.resolve(__dirname, '../../playwright-data');
+const META_FILE = path.resolve(__dirname, '../../config/profiles-meta.json');
+const KNOWN_NON_PROFILES = new Set([
+  'Crashpad', 'Default', 'GrShaderCache', 'GraphiteDawnCache',
+  'ShaderCache', 'Variations', 'component_crx_cache', 'extensions_crx_cache',
+  'segmentation_platform', 'Safe Browsing',
+]);
+
+function listFbProfiles() {
+  const meta = fs.existsSync(META_FILE) ? JSON.parse(fs.readFileSync(META_FILE, 'utf8')) : {};
+  if (!fs.existsSync(PLAYWRIGHT_DATA_DIR)) return [];
+  return fs.readdirSync(PLAYWRIGHT_DATA_DIR, { withFileTypes: true })
+    .filter(e => e.isDirectory()
+      && !KNOWN_NON_PROFILES.has(e.name)
+      && !e.name.startsWith('.')
+      && !e.name.startsWith('salework')
+      && !e.name.includes('.'))
+    .map(e => ({
+      key: e.name,
+      name: meta[e.name]?.name || e.name,
+      userDataDir: path.join(PLAYWRIGHT_DATA_DIR, e.name),
+    }));
+}
+
 async function checkAllSessions() {
   const results = [];
-
-  for (const [key, profile] of Object.entries(config.profiles)) {
-    const result = await checkSession(key, profile);
+  for (const profile of listFbProfiles()) {
+    const result = await checkSession(profile.key, profile);
     results.push(result);
   }
-
   return results;
 }
 
-/**
- * Kiểm tra session 1 profile
- */
 async function checkSession(profileKey, profile) {
-  const userDataDir = path.resolve(__dirname, '../../', profile.userDataDir);
+  const userDataDir = profile.userDataDir;
 
   let browser = null;
   try {

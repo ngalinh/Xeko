@@ -337,26 +337,6 @@ app.get('/api/screenshot', (req, res) => {
   }
 });
 
-// Commands
-app.post('/api/command', (req, res) => {
-  const { command } = req.body;
-  checkDailyReset();
-
-  if (command === '/status') {
-    let profileName = 'Chưa chọn';
-    try {
-      const p = playwright.getActiveProfile();
-      profileName = p.name;
-    } catch {}
-
-    return res.json({
-      message: `📊 Báo cáo hôm nay:\n\n👤 Profile: ${profileName}\n📝 Bài đã đăng: ${postCount}/${config.posting.maxPostsPerDay}\n📅 Ngày: ${lastResetDate}`,
-    });
-  }
-
-  res.json({ message: 'Lệnh không hợp lệ' });
-});
-
 // === Session Check API ===
 const sessionCheck = require('./src/utils/session-check');
 
@@ -519,18 +499,19 @@ app.get('/api/accounts', async (req, res) => {
   try {
     const entries = fs.readdirSync(dataDir, { withFileTypes: true });
     let fbProfiles = entries
-      .filter(e => e.isDirectory() && !knownNonProfiles.includes(e.name) && !e.name.startsWith('.'))
-      .filter(e => !e.name.includes('.'))
+      .filter(e => e.isDirectory()
+        && !knownNonProfiles.includes(e.name)
+        && !e.name.startsWith('.')
+        && !e.name.startsWith('salework')
+        && !e.name.includes('.'))
       .map(e => {
         const key = e.name;
-        const cfgProfile = config.profiles[key];
         const meta = loadProfilesMeta()[key];
         return {
           key,
-          name: (meta && meta.name) || (cfgProfile ? cfgProfile.name : key),
-          email: (meta && meta.email) || (cfgProfile ? (cfgProfile.email || '') : ''),
-          proxy: (meta && meta.proxy) || (cfgProfile ? (cfgProfile.proxy || '') : ''),
-          fromConfig: !!cfgProfile,
+          name: meta?.name || key,
+          email: meta?.email || '',
+          proxy: meta?.proxy || '',
         };
       });
 

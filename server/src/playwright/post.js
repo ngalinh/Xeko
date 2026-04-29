@@ -1,49 +1,37 @@
 const { chromium } = require('playwright');
 const path = require('path');
+const fs = require('fs');
 const config = require('../../config/default');
 const logger = require('../utils/logger');
 const { randomDelay } = require('../utils/delay');
 const funMsg = require('../utils/fun-messages');
 const { getFbProxyForProfile } = require('../utils/proxy');
 
-// Lưu browser context theo profile: { linhthao: ctx, linhduong: ctx }
+// Browser context theo profile key
 const browsers = {};
 
 // Mutex per profile: prevents concurrent launchPersistentContext on same userDataDir
 const launching = {};
 
-// Profile đang active
 let activeProfile = null;
 let activeProfileData = null;
 
-/**
- * Chọn profile
- */
 function setProfile(profileName) {
-  let profile = config.profiles[profileName];
-  if (!profile) {
-    // Check if profile dir exists in playwright-data (dynamically added profile)
-    const profileDir = path.resolve(__dirname, `../../playwright-data/${profileName}`);
-    if (require('fs').existsSync(profileDir)) {
-      profile = {
-        name: profileName,
-        userDataDir: profileDir,
-      };
-    } else {
-      throw new Error(`Profile "${profileName}" không tồn tại. Có: ${Object.keys(config.profiles).join(', ')}`);
-    }
+  const profileDir = path.resolve(__dirname, `../../playwright-data/${profileName}`);
+  if (!fs.existsSync(profileDir)) {
+    throw new Error(`Profile "${profileName}" không tồn tại — thêm tài khoản trong UI Web trước.`);
   }
   activeProfile = profileName;
-  activeProfileData = profile;
-  logger.info(`Đã chọn profile: ${profileName} (${profile.name})`);
-  return profile;
+  activeProfileData = { name: profileName, userDataDir: profileDir };
+  logger.info(`Đã chọn profile: ${profileName}`);
+  return activeProfileData;
 }
 
 function getActiveProfile() {
   if (!activeProfile) {
-    throw new Error('Chưa chọn profile! Dùng /linhthao hoặc /linhduong trước.');
+    throw new Error('Chưa chọn profile!');
   }
-  return activeProfileData || config.profiles[activeProfile];
+  return activeProfileData;
 }
 
 async function getBrowser() {
