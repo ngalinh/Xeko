@@ -5,11 +5,11 @@
  * Cách dùng: node local-server.js
  */
 
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const express = require('express');
 const multer = require('multer');
 const crypto = require('crypto');
-const path = require('path');
 const fs = require('fs');
 
 const playwright = require('./src/playwright/post');
