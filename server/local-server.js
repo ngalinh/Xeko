@@ -371,7 +371,9 @@ app.get('/api/accounts', (req, res) => {
     'segmentation_platform', 'Safe Browsing',
   ];
   try {
-    const entries = fs.readdirSync(dataDir, { withFileTypes: true });
+    const entries = fs.existsSync(dataDir)
+      ? fs.readdirSync(dataDir, { withFileTypes: true })
+      : [];
     const fbProfiles = entries
       .filter(e => e.isDirectory()
         && !knownNonProfiles.includes(e.name)
