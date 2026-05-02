@@ -2135,6 +2135,10 @@
       <symbol id="ic-plus" viewBox="0 0 24 24">
         <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </symbol>
+      <symbol id="ic-globe" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </symbol>
     </defs>
   </svg>
 
@@ -2259,6 +2263,7 @@
       <div class="acc-tab-bar" style="display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid #eee; padding-bottom:12px; flex-wrap:wrap;">
         <button onclick="switchAccountTab('profiles')" class="acc-tab active" id="tabProfiles"><svg class="xi"><use href="#ic-clipboard"/></svg> Tài khoản</button>
         <button onclick="switchAccountTab('channels')" class="acc-tab" id="tabChannels"><svg class="xi"><use href="#ic-settings"/></svg> Cài đặt kênh</button>
+        <button onclick="switchAccountTab('proxies')" class="acc-tab" id="tabProxies"><svg class="xi"><use href="#ic-globe"/></svg> IP Proxy</button>
         <button onclick="switchAccountTab('history')" class="acc-tab" id="tabHistory"><svg class="xi"><use href="#ic-scroll"/></svg> Lịch sử</button>
       </div>
 
@@ -2342,6 +2347,35 @@
           </div>
         </div>
 
+      </div>
+
+      <!-- Tab: IP Proxy -->
+      <div id="panelProxies" style="display:none;">
+        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:18px;">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+            <h3 style="font-size:15px; color:#1e1e2e; margin:0; flex:1; display:flex; align-items:center; gap:8px;">
+              <svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-globe"/></svg> Danh sách IP Proxy
+            </h3>
+            <button onclick="openProxyModal('add')"
+              style="padding:8px 14px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">+ Thêm proxy</button>
+          </div>
+          <p style="font-size:12px; color:#999; margin:-4px 0 12px;">Quản lý IP proxy và gán cho tài khoản trong modal "Thêm/Sửa tài khoản".</p>
+          <div id="proxiesTableWrap" style="overflow-x:auto;">
+            <table id="proxiesTable" style="width:100%; border-collapse:separate; border-spacing:0 4px; font-size:13px;">
+              <thead>
+                <tr style="text-align:left; color:#888; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">
+                  <th style="padding:6px 10px; font-weight:600; width:160px;">Nhãn</th>
+                  <th style="padding:6px 10px; font-weight:600;">Host : Port</th>
+                  <th style="padding:6px 10px; font-weight:600; width:140px;">User</th>
+                  <th style="padding:6px 10px; font-weight:600; width:100px; text-align:center;">Đang dùng</th>
+                  <th style="padding:6px 10px; font-weight:600; width:96px; text-align:right;">Hành động</th>
+                </tr>
+              </thead>
+              <tbody id="proxiesTableBody"></tbody>
+            </table>
+            <p id="noProxiesMsg" style="font-size:13px; color:#999; margin:16px 0 0; text-align:center; display:none;">Chưa có proxy nào. Bấm "+ Thêm proxy" để bắt đầu.</p>
+          </div>
+        </div>
       </div>
 
       <!-- Tab: Lich su -->
@@ -2577,13 +2611,61 @@
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Email / SĐT</label>
         <input type="text" id="editEmail" autocomplete="off" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
       </div>
-      <div style="margin-bottom:16px;">
+      <div style="margin-bottom:12px;">
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Mật khẩu</label>
         <input type="password" id="editPassword" placeholder="Để trống nếu không đổi" autocomplete="new-password" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px; display:flex; align-items:center; gap:6px;"><svg class="xi" style="color:#6b5bff;"><use href="#ic-globe"/></svg> IP Proxy</label>
+        <select id="editProxyId" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; background:#fff;"></select>
       </div>
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button onclick="closeEditModal()" style="padding:8px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
         <button onclick="saveProfile()" style="padding:8px 20px; border:none; border-radius:8px; background:#4f46e5; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">💾 Lưu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal thêm / sửa IP Proxy -->
+  <div id="proxyModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:16px; padding:24px; width:440px; max-width:92%; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <h3 id="proxyModalTitle" style="font-size:16px; color:#1e1e2e; margin:0; display:flex; align-items:center; gap:8px;"><svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-globe"/></svg> Thêm IP Proxy</h3>
+        <button onclick="closeProxyModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999; line-height:1; padding:0 4px;">×</button>
+      </div>
+      <input type="hidden" id="proxyEditId">
+      <div style="margin-bottom:12px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Nhãn (tuỳ chọn)</label>
+        <input type="text" id="proxyLabel" placeholder="vd: US-VN, Dedicated 1..." autocomplete="off"
+          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+      </div>
+      <div style="display:flex; gap:10px; margin-bottom:12px;">
+        <div style="flex:2;">
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Host</label>
+          <input type="text" id="proxyHost" placeholder="vd: 14.176.246.42" autocomplete="off"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+        </div>
+        <div style="flex:1;">
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Port</label>
+          <input type="text" id="proxyPort" placeholder="vd: 3076" autocomplete="off"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-bottom:18px;">
+        <div style="flex:1;">
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Username (tuỳ chọn)</label>
+          <input type="text" id="proxyUser" autocomplete="off"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+        </div>
+        <div style="flex:1;">
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Password (tuỳ chọn)</label>
+          <input type="password" id="proxyPass" autocomplete="new-password"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+        </div>
+      </div>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button onclick="closeProxyModal()" style="padding:9px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
+        <button onclick="saveProxyFromModal()" style="padding:9px 20px; border:none; border-radius:8px; background:#4f46e5; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">Lưu</button>
       </div>
     </div>
   </div>
@@ -2630,6 +2712,10 @@
           <input type="text" id="newZaloSaleworkName" placeholder="vd: Linh Duong Us, Basso Order Hàng Mỹ" autocomplete="off"
             style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
         </div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px; font-weight:600; color:#555; margin-bottom:4px; display:flex; align-items:center; gap:6px;"><svg class="xi" style="color:#6b5bff;"><use href="#ic-globe"/></svg> IP Proxy (tuỳ chọn)</label>
+        <select id="newAccProxyId" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; background:#fff;"></select>
       </div>
       <button onclick="addNewAccount()" style="width:100%; padding:12px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer; margin-top:4px; box-sizing:border-box;">
         ➕ Thêm và đăng nhập
@@ -4282,7 +4368,7 @@
 
     // === Quan ly tai khoan ===
     function switchAccountTab(tab) {
-      ['profiles','channels','history'].forEach(t => {
+      ['profiles','channels','proxies','history'].forEach(t => {
         const p = document.getElementById('panel' + t.charAt(0).toUpperCase() + t.slice(1));
         const b = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
         if (p) p.style.display = 'none';
@@ -4294,9 +4380,138 @@
       if (btn) btn.classList.add('active');
       if (tab === 'history') loadLoginHistory();
       if (tab === 'channels') loadChannels();
+      if (tab === 'proxies') renderProxiesTable();
     }
 
+    // ===== IP Proxy management (localStorage) =====
+    const PROXY_STORE_KEY = 'xeko.proxies.v1';
+    const PROXY_ASSIGN_KEY = 'xeko.proxyAssignments.v1';
+
+    function loadProxies() {
+      try { return JSON.parse(localStorage.getItem(PROXY_STORE_KEY) || '[]'); } catch { return []; }
+    }
+    function saveProxies(list) {
+      localStorage.setItem(PROXY_STORE_KEY, JSON.stringify(list));
+    }
+    function loadProxyAssignments() {
+      try { return JSON.parse(localStorage.getItem(PROXY_ASSIGN_KEY) || '{}'); } catch { return {}; }
+    }
+    function saveProxyAssignments(map) {
+      localStorage.setItem(PROXY_ASSIGN_KEY, JSON.stringify(map));
+    }
+    function accountAssignKey(type, key) { return `${type}:${key}`; }
+    function getProxyForAccount(type, key) {
+      const map = loadProxyAssignments();
+      const id = map[accountAssignKey(type, key)];
+      if (!id) return null;
+      return loadProxies().find(p => p.id === id) || null;
+    }
+    function setProxyForAccount(type, key, proxyId) {
+      const map = loadProxyAssignments();
+      const k = accountAssignKey(type, key);
+      if (proxyId) map[k] = proxyId; else delete map[k];
+      saveProxyAssignments(map);
+    }
+    function proxyDisplay(p) {
+      const base = `${p.host}:${p.port}`;
+      return p.label ? `${p.label} (${base})` : base;
+    }
+    function fillProxySelect(selectEl, selectedId) {
+      if (!selectEl) return;
+      const proxies = loadProxies();
+      const opts = ['<option value="">— Không dùng proxy —</option>']
+        .concat(proxies.map(p => `<option value="${p.id}"${p.id === selectedId ? ' selected' : ''}>${escapeHtml(proxyDisplay(p))}</option>`));
+      selectEl.innerHTML = opts.join('');
+    }
+    function countAssignmentsByProxy(proxyId) {
+      const map = loadProxyAssignments();
+      return Object.values(map).filter(id => id === proxyId).length;
+    }
+
+    function openProxyModal(mode, id) {
+      document.getElementById('proxyModalTitle').innerHTML = mode === 'edit'
+        ? '<svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-globe"/></svg> Sửa IP Proxy'
+        : '<svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-globe"/></svg> Thêm IP Proxy';
+      document.getElementById('proxyEditId').value = id || '';
+      let p = { label: '', host: '', port: '', user: '', pass: '' };
+      if (mode === 'edit' && id) {
+        const found = loadProxies().find(x => x.id === id);
+        if (found) p = found;
+      }
+      document.getElementById('proxyLabel').value = p.label || '';
+      document.getElementById('proxyHost').value = p.host || '';
+      document.getElementById('proxyPort').value = p.port || '';
+      document.getElementById('proxyUser').value = p.user || '';
+      document.getElementById('proxyPass').value = p.pass || '';
+      document.getElementById('proxyModal').style.display = 'flex';
+    }
+    function closeProxyModal() {
+      document.getElementById('proxyModal').style.display = 'none';
+    }
+    function saveProxyFromModal() {
+      const id = document.getElementById('proxyEditId').value;
+      const label = document.getElementById('proxyLabel').value.trim();
+      const host = document.getElementById('proxyHost').value.trim();
+      const port = document.getElementById('proxyPort').value.trim();
+      const user = document.getElementById('proxyUser').value.trim();
+      const pass = document.getElementById('proxyPass').value;
+      if (!host || !port) { alert('Vui lòng nhập host và port!'); return; }
+      const list = loadProxies();
+      if (id) {
+        const idx = list.findIndex(p => p.id === id);
+        if (idx >= 0) list[idx] = { ...list[idx], label, host, port, user, pass };
+      } else {
+        list.push({ id: 'px_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), label, host, port, user, pass });
+      }
+      saveProxies(list);
+      closeProxyModal();
+      renderProxiesTable();
+      renderProfileList();
+    }
+    function deleteProxy(id) {
+      const proxy = loadProxies().find(p => p.id === id);
+      if (!proxy) return;
+      const usedCount = countAssignmentsByProxy(id);
+      const msg = usedCount > 0
+        ? `Proxy "${proxyDisplay(proxy)}" đang được gán cho ${usedCount} tài khoản. Xoá sẽ bỏ gán. Tiếp tục?`
+        : `Xoá proxy "${proxyDisplay(proxy)}"?`;
+      if (!confirm(msg)) return;
+      saveProxies(loadProxies().filter(p => p.id !== id));
+      const map = loadProxyAssignments();
+      Object.keys(map).forEach(k => { if (map[k] === id) delete map[k]; });
+      saveProxyAssignments(map);
+      renderProxiesTable();
+      renderProfileList();
+    }
+    function renderProxiesTable() {
+      const tbody = document.getElementById('proxiesTableBody');
+      const empty = document.getElementById('noProxiesMsg');
+      if (!tbody) return;
+      const list = loadProxies();
+      if (list.length === 0) {
+        tbody.innerHTML = '';
+        if (empty) empty.style.display = 'block';
+        return;
+      }
+      if (empty) empty.style.display = 'none';
+      tbody.innerHTML = list.map(p => `
+        <tr style="background:#fafafe;">
+          <td style="padding:10px 12px; font-weight:600; color:#1e1e2e;">${escapeHtml(p.label || '—')}</td>
+          <td style="padding:10px 12px; color:#444; font-family:ui-monospace,Menlo,monospace; font-size:12px;">${escapeHtml(p.host)}:${escapeHtml(p.port)}</td>
+          <td style="padding:10px 12px; color:#666;">${escapeHtml(p.user || '—')}</td>
+          <td style="padding:10px 12px; text-align:center; color:#4f46e5; font-weight:600;">${countAssignmentsByProxy(p.id)}</td>
+          <td style="padding:10px 12px; text-align:right;">
+            <button class="pc-btn pc-btn-edit" onclick="openProxyModal('edit','${p.id}')" title="Sửa" aria-label="Sửa">${xekoIcon('edit')}</button>
+            <button class="pc-btn pc-btn-del" onclick="deleteProxy('${p.id}')" title="Xoá" aria-label="Xoá">${xekoIcon('trash')}</button>
+          </td>
+        </tr>`).join('');
+    }
+    document.getElementById('proxyModal')?.addEventListener('click', function(e) {
+      if (e.target === this) closeProxyModal();
+    });
+
     function openAddAccountModal() {
+      fillProxySelect(document.getElementById('newAccProxyId'), '');
       document.getElementById('addAccountModal').style.display = 'flex';
     }
 
@@ -4322,26 +4537,25 @@
         const data = await parseJson(res);
 
         // FB profiles
-        fbContainer.innerHTML = data.facebook.map(p => `
+        fbContainer.innerHTML = data.facebook.map(p => {
+          const proxy = getProxyForAccount('facebook', p.key);
+          const proxyHtml = proxy
+            ? ` · <span style="display:inline-flex; align-items:center; gap:4px; color:#6b5bff;">${xekoIcon('globe')} ${escapeHtml(proxy.host)}:${escapeHtml(proxy.port)}</span>`
+            : '';
+          return `
           <div class="profile-card">
             <div class="avatar">${xekoIcon('user','xi xi-md')}</div>
             <div class="info">
-              <div class="name">${p.name}</div>
-              <div class="detail">${p.email || p.key} · Chromium profile: ${p.key}</div>
+              <div class="name">${escapeHtml(p.name)}</div>
+              <div class="detail">${escapeHtml(p.email || p.key)} · Chromium profile: ${escapeHtml(p.key)}${proxyHtml}</div>
             </div>
-            <div class="status-dot unknown" id="dot_fb_${p.key}" title="Chưa kiểm tra"></div>
             <div class="pc-actions">
-              <button class="pc-btn pc-btn-edit" onclick="editProfile('${p.key}','${p.name.replace(/'/g, "\\'")}','${(p.email||'').replace(/'/g, "\\'")}')" aria-label="Sửa" title="Sửa">
-                ${xekoIcon('edit')}<span class="pc-btn-label">Sửa</span>
-              </button>
-              <button class="pc-btn pc-btn-login" onclick="loginProfile('${p.key}')" aria-label="Login" title="Login">
-                ${xekoIcon('key')}<span class="pc-btn-label">Login</span>
-              </button>
               <button class="pc-btn pc-btn-del" onclick="deleteProfile('facebook','${p.key}','${p.name.replace(/'/g, "\\'")}')" aria-label="Xoá" title="Xoá">
                 ${xekoIcon('trash')}
               </button>
             </div>
-          </div>`).join('');
+          </div>`;
+        }).join('');
 
         // Zalo accounts
         let zaloSection = document.getElementById('zaloAccountSection');
@@ -4356,25 +4570,25 @@
               ${xekoIcon('chat')} Zalo
             </h4>
             <div style="display:flex; flex-direction:column; gap:8px;">
-              ${data.zalo.map(z => `
+              ${data.zalo.map(z => {
+                const zproxy = getProxyForAccount('zalo', z.key);
+                const zproxyHtml = zproxy
+                  ? ` · <span style="display:inline-flex; align-items:center; gap:4px; color:#6b5bff;">${xekoIcon('globe')} ${escapeHtml(zproxy.host)}:${escapeHtml(zproxy.port)}</span>`
+                  : '';
+                return `
                 <div class="profile-card">
                   <div class="avatar" style="background:#e8f4ff; color:#0068ff;">${xekoIcon('chat','xi xi-md')}</div>
                   <div class="info">
-                    <div class="name">${z.name}</div>
-                    <div class="detail">Key: ${z.key} · Salework: ${z.saleworkName}</div>
+                    <div class="name">${escapeHtml(z.name)}</div>
+                    <div class="detail">Key: ${escapeHtml(z.key)} · Salework: ${escapeHtml(z.saleworkName)}${zproxyHtml}</div>
                   </div>
                   <div class="pc-actions">
-                    <button class="pc-btn pc-btn-edit" onclick="editZaloProfile('${z.key}','${z.name.replace(/'/g, "\\'")}','${z.saleworkName.replace(/'/g, "\\'")}')" aria-label="Sửa" title="Sửa">
-                      ${xekoIcon('edit')}<span class="pc-btn-label">Sửa</span>
-                    </button>
-                    <button class="pc-btn pc-btn-login pc-btn-zalo" onclick="loginZaloProfile()" aria-label="Login" title="Login">
-                      ${xekoIcon('key')}<span class="pc-btn-label">Login</span>
-                    </button>
                     <button class="pc-btn pc-btn-del" onclick="deleteProfile('zalo','${z.key}','${z.name.replace(/'/g, "\\'")}')" aria-label="Xoá" title="Xoá">
                       ${xekoIcon('trash')}
                     </button>
                   </div>
-                </div>`).join('')}
+                </div>`;
+              }).join('')}
             </div>`;
         } else if (zaloSection) {
           zaloSection.innerHTML = '';
@@ -4393,6 +4607,8 @@
       document.getElementById('editName').value = name;
       document.getElementById('editEmail').value = saleworkName;
       document.getElementById('editPassword').value = '';
+      const cur = getProxyForAccount('zalo', key);
+      fillProxySelect(document.getElementById('editProxyId'), cur ? cur.id : '');
       document.getElementById('editProfileModal').style.display = 'flex';
       document.getElementById('editProfileModal').dataset.editType = 'zalo';
     }
@@ -4402,6 +4618,8 @@
       document.getElementById('editName').value = name;
       document.getElementById('editEmail').value = email;
       document.getElementById('editPassword').value = '';
+      const cur = getProxyForAccount('facebook', key);
+      fillProxySelect(document.getElementById('editProxyId'), cur ? cur.id : '');
       document.getElementById('editProfileModal').dataset.editType = 'facebook';
       document.getElementById('editProfileModal').style.display = 'flex';
     }
@@ -4420,6 +4638,7 @@
 
       if (!name) { alert('Vui lòng nhập tên hiển thị!'); return; }
 
+      const proxyId = document.getElementById('editProxyId')?.value || '';
       try {
         const body = { name, type: editType };
         if (editType === 'zalo') {
@@ -4435,6 +4654,7 @@
         });
         const data = await parseJson(res);
         if (data.success) {
+          setProxyForAccount(editType, key, proxyId);
           alert('✅ Đã cập nhật thông tin tài khoản!');
           closeEditModal();
           renderProfileList();
@@ -4458,6 +4678,7 @@
         const res = await fetch(`${BASE_URL}/api/accounts/${type}/${encodeURIComponent(key)}`, { method: 'DELETE' });
         const data = await parseJson(res);
         if (data.success) {
+          setProxyForAccount(type, key, '');
           alert(`✅ ${data.message}`);
           renderProfileList();
         } else {
@@ -4491,6 +4712,7 @@
         return;
       }
 
+      const proxyId = document.getElementById('newAccProxyId')?.value || '';
       try {
         const body = { type, key, name };
         if (type === 'facebook') { body.email = email; body.password = pass; }
@@ -4504,6 +4726,7 @@
         const data = await parseJson(res);
 
         if (data.success) {
+          if (proxyId) setProxyForAccount(type, key, proxyId);
           alert(data.message);
           document.getElementById('newAccKey').value = '';
           document.getElementById('newAccName').value = '';
