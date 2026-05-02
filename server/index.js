@@ -501,6 +501,7 @@ app.get('/api/accounts', async (req, res) => {
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/accounts`, {
         headers: { 'x-api-key': API_KEY },
+        signal: AbortSignal.timeout(8000),
       });
       const data = await response.json();
       if (!wantAll && req.user) {
@@ -509,7 +510,7 @@ app.get('/api/accounts', async (req, res) => {
       }
       return res.json(data);
     } catch (e) {
-      return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
+      return res.status(504).json({ error: `Không thể kết nối local server: ${e.message}` });
     }
   }
 

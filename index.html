@@ -7009,52 +7009,64 @@
       const tbody = document.getElementById('permissionsTableBody');
       tbody.innerHTML = '<tr><td colspan="5" style="padding:30px; text-align:center; color:#999;">Đang tải...</td></tr>';
       try {
-        const [usersRes, profilesRes] = await Promise.all([
-          fetch(BASE_URL + '/api/admin/users', { credentials: 'include' }),
-          fetch(BASE_URL + '/api/accounts?all=1', { credentials: 'include' }),
-        ]);
+        // Render user list ngay sau khi /api/admin/users về (nhanh, đọc file local trên REMOTE).
+        // /api/accounts proxy qua Cloudflare Tunnel xuống VPS — chậm, fetch song song và update profile name khi về.
+        const usersRes = await fetch(BASE_URL + '/api/admin/users', { credentials: 'include' });
         if (!usersRes.ok) {
           tbody.innerHTML = `<tr><td colspan="5" style="padding:30px; text-align:center; color:#dc2626;">Lỗi: ${usersRes.status}</td></tr>`;
           return;
         }
         const { users, superAdmin } = await usersRes.json();
-        const profilesData = await profilesRes.json();
-        _allProfilesCache = profilesData.facebook || [];
-
-        const profileNameMap = {};
-        _allProfilesCache.forEach(p => { profileNameMap[p.key] = p.name; });
-
         if (!users || !users.length) {
           tbody.innerHTML = '<tr><td colspan="5" style="padding:30px; text-align:center; color:#999;">Chưa có user nào.</td></tr>';
           return;
         }
 
-        tbody.innerHTML = users.map(u => {
-          const isSuper = u.email === superAdmin;
-          const roleBadge = u.isXekoAdmin
-            ? '<span style="background:#ede9fe; color:#4f46e5; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;">Admin Xeko</span>'
-            : '<span style="background:#f3f4f6; color:#555; padding:3px 10px; border-radius:12px; font-size:12px;">User</span>';
-          const profileText = u.allProfiles
-            ? '<em style="color:#16a34a;">Tất cả profile</em>'
-            : (u.profiles && u.profiles.length
-              ? u.profiles.map(k => profileNameMap[k] || k).join(', ')
-              : '<em style="color:#999;">— chưa gán —</em>');
-          const actions = isSuper
-            ? `<button onclick="editPermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; font-size:12px; cursor:pointer; color:#4f46e5;">Sửa tên</button>`
-            : `<button onclick="editPermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; font-size:12px; cursor:pointer; color:#4f46e5; margin-right:6px;">Sửa</button>
-               <button onclick="deletePermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#fee2e2; border:1px solid #fecaca; border-radius:6px; font-size:12px; cursor:pointer; color:#dc2626;">Xoá</button>`;
-          const nameDisplay = u.name ? escapeHtml(u.name) : '<em style="color:#999;">—</em>';
-          return `<tr style="border-bottom:1px solid #f3f4f6;">
-            <td style="padding:14px 16px; font-size:14px; word-break:break-word;"><strong>${nameDisplay}</strong></td>
-            <td style="padding:14px 16px; font-size:14px; word-break:break-all;">${escapeHtml(u.email)}${isSuper ? ' <span style="background:#fef3c7; color:#78350f; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:4px;">SUPER</span>' : ''}</td>
-            <td style="padding:14px 16px; font-size:13px; color:#555; word-break:break-word;">${profileText}</td>
-            <td style="padding:14px 16px;">${roleBadge}</td>
-            <td style="padding:14px 16px; text-align:right; white-space:nowrap;">${actions}</td>
-          </tr>`;
-        }).join('');
+        const profileNameMap = {};
+        _allProfilesCache.forEach(p => { profileNameMap[p.key] = p.name; });
+        renderPermissionsTable(users, superAdmin, profileNameMap);
+
+        // Fetch profile names ở background, update bảng khi về (không block render)
+        fetch(BASE_URL + '/api/accounts?all=1', { credentials: 'include' })
+          .then(r => r.ok ? r.json() : null)
+          .then(profilesData => {
+            if (!profilesData) return;
+            _allProfilesCache = profilesData.facebook || [];
+            const newMap = {};
+            _allProfilesCache.forEach(p => { newMap[p.key] = p.name; });
+            renderPermissionsTable(users, superAdmin, newMap);
+          })
+          .catch(() => {});
       } catch (e) {
         tbody.innerHTML = `<tr><td colspan="5" style="padding:30px; text-align:center; color:#dc2626;">Lỗi: ${e.message}</td></tr>`;
       }
+    }
+
+    function renderPermissionsTable(users, superAdmin, profileNameMap) {
+      const tbody = document.getElementById('permissionsTableBody');
+      tbody.innerHTML = users.map(u => {
+        const isSuper = u.email === superAdmin;
+        const roleBadge = u.isXekoAdmin
+          ? '<span style="background:#ede9fe; color:#4f46e5; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;">Admin Xeko</span>'
+          : '<span style="background:#f3f4f6; color:#555; padding:3px 10px; border-radius:12px; font-size:12px;">User</span>';
+        const profileText = u.allProfiles
+          ? '<em style="color:#16a34a;">Tất cả profile</em>'
+          : (u.profiles && u.profiles.length
+            ? u.profiles.map(k => profileNameMap[k] || k).join(', ')
+            : '<em style="color:#999;">— chưa gán —</em>');
+        const actions = isSuper
+          ? `<button onclick="editPermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; font-size:12px; cursor:pointer; color:#4f46e5;">Sửa tên</button>`
+          : `<button onclick="editPermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; font-size:12px; cursor:pointer; color:#4f46e5; margin-right:6px;">Sửa</button>
+             <button onclick="deletePermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#fee2e2; border:1px solid #fecaca; border-radius:6px; font-size:12px; cursor:pointer; color:#dc2626;">Xoá</button>`;
+        const nameDisplay = u.name ? escapeHtml(u.name) : '<em style="color:#999;">—</em>';
+        return `<tr style="border-bottom:1px solid #f3f4f6;">
+          <td style="padding:14px 16px; font-size:14px; word-break:break-word;"><strong>${nameDisplay}</strong></td>
+          <td style="padding:14px 16px; font-size:14px; word-break:break-all;">${escapeHtml(u.email)}${isSuper ? ' <span style="background:#fef3c7; color:#78350f; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:4px;">SUPER</span>' : ''}</td>
+          <td style="padding:14px 16px; font-size:13px; color:#555; word-break:break-word;">${profileText}</td>
+          <td style="padding:14px 16px;">${roleBadge}</td>
+          <td style="padding:14px 16px; text-align:right; white-space:nowrap;">${actions}</td>
+        </tr>`;
+      }).join('');
     }
 
     function escapeHtml(s) {
