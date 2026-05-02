@@ -984,12 +984,21 @@ app.post('/api/register-local', (req, res) => {
   process.env.PLAYWRIGHT_LOCAL_URL = url; // Cập nhật để playwright-proxy đọc URL mới
   logger.info(`Local server đã đăng ký URL mới: ${url}`);
   res.json({ success: true, message: `Đã cập nhật URL: ${url}` });
+
+  // Sync user-permissions với LOCAL (LOCAL là source of truth, sống sót khi container Basso restart).
+  permissions.syncOnRegister().catch(e => logger.warn(`syncOnRegister: ${e.message}`));
 });
 
 // Override PLAYWRIGHT_LOCAL_URL bằng dynamicLocalUrl nếu có
 function getLocalUrl() {
   return dynamicLocalUrl || process.env.PLAYWRIGHT_LOCAL_URL;
 }
+
+// Wire permissions module với LOCAL endpoint để sync data
+permissions.configureSync({
+  getLocalUrl,
+  apiKey: process.env.LOCAL_API_KEY || 'change-this-secret-key',
+});
 
 app.listen(config.server.port, () => {
   logger.info(`Web server đang chạy: http://localhost:${config.server.port}`);
