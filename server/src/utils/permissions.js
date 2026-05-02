@@ -57,6 +57,73 @@ function save(data) {
   fs.writeFileSync(PERMISSIONS_FILE, JSON.stringify(data, null, 2));
 }
 
+let _getLocalUrl = null;
+let _localApiKey = null;
+
+function configureSync({ getLocalUrl, apiKey }) {
+  _getLocalUrl = typeof getLocalUrl === 'function' ? getLocalUrl : null;
+  _localApiKey = apiKey || null;
+}
+
+async function _fetchFn() {
+  if (typeof fetch !== 'undefined') return fetch;
+  const { default: nodeFetch } = await import('node-fetch');
+  return nodeFetch;
+}
+
+async function syncToLocal(data) {
+  if (!_getLocalUrl) return;
+  const url = _getLocalUrl();
+  if (!url) return;
+  try {
+    const f = await _fetchFn();
+    const res = await f(`${url}/api/permissions`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': _localApiKey || '' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      logger.warn(`permissions syncToLocal: HTTP ${res.status}`);
+    }
+  } catch (e) {
+    logger.warn(`permissions syncToLocal: ${e.message}`);
+  }
+}
+
+async function restoreFromLocal() {
+  if (!_getLocalUrl) return false;
+  const url = _getLocalUrl();
+  if (!url) return false;
+  try {
+    const f = await _fetchFn();
+    const res = await f(`${url}/api/permissions`, {
+      headers: { 'x-api-key': _localApiKey || '' },
+    });
+    if (res.status === 404) return false;
+    if (!res.ok) {
+      logger.warn(`permissions restoreFromLocal: HTTP ${res.status}`);
+      return false;
+    }
+    const data = await res.json();
+    if (!data || typeof data !== 'object' || !data.users) return false;
+    save(data);
+    logger.info(`permissions restored from LOCAL (${Object.keys(data.users).length} users)`);
+    return true;
+  } catch (e) {
+    logger.warn(`permissions restoreFromLocal: ${e.message}`);
+    return false;
+  }
+}
+
+// Gọi sau khi LOCAL register tunnel URL: kéo data từ LOCAL về (LOCAL là source of truth).
+// Nếu LOCAL chưa có file (404) thì đẩy state hiện tại của REMOTE lên LOCAL để bootstrap.
+async function syncOnRegister() {
+  const restored = await restoreFromLocal();
+  if (!restored) {
+    await syncToLocal(load());
+  }
+}
+
 function normalize(email) {
   return String(email || '').toLowerCase().trim();
 }
@@ -124,6 +191,7 @@ function upsertUser({ email, name, isXekoAdmin: admin, allProfiles, profiles, no
     data.users[e].allProfiles = true;
   }
   save(data);
+  syncToLocal(data).catch(() => {});
   return data.users[e];
 }
 
@@ -136,6 +204,7 @@ function deleteUser(email) {
   if (!data.users[e]) return false;
   delete data.users[e];
   save(data);
+  syncToLocal(data).catch(() => {});
   return true;
 }
 
@@ -155,4 +224,8 @@ module.exports = {
   listUsers,
   upsertUser,
   deleteUser,
+  configureSync,
+  syncToLocal,
+  restoreFromLocal,
+  syncOnRegister,
 };

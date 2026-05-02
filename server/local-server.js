@@ -26,6 +26,13 @@ const { parseProxy } = require('./src/utils/proxy');
 
 const ZALO_ACCOUNTS_FILE = path.resolve(__dirname, 'config/zalo-accounts.json');
 
+// File user-permissions persistent — REMOTE (Basso) sync xuống đây để sống sót container restart.
+// Cùng path với REMOTE để format/migration nhất quán nếu sau này swap chỗ lưu.
+const PERMISSIONS_DATA_DIR = process.env.XEKO_DATA_DIR
+  ? path.resolve(process.env.XEKO_DATA_DIR)
+  : path.resolve(__dirname, '..');
+const PERMISSIONS_FILE = path.join(PERMISSIONS_DATA_DIR, 'config/user-permissions.json');
+
 function loadZaloAccounts() {
   try {
     if (fs.existsSync(ZALO_ACCOUNTS_FILE)) return JSON.parse(fs.readFileSync(ZALO_ACCOUNTS_FILE, 'utf8'));
@@ -600,6 +607,36 @@ app.get('/health', (req, res) => {
 app.post('/api/restart', (req, res) => {
   res.json({ success: true, message: 'Đang khởi động lại server...' });
   setTimeout(() => process.exit(0), 500);
+});
+
+// ===== PERMISSIONS STORE (proxy file cho REMOTE) =====
+// REMOTE container (Basso) ephemeral nên ghi/đọc data ở đây, sống sót khi restart.
+app.get('/api/permissions', (req, res) => {
+  try {
+    if (!fs.existsSync(PERMISSIONS_FILE)) {
+      return res.status(404).json({ error: 'No permissions file' });
+    }
+    const raw = fs.readFileSync(PERMISSIONS_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    res.json(parsed);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/permissions', (req, res) => {
+  try {
+    const data = req.body;
+    if (!data || typeof data !== 'object' || !data.users) {
+      return res.status(400).json({ error: 'Invalid payload (cần { users: {...} })' });
+    }
+    const dir = path.dirname(PERMISSIONS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(PERMISSIONS_FILE, JSON.stringify(data, null, 2));
+    res.json({ success: true, count: Object.keys(data.users).length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ===== START =====
