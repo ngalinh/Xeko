@@ -5,11 +5,16 @@
  * Cách dùng: node local-server.js
  */
 
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({
+  path: [
+    path.resolve(__dirname, '.env'),       // server/.env (theo .env.example)
+    path.resolve(__dirname, '../.env'),    // root .env (theo start.js)
+  ],
+});
 const express = require('express');
 const multer = require('multer');
 const crypto = require('crypto');
-const path = require('path');
 const fs = require('fs');
 
 const playwright = require('./src/playwright/post');
@@ -339,6 +344,53 @@ app.post('/api/accounts', (req, res) => {
   })();
 });
 
+app.post('/api/accounts/:key/login', (req, res) => {
+  const { key } = req.params;
+  const profileDir = path.resolve(__dirname, `playwright-data/${key}`);
+  const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
+  const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8')) : {};
+  const profileMeta = meta[key];
+  if (!profileMeta) return res.status(404).json({ error: `Không tìm thấy profile "${key}"` });
+
+  const name = profileMeta.name || key;
+  res.json({ success: true, message: `Đang mở Chromium cho "${name}". Đăng nhập xong thì đóng cửa sổ.` });
+
+  (async () => {
+    try {
+      const { chromium } = require('playwright');
+      if (!fs.existsSync(profileDir)) fs.mkdirSync(profileDir, { recursive: true });
+      const proxyOpt = parseProxy(profileMeta.proxy);
+      if (proxyOpt) logger.info(`FB "${name}" dùng proxy: ${proxyOpt.server}`);
+      const browser = await chromium.launchPersistentContext(profileDir, {
+        headless: false,
+        slowMo: 500,
+        viewport: { width: 1280, height: 720 },
+        ...(proxyOpt ? { proxy: proxyOpt } : {}),
+      });
+      const page = browser.pages()[0] || await browser.newPage();
+      await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+      if (profileMeta.email && profileMeta.password) {
+        try {
+          const emailInput = await page.$('input[name="email"]');
+          if (emailInput) {
+            await emailInput.fill(profileMeta.email);
+            await page.fill('input[name="pass"]', profileMeta.password);
+          }
+        } catch {}
+      }
+
+      loginHistory.addEntry(key, name, 'login', 'Mở lại trình duyệt để đăng nhập');
+      browser.on('close', () => {
+        loginHistory.addEntry(key, name, 'login', 'Đã đóng trình duyệt - session được lưu');
+      });
+    } catch (e) {
+      logger.error(`Lỗi mở Chromium re-login "${name}": ${e.message}`);
+      loginHistory.addEntry(key, name, 'session_expired', `Không mở được Chromium: ${e.message}`);
+    }
+  })();
+});
+
 app.delete('/api/accounts/:type/:key', (req, res) => {
   const { type, key } = req.params;
   try {
@@ -371,7 +423,9 @@ app.get('/api/accounts', (req, res) => {
     'segmentation_platform', 'Safe Browsing',
   ];
   try {
-    const entries = fs.readdirSync(dataDir, { withFileTypes: true });
+    const entries = fs.existsSync(dataDir)
+      ? fs.readdirSync(dataDir, { withFileTypes: true })
+      : [];
     const fbProfiles = entries
       .filter(e => e.isDirectory()
         && !knownNonProfiles.includes(e.name)
