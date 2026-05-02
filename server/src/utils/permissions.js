@@ -2,7 +2,10 @@ const fs = require('fs');
 const path = require('path');
 const logger = require('./logger');
 
-const PERMISSIONS_FILE = path.resolve(__dirname, '../../config/user-permissions.json');
+const DATA_DIR = process.env.XEKO_DATA_DIR
+  ? path.resolve(process.env.XEKO_DATA_DIR)
+  : path.resolve(__dirname, '../..');
+const PERMISSIONS_FILE = path.join(DATA_DIR, 'config/user-permissions.json');
 const SUPER_ADMIN_EMAIL = (process.env.XEKO_SUPER_ADMIN || 'tram@gmail.com').toLowerCase().trim();
 
 function ensureFile() {
