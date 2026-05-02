@@ -1009,6 +1009,11 @@ app.listen(config.server.port, () => {
   } catch (e) {
     logger.error(`Scheduler init error: ${e.message}`);
   }
+  // Direct-IP mode: PLAYWRIGHT_LOCAL_URL set static → sync permissions từ LOCAL ngay khi start.
+  // (Tunnel mode dùng /api/register-local handler để trigger sync khi LOCAL phone home.)
+  if (getLocalUrl()) {
+    permissions.syncOnRegister().catch(e => logger.warn(`startup syncOnRegister: ${e.message}`));
+  }
 });
 
 process.on('SIGINT', async () => {
