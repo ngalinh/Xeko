@@ -5,11 +5,16 @@
  * Cách dùng: node local-server.js
  */
 
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({
+  path: [
+    path.resolve(__dirname, '.env'),       // server/.env (theo .env.example)
+    path.resolve(__dirname, '../.env'),    // root .env (theo start.js)
+  ],
+});
 const express = require('express');
 const multer = require('multer');
 const crypto = require('crypto');
-const path = require('path');
 const fs = require('fs');
 
 const playwright = require('./src/playwright/post');
@@ -17,8 +22,16 @@ const salework = require('./src/playwright/salework');
 const sessionCheck = require('./src/utils/session-check');
 const loginHistory = require('./src/utils/login-history');
 const logger = require('./src/utils/logger');
+const { parseProxy } = require('./src/utils/proxy');
 
 const ZALO_ACCOUNTS_FILE = path.resolve(__dirname, 'config/zalo-accounts.json');
+
+// File user-permissions persistent — REMOTE (Basso) sync xuống đây để sống sót container restart.
+// Cùng path với REMOTE để format/migration nhất quán nếu sau này swap chỗ lưu.
+const PERMISSIONS_DATA_DIR = process.env.XEKO_DATA_DIR
+  ? path.resolve(process.env.XEKO_DATA_DIR)
+  : path.resolve(__dirname, '..');
+const PERMISSIONS_FILE = path.join(PERMISSIONS_DATA_DIR, 'config/user-permissions.json');
 
 function loadZaloAccounts() {
   try {
@@ -228,7 +241,7 @@ app.get('/api/zalo/status/:jobId', (req, res) => {
 
 // ===== ACCOUNTS =====
 app.post('/api/accounts', (req, res) => {
-  const { type, key, name, email, password, saleworkName } = req.body;
+  const { type, key, name, email, password, saleworkName, proxy } = req.body;
   if (!key || !name) return res.status(400).json({ error: 'Thiếu key hoặc tên' });
 
   if (type === 'zalo') {
@@ -236,13 +249,13 @@ app.post('/api/accounts', (req, res) => {
 
     const accounts = loadZaloAccounts();
     if (accounts.find(a => a.key === key)) return res.status(400).json({ error: 'Key đã tồn tại' });
-    accounts.push({ key, name, saleworkName, fbProfileKey: '' });
+    accounts.push({ key, name, saleworkName, fbProfileKey: '', proxy: (proxy || '').trim() });
     saveZaloAccounts(accounts);
 
     const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
     try {
       const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8')) : {};
-      meta[key] = { name, saleworkName };
+      meta[key] = { name, saleworkName, proxy: (proxy || '').trim() };
       fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2));
     } catch {}
 
@@ -259,10 +272,13 @@ app.post('/api/accounts', (req, res) => {
         try {
           const { chromium } = require('playwright');
           fs.mkdirSync(saleworkProfileDir, { recursive: true });
+          const proxyOpt = parseProxy(proxy);
+          if (proxyOpt) logger.info(`Salework "${name}" dùng proxy: ${proxyOpt.server}`);
           const browser = await chromium.launchPersistentContext(saleworkProfileDir, {
             headless: false,
             slowMo: 500,
             viewport: { width: 1280, height: 720 },
+            ...(proxyOpt ? { proxy: proxyOpt } : {}),
           });
           const page = browser.pages()[0] || await browser.newPage();
           await page.goto('https://zalo.salework.net/', { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -279,11 +295,16 @@ app.post('/api/accounts', (req, res) => {
   }
 
   // Facebook (default)
-  // Lưu tên hiển thị + email vào meta ngay (trước khi launch browser)
+  // Lưu tên hiển thị + email + proxy vào meta ngay (trước khi launch browser)
   const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
   try {
     const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8')) : {};
-    meta[key] = { name, email: email || '', password: password || meta[key]?.password || '' };
+    meta[key] = {
+      name,
+      email: email || '',
+      password: password || meta[key]?.password || '',
+      proxy: (proxy || '').trim(),
+    };
     fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2));
   } catch {}
 
@@ -295,10 +316,13 @@ app.post('/api/accounts', (req, res) => {
       const profileDir = path.resolve(__dirname, `playwright-data/${key}`);
       if (!fs.existsSync(profileDir)) fs.mkdirSync(profileDir, { recursive: true });
 
+      const proxyOpt = parseProxy(proxy);
+      if (proxyOpt) logger.info(`FB "${name}" dùng proxy: ${proxyOpt.server}`);
       const browser = await chromium.launchPersistentContext(profileDir, {
         headless: false,
         slowMo: 500,
         viewport: { width: 1280, height: 720 },
+        ...(proxyOpt ? { proxy: proxyOpt } : {}),
       });
       const page = browser.pages()[0] || await browser.newPage();
       await page.goto('https://www.facebook.com/', {
@@ -322,6 +346,53 @@ app.post('/api/accounts', (req, res) => {
       });
     } catch (e) {
       logger.error(`Loi mo Chromium cho "${name}": ${e.message}`);
+      loginHistory.addEntry(key, name, 'session_expired', `Không mở được Chromium: ${e.message}`);
+    }
+  })();
+});
+
+app.post('/api/accounts/:key/login', (req, res) => {
+  const { key } = req.params;
+  const profileDir = path.resolve(__dirname, `playwright-data/${key}`);
+  const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
+  const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8')) : {};
+  const profileMeta = meta[key];
+  if (!profileMeta) return res.status(404).json({ error: `Không tìm thấy profile "${key}"` });
+
+  const name = profileMeta.name || key;
+  res.json({ success: true, message: `Đang mở Chromium cho "${name}". Đăng nhập xong thì đóng cửa sổ.` });
+
+  (async () => {
+    try {
+      const { chromium } = require('playwright');
+      if (!fs.existsSync(profileDir)) fs.mkdirSync(profileDir, { recursive: true });
+      const proxyOpt = parseProxy(profileMeta.proxy);
+      if (proxyOpt) logger.info(`FB "${name}" dùng proxy: ${proxyOpt.server}`);
+      const browser = await chromium.launchPersistentContext(profileDir, {
+        headless: false,
+        slowMo: 500,
+        viewport: { width: 1280, height: 720 },
+        ...(proxyOpt ? { proxy: proxyOpt } : {}),
+      });
+      const page = browser.pages()[0] || await browser.newPage();
+      await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+      if (profileMeta.email && profileMeta.password) {
+        try {
+          const emailInput = await page.$('input[name="email"]');
+          if (emailInput) {
+            await emailInput.fill(profileMeta.email);
+            await page.fill('input[name="pass"]', profileMeta.password);
+          }
+        } catch {}
+      }
+
+      loginHistory.addEntry(key, name, 'login', 'Mở lại trình duyệt để đăng nhập');
+      browser.on('close', () => {
+        loginHistory.addEntry(key, name, 'login', 'Đã đóng trình duyệt - session được lưu');
+      });
+    } catch (e) {
+      logger.error(`Lỗi mở Chromium re-login "${name}": ${e.message}`);
       loginHistory.addEntry(key, name, 'session_expired', `Không mở được Chromium: ${e.message}`);
     }
   })();
@@ -351,7 +422,6 @@ app.delete('/api/accounts/:type/:key', (req, res) => {
 
 app.get('/api/accounts', (req, res) => {
   const dataDir = path.resolve(__dirname, 'playwright-data');
-  const config = require('./config/default');
   const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
   const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8')) : {};
   const knownNonProfiles = [
@@ -360,7 +430,9 @@ app.get('/api/accounts', (req, res) => {
     'segmentation_platform', 'Safe Browsing',
   ];
   try {
-    const entries = fs.readdirSync(dataDir, { withFileTypes: true });
+    const entries = fs.existsSync(dataDir)
+      ? fs.readdirSync(dataDir, { withFileTypes: true })
+      : [];
     const fbProfiles = entries
       .filter(e => e.isDirectory()
         && !knownNonProfiles.includes(e.name)
@@ -368,8 +440,9 @@ app.get('/api/accounts', (req, res) => {
         && !e.name.startsWith('salework')) // exclude salework and salework-{key} folders
       .map(e => ({
         key: e.name,
-        name: (meta[e.name] && meta[e.name].name) || config.profiles[e.name]?.name || e.name,
-        email: (meta[e.name] && meta[e.name].email) || config.profiles[e.name]?.email || '',
+        name: meta[e.name]?.name || e.name,
+        email: meta[e.name]?.email || '',
+        proxy: meta[e.name]?.proxy || '',
       }));
 
     const zaloAccounts = loadZaloAccounts();
@@ -382,19 +455,30 @@ app.get('/api/accounts', (req, res) => {
 
 app.put('/api/accounts/:key', (req, res) => {
   const { key } = req.params;
-  const { name, email, password, saleworkName, type } = req.body;
+  const { name, email, password, saleworkName, type, proxy } = req.body;
+  const proxyTrimmed = typeof proxy === 'string' ? proxy.trim() : undefined;
   try {
     if (type === 'zalo') {
       const accounts = loadZaloAccounts();
       const idx = accounts.findIndex(a => a.key === key);
       if (idx === -1) return res.status(404).json({ error: 'Không tìm thấy tài khoản Zalo' });
-      accounts[idx] = { ...accounts[idx], name: name || accounts[idx].name, saleworkName: saleworkName || accounts[idx].saleworkName };
+      accounts[idx] = {
+        ...accounts[idx],
+        name: name || accounts[idx].name,
+        saleworkName: saleworkName || accounts[idx].saleworkName,
+        ...(proxyTrimmed !== undefined ? { proxy: proxyTrimmed } : {}),
+      };
       saveZaloAccounts(accounts);
       return res.json({ success: true });
     }
     const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
     const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8')) : {};
-    meta[key] = { name, email: email || '', password: password || meta[key]?.password || '' };
+    meta[key] = {
+      name,
+      email: email || '',
+      password: password || meta[key]?.password || '',
+      proxy: proxyTrimmed !== undefined ? proxyTrimmed : (meta[key]?.proxy || ''),
+    };
     fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2));
     res.json({ success: true });
   } catch (e) {
@@ -523,6 +607,36 @@ app.get('/health', (req, res) => {
 app.post('/api/restart', (req, res) => {
   res.json({ success: true, message: 'Đang khởi động lại server...' });
   setTimeout(() => process.exit(0), 500);
+});
+
+// ===== PERMISSIONS STORE (proxy file cho REMOTE) =====
+// REMOTE container (Basso) ephemeral nên ghi/đọc data ở đây, sống sót khi restart.
+app.get('/api/permissions', (req, res) => {
+  try {
+    if (!fs.existsSync(PERMISSIONS_FILE)) {
+      return res.status(404).json({ error: 'No permissions file' });
+    }
+    const raw = fs.readFileSync(PERMISSIONS_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    res.json(parsed);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/permissions', (req, res) => {
+  try {
+    const data = req.body;
+    if (!data || typeof data !== 'object' || !data.users) {
+      return res.status(400).json({ error: 'Invalid payload (cần { users: {...} })' });
+    }
+    const dir = path.dirname(PERMISSIONS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(PERMISSIONS_FILE, JSON.stringify(data, null, 2));
+    res.json({ success: true, count: Object.keys(data.users).length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ===== START =====

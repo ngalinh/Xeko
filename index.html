@@ -7,8 +7,13 @@
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#6b5bff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#7fa8e8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#1a1a2e" media="(prefers-color-scheme: dark)">
+
+  <!-- Sky theme fonts: Plus Jakarta Sans (UI) + JetBrains Mono (numeric/IDs) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
   <meta name="description" content="Xeko - Đăng bài tự động Facebook & Zalo">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1234,22 +1239,22 @@
       }
 
       /* Color per tile — inspired by reference */
-      /* All 4 tiles in violet family — subtle hue shift để vẫn phân biệt */
+      /* 4 tiles cùng họ lavender Prodify — light → dark progression */
       .tile-post {
-        background: linear-gradient(140deg, #f3e8ff 0%, #e9d5ff 100%);
-        color: #86198f;
+        background: linear-gradient(140deg, #FCFCFE 0%, #E7E9EF 100%);
+        color: #5b54a8;
       }
       .tile-dash {
-        background: linear-gradient(140deg, #ddd6fe 0%, #c4b5fd 100%);
-        color: #5b21b6;
+        background: linear-gradient(140deg, #E7E9EF 0%, #CAC8F9 100%);
+        color: #5b54a8;
       }
       .tile-acc {
-        background: linear-gradient(140deg, #e0e7ff 0%, #c7d2fe 100%);
-        color: #3730a3;
+        background: linear-gradient(140deg, #CAC8F9 0%, #B2AEF2 100%);
+        color: #312e81;
       }
       .tile-spy {
-        background: linear-gradient(140deg, #ede9fe 0%, #d8d4fb 100%);
-        color: #6d28d9;
+        background: linear-gradient(140deg, #B2AEF2 0%, #928DDD 100%);
+        color: #fff;
       }
 
       .mhome-foot {
@@ -1593,15 +1598,13 @@
         inset 0 1px 0 rgba(255,255,255,0.7);
     }
 
-    /* Backdrop: pastel violet/lavender (đồng tông cùng brand).
-       Top khởi đầu bằng #ffffff để blend với iOS status bar (default style),
-       transition vào pastel violet sau ~80px. Blob violet shift xuống tránh
-       đụng status bar area. */
+    /* Backdrop: Pale Grey base + Lavender Blue / Purple Illusion blob.
+       Top trắng để blend iOS status bar; transition vào pale grey. */
     body {
       background:
-        radial-gradient(36rem 28rem at 100% 12%, rgba(196, 181, 253, 0.45) 0%, transparent 55%),
-        radial-gradient(34rem 26rem at 0% 100%, rgba(167, 139, 250, 0.32) 0%, transparent 55%),
-        linear-gradient(180deg, #ffffff 0%, #faf7ff 12%, #f5f0ff 100%) !important;
+        radial-gradient(40rem 32rem at 100% 8%, rgba(202, 200, 249, 0.55) 0%, transparent 55%),
+        radial-gradient(34rem 26rem at 0% 100%, rgba(178, 174, 242, 0.40) 0%, transparent 55%),
+        linear-gradient(180deg, #ffffff 0%, #FCFCFE 14%, #E7E9EF 100%) !important;
     }
     .main-content { background: transparent !important; }
     .chat-area { background: transparent !important; }
@@ -1912,44 +1915,52 @@
     [data-theme="dark"] .pc-btn-edit { background: rgba(255,255,255,0.06) !important; color: #fff !important; }
 
     /* ================================================================
-       VIOLET v3 — Replace black/indigo from glass v2 with violet tone.
-       Áp dụng cho cả mobile + desktop (giữ sidebar layout, chỉ đổi màu).
-       Sidebar bg, msg.user, avatar, mhome-* surfaces → deep violet.
-       Indigo CTA (#4f46e5) → vibrant violet (#7c3aed).
+       PRODIFY v6 — Lavender Blue / Purple Illusion / Perrywinkle palette.
+       Reference Prodify (Akansha Gupta) — 6 hex codes user-provided:
+         #FCFCFE Pale Grey  · #E7E9EF Diamond Cut  · #CAC8F9 Lavender Blue
+         #C3C1C1 Stonewall  · #B2AEF2 Purple Illusion · #928DDD Perrywinkle
+       Áp dụng cả mobile + desktop.
        ================================================================ */
     :root {
-      --xk-primary: #7c3aed;
-      --xk-primary-2: #8b5cf6;
-      --xk-primary-d: #6d28d9;
-      --xk-primary-soft: rgba(124, 58, 237, 0.10);
-      --xk-primary-shadow: rgba(124, 58, 237, 0.32);
-      --xk-surface-violet: #3b0d7a;
-      /* Gradient pill cho big CTA (theo reference medical app) */
-      --xk-cta-gradient: linear-gradient(135deg, #7c5fff 0%, #a78bfa 100%);
-      --xk-cta-gradient-hover: linear-gradient(135deg, #6d4dff 0%, #9474f3 100%);
+      --xk-primary: #928DDD;          /* Perrywinkle */
+      --xk-primary-2: #B2AEF2;        /* Purple Illusion */
+      --xk-primary-d: #7B75CC;        /* deeper hover/active */
+      --xk-primary-soft: rgba(146, 141, 221, 0.12);
+      --xk-primary-shadow: rgba(146, 141, 221, 0.32);
+      --xk-surface-violet: #5b54a8;
+      /* CTA gradient (Perrywinkle → Purple Illusion) */
+      --xk-cta-gradient: linear-gradient(135deg, #928DDD 0%, #B2AEF2 100%);
+      --xk-cta-gradient-hover: linear-gradient(135deg, #7B75CC 0%, #928DDD 100%);
+      /* Accent mint (giữ cho success/ONLINE) */
+      --xk-accent-mint: #10b981;
+      --xk-accent-mint-soft: rgba(16, 185, 129, 0.12);
+      /* Named Prodify shades — sẵn dùng */
+      --xk-pale-grey: #FCFCFE;
+      --xk-diamond-cut: #E7E9EF;
+      --xk-lavender-blue: #CAC8F9;
     }
 
-    /* Strong-accent surfaces (was xk-ink black) → deep violet */
+    /* Sidebar — Lavender Blue → Purple Illusion gradient (theo Prodify) */
     .sidebar {
-      background: linear-gradient(180deg, #ddd6fe 0%, #c7d2fe 100%) !important;
-      box-shadow: 0 12px 40px rgba(124, 58, 237, 0.12) !important;
+      background: linear-gradient(180deg, #CAC8F9 0%, #B2AEF2 100%) !important;
+      box-shadow: 0 12px 40px rgba(146, 141, 221, 0.20) !important;
     }
-    /* Sidebar text/labels — dark contrast trên nền lavender-indigo nhạt */
-    .sidebar-logo span { color: #4c1d95 !important; }
-    .sidebar-section { color: #6b21a8 !important; opacity: 0.65; }
-    .sidebar-item { color: #4338ca !important; font-weight: 500; }
+    /* Text trên nền lavender medium — dark indigo cho contrast tốt */
+    .sidebar-logo span { color: #1e1b4b !important; }
+    .sidebar-section { color: #312e81 !important; opacity: 0.75; }
+    .sidebar-item { color: #1e1b4b !important; font-weight: 500; }
     .sidebar-item:hover {
-      background: rgba(124, 58, 237, 0.10) !important;
-      color: #5b21b6 !important;
+      background: rgba(255, 255, 255, 0.30) !important;
+      color: #312e81 !important;
     }
-    /* Active pill: deep violet với chữ trắng — pop trên nền nhạt */
+    /* Active pill: Perrywinkle deep với chữ trắng — pop trên nền lavender */
     .sidebar-item.active {
       background: var(--xk-primary-d) !important;
-      box-shadow: 0 6px 18px rgba(109, 40, 217, 0.40) !important;
+      box-shadow: 0 6px 18px rgba(123, 117, 204, 0.40) !important;
       color: #fff !important;
     }
     .sidebar-item .icon {
-      background: rgba(255, 255, 255, 0.65) !important;
+      background: rgba(255, 255, 255, 0.55) !important;
       color: var(--xk-primary-d) !important;
     }
     .sidebar-item.active .icon {
@@ -1957,11 +1968,11 @@
       color: #fff !important;
     }
     .sidebar-item .badge {
-      background: rgba(124, 58, 237, 0.18) !important;
-      color: #6d28d9 !important;
+      background: rgba(255, 255, 255, 0.55) !important;
+      color: var(--xk-primary-d) !important;
     }
-    .sidebar-footer { border-top-color: rgba(124, 58, 237, 0.18) !important; }
-    .sidebar-footer .footer-text { color: #6b21a8 !important; opacity: 0.75; }
+    .sidebar-footer { border-top-color: rgba(255, 255, 255, 0.30) !important; }
+    .sidebar-footer .footer-text { color: #312e81 !important; opacity: 0.85; }
     .msg.user {
       background: var(--xk-cta-gradient) !important;
       box-shadow: 0 8px 22px var(--xk-primary-shadow) !important;
@@ -1995,8 +2006,8 @@
       box-shadow: 0 4px 12px var(--xk-primary-shadow) !important;
     }
     .pc-btn-login {
-      background: rgba(124, 58, 237, 0.10) !important;
-      border-color: rgba(124, 58, 237, 0.22) !important;
+      background: var(--xk-primary-soft) !important;
+      border-color: rgba(146, 141, 221, 0.22) !important;
       color: var(--xk-primary) !important;
     }
     .msg .link { color: var(--xk-primary) !important; }
@@ -2011,7 +2022,7 @@
     .input-area input[type="text"]:focus,
     .input-area #msgInput:focus {
       border-color: var(--xk-primary) !important;
-      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15) !important;
+      box-shadow: 0 0 0 3px rgba(146, 141, 221, 0.20) !important;
     }
     button[style*="background:#4f46e5"],
     button[style*="background: #4f46e5"] {
@@ -2020,6 +2031,452 @@
     }
 
     [data-theme="dark"] .msg.user { background: var(--xk-cta-gradient) !important; }
+
+    /* ================================================================
+       SKY THEME — design_handoff_xeko_sky (final layer, wins by cascade).
+       Light, airy glassmorphism với palette Sky (xanh trời + tím nhạt).
+       Tokens lấy từ design_handoff_xeko_sky/README.md.
+       ================================================================ */
+    :root {
+      /* Brand — Sky */
+      --xk-primary: #8b85ed;            /* periwinkle accent */
+      --xk-primary-2: #b39ef0;          /* gradient end (lavender) */
+      --xk-primary-d: #6b62c8;          /* hover/focus, text trên bg sáng */
+      --xk-primary-soft: rgba(139, 133, 237, 0.06);
+      --xk-primary-soft-2: rgba(139, 133, 237, 0.14);
+      --xk-primary-shadow: rgba(139, 133, 237, 0.30);
+      --xk-brand-border: rgba(139, 133, 237, 0.22);
+      /* Periwinkle → soft violet — tím nhiều hơn xanh */
+      --xk-cta-gradient: linear-gradient(135deg, #8b85ed 0%, #b39ef0 100%);
+      --xk-cta-gradient-hover: linear-gradient(135deg, #7868c4 0%, #9b85d8 100%);
+      /* Logo gradient — periwinkle deep → violet, đủ đậm để clip text */
+      --xk-logo-gradient: linear-gradient(135deg, #6b62c8 0%, #8b6dd1 100%);
+
+      /* Surfaces (glassmorphism) */
+      --xk-sky-surface: rgba(255, 255, 255, 0.78);
+      --xk-sky-surface-solid: #ffffff;
+      --xk-sky-surface-soft: rgba(255, 255, 255, 0.62);
+
+      /* Borders */
+      --xk-sky-border: rgba(100, 150, 220, 0.12);
+      --xk-sky-border-soft: rgba(100, 150, 220, 0.05);
+
+      /* Text */
+      --xk-sky-text: #0c1a2e;
+      --xk-sky-text-muted: #506580;
+      --xk-sky-text-dim: #8a9cb5;
+
+      /* Avatar fallback */
+      --xk-sky-avatar-bg: linear-gradient(135deg, #dbeafe, #e0e7ff);
+      --xk-sky-avatar-fg: #3a6cb4;
+
+      /* Platform tints */
+      --xk-fb-tint: #eff6ff;
+      --xk-zalo-tint: #ecfeff;
+      --xk-zalo-color: #0068ff;
+
+      /* Shadows */
+      --xk-shadow-card: 0 4px 18px rgba(20, 30, 60, 0.04);
+      --xk-shadow-cta: 0 4px 14px rgba(127, 168, 232, 0.25);
+      --xk-shadow-cta-sm: 0 3px 10px rgba(127, 168, 232, 0.35);
+      --xk-shadow-bubble: 0 4px 12px rgba(127, 168, 232, 0.30);
+    }
+
+    /* Body — Sky mesh backdrop + Plus Jakarta Sans */
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+      color: var(--xk-sky-text) !important;
+      background:
+        radial-gradient(circle at 0% 0%, #eff6ff 0%, transparent 55%),
+        radial-gradient(circle at 100% 20%, #f0f9ff 0%, transparent 55%),
+        radial-gradient(circle at 50% 100%, #f5f3ff 0%, transparent 55%),
+        linear-gradient(160deg, #fafdff, #fcfbff) !important;
+      background-attachment: fixed !important;
+    }
+
+    /* SIDEBAR — light glass thay vì lavender gradient */
+    .sidebar {
+      background: var(--xk-sky-surface) !important;
+      backdrop-filter: blur(20px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+      border-right: 1px solid var(--xk-sky-border) !important;
+      box-shadow: none !important;
+    }
+    .sidebar-logo span {
+      background: var(--xk-logo-gradient) !important;
+      -webkit-background-clip: text !important;
+      background-clip: text !important;
+      -webkit-text-fill-color: transparent !important;
+      color: transparent !important;
+      font-weight: 800 !important;
+      letter-spacing: -0.01em;
+    }
+    .sidebar-section {
+      color: #8a85b8 !important;
+      opacity: 1 !important;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-size: 10.5px !important;
+      font-weight: 700 !important;
+    }
+    .sidebar-item {
+      color: #4a4570 !important;
+      font-weight: 600 !important;
+      border-left: 2px solid transparent;
+      transition: background 150ms ease, color 150ms ease;
+    }
+    .sidebar-item:hover {
+      background: rgba(139, 133, 237, 0.06) !important;
+      color: var(--xk-primary-d) !important;
+    }
+    .sidebar-item.active {
+      background: var(--xk-primary-soft-2) !important;
+      border-left: 2px solid var(--xk-primary) !important;
+      color: var(--xk-primary-d) !important;
+      box-shadow: none !important;
+    }
+    .sidebar-item .icon {
+      background: rgba(139, 133, 237, 0.10) !important;
+      color: #6b62c8 !important;
+      box-shadow: none !important;
+    }
+    .sidebar-item:hover .icon {
+      background: rgba(139, 133, 237, 0.18) !important;
+      color: var(--xk-primary-d) !important;
+    }
+    .sidebar-item.active .icon {
+      background: rgba(139, 133, 237, 0.22) !important;
+      color: var(--xk-primary-d) !important;
+    }
+    .sidebar-item .badge {
+      background: var(--xk-primary-soft-2) !important;
+      color: var(--xk-primary-d) !important;
+      font-weight: 700 !important;
+      font-size: 10px !important;
+    }
+    .sidebar-footer {
+      border-top-color: var(--xk-sky-border) !important;
+    }
+    .sidebar-footer .footer-text {
+      color: #8a85b8 !important;
+      opacity: 1 !important;
+    }
+    .sidebar-footer #currentUserBox {
+      background: var(--xk-primary-soft-2) !important;
+    }
+    .sidebar-footer #currentUserAvatar {
+      background: var(--xk-cta-gradient) !important;
+    }
+    .sidebar-footer #currentUserEmail {
+      color: var(--xk-primary-d) !important;
+    }
+    .sidebar-footer #currentUserRole {
+      color: #8a85b8 !important;
+    }
+
+    /* HEADER — Sky glass, ko cần margin nổi như cũ */
+    .header {
+      background: var(--xk-sky-surface) !important;
+      backdrop-filter: blur(14px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+      border-bottom: 1px solid var(--xk-sky-border) !important;
+      border-radius: 14px;
+      box-shadow: var(--xk-shadow-card) !important;
+    }
+    .header-info h1 {
+      color: var(--xk-sky-text) !important;
+      font-weight: 800 !important;
+      font-size: 22px !important;
+      line-height: 1.2 !important;
+    }
+    .header-info span {
+      color: var(--xk-sky-text-muted) !important;
+      font-size: 12px !important;
+    }
+    .header-emoji {
+      background: var(--xk-primary-soft-2) !important;
+      color: var(--xk-primary-d) !important;
+      border-radius: 10px !important;
+    }
+    .theme-toggle,
+    .mobile-hamburger {
+      background: var(--xk-sky-surface-solid) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+      color: var(--xk-sky-text) !important;
+      box-shadow: var(--xk-shadow-card) !important;
+    }
+    .theme-toggle:hover { background: rgba(255, 255, 255, 0.95) !important; }
+
+    /* CHAT bubbles — Sky */
+    .msg.bot {
+      background: var(--xk-primary-soft) !important;
+      backdrop-filter: blur(10px) !important;
+      -webkit-backdrop-filter: blur(10px) !important;
+      border: 1px solid var(--xk-brand-border) !important;
+      box-shadow: var(--xk-shadow-card) !important;
+      color: var(--xk-sky-text) !important;
+      border-radius: 3px 14px 14px 14px !important;
+    }
+    .msg.user {
+      background: var(--xk-cta-gradient) !important;
+      color: #fff !important;
+      box-shadow: var(--xk-shadow-bubble) !important;
+      border-radius: 14px 3px 14px 14px !important;
+    }
+    .msg.user .link { color: #fff !important; }
+    .msg .link {
+      color: var(--xk-primary-d) !important;
+      font-weight: 600 !important;
+    }
+    .msg-btn {
+      background: #fff !important;
+      border: 1px solid var(--xk-brand-border) !important;
+      color: var(--xk-primary-d) !important;
+      box-shadow: 0 1px 4px rgba(127, 168, 232, 0.08) !important;
+      font-weight: 600 !important;
+    }
+    .msg-btn:hover {
+      background: var(--xk-primary-soft-2) !important;
+      color: var(--xk-primary-d) !important;
+      border-color: var(--xk-primary) !important;
+    }
+
+    /* INPUT area — Sky glass */
+    .input-area {
+      background: var(--xk-sky-surface) !important;
+      backdrop-filter: blur(14px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+      border-top: 1px solid var(--xk-sky-border) !important;
+    }
+    .input-area input[type="text"],
+    .input-area textarea {
+      background: var(--xk-sky-surface-solid) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+      color: var(--xk-sky-text) !important;
+    }
+    .input-area input[type="text"]:focus,
+    .input-area textarea:focus,
+    .input-area #msgInput:focus {
+      border-color: var(--xk-primary) !important;
+      box-shadow: 0 0 0 3px rgba(127, 168, 232, 0.16) !important;
+    }
+    .btn-attach {
+      background: #fff !important;
+      color: var(--xk-sky-text-muted) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+    }
+    .btn-attach:hover {
+      background: var(--xk-primary-soft-2) !important;
+      color: var(--xk-primary-d) !important;
+    }
+    .btn-send {
+      background: var(--xk-cta-gradient) !important;
+      color: #fff !important;
+      box-shadow: var(--xk-shadow-cta) !important;
+    }
+    .btn-send:hover {
+      background: var(--xk-cta-gradient-hover) !important;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(127, 168, 232, 0.35) !important;
+    }
+    .btn-send:disabled {
+      background: rgba(100, 150, 220, 0.18) !important;
+      box-shadow: none !important;
+      transform: none;
+    }
+
+    /* PROFILE cards — Sky glass */
+    .profile-card {
+      background: var(--xk-sky-surface) !important;
+      backdrop-filter: blur(14px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+      box-shadow: var(--xk-shadow-card) !important;
+      border-radius: 14px !important;
+    }
+    .profile-card:hover {
+      box-shadow: 0 8px 24px rgba(20, 30, 60, 0.08) !important;
+    }
+    .profile-card .avatar {
+      background: var(--xk-sky-avatar-bg) !important;
+      color: var(--xk-sky-avatar-fg) !important;
+      border-radius: 10px !important;
+      font-weight: 800 !important;
+    }
+    .profile-card .info .name {
+      color: var(--xk-sky-text) !important;
+      font-weight: 700 !important;
+    }
+
+    .pc-btn-edit {
+      background: var(--xk-primary-soft-2) !important;
+      border: 1px solid var(--xk-brand-border) !important;
+      color: var(--xk-primary-d) !important;
+      font-weight: 700 !important;
+    }
+    .pc-btn-login {
+      background: var(--xk-cta-gradient) !important;
+      border-color: transparent !important;
+      color: #fff !important;
+      font-weight: 700 !important;
+      box-shadow: var(--xk-shadow-cta-sm) !important;
+    }
+    .pc-btn-login:hover {
+      background: var(--xk-cta-gradient-hover) !important;
+    }
+    .pc-btn-login.pc-btn-zalo {
+      background: var(--xk-zalo-tint) !important;
+      border: 1px solid #cffafe !important;
+      color: var(--xk-zalo-color) !important;
+      box-shadow: none !important;
+    }
+    .pc-btn-del {
+      background: #fef2f2 !important;
+      border: 1px solid #fecaca !important;
+      color: #c1331f !important;
+    }
+
+    /* ACCOUNT TAB BAR — Sky pill */
+    .acc-tab-bar {
+      background: var(--xk-sky-surface) !important;
+      backdrop-filter: blur(14px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+      border-radius: 12px !important;
+      box-shadow: var(--xk-shadow-card) !important;
+      padding: 4px !important;
+      border-bottom: 1px solid var(--xk-sky-border) !important;
+    }
+    .acc-tab {
+      color: var(--xk-sky-text-muted) !important;
+      font-weight: 700 !important;
+      border-radius: 9px !important;
+    }
+    .acc-tab:hover {
+      background: rgba(255, 255, 255, 0.5) !important;
+      color: var(--xk-sky-text) !important;
+    }
+    .acc-tab.active {
+      background: var(--xk-cta-gradient) !important;
+      color: #fff !important;
+      box-shadow: var(--xk-shadow-cta) !important;
+      border-bottom-color: transparent !important;
+    }
+
+    /* PANEL CARDS (channels, groups) — Sky glass */
+    #panelChannels > div[style*="background:#fff"] {
+      background: var(--xk-sky-surface) !important;
+      backdrop-filter: blur(14px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+      box-shadow: var(--xk-shadow-card) !important;
+      border-radius: 14px !important;
+    }
+    #panelChannels input[type="text"] {
+      background: #fff !important;
+      border-color: var(--xk-sky-border) !important;
+    }
+
+    /* PRIMARY BUTTONS — bất cứ inline #4f46e5 → Sky CTA */
+    button[style*="background:#4f46e5"],
+    button[style*="background: #4f46e5"] {
+      background: var(--xk-cta-gradient) !important;
+      box-shadow: var(--xk-shadow-cta) !important;
+      border-radius: 8px !important;
+    }
+    button[style*="background:#4f46e5"]:hover,
+    button[style*="background: #4f46e5"]:hover {
+      background: var(--xk-cta-gradient-hover) !important;
+    }
+
+    /* CHANNEL platform toggle checked — Sky brand */
+    .channel-platform-toggle.checked {
+      background: var(--xk-cta-gradient) !important;
+      border-color: transparent !important;
+      color: #fff !important;
+      box-shadow: var(--xk-shadow-cta) !important;
+    }
+
+    /* DASHBOARD tiles — Sky glass */
+    #pageDashboard div[style*="background:#fff"],
+    #pageDashboard div[style*="background:#f0fdf4"],
+    #pageDashboard div[style*="background:#eff6ff"],
+    #pageDashboard div[style*="background:#fef2f2"],
+    #pageDashboard div[style*="background:#fdf4ff"] {
+      background: var(--xk-sky-surface) !important;
+      backdrop-filter: blur(14px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+      box-shadow: var(--xk-shadow-card) !important;
+      border-radius: 14px !important;
+    }
+
+    /* Mobile home page */
+    .mhome-back-btn {
+      background: var(--xk-cta-gradient) !important;
+      color: #fff !important;
+      box-shadow: var(--xk-shadow-cta) !important;
+    }
+    .mhome-foot-btn {
+      background: var(--xk-sky-surface) !important;
+      color: var(--xk-sky-text) !important;
+      box-shadow: var(--xk-shadow-card) !important;
+      border: 1px solid var(--xk-sky-border) !important;
+    }
+    .mhome-avatar {
+      background: var(--xk-cta-gradient) !important;
+      box-shadow: var(--xk-shadow-cta) !important;
+    }
+    .mhome-title { color: var(--xk-sky-text) !important; }
+    .mhome-hello { color: var(--xk-sky-text-muted) !important; }
+
+    /* Image preview */
+    .image-preview {
+      background: var(--xk-sky-surface) !important;
+      border-top-color: var(--xk-sky-border) !important;
+      backdrop-filter: blur(14px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+    }
+
+    /* PWA install FAB */
+    .pwa-install-btn {
+      background: var(--xk-cta-gradient) !important;
+      box-shadow: 0 8px 22px rgba(127, 168, 232, 0.40) !important;
+    }
+
+    /* Numeric / mono — stats, IDs, timestamps */
+    .stat-value,
+    [data-mono],
+    code, kbd, pre, samp {
+      font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace !important;
+    }
+
+    /* Dark mode adjustments giữ Sky tones nhạt hơn */
+    [data-theme="dark"] body {
+      background:
+        radial-gradient(circle at 0% 0%, rgba(127, 168, 232, 0.08) 0%, transparent 55%),
+        radial-gradient(circle at 100% 100%, rgba(197, 181, 240, 0.08) 0%, transparent 55%),
+        linear-gradient(180deg, #0a1220 0%, #0f1a2e 100%) !important;
+    }
+    [data-theme="dark"] .header,
+    [data-theme="dark"] .input-area,
+    [data-theme="dark"] .acc-tab-bar,
+    [data-theme="dark"] .profile-card,
+    [data-theme="dark"] .sidebar {
+      background: rgba(20, 35, 60, 0.55) !important;
+      border-color: rgba(127, 168, 232, 0.12) !important;
+    }
+    [data-theme="dark"] .msg.bot {
+      background: rgba(127, 168, 232, 0.10) !important;
+      border-color: rgba(127, 168, 232, 0.16) !important;
+      color: #e6eef9 !important;
+    }
+    [data-theme="dark"] .sidebar-item { color: #cfd8e8 !important; }
+    [data-theme="dark"] .sidebar-item.active {
+      background: rgba(127, 168, 232, 0.18) !important;
+      color: #fff !important;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
@@ -2163,18 +2620,29 @@
       <button class="sidebar-item" onclick="switchPage('session')" id="navSession">
         <span class="icon"><svg class="xi"><use href="#ic-users"/></svg></span> Quản lý tài khoản
       </button>
+      <button class="sidebar-item" onclick="switchPage('permissions')" id="navPermissions" style="display:none;">
+        <span class="icon"><svg class="xi"><use href="#ic-key"/></svg></span> Phân quyền
+      </button>
       <button class="sidebar-item" onclick="switchPage('spy')" id="navSpy">
         <span class="icon"><svg class="xi"><use href="#ic-search"/></svg></span> Spy bài viết
         <span class="badge">Soon</span>
       </button>
     </div>
     <div class="sidebar-footer">
-      <img src="https://raw.githubusercontent.com/ngalinh/Xeko/main/xeko-avatar.png" alt="Xeko">
-      <div class="footer-text">Xeko v1.0</div>
-      <button id="restartServerBtn" onclick="restartLocalServer()" title="Khởi động lại local server"
-        style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px 14px; background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:8px; font-size:13px; cursor:pointer; font-weight:600; white-space:nowrap; width:100%; margin-top:10px;">
-        <svg class="xi" style="color:#856404;"><use href="#ic-refresh"/></svg> Restart Server
-      </button>
+      <div id="currentUserBox" style="display:none; padding:10px 12px; background:#f5f3ff; border-radius:10px; font-size:12px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div style="width:28px; height:28px; border-radius:50%; background:#4f46e5; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;" id="currentUserAvatar">?</div>
+          <div style="flex:1; min-width:0;">
+            <div id="currentUserEmail" style="font-weight:600; color:#4f46e5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">-</div>
+            <div id="currentUserRole" style="color:#888; font-size:11px;">-</div>
+          </div>
+          <button id="restartServerBtn" onclick="restartLocalServer()" title="Khởi động lại local server"
+            style="padding:5px 7px; background:#fff3cd; border:1px solid #ffc107; border-radius:6px; cursor:pointer; color:#856404; display:flex; align-items:center; justify-content:center;">
+            <svg class="xi" style="color:#856404; width:14px; height:14px;"><use href="#ic-refresh"/></svg>
+          </button>
+          <button onclick="logoutXeko()" title="Đăng xuất" style="padding:4px 8px; background:#fff; border:1px solid #e0d4ff; border-radius:6px; cursor:pointer; font-size:11px; color:#4f46e5;">↪</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2415,6 +2883,98 @@
     </div>
   </div><!-- end pageSpyBaiViet -->
 
+  <!-- PAGE: Phân quyền (chỉ admin Xeko) -->
+  <div class="page" id="pagePermissions">
+    <div class="header">
+      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
+      <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#6b5bff;"><svg class="xi xi-md"><use href="#ic-key"/></svg></div>
+      <div class="header-info">
+        <h1>Phân quyền</h1>
+        <span>Gán user (email basso.vn) → profile FB được phép quản lý</span>
+      </div>
+    </div>
+
+    <div style="flex:1; overflow-y:auto; padding:20px;">
+     <div style="max-width:1200px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h2 style="margin:0; font-size:18px;">Danh sách user Xeko</h2>
+        <button onclick="openPermissionModal()" style="padding:10px 18px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:6px;">
+          <svg class="xi"><use href="#ic-plus"/></svg> Thêm user
+        </button>
+      </div>
+
+      <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow-x:auto; width:fit-content; max-width:100%;">
+        <table style="border-collapse:collapse;">
+          <thead style="background:#f9fafb;">
+            <tr>
+              <th style="text-align:left; padding:12px 16px; font-size:13px; color:#555; border-bottom:1px solid #e5e7eb; min-width:110px;">Tên</th>
+              <th style="text-align:left; padding:12px 16px; font-size:13px; color:#555; border-bottom:1px solid #e5e7eb; min-width:220px;">Email</th>
+              <th style="text-align:left; padding:12px 16px; font-size:13px; color:#555; border-bottom:1px solid #e5e7eb; min-width:220px;">Profile FB được phép</th>
+              <th style="text-align:left; padding:12px 16px; font-size:13px; color:#555; border-bottom:1px solid #e5e7eb; min-width:120px;">Vai trò Xeko</th>
+              <th style="text-align:right; padding:12px 16px; font-size:13px; color:#555; border-bottom:1px solid #e5e7eb;">Hành động</th>
+            </tr>
+          </thead>
+          <tbody id="permissionsTableBody">
+            <tr><td colspan="5" style="padding:30px; text-align:center; color:#999;">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="margin-top:20px; padding:16px; background:#fef3c7; border:1px solid #fde68a; border-radius:8px; font-size:13px; color:#78350f;">
+        💡 <strong>Lưu ý:</strong> Email phải khớp với email user dùng để đăng nhập <code>ai.basso.vn</code>. Khi user login basso.vn, Xeko sẽ tự động nhận diện và chỉ hiện profile FB được phân quyền.
+      </div>
+     </div>
+    </div>
+  </div><!-- end pagePermissions -->
+
+  <!-- Modal: Thêm/Sửa phân quyền -->
+  <div id="permissionModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:#fff; border-radius:12px; max-width:560px; width:100%; max-height:90vh; overflow-y:auto; padding:24px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h2 id="permissionModalTitle" style="margin:0; font-size:18px;">Thêm user</h2>
+        <button onclick="closePermissionModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999;">×</button>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="display:block; font-size:13px; font-weight:600; color:#555; margin-bottom:4px;">Tên</label>
+        <input type="text" id="permName" placeholder="vd: Linh Dương"
+          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="display:block; font-size:13px; font-weight:600; color:#555; margin-bottom:4px;">Email (đăng nhập ai.basso.vn)</label>
+        <input type="email" id="permEmail" placeholder="vd: linhduong@basso.vn"
+          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;">
+          <input type="checkbox" id="permIsAdmin" style="width:18px; height:18px;">
+          <span>Là <strong>admin Xeko</strong> (thấy tất cả profile + quản lý phân quyền)</span>
+        </label>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;">
+          <input type="checkbox" id="permAllProfiles" style="width:18px; height:18px;" onchange="togglePermAllProfiles()">
+          <span>Cho phép quản lý <strong>tất cả</strong> profile FB</span>
+        </label>
+      </div>
+
+      <div id="permProfilesWrap" style="margin-bottom:16px;">
+        <label style="display:block; font-size:13px; font-weight:600; color:#555; margin-bottom:6px;">Profile FB được phép</label>
+        <div id="permProfilesList" style="border:1px solid #ddd; border-radius:8px; max-height:240px; overflow-y:auto; padding:8px;">
+          <div style="padding:10px; text-align:center; color:#999; font-size:13px;">Đang tải profile...</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button onclick="closePermissionModal()" style="padding:10px 18px; background:#f3f4f6; color:#555; border:1px solid #ddd; border-radius:8px; font-size:14px; cursor:pointer;">Huỷ</button>
+        <button onclick="savePermission()" style="padding:10px 18px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-weight:600;">Lưu</button>
+      </div>
+    </div>
+  </div>
+
   <!-- PAGE: Dashboard (gộp Lịch đăng bài + Thống kê) -->
   <div class="page" id="pageDashboard">
     <div class="header">
@@ -2468,8 +3028,8 @@
               <option value="60">60 ngày</option>
             </select>
             <div style="display:flex; gap:4px;">
-              <button onclick="setChartType('bar')" id="chartTypeBar" style="padding:5px 10px; border:1px solid #7c66ff; border-radius:6px; background:#7c66ff; color:#fff; font-size:12px; cursor:pointer; font-weight:600;">Bar</button>
-              <button onclick="setChartType('line')" id="chartTypeLine" style="padding:5px 10px; border:1px solid #ddd; border-radius:6px; background:#fff; color:#555; font-size:12px; cursor:pointer;">Line</button>
+              <button onclick="setChartType('bar')" id="chartTypeBar" style="padding:5px 10px; border:1px solid transparent; border-radius:6px; background:linear-gradient(135deg, #8b85ed 0%, #b39ef0 100%); color:#fff; font-size:12px; cursor:pointer; font-weight:600; box-shadow:0 3px 10px rgba(139, 133, 237, 0.30);">Bar</button>
+              <button onclick="setChartType('line')" id="chartTypeLine" style="padding:5px 10px; border:1px solid #d8dde6; border-radius:6px; background:#fff; color:#506580; font-size:12px; cursor:pointer; font-weight:600;">Line</button>
             </div>
           </div>
         </div>
@@ -2616,8 +3176,9 @@
         <input type="password" id="editPassword" placeholder="Để trống nếu không đổi" autocomplete="new-password" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
       </div>
       <div style="margin-bottom:16px;">
-        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px; display:flex; align-items:center; gap:6px;"><svg class="xi" style="color:#6b5bff;"><use href="#ic-globe"/></svg> IP Proxy</label>
+        <label style="font-size:13px; font-weight:600; color:#555; margin-bottom:4px; display:flex; align-items:center; gap:6px;"><svg class="xi" style="color:#6b5bff;"><use href="#ic-globe"/></svg> IP Proxy</label>
         <select id="editProxyId" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; background:#fff;"></select>
+        <p style="font-size:11px; color:#888; margin:4px 0 0;">Quản lý danh sách proxy ở tab "IP Proxy".</p>
       </div>
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button onclick="closeEditModal()" style="padding:8px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
@@ -2716,6 +3277,7 @@
       <div style="margin-bottom:14px;">
         <label style="font-size:13px; font-weight:600; color:#555; margin-bottom:4px; display:flex; align-items:center; gap:6px;"><svg class="xi" style="color:#6b5bff;"><use href="#ic-globe"/></svg> IP Proxy (tuỳ chọn)</label>
         <select id="newAccProxyId" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; background:#fff;"></select>
+        <p style="font-size:11px; color:#888; margin:4px 0 0;">Quản lý danh sách proxy ở tab "IP Proxy".</p>
       </div>
       <button onclick="addNewAccount()" style="width:100%; padding:12px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer; margin-top:4px; box-sizing:border-box;">
         ➕ Thêm và đăng nhập
@@ -3118,14 +3680,62 @@
     }
 
     // ===== STEP 1: Welcome =====
-    function showWelcome() {
+    async function showWelcome() {
       step = 'welcome';
-      addBot(
-        pickWelcome(),
-        [
-          { label: `${xekoIcon('user')} Chọn Profile`, handler: () => showProfileSelect() },
-        ]
-      );
+      try {
+        const res = await fetch(BASE_URL + '/api/accounts');
+        const data = await parseJson(res);
+        const profiles = (data && data.facebook) || [];
+
+        if (profiles.length === 0) {
+          addBot(
+            'Chưa có profile FB nào được gán cho bạn 😢\nLiên hệ admin để được phân quyền profile nha!'
+          );
+          return;
+        }
+
+        if (profiles.length === 1) {
+          // Smart-skip: chỉ có 1 profile thì tự chọn luôn, đỡ thừa 1 click
+          autoSelectProfile(profiles[0]);
+          return;
+        }
+
+        // 2+ profiles: giữ flow cũ, để user tự chọn
+        addBot(
+          pickWelcome(),
+          [
+            { label: `${xekoIcon('user')} Chọn Profile`, handler: () => showProfileSelect() },
+          ]
+        );
+      } catch (e) {
+        addBot(`Ui Xeko load danh sách profile không nổi rồi: ${e.message}`);
+      }
+    }
+
+    // Auto-set profile khi user chỉ có đúng 1 profile được gán
+    async function autoSelectProfile(profile) {
+      try {
+        const res = await fetch(BASE_URL + '/api/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profile: profile.key }),
+        });
+        const data = await parseJson(res);
+        if (!res.ok) throw new Error(data.error || `Lỗi ${res.status}`);
+        currentProfile = profile.key;
+        currentProfileName = data.name || profile.name;
+        updateHeaderProfile(currentProfileName);
+        addBot(
+          `Xeko chào bạn 👋 Profile <strong>${currentProfileName}</strong> đã sẵn sàng rồi nha!\nBạn muốn Xeko đăng liền hay lên lịch?`,
+          [
+            { label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') },
+            { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
+          ]
+        );
+        step = 'mode';
+      } catch (e) {
+        addBot(`Ui set profile không được: ${e.message}`);
+      }
     }
 
     // ===== STEP 2: Chọn Profile =====
@@ -4089,6 +4699,7 @@
         // 'calendar' alias → dashboard calendar tab (BC cho nơi còn trỏ tới)
         calendar: { page: 'pageDashboard', nav: 'navDashboard' },
         session: { page: 'pageSession', nav: 'navSession' },
+        permissions: { page: 'pagePermissions', nav: 'navPermissions' },
         spy: { page: 'pageSpyBaiViet', nav: 'navSpy' },
       };
 
@@ -4103,6 +4714,9 @@
       }
       if (pg === 'session') {
         renderProfileList();
+      }
+      if (pg === 'permissions') {
+        loadPermissions();
       }
 
       // Sync mobile bottom nav
@@ -4383,9 +4997,11 @@
       if (tab === 'proxies') renderProxiesTable();
     }
 
-    // ===== IP Proxy management (localStorage) =====
+    // ===== IP Proxy management =====
+    // Library danh sách proxy lưu localStorage. Khi gán cho account, ta gửi
+    // proxy string (host:port:user:pass) xuống backend — backend là nguồn
+    // sự thật của assignment, library chỉ là tiện ích chọn nhanh.
     const PROXY_STORE_KEY = 'xeko.proxies.v1';
-    const PROXY_ASSIGN_KEY = 'xeko.proxyAssignments.v1';
 
     function loadProxies() {
       try { return JSON.parse(localStorage.getItem(PROXY_STORE_KEY) || '[]'); } catch { return []; }
@@ -4393,26 +5009,26 @@
     function saveProxies(list) {
       localStorage.setItem(PROXY_STORE_KEY, JSON.stringify(list));
     }
-    function loadProxyAssignments() {
-      try { return JSON.parse(localStorage.getItem(PROXY_ASSIGN_KEY) || '{}'); } catch { return {}; }
+    function proxyToString(p) {
+      if (!p || !p.host || !p.port) return '';
+      if (p.user) return `${p.host}:${p.port}:${p.user}${p.pass ? ':' + p.pass : ''}`;
+      return `${p.host}:${p.port}`;
     }
-    function saveProxyAssignments(map) {
-      localStorage.setItem(PROXY_ASSIGN_KEY, JSON.stringify(map));
+    function normalizeProxyHostPort(s) {
+      if (!s) return '';
+      let str = String(s).replace(/^\w+:\/\//, '');
+      if (str.includes('@')) str = str.split('@').pop();
+      const parts = str.split(':');
+      if (parts.length >= 2) return `${parts[0]}:${parts[1]}`;
+      return str;
     }
-    function accountAssignKey(type, key) { return `${type}:${key}`; }
-    function getProxyForAccount(type, key) {
-      const map = loadProxyAssignments();
-      const id = map[accountAssignKey(type, key)];
-      if (!id) return null;
-      return loadProxies().find(p => p.id === id) || null;
+    function findProxyIdByString(proxyStr) {
+      if (!proxyStr) return '';
+      const target = normalizeProxyHostPort(proxyStr);
+      const found = loadProxies().find(p => `${p.host}:${p.port}` === target);
+      return found ? found.id : '';
     }
-    function setProxyForAccount(type, key, proxyId) {
-      const map = loadProxyAssignments();
-      const k = accountAssignKey(type, key);
-      if (proxyId) map[k] = proxyId; else delete map[k];
-      saveProxyAssignments(map);
-    }
-    function proxyDisplay(p) {
+    function proxyOptionLabel(p) {
       const base = `${p.host}:${p.port}`;
       return p.label ? `${p.label} (${base})` : base;
     }
@@ -4420,23 +5036,19 @@
       if (!selectEl) return;
       const proxies = loadProxies();
       const opts = ['<option value="">— Không dùng proxy —</option>']
-        .concat(proxies.map(p => `<option value="${p.id}"${p.id === selectedId ? ' selected' : ''}>${escapeHtml(proxyDisplay(p))}</option>`));
+        .concat(proxies.map(p => `<option value="${p.id}"${p.id === selectedId ? ' selected' : ''}>${escapeHtml(proxyOptionLabel(p))}</option>`));
       selectEl.innerHTML = opts.join('');
     }
-    function countAssignmentsByProxy(proxyId) {
-      const map = loadProxyAssignments();
-      return Object.values(map).filter(id => id === proxyId).length;
-    }
 
-    // Cache danh sách account để render chip "Tài khoản đang dùng" trong tab IP Proxy
+    // Cache accounts để render chip "Tài khoản đang dùng" trong tab IP Proxy
     let _proxyAccountCache = null;
     async function fetchAccountsForProxy() {
       try {
         const res = await fetch(BASE_URL + '/api/accounts');
         const data = await parseJson(res);
         const list = [];
-        (data.facebook || []).forEach(p => list.push({ type: 'facebook', key: p.key, name: p.name }));
-        (data.zalo || []).forEach(z => list.push({ type: 'zalo', key: z.key, name: z.name }));
+        (data.facebook || []).forEach(p => list.push({ type: 'facebook', key: p.key, name: p.name, proxy: p.proxy || '' }));
+        (data.zalo || []).forEach(z => list.push({ type: 'zalo', key: z.key, name: z.name, proxy: z.proxy || '' }));
         _proxyAccountCache = list;
         return list;
       } catch {
@@ -4446,8 +5058,13 @@
     }
     function accountsUsingProxy(proxyId) {
       if (!_proxyAccountCache) return [];
-      const map = loadProxyAssignments();
-      return _proxyAccountCache.filter(a => map[accountAssignKey(a.type, a.key)] === proxyId);
+      const proxy = loadProxies().find(p => p.id === proxyId);
+      if (!proxy) return [];
+      const target = `${proxy.host}:${proxy.port}`;
+      return _proxyAccountCache.filter(a => a.proxy && normalizeProxyHostPort(a.proxy) === target);
+    }
+    function countAssignmentsByProxy(proxyId) {
+      return accountsUsingProxy(proxyId).length;
     }
     function proxyUsageChipsHtml(proxyId) {
       const accs = accountsUsingProxy(proxyId);
@@ -4508,13 +5125,10 @@
       if (!proxy) return;
       const usedCount = countAssignmentsByProxy(id);
       const msg = usedCount > 0
-        ? `Proxy "${proxyDisplay(proxy)}" đang được gán cho ${usedCount} tài khoản. Xoá sẽ bỏ gán. Tiếp tục?`
-        : `Xoá proxy "${proxyDisplay(proxy)}"?`;
+        ? `Proxy "${proxyOptionLabel(proxy)}" đang được gán cho ${usedCount} tài khoản. Xoá khỏi danh sách (account vẫn giữ proxy đã set). Tiếp tục?`
+        : `Xoá proxy "${proxyOptionLabel(proxy)}"?`;
       if (!confirm(msg)) return;
       saveProxies(loadProxies().filter(p => p.id !== id));
-      const map = loadProxyAssignments();
-      Object.keys(map).forEach(k => { if (map[k] === id) delete map[k]; });
-      saveProxyAssignments(map);
       renderProxiesTable();
       renderProfileList();
     }
@@ -4574,9 +5188,9 @@
 
         // FB profiles
         fbContainer.innerHTML = data.facebook.map(p => {
-          const proxy = getProxyForAccount('facebook', p.key);
-          const proxyHtml = proxy
-            ? ` · <span style="display:inline-flex; align-items:center; gap:4px; color:#6b5bff;">${xekoIcon('globe')} ${escapeHtml(proxy.host)}:${escapeHtml(proxy.port)}</span>`
+          const proxyStr = p.proxy || '';
+          const proxyHtml = proxyStr
+            ? ` · <span style="display:inline-flex; align-items:center; gap:4px; color:#6b5bff;">${xekoIcon('globe')} ${escapeHtml(proxyDisplay(proxyStr))}</span>`
             : '';
           return `
           <div class="profile-card">
@@ -4607,9 +5221,9 @@
             </h4>
             <div style="display:flex; flex-direction:column; gap:8px;">
               ${data.zalo.map(z => {
-                const zproxy = getProxyForAccount('zalo', z.key);
-                const zproxyHtml = zproxy
-                  ? ` · <span style="display:inline-flex; align-items:center; gap:4px; color:#6b5bff;">${xekoIcon('globe')} ${escapeHtml(zproxy.host)}:${escapeHtml(zproxy.port)}</span>`
+                const zproxyStr = z.proxy || '';
+                const zproxyHtml = zproxyStr
+                  ? ` · <span style="display:inline-flex; align-items:center; gap:4px; color:#6b5bff;">${xekoIcon('globe')} ${escapeHtml(proxyDisplay(zproxyStr))}</span>`
                   : '';
                 return `
                 <div class="profile-card">
@@ -4638,24 +5252,34 @@
       alert('Mở Salework: chạy lại lệnh thêm tài khoản Zalo để mở lại trình duyệt Salework.');
     }
 
-    function editZaloProfile(key, name, saleworkName) {
+    function proxyDisplay(p) {
+      if (!p) return '';
+      // Chỉ hiện host:port để giấu credentials
+      try {
+        let s = String(p).replace(/^\w+:\/\//, '');
+        if (s.includes('@')) s = s.split('@').pop();
+        const parts = s.split(':');
+        if (parts.length >= 2) return `${parts[0]}:${parts[1]}`;
+        return s;
+      } catch { return ''; }
+    }
+
+    function editZaloProfile(key, name, saleworkName, proxy) {
       document.getElementById('editKey').value = key;
       document.getElementById('editName').value = name;
       document.getElementById('editEmail').value = saleworkName;
       document.getElementById('editPassword').value = '';
-      const cur = getProxyForAccount('zalo', key);
-      fillProxySelect(document.getElementById('editProxyId'), cur ? cur.id : '');
+      fillProxySelect(document.getElementById('editProxyId'), findProxyIdByString(proxy));
       document.getElementById('editProfileModal').style.display = 'flex';
       document.getElementById('editProfileModal').dataset.editType = 'zalo';
     }
 
-    function editProfile(key, name, email) {
+    function editProfile(key, name, email, proxy) {
       document.getElementById('editKey').value = key;
       document.getElementById('editName').value = name;
       document.getElementById('editEmail').value = email;
       document.getElementById('editPassword').value = '';
-      const cur = getProxyForAccount('facebook', key);
-      fillProxySelect(document.getElementById('editProxyId'), cur ? cur.id : '');
+      fillProxySelect(document.getElementById('editProxyId'), findProxyIdByString(proxy));
       document.getElementById('editProfileModal').dataset.editType = 'facebook';
       document.getElementById('editProfileModal').style.display = 'flex';
     }
@@ -4670,13 +5294,15 @@
       const name = document.getElementById('editName').value.trim();
       const emailOrSalework = document.getElementById('editEmail').value.trim();
       const password = document.getElementById('editPassword').value;
+      const proxyId = document.getElementById('editProxyId')?.value || '';
+      const proxyObj = proxyId ? loadProxies().find(p => p.id === proxyId) : null;
+      const proxy = proxyObj ? proxyToString(proxyObj) : '';
       const editType = document.getElementById('editProfileModal').dataset.editType || 'facebook';
 
       if (!name) { alert('Vui lòng nhập tên hiển thị!'); return; }
 
-      const proxyId = document.getElementById('editProxyId')?.value || '';
       try {
-        const body = { name, type: editType };
+        const body = { name, type: editType, proxy };
         if (editType === 'zalo') {
           body.saleworkName = emailOrSalework;
         } else {
@@ -4690,7 +5316,6 @@
         });
         const data = await parseJson(res);
         if (data.success) {
-          setProxyForAccount(editType, key, proxyId);
           alert('✅ Đã cập nhật thông tin tài khoản!');
           closeEditModal();
           renderProfileList();
@@ -4714,7 +5339,6 @@
         const res = await fetch(`${BASE_URL}/api/accounts/${type}/${encodeURIComponent(key)}`, { method: 'DELETE' });
         const data = await parseJson(res);
         if (data.success) {
-          setProxyForAccount(type, key, '');
           alert(`✅ ${data.message}`);
           renderProfileList();
         } else {
@@ -4732,6 +5356,9 @@
       const email = document.getElementById('newAccEmail')?.value.trim();
       const pass = document.getElementById('newAccPass')?.value.trim();
       const saleworkName = document.getElementById('newZaloSaleworkName')?.value.trim();
+      const proxyId = document.getElementById('newAccProxyId')?.value || '';
+      const proxyObj = proxyId ? loadProxies().find(p => p.id === proxyId) : null;
+      const proxy = proxyObj ? proxyToString(proxyObj) : '';
 
       if (!key || !name) {
         alert('Vui lòng nhập tên profile và tên hiển thị!');
@@ -4748,9 +5375,8 @@
         return;
       }
 
-      const proxyId = document.getElementById('newAccProxyId')?.value || '';
       try {
-        const body = { type, key, name };
+        const body = { type, key, name, proxy };
         if (type === 'facebook') { body.email = email; body.password = pass; }
         if (type === 'zalo') { body.saleworkName = saleworkName; }
 
@@ -4762,7 +5388,6 @@
         const data = await parseJson(res);
 
         if (data.success) {
-          if (proxyId) setProxyForAccount(type, key, proxyId);
           alert(data.message);
           document.getElementById('newAccKey').value = '';
           document.getElementById('newAccName').value = '';
@@ -4829,8 +5454,15 @@
       btn.textContent = '🔍 Kiểm tra lại';
     }
 
-    function loginProfile(profileKey) {
-      alert(`Chạy lệnh trong terminal:\n\ncd C:\\Users\\tramm\\projects\\fb-auto-poster\nnode src\\playwright\\login.js ${profileKey}`);
+    async function loginProfile(profileKey) {
+      try {
+        const res = await fetch(`${BASE_URL}/api/accounts/${encodeURIComponent(profileKey)}/login`, { method: 'POST' });
+        const data = await parseJson(res);
+        if (data.success) alert(`✅ ${data.message}`);
+        else alert(`❌ Lỗi: ${data.error}`);
+      } catch (e) {
+        alert(`❌ Lỗi: ${e.message}`);
+      }
     }
 
     async function restartLocalServer() {
@@ -5699,16 +6331,20 @@
     // ===== Dashboard Chart =====
     let _dashChart = null;
     let _chartType = 'bar';
-    const CHART_PALETTE = ['#7c66ff','#06b6d4','#f59e0b','#10b981','#ef4444','#8b5cf6','#ec4899','#f97316'];
+    const CHART_PALETTE = ['#8b85ed','#b39ef0','#a78bfa','#06b6d4','#10b981','#f59e0b','#ec4899','#f97316'];
 
     function setChartType(type) {
       _chartType = type;
-      document.getElementById('chartTypeBar').style.background  = type === 'bar'  ? '#7c66ff' : '#fff';
-      document.getElementById('chartTypeBar').style.color       = type === 'bar'  ? '#fff'    : '#555';
-      document.getElementById('chartTypeBar').style.borderColor = type === 'bar'  ? '#7c66ff' : '#ddd';
-      document.getElementById('chartTypeLine').style.background  = type === 'line' ? '#7c66ff' : '#fff';
-      document.getElementById('chartTypeLine').style.color       = type === 'line' ? '#fff'    : '#555';
-      document.getElementById('chartTypeLine').style.borderColor = type === 'line' ? '#7c66ff' : '#ddd';
+      const SKY_ACTIVE_BG = 'linear-gradient(135deg, #8b85ed 0%, #b39ef0 100%)';
+      const SKY_ACTIVE_SHADOW = '0 3px 10px rgba(139, 133, 237, 0.30)';
+      document.getElementById('chartTypeBar').style.background   = type === 'bar'  ? SKY_ACTIVE_BG : '#fff';
+      document.getElementById('chartTypeBar').style.color        = type === 'bar'  ? '#fff'        : '#506580';
+      document.getElementById('chartTypeBar').style.borderColor  = type === 'bar'  ? 'transparent' : '#d8dde6';
+      document.getElementById('chartTypeBar').style.boxShadow    = type === 'bar'  ? SKY_ACTIVE_SHADOW : 'none';
+      document.getElementById('chartTypeLine').style.background  = type === 'line' ? SKY_ACTIVE_BG : '#fff';
+      document.getElementById('chartTypeLine').style.color       = type === 'line' ? '#fff'        : '#506580';
+      document.getElementById('chartTypeLine').style.borderColor = type === 'line' ? 'transparent' : '#d8dde6';
+      document.getElementById('chartTypeLine').style.boxShadow   = type === 'line' ? SKY_ACTIVE_SHADOW : 'none';
       loadDashChart();
     }
 
@@ -6558,11 +7194,259 @@
       });
     }
 
+    // ====== Auth + Phân quyền ======
+    let CURRENT_USER = null;
+
+    async function bootstrapAuth() {
+      try {
+        const res = await fetch(BASE_URL + '/api/me', { credentials: 'include' });
+        if (res.status === 401) {
+          window.location.href = '/admin/login.html';
+          return false;
+        }
+        const data = await res.json();
+        if (res.status === 403 && data.code === 'NO_XEKO_ACCESS') {
+          document.body.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; min-height:100vh; background:#f5f5f5; font-family:system-ui;">
+            <div style="background:#fff; padding:40px; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,.08); max-width:480px; text-align:center;">
+              <h1 style="color:#dc2626; margin:0 0 16px;">🔒 Chưa được phân quyền</h1>
+              <p style="color:#555; line-height:1.6;">Tài khoản <code style="background:#f3f4f6; padding:4px 8px; border-radius:4px;">${data.email || ''}</code> chưa được cấp quyền sử dụng Xeko.</p>
+              <p style="color:#555;">Vui lòng liên hệ admin Xeko để được phân quyền.</p>
+              <p><a href="/admin/dashboard.html" style="color:#4f46e5;">← Quay lại basso.vn</a></p>
+            </div>
+          </div>`;
+          return false;
+        }
+        if (!data.success) {
+          window.location.href = '/admin/login.html';
+          return false;
+        }
+        CURRENT_USER = data;
+        applyAuthUI(data);
+        return true;
+      } catch (e) {
+        console.error('Auth bootstrap failed:', e);
+        return true;
+      }
+    }
+
+    function applyAuthUI(user) {
+      const box = document.getElementById('currentUserBox');
+      if (box) {
+        box.style.display = 'block';
+        document.getElementById('currentUserEmail').textContent = user.email || '';
+        document.getElementById('currentUserAvatar').textContent = (user.email || '?').charAt(0).toUpperCase();
+        const role = user.isSuperAdmin ? 'Super Admin' : (user.isXekoAdmin ? 'Admin Xeko' : 'User');
+        document.getElementById('currentUserRole').textContent = role;
+      }
+      const navPerm = document.getElementById('navPermissions');
+      if (navPerm) navPerm.style.display = user.isXekoAdmin ? '' : 'none';
+    }
+
+    function logoutXeko() {
+      window.location.href = '/admin/login.html';
+    }
+
+    // ====== Tab Phân quyền ======
+    let _allProfilesCache = [];
+
+    async function loadPermissions() {
+      const tbody = document.getElementById('permissionsTableBody');
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:30px; text-align:center; color:#999;">Đang tải...</td></tr>';
+      try {
+        // Render user list ngay sau khi /api/admin/users về (nhanh, đọc file local trên REMOTE).
+        // /api/accounts proxy qua Cloudflare Tunnel xuống VPS — chậm, fetch song song và update profile name khi về.
+        const usersRes = await fetch(BASE_URL + '/api/admin/users', { credentials: 'include' });
+        if (!usersRes.ok) {
+          tbody.innerHTML = `<tr><td colspan="5" style="padding:30px; text-align:center; color:#dc2626;">Lỗi: ${usersRes.status}</td></tr>`;
+          return;
+        }
+        const { users, superAdmin } = await usersRes.json();
+        if (!users || !users.length) {
+          tbody.innerHTML = '<tr><td colspan="5" style="padding:30px; text-align:center; color:#999;">Chưa có user nào.</td></tr>';
+          return;
+        }
+
+        const profileNameMap = {};
+        _allProfilesCache.forEach(p => { profileNameMap[p.key] = p.name; });
+        renderPermissionsTable(users, superAdmin, profileNameMap);
+
+        // Fetch profile names ở background, update bảng khi về (không block render)
+        fetch(BASE_URL + '/api/accounts?all=1', { credentials: 'include' })
+          .then(r => r.ok ? r.json() : null)
+          .then(profilesData => {
+            if (!profilesData) return;
+            _allProfilesCache = profilesData.facebook || [];
+            const newMap = {};
+            _allProfilesCache.forEach(p => { newMap[p.key] = p.name; });
+            renderPermissionsTable(users, superAdmin, newMap);
+          })
+          .catch(() => {});
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="5" style="padding:30px; text-align:center; color:#dc2626;">Lỗi: ${e.message}</td></tr>`;
+      }
+    }
+
+    function renderPermissionsTable(users, superAdmin, profileNameMap) {
+      const tbody = document.getElementById('permissionsTableBody');
+      tbody.innerHTML = users.map(u => {
+        const isSuper = u.email === superAdmin;
+        const roleBadge = u.isXekoAdmin
+          ? '<span style="background:#ede9fe; color:#4f46e5; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;">Admin Xeko</span>'
+          : '<span style="background:#f3f4f6; color:#555; padding:3px 10px; border-radius:12px; font-size:12px;">User</span>';
+        const profileText = u.allProfiles
+          ? '<em style="color:#16a34a;">Tất cả profile</em>'
+          : (u.profiles && u.profiles.length
+            ? u.profiles.map(k => profileNameMap[k] || k).join(', ')
+            : '<em style="color:#999;">— chưa gán —</em>');
+        const actions = isSuper
+          ? `<button onclick="editPermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; font-size:12px; cursor:pointer; color:#4f46e5;">Sửa tên</button>`
+          : `<button onclick="editPermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; font-size:12px; cursor:pointer; color:#4f46e5; margin-right:6px;">Sửa</button>
+             <button onclick="deletePermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#fee2e2; border:1px solid #fecaca; border-radius:6px; font-size:12px; cursor:pointer; color:#dc2626;">Xoá</button>`;
+        const nameDisplay = u.name ? escapeHtml(u.name) : '<em style="color:#999;">—</em>';
+        return `<tr style="border-bottom:1px solid #f3f4f6;">
+          <td style="padding:14px 16px; font-size:14px; word-break:break-word;"><strong>${nameDisplay}</strong></td>
+          <td style="padding:14px 16px; font-size:14px; word-break:break-all;">${escapeHtml(u.email)}${isSuper ? ' <span style="background:#fef3c7; color:#78350f; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:4px;">SUPER</span>' : ''}</td>
+          <td style="padding:14px 16px; font-size:13px; color:#555; word-break:break-word;">${profileText}</td>
+          <td style="padding:14px 16px;">${roleBadge}</td>
+          <td style="padding:14px 16px; text-align:right; white-space:nowrap;">${actions}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function escapeAttr(s) {
+      return String(s || '').replace(/'/g, "\\'");
+    }
+
+    let _editingEmail = null;
+
+    let _editingIsSuper = false;
+
+    function setPermFormSuperLock(isSuper) {
+      _editingIsSuper = isSuper;
+      const isAdminCb = document.getElementById('permIsAdmin');
+      const allProfCb = document.getElementById('permAllProfiles');
+      const profilesWrap = document.getElementById('permProfilesWrap');
+      const adminLabel = isAdminCb.closest('label');
+      const allLabel = allProfCb.closest('label');
+      isAdminCb.disabled = isSuper;
+      allProfCb.disabled = isSuper;
+      if (adminLabel) adminLabel.style.opacity = isSuper ? '0.5' : '';
+      if (allLabel) allLabel.style.opacity = isSuper ? '0.5' : '';
+      if (profilesWrap) profilesWrap.style.display = isSuper ? 'none' : '';
+    }
+
+    function openPermissionModal() {
+      _editingEmail = null;
+      document.getElementById('permissionModalTitle').textContent = 'Thêm user';
+      document.getElementById('permName').value = '';
+      document.getElementById('permEmail').value = '';
+      document.getElementById('permEmail').readOnly = false;
+      document.getElementById('permIsAdmin').checked = false;
+      document.getElementById('permAllProfiles').checked = false;
+      setPermFormSuperLock(false);
+      renderPermProfilesList([]);
+      togglePermAllProfiles();
+      document.getElementById('permissionModal').style.display = 'flex';
+    }
+
+    async function editPermission(email) {
+      try {
+        const res = await fetch(BASE_URL + '/api/admin/users', { credentials: 'include' });
+        const { users, superAdmin } = await res.json();
+        const u = users.find(x => x.email === email);
+        if (!u) return alert('Không tìm thấy user');
+        const isSuper = email === superAdmin;
+        _editingEmail = email;
+        document.getElementById('permissionModalTitle').textContent =
+          (isSuper ? 'Sửa tên Super-admin: ' : 'Sửa phân quyền: ') + email;
+        document.getElementById('permName').value = u.name || '';
+        document.getElementById('permEmail').value = email;
+        document.getElementById('permEmail').readOnly = true;
+        document.getElementById('permIsAdmin').checked = !!u.isXekoAdmin;
+        document.getElementById('permAllProfiles').checked = !!u.allProfiles;
+        setPermFormSuperLock(isSuper);
+        renderPermProfilesList(u.profiles || []);
+        togglePermAllProfiles();
+        document.getElementById('permissionModal').style.display = 'flex';
+      } catch (e) {
+        alert('Lỗi: ' + e.message);
+      }
+    }
+
+    function closePermissionModal() {
+      document.getElementById('permissionModal').style.display = 'none';
+    }
+
+    function renderPermProfilesList(selected) {
+      const wrap = document.getElementById('permProfilesList');
+      const sel = new Set(selected || []);
+      if (!_allProfilesCache.length) {
+        wrap.innerHTML = '<div style="padding:10px; text-align:center; color:#999; font-size:13px;">Chưa có profile FB nào.</div>';
+        return;
+      }
+      wrap.innerHTML = _allProfilesCache.map(p => `
+        <label style="display:flex; align-items:center; gap:8px; padding:6px 8px; cursor:pointer; border-radius:6px;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
+          <input type="checkbox" class="perm-profile-cb" value="${escapeAttr(p.key)}" ${sel.has(p.key) ? 'checked' : ''} style="width:16px; height:16px;">
+          <span style="font-size:13px;"><strong>${escapeHtml(p.name)}</strong> <span style="color:#999;">· ${escapeHtml(p.key)}</span></span>
+        </label>
+      `).join('');
+    }
+
+    function togglePermAllProfiles() {
+      const all = document.getElementById('permAllProfiles').checked;
+      const wrap = document.getElementById('permProfilesWrap');
+      wrap.style.opacity = all ? '0.4' : '1';
+      wrap.style.pointerEvents = all ? 'none' : '';
+    }
+
+    async function savePermission() {
+      const email = document.getElementById('permEmail').value.trim().toLowerCase();
+      const name = document.getElementById('permName').value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return alert('Email không hợp lệ');
+      const isAdmin = document.getElementById('permIsAdmin').checked;
+      const allProfiles = document.getElementById('permAllProfiles').checked;
+      const profiles = Array.from(document.querySelectorAll('.perm-profile-cb:checked')).map(cb => cb.value);
+      try {
+        const res = await fetch(BASE_URL + '/api/admin/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email, name, isXekoAdmin: isAdmin, allProfiles, profiles }),
+        });
+        const data = await res.json();
+        if (!res.ok) return alert('Lỗi: ' + (data.error || res.status));
+        closePermissionModal();
+        loadPermissions();
+      } catch (e) {
+        alert('Lỗi: ' + e.message);
+      }
+    }
+
+    async function deletePermission(email) {
+      if (!confirm(`Xoá quyền của "${email}"?`)) return;
+      try {
+        const res = await fetch(BASE_URL + '/api/admin/users/' + encodeURIComponent(email), {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        const data = await res.json();
+        if (!res.ok) return alert('Lỗi: ' + (data.error || res.status));
+        loadPermissions();
+      } catch (e) {
+        alert('Lỗi: ' + e.message);
+      }
+    }
+
     // Default mobile landing = home; desktop unchanged.
     // Deep-link ?page=... still wins over this default.
     (function () {
-      const run = () => {
+      const run = async () => {
         try {
+          const ok = await bootstrapAuth();
+          if (!ok) return;
           xekoInjectHomeButtons();
           const p = new URLSearchParams(location.search).get('page');
           if (p && typeof switchPage === 'function') {

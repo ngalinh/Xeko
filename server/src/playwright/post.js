@@ -1,48 +1,37 @@
 const { chromium } = require('playwright');
 const path = require('path');
+const fs = require('fs');
 const config = require('../../config/default');
 const logger = require('../utils/logger');
 const { randomDelay } = require('../utils/delay');
 const funMsg = require('../utils/fun-messages');
+const { getFbProxyForProfile } = require('../utils/proxy');
 
-// Lưu browser context theo profile: { linhthao: ctx, linhduong: ctx }
+// Browser context theo profile key
 const browsers = {};
 
 // Mutex per profile: prevents concurrent launchPersistentContext on same userDataDir
 const launching = {};
 
-// Profile đang active
 let activeProfile = null;
 let activeProfileData = null;
 
-/**
- * Chọn profile
- */
 function setProfile(profileName) {
-  let profile = config.profiles[profileName];
-  if (!profile) {
-    // Check if profile dir exists in playwright-data (dynamically added profile)
-    const profileDir = path.resolve(__dirname, `../../playwright-data/${profileName}`);
-    if (require('fs').existsSync(profileDir)) {
-      profile = {
-        name: profileName,
-        userDataDir: profileDir,
-      };
-    } else {
-      throw new Error(`Profile "${profileName}" không tồn tại. Có: ${Object.keys(config.profiles).join(', ')}`);
-    }
+  const profileDir = path.resolve(__dirname, `../../playwright-data/${profileName}`);
+  if (!fs.existsSync(profileDir)) {
+    throw new Error(`Profile "${profileName}" không tồn tại — thêm tài khoản trong UI Web trước.`);
   }
   activeProfile = profileName;
-  activeProfileData = profile;
-  logger.info(`Đã chọn profile: ${profileName} (${profile.name})`);
-  return profile;
+  activeProfileData = { name: profileName, userDataDir: profileDir };
+  logger.info(`Đã chọn profile: ${profileName}`);
+  return activeProfileData;
 }
 
 function getActiveProfile() {
   if (!activeProfile) {
-    throw new Error('Chưa chọn profile! Dùng /linhthao hoặc /linhduong trước.');
+    throw new Error('Chưa chọn profile!');
   }
-  return activeProfileData || config.profiles[activeProfile];
+  return activeProfileData;
 }
 
 async function getBrowser() {
@@ -78,6 +67,8 @@ async function getBrowser() {
         await new Promise(r => setTimeout(r, 3000 * attempt));
       }
       try {
+        const proxy = getFbProxyForProfile(key, profile);
+        if (proxy && attempt === 0) logger.info(`Profile "${key}" dùng proxy: ${proxy.server}`);
         const ctx = await chromium.launchPersistentContext(userDataDir, {
           headless: false,
           slowMo: config.playwright.slowMo,
@@ -85,6 +76,7 @@ async function getBrowser() {
           userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
           args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
           permissions: ['clipboard-read', 'clipboard-write'],
+          ...(proxy ? { proxy } : {}),
         });
 
         // Khi user đóng tay cửa sổ Chromium, clear cache để lần sau tạo mới.

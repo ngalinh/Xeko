@@ -12,8 +12,51 @@ const playwright = process.env.PLAYWRIGHT_LOCAL_URL
 const postLogger = require('./src/database/post-logger');
 const { queuePost } = require('./src/utils/post-queue');
 
+const permissions = require('./src/utils/permissions');
+const auth = require('./src/utils/auth');
+
 const app = express();
 app.use(express.json());
+
+// Auth gate: cần login basso.vn + được admin Xeko phân quyền mới được vào trang.
+// /admin, /platform, /api/auth (basso.vn) đi route khác — chỉ chặn frontend Xeko.
+// /api/me: frontend tự kiểm tra session — public.
+// /api/register-local: local server tự xác thực bằng x-api-key — public.
+const PUBLIC_PATHS = ['/health', '/api/me', '/api/register-local'];
+app.use(async (req, res, next) => {
+  if (req.method === 'OPTIONS') return next();
+  if (PUBLIC_PATHS.includes(req.path)) return next();
+
+  // API endpoints: trả JSON 401/403
+  if (req.path.startsWith('/api/')) {
+    return auth.requireAuth(permissions)(req, res, next);
+  }
+
+  // Static: chặn truy cập index.html khi chưa login → redirect về trang login basso.vn
+  // (file css/js khác không cần auth — đỡ phá UX của trang login)
+  const needsGate = req.path === '/' || req.path === '/index.html' || req.path.endsWith('/index.html');
+  if (!needsGate) return next();
+  const user = await auth.verifyBassoSession(req.headers.cookie || '');
+  if (!user) {
+    return res.redirect('/admin/login.html');
+  }
+  if (!permissions.hasAccess(user.email)) {
+    return res
+      .status(403)
+      .send(`<!doctype html><meta charset="utf-8"><title>Chưa được phân quyền</title>
+<style>body{font-family:system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5}
+.box{background:#fff;padding:40px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.08);max-width:480px;text-align:center}
+h1{color:#dc2626;margin:0 0 16px}p{color:#555;line-height:1.6}
+.email{background:#f3f4f6;padding:8px 12px;border-radius:6px;font-family:monospace;display:inline-block;margin:8px 0}
+a{color:#4f46e5;text-decoration:none}</style>
+<div class="box"><h1>🔒 Chưa được phân quyền</h1>
+<p>Tài khoản <span class="email">${user.email}</span> chưa được cấp quyền sử dụng Xeko.</p>
+<p>Vui lòng liên hệ admin Xeko để được phân quyền.</p>
+<p><a href="/admin/dashboard.html">← Quay lại basso.vn</a></p></div>`);
+  }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, '../')));
 
 async function getFetch() {
@@ -294,26 +337,6 @@ app.get('/api/screenshot', (req, res) => {
   }
 });
 
-// Commands
-app.post('/api/command', (req, res) => {
-  const { command } = req.body;
-  checkDailyReset();
-
-  if (command === '/status') {
-    let profileName = 'Chưa chọn';
-    try {
-      const p = playwright.getActiveProfile();
-      profileName = p.name;
-    } catch {}
-
-    return res.json({
-      message: `📊 Báo cáo hôm nay:\n\n👤 Profile: ${profileName}\n📝 Bài đã đăng: ${postCount}/${config.posting.maxPostsPerDay}\n📅 Ngày: ${lastResetDate}`,
-    });
-  }
-
-  res.json({ message: 'Lệnh không hợp lệ' });
-});
-
 // === Session Check API ===
 const sessionCheck = require('./src/utils/session-check');
 
@@ -321,7 +344,7 @@ const loginHistory = require('./src/utils/login-history');
 
 // Thêm tài khoản mới + mở trình duyệt để login thủ công
 app.post('/api/accounts', async (req, res) => {
-  const { type, key, name, email, password, saleworkName } = req.body;
+  const { type, key, name, email, password, saleworkName, proxy } = req.body;
 
   if (!key || !name) {
     return res.status(400).json({ error: 'Thiếu tên profile hoặc tên hiển thị' });
@@ -336,7 +359,7 @@ app.post('/api/accounts', async (req, res) => {
       const response = await fetchFn(`${LOCAL_URL}/api/accounts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
-        body: JSON.stringify({ type, key, name, email, password, saleworkName }),
+        body: JSON.stringify({ type, key, name, email, password, saleworkName, proxy }),
       });
       const data = await response.json();
       return res.status(response.status).json(data);
@@ -355,10 +378,14 @@ app.post('/api/accounts', async (req, res) => {
     // Mo trinh duyet de login thu cong
     try {
       const { chromium } = require('playwright');
+      const { parseProxy } = require('./src/utils/proxy');
+      const proxyOpt = parseProxy(proxy);
+      if (proxyOpt) logger.info(`FB "${name}" dùng proxy: ${proxyOpt.server}`);
       const browser = await chromium.launchPersistentContext(profileDir, {
         headless: false,
         slowMo: 500,
         viewport: { width: 1280, height: 720 },
+        ...(proxyOpt ? { proxy: proxyOpt } : {}),
       });
 
       const page = browser.pages()[0] || await browser.newPage();
@@ -393,6 +420,29 @@ app.post('/api/accounts', async (req, res) => {
   } else {
     res.status(400).json({ error: 'Loại tài khoản không hợp lệ' });
   }
+});
+
+// Re-login profile FB có sẵn — mở lại Chromium cho profile đã tồn tại
+app.post('/api/accounts/:key/login', async (req, res) => {
+  const { key } = req.params;
+
+  if (getLocalUrl()) {
+    try {
+      const LOCAL_URL = getLocalUrl();
+      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const fetchFn = await getFetch();
+      const response = await fetchFn(`${LOCAL_URL}/api/accounts/${encodeURIComponent(key)}/login`, {
+        method: 'POST',
+        headers: { 'x-api-key': API_KEY },
+      });
+      const data = await response.json();
+      return res.status(response.status).json(data);
+    } catch (e) {
+      return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
+    }
+  }
+
+  return res.status(503).json({ error: 'Chưa cấu hình PLAYWRIGHT_LOCAL_URL — không có máy nào để mở Chromium.' });
 });
 
 // Xoa profile
@@ -440,6 +490,9 @@ app.delete('/api/accounts/:type/:key', async (req, res) => {
 
 // Lấy danh sách profiles từ thư mục playwright-data
 app.get('/api/accounts', async (req, res) => {
+  // ?all=1 chỉ admin Xeko gọi (dùng trong tab Phân quyền để tick chọn profile)
+  const wantAll = req.query.all === '1' && req.user && req.user.isXekoAdmin;
+
   // Nếu đang chạy ở chế độ proxy, lấy từ local server
   if (getLocalUrl()) {
     try {
@@ -448,11 +501,16 @@ app.get('/api/accounts', async (req, res) => {
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/accounts`, {
         headers: { 'x-api-key': API_KEY },
+        signal: AbortSignal.timeout(8000),
       });
       const data = await response.json();
+      if (!wantAll && req.user) {
+        if (Array.isArray(data.facebook)) data.facebook = permissions.filterProfiles(req.user.email, data.facebook);
+        if (Array.isArray(data.zalo)) data.zalo = permissions.filterProfiles(req.user.email, data.zalo);
+      }
       return res.json(data);
     } catch (e) {
-      return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
+      return res.status(504).json({ error: `Không thể kết nối local server: ${e.message}` });
     }
   }
 
@@ -463,21 +521,29 @@ app.get('/api/accounts', async (req, res) => {
     'segmentation_platform', 'Safe Browsing',
   ];
   try {
-    const entries = fs.readdirSync(dataDir, { withFileTypes: true });
-    const fbProfiles = entries
-      .filter(e => e.isDirectory() && !knownNonProfiles.includes(e.name) && !e.name.startsWith('.'))
-      .filter(e => !e.name.includes('.'))
+    const entries = fs.existsSync(dataDir)
+      ? fs.readdirSync(dataDir, { withFileTypes: true })
+      : [];
+    let fbProfiles = entries
+      .filter(e => e.isDirectory()
+        && !knownNonProfiles.includes(e.name)
+        && !e.name.startsWith('.')
+        && !e.name.startsWith('salework')
+        && !e.name.includes('.'))
       .map(e => {
         const key = e.name;
-        const cfgProfile = config.profiles[key];
         const meta = loadProfilesMeta()[key];
         return {
           key,
-          name: (meta && meta.name) || (cfgProfile ? cfgProfile.name : key),
-          email: (meta && meta.email) || (cfgProfile ? (cfgProfile.email || '') : ''),
-          fromConfig: !!cfgProfile,
+          name: meta?.name || key,
+          email: meta?.email || '',
+          proxy: meta?.proxy || '',
         };
       });
+
+    if (!wantAll && req.user) {
+      fbProfiles = permissions.filterProfiles(req.user.email, fbProfiles);
+    }
 
     res.json({ facebook: fbProfiles, zalo: [] });
   } catch (e) {
@@ -502,7 +568,7 @@ function saveProfilesMeta(data) {
 // Cập nhật thông tin profile
 app.put('/api/accounts/:key', async (req, res) => {
   const { key } = req.params;
-  const { name, email, password, type, saleworkName } = req.body;
+  const { name, email, password, type, saleworkName, proxy } = req.body;
 
   if (!name) return res.status(400).json({ error: 'Thiếu tên hiển thị' });
 
@@ -515,7 +581,7 @@ app.put('/api/accounts/:key', async (req, res) => {
       const response = await fetchFn(`${LOCAL_URL}/api/accounts/${key}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
-        body: JSON.stringify({ name, email, password, type, saleworkName }),
+        body: JSON.stringify({ name, email, password, type, saleworkName, proxy }),
       });
       const data = await response.json();
       return res.status(response.status).json(data);
@@ -529,7 +595,13 @@ app.put('/api/accounts/:key', async (req, res) => {
       return res.status(400).json({ error: 'Zalo accounts managed by local server' });
     }
     const meta = loadProfilesMeta();
-    meta[key] = { name, email: email || '', password: password || (meta[key] && meta[key].password) || '' };
+    const proxyTrimmed = typeof proxy === 'string' ? proxy.trim() : undefined;
+    meta[key] = {
+      name,
+      email: email || '',
+      password: password || (meta[key] && meta[key].password) || '',
+      proxy: proxyTrimmed !== undefined ? proxyTrimmed : ((meta[key] && meta[key].proxy) || ''),
+    };
     saveProfilesMeta(meta);
     res.json({ success: true });
   } catch (e) {
@@ -842,6 +914,63 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ===== Auth & Permissions API =====
+
+// Lấy thông tin user đang login (từ basso.vn) + quyền hạn trong Xeko.
+// Public endpoint — dùng để frontend biết redirect login hay không.
+app.get('/api/me', async (req, res) => {
+  const cookie = req.headers.cookie || '';
+  const user = await auth.verifyBassoSession(cookie);
+  if (!user) {
+    return res.status(401).json({ success: false, code: 'NOT_LOGGED_IN' });
+  }
+  if (!permissions.hasAccess(user.email)) {
+    return res.status(403).json({
+      success: false,
+      code: 'NO_XEKO_ACCESS',
+      email: user.email,
+      message: 'Tài khoản chưa được phân quyền sử dụng Xeko',
+    });
+  }
+  const info = permissions.getUser(user.email);
+  res.json({
+    success: true,
+    email: user.email,
+    roles: user.roles,
+    isXekoAdmin: permissions.isXekoAdmin(user.email),
+    isSuperAdmin: permissions.isSuperAdmin(user.email),
+    allProfiles: !!(info && info.allProfiles) || permissions.isXekoAdmin(user.email),
+    allowedProfiles: permissions.getAllowedProfileKeys(user.email),
+  });
+});
+
+// Danh sách user (admin Xeko)
+app.get('/api/admin/users', auth.requireAdmin(), (req, res) => {
+  res.json({ users: permissions.listUsers(), superAdmin: permissions.SUPER_ADMIN_EMAIL });
+});
+
+// Tạo / cập nhật user (admin Xeko)
+app.post('/api/admin/users', auth.requireAdmin(), (req, res) => {
+  try {
+    const { email, name, isXekoAdmin: admin, allProfiles, profiles, note } = req.body || {};
+    const u = permissions.upsertUser({ email, name, isXekoAdmin: admin, allProfiles, profiles, note });
+    res.json({ success: true, user: u });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Xoá user (admin Xeko)
+app.delete('/api/admin/users/:email', auth.requireAdmin(), (req, res) => {
+  try {
+    const ok = permissions.deleteUser(req.params.email);
+    if (!ok) return res.status(404).json({ error: 'Không tìm thấy user' });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 // Local server tự đăng ký URL tunnel mới khi khởi động
 let dynamicLocalUrl = process.env.PLAYWRIGHT_LOCAL_URL || null;
 
@@ -856,12 +985,21 @@ app.post('/api/register-local', (req, res) => {
   process.env.PLAYWRIGHT_LOCAL_URL = url; // Cập nhật để playwright-proxy đọc URL mới
   logger.info(`Local server đã đăng ký URL mới: ${url}`);
   res.json({ success: true, message: `Đã cập nhật URL: ${url}` });
+
+  // Sync user-permissions với LOCAL (LOCAL là source of truth, sống sót khi container Basso restart).
+  permissions.syncOnRegister().catch(e => logger.warn(`syncOnRegister: ${e.message}`));
 });
 
 // Override PLAYWRIGHT_LOCAL_URL bằng dynamicLocalUrl nếu có
 function getLocalUrl() {
   return dynamicLocalUrl || process.env.PLAYWRIGHT_LOCAL_URL;
 }
+
+// Wire permissions module với LOCAL endpoint để sync data
+permissions.configureSync({
+  getLocalUrl,
+  apiKey: process.env.LOCAL_API_KEY || 'change-this-secret-key',
+});
 
 app.listen(config.server.port, () => {
   logger.info(`Web server đang chạy: http://localhost:${config.server.port}`);
@@ -870,6 +1008,11 @@ app.listen(config.server.port, () => {
     scheduler.init();
   } catch (e) {
     logger.error(`Scheduler init error: ${e.message}`);
+  }
+  // Direct-IP mode: PLAYWRIGHT_LOCAL_URL set static → sync permissions từ LOCAL ngay khi start.
+  // (Tunnel mode dùng /api/register-local handler để trigger sync khi LOCAL phone home.)
+  if (getLocalUrl()) {
+    permissions.syncOnRegister().catch(e => logger.warn(`startup syncOnRegister: ${e.message}`));
   }
 });
 
