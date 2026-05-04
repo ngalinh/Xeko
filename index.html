@@ -2636,10 +2636,6 @@
             <div id="currentUserEmail" style="font-weight:600; color:#0369a1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">-</div>
             <div id="currentUserRole" style="color:#888; font-size:11px;">-</div>
           </div>
-          <button id="restartServerBtn" onclick="restartLocalServer()" title="Khởi động lại local server"
-            style="padding:5px 7px; background:#fff3cd; border:1px solid #ffc107; border-radius:6px; cursor:pointer; color:#856404; display:flex; align-items:center; justify-content:center;">
-            <svg class="xi" style="color:#856404; width:14px; height:14px;"><use href="#ic-refresh"/></svg>
-          </button>
           <button onclick="logoutXeko()" title="Đăng xuất" style="padding:4px 8px; background:#fff; border:1px solid #bae6fd; border-radius:6px; cursor:pointer; font-size:11px; color:#0369a1;">↪</button>
         </div>
       </div>
@@ -2988,6 +2984,9 @@
 
     <!-- Thống kê -->
     <div id="dashPanelStats" style="flex:1; overflow-y:auto; padding:20px;">
+      <!-- Lời chào -->
+      <div id="dashGreeting" style="display:none; margin-bottom:18px; padding:14px 18px; background:linear-gradient(135deg,#f0f9ff 0%,#e0f2fe 100%); border:1px solid #bae6fd; border-radius:12px; font-size:15px; color:#075985; font-weight:600;"></div>
+
       <!-- Summary Cards -->
       <div id="dashSummary" style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px;">
         <div class="dash-card" style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:16px;">
@@ -5200,6 +5199,7 @@
               <div class="detail">${escapeHtml(p.email || p.key)} · Chromium profile: ${escapeHtml(p.key)}${proxyHtml}</div>
             </div>
             <div class="pc-actions">
+              ${proxyStr ? `<button class="pc-btn pc-btn-edit" onclick="testProxyIp('${p.key}', this)" aria-label="Test IP" title="Test IP qua proxy">${xekoIcon('globe')}<span class="pc-btn-label">Test IP</span></button>` : ''}
               <button class="pc-btn pc-btn-del" onclick="deleteProfile('facebook','${p.key}','${p.name.replace(/'/g, "\\'")}')" aria-label="Xoá" title="Xoá">
                 ${xekoIcon('trash')}
               </button>
@@ -5233,6 +5233,7 @@
                     <div class="detail">Key: ${escapeHtml(z.key)} · Salework: ${escapeHtml(z.saleworkName)}${zproxyHtml}</div>
                   </div>
                   <div class="pc-actions">
+                    ${zproxyStr ? `<button class="pc-btn pc-btn-edit" onclick="testProxyIp('${z.key}', this)" aria-label="Test IP" title="Test IP qua proxy">${xekoIcon('globe')}<span class="pc-btn-label">Test IP</span></button>` : ''}
                     <button class="pc-btn pc-btn-del" onclick="deleteProfile('zalo','${z.key}','${z.name.replace(/'/g, "\\'")}')" aria-label="Xoá" title="Xoá">
                       ${xekoIcon('trash')}
                     </button>
@@ -5465,42 +5466,51 @@
       }
     }
 
-    async function restartLocalServer() {
-      const btn = document.getElementById('restartServerBtn');
-      if (!btn) return;
+    async function testProxyIp(profileKey, btn) {
+      // Async job: POST trả jobId → poll cho đến khi xong (Chromium ~15-30s,
+      // nên tránh tunnel/reverse-proxy timeout bằng cách không giữ HTTP lâu).
       const orig = btn.innerHTML;
       btn.disabled = true;
-      btn.innerHTML = '<svg class="xi" style="color:#856404;"><use href="#ic-refresh"/></svg> Đang restart...';
-      btn.style.opacity = '0.7';
+      btn.innerHTML = '⏳ Đang test...';
       try {
-        const res = await fetch(BASE_URL + '/api/restart', { method: 'POST' });
-        const data = await res.json().catch(() => ({}));
-        if (data.error) throw new Error(data.error);
-        btn.innerHTML = '✅ Đã gửi lệnh restart!';
-        btn.style.background = '#d1fae5';
-        btn.style.color = '#065f46';
-        btn.style.borderColor = '#6ee7b7';
-        setTimeout(() => {
-          btn.innerHTML = orig;
-          btn.style.background = '';
-          btn.style.color = '';
-          btn.style.borderColor = '';
-          btn.disabled = false;
-          btn.style.opacity = '';
-        }, 4000);
+        const startRes = await fetch(`${BASE_URL}/api/accounts/${encodeURIComponent(profileKey)}/test-proxy`, { method: 'POST' });
+        const start = await parseJson(startRes);
+        if (!start.jobId) throw new Error(start.error || 'Server không trả jobId');
+
+        // Poll mỗi 2s, tối đa 90s
+        let r = null;
+        for (let i = 0; i < 45; i++) {
+          await new Promise(rs => setTimeout(rs, 2000));
+          const pollRes = await fetch(`${BASE_URL}/api/test-proxy/job/${encodeURIComponent(start.jobId)}`);
+          const pollData = await parseJson(pollRes);
+          if (pollData.status === 'done') { r = pollData.result; break; }
+        }
+        if (!r) throw new Error('Quá 90s chưa xong — kiểm tra log local server');
+
+        if (r.ok) {
+          alert(
+            `✅ Proxy hoạt động đúng\n\n` +
+            `Profile: ${profileKey}\n` +
+            `Proxy:   ${r.proxyServer}${r.proxyAuth ? ` (auth: ${r.proxyAuth})` : ''}\n` +
+            `IP local:    ${r.localIp || '(không lấy được)'}\n` +
+            `IP qua proxy: ${r.proxyIp}\n\n` +
+            `Website nhìn thấy IP: ${r.proxyIp}`
+          );
+        } else {
+          const reasonText = {
+            no_proxy: '❌ Profile chưa gán proxy',
+            invalid_format: '❌ Format proxy không hợp lệ',
+            proxy_unreachable: '❌ Proxy không kết nối được',
+            bypass: '⚠️ Proxy bị bypass (IP qua proxy giống IP local)',
+            exception: '❌ Lỗi exception khi test',
+          }[r.reason] || '❌ Lỗi test proxy';
+          alert(`${reasonText}\n\n${r.error || 'Unknown'}`);
+        }
       } catch (e) {
-        btn.innerHTML = '❌ ' + (e.message || 'Lỗi kết nối');
-        btn.style.background = '#fef2f2';
-        btn.style.color = '#dc2626';
-        btn.style.borderColor = '#fecaca';
-        setTimeout(() => {
-          btn.innerHTML = orig;
-          btn.style.background = '';
-          btn.style.color = '';
-          btn.style.borderColor = '';
-          btn.disabled = false;
-          btn.style.opacity = '';
-        }, 4000);
+        alert(`❌ Lỗi: ${e.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = orig;
       }
     }
 
@@ -7240,6 +7250,24 @@
       }
       const navPerm = document.getElementById('navPermissions');
       if (navPerm) navPerm.style.display = user.isXekoAdmin ? '' : 'none';
+      renderGreeting(user);
+    }
+
+    function renderGreeting(user) {
+      const el = document.getElementById('dashGreeting');
+      if (!el) return;
+      const h = new Date().getHours();
+      let timeLabel;
+      if (h < 11) timeLabel = 'buổi sáng';
+      else if (h < 13) timeLabel = 'buổi trưa';
+      else if (h < 18) timeLabel = 'buổi chiều';
+      else timeLabel = 'buổi tối';
+      const displayName = (user && user.name && user.name.trim())
+        || (user && user.email ? user.email.split('@')[0] : '');
+      el.textContent = displayName
+        ? `👋 Xin chào ${timeLabel}, ${displayName}!`
+        : `👋 Xin chào ${timeLabel}!`;
+      el.style.display = 'block';
     }
 
     function logoutXeko() {

@@ -445,6 +445,89 @@ app.post('/api/accounts/:key/login', async (req, res) => {
   return res.status(503).json({ error: 'Chưa cấu hình PLAYWRIGHT_LOCAL_URL — không có máy nào để mở Chromium.' });
 });
 
+// Test proxy IP cho 1 profile — async job pattern.
+// POST → trả jobId ngay; UI poll GET /api/test-proxy/job/:jobId.
+// Tránh tunnel/reverse-proxy timeout khi Chromium launch lâu.
+async function safeJsonResponse(response) {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    const snippet = text.replace(/\s+/g, ' ').slice(0, 160);
+    throw new Error(`HTTP ${response.status}: response không phải JSON (có thể tunnel timeout / lỗi gateway). ${snippet}`);
+  }
+}
+
+const localTestProxyJobs = new Map(); // local mode (no tunnel) — chạy in-process
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, job] of localTestProxyJobs) {
+    if (now - job.createdAt > 600_000) localTestProxyJobs.delete(id);
+  }
+}, 600_000);
+
+app.post('/api/accounts/:key/test-proxy', async (req, res) => {
+  const { key } = req.params;
+
+  if (getLocalUrl()) {
+    try {
+      const LOCAL_URL = getLocalUrl();
+      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const fetchFn = await getFetch();
+      const response = await fetchFn(`${LOCAL_URL}/api/accounts/${encodeURIComponent(key)}/test-proxy`, {
+        method: 'POST',
+        headers: { 'x-api-key': API_KEY },
+      });
+      const data = await safeJsonResponse(response);
+      return res.status(response.status).json(data);
+    } catch (e) {
+      return res.status(500).json({ ok: false, error: `Không thể kết nối local server: ${e.message}` });
+    }
+  }
+
+  // Local mode (no tunnel): vẫn chạy async job để UI dùng cùng flow
+  const jobId = crypto.randomBytes(8).toString('hex');
+  localTestProxyJobs.set(jobId, { status: 'pending', createdAt: Date.now() });
+  res.json({ jobId, status: 'pending' });
+
+  (async () => {
+    try {
+      const { runProxyTest } = require('./src/utils/test-proxy');
+      const result = await runProxyTest(key, { headless: true });
+      localTestProxyJobs.set(jobId, { status: 'done', result, createdAt: Date.now() });
+    } catch (e) {
+      localTestProxyJobs.set(jobId, {
+        status: 'done',
+        result: { ok: false, profileKey: key, error: e.message, reason: 'exception' },
+        createdAt: Date.now(),
+      });
+    }
+  })();
+});
+
+app.get('/api/test-proxy/job/:jobId', async (req, res) => {
+  const { jobId } = req.params;
+
+  if (getLocalUrl()) {
+    try {
+      const LOCAL_URL = getLocalUrl();
+      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const fetchFn = await getFetch();
+      const response = await fetchFn(`${LOCAL_URL}/api/test-proxy/job/${encodeURIComponent(jobId)}`, {
+        headers: { 'x-api-key': API_KEY },
+      });
+      const data = await safeJsonResponse(response);
+      return res.status(response.status).json(data);
+    } catch (e) {
+      return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
+    }
+  }
+
+  const job = localTestProxyJobs.get(jobId);
+  if (!job) return res.status(404).json({ error: 'Job không tồn tại hoặc đã hết hạn' });
+  res.json(job);
+});
+
 // Xoa profile
 app.delete('/api/accounts/:type/:key', async (req, res) => {
   const { type, key } = req.params;
@@ -936,6 +1019,7 @@ app.get('/api/me', async (req, res) => {
   res.json({
     success: true,
     email: user.email,
+    name: (info && info.name) || '',
     roles: user.roles,
     isXekoAdmin: permissions.isXekoAdmin(user.email),
     isSuperAdmin: permissions.isSuperAdmin(user.email),
