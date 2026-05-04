@@ -2636,10 +2636,6 @@
             <div id="currentUserEmail" style="font-weight:600; color:#4f46e5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">-</div>
             <div id="currentUserRole" style="color:#888; font-size:11px;">-</div>
           </div>
-          <button id="restartServerBtn" onclick="restartLocalServer()" title="Khởi động lại local server"
-            style="padding:5px 7px; background:#fff3cd; border:1px solid #ffc107; border-radius:6px; cursor:pointer; color:#856404; display:flex; align-items:center; justify-content:center;">
-            <svg class="xi" style="color:#856404; width:14px; height:14px;"><use href="#ic-refresh"/></svg>
-          </button>
           <button onclick="logoutXeko()" title="Đăng xuất" style="padding:4px 8px; background:#fff; border:1px solid #e0d4ff; border-radius:6px; cursor:pointer; font-size:11px; color:#4f46e5;">↪</button>
         </div>
       </div>
@@ -5501,45 +5497,6 @@
       } finally {
         btn.disabled = false;
         btn.innerHTML = orig;
-      }
-    }
-
-    async function restartLocalServer() {
-      const btn = document.getElementById('restartServerBtn');
-      if (!btn) return;
-      const orig = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = '<svg class="xi" style="color:#856404;"><use href="#ic-refresh"/></svg> Đang restart...';
-      btn.style.opacity = '0.7';
-      try {
-        const res = await fetch(BASE_URL + '/api/restart', { method: 'POST' });
-        const data = await res.json().catch(() => ({}));
-        if (data.error) throw new Error(data.error);
-        btn.innerHTML = '✅ Đã gửi lệnh restart!';
-        btn.style.background = '#d1fae5';
-        btn.style.color = '#065f46';
-        btn.style.borderColor = '#6ee7b7';
-        setTimeout(() => {
-          btn.innerHTML = orig;
-          btn.style.background = '';
-          btn.style.color = '';
-          btn.style.borderColor = '';
-          btn.disabled = false;
-          btn.style.opacity = '';
-        }, 4000);
-      } catch (e) {
-        btn.innerHTML = '❌ ' + (e.message || 'Lỗi kết nối');
-        btn.style.background = '#fef2f2';
-        btn.style.color = '#dc2626';
-        btn.style.borderColor = '#fecaca';
-        setTimeout(() => {
-          btn.innerHTML = orig;
-          btn.style.background = '';
-          btn.style.color = '';
-          btn.style.borderColor = '';
-          btn.disabled = false;
-          btn.style.opacity = '';
-        }, 4000);
       }
     }
 
