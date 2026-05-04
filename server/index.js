@@ -936,6 +936,7 @@ app.get('/api/me', async (req, res) => {
   res.json({
     success: true,
     email: user.email,
+    name: (info && info.name) || '',
     roles: user.roles,
     isXekoAdmin: permissions.isXekoAdmin(user.email),
     isSuperAdmin: permissions.isSuperAdmin(user.email),
