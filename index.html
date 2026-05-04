@@ -5199,6 +5199,7 @@
               <div class="detail">${escapeHtml(p.email || p.key)} · Chromium profile: ${escapeHtml(p.key)}${proxyHtml}</div>
             </div>
             <div class="pc-actions">
+              ${proxyStr ? `<button class="pc-btn pc-btn-edit" onclick="testProxyIp('${p.key}', this)" aria-label="Test IP" title="Test IP qua proxy">${xekoIcon('globe')}<span class="pc-btn-label">Test IP</span></button>` : ''}
               <button class="pc-btn pc-btn-del" onclick="deleteProfile('facebook','${p.key}','${p.name.replace(/'/g, "\\'")}')" aria-label="Xoá" title="Xoá">
                 ${xekoIcon('trash')}
               </button>
@@ -5232,6 +5233,7 @@
                     <div class="detail">Key: ${escapeHtml(z.key)} · Salework: ${escapeHtml(z.saleworkName)}${zproxyHtml}</div>
                   </div>
                   <div class="pc-actions">
+                    ${zproxyStr ? `<button class="pc-btn pc-btn-edit" onclick="testProxyIp('${z.key}', this)" aria-label="Test IP" title="Test IP qua proxy">${xekoIcon('globe')}<span class="pc-btn-label">Test IP</span></button>` : ''}
                     <button class="pc-btn pc-btn-del" onclick="deleteProfile('zalo','${z.key}','${z.name.replace(/'/g, "\\'")}')" aria-label="Xoá" title="Xoá">
                       ${xekoIcon('trash')}
                     </button>
@@ -5461,6 +5463,40 @@
         else alert(`❌ Lỗi: ${data.error}`);
       } catch (e) {
         alert(`❌ Lỗi: ${e.message}`);
+      }
+    }
+
+    async function testProxyIp(profileKey, btn) {
+      // Backend mở Chromium 2 lần (~10-20s) để so sánh IP local vs IP qua proxy
+      const orig = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Đang test...';
+      try {
+        const res = await fetch(`${BASE_URL}/api/accounts/${encodeURIComponent(profileKey)}/test-proxy`, { method: 'POST' });
+        const r = await parseJson(res);
+        if (r.ok) {
+          alert(
+            `✅ Proxy hoạt động đúng\n\n` +
+            `Profile: ${profileKey}\n` +
+            `Proxy:   ${r.proxyServer}${r.proxyAuth ? ` (auth: ${r.proxyAuth})` : ''}\n` +
+            `IP local:    ${r.localIp || '(không lấy được)'}\n` +
+            `IP qua proxy: ${r.proxyIp}\n\n` +
+            `Website nhìn thấy IP: ${r.proxyIp}`
+          );
+        } else {
+          const reasonText = {
+            no_proxy: '❌ Profile chưa gán proxy',
+            invalid_format: '❌ Format proxy không hợp lệ',
+            proxy_unreachable: '❌ Proxy không kết nối được',
+            bypass: '⚠️ Proxy bị bypass (IP qua proxy giống IP local)',
+          }[r.reason] || '❌ Lỗi test proxy';
+          alert(`${reasonText}\n\n${r.error || 'Unknown'}`);
+        }
+      } catch (e) {
+        alert(`❌ Lỗi: ${e.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = orig;
       }
     }
 

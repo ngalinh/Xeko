@@ -445,6 +445,37 @@ app.post('/api/accounts/:key/login', async (req, res) => {
   return res.status(503).json({ error: 'Chưa cấu hình PLAYWRIGHT_LOCAL_URL — không có máy nào để mở Chromium.' });
 });
 
+// Test proxy IP cho 1 profile — mở Chromium ở local server với proxy của profile,
+// vào api.ipify.org rồi trả IP về UI. Chậm (~10-20s) vì phải launch browser.
+app.post('/api/accounts/:key/test-proxy', async (req, res) => {
+  const { key } = req.params;
+
+  if (getLocalUrl()) {
+    try {
+      const LOCAL_URL = getLocalUrl();
+      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const fetchFn = await getFetch();
+      const response = await fetchFn(`${LOCAL_URL}/api/accounts/${encodeURIComponent(key)}/test-proxy`, {
+        method: 'POST',
+        headers: { 'x-api-key': API_KEY },
+      });
+      const data = await response.json();
+      return res.status(response.status).json(data);
+    } catch (e) {
+      return res.status(500).json({ ok: false, error: `Không thể kết nối local server: ${e.message}` });
+    }
+  }
+
+  // Local mode: chạy trực tiếp
+  try {
+    const { runProxyTest } = require('./src/utils/test-proxy');
+    const result = await runProxyTest(key, { headless: true });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // Xoa profile
 app.delete('/api/accounts/:type/:key', async (req, res) => {
   const { type, key } = req.params;
