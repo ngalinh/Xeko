@@ -496,16 +496,43 @@ app.get('/api/sessions', async (req, res) => {
   }
 });
 
-// Test proxy IP của 1 profile (FB hoặc Zalo).
-// Mở Chromium headless 2 lần để so sánh IP local vs IP qua proxy.
+// Test proxy IP của 1 profile — async job pattern để tránh tunnel/reverse-proxy
+// timeout (Chromium launch 2 lần có thể ~15-30s, vượt giới hạn 60s của ngrok free
+// hoặc một số gateway). Trả jobId ngay, UI poll /api/test-proxy/job/:id.
 const { runProxyTest } = require('./src/utils/test-proxy');
-app.post('/api/accounts/:key/test-proxy', async (req, res) => {
-  try {
-    const result = await runProxyTest(req.params.key, { headless: true });
-    res.json(result);
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
+const testProxyJobs = new Map();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, job] of testProxyJobs) {
+    if (now - job.createdAt > 600_000) testProxyJobs.delete(id); // dọn sau 10 phút
   }
+}, 600_000);
+
+app.post('/api/accounts/:key/test-proxy', (req, res) => {
+  const key = req.params.key;
+  const jobId = crypto.randomBytes(8).toString('hex');
+  testProxyJobs.set(jobId, { status: 'pending', createdAt: Date.now() });
+  res.json({ jobId, status: 'pending' });
+
+  (async () => {
+    try {
+      const result = await runProxyTest(key, { headless: true });
+      testProxyJobs.set(jobId, { status: 'done', result, createdAt: Date.now() });
+    } catch (e) {
+      testProxyJobs.set(jobId, {
+        status: 'done',
+        result: { ok: false, profileKey: key, error: e.message, reason: 'exception' },
+        createdAt: Date.now(),
+      });
+    }
+  })();
+});
+
+app.get('/api/test-proxy/job/:jobId', (req, res) => {
+  const job = testProxyJobs.get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Job không tồn tại hoặc đã hết hạn' });
+  res.json(job);
 });
 
 app.get('/api/login-history', (req, res) => {
