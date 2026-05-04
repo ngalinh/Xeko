@@ -1,4 +1,4 @@
-const { chromium } = require('playwright');
+const { safeLaunchPersistentContext } = require('../utils/playwright-launch');
 const path = require('path');
 const fs = require('fs');
 const logger = require('../utils/logger');
@@ -221,7 +221,7 @@ async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message
   const proxy = getZaloProxyForAccount(accountKey);
   if (proxy) logger.info(`[salework] Account "${zaloAccountName}" dùng proxy: ${proxy.server}`);
 
-  const browser = await chromium.launchPersistentContext(profilePath, {
+  const browser = await safeLaunchPersistentContext(profilePath, {
     headless: false,
     slowMo: 500,
     viewport: { width: 1400, height: 800 },

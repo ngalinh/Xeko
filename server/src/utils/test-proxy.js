@@ -1,13 +1,14 @@
 /**
  * Logic test proxy dùng chung cho CLI (server/test-proxy.js) và API
  * (POST /api/accounts/:key/test-proxy trong local-server.js).
+ *
+ * Browser launch + auto-install logic dùng chung qua playwright-launch.js.
  */
 
-const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
 const { parseProxy } = require('./proxy');
+const { safeLaunch } = require('./playwright-launch');
 
 const META_FILE = path.resolve(__dirname, '../../config/profiles-meta.json');
 const ZALO_FILE = path.resolve(__dirname, '../../config/zalo-accounts.json');
@@ -19,14 +20,11 @@ const PROJECT_TMP = path.resolve(__dirname, '../../.tmp');
 function ensureWritableTmp() {
   try {
     fs.mkdirSync(PROJECT_TMP, { recursive: true });
-    // Test thật xem ghi được không
     fs.writeFileSync(path.join(PROJECT_TMP, '.write-test'), '1');
     fs.unlinkSync(path.join(PROJECT_TMP, '.write-test'));
   } catch {
-    // Nếu folder dự án cũng không ghi được thì fallback về os.tmpdir() (giữ nguyên hành vi cũ)
     return null;
   }
-  // Override env để Playwright tạo artifacts vào folder này thay vì system temp
   process.env.TEMP = PROJECT_TMP;
   process.env.TMP = PROJECT_TMP;
   process.env.TMPDIR = PROJECT_TMP;
@@ -53,19 +51,7 @@ function findProxy(key) {
 
 async function fetchIp(opts = {}) {
   ensureWritableTmp();
-  try {
-    return await launchAndFetch(opts);
-  } catch (e) {
-    if (!isMissingBrowserError(e)) throw e;
-    // Playwright 1.49+ tách chromium-headless-shell thành binary riêng. Nếu user
-    // mới cài chromium full chưa cài shell này thì auto-install lần đầu (~50MB).
-    await installPlaywrightBrowser();
-    return await launchAndFetch(opts);
-  }
-}
-
-async function launchAndFetch(opts) {
-  const browser = await chromium.launch({
+  const browser = await safeLaunch({
     headless: opts.headless !== false,
     ...(opts.proxy ? { proxy: opts.proxy } : {}),
   });
@@ -80,61 +66,6 @@ async function launchAndFetch(opts) {
   } finally {
     await browser.close();
   }
-}
-
-function isMissingBrowserError(e) {
-  return /Executable doesn'?t exist|chromium_headless_shell|chrome-headless-shell|Looks like Playwright was just installed/i.test(e.message || '');
-}
-
-let _installPromise = null;
-function installPlaywrightBrowser() {
-  // Cache promise để các call song song chỉ cài 1 lần
-  if (_installPromise) return _installPromise;
-  _installPromise = new Promise((resolve, reject) => {
-    const { spawn } = require('child_process');
-    console.log('[test-proxy] Cài chromium-headless-shell lần đầu (có thể mất 1-2 phút, ~50MB)...');
-
-    // Ưu tiên gọi trực tiếp node_modules/playwright/cli.js qua node binary —
-    // tránh phụ thuộc PATH/npx khi PM2 chạy như Windows Service.
-    const serverDir = path.resolve(__dirname, '../..');
-    const playwrightCli = path.resolve(serverDir, 'node_modules/playwright/cli.js');
-    let executable, args, useShell;
-    if (fs.existsSync(playwrightCli)) {
-      executable = process.execPath; // node binary đang chạy script này
-      args = [playwrightCli, 'install', 'chromium-headless-shell'];
-      useShell = false;
-    } else {
-      executable = 'npx';
-      args = ['playwright', 'install', 'chromium-headless-shell'];
-      useShell = process.platform === 'win32';
-    }
-
-    let stderr = '';
-    let stdout = '';
-    const proc = spawn(executable, args, {
-      shell: useShell,
-      cwd: serverDir,
-    });
-    proc.stdout?.on('data', d => { stdout += d.toString(); });
-    proc.stderr?.on('data', d => { stderr += d.toString(); });
-    proc.on('exit', code => {
-      _installPromise = null; // cho phép retry nếu fail
-      if (code === 0) {
-        console.log('[test-proxy] Cài xong chromium-headless-shell');
-        return resolve();
-      }
-      const detail = (stderr || stdout || '(no output)').replace(/\s+/g, ' ').trim().slice(0, 400);
-      reject(new Error(
-        `playwright install exit ${code}. Detail: ${detail}. ` +
-        `Chạy tay trong C:\\xeko\\server: npx playwright install chromium-headless-shell`
-      ));
-    });
-    proc.on('error', err => {
-      _installPromise = null;
-      reject(new Error(`Không spawn được "${executable}": ${err.message}`));
-    });
-  });
-  return _installPromise;
 }
 
 /**
@@ -175,14 +106,12 @@ async function runProxyTest(profileKey, options = {}) {
     proxyAuth: proxyOpt.username ? `${proxyOpt.username}:****` : null,
   };
 
-  // 1) IP local (best-effort, nếu fail vẫn tiếp tục test proxy)
   try {
     result.localIp = await fetchIp({ headless: options.headless });
   } catch (e) {
     result.localIpError = e.message;
   }
 
-  // 2) IP qua proxy
   try {
     result.proxyIp = await fetchIp({ proxy: proxyOpt, headless: options.headless });
   } catch (e) {

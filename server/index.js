@@ -377,11 +377,11 @@ app.post('/api/accounts', async (req, res) => {
 
     // Mo trinh duyet de login thu cong
     try {
-      const { chromium } = require('playwright');
+      const { safeLaunchPersistentContext } = require('./src/utils/playwright-launch');
       const { parseProxy } = require('./src/utils/proxy');
       const proxyOpt = parseProxy(proxy);
       if (proxyOpt) logger.info(`FB "${name}" dùng proxy: ${proxyOpt.server}`);
-      const browser = await chromium.launchPersistentContext(profileDir, {
+      const browser = await safeLaunchPersistentContext(profileDir, {
         headless: false,
         slowMo: 500,
         viewport: { width: 1280, height: 720 },

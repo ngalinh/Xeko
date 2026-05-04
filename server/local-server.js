@@ -12,6 +12,11 @@ require('dotenv').config({
     path.resolve(__dirname, '../.env'),    // root .env (theo start.js)
   ],
 });
+// Set PLAYWRIGHT_BROWSERS_PATH TRƯỚC require playwright/post.js — đảm bảo
+// browsers được lưu vào folder writable dưới project, tránh EPERM khi PM2
+// chạy như Windows Service không có quyền ghi vào %LOCALAPPDATA%\ms-playwright
+require('./src/utils/playwright-launch');
+
 const express = require('express');
 const multer = require('multer');
 const crypto = require('crypto');
@@ -270,11 +275,11 @@ app.post('/api/accounts', (req, res) => {
     if (!alreadyLoggedIn) {
       (async () => {
         try {
-          const { chromium } = require('playwright');
+          const { safeLaunchPersistentContext } = require('./src/utils/playwright-launch');
           fs.mkdirSync(saleworkProfileDir, { recursive: true });
           const proxyOpt = parseProxy(proxy);
           if (proxyOpt) logger.info(`Salework "${name}" dùng proxy: ${proxyOpt.server}`);
-          const browser = await chromium.launchPersistentContext(saleworkProfileDir, {
+          const browser = await safeLaunchPersistentContext(saleworkProfileDir, {
             headless: false,
             slowMo: 500,
             viewport: { width: 1280, height: 720 },
@@ -312,13 +317,13 @@ app.post('/api/accounts', (req, res) => {
 
   (async () => {
     try {
-      const { chromium } = require('playwright');
+      const { safeLaunchPersistentContext } = require('./src/utils/playwright-launch');
       const profileDir = path.resolve(__dirname, `playwright-data/${key}`);
       if (!fs.existsSync(profileDir)) fs.mkdirSync(profileDir, { recursive: true });
 
       const proxyOpt = parseProxy(proxy);
       if (proxyOpt) logger.info(`FB "${name}" dùng proxy: ${proxyOpt.server}`);
-      const browser = await chromium.launchPersistentContext(profileDir, {
+      const browser = await safeLaunchPersistentContext(profileDir, {
         headless: false,
         slowMo: 500,
         viewport: { width: 1280, height: 720 },
@@ -364,11 +369,11 @@ app.post('/api/accounts/:key/login', (req, res) => {
 
   (async () => {
     try {
-      const { chromium } = require('playwright');
+      const { safeLaunchPersistentContext } = require('./src/utils/playwright-launch');
       if (!fs.existsSync(profileDir)) fs.mkdirSync(profileDir, { recursive: true });
       const proxyOpt = parseProxy(profileMeta.proxy);
       if (proxyOpt) logger.info(`FB "${name}" dùng proxy: ${proxyOpt.server}`);
-      const browser = await chromium.launchPersistentContext(profileDir, {
+      const browser = await safeLaunchPersistentContext(profileDir, {
         headless: false,
         slowMo: 500,
         viewport: { width: 1280, height: 720 },
