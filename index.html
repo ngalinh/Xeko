@@ -2365,9 +2365,9 @@
               <thead>
                 <tr style="text-align:left; color:#888; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">
                   <th style="padding:6px 10px; font-weight:600; width:160px;">Nhãn</th>
-                  <th style="padding:6px 10px; font-weight:600;">Host : Port</th>
-                  <th style="padding:6px 10px; font-weight:600; width:140px;">User</th>
-                  <th style="padding:6px 10px; font-weight:600; width:100px; text-align:center;">Đang dùng</th>
+                  <th style="padding:6px 10px; font-weight:600; width:200px;">Host : Port</th>
+                  <th style="padding:6px 10px; font-weight:600; width:120px;">User</th>
+                  <th style="padding:6px 10px; font-weight:600;">Tài khoản đang dùng</th>
                   <th style="padding:6px 10px; font-weight:600; width:96px; text-align:right;">Hành động</th>
                 </tr>
               </thead>
@@ -4428,6 +4428,41 @@
       return Object.values(map).filter(id => id === proxyId).length;
     }
 
+    // Cache danh sách account để render chip "Tài khoản đang dùng" trong tab IP Proxy
+    let _proxyAccountCache = null;
+    async function fetchAccountsForProxy() {
+      try {
+        const res = await fetch(BASE_URL + '/api/accounts');
+        const data = await parseJson(res);
+        const list = [];
+        (data.facebook || []).forEach(p => list.push({ type: 'facebook', key: p.key, name: p.name }));
+        (data.zalo || []).forEach(z => list.push({ type: 'zalo', key: z.key, name: z.name }));
+        _proxyAccountCache = list;
+        return list;
+      } catch {
+        _proxyAccountCache = _proxyAccountCache || [];
+        return _proxyAccountCache;
+      }
+    }
+    function accountsUsingProxy(proxyId) {
+      if (!_proxyAccountCache) return [];
+      const map = loadProxyAssignments();
+      return _proxyAccountCache.filter(a => map[accountAssignKey(a.type, a.key)] === proxyId);
+    }
+    function proxyUsageChipsHtml(proxyId) {
+      const accs = accountsUsingProxy(proxyId);
+      if (accs.length === 0) return '<span style="font-size:12px; color:#bbb;">— Chưa gán —</span>';
+      return `<div style="display:flex; flex-wrap:wrap; gap:4px;">` + accs.map(a => {
+        const isFb = a.type === 'facebook';
+        const bg = isFb ? '#e8f1ff' : '#e8f4ff';
+        const color = isFb ? '#1877f2' : '#0068ff';
+        const icon = isFb
+          ? '<img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:11px;height:11px;">'
+          : `<svg class="xi" style="width:11px;height:11px;"><use href="#ic-chat"/></svg>`;
+        return `<span style="display:inline-flex; align-items:center; gap:4px; padding:2px 8px; background:${bg}; color:${color}; border-radius:20px; font-size:11px; font-weight:600;">${icon}${escapeHtml(a.name)}</span>`;
+      }).join('') + `</div>`;
+    }
+
     function openProxyModal(mode, id) {
       document.getElementById('proxyModalTitle').innerHTML = mode === 'edit'
         ? '<svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-globe"/></svg> Sửa IP Proxy'
@@ -4483,7 +4518,7 @@
       renderProxiesTable();
       renderProfileList();
     }
-    function renderProxiesTable() {
+    async function renderProxiesTable() {
       const tbody = document.getElementById('proxiesTableBody');
       const empty = document.getElementById('noProxiesMsg');
       if (!tbody) return;
@@ -4494,13 +4529,14 @@
         return;
       }
       if (empty) empty.style.display = 'none';
+      await fetchAccountsForProxy();
       tbody.innerHTML = list.map(p => `
         <tr style="background:#fafafe;">
-          <td style="padding:10px 12px; font-weight:600; color:#1e1e2e;">${escapeHtml(p.label || '—')}</td>
-          <td style="padding:10px 12px; color:#444; font-family:ui-monospace,Menlo,monospace; font-size:12px;">${escapeHtml(p.host)}:${escapeHtml(p.port)}</td>
-          <td style="padding:10px 12px; color:#666;">${escapeHtml(p.user || '—')}</td>
-          <td style="padding:10px 12px; text-align:center; color:#4f46e5; font-weight:600;">${countAssignmentsByProxy(p.id)}</td>
-          <td style="padding:10px 12px; text-align:right;">
+          <td style="padding:10px 12px; font-weight:600; color:#1e1e2e; vertical-align:top;">${escapeHtml(p.label || '—')}</td>
+          <td style="padding:10px 12px; color:#444; font-family:ui-monospace,Menlo,monospace; font-size:12px; vertical-align:top;">${escapeHtml(p.host)}:${escapeHtml(p.port)}</td>
+          <td style="padding:10px 12px; color:#666; vertical-align:top;">${escapeHtml(p.user || '—')}</td>
+          <td style="padding:10px 12px; vertical-align:top;">${proxyUsageChipsHtml(p.id)}</td>
+          <td style="padding:10px 12px; text-align:right; white-space:nowrap; vertical-align:top;">
             <button class="pc-btn pc-btn-edit" onclick="openProxyModal('edit','${p.id}')" title="Sửa" aria-label="Sửa">${xekoIcon('edit')}</button>
             <button class="pc-btn pc-btn-del" onclick="deleteProxy('${p.id}')" title="Xoá" aria-label="Xoá">${xekoIcon('trash')}</button>
           </td>
