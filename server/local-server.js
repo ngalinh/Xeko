@@ -496,6 +496,18 @@ app.get('/api/sessions', async (req, res) => {
   }
 });
 
+// Test proxy IP của 1 profile (FB hoặc Zalo).
+// Mở Chromium headless 2 lần để so sánh IP local vs IP qua proxy.
+const { runProxyTest } = require('./src/utils/test-proxy');
+app.post('/api/accounts/:key/test-proxy', async (req, res) => {
+  try {
+    const result = await runProxyTest(req.params.key, { headless: true });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 app.get('/api/login-history', (req, res) => {
   const profile = req.query.profile || null;
   const limit = parseInt(req.query.limit) || 50;
