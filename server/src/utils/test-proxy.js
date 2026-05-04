@@ -93,19 +93,45 @@ function installPlaywrightBrowser() {
   _installPromise = new Promise((resolve, reject) => {
     const { spawn } = require('child_process');
     console.log('[test-proxy] Cài chromium-headless-shell lần đầu (có thể mất 1-2 phút, ~50MB)...');
-    const proc = spawn('npx', ['playwright', 'install', 'chromium-headless-shell'], {
-      shell: process.platform === 'win32',
-      stdio: 'inherit',
-      cwd: path.resolve(__dirname, '../..'),
+
+    // Ưu tiên gọi trực tiếp node_modules/playwright/cli.js qua node binary —
+    // tránh phụ thuộc PATH/npx khi PM2 chạy như Windows Service.
+    const serverDir = path.resolve(__dirname, '../..');
+    const playwrightCli = path.resolve(serverDir, 'node_modules/playwright/cli.js');
+    let executable, args, useShell;
+    if (fs.existsSync(playwrightCli)) {
+      executable = process.execPath; // node binary đang chạy script này
+      args = [playwrightCli, 'install', 'chromium-headless-shell'];
+      useShell = false;
+    } else {
+      executable = 'npx';
+      args = ['playwright', 'install', 'chromium-headless-shell'];
+      useShell = process.platform === 'win32';
+    }
+
+    let stderr = '';
+    let stdout = '';
+    const proc = spawn(executable, args, {
+      shell: useShell,
+      cwd: serverDir,
     });
+    proc.stdout?.on('data', d => { stdout += d.toString(); });
+    proc.stderr?.on('data', d => { stderr += d.toString(); });
     proc.on('exit', code => {
       _installPromise = null; // cho phép retry nếu fail
-      if (code === 0) resolve();
-      else reject(new Error(`npx playwright install exit ${code} — chạy tay: npx playwright install chromium-headless-shell`));
+      if (code === 0) {
+        console.log('[test-proxy] Cài xong chromium-headless-shell');
+        return resolve();
+      }
+      const detail = (stderr || stdout || '(no output)').replace(/\s+/g, ' ').trim().slice(0, 400);
+      reject(new Error(
+        `playwright install exit ${code}. Detail: ${detail}. ` +
+        `Chạy tay trong C:\\xeko\\server: npx playwright install chromium-headless-shell`
+      ));
     });
     proc.on('error', err => {
       _installPromise = null;
-      reject(new Error(`Không spawn được npx: ${err.message}`));
+      reject(new Error(`Không spawn được "${executable}": ${err.message}`));
     });
   });
   return _installPromise;
