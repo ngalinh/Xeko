@@ -53,6 +53,18 @@ function findProxy(key) {
 
 async function fetchIp(opts = {}) {
   ensureWritableTmp();
+  try {
+    return await launchAndFetch(opts);
+  } catch (e) {
+    if (!isMissingBrowserError(e)) throw e;
+    // Playwright 1.49+ tách chromium-headless-shell thành binary riêng. Nếu user
+    // mới cài chromium full chưa cài shell này thì auto-install lần đầu (~50MB).
+    await installPlaywrightBrowser();
+    return await launchAndFetch(opts);
+  }
+}
+
+async function launchAndFetch(opts) {
   const browser = await chromium.launch({
     headless: opts.headless !== false,
     ...(opts.proxy ? { proxy: opts.proxy } : {}),
@@ -68,6 +80,35 @@ async function fetchIp(opts = {}) {
   } finally {
     await browser.close();
   }
+}
+
+function isMissingBrowserError(e) {
+  return /Executable doesn'?t exist|chromium_headless_shell|chrome-headless-shell|Looks like Playwright was just installed/i.test(e.message || '');
+}
+
+let _installPromise = null;
+function installPlaywrightBrowser() {
+  // Cache promise để các call song song chỉ cài 1 lần
+  if (_installPromise) return _installPromise;
+  _installPromise = new Promise((resolve, reject) => {
+    const { spawn } = require('child_process');
+    console.log('[test-proxy] Cài chromium-headless-shell lần đầu (có thể mất 1-2 phút, ~50MB)...');
+    const proc = spawn('npx', ['playwright', 'install', 'chromium-headless-shell'], {
+      shell: process.platform === 'win32',
+      stdio: 'inherit',
+      cwd: path.resolve(__dirname, '../..'),
+    });
+    proc.on('exit', code => {
+      _installPromise = null; // cho phép retry nếu fail
+      if (code === 0) resolve();
+      else reject(new Error(`npx playwright install exit ${code} — chạy tay: npx playwright install chromium-headless-shell`));
+    });
+    proc.on('error', err => {
+      _installPromise = null;
+      reject(new Error(`Không spawn được npx: ${err.message}`));
+    });
+  });
+  return _installPromise;
 }
 
 /**
