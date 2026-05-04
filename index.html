@@ -5467,13 +5467,26 @@
     }
 
     async function testProxyIp(profileKey, btn) {
-      // Backend mở Chromium 2 lần (~10-20s) để so sánh IP local vs IP qua proxy
+      // Async job: POST trả jobId → poll cho đến khi xong (Chromium ~15-30s,
+      // nên tránh tunnel/reverse-proxy timeout bằng cách không giữ HTTP lâu).
       const orig = btn.innerHTML;
       btn.disabled = true;
       btn.innerHTML = '⏳ Đang test...';
       try {
-        const res = await fetch(`${BASE_URL}/api/accounts/${encodeURIComponent(profileKey)}/test-proxy`, { method: 'POST' });
-        const r = await parseJson(res);
+        const startRes = await fetch(`${BASE_URL}/api/accounts/${encodeURIComponent(profileKey)}/test-proxy`, { method: 'POST' });
+        const start = await parseJson(startRes);
+        if (!start.jobId) throw new Error(start.error || 'Server không trả jobId');
+
+        // Poll mỗi 2s, tối đa 90s
+        let r = null;
+        for (let i = 0; i < 45; i++) {
+          await new Promise(rs => setTimeout(rs, 2000));
+          const pollRes = await fetch(`${BASE_URL}/api/test-proxy/job/${encodeURIComponent(start.jobId)}`);
+          const pollData = await parseJson(pollRes);
+          if (pollData.status === 'done') { r = pollData.result; break; }
+        }
+        if (!r) throw new Error('Quá 90s chưa xong — kiểm tra log local server');
+
         if (r.ok) {
           alert(
             `✅ Proxy hoạt động đúng\n\n` +
@@ -5489,6 +5502,7 @@
             invalid_format: '❌ Format proxy không hợp lệ',
             proxy_unreachable: '❌ Proxy không kết nối được',
             bypass: '⚠️ Proxy bị bypass (IP qua proxy giống IP local)',
+            exception: '❌ Lỗi exception khi test',
           }[r.reason] || '❌ Lỗi test proxy';
           alert(`${reasonText}\n\n${r.error || 'Unknown'}`);
         }
