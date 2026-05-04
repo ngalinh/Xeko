@@ -6,10 +6,32 @@
 const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { parseProxy } = require('./proxy');
 
 const META_FILE = path.resolve(__dirname, '../../config/profiles-meta.json');
 const ZALO_FILE = path.resolve(__dirname, '../../config/zalo-accounts.json');
+
+// Project-local temp dir — fix EPERM khi PM2 chạy như Windows Service
+// và Temp\<session>\ không tồn tại / không có quyền ghi.
+const PROJECT_TMP = path.resolve(__dirname, '../../.tmp');
+
+function ensureWritableTmp() {
+  try {
+    fs.mkdirSync(PROJECT_TMP, { recursive: true });
+    // Test thật xem ghi được không
+    fs.writeFileSync(path.join(PROJECT_TMP, '.write-test'), '1');
+    fs.unlinkSync(path.join(PROJECT_TMP, '.write-test'));
+  } catch {
+    // Nếu folder dự án cũng không ghi được thì fallback về os.tmpdir() (giữ nguyên hành vi cũ)
+    return null;
+  }
+  // Override env để Playwright tạo artifacts vào folder này thay vì system temp
+  process.env.TEMP = PROJECT_TMP;
+  process.env.TMP = PROJECT_TMP;
+  process.env.TMPDIR = PROJECT_TMP;
+  return PROJECT_TMP;
+}
 
 function loadJson(file) {
   try {
@@ -30,6 +52,7 @@ function findProxy(key) {
 }
 
 async function fetchIp(opts = {}) {
+  ensureWritableTmp();
   const browser = await chromium.launch({
     headless: opts.headless !== false,
     ...(opts.proxy ? { proxy: opts.proxy } : {}),
