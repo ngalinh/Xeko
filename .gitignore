@@ -4,6 +4,7 @@ playwright-data/
 logs/
 *.log
 temp/
+.tmp/
 data/
 cloudflared.exe
 data/cloudflared.exe.exe
