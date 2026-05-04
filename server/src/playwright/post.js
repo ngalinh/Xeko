@@ -1,4 +1,4 @@
-const { chromium } = require('playwright');
+const { safeLaunchPersistentContext } = require('../utils/playwright-launch');
 const path = require('path');
 const fs = require('fs');
 const config = require('../../config/default');
@@ -69,7 +69,7 @@ async function getBrowser() {
       try {
         const proxy = getFbProxyForProfile(key, profile);
         if (proxy && attempt === 0) logger.info(`Profile "${key}" dùng proxy: ${proxy.server}`);
-        const ctx = await chromium.launchPersistentContext(userDataDir, {
+        const ctx = await safeLaunchPersistentContext(userDataDir, {
           headless: false,
           slowMo: config.playwright.slowMo,
           viewport: { width: 1280, height: 720 },
