@@ -2831,6 +2831,7 @@
                   <th style="padding:6px 10px; font-weight:600; width:160px;">Nhãn</th>
                   <th style="padding:6px 10px; font-weight:600; width:200px;">Host : Port</th>
                   <th style="padding:6px 10px; font-weight:600; width:120px;">User</th>
+                  <th style="padding:6px 10px; font-weight:600; width:120px;">Ngày mua</th>
                   <th style="padding:6px 10px; font-weight:600;">Tài khoản đang dùng</th>
                   <th style="padding:6px 10px; font-weight:600; width:96px; text-align:right;">Hành động</th>
                 </tr>
@@ -3222,6 +3223,11 @@
           <input type="password" id="proxyPass" autocomplete="new-password"
             style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
         </div>
+      </div>
+      <div style="margin-bottom:18px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Ngày mua (tuỳ chọn)</label>
+        <input type="date" id="proxyPurchaseDate"
+          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
       </div>
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button onclick="closeProxyModal()" style="padding:9px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
@@ -5031,6 +5037,12 @@
       const base = `${p.host}:${p.port}`;
       return p.label ? `${p.label} (${base})` : base;
     }
+    function formatPurchaseDate(s) {
+      if (!s) return '<span style="color:#bbb;">—</span>';
+      const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return escapeHtml(s);
+      return `${m[3]}/${m[2]}/${m[1]}`;
+    }
     function fillProxySelect(selectEl, selectedId) {
       if (!selectEl) return;
       const proxies = loadProxies();
@@ -5084,7 +5096,7 @@
         ? '<svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-globe"/></svg> Sửa IP Proxy'
         : '<svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-globe"/></svg> Thêm IP Proxy';
       document.getElementById('proxyEditId').value = id || '';
-      let p = { label: '', host: '', port: '', user: '', pass: '' };
+      let p = { label: '', host: '', port: '', user: '', pass: '', purchaseDate: '' };
       if (mode === 'edit' && id) {
         const found = loadProxies().find(x => x.id === id);
         if (found) p = found;
@@ -5094,6 +5106,7 @@
       document.getElementById('proxyPort').value = p.port || '';
       document.getElementById('proxyUser').value = p.user || '';
       document.getElementById('proxyPass').value = p.pass || '';
+      document.getElementById('proxyPurchaseDate').value = p.purchaseDate || '';
       document.getElementById('proxyModal').style.display = 'flex';
     }
     function closeProxyModal() {
@@ -5106,13 +5119,14 @@
       const port = document.getElementById('proxyPort').value.trim();
       const user = document.getElementById('proxyUser').value.trim();
       const pass = document.getElementById('proxyPass').value;
+      const purchaseDate = document.getElementById('proxyPurchaseDate').value;
       if (!host || !port) { alert('Vui lòng nhập host và port!'); return; }
       const list = loadProxies();
       if (id) {
         const idx = list.findIndex(p => p.id === id);
-        if (idx >= 0) list[idx] = { ...list[idx], label, host, port, user, pass };
+        if (idx >= 0) list[idx] = { ...list[idx], label, host, port, user, pass, purchaseDate };
       } else {
-        list.push({ id: 'px_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), label, host, port, user, pass });
+        list.push({ id: 'px_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), label, host, port, user, pass, purchaseDate });
       }
       saveProxies(list);
       closeProxyModal();
@@ -5148,6 +5162,7 @@
           <td style="padding:10px 12px; font-weight:600; color:#1e1e2e; vertical-align:top;">${escapeHtml(p.label || '—')}</td>
           <td style="padding:10px 12px; color:#444; font-family:ui-monospace,Menlo,monospace; font-size:12px; vertical-align:top;">${escapeHtml(p.host)}:${escapeHtml(p.port)}</td>
           <td style="padding:10px 12px; color:#666; vertical-align:top;">${escapeHtml(p.user || '—')}</td>
+          <td style="padding:10px 12px; color:#666; vertical-align:top; white-space:nowrap;">${formatPurchaseDate(p.purchaseDate)}</td>
           <td style="padding:10px 12px; vertical-align:top;">${proxyUsageChipsHtml(p.id)}</td>
           <td style="padding:10px 12px; text-align:right; white-space:nowrap; vertical-align:top;">
             <button class="pc-btn pc-btn-edit" onclick="openProxyModal('edit','${p.id}')" title="Sửa" aria-label="Sửa">${xekoIcon('edit')}</button>
