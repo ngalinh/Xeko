@@ -66,13 +66,13 @@
       gap: 10px;
     }
     .sidebar-logo img { width: 34px; height: 34px; border-radius: 50%; }
-    .sidebar-logo span { font-size: 18px; font-weight: 800; color: #4f46e5; }
+    .sidebar-logo span { font-size: 18px; font-weight: 800; color: #0369a1; }
     .sidebar-logo .edit-icon {
       margin-left: auto; width: 28px; height: 28px; border-radius: 8px;
-      background: #f0edff; border: none; cursor: pointer; font-size: 14px;
-      display: flex; align-items: center; justify-content: center; color: #4f46e5;
+      background: #e0f2fe; border: none; cursor: pointer; font-size: 14px;
+      display: flex; align-items: center; justify-content: center; color: #0369a1;
     }
-    .sidebar-logo .edit-icon:hover { background: #e0d4ff; }
+    .sidebar-logo .edit-icon:hover { background: #bae6fd; }
     .sidebar-nav {
       flex: 1;
       padding: 8px 12px;
@@ -99,13 +99,13 @@
       width: 100%;
       text-align: left;
     }
-    .sidebar-item:hover { background: #f5f3ff; color: #4f46e5; }
-    .sidebar-item.active { background: #ede9fe; color: #4f46e5; font-weight: 600; }
+    .sidebar-item:hover { background: #f0f9ff; color: #0369a1; }
+    .sidebar-item.active { background: #e0f2fe; color: #0369a1; font-weight: 600; }
     .sidebar-item .icon { font-size: 16px; width: 22px; text-align: center; }
     .sidebar-item .badge {
       margin-left: auto;
-      background: #ede9fe;
-      color: #7c3aed;
+      background: #e0f2fe;
+      color: #0284c7;
       font-size: 10px;
       padding: 2px 8px;
       border-radius: 10px;
@@ -189,7 +189,7 @@
       color: #1e1e2e;
     }
     .msg.user {
-      background: #ede9fe;
+      background: #e0f2fe;
       color: #1e1e2e;
       border-radius: 16px 4px 16px 16px;
     }
@@ -198,7 +198,7 @@
       border-radius: 8px;
       margin-top: 8px;
     }
-    .msg .link { color: #4f46e5; word-break: break-all; text-decoration: none; font-weight: 500; }
+    .msg .link { color: #0369a1; word-break: break-all; text-decoration: none; font-weight: 500; }
     .msg .link:hover { text-decoration: underline; }
     .msg-time { display: none; }
 
@@ -212,9 +212,9 @@
     .msg-btn {
       padding: 9px 16px;
       border-radius: 8px;
-      border: 1px solid #e0d4ff;
-      background: #faf8ff;
-      color: #4f46e5;
+      border: 1px solid #bae6fd;
+      background: #f0f9ff;
+      color: #0369a1;
       cursor: pointer;
       font-size: 13px;
       font-weight: 500;
@@ -222,7 +222,7 @@
       text-align: center;
       width: 100%;
     }
-    .msg-btn:hover { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+    .msg-btn:hover { background: #0369a1; color: #fff; border-color: #0369a1; }
 
     /* Channel selector panel */
     .channel-panel { margin-top: 10px; }
@@ -232,19 +232,19 @@
     .channel-platform-toggle {
       display: flex; align-items: center; gap: 6px;
       padding: 8px 16px; border-radius: 8px;
-      border: 1.5px solid #e0d4ff; background: #faf8ff;
-      cursor: pointer; font-size: 13px; font-weight: 600; color: #4f46e5;
+      border: 1.5px solid #bae6fd; background: #f0f9ff;
+      cursor: pointer; font-size: 13px; font-weight: 600; color: #0369a1;
       transition: all 0.15s; user-select: none; flex: 1; justify-content: center;
     }
     .channel-platform-toggle input[type="checkbox"] { display: none; }
-    .channel-platform-toggle.checked { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+    .channel-platform-toggle.checked { background: #0369a1; color: #fff; border-color: #0369a1; }
     .channel-profile-section {
-      margin-bottom: 10px; border: 1px solid #e8e4f0; border-radius: 10px;
+      margin-bottom: 10px; border: 1px solid #e0f2fe; border-radius: 10px;
       overflow: hidden; background: #fff;
     }
     .channel-profile-header {
       padding: 8px 14px; font-weight: 600; font-size: 13px;
-      background: #f3f0ff; color: #4f46e5; border-bottom: 1px solid #e8e4f0;
+      background: #f0f9ff; color: #0369a1; border-bottom: 1px solid #e0f2fe;
       display: flex; align-items: center; gap: 6px;
     }
     .channel-item {
@@ -254,9 +254,9 @@
       transition: background 0.1s; user-select: none;
     }
     .channel-item:last-child { border-bottom: none; }
-    .channel-item:hover { background: #f8f6ff; }
+    .channel-item:hover { background: #f0f9ff; }
     .channel-item input[type="checkbox"] {
-      accent-color: #4f46e5; width: 16px; height: 16px; cursor: pointer;
+      accent-color: #0369a1; width: 16px; height: 16px; cursor: pointer;
     }
     .channel-item.disabled { opacity: 0.35; pointer-events: none; }
     .channel-item .ch-tag {
@@ -266,10 +266,10 @@
     .channel-item .ch-tag.fb { background: #e8f0fe; color: #1877f2; }
 
     /* Dark mode for channel panel */
-    [data-theme="dark"] .channel-platform-toggle { background: #1e1e3a; border-color: #3a3a5a; color: #a78bfa; }
-    [data-theme="dark"] .channel-platform-toggle.checked { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+    [data-theme="dark"] .channel-platform-toggle { background: #1e1e3a; border-color: #3a3a5a; color: #7dd3fc; }
+    [data-theme="dark"] .channel-platform-toggle.checked { background: #0369a1; color: #fff; border-color: #0369a1; }
     [data-theme="dark"] .channel-profile-section { background: #1e1e3a; border-color: #2a2a4a; }
-    [data-theme="dark"] .channel-profile-header { background: #252547; color: #a78bfa; border-color: #2a2a4a; }
+    [data-theme="dark"] .channel-profile-header { background: #252547; color: #7dd3fc; border-color: #2a2a4a; }
     [data-theme="dark"] .channel-item { color: #ccc; border-color: #2a2a4a; }
     [data-theme="dark"] .channel-item:hover { background: #252547; }
     [data-theme="dark"] [id^="customGroupInput_"] input { background: #1e1e3a; border-color: #3a3a5a; color: #e0e0e0; }
@@ -288,8 +288,8 @@
       background:#fff; font-size:13px; white-space:nowrap;
       min-width:0; max-width:100%;
     }
-    .msel-btn:hover { border-color:#a5b4fc; }
-    .msel-btn.active { border-color:#7c3aed; }
+    .msel-btn:hover { border-color:#7dd3fc; }
+    .msel-btn.active { border-color:#0284c7; }
     .msel-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
     .msel-arrow { flex-shrink:0; opacity:0.5; font-size:10px; }
     .msel-panel {
@@ -303,8 +303,8 @@
       display:flex; align-items:center; gap:8px; padding:7px 14px;
       cursor:pointer; font-size:13px; color:#333;
     }
-    .msel-option:hover { background:#f5f3ff; }
-    .msel-option input[type=checkbox] { accent-color:#7c3aed; flex-shrink:0; cursor:pointer; }
+    .msel-option:hover { background:#f0f9ff; }
+    .msel-option input[type=checkbox] { accent-color:#0284c7; flex-shrink:0; cursor:pointer; }
     .msel-option span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .msel-divider { height:1px; background:#f3f4f6; margin:4px 0; }
 
@@ -322,7 +322,7 @@
     .preview-item { position: relative; display: inline-block; }
     .preview-item img {
       width: 52px; height: 52px;
-      object-fit: cover; border-radius: 8px; border: 2px solid #ede9fe;
+      object-fit: cover; border-radius: 8px; border: 2px solid #e0f2fe;
     }
     .preview-item .remove-img {
       position: absolute; top: -5px; right: -5px;
@@ -355,7 +355,7 @@
       font-size: 14px;
       outline: none;
     }
-    .input-area input[type="text"]:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
+    .input-area input[type="text"]:focus { border-color: #0369a1; box-shadow: 0 0 0 3px rgba(3,105,161,0.1); }
     .input-area input[type="file"] { display: none; }
     .input-area #msgInput {
       flex: 1;
@@ -374,7 +374,7 @@
       line-height: 1.5;
       display: block;
     }
-    .input-area #msgInput:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
+    .input-area #msgInput:focus { border-color: #0369a1; box-shadow: 0 0 0 3px rgba(3,105,161,0.1); }
     .btn-icon {
       width: 40px; height: 40px;
       border-radius: 50%;
@@ -384,10 +384,10 @@
       font-size: 18px;
       transition: all 0.15s;
     }
-    .btn-attach { background: #f0edff; color: #4f46e5; }
-    .btn-attach:hover { background: #e0d4ff; }
-    .btn-send { background: #4f46e5; color: #fff; }
-    .btn-send:hover { background: #4338ca; }
+    .btn-attach { background: #e0f2fe; color: #0369a1; }
+    .btn-attach:hover { background: #bae6fd; }
+    .btn-send { background: #0369a1; color: #fff; }
+    .btn-send:hover { background: #075985; }
     .btn-send:disabled { background: #ccc; cursor: not-allowed; }
 
     /* Photo grid */
@@ -417,7 +417,7 @@
     /* Loading */
     .typing { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
     .typing span {
-      width: 7px; height: 7px; background: #4f46e5;
+      width: 7px; height: 7px; background: #0369a1;
       border-radius: 50%; animation: bounce 1.2s infinite;
     }
     .typing span:nth-child(2) { animation-delay: 0.2s; }
@@ -438,8 +438,8 @@
     .channel-platform-toggle { display: inline-flex; align-items: center; gap: 6px; }
     .channel-profile-header { display: flex; align-items: center; gap: 6px; }
     .channel-item { align-items: center; }
-    .acc-tab:hover { color: #4f46e5; }
-    .acc-tab.active { color: #4f46e5; border-bottom-color: #4f46e5; }
+    .acc-tab:hover { color: #0369a1; }
+    .acc-tab.active { color: #0369a1; border-bottom-color: #0369a1; }
 
     .profile-card {
       display: flex; align-items: center; gap: 14px;
@@ -449,7 +449,7 @@
     .profile-card:hover { border-color: #d0d0ff; }
     .profile-card .avatar {
       width: 40px; height: 40px; border-radius: 50%;
-      background: #ede9fe; display: flex; align-items: center;
+      background: #e0f2fe; display: flex; align-items: center;
       justify-content: center; font-size: 18px; flex-shrink: 0;
     }
     .profile-card .info { flex: 1; }
@@ -479,9 +479,9 @@
       transition: background 0.12s, box-shadow 0.12s;
       white-space: nowrap;
     }
-    .pc-btn:hover { box-shadow: 0 3px 10px rgba(124,102,255,0.14); }
+    .pc-btn:hover { box-shadow: 0 3px 10px rgba(14,165,233,0.14); }
     .pc-btn-edit  { background: #f0f9ff; border-color: #bae6fd; color: #0284c7; }
-    .pc-btn-login { background: #f0edff; border-color: #e0d4ff; color: #4f46e5; }
+    .pc-btn-login { background: #e0f2fe; border-color: #bae6fd; color: #0369a1; }
     .pc-btn-login.pc-btn-zalo { background: #e8f4ff; border-color: #b3d9ff; color: #0068ff; }
     .pc-btn-del   { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
     .pc-btn .xi { width: 15px; height: 15px; }
@@ -490,35 +490,35 @@
     [data-theme="dark"] { color-scheme: dark; }
     [data-theme="dark"] body, [data-theme="dark"] { background: #1a1a2e; color: #e0e0e0; }
     [data-theme="dark"] .sidebar { background: #16172b; border-color: #2a2a4a; }
-    [data-theme="dark"] .sidebar-logo span { color: #a78bfa; }
+    [data-theme="dark"] .sidebar-logo span { color: #7dd3fc; }
     [data-theme="dark"] .sidebar-section { color: #666; }
     [data-theme="dark"] .sidebar-item { color: #999; }
-    [data-theme="dark"] .sidebar-item:hover { background: #1e1e3a; color: #a78bfa; }
-    [data-theme="dark"] .sidebar-item.active { background: #2d2b55; color: #a78bfa; }
-    [data-theme="dark"] .sidebar-item .badge { background: #2d2b55; color: #a78bfa; }
+    [data-theme="dark"] .sidebar-item:hover { background: #1e1e3a; color: #7dd3fc; }
+    [data-theme="dark"] .sidebar-item.active { background: #0c2540; color: #7dd3fc; }
+    [data-theme="dark"] .sidebar-item .badge { background: #0c2540; color: #7dd3fc; }
     [data-theme="dark"] .sidebar-footer { border-color: #2a2a4a; }
     [data-theme="dark"] .main-content, [data-theme="dark"] .chat-area { background: #1a1a2e; }
     [data-theme="dark"] .header { background: #16172b; border-color: #2a2a4a; }
     [data-theme="dark"] .header-info h1 { color: #e0e0e0; }
     [data-theme="dark"] .msg.bot { background: #1e1e3a; border-color: #2a2a4a; color: #e0e0e0; }
-    [data-theme="dark"] .msg.user { background: #4f46e5; color: #fff; }
+    [data-theme="dark"] .msg.user { background: #0369a1; color: #fff; }
     [data-theme="dark"] .msg-header { color: #999; }
     [data-theme="dark"] .msg-header .time { color: #666; }
-    [data-theme="dark"] .msg .link { color: #a78bfa; }
-    [data-theme="dark"] .msg-btn { background: #1e1e3a; border-color: #3a3a5a; color: #a78bfa; }
-    [data-theme="dark"] .msg-btn:hover { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+    [data-theme="dark"] .msg .link { color: #7dd3fc; }
+    [data-theme="dark"] .msg-btn { background: #1e1e3a; border-color: #3a3a5a; color: #7dd3fc; }
+    [data-theme="dark"] .msg-btn:hover { background: #0369a1; border-color: #0369a1; color: #fff; }
     [data-theme="dark"] .input-area { background: #16172b; border-color: #2a2a4a; }
     [data-theme="dark"] .input-area input[type="text"] { background: #1e1e3a; border-color: #3a3a5a; color: #e0e0e0; }
-    [data-theme="dark"] .input-area input[type="text"]:focus { border-color: #a78bfa; box-shadow: 0 0 0 3px rgba(167,139,250,0.15); }
+    [data-theme="dark"] .input-area input[type="text"]:focus { border-color: #7dd3fc; box-shadow: 0 0 0 3px rgba(125,211,252,0.15); }
     [data-theme="dark"] .input-area #msgInput { background: #1e1e3a; border-color: #3a3a5a; color: #e0e0e0; }
-    [data-theme="dark"] .input-area #msgInput:focus { border-color: #a78bfa; box-shadow: 0 0 0 3px rgba(167,139,250,0.15); }
-    [data-theme="dark"] .btn-attach { background: #1e1e3a; color: #a78bfa; }
-    [data-theme="dark"] .btn-attach:hover { background: #2d2b55; }
+    [data-theme="dark"] .input-area #msgInput:focus { border-color: #7dd3fc; box-shadow: 0 0 0 3px rgba(125,211,252,0.15); }
+    [data-theme="dark"] .btn-attach { background: #1e1e3a; color: #7dd3fc; }
+    [data-theme="dark"] .btn-attach:hover { background: #0c2540; }
 
     [data-theme="dark"] .image-preview { background: #16172b; border-color: #2a2a4a; }
     [data-theme="dark"] .preview-item img { border-color: #3a3a5a; }
 
-    [data-theme="dark"] .sidebar-logo .edit-icon { background: #1e1e3a; color: #a78bfa; }
+    [data-theme="dark"] .sidebar-logo .edit-icon { background: #1e1e3a; color: #7dd3fc; }
     [data-theme="dark"] #pageCalendar div[style*="background:#fffbeb"] { background: #2e2a1a !important; border-color: #4a3a2a !important; }
     [data-theme="dark"] #pageCalendar div[style*="background:#eef2ff"] { background: #1a1a2e !important; border-color: #2a2a4a !important; }
     [data-theme="dark"] #pageCalendar div[style*="background:#f0fdf4"] { background: #1a2e1a !important; border-color: #2a4a2a !important; }
@@ -527,7 +527,7 @@
     [data-theme="dark"] .profile-card { background: #1e1e3a; border-color: #2a2a4a; }
     [data-theme="dark"] .profile-card .info .name { color: #e0e0e0; }
     [data-theme="dark"] .acc-tab { color: #666; }
-    [data-theme="dark"] .acc-tab.active { color: #a78bfa; border-bottom-color: #a78bfa; }
+    [data-theme="dark"] .acc-tab.active { color: #7dd3fc; border-bottom-color: #7dd3fc; }
     [data-theme="dark"] select, [data-theme="dark"] #addAccountModal input { background: #1e1e3a; border-color: #3a3a5a; color: #e0e0e0; }
     [data-theme="dark"] #addAccountModal > div { background: #16172b !important; border-color: #2a2a4a !important; }
     [data-theme="dark"] #editProfileModal > div { background: #1e1e3a !important; }
@@ -543,7 +543,7 @@
     [data-theme="dark"] #pageDashboard div[style*="background:#f0fdf4"] { background: #1a2e1a !important; border-color: #2a4a2a !important; }
     [data-theme="dark"] #pageDashboard div[style*="background:#eff6ff"] { background: #1a1a2e !important; border-color: #2a2a4a !important; }
     [data-theme="dark"] #pageDashboard div[style*="background:#fef2f2"] { background: #2e1a1a !important; border-color: #4a2a2a !important; }
-    [data-theme="dark"] #pageDashboard div[style*="background:#fdf4ff"] { background: #2e1a2e !important; border-color: #4a2a4a !important; }
+    [data-theme="dark"] #pageDashboard div[style*="background:#f0f9ff"] { background: #2e1a2e !important; border-color: #4a2a4a !important; }
     [data-theme="dark"] #pageDashboard div[style*="background:#fff"] { background: #1e1e2e !important; border-color: #2e2e4e !important; }
     [data-theme="dark"] #pageDashboard table { color: #e0e0e0; }
     [data-theme="dark"] #pageDashboard thead tr { background: #1e1e2e !important; }
@@ -552,13 +552,13 @@
     /* Theme toggle */
     .theme-toggle {
       width: 36px; height: 36px; border-radius: 8px;
-      background: #f0edff; border: none; cursor: pointer;
+      background: #e0f2fe; border: none; cursor: pointer;
       font-size: 16px; display: flex; align-items: center; justify-content: center;
       transition: all 0.15s;
     }
-    .theme-toggle:hover { background: #e0d4ff; }
+    .theme-toggle:hover { background: #bae6fd; }
     [data-theme="dark"] .theme-toggle { background: #1e1e3a; }
-    [data-theme="dark"] .theme-toggle:hover { background: #2d2b55; }
+    [data-theme="dark"] .theme-toggle:hover { background: #0c2540; }
 
     /* ===== MOBILE BOTTOM NAV (hidden on desktop) ===== */
     .mobile-bottom-nav {
@@ -581,7 +581,7 @@
       transition: color 0.15s;
     }
     .mobile-nav-item .mn-icon { font-size: 22px; line-height: 1; }
-    .mobile-nav-item.active { color: #4f46e5; }
+    .mobile-nav-item.active { color: #0369a1; }
     .mobile-nav-item.active .mn-icon { transform: scale(1.08); }
     .mobile-nav-item:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -645,7 +645,7 @@
         display: flex !important;
         width: 36px; height: 36px;
         border-radius: 8px; border: none;
-        background: #f0edff; color: #4f46e5;
+        background: #e0f2fe; color: #0369a1;
         font-size: 18px; align-items: center; justify-content: center;
         cursor: pointer; flex-shrink: 0;
       }
@@ -839,12 +839,12 @@
       padding: 10px 16px;
       border: none;
       border-radius: 999px;
-      background: linear-gradient(135deg, #7c66ff 0%, #a78bfa 100%);
+      background: linear-gradient(135deg, #0ea5e9 0%, #7dd3fc 100%);
       color: #fff;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 10px 24px rgba(124,102,255,0.35);
+      box-shadow: 0 10px 24px rgba(14,165,233,0.35);
     }
     .pwa-install-btn:active { transform: scale(0.97); }
     .pwa-install-icon { font-size: 14px; }
@@ -853,9 +853,9 @@
       /* --- backdrop: soft lavender gradient --- */
       body {
         background:
-          radial-gradient(1100px 600px at 100% -10%, #efe9ff 0%, rgba(239,233,255,0) 60%),
-          radial-gradient(900px 500px at -10% 100%, #f6ecff 0%, rgba(246,236,255,0) 60%),
-          linear-gradient(180deg, #f4f1fe 0%, #faf9ff 45%, #ffffff 100%);
+          radial-gradient(1100px 600px at 100% -10%, #e0f2fe 0%, rgba(224,242,254,0) 60%),
+          radial-gradient(900px 500px at -10% 100%, #f0f9ff 0%, rgba(224,242,254,0) 60%),
+          linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 45%, #ffffff 100%);
       }
       .main-content { background: transparent; }
       .chat-area { background: transparent; }
@@ -868,7 +868,7 @@
         border-bottom: none;
         padding: 14px 16px 10px;
         border-radius: 0 0 22px 22px;
-        box-shadow: 0 6px 18px rgba(124,102,255,0.06);
+        box-shadow: 0 6px 18px rgba(14,165,233,0.06);
         padding-top: calc(14px + env(safe-area-inset-top, 0px));
       }
       .header-info h1 {
@@ -878,15 +878,15 @@
 
       .mobile-hamburger {
         border-radius: 12px !important;
-        background: linear-gradient(135deg, #efeaff 0%, #e4dcff 100%) !important;
-        color: #6b5bff !important;
-        box-shadow: 0 4px 12px rgba(124,102,255,0.18);
+        background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%) !important;
+        color: #0ea5e9 !important;
+        box-shadow: 0 4px 12px rgba(14,165,233,0.18);
       }
       .theme-toggle {
         border-radius: 12px;
-        background: linear-gradient(135deg, #efeaff 0%, #e4dcff 100%);
-        color: #6b5bff;
-        box-shadow: 0 4px 12px rgba(124,102,255,0.18);
+        background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+        color: #0ea5e9;
+        box-shadow: 0 4px 12px rgba(14,165,233,0.18);
       }
 
       /* --- chat bubbles: softer, bigger radius --- */
@@ -894,21 +894,21 @@
         border: none;
         border-radius: 6px 20px 20px 20px;
         background: #fff;
-        box-shadow: 0 6px 18px rgba(124,102,255,0.08);
+        box-shadow: 0 6px 18px rgba(14,165,233,0.08);
       }
       .msg.user {
         color: #fff;
-        background: linear-gradient(135deg, #7c66ff 0%, #a78bfa 100%);
+        background: linear-gradient(135deg, #0ea5e9 0%, #7dd3fc 100%);
         border-radius: 20px 6px 20px 20px;
-        box-shadow: 0 8px 20px rgba(124,102,255,0.25);
+        box-shadow: 0 8px 20px rgba(14,165,233,0.25);
       }
       .msg.user .link { color: #fff; text-decoration: underline; }
       .msg-btn {
         border-radius: 14px;
         padding: 11px 16px;
         background: #fff;
-        border-color: #e8e1ff;
-        box-shadow: 0 3px 10px rgba(124,102,255,0.08);
+        border-color: #e0f2fe;
+        box-shadow: 0 3px 10px rgba(14,165,233,0.08);
       }
 
       /* --- input: pill search + gradient send FAB --- */
@@ -926,7 +926,7 @@
         inset: 4px 8px 4px 8px;
         background: #fff;
         border-radius: 26px;
-        box-shadow: 0 10px 30px rgba(124,102,255,0.14);
+        box-shadow: 0 10px 30px rgba(14,165,233,0.14);
         z-index: 0;
       }
       .input-area input[type="text"] {
@@ -951,16 +951,16 @@
         flex-shrink: 0;
       }
       .btn-attach {
-        background: #f2ecff !important;
-        color: #6b5bff !important;
+        background: #f0f9ff !important;
+        color: #0ea5e9 !important;
       }
       .btn-send {
-        background: linear-gradient(135deg, #7c66ff 0%, #a78bfa 100%) !important;
+        background: linear-gradient(135deg, #0ea5e9 0%, #7dd3fc 100%) !important;
         color: #fff !important;
-        box-shadow: 0 8px 20px rgba(124,102,255,0.38);
+        box-shadow: 0 8px 20px rgba(14,165,233,0.38);
       }
       .btn-send:disabled {
-        background: #d4ccf4 !important;
+        background: #bae6fd !important;
         box-shadow: none;
       }
 
@@ -972,18 +972,18 @@
         border-radius: 18px;
         margin: 0 10px 4px;
         padding: 8px 10px;
-        box-shadow: 0 6px 18px rgba(124,102,255,0.08);
+        box-shadow: 0 6px 18px rgba(14,165,233,0.08);
       }
-      .preview-item img { border-color: #e5ddff; border-radius: 10px; }
+      .preview-item img { border-color: #e0f2fe; border-radius: 10px; }
 
       /* --- sidebar drawer: airy, colorful tiles --- */
       .sidebar {
-        background: linear-gradient(180deg, #ffffff 0%, #f8f5ff 100%);
+        background: linear-gradient(180deg, #ffffff 0%, #f0f9ff 100%);
         border-right: none;
         padding-top: env(safe-area-inset-top, 0px);
       }
       .sidebar.sidebar-open { border-radius: 0 28px 28px 0; overflow: hidden; }
-      .sidebar-logo span { color: #6b5bff; font-weight: 800; }
+      .sidebar-logo span { color: #0ea5e9; font-weight: 800; }
       .sidebar-nav { padding: 8px 10px; gap: 6px; }
       .sidebar-item {
         padding: 12px 14px;
@@ -997,22 +997,22 @@
         border-radius: 10px;
         display: inline-flex; align-items: center; justify-content: center;
         font-size: 17px;
-        background: #f0ecff; color: #6b5bff;
-        box-shadow: 0 3px 8px rgba(124,102,255,0.12);
+        background: #e0f2fe; color: #0ea5e9;
+        box-shadow: 0 3px 8px rgba(14,165,233,0.12);
       }
-      #navDashboard .icon { background: linear-gradient(135deg,#dcd2ff,#c1b2ff); color:#4a3bd6; }
+      #navDashboard .icon { background: linear-gradient(135deg,#bae6fd,#bae6fd); color:#075985; }
       #navPost      .icon { background: linear-gradient(135deg,#ffd6e1,#ffb7c6); color:#d1477a; }
       #navSession   .icon { background: linear-gradient(135deg,#c7f0ea,#a2e6de); color:#2a9b8a; }
       #navSpy       .icon { background: linear-gradient(135deg,#ffe2c4,#ffc98a); color:#c9822f; }
       .sidebar-item.active {
-        background: linear-gradient(135deg, rgba(124,102,255,0.10) 0%, rgba(167,139,250,0.10) 100%);
-        color: #4a3bd6;
+        background: linear-gradient(135deg, rgba(14,165,233,0.10) 0%, rgba(125,211,252,0.10) 100%);
+        color: #075985;
       }
       .sidebar-item .badge {
         background: linear-gradient(135deg,#ffe2c4,#ffc98a);
         color: #b8691c;
       }
-      .sidebar-footer { border-top-color: rgba(124,102,255,0.08); }
+      .sidebar-footer { border-top-color: rgba(14,165,233,0.08); }
 
       /* --- mobile bottom nav: floating pill with center FAB vibe --- */
       .mobile-bottom-nav {
@@ -1024,14 +1024,14 @@
         backdrop-filter: saturate(180%) blur(16px);
         -webkit-backdrop-filter: saturate(180%) blur(16px);
         box-shadow:
-          0 12px 32px rgba(79,70,229,0.20),
-          0 2px 6px rgba(124,102,255,0.10);
+          0 12px 32px rgba(3,105,161,0.20),
+          0 2px 6px rgba(14,165,233,0.10);
       }
       .main-content { padding-bottom: 82px; }
       .mobile-nav-item {
         padding: 8px 4px;
         border-radius: 14px;
-        color: #8f8ab0;
+        color: #38bdf8;
         font-weight: 500;
         transition: all 0.18s ease;
       }
@@ -1043,13 +1043,13 @@
         transition: all 0.18s ease;
       }
       .mobile-nav-item.active {
-        color: #4a3bd6;
+        color: #075985;
       }
       .mobile-nav-item.active .mn-icon {
-        background: linear-gradient(135deg, #7c66ff 0%, #a78bfa 100%);
+        background: linear-gradient(135deg, #0ea5e9 0%, #7dd3fc 100%);
         color: #fff;
         transform: translateY(-2px) scale(1.05);
-        box-shadow: 0 8px 18px rgba(124,102,255,0.42);
+        box-shadow: 0 8px 18px rgba(14,165,233,0.42);
       }
 
       /* --- profile / account cards: lifted, bigger radius --- */
@@ -1057,13 +1057,13 @@
         border: none !important;
         border-radius: 18px !important;
         background: #fff !important;
-        box-shadow: 0 6px 18px rgba(124,102,255,0.08);
+        box-shadow: 0 6px 18px rgba(14,165,233,0.08);
         padding: 14px 16px !important;
       }
-      .profile-card:hover { box-shadow: 0 10px 24px rgba(124,102,255,0.16); }
+      .profile-card:hover { box-shadow: 0 10px 24px rgba(14,165,233,0.16); }
       .profile-card .avatar {
-        background: linear-gradient(135deg,#efeaff,#ddd2ff) !important;
-        color: #6b5bff;
+        background: linear-gradient(135deg,#e0f2fe,#bae6fd) !important;
+        color: #0ea5e9;
         width: 44px; height: 44px;
         border-radius: 14px !important;
       }
@@ -1072,7 +1072,7 @@
       #panelChannels > div[style*="background:#fff"] {
         border: none !important;
         border-radius: 20px !important;
-        box-shadow: 0 8px 22px rgba(124,102,255,0.08);
+        box-shadow: 0 8px 22px rgba(14,165,233,0.08);
       }
 
       /* account tabs: pill bar */
@@ -1081,7 +1081,7 @@
         padding: 4px !important;
         background: rgba(255,255,255,0.7);
         border-radius: 16px;
-        box-shadow: 0 4px 14px rgba(124,102,255,0.06);
+        box-shadow: 0 4px 14px rgba(14,165,233,0.06);
         margin-bottom: 16px !important;
       }
       .acc-tab {
@@ -1090,21 +1090,21 @@
         padding: 8px 14px;
       }
       .acc-tab.active {
-        background: linear-gradient(135deg,#7c66ff,#a78bfa);
+        background: linear-gradient(135deg,#0ea5e9,#7dd3fc);
         color: #fff !important;
         border-bottom-color: transparent;
-        box-shadow: 0 6px 14px rgba(124,102,255,0.32);
+        box-shadow: 0 6px 14px rgba(14,165,233,0.32);
       }
 
       /* dashboard summary tiles */
       #pageDashboard div[style*="background:#f0fdf4"],
       #pageDashboard div[style*="background:#eff6ff"],
       #pageDashboard div[style*="background:#fef2f2"],
-      #pageDashboard div[style*="background:#fdf4ff"],
+      #pageDashboard div[style*="background:#f0f9ff"],
       #pageDashboard div[style*="background:#fff"] {
         border: none !important;
         border-radius: 18px !important;
-        box-shadow: 0 6px 18px rgba(124,102,255,0.07);
+        box-shadow: 0 6px 18px rgba(14,165,233,0.07);
       }
 
       /* channel platform toggles: rounder, colorful when checked */
@@ -1113,9 +1113,9 @@
         padding: 10px 14px;
       }
       .channel-platform-toggle.checked {
-        background: linear-gradient(135deg,#7c66ff,#a78bfa);
+        background: linear-gradient(135deg,#0ea5e9,#7dd3fc);
         border-color: transparent;
-        box-shadow: 0 8px 18px rgba(124,102,255,0.30);
+        box-shadow: 0 8px 18px rgba(14,165,233,0.30);
       }
 
       /* rounded generic form inputs on mobile */
@@ -1126,7 +1126,7 @@
 
       /* overlay: deeper blur */
       .mobile-overlay {
-        background: rgba(24, 19, 56, 0.38);
+        background: rgba(12, 26, 46, 0.38);
         backdrop-filter: blur(3px);
         -webkit-backdrop-filter: blur(3px);
       }
@@ -1183,7 +1183,7 @@
         border-radius: 16px;
         padding: 0; border: none;
         background: #fff;
-        box-shadow: 0 8px 20px rgba(124,102,255,0.18);
+        box-shadow: 0 8px 20px rgba(14,165,233,0.18);
         overflow: hidden; cursor: pointer;
         flex-shrink: 0;
       }
@@ -1206,7 +1206,7 @@
         text-align: left;
         min-height: 140px;
         position: relative; overflow: hidden;
-        box-shadow: 0 12px 28px rgba(124,102,255,0.10);
+        box-shadow: 0 12px 28px rgba(14,165,233,0.10);
         transition: transform 0.15s ease, box-shadow 0.15s ease;
       }
       .mhome-tile:active { transform: scale(0.97); }
@@ -1242,18 +1242,18 @@
       /* 4 tiles cùng họ lavender Prodify — light → dark progression */
       .tile-post {
         background: linear-gradient(140deg, #FCFCFE 0%, #E7E9EF 100%);
-        color: #5b54a8;
+        color: #0369a1;
       }
       .tile-dash {
-        background: linear-gradient(140deg, #E7E9EF 0%, #CAC8F9 100%);
-        color: #5b54a8;
+        background: linear-gradient(140deg, #E7E9EF 0%, #bae6fd 100%);
+        color: #0369a1;
       }
       .tile-acc {
-        background: linear-gradient(140deg, #CAC8F9 0%, #B2AEF2 100%);
-        color: #312e81;
+        background: linear-gradient(140deg, #bae6fd 0%, #7dd3fc 100%);
+        color: #075985;
       }
       .tile-spy {
-        background: linear-gradient(140deg, #B2AEF2 0%, #928DDD 100%);
+        background: linear-gradient(140deg, #7dd3fc 0%, #38bdf8 100%);
         color: #fff;
       }
 
@@ -1267,10 +1267,10 @@
         border-radius: 999px;
         border: none;
         background: #fff;
-        color: #4a3bd6;
+        color: #075985;
         font-size: 13px; font-weight: 600;
         cursor: pointer;
-        box-shadow: 0 6px 16px rgba(124,102,255,0.12);
+        box-shadow: 0 6px 16px rgba(14,165,233,0.12);
       }
 
       /* Home-back button injected into each header */
@@ -1279,12 +1279,12 @@
         align-items: center; justify-content: center;
         width: 38px; height: 38px;
         border: none; border-radius: 12px;
-        background: linear-gradient(135deg, #efeaff 0%, #e4dcff 100%);
-        color: #6b5bff;
+        background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+        color: #0ea5e9;
         font-size: 17px;
         cursor: pointer;
         flex-shrink: 0;
-        box-shadow: 0 4px 12px rgba(124,102,255,0.18);
+        box-shadow: 0 4px 12px rgba(14,165,233,0.18);
       }
       .mhome-back-btn:active { transform: scale(0.95); }
     }
@@ -1297,8 +1297,8 @@
     @media (max-width: 768px) {
       .mobile-only-nav { display: flex; }
       #navHome .icon {
-        background: linear-gradient(135deg, #efeaff 0%, #d4c8ff 100%);
-        color: #4a3bd6;
+        background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+        color: #075985;
       }
     }
 
@@ -1306,15 +1306,15 @@
     @media (max-width: 768px) {
       [data-theme="dark"] body {
         background:
-          radial-gradient(900px 500px at 100% -10%, rgba(124,102,255,0.18) 0%, rgba(124,102,255,0) 60%),
-          linear-gradient(180deg, #13132a 0%, #1a1a2e 60%, #1a1a2e 100%);
+          radial-gradient(900px 500px at 100% -10%, rgba(14,165,233,0.18) 0%, rgba(14,165,233,0) 60%),
+          linear-gradient(180deg, #0c1a2e 0%, #1a1a2e 60%, #1a1a2e 100%);
       }
       [data-theme="dark"] .header { background: rgba(22,23,43,0.78); }
       [data-theme="dark"] .input-area::before { background: #1e1e3a; }
       [data-theme="dark"] .mobile-bottom-nav { background: rgba(22,23,43,0.92); }
       [data-theme="dark"] .mobile-nav-item { color: #7d7aa0; }
       [data-theme="dark"] .sidebar { background: linear-gradient(180deg,#16172b 0%,#1a1a2e 100%); }
-      [data-theme="dark"] .sidebar-item .icon { background: #2a2a4a; color: #a78bfa; }
+      [data-theme="dark"] .sidebar-item .icon { background: #2a2a4a; color: #7dd3fc; }
       [data-theme="dark"] .profile-card { background: #1e1e3a !important; }
       [data-theme="dark"] .acc-tab-bar { background: rgba(30,30,58,0.55); }
 
@@ -1326,8 +1326,8 @@
         box-shadow: 0 12px 28px rgba(0,0,0,0.35);
         filter: brightness(0.92);
       }
-      [data-theme="dark"] .mhome-foot-btn { background: #1e1e3a; color: #a78bfa; }
-      [data-theme="dark"] .mhome-back-btn { background: #1e1e3a; color: #a78bfa; }
+      [data-theme="dark"] .mhome-foot-btn { background: #1e1e3a; color: #7dd3fc; }
+      [data-theme="dark"] .mhome-back-btn { background: #1e1e3a; color: #7dd3fc; }
     }
 
     /* ================================================================
@@ -1338,9 +1338,9 @@
       /* Lavender backdrop */
       body {
         background:
-          radial-gradient(1200px 700px at 100% -10%, #efe9ff 0%, rgba(239,233,255,0) 60%),
-          radial-gradient(900px 600px at -10% 110%, #f6ecff 0%, rgba(246,236,255,0) 60%),
-          linear-gradient(180deg, #f4f1fe 0%, #faf9ff 40%, #ffffff 100%);
+          radial-gradient(1200px 700px at 100% -10%, #e0f2fe 0%, rgba(224,242,254,0) 60%),
+          radial-gradient(900px 600px at -10% 110%, #f0f9ff 0%, rgba(224,242,254,0) 60%),
+          linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 40%, #ffffff 100%);
       }
       .main-content { background: transparent; }
       .chat-area { background: transparent; }
@@ -1350,31 +1350,31 @@
         background: rgba(255,255,255,0.78);
         backdrop-filter: saturate(180%) blur(14px);
         -webkit-backdrop-filter: saturate(180%) blur(14px);
-        border-bottom: 1px solid rgba(124,102,255,0.08);
+        border-bottom: 1px solid rgba(14,165,233,0.08);
       }
-      .header-emoji { color: #6b5bff; }
+      .header-emoji { color: #0ea5e9; }
 
       /* Chat bubbles */
       .msg.bot {
         border: none;
-        box-shadow: 0 4px 14px rgba(124,102,255,0.07);
+        box-shadow: 0 4px 14px rgba(14,165,233,0.07);
       }
       .msg.user {
         color: #fff;
-        background: linear-gradient(135deg, #7c66ff 0%, #a78bfa 100%);
-        box-shadow: 0 6px 16px rgba(124,102,255,0.22);
+        background: linear-gradient(135deg, #0ea5e9 0%, #7dd3fc 100%);
+        box-shadow: 0 6px 16px rgba(14,165,233,0.22);
       }
       .msg.user .link { color: #fff; text-decoration: underline; }
-      .msg .link { color: #6b5bff; }
+      .msg .link { color: #0ea5e9; }
       .msg-btn {
         border-radius: 12px;
         background: #fff;
-        border-color: #e8e1ff;
-        color: #6b5bff;
-        box-shadow: 0 2px 8px rgba(124,102,255,0.06);
+        border-color: #e0f2fe;
+        color: #0ea5e9;
+        box-shadow: 0 2px 8px rgba(14,165,233,0.06);
       }
       .msg-btn:hover {
-        background: linear-gradient(135deg, #7c66ff 0%, #a78bfa 100%);
+        background: linear-gradient(135deg, #0ea5e9 0%, #7dd3fc 100%);
         border-color: transparent;
         color: #fff;
       }
@@ -1385,59 +1385,59 @@
         background: rgba(255,255,255,0.55);
         backdrop-filter: saturate(180%) blur(10px);
         -webkit-backdrop-filter: saturate(180%) blur(10px);
-        border-top: 1px solid rgba(124,102,255,0.08);
+        border-top: 1px solid rgba(14,165,233,0.08);
       }
       .input-area input[type="text"] {
         background: #fff;
-        border: 1px solid rgba(124,102,255,0.15);
-        box-shadow: 0 2px 8px rgba(124,102,255,0.05);
+        border: 1px solid rgba(14,165,233,0.15);
+        box-shadow: 0 2px 8px rgba(14,165,233,0.05);
       }
       .input-area input[type="text"]:focus {
-        border-color: #7c66ff;
-        box-shadow: 0 0 0 3px rgba(124,102,255,0.12);
+        border-color: #0ea5e9;
+        box-shadow: 0 0 0 3px rgba(14,165,233,0.12);
       }
       .input-area #msgInput {
         background: #fff;
-        border: 1px solid rgba(124,102,255,0.15);
-        box-shadow: 0 2px 8px rgba(124,102,255,0.05);
+        border: 1px solid rgba(14,165,233,0.15);
+        box-shadow: 0 2px 8px rgba(14,165,233,0.05);
       }
       .input-area #msgInput:focus {
-        border-color: #7c66ff;
-        box-shadow: 0 0 0 3px rgba(124,102,255,0.12);
+        border-color: #0ea5e9;
+        box-shadow: 0 0 0 3px rgba(14,165,233,0.12);
       }
       .btn-attach {
-        background: #f2ecff;
-        color: #6b5bff;
+        background: #f0f9ff;
+        color: #0ea5e9;
       }
-      .btn-attach:hover { background: #e4dcff; }
+      .btn-attach:hover { background: #bae6fd; }
       .btn-send {
-        background: linear-gradient(135deg, #7c66ff 0%, #a78bfa 100%);
+        background: linear-gradient(135deg, #0ea5e9 0%, #7dd3fc 100%);
         color: #fff;
-        box-shadow: 0 6px 16px rgba(124,102,255,0.30);
+        box-shadow: 0 6px 16px rgba(14,165,233,0.30);
       }
       .btn-send:hover {
-        background: linear-gradient(135deg, #6b5bff 0%, #9076f5 100%);
+        background: linear-gradient(135deg, #0ea5e9 0%, #0ea5e9 100%);
       }
       .btn-send:disabled {
-        background: #d4ccf4;
+        background: #bae6fd;
         box-shadow: none;
       }
 
       /* Image preview translucent */
       .image-preview {
         background: rgba(255,255,255,0.85);
-        border-top: 1px solid rgba(124,102,255,0.08);
+        border-top: 1px solid rgba(14,165,233,0.08);
       }
-      .preview-item img { border-color: #e5ddff; border-radius: 10px; }
+      .preview-item img { border-color: #e0f2fe; border-radius: 10px; }
 
       /* Sidebar: soft gradient + colorful tile icons */
       .sidebar {
-        background: linear-gradient(180deg, #ffffff 0%, #f8f5ff 100%);
-        border-right: 1px solid rgba(124,102,255,0.08);
+        background: linear-gradient(180deg, #ffffff 0%, #f0f9ff 100%);
+        border-right: 1px solid rgba(14,165,233,0.08);
       }
-      .sidebar-logo span { color: #6b5bff; font-weight: 800; }
-      .sidebar-logo .edit-icon { background: #f0ecff; color: #6b5bff; }
-      .sidebar-logo .edit-icon:hover { background: #e0d4ff; }
+      .sidebar-logo span { color: #0ea5e9; font-weight: 800; }
+      .sidebar-logo .edit-icon { background: #e0f2fe; color: #0ea5e9; }
+      .sidebar-logo .edit-icon:hover { background: #bae6fd; }
       .sidebar-nav { gap: 4px; padding: 10px 12px; }
       .sidebar-item {
         padding: 10px 12px;
@@ -1446,24 +1446,24 @@
         color: #3a3658;
       }
       .sidebar-item:hover {
-        background: rgba(124,102,255,0.06);
-        color: #4a3bd6;
+        background: rgba(14,165,233,0.06);
+        color: #075985;
       }
       .sidebar-item.active {
-        background: linear-gradient(135deg, rgba(124,102,255,0.12), rgba(167,139,250,0.10));
-        color: #4a3bd6;
+        background: linear-gradient(135deg, rgba(14,165,233,0.12), rgba(125,211,252,0.10));
+        color: #075985;
         font-weight: 600;
       }
       .sidebar-item .icon {
         width: 30px; height: 30px;
         border-radius: 9px;
         display: inline-flex; align-items: center; justify-content: center;
-        background: #f0ecff;
-        color: #6b5bff;
-        box-shadow: 0 2px 6px rgba(124,102,255,0.08);
+        background: #e0f2fe;
+        color: #0ea5e9;
+        box-shadow: 0 2px 6px rgba(14,165,233,0.08);
         font-size: 0; /* kill residual emoji spacing */
       }
-      #navDashboard .icon { background: linear-gradient(135deg,#dcd2ff,#c1b2ff); color:#4a3bd6; }
+      #navDashboard .icon { background: linear-gradient(135deg,#bae6fd,#bae6fd); color:#075985; }
       #navPost      .icon { background: linear-gradient(135deg,#ffd6e1,#ffb7c6); color:#d1477a; }
       #navSession   .icon { background: linear-gradient(135deg,#c7f0ea,#a2e6de); color:#2a9b8a; }
       #navSpy       .icon { background: linear-gradient(135deg,#ffe2c4,#ffc98a); color:#c9822f; }
@@ -1471,29 +1471,29 @@
         background: linear-gradient(135deg,#ffe2c4,#ffc98a);
         color: #b8691c;
       }
-      .sidebar-footer { border-top-color: rgba(124,102,255,0.08); }
+      .sidebar-footer { border-top-color: rgba(14,165,233,0.08); }
 
       /* Theme toggle button */
       .theme-toggle {
-        background: linear-gradient(135deg, #efeaff, #e4dcff);
-        color: #6b5bff;
-        box-shadow: 0 2px 8px rgba(124,102,255,0.10);
+        background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+        color: #0ea5e9;
+        box-shadow: 0 2px 8px rgba(14,165,233,0.10);
       }
-      .theme-toggle:hover { background: linear-gradient(135deg, #e4dcff, #d4c8ff); }
+      .theme-toggle:hover { background: linear-gradient(135deg, #bae6fd, #bae6fd); }
 
       /* Profile cards: rounded + shadow */
       .profile-card {
         border: none;
         border-radius: 14px;
         background: #fff;
-        box-shadow: 0 4px 14px rgba(124,102,255,0.07);
+        box-shadow: 0 4px 14px rgba(14,165,233,0.07);
       }
       .profile-card:hover {
-        box-shadow: 0 8px 22px rgba(124,102,255,0.14);
+        box-shadow: 0 8px 22px rgba(14,165,233,0.14);
       }
       .profile-card .avatar {
-        background: linear-gradient(135deg,#efeaff,#ddd2ff);
-        color: #6b5bff;
+        background: linear-gradient(135deg,#e0f2fe,#bae6fd);
+        color: #0ea5e9;
         border-radius: 10px;
       }
 
@@ -1503,37 +1503,37 @@
         padding: 4px !important;
         background: rgba(255,255,255,0.7);
         border-radius: 14px;
-        box-shadow: 0 2px 10px rgba(124,102,255,0.06);
+        box-shadow: 0 2px 10px rgba(14,165,233,0.06);
       }
       .acc-tab {
         border-radius: 10px;
         margin-bottom: 0;
         padding: 7px 14px;
       }
-      .acc-tab:hover { color: #6b5bff; background: rgba(124,102,255,0.05); }
+      .acc-tab:hover { color: #0ea5e9; background: rgba(14,165,233,0.05); }
       .acc-tab.active {
-        background: linear-gradient(135deg,#7c66ff,#a78bfa);
+        background: linear-gradient(135deg,#0ea5e9,#7dd3fc);
         color: #fff !important;
         border-bottom-color: transparent;
-        box-shadow: 0 4px 12px rgba(124,102,255,0.28);
+        box-shadow: 0 4px 12px rgba(14,165,233,0.28);
       }
 
       /* Panel cards (channels, groups, profile channel list) rounded + shadow */
       #panelChannels > div[style*="background:#fff"] {
         border: none !important;
         border-radius: 16px !important;
-        box-shadow: 0 4px 16px rgba(124,102,255,0.07);
+        box-shadow: 0 4px 16px rgba(14,165,233,0.07);
       }
 
       /* Dashboard summary tiles rounded */
       #pageDashboard div[style*="background:#f0fdf4"],
       #pageDashboard div[style*="background:#eff6ff"],
       #pageDashboard div[style*="background:#fef2f2"],
-      #pageDashboard div[style*="background:#fdf4ff"],
+      #pageDashboard div[style*="background:#f0f9ff"],
       #pageDashboard div[style*="background:#fff"] {
         border: none !important;
         border-radius: 14px !important;
-        box-shadow: 0 4px 14px rgba(124,102,255,0.07);
+        box-shadow: 0 4px 14px rgba(14,165,233,0.07);
       }
 
       /* Channel platform toggle: gradient when checked */
@@ -1541,43 +1541,43 @@
         border-radius: 10px;
       }
       .channel-platform-toggle.checked {
-        background: linear-gradient(135deg,#7c66ff,#a78bfa);
+        background: linear-gradient(135deg,#0ea5e9,#7dd3fc);
         border-color: transparent;
-        box-shadow: 0 4px 12px rgba(124,102,255,0.25);
+        box-shadow: 0 4px 12px rgba(14,165,233,0.25);
       }
 
       /* Generic form inputs rounded */
       #panelChannels input[type="text"] { border-radius: 10px !important; }
 
       /* Buttons inside session panel (Thêm tài khoản / + Thêm) */
-      button[style*="background:#4f46e5"] {
-        background: linear-gradient(135deg,#7c66ff,#a78bfa) !important;
-        box-shadow: 0 4px 12px rgba(124,102,255,0.26);
+      button[style*="background:#0369a1"] {
+        background: linear-gradient(135deg,#0ea5e9,#7dd3fc) !important;
+        box-shadow: 0 4px 12px rgba(14,165,233,0.26);
         border-radius: 10px !important;
       }
 
       /* Typing indicator dots purple */
-      .typing span { background: #7c66ff; }
+      .typing span { background: #0ea5e9; }
     }
 
     /* Desktop dark-mode alignment with purple theme */
     @media (min-width: 769px) {
       [data-theme="dark"] body {
         background:
-          radial-gradient(1100px 600px at 100% -10%, rgba(124,102,255,0.15) 0%, rgba(124,102,255,0) 60%),
-          linear-gradient(180deg, #13132a 0%, #1a1a2e 60%, #1a1a2e 100%);
+          radial-gradient(1100px 600px at 100% -10%, rgba(14,165,233,0.15) 0%, rgba(14,165,233,0) 60%),
+          linear-gradient(180deg, #0c1a2e 0%, #1a1a2e 60%, #1a1a2e 100%);
       }
-      [data-theme="dark"] .header { background: rgba(22,23,43,0.78); border-bottom-color: rgba(124,102,255,0.15); }
-      [data-theme="dark"] .input-area { background: rgba(22,23,43,0.55); border-top-color: rgba(124,102,255,0.15); }
+      [data-theme="dark"] .header { background: rgba(22,23,43,0.78); border-bottom-color: rgba(14,165,233,0.15); }
+      [data-theme="dark"] .input-area { background: rgba(22,23,43,0.55); border-top-color: rgba(14,165,233,0.15); }
       [data-theme="dark"] .sidebar {
         background: linear-gradient(180deg, #16172b 0%, #1a1a2e 100%);
-        border-right-color: rgba(124,102,255,0.12);
+        border-right-color: rgba(14,165,233,0.12);
       }
-      [data-theme="dark"] .sidebar-item .icon { background: #2a2a4a; color: #a78bfa; }
+      [data-theme="dark"] .sidebar-item .icon { background: #2a2a4a; color: #7dd3fc; }
       [data-theme="dark"] .profile-card { background: #1e1e3a; }
       [data-theme="dark"] .acc-tab-bar { background: rgba(30,30,58,0.55); }
       [data-theme="dark"] .msg.bot { background: #1e1e3a; box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
-      [data-theme="dark"] .msg-btn { background: #1e1e3a; border-color: #3a3a5a; color: #a78bfa; }
+      [data-theme="dark"] .msg-btn { background: #1e1e3a; border-color: #3a3a5a; color: #7dd3fc; }
     }
 
     /* ================================================================
@@ -1588,9 +1588,9 @@
     :root {
       --xk-ink: #0f0f1a;
       --xk-ink-soft: #1a1a2e;
-      --xk-primary: #4f46e5;
-      --xk-primary-2: #6c63ff;
-      --xk-primary-d: #3a2fd0;
+      --xk-primary: #0369a1;
+      --xk-primary-2: #0ea5e9;
+      --xk-primary-d: #075985;
       --xk-glass-bg: rgba(255,255,255,0.62);
       --xk-glass-edge: rgba(255,255,255,0.7);
       --xk-glass-shadow:
@@ -1630,7 +1630,7 @@
     .sidebar-item.active {
       background: var(--xk-primary) !important;
       color: #fff !important;
-      box-shadow: 0 6px 16px rgba(79,70,229,0.45);
+      box-shadow: 0 6px 16px rgba(3,105,161,0.45);
     }
     .sidebar-item .icon {
       background: rgba(255,255,255,0.10) !important;
@@ -1664,7 +1664,7 @@
       padding: 12px 18px;
     }
     .header-info h1 { color: var(--xk-ink) !important; }
-    .header-info span { color: #6b6790 !important; }
+    .header-info span { color: #506580 !important; }
     .header-emoji {
       background: var(--xk-ink) !important;
       color: #fff !important;
@@ -1723,7 +1723,7 @@
     }
     .input-area input[type="text"]:focus {
       border-color: var(--xk-primary) !important;
-      box-shadow: 0 0 0 3px rgba(79,70,229,0.12) !important;
+      box-shadow: 0 0 0 3px rgba(3,105,161,0.12) !important;
     }
     .btn-attach {
       background: rgba(255,255,255,0.8) !important;
@@ -1734,7 +1734,7 @@
     .btn-send {
       background: var(--xk-primary) !important;
       color: #fff !important;
-      box-shadow: 0 8px 22px rgba(79,70,229,0.32) !important;
+      box-shadow: 0 8px 22px rgba(3,105,161,0.32) !important;
     }
     .btn-send:hover { background: var(--xk-primary-d) !important; }
     .btn-send:disabled {
@@ -1770,8 +1770,8 @@
       color: var(--xk-ink) !important;
     }
     .pc-btn-login {
-      background: rgba(79,70,229,0.10) !important;
-      border-color: rgba(79,70,229,0.20) !important;
+      background: rgba(3,105,161,0.10) !important;
+      border-color: rgba(3,105,161,0.20) !important;
       color: var(--xk-primary) !important;
     }
     .pc-btn-login.pc-btn-zalo {
@@ -1794,12 +1794,12 @@
       border-radius: 14px;
       box-shadow: 0 4px 14px rgba(15,15,26,0.05);
     }
-    .acc-tab { color: #6b6790 !important; }
+    .acc-tab { color: #506580 !important; }
     .acc-tab:hover { background: rgba(255,255,255,0.5); color: var(--xk-ink) !important; }
     .acc-tab.active {
       background: var(--xk-primary) !important;
       color: #fff !important;
-      box-shadow: 0 4px 12px rgba(79,70,229,0.28) !important;
+      box-shadow: 0 4px 12px rgba(3,105,161,0.28) !important;
       border-bottom-color: transparent !important;
     }
 
@@ -1818,11 +1818,11 @@
       border-color: var(--xk-glass-edge) !important;
     }
 
-    /* PRIMARY BUTTONS (any inline #4f46e5) → solid indigo with shadow */
-    button[style*="background:#4f46e5"],
-    button[style*="background: #4f46e5"] {
+    /* PRIMARY BUTTONS (any inline #0369a1) → solid indigo with shadow */
+    button[style*="background:#0369a1"],
+    button[style*="background: #0369a1"] {
       background: var(--xk-primary) !important;
-      box-shadow: 0 6px 16px rgba(79,70,229,0.28) !important;
+      box-shadow: 0 6px 16px rgba(3,105,161,0.28) !important;
       border-radius: 10px !important;
     }
 
@@ -1839,7 +1839,7 @@
     #pageDashboard div[style*="background:#f0fdf4"],
     #pageDashboard div[style*="background:#eff6ff"],
     #pageDashboard div[style*="background:#fef2f2"],
-    #pageDashboard div[style*="background:#fdf4ff"] {
+    #pageDashboard div[style*="background:#f0f9ff"] {
       background: var(--xk-glass-bg) !important;
       backdrop-filter: blur(18px) saturate(180%);
       -webkit-backdrop-filter: blur(18px) saturate(180%);
@@ -1866,7 +1866,7 @@
       box-shadow: 0 8px 20px rgba(15,15,26,0.20) !important;
     }
     .mhome-title { color: var(--xk-ink) !important; }
-    .mhome-hello { color: #6b6790 !important; }
+    .mhome-hello { color: #506580 !important; }
 
     /* Image preview */
     .image-preview {
@@ -1885,9 +1885,9 @@
     /* DARK mode adjustments — giữ tinh thần glass đen */
     [data-theme="dark"] body {
       background:
-        radial-gradient(36rem 28rem at 100% 0%, rgba(80,60,140,0.30) 0%, transparent 55%),
-        radial-gradient(34rem 26rem at 0% 100%, rgba(40,30,80,0.30) 0%, transparent 55%),
-        linear-gradient(180deg, #0a0a16 0%, #13132a 100%) !important;
+        radial-gradient(36rem 28rem at 100% 0%, rgba(7,89,133,0.30) 0%, transparent 55%),
+        radial-gradient(34rem 26rem at 0% 100%, rgba(12,37,64,0.30) 0%, transparent 55%),
+        linear-gradient(180deg, #0a0a16 0%, #0c1a2e 100%) !important;
     }
     [data-theme="dark"] .header {
       background: rgba(20,20,40,0.55) !important;
@@ -1917,46 +1917,46 @@
     /* ================================================================
        PRODIFY v6 — Lavender Blue / Purple Illusion / Perrywinkle palette.
        Reference Prodify (Akansha Gupta) — 6 hex codes user-provided:
-         #FCFCFE Pale Grey  · #E7E9EF Diamond Cut  · #CAC8F9 Lavender Blue
-         #C3C1C1 Stonewall  · #B2AEF2 Purple Illusion · #928DDD Perrywinkle
+         #FCFCFE Pale Grey  · #E7E9EF Diamond Cut  · #bae6fd Lavender Blue
+         #C3C1C1 Stonewall  · #7dd3fc Purple Illusion · #38bdf8 Perrywinkle
        Áp dụng cả mobile + desktop.
        ================================================================ */
     :root {
-      --xk-primary: #928DDD;          /* Perrywinkle */
-      --xk-primary-2: #B2AEF2;        /* Purple Illusion */
-      --xk-primary-d: #7B75CC;        /* deeper hover/active */
-      --xk-primary-soft: rgba(146, 141, 221, 0.12);
-      --xk-primary-shadow: rgba(146, 141, 221, 0.32);
-      --xk-surface-violet: #5b54a8;
+      --xk-primary: #38bdf8;          /* Perrywinkle */
+      --xk-primary-2: #7dd3fc;        /* Purple Illusion */
+      --xk-primary-d: #0284c7;        /* deeper hover/active */
+      --xk-primary-soft: rgba(56, 189, 248, 0.12);
+      --xk-primary-shadow: rgba(56, 189, 248, 0.32);
+      --xk-surface-violet: #0369a1;
       /* CTA gradient (Perrywinkle → Purple Illusion) */
-      --xk-cta-gradient: linear-gradient(135deg, #928DDD 0%, #B2AEF2 100%);
-      --xk-cta-gradient-hover: linear-gradient(135deg, #7B75CC 0%, #928DDD 100%);
+      --xk-cta-gradient: linear-gradient(135deg, #38bdf8 0%, #7dd3fc 100%);
+      --xk-cta-gradient-hover: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
       /* Accent mint (giữ cho success/ONLINE) */
       --xk-accent-mint: #10b981;
       --xk-accent-mint-soft: rgba(16, 185, 129, 0.12);
       /* Named Prodify shades — sẵn dùng */
       --xk-pale-grey: #FCFCFE;
       --xk-diamond-cut: #E7E9EF;
-      --xk-lavender-blue: #CAC8F9;
+      --xk-lavender-blue: #bae6fd;
     }
 
     /* Sidebar — Lavender Blue → Purple Illusion gradient (theo Prodify) */
     .sidebar {
-      background: linear-gradient(180deg, #CAC8F9 0%, #B2AEF2 100%) !important;
-      box-shadow: 0 12px 40px rgba(146, 141, 221, 0.20) !important;
+      background: linear-gradient(180deg, #bae6fd 0%, #7dd3fc 100%) !important;
+      box-shadow: 0 12px 40px rgba(56, 189, 248, 0.20) !important;
     }
     /* Text trên nền lavender medium — dark indigo cho contrast tốt */
     .sidebar-logo span { color: #1e1b4b !important; }
-    .sidebar-section { color: #312e81 !important; opacity: 0.75; }
+    .sidebar-section { color: #075985 !important; opacity: 0.75; }
     .sidebar-item { color: #1e1b4b !important; font-weight: 500; }
     .sidebar-item:hover {
       background: rgba(255, 255, 255, 0.30) !important;
-      color: #312e81 !important;
+      color: #075985 !important;
     }
     /* Active pill: Perrywinkle deep với chữ trắng — pop trên nền lavender */
     .sidebar-item.active {
       background: var(--xk-primary-d) !important;
-      box-shadow: 0 6px 18px rgba(123, 117, 204, 0.40) !important;
+      box-shadow: 0 6px 18px rgba(2, 132, 199, 0.40) !important;
       color: #fff !important;
     }
     .sidebar-item .icon {
@@ -1972,7 +1972,7 @@
       color: var(--xk-primary-d) !important;
     }
     .sidebar-footer { border-top-color: rgba(255, 255, 255, 0.30) !important; }
-    .sidebar-footer .footer-text { color: #312e81 !important; opacity: 0.85; }
+    .sidebar-footer .footer-text { color: #075985 !important; opacity: 0.85; }
     .msg.user {
       background: var(--xk-cta-gradient) !important;
       box-shadow: 0 8px 22px var(--xk-primary-shadow) !important;
@@ -1995,7 +1995,7 @@
       color: var(--xk-primary) !important;
     }
 
-    /* Indigo CTA (#4f46e5) → vibrant violet */
+    /* Indigo CTA (#0369a1) → vibrant violet */
     .btn-send {
       background: var(--xk-cta-gradient) !important;
       box-shadow: 0 8px 22px var(--xk-primary-shadow) !important;
@@ -2007,7 +2007,7 @@
     }
     .pc-btn-login {
       background: var(--xk-primary-soft) !important;
-      border-color: rgba(146, 141, 221, 0.22) !important;
+      border-color: rgba(56, 189, 248, 0.22) !important;
       color: var(--xk-primary) !important;
     }
     .msg .link { color: var(--xk-primary) !important; }
@@ -2022,10 +2022,10 @@
     .input-area input[type="text"]:focus,
     .input-area #msgInput:focus {
       border-color: var(--xk-primary) !important;
-      box-shadow: 0 0 0 3px rgba(146, 141, 221, 0.20) !important;
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.20) !important;
     }
-    button[style*="background:#4f46e5"],
-    button[style*="background: #4f46e5"] {
+    button[style*="background:#0369a1"],
+    button[style*="background: #0369a1"] {
       background: var(--xk-cta-gradient) !important;
       box-shadow: 0 6px 16px var(--xk-primary-shadow) !important;
     }
@@ -2039,18 +2039,18 @@
        ================================================================ */
     :root {
       /* Brand — Sky */
-      --xk-primary: #8b85ed;            /* periwinkle accent */
-      --xk-primary-2: #b39ef0;          /* gradient end (lavender) */
-      --xk-primary-d: #6b62c8;          /* hover/focus, text trên bg sáng */
-      --xk-primary-soft: rgba(139, 133, 237, 0.06);
-      --xk-primary-soft-2: rgba(139, 133, 237, 0.14);
-      --xk-primary-shadow: rgba(139, 133, 237, 0.30);
-      --xk-brand-border: rgba(139, 133, 237, 0.22);
+      --xk-primary: #38bdf8;            /* periwinkle accent */
+      --xk-primary-2: #7dd3fc;          /* gradient end (lavender) */
+      --xk-primary-d: #0284c7;          /* hover/focus, text trên bg sáng */
+      --xk-primary-soft: rgba(56, 189, 248, 0.06);
+      --xk-primary-soft-2: rgba(56, 189, 248, 0.14);
+      --xk-primary-shadow: rgba(56, 189, 248, 0.30);
+      --xk-brand-border: rgba(56, 189, 248, 0.22);
       /* Periwinkle → soft violet — tím nhiều hơn xanh */
-      --xk-cta-gradient: linear-gradient(135deg, #8b85ed 0%, #b39ef0 100%);
-      --xk-cta-gradient-hover: linear-gradient(135deg, #7868c4 0%, #9b85d8 100%);
+      --xk-cta-gradient: linear-gradient(135deg, #38bdf8 0%, #7dd3fc 100%);
+      --xk-cta-gradient-hover: linear-gradient(135deg, #0284c7 0%, #0284c7 100%);
       /* Logo gradient — periwinkle deep → violet, đủ đậm để clip text */
-      --xk-logo-gradient: linear-gradient(135deg, #6b62c8 0%, #8b6dd1 100%);
+      --xk-logo-gradient: linear-gradient(135deg, #0284c7 0%, #0284c7 100%);
 
       /* Surfaces (glassmorphism) */
       --xk-sky-surface: rgba(255, 255, 255, 0.78);
@@ -2089,8 +2089,8 @@
       background:
         radial-gradient(circle at 0% 0%, #eff6ff 0%, transparent 55%),
         radial-gradient(circle at 100% 20%, #f0f9ff 0%, transparent 55%),
-        radial-gradient(circle at 50% 100%, #f5f3ff 0%, transparent 55%),
-        linear-gradient(160deg, #fafdff, #fcfbff) !important;
+        radial-gradient(circle at 50% 100%, #f0f9ff 0%, transparent 55%),
+        linear-gradient(160deg, #fafdff, #f0f9ff) !important;
       background-attachment: fixed !important;
     }
 
@@ -2112,7 +2112,7 @@
       letter-spacing: -0.01em;
     }
     .sidebar-section {
-      color: #8a85b8 !important;
+      color: #38bdf8 !important;
       opacity: 1 !important;
       letter-spacing: 0.06em;
       text-transform: uppercase;
@@ -2120,13 +2120,13 @@
       font-weight: 700 !important;
     }
     .sidebar-item {
-      color: #4a4570 !important;
+      color: #0c2540 !important;
       font-weight: 600 !important;
       border-left: 2px solid transparent;
       transition: background 150ms ease, color 150ms ease;
     }
     .sidebar-item:hover {
-      background: rgba(139, 133, 237, 0.06) !important;
+      background: rgba(56, 189, 248, 0.06) !important;
       color: var(--xk-primary-d) !important;
     }
     .sidebar-item.active {
@@ -2136,16 +2136,16 @@
       box-shadow: none !important;
     }
     .sidebar-item .icon {
-      background: rgba(139, 133, 237, 0.10) !important;
-      color: #6b62c8 !important;
+      background: rgba(56, 189, 248, 0.10) !important;
+      color: #0284c7 !important;
       box-shadow: none !important;
     }
     .sidebar-item:hover .icon {
-      background: rgba(139, 133, 237, 0.18) !important;
+      background: rgba(56, 189, 248, 0.18) !important;
       color: var(--xk-primary-d) !important;
     }
     .sidebar-item.active .icon {
-      background: rgba(139, 133, 237, 0.22) !important;
+      background: rgba(56, 189, 248, 0.22) !important;
       color: var(--xk-primary-d) !important;
     }
     .sidebar-item .badge {
@@ -2158,7 +2158,7 @@
       border-top-color: var(--xk-sky-border) !important;
     }
     .sidebar-footer .footer-text {
-      color: #8a85b8 !important;
+      color: #38bdf8 !important;
       opacity: 1 !important;
     }
     .sidebar-footer #currentUserBox {
@@ -2171,7 +2171,7 @@
       color: var(--xk-primary-d) !important;
     }
     .sidebar-footer #currentUserRole {
-      color: #8a85b8 !important;
+      color: #38bdf8 !important;
     }
 
     /* HEADER — Sky glass, ko cần margin nổi như cũ */
@@ -2378,15 +2378,15 @@
       border-color: var(--xk-sky-border) !important;
     }
 
-    /* PRIMARY BUTTONS — bất cứ inline #4f46e5 → Sky CTA */
-    button[style*="background:#4f46e5"],
-    button[style*="background: #4f46e5"] {
+    /* PRIMARY BUTTONS — bất cứ inline #0369a1 → Sky CTA */
+    button[style*="background:#0369a1"],
+    button[style*="background: #0369a1"] {
       background: var(--xk-cta-gradient) !important;
       box-shadow: var(--xk-shadow-cta) !important;
       border-radius: 8px !important;
     }
-    button[style*="background:#4f46e5"]:hover,
-    button[style*="background: #4f46e5"]:hover {
+    button[style*="background:#0369a1"]:hover,
+    button[style*="background: #0369a1"]:hover {
       background: var(--xk-cta-gradient-hover) !important;
     }
 
@@ -2403,7 +2403,7 @@
     #pageDashboard div[style*="background:#f0fdf4"],
     #pageDashboard div[style*="background:#eff6ff"],
     #pageDashboard div[style*="background:#fef2f2"],
-    #pageDashboard div[style*="background:#fdf4ff"] {
+    #pageDashboard div[style*="background:#f0f9ff"] {
       background: var(--xk-sky-surface) !important;
       backdrop-filter: blur(14px) saturate(180%) !important;
       -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
@@ -2456,7 +2456,7 @@
     [data-theme="dark"] body {
       background:
         radial-gradient(circle at 0% 0%, rgba(127, 168, 232, 0.08) 0%, transparent 55%),
-        radial-gradient(circle at 100% 100%, rgba(197, 181, 240, 0.08) 0%, transparent 55%),
+        radial-gradient(circle at 100% 100%, rgba(186, 230, 253, 0.08) 0%, transparent 55%),
         linear-gradient(180deg, #0a1220 0%, #0f1a2e 100%) !important;
     }
     [data-theme="dark"] .header,
@@ -2629,14 +2629,14 @@
       </button>
     </div>
     <div class="sidebar-footer">
-      <div id="currentUserBox" style="display:none; padding:10px 12px; background:#f5f3ff; border-radius:10px; font-size:12px;">
+      <div id="currentUserBox" style="display:none; padding:10px 12px; background:#f0f9ff; border-radius:10px; font-size:12px;">
         <div style="display:flex; align-items:center; gap:8px;">
-          <div style="width:28px; height:28px; border-radius:50%; background:#4f46e5; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;" id="currentUserAvatar">?</div>
+          <div style="width:28px; height:28px; border-radius:50%; background:#0369a1; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;" id="currentUserAvatar">?</div>
           <div style="flex:1; min-width:0;">
-            <div id="currentUserEmail" style="font-weight:600; color:#4f46e5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">-</div>
+            <div id="currentUserEmail" style="font-weight:600; color:#0369a1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">-</div>
             <div id="currentUserRole" style="color:#888; font-size:11px;">-</div>
           </div>
-          <button onclick="logoutXeko()" title="Đăng xuất" style="padding:4px 8px; background:#fff; border:1px solid #e0d4ff; border-radius:6px; cursor:pointer; font-size:11px; color:#4f46e5;">↪</button>
+          <button onclick="logoutXeko()" title="Đăng xuất" style="padding:4px 8px; background:#fff; border:1px solid #bae6fd; border-radius:6px; cursor:pointer; font-size:11px; color:#0369a1;">↪</button>
         </div>
       </div>
     </div>
@@ -2686,12 +2686,12 @@
   <div class="page active" id="pageDangBai">
   <div class="header">
     <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
-    <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#6b5bff;"><svg class="xi xi-md"><use href="#ic-post"/></svg></div>
+    <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#0ea5e9;"><svg class="xi xi-md"><use href="#ic-post"/></svg></div>
     <div class="header-info">
       <h1>Đăng bài</h1>
       <span id="headerStatus">Đăng bài tự động</span>
     </div>
-    <button id="btnChangeProfile" onclick="showProfileSelect()" style="display:none;margin-left:auto;padding:5px 12px;border-radius:8px;border:1px solid #e0d4ff;background:#f5f0ff;color:#6b5bff;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;"><svg class="xi xi-sm" aria-hidden="true"><use href="#ic-user"/></svg> Đổi Profile</button>
+    <button id="btnChangeProfile" onclick="showProfileSelect()" style="display:none;margin-left:auto;padding:5px 12px;border-radius:8px;border:1px solid #bae6fd;background:#f0f9ff;color:#0ea5e9;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;"><svg class="xi xi-sm" aria-hidden="true"><use href="#ic-user"/></svg> Đổi Profile</button>
   </div>
 
   <div class="chat-area" id="chatArea"></div>
@@ -2715,7 +2715,7 @@
   <div class="page" id="pageSession">
     <div class="header">
       <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
-      <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#6b5bff;"><svg class="xi xi-md"><use href="#ic-users"/></svg></div>
+      <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#0ea5e9;"><svg class="xi xi-md"><use href="#ic-users"/></svg></div>
       <div class="header-info">
         <h1>Quản lý tài khoản</h1>
         <span>Quản lý profile Chromium - Facebook</span>
@@ -2736,7 +2736,7 @@
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
           <h3 style="font-size:15px; color:#1e1e2e; flex:1;">Profile Chromium đã đăng nhập</h3>
           <button onclick="openAddAccountModal()"
-            style="padding:8px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer;">
+            style="padding:8px 16px; background:#0369a1; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer;">
             ➕ Thêm tài khoản
           </button>
         </div>
@@ -2758,14 +2758,14 @@
 
         <!-- Gán kênh cho từng Profile -->
         <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px; margin-bottom:16px;">
-          <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:4px; display:flex; align-items:center; gap:8px;"><svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-user"/></svg> Gán kênh cho từng Profile</h3>
+          <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:4px; display:flex; align-items:center; gap:8px;"><svg class="xi xi-md" style="color:#0ea5e9;"><use href="#ic-user"/></svg> Gán kênh cho từng Profile</h3>
           <p style="font-size:12px; color:#999; margin-bottom:14px;">Chọn profile bên trái rồi tick các kênh muốn tự động đăng bài.</p>
           <div id="profileChannelError" style="color:#e53e3e; font-size:13px; display:none; margin-bottom:10px;">Lỗi tải danh sách profile</div>
           <div id="profileChannelMaster" style="display:grid; grid-template-columns:240px 1fr; gap:14px; min-height:320px;">
             <!-- Sidebar -->
-            <div id="profileSidebar" class="profile-sidebar" style="background:#f8f6ff; border:1px solid #e8e4ff; border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:4px; overflow-y:auto; max-height:560px;"></div>
+            <div id="profileSidebar" class="profile-sidebar" style="background:#f0f9ff; border:1px solid #e0f2fe; border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:4px; overflow-y:auto; max-height:560px;"></div>
             <!-- Detail panel -->
-            <div id="profileDetail" style="background:#fcfbff; border:1px solid #e8e4ff; border-radius:10px; padding:16px; min-height:320px;">
+            <div id="profileDetail" style="background:#f0f9ff; border:1px solid #e0f2fe; border-radius:10px; padding:16px; min-height:320px;">
               <p style="color:#999; font-size:13px; margin:0;">Chưa có profile nào.</p>
             </div>
           </div>
@@ -2775,23 +2775,23 @@
         <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:18px;">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
             <h3 style="font-size:15px; color:#1e1e2e; margin:0; display:flex; align-items:center; gap:8px;">
-              <svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-chat"/></svg> Danh sách group
+              <svg class="xi xi-md" style="color:#0ea5e9;"><use href="#ic-chat"/></svg> Danh sách group
             </h3>
             <div style="display:flex; gap:6px; align-items:center;">
-              <div class="group-filter-tabs" style="display:flex; gap:4px; background:#f3f0ff; padding:3px; border-radius:10px;">
+              <div class="group-filter-tabs" style="display:flex; gap:4px; background:#f0f9ff; padding:3px; border-radius:10px;">
                 <button onclick="setGroupFilter('all')" data-filter="all" class="group-filter-tab active"
-                  style="padding:6px 14px; border:none; background:#fff; color:#4f46e5; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer; box-shadow:0 1px 3px rgba(124,102,255,0.15);">Tất cả</button>
+                  style="padding:6px 14px; border:none; background:#fff; color:#0369a1; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer; box-shadow:0 1px 3px rgba(14,165,233,0.15);">Tất cả</button>
                 <button onclick="setGroupFilter('fb')" data-filter="fb" class="group-filter-tab"
                   style="padding:6px 14px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Facebook</button>
                 <button onclick="setGroupFilter('zalo')" data-filter="zalo" class="group-filter-tab"
                   style="padding:6px 14px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Zalo</button>
               </div>
               <select id="groupCategoryFilter" onchange="setGroupCategoryFilter(this.value)"
-                style="padding:7px 10px; border:1px solid #e0d4ff; border-radius:8px; background:#fff; color:#4f46e5; font-size:12px; font-weight:600; cursor:pointer; min-width:140px;">
+                style="padding:7px 10px; border:1px solid #bae6fd; border-radius:8px; background:#fff; color:#0369a1; font-size:12px; font-weight:600; cursor:pointer; min-width:140px;">
                 <option value="">Tất cả phân loại</option>
               </select>
               <button onclick="openGroupModal('add')"
-                style="padding:8px 14px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;">+ Thêm group</button>
+                style="padding:8px 14px; background:#0369a1; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;">+ Thêm group</button>
             </div>
           </div>
           <div id="groupsTableWrap" style="overflow-x:auto;">
@@ -2818,10 +2818,10 @@
         <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:18px;">
           <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
             <h3 style="font-size:15px; color:#1e1e2e; margin:0; flex:1; display:flex; align-items:center; gap:8px;">
-              <svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-globe"/></svg> Danh sách IP Proxy
+              <svg class="xi xi-md" style="color:#0ea5e9;"><use href="#ic-globe"/></svg> Danh sách IP Proxy
             </h3>
             <button onclick="openProxyModal('add')"
-              style="padding:8px 14px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">+ Thêm proxy</button>
+              style="padding:8px 14px; background:#0369a1; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">+ Thêm proxy</button>
           </div>
           <p style="font-size:12px; color:#999; margin:-4px 0 12px;">Quản lý IP proxy và gán cho tài khoản trong modal "Thêm/Sửa tài khoản".</p>
           <div id="proxiesTableWrap" style="overflow-x:auto;">
@@ -2850,7 +2850,7 @@
           <select id="historyFilter" onchange="loadLoginHistory()" style="padding:6px 12px; border-radius:6px; border:1px solid #ddd; font-size:13px; background:#fff;">
             <option value="">Tất cả profile</option>
           </select>
-          <button onclick="loadLoginHistory()" style="padding:6px 14px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; font-size:13px; cursor:pointer; color:#4f46e5; display:inline-flex; align-items:center; gap:6px;">
+          <button onclick="loadLoginHistory()" style="padding:6px 14px; background:#e0f2fe; border:1px solid #bae6fd; border-radius:6px; font-size:13px; cursor:pointer; color:#0369a1; display:inline-flex; align-items:center; gap:6px;">
             <svg class="xi"><use href="#ic-refresh"/></svg> Làm mới
           </button>
         </div>
@@ -2864,7 +2864,7 @@
   <div class="page" id="pageSpyBaiViet">
     <div class="header">
       <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
-      <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#6b5bff;"><svg class="xi xi-md"><use href="#ic-search"/></svg></div>
+      <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#0ea5e9;"><svg class="xi xi-md"><use href="#ic-search"/></svg></div>
       <div class="header-info">
         <h1>Spy bài viết</h1>
         <span>Tính năng đang phát triển</span>
@@ -2872,7 +2872,7 @@
     </div>
     <div style="flex:1; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px; color:#999;">
       <div style="font-size:64px;">🔍</div>
-      <h2 style="color:#6c5ce7;">Spy bài viết</h2>
+      <h2 style="color:#0ea5e9;">Spy bài viết</h2>
       <p style="max-width:400px; text-align:center; line-height:1.6;">
         Tính năng theo dõi và phân tích bài viết từ các đối thủ, group, fanpage.<br>
         Sắp ra mắt trong phiên bản tiếp theo!
@@ -2884,7 +2884,7 @@
   <div class="page" id="pagePermissions">
     <div class="header">
       <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
-      <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#6b5bff;"><svg class="xi xi-md"><use href="#ic-key"/></svg></div>
+      <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#0ea5e9;"><svg class="xi xi-md"><use href="#ic-key"/></svg></div>
       <div class="header-info">
         <h1>Phân quyền</h1>
         <span>Gán user (email basso.vn) → profile FB được phép quản lý</span>
@@ -2895,7 +2895,7 @@
      <div style="max-width:1200px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
         <h2 style="margin:0; font-size:18px;">Danh sách user Xeko</h2>
-        <button onclick="openPermissionModal()" style="padding:10px 18px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:6px;">
+        <button onclick="openPermissionModal()" style="padding:10px 18px; background:#0369a1; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:6px;">
           <svg class="xi"><use href="#ic-plus"/></svg> Thêm user
         </button>
       </div>
@@ -2967,7 +2967,7 @@
 
       <div style="display:flex; gap:10px; justify-content:flex-end;">
         <button onclick="closePermissionModal()" style="padding:10px 18px; background:#f3f4f6; color:#555; border:1px solid #ddd; border-radius:8px; font-size:14px; cursor:pointer;">Huỷ</button>
-        <button onclick="savePermission()" style="padding:10px 18px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-weight:600;">Lưu</button>
+        <button onclick="savePermission()" style="padding:10px 18px; background:#0369a1; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-weight:600;">Lưu</button>
       </div>
     </div>
   </div>
@@ -2976,7 +2976,7 @@
   <div class="page" id="pageDashboard">
     <div class="header">
       <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
-      <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#6b5bff;"><svg class="xi xi-md"><use href="#ic-dash"/></svg></div>
+      <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#0ea5e9;"><svg class="xi xi-md"><use href="#ic-dash"/></svg></div>
       <div class="header-info">
         <h1>Dashboard</h1>
         <span>Thống kê</span>
@@ -2986,7 +2986,7 @@
     <!-- Thống kê -->
     <div id="dashPanelStats" style="flex:1; overflow-y:auto; padding:20px;">
       <!-- Lời chào -->
-      <div id="dashGreeting" style="display:none; margin-bottom:18px; padding:14px 18px; background:linear-gradient(135deg,#f5f3ff 0%,#ede9fe 100%); border:1px solid #e0d4ff; border-radius:12px; font-size:15px; color:#4a3bd6; font-weight:600;"></div>
+      <div id="dashGreeting" style="display:none; margin-bottom:18px; padding:14px 18px; background:linear-gradient(135deg,#f0f9ff 0%,#e0f2fe 100%); border:1px solid #bae6fd; border-radius:12px; font-size:15px; color:#075985; font-weight:600;"></div>
 
       <!-- Summary Cards -->
       <div id="dashSummary" style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px;">
@@ -3005,9 +3005,9 @@
           <div id="statFail" style="font-size:28px; font-weight:700; color:#dc2626;">0</div>
           <div style="font-size:11px; color:#999;">hôm nay</div>
         </div>
-        <div class="dash-card" style="background:#fdf4ff; border:1px solid #f0abfc; border-radius:12px; padding:16px;">
+        <div class="dash-card" style="background:#f0f9ff; border:1px solid #7dd3fc; border-radius:12px; padding:16px;">
           <div style="font-size:12px; color:#666; margin-bottom:4px;">Tổng cộng</div>
-          <div id="statTotal" style="font-size:28px; font-weight:700; color:#a855f7;">0</div>
+          <div id="statTotal" style="font-size:28px; font-weight:700; color:#0ea5e9;">0</div>
           <div style="font-size:11px; color:#999;">tất cả</div>
         </div>
       </div>
@@ -3028,7 +3028,7 @@
               <option value="60">60 ngày</option>
             </select>
             <div style="display:flex; gap:4px;">
-              <button onclick="setChartType('bar')" id="chartTypeBar" style="padding:5px 10px; border:1px solid transparent; border-radius:6px; background:linear-gradient(135deg, #8b85ed 0%, #b39ef0 100%); color:#fff; font-size:12px; cursor:pointer; font-weight:600; box-shadow:0 3px 10px rgba(139, 133, 237, 0.30);">Bar</button>
+              <button onclick="setChartType('bar')" id="chartTypeBar" style="padding:5px 10px; border:1px solid transparent; border-radius:6px; background:linear-gradient(135deg, #38bdf8 0%, #7dd3fc 100%); color:#fff; font-size:12px; cursor:pointer; font-weight:600; box-shadow:0 3px 10px rgba(56, 189, 248, 0.30);">Bar</button>
               <button onclick="setChartType('line')" id="chartTypeLine" style="padding:5px 10px; border:1px solid #d8dde6; border-radius:6px; background:#fff; color:#506580; font-size:12px; cursor:pointer; font-weight:600;">Line</button>
             </div>
           </div>
@@ -3108,7 +3108,7 @@
           <svg style="position:absolute; left:9px; color:#9ca3af; pointer-events:none;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" id="dashFilterSearch" placeholder="Tìm kiếm..." onkeydown="if(event.key==='Enter')loadDashHistory()" style="padding:8px 12px 8px 30px; border:1px solid #ddd; border-radius:8px; font-size:13px; width:100%; box-sizing:border-box;">
         </div>
-        <button onclick="loadDashHistory()" style="padding:8px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:13px;">Lọc</button>
+        <button onclick="loadDashHistory()" style="padding:8px 16px; background:#0369a1; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:13px;">Lọc</button>
       </div>
 
       <!-- Bulk action bar (hiện khi chọn >= 1 hàng) -->
@@ -3176,13 +3176,13 @@
         <input type="password" id="editPassword" placeholder="Để trống nếu không đổi" autocomplete="new-password" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
       </div>
       <div style="margin-bottom:16px;">
-        <label style="font-size:13px; font-weight:600; color:#555; margin-bottom:4px; display:flex; align-items:center; gap:6px;"><svg class="xi" style="color:#6b5bff;"><use href="#ic-globe"/></svg> IP Proxy</label>
+        <label style="font-size:13px; font-weight:600; color:#555; margin-bottom:4px; display:flex; align-items:center; gap:6px;"><svg class="xi" style="color:#0ea5e9;"><use href="#ic-globe"/></svg> IP Proxy</label>
         <select id="editProxyId" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; background:#fff;"></select>
         <p style="font-size:11px; color:#888; margin:4px 0 0;">Quản lý danh sách proxy ở tab "IP Proxy".</p>
       </div>
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button onclick="closeEditModal()" style="padding:8px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
-        <button onclick="saveProfile()" style="padding:8px 20px; border:none; border-radius:8px; background:#4f46e5; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">💾 Lưu</button>
+        <button onclick="saveProfile()" style="padding:8px 20px; border:none; border-radius:8px; background:#0369a1; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">💾 Lưu</button>
       </div>
     </div>
   </div>
@@ -3191,7 +3191,7 @@
   <div id="proxyModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
     <div style="background:#fff; border-radius:16px; padding:24px; width:440px; max-width:92%; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-        <h3 id="proxyModalTitle" style="font-size:16px; color:#1e1e2e; margin:0; display:flex; align-items:center; gap:8px;"><svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-globe"/></svg> Thêm IP Proxy</h3>
+        <h3 id="proxyModalTitle" style="font-size:16px; color:#1e1e2e; margin:0; display:flex; align-items:center; gap:8px;"><svg class="xi xi-md" style="color:#0ea5e9;"><use href="#ic-globe"/></svg> Thêm IP Proxy</h3>
         <button onclick="closeProxyModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999; line-height:1; padding:0 4px;">×</button>
       </div>
       <input type="hidden" id="proxyEditId">
@@ -3231,7 +3231,7 @@
       </div>
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button onclick="closeProxyModal()" style="padding:9px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
-        <button onclick="saveProxyFromModal()" style="padding:9px 20px; border:none; border-radius:8px; background:#4f46e5; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">Lưu</button>
+        <button onclick="saveProxyFromModal()" style="padding:9px 20px; border:none; border-radius:8px; background:#0369a1; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">Lưu</button>
       </div>
     </div>
   </div>
@@ -3280,11 +3280,11 @@
         </div>
       </div>
       <div style="margin-bottom:14px;">
-        <label style="font-size:13px; font-weight:600; color:#555; margin-bottom:4px; display:flex; align-items:center; gap:6px;"><svg class="xi" style="color:#6b5bff;"><use href="#ic-globe"/></svg> IP Proxy (tuỳ chọn)</label>
+        <label style="font-size:13px; font-weight:600; color:#555; margin-bottom:4px; display:flex; align-items:center; gap:6px;"><svg class="xi" style="color:#0ea5e9;"><use href="#ic-globe"/></svg> IP Proxy (tuỳ chọn)</label>
         <select id="newAccProxyId" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; background:#fff;"></select>
         <p style="font-size:11px; color:#888; margin:4px 0 0;">Quản lý danh sách proxy ở tab "IP Proxy".</p>
       </div>
-      <button onclick="addNewAccount()" style="width:100%; padding:12px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer; margin-top:4px; box-sizing:border-box;">
+      <button onclick="addNewAccount()" style="width:100%; padding:12px; background:#0369a1; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer; margin-top:4px; box-sizing:border-box;">
         ➕ Thêm và đăng nhập
       </button>
       <p id="newAccNote" style="font-size:12px; color:#999; margin-top:10px; margin-bottom:0;">
@@ -3306,7 +3306,7 @@
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Loại group</label>
         <div style="display:flex; gap:8px;">
           <button type="button" onclick="setGroupModalType('fb')" id="groupModalTypeFb"
-            style="flex:1; padding:10px; border:1px solid #e0d4ff; border-radius:8px; background:#f3f0ff; color:#4f46e5; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+            style="flex:1; padding:10px; border:1px solid #bae6fd; border-radius:8px; background:#f0f9ff; color:#0369a1; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
             <img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:16px;height:16px;"> Facebook
           </button>
           <button type="button" onclick="setGroupModalType('zalo')" id="groupModalTypeZalo"
@@ -3346,7 +3346,7 @@
 
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button onclick="closeGroupModal()" style="padding:9px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
-        <button onclick="saveGroupFromModal()" id="groupModalSaveBtn" style="padding:9px 20px; border:none; border-radius:8px; background:#4f46e5; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">💾 Lưu</button>
+        <button onclick="saveGroupFromModal()" id="groupModalSaveBtn" style="padding:9px 20px; border:none; border-radius:8px; background:#0369a1; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">💾 Lưu</button>
       </div>
     </div>
   </div>
@@ -3403,8 +3403,8 @@
       <!-- Buttons -->
       <div style="display:flex; gap:10px; justify-content:flex-end; border-top:1px solid #f3f4f6; padding-top:18px;">
         <button onclick="closeRepostModal()" style="padding:10px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:14px; cursor:pointer; color:#555; font-weight:500;">Huỷ</button>
-        <button onclick="toggleRepostEdit()" id="repostEditBtn" style="padding:10px 20px; border:1px solid #7c66ff; border-radius:8px; background:#fff; font-size:14px; cursor:pointer; color:#7c66ff; font-weight:600;">✏️ Chỉnh sửa</button>
-        <button onclick="submitRepost()" id="repostSubmitBtn" style="padding:10px 24px; border:none; border-radius:8px; background:#7c66ff; color:#fff; font-size:14px; cursor:pointer; font-weight:600;">🔄 Repost</button>
+        <button onclick="toggleRepostEdit()" id="repostEditBtn" style="padding:10px 20px; border:1px solid #0ea5e9; border-radius:8px; background:#fff; font-size:14px; cursor:pointer; color:#0ea5e9; font-weight:600;">✏️ Chỉnh sửa</button>
+        <button onclick="submitRepost()" id="repostSubmitBtn" style="padding:10px 24px; border:none; border-radius:8px; background:#0ea5e9; color:#fff; font-size:14px; cursor:pointer; font-weight:600;">🔄 Repost</button>
       </div>
     </div>
   </div>
@@ -3871,7 +3871,7 @@
         <span class="ch-tag fb">FB</span>
       </label>`;
       panelHtml += `<div id="customGroupInput_${pid}" style="display:none; padding:4px 14px 10px 38px;">
-        <input type="text" id="customGroupId_${pid}" placeholder="Nhập Group ID, cách nhau bởi dấu phẩy..." autocomplete="off" style="width:100%; padding:7px 12px; border-radius:8px; border:1px solid #e0d4ff; font-size:13px; background:#faf8ff; color:#333;">
+        <input type="text" id="customGroupId_${pid}" placeholder="Nhập Group ID, cách nhau bởi dấu phẩy..." autocomplete="off" style="width:100%; padding:7px 12px; border-radius:8px; border:1px solid #bae6fd; font-size:13px; background:#f0f9ff; color:#333;">
       </div>`;
 
       // Zalo channels
@@ -3886,7 +3886,7 @@
 
       // Action buttons
       panelHtml += `<div class="msg-buttons" style="margin-top:12px;">
-        <button class="msg-btn" style="background:#4f46e5;color:#fff;font-weight:600;" onclick="confirmChannelSelection(${pid})">${xekoIcon('check')} Tiếp tục</button>
+        <button class="msg-btn" style="background:#0369a1;color:#fff;font-weight:600;" onclick="confirmChannelSelection(${pid})">${xekoIcon('check')} Tiếp tục</button>
         <button class="msg-btn" onclick="showModeSelect()">${xekoIcon('refresh')} Đổi chế độ</button>
       </div>`;
 
@@ -4173,7 +4173,7 @@
     ['dragenter', 'dragover'].forEach(evt => {
       document.body.addEventListener(evt, (e) => {
         e.preventDefault();
-        chatArea.style.border = '2px dashed #6c5ce7';
+        chatArea.style.border = '2px dashed #0ea5e9';
       });
     });
     ['dragleave', 'drop'].forEach(evt => {
@@ -4829,7 +4829,7 @@
       const MAX_STRIPS = 3;
 
       const escHtml = s => (s == null ? '' : String(s)).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
-      const statusColor = s => s === 'done' ? '#16a34a' : s === 'pending' ? '#d97706' : s === 'running' ? '#4f46e5' : s === 'error' ? '#dc2626' : '#9ca3af';
+      const statusColor = s => s === 'done' ? '#16a34a' : s === 'pending' ? '#d97706' : s === 'running' ? '#0369a1' : s === 'error' ? '#dc2626' : '#9ca3af';
       const platIcon = () => '📘';
 
       // Bucket events theo ngày và sort theo giờ
@@ -4855,7 +4855,7 @@
         const list = byDay.get(key) || [];
         const isToday = key === todayKey;
         const bg = isToday ? '#eef2ff' : '#fff';
-        const border = isToday ? '#4f46e5' : '#eee';
+        const border = isToday ? '#0369a1' : '#eee';
         const clickable = list.length > 0;
 
         let body = '';
@@ -4892,7 +4892,7 @@
         }
 
         html += `<div ${clickable ? `onclick="calShowDay('${key}')"` : ''} style="min-height:${CELL_H}px; border:1px solid ${border}; border-radius:8px; padding:6px; background:${bg}; cursor:${clickable ? 'pointer' : 'default'}; display:flex; flex-direction:column; gap:4px; overflow:hidden;">
-          <div style="font-size:12px; color:${isToday ? '#4f46e5' : '#333'}; font-weight:${isToday ? '700' : '500'};">${day}</div>
+          <div style="font-size:12px; color:${isToday ? '#0369a1' : '#333'}; font-weight:${isToday ? '700' : '500'};">${day}</div>
           ${body}
         </div>`;
       }
@@ -4922,7 +4922,7 @@
                 ? `<span style="background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:6px; font-size:11px;" title="${(e.error||'').replace(/"/g,'&quot;')}">Lỗi</span>`
                 : e.status === 'pending'
                 ? '<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:6px; font-size:11px;">Chờ đăng</span>'
-                : '<span style="background:#eef2ff; color:#4f46e5; padding:2px 8px; border-radius:6px; font-size:11px;">Đang chạy</span>';
+                : '<span style="background:#eef2ff; color:#0369a1; padding:2px 8px; border-radius:6px; font-size:11px;">Đang chạy</span>';
               const thumbs = (e.images && e.images.length)
                 ? `<div style="display:flex; gap:3px; margin-top:6px;">${e.images.slice(0,4).map(u => `<a href="${u}" target="_blank"><img src="${u}" style="width:36px; height:36px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px;"></a>`).join('')}${e.images.length > 4 ? `<span style="font-size:11px; color:#666; align-self:center;">+${e.images.length - 4}</span>` : ''}</div>`
                 : '';
@@ -4935,7 +4935,7 @@
                 </div>
                 ${e.message ? `<div style="font-size:13px; color:#333; margin-top:6px;">${e.message}</div>` : ''}
                 ${thumbs}
-                ${e.postUrl ? `<div style="margin-top:6px;"><a href="${e.postUrl}" target="_blank" style="color:#4f46e5; font-size:12px;">🔗 Xem bài</a></div>` : ''}
+                ${e.postUrl ? `<div style="margin-top:6px;"><a href="${e.postUrl}" target="_blank" style="color:#0369a1; font-size:12px;">🔗 Xem bài</a></div>` : ''}
               </div>`;
             }).join('')}
           </div>
@@ -5093,8 +5093,8 @@
 
     function openProxyModal(mode, id) {
       document.getElementById('proxyModalTitle').innerHTML = mode === 'edit'
-        ? '<svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-globe"/></svg> Sửa IP Proxy'
-        : '<svg class="xi xi-md" style="color:#6b5bff;"><use href="#ic-globe"/></svg> Thêm IP Proxy';
+        ? '<svg class="xi xi-md" style="color:#0ea5e9;"><use href="#ic-globe"/></svg> Sửa IP Proxy'
+        : '<svg class="xi xi-md" style="color:#0ea5e9;"><use href="#ic-globe"/></svg> Thêm IP Proxy';
       document.getElementById('proxyEditId').value = id || '';
       let p = { label: '', host: '', port: '', user: '', pass: '', purchaseDate: '' };
       if (mode === 'edit' && id) {
@@ -5204,7 +5204,7 @@
         fbContainer.innerHTML = data.facebook.map(p => {
           const proxyStr = p.proxy || '';
           const proxyHtml = proxyStr
-            ? ` · <span style="display:inline-flex; align-items:center; gap:4px; color:#6b5bff;">${xekoIcon('globe')} ${escapeHtml(proxyDisplay(proxyStr))}</span>`
+            ? ` · <span style="display:inline-flex; align-items:center; gap:4px; color:#0ea5e9;">${xekoIcon('globe')} ${escapeHtml(proxyDisplay(proxyStr))}</span>`
             : '';
           return `
           <div class="profile-card">
@@ -5238,7 +5238,7 @@
               ${data.zalo.map(z => {
                 const zproxyStr = z.proxy || '';
                 const zproxyHtml = zproxyStr
-                  ? ` · <span style="display:inline-flex; align-items:center; gap:4px; color:#6b5bff;">${xekoIcon('globe')} ${escapeHtml(proxyDisplay(zproxyStr))}</span>`
+                  ? ` · <span style="display:inline-flex; align-items:center; gap:4px; color:#0ea5e9;">${xekoIcon('globe')} ${escapeHtml(proxyDisplay(zproxyStr))}</span>`
                   : '';
                 return `
                 <div class="profile-card">
@@ -5448,7 +5448,7 @@
                 <div style="font-weight:600; font-size:15px; color:#1e1e2e;">${r.name}</div>
                 <div style="font-size:13px; color:${s.color}; margin-top:2px;">${s.label} - ${r.message}</div>
               </div>
-              ${r.status === 'expired' ? `<button onclick="loginProfile('${r.profile}')" style="padding:8px 16px; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer;">🔑 Đăng nhập lại</button>` : ''}
+              ${r.status === 'expired' ? `<button onclick="loginProfile('${r.profile}')" style="padding:8px 16px; background:#0369a1; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer;">🔑 Đăng nhập lại</button>` : ''}
             </div>`;
         });
 
@@ -5565,7 +5565,7 @@
 
         const typeConfig = {
           login: { icon: '🔑', color: '#16a34a', label: 'Đăng nhập' },
-          session_check: { icon: '✅', color: '#4f46e5', label: 'Kiểm tra session' },
+          session_check: { icon: '✅', color: '#0369a1', label: 'Kiểm tra session' },
           session_expired: { icon: '❌', color: '#dc2626', label: 'Session hết hạn' },
           post_success: { icon: '📝', color: '#16a34a', label: 'Đăng bài' },
           post_error: { icon: '💥', color: '#dc2626', label: 'Lỗi đăng bài' },
@@ -5685,10 +5685,10 @@
           ? `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e8f1ff; color:#1877f2; border-radius:20px; font-size:11px; font-weight:600;"><img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:12px;height:12px;">FB</span>`
           : `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e6f2ff; color:#0068ff; border-radius:20px; font-size:11px; font-weight:600;"><svg class="xi" style="width:12px;height:12px;"><use href="#ic-chat"/></svg>Zalo</span>`;
         const sub = isFb ? `ID: ${escapeHtml(g.id)}` : `Salework: ${escapeHtml(g.oid)}`;
-        const keyColor = isFb ? '#4f46e5' : '#0068ff';
+        const keyColor = isFb ? '#0369a1' : '#0068ff';
         const category = g.category ? escapeHtml(g.category) : '<span style="color:#bbb; font-style:italic;">—</span>';
         return `
-          <tr style="background:#f8f6ff;">
+          <tr style="background:#f0f9ff;">
             <td style="padding:10px; border-top-left-radius:8px; border-bottom-left-radius:8px;">${typeBadge}</td>
             <td style="padding:10px; font-weight:700; color:${keyColor}; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px;" title="${escapeHtml(g.key)}">${escapeHtml(g.key)}</td>
             <td style="padding:10px; min-width:0;">
@@ -5698,7 +5698,7 @@
             <td style="padding:10px; font-size:12px; color:#555;">${category}</td>
             <td style="padding:10px; text-align:right; border-top-right-radius:8px; border-bottom-right-radius:8px; white-space:nowrap;">
               <button onclick="openGroupModal('edit','${g._type}','${escapeHtml(g.key)}')" title="Chỉnh sửa"
-                style="padding:5px 9px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; color:#4f46e5; font-size:12px; cursor:pointer; margin-right:4px;">✏️</button>
+                style="padding:5px 9px; background:#e0f2fe; border:1px solid #bae6fd; border-radius:6px; color:#0369a1; font-size:12px; cursor:pointer; margin-right:4px;">✏️</button>
               <button onclick="deleteGroup('${g._type}','${escapeHtml(g.key)}')" title="Xoá"
                 style="padding:5px 9px; background:#fff0f0; border:1px solid #fecaca; border-radius:6px; color:#e53e3e; font-size:12px; cursor:pointer;">🗑</button>
             </td>
@@ -5712,8 +5712,8 @@
       document.querySelectorAll('.group-filter-tab').forEach(btn => {
         const active = btn.dataset.filter === type;
         btn.style.background = active ? '#fff' : 'transparent';
-        btn.style.color = active ? '#4f46e5' : '#777';
-        btn.style.boxShadow = active ? '0 1px 3px rgba(124,102,255,0.15)' : 'none';
+        btn.style.color = active ? '#0369a1' : '#777';
+        btn.style.boxShadow = active ? '0 1px 3px rgba(14,165,233,0.15)' : 'none';
         btn.classList.toggle('active', active);
       });
       renderGroupsTable();
@@ -5781,7 +5781,7 @@
       const idLabel = document.getElementById('groupModalIdLabel');
       const idInput = document.getElementById('groupModalId');
       if (type === 'fb') {
-        fbBtn.style.background = '#f3f0ff'; fbBtn.style.color = '#4f46e5'; fbBtn.style.borderColor = '#e0d4ff';
+        fbBtn.style.background = '#f0f9ff'; fbBtn.style.color = '#0369a1'; fbBtn.style.borderColor = '#bae6fd';
         zaloBtn.style.background = '#fff'; zaloBtn.style.color = '#777'; zaloBtn.style.borderColor = '#ddd';
         idLabel.textContent = 'Group ID (từ URL Facebook)';
         idInput.placeholder = 'vd: 350987965423767';
@@ -5879,11 +5879,11 @@
         return `
           <button type="button" onclick="selectAccountProfile('${escapeHtml(p.key)}')"
             style="display:flex; align-items:center; gap:8px; padding:9px 10px; border:none; border-radius:8px; cursor:pointer; text-align:left;
-              background:${active ? '#fff' : 'transparent'}; box-shadow:${active ? '0 2px 8px rgba(124,102,255,0.12)' : 'none'};
-              font-size:13px; font-weight:${active ? '600' : '500'}; color:${active ? '#4f46e5' : '#444'};">
-            <span style="width:6px; height:6px; border-radius:50%; background:${active ? '#7c66ff' : '#d0c7ff'}; flex-shrink:0;"></span>
+              background:${active ? '#fff' : 'transparent'}; box-shadow:${active ? '0 2px 8px rgba(14,165,233,0.12)' : 'none'};
+              font-size:13px; font-weight:${active ? '600' : '500'}; color:${active ? '#0369a1' : '#444'};">
+            <span style="width:6px; height:6px; border-radius:50%; background:${active ? '#0ea5e9' : '#bae6fd'}; flex-shrink:0;"></span>
             <span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span>
-            <span style="font-size:10.5px; color:${active ? '#7c66ff' : '#aaa'}; font-weight:600; white-space:nowrap;">${fbCount}·${zaloCount}</span>
+            <span style="font-size:10.5px; color:${active ? '#0ea5e9' : '#aaa'}; font-weight:600; white-space:nowrap;">${fbCount}·${zaloCount}</span>
           </button>
         `;
       }).join('');
@@ -5918,7 +5918,7 @@
 
       detail.innerHTML = `
         <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
-          <div style="font-size:15px; font-weight:600; color:#4f46e5; display:flex; align-items:center; gap:6px; min-width:0;">
+          <div style="font-size:15px; font-weight:600; color:#0369a1; display:flex; align-items:center; gap:6px; min-width:0;">
             ${xekoIcon('user')} <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(p.name)}</span>
           </div>
           <div style="display:flex; align-items:center; gap:6px;">
@@ -5932,9 +5932,9 @@
         <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
           <input type="text" id="profileDetailSearchInput" value="${escapeHtml(profileDetailSearch)}" placeholder="🔍 Tìm group..."
             oninput="profileDetailSearch = this.value; renderProfileDetailSections();"
-            style="flex:1; min-width:180px; padding:7px 12px; border:1px solid #e0d4ff; border-radius:8px; font-size:13px; background:#fff;">
+            style="flex:1; min-width:180px; padding:7px 12px; border:1px solid #bae6fd; border-radius:8px; font-size:13px; background:#fff;">
           <select onchange="profileDetailCategoryFilter = this.value; renderProfileDetailSections();"
-            style="padding:7px 10px; border:1px solid #e0d4ff; border-radius:8px; background:#fff; color:#4f46e5; font-size:12px; font-weight:600; cursor:pointer; min-width:140px;">
+            style="padding:7px 10px; border:1px solid #bae6fd; border-radius:8px; background:#fff; color:#0369a1; font-size:12px; font-weight:600; cursor:pointer; min-width:140px;">
             ${catOpts}
           </select>
         </div>
@@ -5992,17 +5992,17 @@
         const icon = isFb
           ? `<img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:13px;height:13px;">`
           : `<svg class="xi" style="width:13px;height:13px; color:#0068ff;"><use href="#ic-chat"/></svg>`;
-        const accent = isFb ? '#4f46e5' : '#0068ff';
+        const accent = isFb ? '#0369a1' : '#0068ff';
         return `
           <div style="margin-bottom:14px;">
-            <div style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:${accent}; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; padding-bottom:4px; border-bottom:1px dashed ${isFb ? '#e0d4ff' : '#b3d0ff'};">
+            <div style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:${accent}; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; padding-bottom:4px; border-bottom:1px dashed ${isFb ? '#bae6fd' : '#b3d0ff'};">
               ${icon} ${escapeHtml(label)}
             </div>
             <div style="display:flex; flex-direction:column; gap:2px;">
               ${s.items.map(g => {
                 const checked = isFb ? assignedFb.has(g.key) : assignedZalo.has(g.key);
                 const sub = isFb ? (g.id || '') : ('Salework: ' + (g.oid || ''));
-                const bg = checked ? (isFb ? '#f3f0ff' : '#e6f2ff') : 'transparent';
+                const bg = checked ? (isFb ? '#f0f9ff' : '#e6f2ff') : 'transparent';
                 return `
                   <label style="display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:6px; cursor:pointer; user-select:none; background:${bg};">
                     <input type="checkbox" ${checked ? 'checked' : ''}
@@ -6356,12 +6356,12 @@
     // ===== Dashboard Chart =====
     let _dashChart = null;
     let _chartType = 'bar';
-    const CHART_PALETTE = ['#8b85ed','#b39ef0','#a78bfa','#06b6d4','#10b981','#f59e0b','#ec4899','#f97316'];
+    const CHART_PALETTE = ['#38bdf8','#7dd3fc','#7dd3fc','#06b6d4','#10b981','#f59e0b','#ec4899','#f97316'];
 
     function setChartType(type) {
       _chartType = type;
-      const SKY_ACTIVE_BG = 'linear-gradient(135deg, #8b85ed 0%, #b39ef0 100%)';
-      const SKY_ACTIVE_SHADOW = '0 3px 10px rgba(139, 133, 237, 0.30)';
+      const SKY_ACTIVE_BG = 'linear-gradient(135deg, #38bdf8 0%, #7dd3fc 100%)';
+      const SKY_ACTIVE_SHADOW = '0 3px 10px rgba(56, 189, 248, 0.30)';
       document.getElementById('chartTypeBar').style.background   = type === 'bar'  ? SKY_ACTIVE_BG : '#fff';
       document.getElementById('chartTypeBar').style.color        = type === 'bar'  ? '#fff'        : '#506580';
       document.getElementById('chartTypeBar').style.borderColor  = type === 'bar'  ? 'transparent' : '#d8dde6';
@@ -6556,8 +6556,8 @@
             ? '<span style="background:#dbeafe; color:#1d4ed8; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">⚡ Đang đăng</span>'
             : '<span style="background:#fff7ed; color:#c2410c; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">⏳ Chờ đăng</span>';
           const rowBg = isRunning ? '#eff6ff' : '#f8f7ff';
-          return `<tr id="schedRow-${sched.id}" style="border-bottom:1px solid #e8e4ff; background:${rowBg}; border-left:3px solid #a5b4fc;">
-            <td style="padding:10px 10px; text-align:center; color:#a5b4fc; font-size:15px;">⏰</td>
+          return `<tr id="schedRow-${sched.id}" style="border-bottom:1px solid #e0f2fe; background:${rowBg}; border-left:3px solid #7dd3fc;">
+            <td style="padding:10px 10px; text-align:center; color:#7dd3fc; font-size:15px;">⏰</td>
             <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
             <td style="padding:10px 12px; font-size:12px; white-space:nowrap;">${sched.profile || '-'}</td>
             <td style="padding:10px 12px; font-size:12px;">FB</td>
@@ -6589,7 +6589,7 @@
           window._dashRows = histRows;
 
           // Tính batch_id nào xuất hiện nhiều hơn 1 lần → gán màu
-          const BATCH_COLORS = ['#7c66ff','#06b6d4','#f59e0b','#10b981','#ef4444','#8b5cf6','#ec4899'];
+          const BATCH_COLORS = ['#0ea5e9','#06b6d4','#f59e0b','#10b981','#ef4444','#0ea5e9','#ec4899'];
           const batchCount = {};
           histRows.forEach(r => { if (r.batch_id) batchCount[r.batch_id] = (batchCount[r.batch_id] || 0) + 1; });
           const batchColorMap = {};
@@ -6641,7 +6641,7 @@
               <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
               <td style="padding:8px 10px; text-align:center; position:relative;">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
-                  <button onclick="openRepostModal(${idx})" title="Repost" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #7c66ff;border-radius:7px;background:#fff;color:#7c66ff;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#7c66ff';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#7c66ff'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
+                  <button onclick="openRepostModal(${idx})" title="Repost" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #0ea5e9;border-radius:7px;background:#fff;color:#0ea5e9;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#0ea5e9';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#0ea5e9'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
                   <button onclick="openSingleDeleteConfirm(${row.id})" title="Xóa" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #fca5a5;border-radius:7px;background:#fff;color:#ef4444;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
                 </div>
               </td>
@@ -6701,7 +6701,7 @@
       const row = document.getElementById('dashRow-' + id);
       if (cb.checked) {
         _dashSelectedIds.add(id);
-        if (row) row.style.background = '#f5f3ff';
+        if (row) row.style.background = '#f0f9ff';
       } else {
         _dashSelectedIds.delete(id);
         if (row) row.style.background = '';
@@ -6854,12 +6854,12 @@
         const sel = _isChannelSelected(opt);
         return `<div onclick="_toggleRepostChannel(${i})"
           style="display:flex; align-items:center; gap:10px; padding:9px 14px; cursor:pointer; font-size:13px;
-            background:${sel ? '#f0eeff' : '#fff'}; border-bottom:1px solid #f3f4f6; transition:background 0.1s;"
-          onmouseover="this.style.background='${sel ? '#ebe6ff' : '#fafafa'}'" onmouseout="this.style.background='${sel ? '#f0eeff' : '#fff'}'">
-          <span style="width:16px; height:16px; border-radius:4px; border:2px solid ${sel ? '#7c66ff' : '#d1d5db'}; background:${sel ? '#7c66ff' : '#fff'}; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.15s;">
+            background:${sel ? '#e0f2fe' : '#fff'}; border-bottom:1px solid #f3f4f6; transition:background 0.1s;"
+          onmouseover="this.style.background='${sel ? '#e0f2fe' : '#fafafa'}'" onmouseout="this.style.background='${sel ? '#e0f2fe' : '#fff'}'">
+          <span style="width:16px; height:16px; border-radius:4px; border:2px solid ${sel ? '#0ea5e9' : '#d1d5db'}; background:${sel ? '#0ea5e9' : '#fff'}; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.15s;">
             ${sel ? '<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
           </span>
-          <span style="flex:1; font-weight:${sel ? '600' : '400'}; color:${sel ? '#4f46e5' : '#333'};">${opt.label}</span>
+          <span style="flex:1; font-weight:${sel ? '600' : '400'}; color:${sel ? '#0369a1' : '#333'};">${opt.label}</span>
           ${opt.sub ? `<span style="font-size:11px; color:#999; flex-shrink:0;">${opt.sub}</span>` : ''}
         </div>`;
       }).join('');
@@ -6980,7 +6980,7 @@
       const addBtn = _repostEditMode
         ? `<button type="button" onclick="document.getElementById('repostImageInput').value=''; document.getElementById('repostImageInput').click()"
             style="width:72px; height:72px; border:2px dashed #d1d5db; border-radius:8px; background:#fafafa; color:#9ca3af; font-size:24px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:border-color 0.15s;"
-            onmouseover="this.style.borderColor='#7c66ff'; this.style.color='#7c66ff';"
+            onmouseover="this.style.borderColor='#0ea5e9'; this.style.color='#0ea5e9';"
             onmouseout="this.style.borderColor='#d1d5db'; this.style.color='#9ca3af';">+</button>`
         : '';
 
@@ -7236,7 +7236,7 @@
               <h1 style="color:#dc2626; margin:0 0 16px;">🔒 Chưa được phân quyền</h1>
               <p style="color:#555; line-height:1.6;">Tài khoản <code style="background:#f3f4f6; padding:4px 8px; border-radius:4px;">${data.email || ''}</code> chưa được cấp quyền sử dụng Xeko.</p>
               <p style="color:#555;">Vui lòng liên hệ admin Xeko để được phân quyền.</p>
-              <p><a href="/admin/dashboard.html" style="color:#4f46e5;">← Quay lại basso.vn</a></p>
+              <p><a href="/admin/dashboard.html" style="color:#0369a1;">← Quay lại basso.vn</a></p>
             </div>
           </div>`;
           return false;
@@ -7334,7 +7334,7 @@
       tbody.innerHTML = users.map(u => {
         const isSuper = u.email === superAdmin;
         const roleBadge = u.isXekoAdmin
-          ? '<span style="background:#ede9fe; color:#4f46e5; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;">Admin Xeko</span>'
+          ? '<span style="background:#e0f2fe; color:#0369a1; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;">Admin Xeko</span>'
           : '<span style="background:#f3f4f6; color:#555; padding:3px 10px; border-radius:12px; font-size:12px;">User</span>';
         const profileText = u.allProfiles
           ? '<em style="color:#16a34a;">Tất cả profile</em>'
@@ -7342,8 +7342,8 @@
             ? u.profiles.map(k => profileNameMap[k] || k).join(', ')
             : '<em style="color:#999;">— chưa gán —</em>');
         const actions = isSuper
-          ? `<button onclick="editPermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; font-size:12px; cursor:pointer; color:#4f46e5;">Sửa tên</button>`
-          : `<button onclick="editPermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#f0edff; border:1px solid #e0d4ff; border-radius:6px; font-size:12px; cursor:pointer; color:#4f46e5; margin-right:6px;">Sửa</button>
+          ? `<button onclick="editPermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#e0f2fe; border:1px solid #bae6fd; border-radius:6px; font-size:12px; cursor:pointer; color:#0369a1;">Sửa tên</button>`
+          : `<button onclick="editPermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#e0f2fe; border:1px solid #bae6fd; border-radius:6px; font-size:12px; cursor:pointer; color:#0369a1; margin-right:6px;">Sửa</button>
              <button onclick="deletePermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#fee2e2; border:1px solid #fecaca; border-radius:6px; font-size:12px; cursor:pointer; color:#dc2626;">Xoá</button>`;
         const nameDisplay = u.name ? escapeHtml(u.name) : '<em style="color:#999;">—</em>';
         return `<tr style="border-bottom:1px solid #f3f4f6;">
