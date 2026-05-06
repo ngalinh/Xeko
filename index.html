@@ -6666,7 +6666,7 @@
             <td style="padding:10px 12px;">${thumbs}</td>
             <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
             <td style="padding:8px 10px; text-align:center;">
-              <button onclick="cancelScheduleFromTable(${sched.id})" title="Hủy lịch đăng" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #fca5a5;border-radius:7px;background:#fff;color:#ef4444;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
+              <button onclick="cancelScheduleFromTable(${sched.id})" title="Hủy lịch đăng" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
             </td>
           </tr>`;
         }).join('');
@@ -6740,8 +6740,8 @@
               <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
               <td style="padding:8px 10px; text-align:center; position:relative;">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
-                  <button onclick="openRepostModal(${idx})" title="Repost" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #5046E5;border-radius:7px;background:#fff;color:#5046E5;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#5046E5';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#5046E5'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
-                  <button onclick="openSingleDeleteConfirm(${row.id})" title="Xóa" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #fca5a5;border-radius:7px;background:#fff;color:#ef4444;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
+                  <button onclick="openRepostModal(${idx})" title="Repost" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#E0DDFD;color:#5046E5;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#C5C0FB'" onmouseout="this.style.background='#E0DDFD'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
+                  <button onclick="openSingleDeleteConfirm(${row.id})" title="Xóa" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
                 </div>
               </td>
             </tr>`;
