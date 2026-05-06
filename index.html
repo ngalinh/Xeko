@@ -2542,6 +2542,20 @@
       background: #f3f4f6 !important;
       color: #9ca3af !important;
     }
+
+    /* === Mobile: groupsTable - hide PHÂN LOẠI col + compact widths === */
+    @media (max-width: 768px) {
+      #groupsTable th:nth-child(4),
+      #groupsTable td:nth-child(4) { display: none !important; }
+      #groupsTable th:nth-child(1),
+      #groupsTable td:nth-child(1) { width: 56px !important; padding: 8px 4px !important; }
+      #groupsTable th:nth-child(2),
+      #groupsTable td:nth-child(2) { width: 92px !important; max-width: 92px !important; padding: 8px 6px !important; }
+      #groupsTable th:nth-child(5),
+      #groupsTable td:nth-child(5) { width: 80px !important; padding: 8px 4px !important; }
+      #groupsTable td { font-size: 12px !important; }
+      #groupsTableWrap { overflow-x: hidden !important; }
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
@@ -2748,7 +2762,7 @@
       <h1>Đăng bài</h1>
       <span id="headerStatus">Đăng bài tự động</span>
     </div>
-    <button id="btnChangeProfile" onclick="showProfileSelect()" style="display:none;margin-left:auto;padding:5px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fafafa;color:#374151;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;"><svg class="xi xi-sm" aria-hidden="true"><use href="#ic-user"/></svg> Đổi Profile</button>
+    <button id="btnChangeProfile" onclick="showProfileSelect()" style="display:none;margin-left:auto;padding:5px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#ffffff;color:#374151;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;"><svg class="xi xi-sm" aria-hidden="true"><use href="#ic-user"/></svg> Đổi Profile</button>
   </div>
 
   <div class="chat-area" id="chatArea"></div>
@@ -5758,7 +5772,7 @@
         const keyColor = isFb ? '#635BFF' : '#5046E5';
         const category = g.category ? escapeHtml(g.category) : '<span style="color:#bbb; font-style:italic;">—</span>';
         return `
-          <tr style="background:#f0f9ff;">
+          <tr style="background:#fafafa;">
             <td style="padding:10px; border-top-left-radius:8px; border-bottom-left-radius:8px;">${typeBadge}</td>
             <td style="padding:10px; font-weight:700; color:${keyColor}; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px;" title="${escapeHtml(g.key)}">${escapeHtml(g.key)}</td>
             <td style="padding:10px; min-width:0;">
@@ -6645,7 +6659,7 @@
             <td style="padding:10px 12px;">${thumbs}</td>
             <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
             <td style="padding:8px 10px; text-align:center;">
-              <button onclick="cancelScheduleFromTable(${sched.id})" title="Hủy lịch đăng" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #fca5a5;border-radius:7px;background:#fff;color:#ef4444;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
+              <button onclick="cancelScheduleFromTable(${sched.id})" title="Hủy lịch đăng" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
             </td>
           </tr>`;
         }).join('');
@@ -6719,8 +6733,8 @@
               <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
               <td style="padding:8px 10px; text-align:center; position:relative;">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
-                  <button onclick="openRepostModal(${idx})" title="Repost" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #5046E5;border-radius:7px;background:#fff;color:#5046E5;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#5046E5';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#5046E5'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
-                  <button onclick="openSingleDeleteConfirm(${row.id})" title="Xóa" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #fca5a5;border-radius:7px;background:#fff;color:#ef4444;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
+                  <button onclick="openRepostModal(${idx})" title="Repost" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#E0DDFD;color:#5046E5;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#C5C0FB'" onmouseout="this.style.background='#E0DDFD'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
+                  <button onclick="openSingleDeleteConfirm(${row.id})" title="Xóa" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
                 </div>
               </td>
             </tr>`;
@@ -7388,8 +7402,8 @@
       tbody.innerHTML = users.map(u => {
         const isSuper = u.email === superAdmin;
         const roleBadge = u.isXekoAdmin
-          ? '<span style="background:#F0EFFC; color:#635BFF; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;">Admin Xeko</span>'
-          : '<span style="background:#f3f4f6; color:#555; padding:3px 10px; border-radius:12px; font-size:12px;">User</span>';
+          ? '<span style="background:#F0EFFC; color:#635BFF; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">Admin Xeko</span>'
+          : '<span style="background:#f3f4f6; color:#555; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">User</span>';
         const profileText = u.allProfiles
           ? '<em style="color:#16a34a;">Tất cả profile</em>'
           : (u.profiles && u.profiles.length
