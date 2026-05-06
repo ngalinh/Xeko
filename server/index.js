@@ -634,8 +634,10 @@ app.get('/api/accounts', async (req, res) => {
   }
 });
 
-// Lưu thông tin profile động vào file JSON
-const PROFILES_META_FILE = path.resolve(__dirname, './config/profiles-meta.json');
+// Lưu thông tin profile động vào file JSON (persistent volume)
+const PROFILES_META_FILE = process.env.XEKO_DATA_DIR
+  ? path.join(path.resolve(process.env.XEKO_DATA_DIR), 'data/profiles-meta.json')
+  : path.resolve(__dirname, '../data/profiles-meta.json');
 function loadProfilesMeta() {
   try {
     if (fs.existsSync(PROFILES_META_FILE)) return JSON.parse(fs.readFileSync(PROFILES_META_FILE, 'utf8'));
@@ -690,6 +692,60 @@ app.put('/api/accounts/:key', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// ===== Proxy List API =====
+// Danh sách proxy lưu trong data/proxies.json (persistent volume) — không dùng localStorage.
+const PROXY_LIST_FILE = process.env.XEKO_DATA_DIR
+  ? path.join(path.resolve(process.env.XEKO_DATA_DIR), 'data/proxies.json')
+  : path.resolve(__dirname, '../data/proxies.json');
+
+function loadProxyList() {
+  try {
+    if (fs.existsSync(PROXY_LIST_FILE)) return JSON.parse(fs.readFileSync(PROXY_LIST_FILE, 'utf8'));
+  } catch {}
+  return [];
+}
+function saveProxyList(list) {
+  const dir = path.dirname(PROXY_LIST_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(PROXY_LIST_FILE, JSON.stringify(list, null, 2));
+}
+
+app.get('/api/proxies', (req, res) => {
+  res.json(loadProxyList());
+});
+
+app.post('/api/proxies', (req, res) => {
+  const { label, host, port, user, pass, purchaseDate } = req.body;
+  if (!host || !port) return res.status(400).json({ error: 'Thiếu host hoặc port' });
+  const list = loadProxyList();
+  const id = 'px_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const proxy = { id, label: label || '', host, port, user: user || '', pass: pass || '', purchaseDate: purchaseDate || '' };
+  list.push(proxy);
+  saveProxyList(list);
+  res.status(201).json(proxy);
+});
+
+app.put('/api/proxies/:id', (req, res) => {
+  const { id } = req.params;
+  const { label, host, port, user, pass, purchaseDate } = req.body;
+  if (!host || !port) return res.status(400).json({ error: 'Thiếu host hoặc port' });
+  const list = loadProxyList();
+  const idx = list.findIndex(p => p.id === id);
+  if (idx < 0) return res.status(404).json({ error: 'Không tìm thấy proxy' });
+  list[idx] = { ...list[idx], label: label || '', host, port, user: user || '', pass: pass || '', purchaseDate: purchaseDate || '' };
+  saveProxyList(list);
+  res.json(list[idx]);
+});
+
+app.delete('/api/proxies/:id', (req, res) => {
+  const { id } = req.params;
+  const list = loadProxyList();
+  const filtered = list.filter(p => p.id !== id);
+  if (filtered.length === list.length) return res.status(404).json({ error: 'Không tìm thấy proxy' });
+  saveProxyList(filtered);
+  res.json({ success: true });
 });
 
 app.get('/api/login-history', (req, res) => {
