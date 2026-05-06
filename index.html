@@ -2536,6 +2536,12 @@
         border-right: 1px solid rgba(255,255,255,0.5) !important;
       }
     }
+
+    /* === Channel-item: tag chip grey out khi row chưa check === */
+    .channel-item:has(input[type="checkbox"]:not(:checked)) .ch-tag {
+      background: #f3f4f6 !important;
+      color: #9ca3af !important;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
