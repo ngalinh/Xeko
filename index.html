@@ -4721,6 +4721,7 @@
         loadDashboard();
       }
       if (pg === 'session') {
+        fetchProxies();
         renderProfileList();
       }
       if (pg === 'permissions') {
@@ -5006,16 +5007,22 @@
     }
 
     // ===== IP Proxy management =====
-    // Library danh sách proxy lưu localStorage. Khi gán cho account, ta gửi
-    // proxy string (host:port:user:pass) xuống backend — backend là nguồn
-    // sự thật của assignment, library chỉ là tiện ích chọn nhanh.
-    const PROXY_STORE_KEY = 'xeko.proxies.v1';
+    // Danh sách proxy lưu trên server (data/proxies.json, persistent volume).
+    // _proxiesCache là bản sao local để các hàm sync có thể dùng.
+    let _proxiesCache = [];
 
     function loadProxies() {
-      try { return JSON.parse(localStorage.getItem(PROXY_STORE_KEY) || '[]'); } catch { return []; }
+      return _proxiesCache;
     }
-    function saveProxies(list) {
-      localStorage.setItem(PROXY_STORE_KEY, JSON.stringify(list));
+    async function fetchProxies() {
+      try {
+        const res = await fetch(BASE_URL + '/api/proxies');
+        const data = await res.json();
+        _proxiesCache = Array.isArray(data) ? data : [];
+      } catch {
+        // giữ cache cũ nếu mạng lỗi
+      }
+      return _proxiesCache;
     }
     function proxyToString(p) {
       if (!p || !p.host || !p.port) return '';
@@ -5115,7 +5122,7 @@
     function closeProxyModal() {
       document.getElementById('proxyModal').style.display = 'none';
     }
-    function saveProxyFromModal() {
+    async function saveProxyFromModal() {
       const id = document.getElementById('proxyEditId').value;
       const label = document.getElementById('proxyLabel').value.trim();
       const host = document.getElementById('proxyHost').value.trim();
@@ -5124,19 +5131,21 @@
       const pass = document.getElementById('proxyPass').value;
       const purchaseDate = document.getElementById('proxyPurchaseDate').value;
       if (!host || !port) { alert('Vui lòng nhập host và port!'); return; }
-      const list = loadProxies();
-      if (id) {
-        const idx = list.findIndex(p => p.id === id);
-        if (idx >= 0) list[idx] = { ...list[idx], label, host, port, user, pass, purchaseDate };
-      } else {
-        list.push({ id: 'px_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), label, host, port, user, pass, purchaseDate });
-      }
-      saveProxies(list);
-      closeProxyModal();
-      renderProxiesTable();
-      renderProfileList();
+      try {
+        const url = id ? `${BASE_URL}/api/proxies/${encodeURIComponent(id)}` : `${BASE_URL}/api/proxies`;
+        const res = await fetch(url, {
+          method: id ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ label, host, port, user, pass, purchaseDate }),
+        });
+        if (!res.ok) { const d = await res.json().catch(() => ({})); alert('Lỗi lưu proxy: ' + (d.error || res.status)); return; }
+        await fetchProxies();
+        closeProxyModal();
+        renderProxiesTable();
+        renderProfileList();
+      } catch (e) { alert('Lỗi: ' + e.message); }
     }
-    function deleteProxy(id) {
+    async function deleteProxy(id) {
       const proxy = loadProxies().find(p => p.id === id);
       if (!proxy) return;
       const usedCount = countAssignmentsByProxy(id);
@@ -5144,15 +5153,18 @@
         ? `Proxy "${proxyOptionLabel(proxy)}" đang được gán cho ${usedCount} tài khoản. Xoá khỏi danh sách (account vẫn giữ proxy đã set). Tiếp tục?`
         : `Xoá proxy "${proxyOptionLabel(proxy)}"?`;
       if (!confirm(msg)) return;
-      saveProxies(loadProxies().filter(p => p.id !== id));
-      renderProxiesTable();
-      renderProfileList();
+      try {
+        await fetch(`${BASE_URL}/api/proxies/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        await fetchProxies();
+        renderProxiesTable();
+        renderProfileList();
+      } catch (e) { alert('Lỗi: ' + e.message); }
     }
     async function renderProxiesTable() {
       const tbody = document.getElementById('proxiesTableBody');
       const empty = document.getElementById('noProxiesMsg');
       if (!tbody) return;
-      const list = loadProxies();
+      const list = await fetchProxies();
       if (list.length === 0) {
         tbody.innerHTML = '';
         if (empty) empty.style.display = 'block';
@@ -5177,7 +5189,8 @@
       if (e.target === this) closeProxyModal();
     });
 
-    function openAddAccountModal() {
+    async function openAddAccountModal() {
+      await fetchProxies();
       fillProxySelect(document.getElementById('newAccProxyId'), '');
       document.getElementById('addAccountModal').style.display = 'flex';
     }
@@ -5283,7 +5296,8 @@
       } catch { return ''; }
     }
 
-    function editZaloProfile(key, name, saleworkName, proxy) {
+    async function editZaloProfile(key, name, saleworkName, proxy) {
+      await fetchProxies();
       document.getElementById('editKey').value = key;
       document.getElementById('editName').value = name;
       document.getElementById('editEmail').value = saleworkName;
@@ -5293,7 +5307,8 @@
       document.getElementById('editProfileModal').dataset.editType = 'zalo';
     }
 
-    function editProfile(key, name, email, proxy) {
+    async function editProfile(key, name, email, proxy) {
+      await fetchProxies();
       document.getElementById('editKey').value = key;
       document.getElementById('editName').value = name;
       document.getElementById('editEmail').value = email;
