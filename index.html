@@ -44,7 +44,7 @@
       font-family: 'Inter', 'Segoe UI', sans-serif;
       background-color: #f1f5fb;
       background-image:
-        radial-gradient(circle, rgba(29,78,216,0.06) 1px, transparent 1px),
+        radial-gradient(circle, rgba(38,97,156,0.06) 1px, transparent 1px),
         linear-gradient(rgba(255,255,255,0.45), rgba(255,255,255,0.45)),
         radial-gradient(900px 700px at 100% 0%, rgba(186, 220, 250, 0.75), transparent 60%),
         radial-gradient(800px 700px at 0% 100%, rgba(155, 185, 240, 0.65), transparent 60%),
@@ -229,7 +229,7 @@
       transition: all 0.15s;
       text-align: center;
     }
-    .msg-btn:hover { background: #1d4ed8; color: #fff; border-color: #26619c; }
+    .msg-btn:hover { background: #26619c; color: #fff; border-color: #26619c; }
 
     /* Channel selector panel */
     .channel-panel { margin-top: 10px; }
@@ -244,7 +244,7 @@
       transition: all 0.15s; user-select: none; flex: 1; justify-content: center;
     }
     .channel-platform-toggle input[type="checkbox"] { display: none; }
-    .channel-platform-toggle.checked { background: #1d4ed8; color: #fff; border-color: #26619c; }
+    .channel-platform-toggle.checked { background: #26619c; color: #fff; border-color: #26619c; }
     .channel-profile-section {
       margin-bottom: 10px; border: 1px solid #eff6ff; border-radius: 10px;
       overflow: hidden; background: #fff;
@@ -274,7 +274,7 @@
 
     /* Dark mode for channel panel */
     [data-theme="dark"] .channel-platform-toggle { background: #1e1e3a; border-color: #3a3a5a; color: #bfdbfe; }
-    [data-theme="dark"] .channel-platform-toggle.checked { background: #1d4ed8; color: #fff; border-color: #26619c; }
+    [data-theme="dark"] .channel-platform-toggle.checked { background: #26619c; color: #fff; border-color: #26619c; }
     [data-theme="dark"] .channel-profile-section { background: #1e1e3a; border-color: #2a2a4a; }
     [data-theme="dark"] .channel-profile-header { background: #252547; color: #bfdbfe; border-color: #2a2a4a; }
     [data-theme="dark"] .channel-item { color: #ccc; border-color: #2a2a4a; }
@@ -380,7 +380,7 @@
       font-size: 14px;
       outline: none;
     }
-    .input-area input[type="text"]:focus { border-color: #26619c; box-shadow: 0 0 0 3px rgba(29, 78, 216,0.1); }
+    .input-area input[type="text"]:focus { border-color: #26619c; box-shadow: 0 0 0 3px rgba(38, 97, 156,0.1); }
     .input-area input[type="file"] { display: none; }
     .input-area #msgInput {
       flex: 1;
@@ -399,7 +399,7 @@
       line-height: 1.5;
       display: block;
     }
-    .input-area #msgInput:focus { border-color: #26619c; box-shadow: 0 0 0 3px rgba(29, 78, 216,0.1); }
+    .input-area #msgInput:focus { border-color: #26619c; box-shadow: 0 0 0 3px rgba(38, 97, 156,0.1); }
     .btn-icon {
       width: 40px; height: 40px;
       border-radius: 50%;
@@ -411,7 +411,7 @@
     }
     .btn-attach { background: #eff6ff; color: #26619c; }
     .btn-attach:hover { background: #dbeafe; }
-    .btn-send { background: #1d4ed8; color: #fff; }
+    .btn-send { background: #26619c; color: #fff; }
     .btn-send:hover { background: #1e40af; }
     .btn-send:disabled { background: #ccc; cursor: not-allowed; }
 
@@ -442,7 +442,7 @@
     /* Loading */
     .typing { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
     .typing span {
-      width: 7px; height: 7px; background: #1d4ed8;
+      width: 7px; height: 7px; background: #26619c;
       border-radius: 50%; animation: bounce 1.2s infinite;
     }
     .typing span:nth-child(2) { animation-delay: 0.2s; }
@@ -504,10 +504,10 @@
       transition: background 0.12s, box-shadow 0.12s;
       white-space: nowrap;
     }
-    .pc-btn:hover { box-shadow: 0 3px 10px rgba(59, 130, 246,0.14); }
+    .pc-btn:hover { box-shadow: 0 3px 10px rgba(31, 79, 135,0.14); }
     .pc-btn-edit  { background: #f0f9ff; border-color: #dbeafe; color: #1F4F87; }
     .pc-btn-login { background: #eff6ff; border-color: #dbeafe; color: #26619c; }
-    .pc-btn-login.pc-btn-zalo { background: #e8f4ff; border-color: #b3d9ff; color: #0068ff; }
+    .pc-btn-login.pc-btn-zalo { background: #e8f4ff; border-color: #b3d9ff; color: #205493; }
     .pc-btn-del   { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
     .pc-btn .xi { width: 15px; height: 15px; }
 
@@ -526,12 +526,12 @@
     [data-theme="dark"] .header { background: #16172b; border-color: #2a2a4a; }
     [data-theme="dark"] .header-info h1 { color: #e0e0e0; }
     [data-theme="dark"] .msg.bot { background: #1e1e3a; border-color: #2a2a4a; color: #e0e0e0; }
-    [data-theme="dark"] .msg.user { background: #1d4ed8; color: #fff; }
+    [data-theme="dark"] .msg.user { background: #26619c; color: #fff; }
     [data-theme="dark"] .msg-header { color: #999; }
     [data-theme="dark"] .msg-header .time { color: #666; }
     [data-theme="dark"] .msg .link { color: #bfdbfe; }
     [data-theme="dark"] .msg-btn { background: #1e1e3a; border-color: #3a3a5a; color: #bfdbfe; }
-    [data-theme="dark"] .msg-btn:hover { background: #1d4ed8; border-color: #26619c; color: #fff; }
+    [data-theme="dark"] .msg-btn:hover { background: #26619c; border-color: #26619c; color: #fff; }
     [data-theme="dark"] .input-area { background: #16172b; border-color: #2a2a4a; }
     [data-theme="dark"] .input-area input[type="text"] { background: #1e1e3a; border-color: #3a3a5a; color: #e0e0e0; }
     [data-theme="dark"] .input-area input[type="text"]:focus { border-color: #bfdbfe; box-shadow: 0 0 0 3px rgba(191, 219, 254,0.15); }
@@ -864,12 +864,12 @@
       padding: 10px 16px;
       border: none;
       border-radius: 999px;
-      background: linear-gradient(135deg, #3b82f6 0%, #bfdbfe 100%);
+      background: linear-gradient(135deg, #1F4F87 0%, #bfdbfe 100%);
       color: #fff;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 10px 24px rgba(59, 130, 246,0.35);
+      box-shadow: 0 10px 24px rgba(31, 79, 135,0.35);
     }
     .pwa-install-btn:active { transform: scale(0.97); }
     .pwa-install-icon { font-size: 14px; }
@@ -879,7 +879,7 @@
       body {
         background-color: #f1f5fb;
         background-image:
-          radial-gradient(circle, rgba(29,78,216,0.08) 1px, transparent 1px),
+          radial-gradient(circle, rgba(38,97,156,0.08) 1px, transparent 1px),
           linear-gradient(rgba(255,255,255,0.45), rgba(255,255,255,0.45)),
           radial-gradient(1100px 900px at 100% 0%, rgba(186, 220, 250, 0.75), transparent 60%),
           radial-gradient(900px 800px at 0% 100%, rgba(155, 185, 240, 0.65), transparent 60%),
@@ -898,7 +898,7 @@
         border-bottom: none;
         padding: 14px 16px 10px;
         border-radius: 0 0 22px 22px;
-        box-shadow: 0 6px 18px rgba(59, 130, 246,0.06);
+        box-shadow: 0 6px 18px rgba(31, 79, 135,0.06);
         padding-top: calc(14px + env(safe-area-inset-top, 0px));
       }
       .header-info h1 {
@@ -910,13 +910,13 @@
         border-radius: 12px !important;
         background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
         color: #1F4F87 !important;
-        box-shadow: 0 4px 12px rgba(59, 130, 246,0.18);
+        box-shadow: 0 4px 12px rgba(31, 79, 135,0.18);
       }
       .theme-toggle {
         border-radius: 12px;
         background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
         color: #1F4F87;
-        box-shadow: 0 4px 12px rgba(59, 130, 246,0.18);
+        box-shadow: 0 4px 12px rgba(31, 79, 135,0.18);
       }
 
       /* --- chat bubbles: softer, bigger radius --- */
@@ -924,13 +924,13 @@
         border: none;
         border-radius: 6px 20px 20px 20px;
         background: #fff;
-        box-shadow: 0 6px 18px rgba(59, 130, 246,0.08);
+        box-shadow: 0 6px 18px rgba(31, 79, 135,0.08);
       }
       .msg.user {
         color: #fff;
-        background: linear-gradient(135deg, #3b82f6 0%, #bfdbfe 100%);
+        background: linear-gradient(135deg, #1F4F87 0%, #bfdbfe 100%);
         border-radius: 20px 6px 20px 20px;
-        box-shadow: 0 8px 20px rgba(59, 130, 246,0.25);
+        box-shadow: 0 8px 20px rgba(31, 79, 135,0.25);
       }
       .msg.user .link { color: #fff; text-decoration: underline; }
       .msg-btn {
@@ -938,7 +938,7 @@
         padding: 9px 16px;
         background: #fff;
         border-color: #eff6ff;
-        box-shadow: 0 3px 10px rgba(59, 130, 246,0.08);
+        box-shadow: 0 3px 10px rgba(31, 79, 135,0.08);
       }
 
       /* --- input: pill search + gradient send FAB --- */
@@ -956,7 +956,7 @@
         inset: 4px 8px 4px 8px;
         background: #fff;
         border-radius: 26px;
-        box-shadow: 0 10px 30px rgba(59, 130, 246,0.14);
+        box-shadow: 0 10px 30px rgba(31, 79, 135,0.14);
         z-index: 0;
       }
       .input-area input[type="text"] {
@@ -985,9 +985,9 @@
         color: #1F4F87 !important;
       }
       .btn-send {
-        background: linear-gradient(135deg, #3b82f6 0%, #bfdbfe 100%) !important;
+        background: linear-gradient(135deg, #1F4F87 0%, #bfdbfe 100%) !important;
         color: #fff !important;
-        box-shadow: 0 8px 20px rgba(59, 130, 246,0.38);
+        box-shadow: 0 8px 20px rgba(31, 79, 135,0.38);
       }
       .btn-send:disabled {
         background: #dbeafe !important;
@@ -1002,7 +1002,7 @@
         border-radius: 18px;
         margin: 0 10px 4px;
         padding: 8px 10px;
-        box-shadow: 0 6px 18px rgba(59, 130, 246,0.08);
+        box-shadow: 0 6px 18px rgba(31, 79, 135,0.08);
       }
       .preview-item img { border-color: #eff6ff; border-radius: 10px; }
 
@@ -1028,21 +1028,21 @@
         display: inline-flex; align-items: center; justify-content: center;
         font-size: 17px;
         background: #eff6ff; color: #1F4F87;
-        box-shadow: 0 3px 8px rgba(59, 130, 246,0.12);
+        box-shadow: 0 3px 8px rgba(31, 79, 135,0.12);
       }
       #navDashboard .icon { background: linear-gradient(135deg,#dbeafe,#dbeafe); color:#16365C; }
       #navPost      .icon { background: linear-gradient(135deg,#ffd6e1,#ffb7c6); color:#d1477a; }
       #navSession   .icon { background: linear-gradient(135deg,#c7f0ea,#a2e6de); color:#2a9b8a; }
       #navSpy       .icon { background: linear-gradient(135deg,#ffe2c4,#ffc98a); color:#c9822f; }
       .sidebar-item.active {
-        background: linear-gradient(135deg, rgba(59, 130, 246,0.10) 0%, rgba(191, 219, 254,0.10) 100%);
+        background: linear-gradient(135deg, rgba(31, 79, 135,0.10) 0%, rgba(191, 219, 254,0.10) 100%);
         color: #16365C;
       }
       .sidebar-item .badge {
         background: linear-gradient(135deg,#ffe2c4,#ffc98a);
         color: #b8691c;
       }
-      .sidebar-footer { border-top-color: rgba(59, 130, 246,0.08); }
+      .sidebar-footer { border-top-color: rgba(31, 79, 135,0.08); }
 
       /* --- mobile bottom nav: floating pill with center FAB vibe --- */
       .mobile-bottom-nav {
@@ -1054,8 +1054,8 @@
         backdrop-filter: saturate(180%) blur(16px);
         -webkit-backdrop-filter: saturate(180%) blur(16px);
         box-shadow:
-          0 12px 32px rgba(29, 78, 216,0.20),
-          0 2px 6px rgba(59, 130, 246,0.10);
+          0 12px 32px rgba(38, 97, 156,0.20),
+          0 2px 6px rgba(31, 79, 135,0.10);
       }
       .main-content { padding-bottom: 82px; }
       .mobile-nav-item {
@@ -1076,10 +1076,10 @@
         color: #16365C;
       }
       .mobile-nav-item.active .mn-icon {
-        background: linear-gradient(135deg, #3b82f6 0%, #bfdbfe 100%);
+        background: linear-gradient(135deg, #1F4F87 0%, #bfdbfe 100%);
         color: #fff;
         transform: translateY(-2px) scale(1.05);
-        box-shadow: 0 8px 18px rgba(59, 130, 246,0.42);
+        box-shadow: 0 8px 18px rgba(31, 79, 135,0.42);
       }
 
       /* --- profile / account cards: lifted, bigger radius --- */
@@ -1087,10 +1087,10 @@
         border: none !important;
         border-radius: 18px !important;
         background: #fff !important;
-        box-shadow: 0 6px 18px rgba(59, 130, 246,0.08);
+        box-shadow: 0 6px 18px rgba(31, 79, 135,0.08);
         padding: 14px 16px !important;
       }
-      .profile-card:hover { box-shadow: 0 10px 24px rgba(59, 130, 246,0.16); }
+      .profile-card:hover { box-shadow: 0 10px 24px rgba(31, 79, 135,0.16); }
       .profile-card .avatar {
         background: linear-gradient(135deg,#eff6ff,#dbeafe) !important;
         color: #1F4F87;
@@ -1102,7 +1102,7 @@
       #panelChannels > div[style*="background:#fff"] {
         border: none !important;
         border-radius: 20px !important;
-        box-shadow: 0 8px 22px rgba(59, 130, 246,0.08);
+        box-shadow: 0 8px 22px rgba(31, 79, 135,0.08);
       }
 
       /* account tabs: pill bar */
@@ -1111,7 +1111,7 @@
         padding: 4px !important;
         background: rgba(255,255,255,0.7);
         border-radius: 16px;
-        box-shadow: 0 4px 14px rgba(59, 130, 246,0.06);
+        box-shadow: 0 4px 14px rgba(31, 79, 135,0.06);
         margin-bottom: 16px !important;
       }
       .acc-tab {
@@ -1120,10 +1120,10 @@
         padding: 8px 14px;
       }
       .acc-tab.active {
-        background: linear-gradient(135deg,#3b82f6,#bfdbfe);
+        background: linear-gradient(135deg,#1F4F87,#bfdbfe);
         color: #fff !important;
         border-bottom-color: transparent;
-        box-shadow: 0 6px 14px rgba(59, 130, 246,0.32);
+        box-shadow: 0 6px 14px rgba(31, 79, 135,0.32);
       }
 
       /* dashboard summary tiles */
@@ -1134,7 +1134,7 @@
       #pageDashboard div[style*="background:#fff"] {
         border: none !important;
         border-radius: 18px !important;
-        box-shadow: 0 6px 18px rgba(59, 130, 246,0.07);
+        box-shadow: 0 6px 18px rgba(31, 79, 135,0.07);
       }
 
       /* channel platform toggles: rounder, colorful when checked */
@@ -1143,9 +1143,9 @@
         padding: 10px 14px;
       }
       .channel-platform-toggle.checked {
-        background: linear-gradient(135deg,#3b82f6,#bfdbfe);
+        background: linear-gradient(135deg,#1F4F87,#bfdbfe);
         border-color: transparent;
-        box-shadow: 0 8px 18px rgba(59, 130, 246,0.30);
+        box-shadow: 0 8px 18px rgba(31, 79, 135,0.30);
       }
 
       /* rounded generic form inputs on mobile */
@@ -1213,7 +1213,7 @@
         border-radius: 16px;
         padding: 0; border: none;
         background: #fff;
-        box-shadow: 0 8px 20px rgba(59, 130, 246,0.18);
+        box-shadow: 0 8px 20px rgba(31, 79, 135,0.18);
         overflow: hidden; cursor: pointer;
         flex-shrink: 0;
       }
@@ -1236,7 +1236,7 @@
         text-align: left;
         min-height: 140px;
         position: relative; overflow: hidden;
-        box-shadow: 0 12px 28px rgba(59, 130, 246,0.10);
+        box-shadow: 0 12px 28px rgba(31, 79, 135,0.10);
         transition: transform 0.15s ease, box-shadow 0.15s ease;
       }
       .mhome-tile:active { transform: scale(0.97); }
@@ -1300,7 +1300,7 @@
         color: #16365C;
         font-size: 13px; font-weight: 600;
         cursor: pointer;
-        box-shadow: 0 6px 16px rgba(59, 130, 246,0.12);
+        box-shadow: 0 6px 16px rgba(31, 79, 135,0.12);
       }
 
       /* Home-back button injected into each header */
@@ -1314,7 +1314,7 @@
         font-size: 17px;
         cursor: pointer;
         flex-shrink: 0;
-        box-shadow: 0 4px 12px rgba(59, 130, 246,0.18);
+        box-shadow: 0 4px 12px rgba(31, 79, 135,0.18);
       }
       .mhome-back-btn:active { transform: scale(0.95); }
     }
@@ -1336,7 +1336,7 @@
     @media (max-width: 768px) {
       [data-theme="dark"] body {
         background:
-          radial-gradient(900px 500px at 100% -10%, rgba(59, 130, 246,0.18) 0%, rgba(59, 130, 246,0) 60%),
+          radial-gradient(900px 500px at 100% -10%, rgba(31, 79, 135,0.18) 0%, rgba(31, 79, 135,0) 60%),
           linear-gradient(180deg, #0c1a2e 0%, #1a1a2e 60%, #1a1a2e 100%);
       }
       [data-theme="dark"] .header { background: rgba(22,23,43,0.78); }
@@ -1369,7 +1369,7 @@
       body {
         background-color: #f1f5fb;
         background-image:
-          radial-gradient(circle, rgba(29,78,216,0.06) 1px, transparent 1px),
+          radial-gradient(circle, rgba(38,97,156,0.06) 1px, transparent 1px),
         linear-gradient(rgba(255,255,255,0.45), rgba(255,255,255,0.45)),
         radial-gradient(1100px 900px at 100% 0%, rgba(186, 220, 250, 0.75), transparent 60%),
         radial-gradient(900px 800px at 0% 100%, rgba(155, 185, 240, 0.65), transparent 60%),
@@ -1384,19 +1384,19 @@
         background: rgba(255,255,255,0.78);
         backdrop-filter: saturate(180%) blur(14px);
         -webkit-backdrop-filter: saturate(180%) blur(14px);
-        border-bottom: 1px solid rgba(59, 130, 246,0.08);
+        border-bottom: 1px solid rgba(31, 79, 135,0.08);
       }
       .header-emoji { color: #1F4F87; }
 
       /* Chat bubbles */
       .msg.bot {
         border: none;
-        box-shadow: 0 4px 14px rgba(59, 130, 246,0.07);
+        box-shadow: 0 4px 14px rgba(31, 79, 135,0.07);
       }
       .msg.user {
         color: #fff;
-        background: linear-gradient(135deg, #3b82f6 0%, #bfdbfe 100%);
-        box-shadow: 0 6px 16px rgba(59, 130, 246,0.22);
+        background: linear-gradient(135deg, #1F4F87 0%, #bfdbfe 100%);
+        box-shadow: 0 6px 16px rgba(31, 79, 135,0.22);
       }
       .msg.user .link { color: #fff; text-decoration: underline; }
       .msg .link { color: #1F4F87; }
@@ -1405,10 +1405,10 @@
         background: #fff;
         border-color: #eff6ff;
         color: #1F4F87;
-        box-shadow: 0 2px 8px rgba(59, 130, 246,0.06);
+        box-shadow: 0 2px 8px rgba(31, 79, 135,0.06);
       }
       .msg-btn:hover {
-        background: linear-gradient(135deg, #3b82f6 0%, #bfdbfe 100%);
+        background: linear-gradient(135deg, #1F4F87 0%, #bfdbfe 100%);
         border-color: transparent;
         color: #fff;
       }
@@ -1419,25 +1419,25 @@
         background: rgba(255,255,255,0.55);
         backdrop-filter: saturate(180%) blur(10px);
         -webkit-backdrop-filter: saturate(180%) blur(10px);
-        border-top: 1px solid rgba(59, 130, 246,0.08);
+        border-top: 1px solid rgba(31, 79, 135,0.08);
       }
       .input-area input[type="text"] {
         background: #fff;
-        border: 1px solid rgba(59, 130, 246,0.15);
-        box-shadow: 0 2px 8px rgba(59, 130, 246,0.05);
+        border: 1px solid rgba(31, 79, 135,0.15);
+        box-shadow: 0 2px 8px rgba(31, 79, 135,0.05);
       }
       .input-area input[type="text"]:focus {
         border-color: #1F4F87;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246,0.12);
+        box-shadow: 0 0 0 3px rgba(31, 79, 135,0.12);
       }
       .input-area #msgInput {
         background: #fff;
-        border: 1px solid rgba(59, 130, 246,0.15);
-        box-shadow: 0 2px 8px rgba(59, 130, 246,0.05);
+        border: 1px solid rgba(31, 79, 135,0.15);
+        box-shadow: 0 2px 8px rgba(31, 79, 135,0.05);
       }
       .input-area #msgInput:focus {
         border-color: #1F4F87;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246,0.12);
+        box-shadow: 0 0 0 3px rgba(31, 79, 135,0.12);
       }
       .btn-attach {
         background: #f0f9ff;
@@ -1445,12 +1445,12 @@
       }
       .btn-attach:hover { background: #dbeafe; }
       .btn-send {
-        background: linear-gradient(135deg, #3b82f6 0%, #bfdbfe 100%);
+        background: linear-gradient(135deg, #1F4F87 0%, #bfdbfe 100%);
         color: #fff;
-        box-shadow: 0 6px 16px rgba(59, 130, 246,0.30);
+        box-shadow: 0 6px 16px rgba(31, 79, 135,0.30);
       }
       .btn-send:hover {
-        background: linear-gradient(135deg, #3b82f6 0%, #3b82f6 100%);
+        background: linear-gradient(135deg, #1F4F87 0%, #1F4F87 100%);
       }
       .btn-send:disabled {
         background: #dbeafe;
@@ -1460,14 +1460,14 @@
       /* Image preview translucent */
       .image-preview {
         background: rgba(255,255,255,0.85);
-        border-top: 1px solid rgba(59, 130, 246,0.08);
+        border-top: 1px solid rgba(31, 79, 135,0.08);
       }
       .preview-item img { border-color: #eff6ff; border-radius: 10px; }
 
       /* Sidebar: soft gradient + colorful tile icons */
       .sidebar {
         background: linear-gradient(180deg, #ffffff 0%, #f0f9ff 100%);
-        border-right: 1px solid rgba(59, 130, 246,0.08);
+        border-right: 1px solid rgba(31, 79, 135,0.08);
       }
       .sidebar-logo span { color: #1F4F87; font-weight: 800; }
       .sidebar-logo .edit-icon { background: #eff6ff; color: #1F4F87; }
@@ -1480,11 +1480,11 @@
         color: #3a3658;
       }
       .sidebar-item:hover {
-        background: rgba(59, 130, 246,0.06);
+        background: rgba(31, 79, 135,0.06);
         color: #16365C;
       }
       .sidebar-item.active {
-        background: linear-gradient(135deg, rgba(59, 130, 246,0.12), rgba(191, 219, 254,0.10));
+        background: linear-gradient(135deg, rgba(31, 79, 135,0.12), rgba(191, 219, 254,0.10));
         color: #16365C;
         font-weight: 600;
       }
@@ -1494,7 +1494,7 @@
         display: inline-flex; align-items: center; justify-content: center;
         background: #eff6ff;
         color: #1F4F87;
-        box-shadow: 0 2px 6px rgba(59, 130, 246,0.08);
+        box-shadow: 0 2px 6px rgba(31, 79, 135,0.08);
         font-size: 0; /* kill residual emoji spacing */
       }
       #navDashboard .icon { background: linear-gradient(135deg,#dbeafe,#dbeafe); color:#16365C; }
@@ -1505,13 +1505,13 @@
         background: linear-gradient(135deg,#ffe2c4,#ffc98a);
         color: #b8691c;
       }
-      .sidebar-footer { border-top-color: rgba(59, 130, 246,0.08); }
+      .sidebar-footer { border-top-color: rgba(31, 79, 135,0.08); }
 
       /* Theme toggle button */
       .theme-toggle {
         background: linear-gradient(135deg, #eff6ff, #dbeafe);
         color: #1F4F87;
-        box-shadow: 0 2px 8px rgba(59, 130, 246,0.10);
+        box-shadow: 0 2px 8px rgba(31, 79, 135,0.10);
       }
       .theme-toggle:hover { background: linear-gradient(135deg, #dbeafe, #dbeafe); }
 
@@ -1520,10 +1520,10 @@
         border: none;
         border-radius: 14px;
         background: #fff;
-        box-shadow: 0 4px 14px rgba(59, 130, 246,0.07);
+        box-shadow: 0 4px 14px rgba(31, 79, 135,0.07);
       }
       .profile-card:hover {
-        box-shadow: 0 8px 22px rgba(59, 130, 246,0.14);
+        box-shadow: 0 8px 22px rgba(31, 79, 135,0.14);
       }
       .profile-card .avatar {
         background: linear-gradient(135deg,#eff6ff,#dbeafe);
@@ -1537,26 +1537,26 @@
         padding: 4px !important;
         background: rgba(255,255,255,0.7);
         border-radius: 14px;
-        box-shadow: 0 2px 10px rgba(59, 130, 246,0.06);
+        box-shadow: 0 2px 10px rgba(31, 79, 135,0.06);
       }
       .acc-tab {
         border-radius: 10px;
         margin-bottom: 0;
         padding: 7px 14px;
       }
-      .acc-tab:hover { color: #1F4F87; background: rgba(59, 130, 246,0.05); }
+      .acc-tab:hover { color: #1F4F87; background: rgba(31, 79, 135,0.05); }
       .acc-tab.active {
-        background: linear-gradient(135deg,#3b82f6,#bfdbfe);
+        background: linear-gradient(135deg,#1F4F87,#bfdbfe);
         color: #fff !important;
         border-bottom-color: transparent;
-        box-shadow: 0 4px 12px rgba(59, 130, 246,0.28);
+        box-shadow: 0 4px 12px rgba(31, 79, 135,0.28);
       }
 
       /* Panel cards (channels, groups, profile channel list) rounded + shadow */
       #panelChannels > div[style*="background:#fff"] {
         border: none !important;
         border-radius: 16px !important;
-        box-shadow: 0 4px 16px rgba(59, 130, 246,0.07);
+        box-shadow: 0 4px 16px rgba(31, 79, 135,0.07);
       }
 
       /* Dashboard summary tiles rounded */
@@ -1567,7 +1567,7 @@
       #pageDashboard div[style*="background:#fff"] {
         border: none !important;
         border-radius: 14px !important;
-        box-shadow: 0 4px 14px rgba(59, 130, 246,0.07);
+        box-shadow: 0 4px 14px rgba(31, 79, 135,0.07);
       }
 
       /* Channel platform toggle: gradient when checked */
@@ -1575,37 +1575,37 @@
         border-radius: 10px;
       }
       .channel-platform-toggle.checked {
-        background: linear-gradient(135deg,#3b82f6,#bfdbfe);
+        background: linear-gradient(135deg,#1F4F87,#bfdbfe);
         border-color: transparent;
-        box-shadow: 0 4px 12px rgba(59, 130, 246,0.25);
+        box-shadow: 0 4px 12px rgba(31, 79, 135,0.25);
       }
 
       /* Generic form inputs rounded */
       #panelChannels input[type="text"] { border-radius: 10px !important; }
 
       /* Buttons inside session panel (Thêm tài khoản / + Thêm) */
-      button[style*="background:#1d4ed8"] {
-        background: linear-gradient(135deg,#3b82f6,#bfdbfe) !important;
-        box-shadow: 0 4px 12px rgba(59, 130, 246,0.26);
+      button[style*="background:#26619c"] {
+        background: linear-gradient(135deg,#1F4F87,#bfdbfe) !important;
+        box-shadow: 0 4px 12px rgba(31, 79, 135,0.26);
         border-radius: 10px !important;
       }
 
       /* Typing indicator dots purple */
-      .typing span { background: #3b82f6; }
+      .typing span { background: #1F4F87; }
     }
 
     /* Desktop dark-mode alignment with purple theme */
     @media (min-width: 769px) {
       [data-theme="dark"] body {
         background:
-          radial-gradient(1100px 600px at 100% -10%, rgba(59, 130, 246,0.15) 0%, rgba(59, 130, 246,0) 60%),
+          radial-gradient(1100px 600px at 100% -10%, rgba(31, 79, 135,0.15) 0%, rgba(31, 79, 135,0) 60%),
           linear-gradient(180deg, #0c1a2e 0%, #1a1a2e 60%, #1a1a2e 100%);
       }
-      [data-theme="dark"] .header { background: rgba(22,23,43,0.78); border-bottom-color: rgba(59, 130, 246,0.15); }
-      [data-theme="dark"] .input-area { background: rgba(22,23,43,0.55); border-top-color: rgba(59, 130, 246,0.15); }
+      [data-theme="dark"] .header { background: rgba(22,23,43,0.78); border-bottom-color: rgba(31, 79, 135,0.15); }
+      [data-theme="dark"] .input-area { background: rgba(22,23,43,0.55); border-top-color: rgba(31, 79, 135,0.15); }
       [data-theme="dark"] .sidebar {
         background: linear-gradient(180deg, #16172b 0%, #1a1a2e 100%);
-        border-right-color: rgba(59, 130, 246,0.12);
+        border-right-color: rgba(31, 79, 135,0.12);
       }
       [data-theme="dark"] .sidebar-item .icon { background: #2a2a4a; color: #bfdbfe; }
       [data-theme="dark"] .profile-card { background: #1e1e3a; }
@@ -1622,8 +1622,8 @@
     :root {
       --xk-ink: #0f0f1a;
       --xk-ink-soft: #1a1a2e;
-      --xk-primary: #1d4ed8;
-      --xk-primary-2: #3b82f6;
+      --xk-primary: #26619c;
+      --xk-primary-2: #1F4F87;
       --xk-primary-d: #1e40af;
       --xk-glass-bg: rgba(255,255,255,0.62);
       --xk-glass-edge: rgba(255,255,255,0.7);
@@ -1664,7 +1664,7 @@
     .sidebar-item.active {
       background: var(--xk-primary) !important;
       color: #fff !important;
-      box-shadow: 0 6px 16px rgba(29, 78, 216,0.45);
+      box-shadow: 0 6px 16px rgba(38, 97, 156,0.45);
     }
     .sidebar-item .icon {
       background: rgba(255,255,255,0.10) !important;
@@ -1759,7 +1759,7 @@
     }
     .input-area input[type="text"]:focus {
       border-color: var(--xk-primary) !important;
-      box-shadow: 0 0 0 3px rgba(29, 78, 216,0.12) !important;
+      box-shadow: 0 0 0 3px rgba(38, 97, 156,0.12) !important;
     }
     .btn-attach {
       background: rgba(255,255,255,0.8) !important;
@@ -1770,7 +1770,7 @@
     .btn-send {
       background: var(--xk-primary) !important;
       color: #fff !important;
-      box-shadow: 0 8px 22px rgba(29, 78, 216,0.32) !important;
+      box-shadow: 0 8px 22px rgba(38, 97, 156,0.32) !important;
     }
     .btn-send:hover { background: var(--xk-primary-d) !important; }
     .btn-send:disabled {
@@ -1806,14 +1806,14 @@
       color: var(--xk-ink) !important;
     }
     .pc-btn-login {
-      background: rgba(29, 78, 216,0.10) !important;
-      border-color: rgba(29, 78, 216,0.20) !important;
+      background: rgba(38, 97, 156,0.10) !important;
+      border-color: rgba(38, 97, 156,0.20) !important;
       color: var(--xk-primary) !important;
     }
     .pc-btn-login.pc-btn-zalo {
       background: rgba(0,104,255,0.10) !important;
       border-color: rgba(0,104,255,0.20) !important;
-      color: #0068ff !important;
+      color: #205493 !important;
     }
     .pc-btn-del {
       background: rgba(220,38,38,0.08) !important;
@@ -1835,7 +1835,7 @@
     .acc-tab.active {
       background: var(--xk-primary) !important;
       color: #fff !important;
-      box-shadow: 0 4px 12px rgba(29, 78, 216,0.28) !important;
+      box-shadow: 0 4px 12px rgba(38, 97, 156,0.28) !important;
       border-bottom-color: transparent !important;
     }
 
@@ -1854,11 +1854,11 @@
       border-color: var(--xk-glass-edge) !important;
     }
 
-    /* PRIMARY BUTTONS (any inline #1d4ed8) → solid indigo with shadow */
-    button[style*="background:#1d4ed8"],
-    button[style*="background: #1d4ed8"] {
+    /* PRIMARY BUTTONS (any inline #26619c) → solid indigo with shadow */
+    button[style*="background:#26619c"],
+    button[style*="background: #26619c"] {
       background: var(--xk-primary) !important;
-      box-shadow: 0 6px 16px rgba(29, 78, 216,0.28) !important;
+      box-shadow: 0 6px 16px rgba(38, 97, 156,0.28) !important;
       border-radius: 10px !important;
     }
 
@@ -1954,19 +1954,19 @@
        PRODIFY v6 — Lavender Blue / Purple Illusion / Perrywinkle palette.
        Reference Prodify (Akansha Gupta) — 6 hex codes user-provided:
          #FCFCFE Pale Grey  · #E7E9EF Diamond Cut  · #dbeafe Lavender Blue
-         #C3C1C1 Stonewall  · #bfdbfe Purple Illusion · #3b82f6 Perrywinkle
+         #C3C1C1 Stonewall  · #bfdbfe Purple Illusion · #1F4F87 Perrywinkle
        Áp dụng cả mobile + desktop.
        ================================================================ */
     :root {
-      --xk-primary: #3b82f6;          /* Perrywinkle */
+      --xk-primary: #1F4F87;          /* Perrywinkle */
       --xk-primary-2: #bfdbfe;        /* Purple Illusion */
-      --xk-primary-d: #2563eb;        /* deeper hover/active */
-      --xk-primary-soft: rgba(59, 130, 246, 0.12);
-      --xk-primary-shadow: rgba(59, 130, 246, 0.32);
-      --xk-surface-violet: #1d4ed8;
+      --xk-primary-d: #1F4F87;        /* deeper hover/active */
+      --xk-primary-soft: rgba(31, 79, 135, 0.12);
+      --xk-primary-shadow: rgba(31, 79, 135, 0.32);
+      --xk-surface-violet: #26619c;
       /* CTA gradient (Perrywinkle → Purple Illusion) */
-      --xk-cta-gradient: linear-gradient(135deg, #3b82f6 0%, #bfdbfe 100%);
-      --xk-cta-gradient-hover: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+      --xk-cta-gradient: linear-gradient(135deg, #1F4F87 0%, #bfdbfe 100%);
+      --xk-cta-gradient-hover: linear-gradient(135deg, #1F4F87 0%, #1F4F87 100%);
       /* Accent mint (giữ cho success/ONLINE) */
       --xk-accent-mint: #10b981;
       --xk-accent-mint-soft: rgba(16, 185, 129, 0.12);
@@ -1979,7 +1979,7 @@
     /* Sidebar — Lavender Blue → Purple Illusion gradient (theo Prodify) */
     .sidebar {
       background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%) !important;
-      box-shadow: 0 12px 40px rgba(59, 130, 246, 0.20) !important;
+      box-shadow: 0 12px 40px rgba(31, 79, 135, 0.20) !important;
     }
     /* Text trên nền lavender medium — dark indigo cho contrast tốt */
     .sidebar-logo span { color: #1e1b4b !important; }
@@ -2031,7 +2031,7 @@
       color: var(--xk-primary) !important;
     }
 
-    /* Indigo CTA (#1d4ed8) → vibrant violet */
+    /* Indigo CTA (#26619c) → vibrant violet */
     .btn-send {
       background: var(--xk-cta-gradient) !important;
       box-shadow: 0 8px 22px var(--xk-primary-shadow) !important;
@@ -2043,7 +2043,7 @@
     }
     .pc-btn-login {
       background: var(--xk-primary-soft) !important;
-      border-color: rgba(59, 130, 246, 0.22) !important;
+      border-color: rgba(31, 79, 135, 0.22) !important;
       color: var(--xk-primary) !important;
     }
     .msg .link { color: var(--xk-primary) !important; }
@@ -2058,10 +2058,10 @@
     .input-area input[type="text"]:focus,
     .input-area #msgInput:focus {
       border-color: var(--xk-primary) !important;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.20) !important;
+      box-shadow: 0 0 0 3px rgba(31, 79, 135, 0.20) !important;
     }
-    button[style*="background:#1d4ed8"],
-    button[style*="background: #1d4ed8"] {
+    button[style*="background:#26619c"],
+    button[style*="background: #26619c"] {
       background: var(--xk-cta-gradient) !important;
       box-shadow: 0 6px 16px var(--xk-primary-shadow) !important;
     }
@@ -2075,18 +2075,18 @@
        ================================================================ */
     :root {
       /* Brand — Sky */
-      --xk-primary: #3b82f6;            /* periwinkle accent */
+      --xk-primary: #1F4F87;            /* periwinkle accent */
       --xk-primary-2: #bfdbfe;          /* gradient end (lavender) */
-      --xk-primary-d: #2563eb;          /* hover/focus, text trên bg sáng */
-      --xk-primary-soft: rgba(59, 130, 246, 0.06);
-      --xk-primary-soft-2: rgba(59, 130, 246, 0.14);
-      --xk-primary-shadow: rgba(59, 130, 246, 0.30);
-      --xk-brand-border: rgba(59, 130, 246, 0.22);
+      --xk-primary-d: #1F4F87;          /* hover/focus, text trên bg sáng */
+      --xk-primary-soft: rgba(31, 79, 135, 0.06);
+      --xk-primary-soft-2: rgba(31, 79, 135, 0.14);
+      --xk-primary-shadow: rgba(31, 79, 135, 0.30);
+      --xk-brand-border: rgba(31, 79, 135, 0.22);
       /* Periwinkle → soft violet — tím nhiều hơn xanh */
-      --xk-cta-gradient: linear-gradient(135deg, #3b82f6 0%, #bfdbfe 100%);
-      --xk-cta-gradient-hover: linear-gradient(135deg, #2563eb 0%, #2563eb 100%);
+      --xk-cta-gradient: linear-gradient(135deg, #1F4F87 0%, #bfdbfe 100%);
+      --xk-cta-gradient-hover: linear-gradient(135deg, #1F4F87 0%, #1F4F87 100%);
       /* Logo gradient — periwinkle deep → violet, đủ đậm để clip text */
-      --xk-logo-gradient: linear-gradient(135deg, #2563eb 0%, #2563eb 100%);
+      --xk-logo-gradient: linear-gradient(135deg, #1F4F87 0%, #1F4F87 100%);
 
       /* Surfaces (glassmorphism) */
       --xk-sky-surface: rgba(255, 255, 255, 0.78);
@@ -2109,7 +2109,7 @@
       /* Platform tints */
       --xk-fb-tint: #eff6ff;
       --xk-zalo-tint: #ecfeff;
-      --xk-zalo-color: #0068ff;
+      --xk-zalo-color: #205493;
 
       /* Shadows */
       --xk-shadow-card: 0 4px 18px rgba(20, 30, 60, 0.04);
@@ -2124,7 +2124,7 @@
       color: var(--xk-sky-text) !important;
       background-color: #f1f5fb !important;
       background-image:
-        radial-gradient(circle, rgba(29,78,216,0.08) 1px, transparent 1px),
+        radial-gradient(circle, rgba(38,97,156,0.08) 1px, transparent 1px),
         linear-gradient(rgba(255,255,255,0.45), rgba(255,255,255,0.45)),
         radial-gradient(1100px 900px at 100% 0%, rgba(186, 220, 250, 0.75), transparent 60%),
         radial-gradient(900px 800px at 0% 100%, rgba(155, 185, 240, 0.65), transparent 60%),
@@ -2166,7 +2166,7 @@
       transition: background 150ms ease, color 150ms ease;
     }
     .sidebar-item:hover {
-      background: rgba(59, 130, 246, 0.06) !important;
+      background: rgba(31, 79, 135, 0.06) !important;
       color: var(--xk-primary-d) !important;
     }
     .sidebar-item.active {
@@ -2176,16 +2176,16 @@
       box-shadow: none !important;
     }
     .sidebar-item .icon {
-      background: rgba(59, 130, 246, 0.10) !important;
+      background: rgba(31, 79, 135, 0.10) !important;
       color: #1F4F87 !important;
       box-shadow: none !important;
     }
     .sidebar-item:hover .icon {
-      background: rgba(59, 130, 246, 0.18) !important;
+      background: rgba(31, 79, 135, 0.18) !important;
       color: var(--xk-primary-d) !important;
     }
     .sidebar-item.active .icon {
-      background: rgba(59, 130, 246, 0.22) !important;
+      background: rgba(31, 79, 135, 0.22) !important;
       color: var(--xk-primary-d) !important;
     }
     .sidebar-item .badge {
@@ -2420,15 +2420,15 @@
       border-color: var(--xk-sky-border) !important;
     }
 
-    /* PRIMARY BUTTONS — bất cứ inline #1d4ed8 → Sky CTA */
-    button[style*="background:#1d4ed8"],
-    button[style*="background: #1d4ed8"] {
+    /* PRIMARY BUTTONS — bất cứ inline #26619c → Sky CTA */
+    button[style*="background:#26619c"],
+    button[style*="background: #26619c"] {
       background: var(--xk-cta-gradient) !important;
       box-shadow: var(--xk-shadow-cta) !important;
       border-radius: 8px !important;
     }
-    button[style*="background:#1d4ed8"]:hover,
-    button[style*="background: #1d4ed8"]:hover {
+    button[style*="background:#26619c"]:hover,
+    button[style*="background: #26619c"]:hover {
       background: var(--xk-cta-gradient-hover) !important;
     }
 
@@ -2690,7 +2690,7 @@
     <div class="sidebar-footer">
       <div id="currentUserBox" style="display:none; padding:10px 12px; background:#f0f9ff; border-radius:10px; font-size:12px;">
         <div style="display:flex; align-items:center; gap:8px;">
-          <div style="width:28px; height:28px; border-radius:50%; background:#1d4ed8; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;" id="currentUserAvatar">?</div>
+          <div style="width:28px; height:28px; border-radius:50%; background:#26619c; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;" id="currentUserAvatar">?</div>
           <div style="flex:1; min-width:0;">
             <div id="currentUserEmail" style="font-weight:600; color:#26619c; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">-</div>
             <div id="currentUserRole" style="color:#888; font-size:11px;">-</div>
@@ -2795,7 +2795,7 @@
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
           <h3 style="font-size:15px; color:#1e1e2e; flex:1;">Profile Chromium đã đăng nhập</h3>
           <button onclick="openAddAccountModal()"
-            style="padding:8px 16px; background:#1d4ed8; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer;">
+            style="padding:8px 16px; background:#26619c; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer;">
             ➕ Thêm tài khoản
           </button>
         </div>
@@ -2839,7 +2839,7 @@
             <div style="display:flex; gap:6px; align-items:center;">
               <div class="group-filter-tabs" style="display:flex; gap:4px; background:#f0f9ff; padding:3px; border-radius:10px;">
                 <button onclick="setGroupFilter('all')" data-filter="all" class="group-filter-tab active"
-                  style="padding:6px 14px; border:none; background:#fff; color:#26619c; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer; box-shadow:0 1px 3px rgba(59, 130, 246,0.15);">Tất cả</button>
+                  style="padding:6px 14px; border:none; background:#fff; color:#26619c; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer; box-shadow:0 1px 3px rgba(31, 79, 135,0.15);">Tất cả</button>
                 <button onclick="setGroupFilter('fb')" data-filter="fb" class="group-filter-tab"
                   style="padding:6px 14px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Facebook</button>
                 <button onclick="setGroupFilter('zalo')" data-filter="zalo" class="group-filter-tab"
@@ -2850,7 +2850,7 @@
                 <option value="">Tất cả phân loại</option>
               </select>
               <button onclick="openGroupModal('add')"
-                style="padding:8px 14px; background:#1d4ed8; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;">+ Thêm group</button>
+                style="padding:8px 14px; background:#26619c; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;">+ Thêm group</button>
             </div>
           </div>
           <div id="groupsTableWrap" style="overflow-x:auto;">
@@ -2880,7 +2880,7 @@
               <svg class="xi xi-md" style="color:#1F4F87;"><use href="#ic-globe"/></svg> Danh sách IP Proxy
             </h3>
             <button onclick="openProxyModal('add')"
-              style="padding:8px 14px; background:#1d4ed8; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">+ Thêm proxy</button>
+              style="padding:8px 14px; background:#26619c; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">+ Thêm proxy</button>
           </div>
           <p style="font-size:12px; color:#999; margin:-4px 0 12px;">Quản lý IP proxy và gán cho tài khoản trong modal "Thêm/Sửa tài khoản".</p>
           <div id="proxiesTableWrap" style="overflow-x:auto;">
@@ -2954,7 +2954,7 @@
      <div style="max-width:1200px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
         <h2 style="margin:0; font-size:18px;">Danh sách user Xeko</h2>
-        <button onclick="openPermissionModal()" style="padding:10px 18px; background:#1d4ed8; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:6px;">
+        <button onclick="openPermissionModal()" style="padding:10px 18px; background:#26619c; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:6px;">
           <svg class="xi"><use href="#ic-plus"/></svg> Thêm user
         </button>
       </div>
@@ -3026,7 +3026,7 @@
 
       <div style="display:flex; gap:10px; justify-content:flex-end;">
         <button onclick="closePermissionModal()" style="padding:10px 18px; background:#f3f4f6; color:#555; border:1px solid #ddd; border-radius:8px; font-size:14px; cursor:pointer;">Huỷ</button>
-        <button onclick="savePermission()" style="padding:10px 18px; background:#1d4ed8; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-weight:600;">Lưu</button>
+        <button onclick="savePermission()" style="padding:10px 18px; background:#26619c; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-weight:600;">Lưu</button>
       </div>
     </div>
   </div>
@@ -3068,7 +3068,7 @@
           </div>
         </div>
         <div class="dash-card" style="background:#e8e5f7; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
-          <div style="width:44px; height:44px; border-radius:12px; background:#1d4ed8; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0;"><svg class="xi xi-md"><use href="#ic-dash"/></svg></div>
+          <div style="width:44px; height:44px; border-radius:12px; background:#26619c; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0;"><svg class="xi xi-md"><use href="#ic-dash"/></svg></div>
           <div style="min-width:0;">
             <div id="statTotal" style="font-size:24px; font-weight:700; color:#16365C; line-height:1.1;">0</div>
             <div style="font-size:12px; color:#26619c; font-weight:600; margin-top:2px;">Tổng cộng</div>
@@ -3094,7 +3094,7 @@
               <option value="60">60 ngày</option>
             </select>
             <div style="display:flex; gap:4px;">
-              <button onclick="setChartType('bar')" id="chartTypeBar" style="padding:5px 10px; border:1px solid transparent; border-radius:6px; background:linear-gradient(135deg, #3b82f6 0%, #bfdbfe 100%); color:#fff; font-size:12px; cursor:pointer; font-weight:600; box-shadow:0 3px 10px rgba(59, 130, 246, 0.30);">Bar</button>
+              <button onclick="setChartType('bar')" id="chartTypeBar" style="padding:5px 10px; border:1px solid transparent; border-radius:6px; background:linear-gradient(135deg, #1F4F87 0%, #bfdbfe 100%); color:#fff; font-size:12px; cursor:pointer; font-weight:600; box-shadow:0 3px 10px rgba(31, 79, 135, 0.30);">Bar</button>
               <button onclick="setChartType('line')" id="chartTypeLine" style="padding:5px 10px; border:1px solid #d8dde6; border-radius:6px; background:#fff; color:#506580; font-size:12px; cursor:pointer; font-weight:600;">Line</button>
             </div>
           </div>
@@ -3175,7 +3175,7 @@
           <svg style="position:absolute; left:9px; color:#9ca3af; pointer-events:none;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" id="dashFilterSearch" placeholder="Tìm kiếm..." onkeydown="if(event.key==='Enter')loadDashHistory()" style="padding:8px 12px 8px 30px; border:1px solid #ddd; border-radius:8px; font-size:13px; width:100%; box-sizing:border-box;">
         </div>
-        <button onclick="loadDashHistory()" style="padding:8px 16px; background:#1d4ed8; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:13px;">Lọc</button>
+        <button onclick="loadDashHistory()" style="padding:8px 16px; background:#26619c; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:13px;">Lọc</button>
       </div>
 
       <!-- Bulk action bar (hiện khi chọn >= 1 hàng) -->
@@ -3249,7 +3249,7 @@
       </div>
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button onclick="closeEditModal()" style="padding:8px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
-        <button onclick="saveProfile()" style="padding:8px 20px; border:none; border-radius:8px; background:#1d4ed8; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">💾 Lưu</button>
+        <button onclick="saveProfile()" style="padding:8px 20px; border:none; border-radius:8px; background:#26619c; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">💾 Lưu</button>
       </div>
     </div>
   </div>
@@ -3298,7 +3298,7 @@
       </div>
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button onclick="closeProxyModal()" style="padding:9px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
-        <button onclick="saveProxyFromModal()" style="padding:9px 20px; border:none; border-radius:8px; background:#1d4ed8; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">Lưu</button>
+        <button onclick="saveProxyFromModal()" style="padding:9px 20px; border:none; border-radius:8px; background:#26619c; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">Lưu</button>
       </div>
     </div>
   </div>
@@ -3351,7 +3351,7 @@
         <select id="newAccProxyId" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; background:#fff;"></select>
         <p style="font-size:11px; color:#888; margin:4px 0 0;">Quản lý danh sách proxy ở tab "IP Proxy".</p>
       </div>
-      <button onclick="addNewAccount()" style="width:100%; padding:12px; background:#1d4ed8; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer; margin-top:4px; box-sizing:border-box;">
+      <button onclick="addNewAccount()" style="width:100%; padding:12px; background:#26619c; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer; margin-top:4px; box-sizing:border-box;">
         ➕ Thêm và đăng nhập
       </button>
       <p id="newAccNote" style="font-size:12px; color:#999; margin-top:10px; margin-bottom:0;">
@@ -3378,7 +3378,7 @@
           </button>
           <button type="button" onclick="setGroupModalType('zalo')" id="groupModalTypeZalo"
             style="flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff; color:#777; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
-            <svg class="xi" style="color:#0068ff;"><use href="#ic-chat"/></svg> Zalo
+            <svg class="xi" style="color:#205493;"><use href="#ic-chat"/></svg> Zalo
           </button>
         </div>
       </div>
@@ -3413,7 +3413,7 @@
 
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button onclick="closeGroupModal()" style="padding:9px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
-        <button onclick="saveGroupFromModal()" id="groupModalSaveBtn" style="padding:9px 20px; border:none; border-radius:8px; background:#1d4ed8; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">💾 Lưu</button>
+        <button onclick="saveGroupFromModal()" id="groupModalSaveBtn" style="padding:9px 20px; border:none; border-radius:8px; background:#26619c; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">💾 Lưu</button>
       </div>
     </div>
   </div>
@@ -3470,8 +3470,8 @@
       <!-- Buttons -->
       <div style="display:flex; gap:10px; justify-content:flex-end; border-top:1px solid #f3f4f6; padding-top:18px;">
         <button onclick="closeRepostModal()" style="padding:10px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:14px; cursor:pointer; color:#555; font-weight:500;">Huỷ</button>
-        <button onclick="toggleRepostEdit()" id="repostEditBtn" style="padding:10px 20px; border:1px solid #3b82f6; border-radius:8px; background:#fff; font-size:14px; cursor:pointer; color:#1F4F87; font-weight:600;">✏️ Chỉnh sửa</button>
-        <button onclick="submitRepost()" id="repostSubmitBtn" style="padding:10px 24px; border:none; border-radius:8px; background:#3b82f6; color:#fff; font-size:14px; cursor:pointer; font-weight:600;">🔄 Repost</button>
+        <button onclick="toggleRepostEdit()" id="repostEditBtn" style="padding:10px 20px; border:1px solid #1F4F87; border-radius:8px; background:#fff; font-size:14px; cursor:pointer; color:#1F4F87; font-weight:600;">✏️ Chỉnh sửa</button>
+        <button onclick="submitRepost()" id="repostSubmitBtn" style="padding:10px 24px; border:none; border-radius:8px; background:#1F4F87; color:#fff; font-size:14px; cursor:pointer; font-weight:600;">🔄 Repost</button>
       </div>
     </div>
   </div>
@@ -3945,7 +3945,7 @@
       for (const ch of p.zalo) {
         panelHtml += `<label class="channel-item ch-zalo" data-panel="${pid}" data-platform="zalo" data-profile="${currentProfile}" data-chid="${ch.id}" data-zalo-account="${p.zaloAccount}">
           <input type="checkbox" checked onchange="onChannelChange(${pid})"> ${ch.icon} ${ch.name}
-          <span class="ch-tag zalo" style="background:#e6f0ff; color:#0068ff;">Zalo</span>
+          <span class="ch-tag zalo" style="background:#e6f0ff; color:#205493;">Zalo</span>
         </label>`;
       }
 
@@ -4240,7 +4240,7 @@
     ['dragenter', 'dragover'].forEach(evt => {
       document.body.addEventListener(evt, (e) => {
         e.preventDefault();
-        chatArea.style.border = '2px dashed #3b82f6';
+        chatArea.style.border = '2px dashed #1F4F87';
       });
     });
     ['dragleave', 'drop'].forEach(evt => {
@@ -4908,7 +4908,7 @@
       const MAX_STRIPS = 3;
 
       const escHtml = s => (s == null ? '' : String(s)).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
-      const statusColor = s => s === 'done' ? '#16a34a' : s === 'pending' ? '#d97706' : s === 'running' ? '#1d4ed8' : s === 'error' ? '#dc2626' : '#9ca3af';
+      const statusColor = s => s === 'done' ? '#16a34a' : s === 'pending' ? '#d97706' : s === 'running' ? '#26619c' : s === 'error' ? '#dc2626' : '#9ca3af';
       const platIcon = () => '📘';
 
       // Bucket events theo ngày và sort theo giờ
@@ -4934,7 +4934,7 @@
         const list = byDay.get(key) || [];
         const isToday = key === todayKey;
         const bg = isToday ? '#eef2ff' : '#fff';
-        const border = isToday ? '#1d4ed8' : '#eee';
+        const border = isToday ? '#26619c' : '#eee';
         const clickable = list.length > 0;
 
         let body = '';
@@ -4971,7 +4971,7 @@
         }
 
         html += `<div ${clickable ? `onclick="calShowDay('${key}')"` : ''} style="min-height:${CELL_H}px; border:1px solid ${border}; border-radius:8px; padding:6px; background:${bg}; cursor:${clickable ? 'pointer' : 'default'}; display:flex; flex-direction:column; gap:4px; overflow:hidden;">
-          <div style="font-size:12px; color:${isToday ? '#1d4ed8' : '#333'}; font-weight:${isToday ? '700' : '500'};">${day}</div>
+          <div style="font-size:12px; color:${isToday ? '#26619c' : '#333'}; font-weight:${isToday ? '700' : '500'};">${day}</div>
           ${body}
         </div>`;
       }
@@ -5168,7 +5168,7 @@
       return `<div style="display:flex; flex-wrap:wrap; gap:4px;">` + accs.map(a => {
         const isFb = a.type === 'facebook';
         const bg = isFb ? '#e8f1ff' : '#e8f4ff';
-        const color = isFb ? '#1877f2' : '#0068ff';
+        const color = isFb ? '#1877f2' : '#205493';
         const icon = isFb
           ? '<img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:11px;height:11px;">'
           : `<svg class="xi" style="width:11px;height:11px;"><use href="#ic-chat"/></svg>`;
@@ -5333,7 +5333,7 @@
                   : '';
                 return `
                 <div class="profile-card">
-                  <div class="avatar" style="background:#e8f4ff; color:#0068ff;">${xekoIcon('chat','xi xi-md')}</div>
+                  <div class="avatar" style="background:#e8f4ff; color:#205493;">${xekoIcon('chat','xi xi-md')}</div>
                   <div class="info">
                     <div class="name">${escapeHtml(z.name)}</div>
                     <div class="detail">Key: ${escapeHtml(z.key)} · Salework: ${escapeHtml(z.saleworkName)}${zproxyHtml}</div>
@@ -5541,7 +5541,7 @@
                 <div style="font-weight:600; font-size:15px; color:#1e1e2e;">${r.name}</div>
                 <div style="font-size:13px; color:${s.color}; margin-top:2px;">${s.label} - ${r.message}</div>
               </div>
-              ${r.status === 'expired' ? `<button onclick="loginProfile('${r.profile}')" style="padding:8px 16px; background:#1d4ed8; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer;">🔑 Đăng nhập lại</button>` : ''}
+              ${r.status === 'expired' ? `<button onclick="loginProfile('${r.profile}')" style="padding:8px 16px; background:#26619c; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer;">🔑 Đăng nhập lại</button>` : ''}
             </div>`;
         });
 
@@ -5658,7 +5658,7 @@
 
         const typeConfig = {
           login: { icon: '🔑', color: '#16a34a', label: 'Đăng nhập' },
-          session_check: { icon: '✅', color: '#1d4ed8', label: 'Kiểm tra session' },
+          session_check: { icon: '✅', color: '#26619c', label: 'Kiểm tra session' },
           session_expired: { icon: '❌', color: '#dc2626', label: 'Session hết hạn' },
           post_success: { icon: '📝', color: '#16a34a', label: 'Đăng bài' },
           post_error: { icon: '💥', color: '#dc2626', label: 'Lỗi đăng bài' },
@@ -5776,9 +5776,9 @@
         const isFb = g._type === 'fb';
         const typeBadge = isFb
           ? `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e8f1ff; color:#1877f2; border-radius:20px; font-size:11px; font-weight:600;"><img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:12px;height:12px;">FB</span>`
-          : `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e6f2ff; color:#0068ff; border-radius:20px; font-size:11px; font-weight:600;"><svg class="xi" style="width:12px;height:12px;"><use href="#ic-chat"/></svg>Zalo</span>`;
+          : `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e6f2ff; color:#205493; border-radius:20px; font-size:11px; font-weight:600;"><svg class="xi" style="width:12px;height:12px;"><use href="#ic-chat"/></svg>Zalo</span>`;
         const sub = isFb ? `ID: ${escapeHtml(g.id)}` : `Salework: ${escapeHtml(g.oid)}`;
-        const keyColor = isFb ? '#1d4ed8' : '#0068ff';
+        const keyColor = isFb ? '#26619c' : '#205493';
         const category = g.category ? escapeHtml(g.category) : '<span style="color:#bbb; font-style:italic;">—</span>';
         return `
           <tr style="background:#f0f9ff;">
@@ -5805,8 +5805,8 @@
       document.querySelectorAll('.group-filter-tab').forEach(btn => {
         const active = btn.dataset.filter === type;
         btn.style.background = active ? '#fff' : 'transparent';
-        btn.style.color = active ? '#1d4ed8' : '#777';
-        btn.style.boxShadow = active ? '0 1px 3px rgba(59, 130, 246,0.15)' : 'none';
+        btn.style.color = active ? '#26619c' : '#777';
+        btn.style.boxShadow = active ? '0 1px 3px rgba(31, 79, 135,0.15)' : 'none';
         btn.classList.toggle('active', active);
       });
       renderGroupsTable();
@@ -5874,12 +5874,12 @@
       const idLabel = document.getElementById('groupModalIdLabel');
       const idInput = document.getElementById('groupModalId');
       if (type === 'fb') {
-        fbBtn.style.background = '#f0f9ff'; fbBtn.style.color = '#1d4ed8'; fbBtn.style.borderColor = '#dbeafe';
+        fbBtn.style.background = '#f0f9ff'; fbBtn.style.color = '#26619c'; fbBtn.style.borderColor = '#dbeafe';
         zaloBtn.style.background = '#fff'; zaloBtn.style.color = '#777'; zaloBtn.style.borderColor = '#ddd';
         idLabel.textContent = 'Group ID (từ URL Facebook)';
         idInput.placeholder = 'vd: 350987965423767';
       } else {
-        zaloBtn.style.background = '#e6f2ff'; zaloBtn.style.color = '#0068ff'; zaloBtn.style.borderColor = '#b3d0ff';
+        zaloBtn.style.background = '#e6f2ff'; zaloBtn.style.color = '#205493'; zaloBtn.style.borderColor = '#b3d0ff';
         fbBtn.style.background = '#fff'; fbBtn.style.color = '#777'; fbBtn.style.borderColor = '#ddd';
         idLabel.textContent = 'Tên nhóm trong Salework';
         idInput.placeholder = 'vd: TỔNG KHO HÀNG SẴN US - LINH THẢO';
@@ -5972,11 +5972,11 @@
         return `
           <button type="button" onclick="selectAccountProfile('${escapeHtml(p.key)}')"
             style="display:flex; align-items:center; gap:8px; padding:9px 10px; border:none; border-radius:8px; cursor:pointer; text-align:left;
-              background:${active ? '#fff' : 'transparent'}; box-shadow:${active ? '0 2px 8px rgba(59, 130, 246,0.12)' : 'none'};
-              font-size:13px; font-weight:${active ? '600' : '500'}; color:${active ? '#1d4ed8' : '#444'};">
-            <span style="width:6px; height:6px; border-radius:50%; background:${active ? '#3b82f6' : '#dbeafe'}; flex-shrink:0;"></span>
+              background:${active ? '#fff' : 'transparent'}; box-shadow:${active ? '0 2px 8px rgba(31, 79, 135,0.12)' : 'none'};
+              font-size:13px; font-weight:${active ? '600' : '500'}; color:${active ? '#26619c' : '#444'};">
+            <span style="width:6px; height:6px; border-radius:50%; background:${active ? '#1F4F87' : '#dbeafe'}; flex-shrink:0;"></span>
             <span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span>
-            <span style="font-size:10.5px; color:${active ? '#3b82f6' : '#aaa'}; font-weight:600; white-space:nowrap;">${fbCount}·${zaloCount}</span>
+            <span style="font-size:10.5px; color:${active ? '#1F4F87' : '#aaa'}; font-weight:600; white-space:nowrap;">${fbCount}·${zaloCount}</span>
           </button>
         `;
       }).join('');
@@ -6084,8 +6084,8 @@
         const isFb = s.type === 'fb';
         const icon = isFb
           ? `<img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:13px;height:13px;">`
-          : `<svg class="xi" style="width:13px;height:13px; color:#0068ff;"><use href="#ic-chat"/></svg>`;
-        const accent = isFb ? '#1d4ed8' : '#0068ff';
+          : `<svg class="xi" style="width:13px;height:13px; color:#205493;"><use href="#ic-chat"/></svg>`;
+        const accent = isFb ? '#26619c' : '#205493';
         return `
           <div style="margin-bottom:14px;">
             <div style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:${accent}; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; padding-bottom:4px; border-bottom:1px dashed ${isFb ? '#dbeafe' : '#b3d0ff'};">
@@ -6397,7 +6397,7 @@
         const zalo = zaloName ? zaloStatMap[zaloName] : null;
         if (zalo) claimedZalo.add(zaloName);
         const fbRow = renderPlatformRow(fb, 'FB', '#e8f0fe', '#1877f2');
-        const zaloRow = zalo ? renderPlatformRow(zalo, 'Zalo', '#e8f0ff', '#0068ff') : '';
+        const zaloRow = zalo ? renderPlatformRow(zalo, 'Zalo', '#e8f0ff', '#205493') : '';
         const divider = zalo ? `<div style="height:1px; background:#f3f4f6; margin-top:8px;"></div>` : '';
         cards.push(`<div style="background:#fafafa; border:1px solid #f0f0f0; border-radius:10px; padding:12px 14px;">
           <div style="font-weight:600; font-size:13px; color:#1e1e2e; margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(fb.profile_name || fb.profile)}">${escapeHtml(fb.profile_name || fb.profile)}</div>
@@ -6407,7 +6407,7 @@
       zaloStats.filter(p => !claimedZalo.has(p.profile)).forEach(zalo => {
         cards.push(`<div style="background:#fafafa; border:1px solid #f0f0f0; border-radius:10px; padding:12px 14px;">
           <div style="font-weight:600; font-size:13px; color:#1e1e2e; margin-bottom:2px;">${escapeHtml(zalo.profile_name || zalo.profile)}</div>
-          ${renderPlatformRow(zalo, 'Zalo', '#e8f0ff', '#0068ff')}
+          ${renderPlatformRow(zalo, 'Zalo', '#e8f0ff', '#205493')}
         </div>`);
       });
       profileEl.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px;">${cards.join('')}</div>`;
@@ -6457,12 +6457,12 @@
     // ===== Dashboard Chart =====
     let _dashChart = null;
     let _chartType = 'bar';
-    const CHART_PALETTE = ['#3b82f6','#bfdbfe','#bfdbfe','#06b6d4','#10b981','#f59e0b','#ec4899','#f97316'];
+    const CHART_PALETTE = ['#1F4F87','#bfdbfe','#bfdbfe','#06b6d4','#10b981','#f59e0b','#ec4899','#f97316'];
 
     function setChartType(type) {
       _chartType = type;
-      const SKY_ACTIVE_BG = 'linear-gradient(135deg, #3b82f6 0%, #bfdbfe 100%)';
-      const SKY_ACTIVE_SHADOW = '0 3px 10px rgba(59, 130, 246, 0.30)';
+      const SKY_ACTIVE_BG = 'linear-gradient(135deg, #1F4F87 0%, #bfdbfe 100%)';
+      const SKY_ACTIVE_SHADOW = '0 3px 10px rgba(31, 79, 135, 0.30)';
       document.getElementById('chartTypeBar').style.background   = type === 'bar'  ? SKY_ACTIVE_BG : '#fff';
       document.getElementById('chartTypeBar').style.color        = type === 'bar'  ? '#fff'        : '#506580';
       document.getElementById('chartTypeBar').style.borderColor  = type === 'bar'  ? 'transparent' : '#d8dde6';
@@ -6619,7 +6619,7 @@
           const groupId = ch.id || ch.key || '-';
           const msgShort = job.message ? (job.message.length > 60 ? job.message.substring(0, 60) + '…' : job.message) : '-';
           const fullMsg = (job.message || '').replace(/"/g, '&quot;');
-          return `<tr id="${job.tempId}" style="border-bottom:1px solid #bfdbfe; background:#f0f9ff; border-left:3px solid #3b82f6;">
+          return `<tr id="${job.tempId}" style="border-bottom:1px solid #bfdbfe; background:#f0f9ff; border-left:3px solid #1F4F87;">
             <td style="padding:10px 10px; text-align:center; color:#1F4F87; font-size:15px;">⏳</td>
             <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${job.timeLabel}</td>
             <td style="padding:10px 12px; font-size:12px;">${job.profileName}</td>
@@ -6690,7 +6690,7 @@
           window._dashRows = histRows;
 
           // Tính batch_id nào xuất hiện nhiều hơn 1 lần → gán màu
-          const BATCH_COLORS = ['#3b82f6','#06b6d4','#f59e0b','#10b981','#ef4444','#3b82f6','#ec4899'];
+          const BATCH_COLORS = ['#1F4F87','#06b6d4','#f59e0b','#10b981','#ef4444','#1F4F87','#ec4899'];
           const batchCount = {};
           histRows.forEach(r => { if (r.batch_id) batchCount[r.batch_id] = (batchCount[r.batch_id] || 0) + 1; });
           const batchColorMap = {};
@@ -6742,7 +6742,7 @@
               <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
               <td style="padding:8px 10px; text-align:center; position:relative;">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
-                  <button onclick="openRepostModal(${idx})" title="Repost" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #3b82f6;border-radius:7px;background:#fff;color:#1F4F87;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#3b82f6';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#3b82f6'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
+                  <button onclick="openRepostModal(${idx})" title="Repost" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #1F4F87;border-radius:7px;background:#fff;color:#1F4F87;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#1F4F87';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#1F4F87'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
                   <button onclick="openSingleDeleteConfirm(${row.id})" title="Xóa" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #fca5a5;border-radius:7px;background:#fff;color:#ef4444;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
                 </div>
               </td>
@@ -6957,10 +6957,10 @@
           style="display:flex; align-items:center; gap:10px; padding:9px 14px; cursor:pointer; font-size:13px;
             background:${sel ? '#eff6ff' : '#fff'}; border-bottom:1px solid #f3f4f6; transition:background 0.1s;"
           onmouseover="this.style.background='${sel ? '#eff6ff' : '#fafafa'}'" onmouseout="this.style.background='${sel ? '#eff6ff' : '#fff'}'">
-          <span style="width:16px; height:16px; border-radius:4px; border:2px solid ${sel ? '#3b82f6' : '#d1d5db'}; background:${sel ? '#3b82f6' : '#fff'}; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.15s;">
+          <span style="width:16px; height:16px; border-radius:4px; border:2px solid ${sel ? '#1F4F87' : '#d1d5db'}; background:${sel ? '#1F4F87' : '#fff'}; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.15s;">
             ${sel ? '<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
           </span>
-          <span style="flex:1; font-weight:${sel ? '600' : '400'}; color:${sel ? '#1d4ed8' : '#333'};">${opt.label}</span>
+          <span style="flex:1; font-weight:${sel ? '600' : '400'}; color:${sel ? '#26619c' : '#333'};">${opt.label}</span>
           ${opt.sub ? `<span style="font-size:11px; color:#999; flex-shrink:0;">${opt.sub}</span>` : ''}
         </div>`;
       }).join('');
@@ -7081,7 +7081,7 @@
       const addBtn = _repostEditMode
         ? `<button type="button" onclick="document.getElementById('repostImageInput').value=''; document.getElementById('repostImageInput').click()"
             style="width:72px; height:72px; border:2px dashed #d1d5db; border-radius:8px; background:#fafafa; color:#9ca3af; font-size:24px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:border-color 0.15s;"
-            onmouseover="this.style.borderColor='#3b82f6'; this.style.color='#3b82f6';"
+            onmouseover="this.style.borderColor='#1F4F87'; this.style.color='#1F4F87';"
             onmouseout="this.style.borderColor='#d1d5db'; this.style.color='#9ca3af';">+</button>`
         : '';
 
