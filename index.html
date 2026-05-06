@@ -2542,6 +2542,20 @@
       background: #f3f4f6 !important;
       color: #9ca3af !important;
     }
+
+    /* === Mobile: groupsTable - hide PHÂN LOẠI col + compact widths === */
+    @media (max-width: 768px) {
+      #groupsTable th:nth-child(4),
+      #groupsTable td:nth-child(4) { display: none !important; }
+      #groupsTable th:nth-child(1),
+      #groupsTable td:nth-child(1) { width: 56px !important; padding: 8px 4px !important; }
+      #groupsTable th:nth-child(2),
+      #groupsTable td:nth-child(2) { width: 92px !important; max-width: 92px !important; padding: 8px 6px !important; }
+      #groupsTable th:nth-child(5),
+      #groupsTable td:nth-child(5) { width: 80px !important; padding: 8px 4px !important; }
+      #groupsTable td { font-size: 12px !important; }
+      #groupsTableWrap { overflow-x: hidden !important; }
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
