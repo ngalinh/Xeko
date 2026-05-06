@@ -7409,8 +7409,8 @@
       tbody.innerHTML = users.map(u => {
         const isSuper = u.email === superAdmin;
         const roleBadge = u.isXekoAdmin
-          ? '<span style="background:#F0EFFC; color:#635BFF; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;">Admin Xeko</span>'
-          : '<span style="background:#f3f4f6; color:#555; padding:3px 10px; border-radius:12px; font-size:12px;">User</span>';
+          ? '<span style="background:#F0EFFC; color:#635BFF; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">Admin Xeko</span>'
+          : '<span style="background:#f3f4f6; color:#555; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">User</span>';
         const profileText = u.allProfiles
           ? '<em style="color:#16a34a;">Tất cả profile</em>'
           : (u.profiles && u.profiles.length
