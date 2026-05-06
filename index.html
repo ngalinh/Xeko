@@ -2667,9 +2667,6 @@
       <span>Xeko</span>
     </div>
     <div class="sidebar-nav">
-      <button class="sidebar-item mobile-only-nav" onclick="switchPage('home')" id="navHome">
-        <span class="icon"><svg class="xi"><use href="#ic-home"/></svg></span> Trang chủ
-      </button>
       <button class="sidebar-item" onclick="switchPage('dashboard')" id="navDashboard">
         <span class="icon"><svg class="xi"><use href="#ic-dash"/></svg></span> Dashboard
       </button>
@@ -7300,20 +7297,8 @@
       if (btn) btn.style.display = 'none';
     });
 
-    // Inject a "home" button into every page header on mobile.
-    // Kept in JS to avoid editing 4 separate header blocks.
-    function xekoInjectHomeButtons() {
-      document.querySelectorAll('.page:not(#pageMobileHome) .header').forEach((h) => {
-        if (h.querySelector('.mhome-back-btn')) return;
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'mhome-back-btn';
-        btn.setAttribute('aria-label', 'Trang chủ');
-        btn.innerHTML = '<svg class="xi xi-md" aria-hidden="true"><use href="#ic-home"/></svg>';
-        btn.onclick = () => switchPage('home');
-        h.insertBefore(btn, h.firstChild);
-      });
-    }
+    // mhome đã bỏ — không inject home button nữa
+    function xekoInjectHomeButtons() { /* noop */ }
 
     // ====== Auth + Phân quyền ======
     let CURRENT_USER = null;
@@ -7574,8 +7559,9 @@
             switchPage(p);
             return;
           }
+          // Default page on mobile = Đăng bài (mhome đã bỏ)
           if (window.innerWidth <= 768 && typeof switchPage === 'function') {
-            switchPage('home');
+            switchPage('post');
           }
         } catch (_) {}
       };
