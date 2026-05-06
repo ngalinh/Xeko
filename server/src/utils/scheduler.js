@@ -5,6 +5,30 @@ const { queuePost } = require('./post-queue');
 const fs = require('fs');
 const path = require('path');
 
+// Persist temp images sang /data/uploads để history tham chiếu được lâu dài.
+// Mirror behavior với persistImages() trong server/index.js.
+const UPLOADS_DIR = path.resolve(__dirname, '../../../data/uploads');
+function persistImages(imagePaths) {
+  if (!imagePaths || !imagePaths.length) return [];
+  const now = new Date();
+  const dateDir = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const targetDir = path.join(UPLOADS_DIR, dateDir);
+  if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+  const urls = [];
+  for (const p of imagePaths) {
+    try {
+      if (!fs.existsSync(p)) continue;
+      const filename = path.basename(p);
+      const target = path.join(targetDir, filename);
+      fs.copyFileSync(p, target);
+      urls.push(`/api/image/${dateDir}/${filename}`);
+    } catch (e) {
+      logger.error(`scheduler.persistImages: ${e.message}`);
+    }
+  }
+  return urls;
+}
+
 // Lưu lịch đăng bài trong RAM (nguồn sự thật là DB, đây chỉ là cache)
 const scheduledPosts = [];
 let nextId = 1;
@@ -91,6 +115,8 @@ async function executeSchedule(job) {
   try {
     let result;
     const imgCount = job.imagePaths?.length || 0;
+    // Persist temp images sang /data/uploads để history giữ thumbnail sau khi schedule fired
+    const imageUrls = persistImages(job.imagePaths);
 
     // Zalo
     if (job.type === 'zalo') {
@@ -125,7 +151,7 @@ async function executeSchedule(job) {
         });
       }
 
-      postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'zalo', target: 'group', groupName: job.groupName, message: job.message, imageCount: imgCount, success: result.success, error: result.error, source: 'schedule' });
+      postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'zalo', target: 'group', groupName: job.groupName, message: job.message, imageCount: imgCount, images: imageUrls, success: result.success, error: result.error, source: 'schedule' });
 
     } else {
     // Facebook
@@ -133,17 +159,17 @@ async function executeSchedule(job) {
 
     if (job.target === 'personal') {
       result = await playwright.postToPersonal(job.message, job.imagePaths);
-      postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'personal', message: job.message, imageCount: imgCount, success: result.success, error: result.error, postUrl: result.postUrl, source: 'schedule' });
+      postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'personal', message: job.message, imageCount: imgCount, images: imageUrls, success: result.success, error: result.error, postUrl: result.postUrl, source: 'schedule' });
     } else if (job.target === 'group') {
       result = await playwright.postToGroup(job.groupId, job.message, job.imagePaths);
-      postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'group', groupId: job.groupId, groupName: job.groupName, message: job.message, imageCount: imgCount, success: result.success, error: result.error, postUrl: result.postUrl, source: 'schedule' });
+      postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'group', groupId: job.groupId, groupName: job.groupName, message: job.message, imageCount: imgCount, images: imageUrls, success: result.success, error: result.error, postUrl: result.postUrl, source: 'schedule' });
     } else if (job.target === 'allgroup') {
       const config = require('../../config/default');
       const groups = Object.values(config.groups);
       const results = [];
       for (const group of groups) {
         const r = await playwright.postToGroup(group.id, job.message, job.imagePaths);
-        postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'group', groupId: group.id, groupName: group.name, message: job.message, imageCount: imgCount, success: r.success, error: r.error, postUrl: r.postUrl, source: 'schedule' });
+        postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'group', groupId: group.id, groupName: group.name, message: job.message, imageCount: imgCount, images: imageUrls, success: r.success, error: r.error, postUrl: r.postUrl, source: 'schedule' });
         results.push({ target: group.name, ...r });
         if (groups.indexOf(group) < groups.length - 1) {
           await new Promise(r => setTimeout(r, 30000 + Math.random() * 30000));
@@ -155,7 +181,7 @@ async function executeSchedule(job) {
       const group = config.groups[job.groupId];
       if (group) {
         result = await playwright.postToGroup(group.id, job.message, job.imagePaths);
-        postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'group', groupId: group.id, groupName: group.name, message: job.message, imageCount: imgCount, success: result.success, error: result.error, postUrl: result.postUrl, source: 'schedule' });
+        postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'group', groupId: group.id, groupName: group.name, message: job.message, imageCount: imgCount, images: imageUrls, success: result.success, error: result.error, postUrl: result.postUrl, source: 'schedule' });
       } else {
         result = { success: false, error: 'Group không tồn tại' };
       }
@@ -164,14 +190,14 @@ async function executeSchedule(job) {
       const results = [];
       // Cá nhân
       const r1 = await playwright.postToPersonal(job.message, job.imagePaths);
-      postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'personal', message: job.message, imageCount: imgCount, success: r1.success, error: r1.error, postUrl: r1.postUrl, source: 'schedule' });
+      postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'personal', message: job.message, imageCount: imgCount, images: imageUrls, success: r1.success, error: r1.error, postUrl: r1.postUrl, source: 'schedule' });
       results.push({ target: 'FB Cá nhân', ...r1 });
       await new Promise(r => setTimeout(r, 30000 + Math.random() * 30000));
       // Groups
       const groups = Object.values(config.groups);
       for (const group of groups) {
         const r = await playwright.postToGroup(group.id, job.message, job.imagePaths);
-        postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'group', groupId: group.id, groupName: group.name, message: job.message, imageCount: imgCount, success: r.success, error: r.error, postUrl: r.postUrl, source: 'schedule' });
+        postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'group', groupId: group.id, groupName: group.name, message: job.message, imageCount: imgCount, images: imageUrls, success: r.success, error: r.error, postUrl: r.postUrl, source: 'schedule' });
         results.push({ target: group.name, ...r });
         if (groups.indexOf(group) < groups.length - 1) {
           await new Promise(r => setTimeout(r, 30000 + Math.random() * 30000));
