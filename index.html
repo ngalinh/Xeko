@@ -239,8 +239,8 @@
     .channel-platform-toggle {
       display: flex; align-items: center; gap: 6px;
       padding: 8px 16px; border-radius: 8px;
-      border: 1.5px solid #E0DDFD; background: #f0f9ff;
-      cursor: pointer; font-size: 13px; font-weight: 600; color: #635BFF;
+      border: 1.5px solid #e5e7eb; background: #fafafa;
+      cursor: pointer; font-size: 13px; font-weight: 600; color: #374151;
       transition: all 0.15s; user-select: none; flex: 1; justify-content: center;
     }
     .channel-platform-toggle input[type="checkbox"] { display: none; }
@@ -251,7 +251,7 @@
     }
     .channel-profile-header {
       padding: 8px 14px; font-weight: 600; font-size: 13px;
-      background: #f0f9ff; color: #635BFF; border-bottom: 1px solid #F0EFFC;
+      background: #fafafa; color: #5046E5; border-bottom: 1px solid #eef0f4;
       display: flex; align-items: center; gap: 6px;
     }
     .channel-item {
@@ -1841,10 +1841,10 @@
 
     /* PANEL CARDS (channels, groups) */
     #panelChannels > div[style*="background:#fff"] {
-      background: var(--xk-glass-bg) !important;
-      backdrop-filter: blur(18px) saturate(180%);
-      -webkit-backdrop-filter: blur(18px) saturate(180%);
-      border: 1px solid var(--xk-glass-edge) !important;
+      background: #ffffff !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border: 1px solid #eef0f4 !important;
       box-shadow:
         0 6px 20px rgba(15,15,26,0.06),
         inset 0 1px 0 rgba(255,255,255,0.6) !important;
@@ -2406,12 +2406,12 @@
       border-bottom-color: transparent !important;
     }
 
-    /* PANEL CARDS (channels, groups) — Sky glass */
+    /* PANEL CARDS (channels, groups) — solid white card */
     #panelChannels > div[style*="background:#fff"] {
-      background: var(--xk-sky-surface) !important;
-      backdrop-filter: blur(14px) saturate(180%) !important;
-      -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
-      border: 1px solid var(--xk-sky-border) !important;
+      background: #ffffff !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border: 1px solid #eef0f4 !important;
       box-shadow: var(--xk-shadow-card) !important;
       border-radius: 14px !important;
     }
@@ -2748,7 +2748,7 @@
       <h1>Đăng bài</h1>
       <span id="headerStatus">Đăng bài tự động</span>
     </div>
-    <button id="btnChangeProfile" onclick="showProfileSelect()" style="display:none;margin-left:auto;padding:5px 12px;border-radius:8px;border:1px solid #E0DDFD;background:#f0f9ff;color:#5046E5;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;"><svg class="xi xi-sm" aria-hidden="true"><use href="#ic-user"/></svg> Đổi Profile</button>
+    <button id="btnChangeProfile" onclick="showProfileSelect()" style="display:none;margin-left:auto;padding:5px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fafafa;color:#374151;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;"><svg class="xi xi-sm" aria-hidden="true"><use href="#ic-user"/></svg> Đổi Profile</button>
   </div>
 
   <div class="chat-area" id="chatArea"></div>
