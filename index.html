@@ -2248,12 +2248,12 @@
     }
     .theme-toggle:hover { background: rgba(255, 255, 255, 0.95) !important; }
 
-    /* CHAT bubbles — White card (Prodify-style) */
+    /* CHAT bubbles — Glass card đồng bộ với sidebar/header */
     .msg.bot {
-      background: #fff !important;
-      backdrop-filter: none !important;
-      -webkit-backdrop-filter: none !important;
-      border: 1px solid #eef0f4 !important;
+      background: rgba(255,255,255,0.65) !important;
+      backdrop-filter: blur(20px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+      border: 1px solid rgba(255,255,255,0.5) !important;
       box-shadow: var(--xk-shadow-card) !important;
       color: var(--xk-sky-text) !important;
       border-radius: 3px 14px 14px 14px !important;
@@ -2527,13 +2527,13 @@
       width: auto !important;
     }
 
-    /* === Mobile: sidebar solid trắng để text readable (glass mobile khó nhìn) === */
+    /* === Mobile: sidebar glass nhẹ, opacity 0.70 cho text vẫn readable === */
     @media (max-width: 768px) {
       .sidebar {
-        background: #ffffff !important;
-        backdrop-filter: none !important;
-        -webkit-backdrop-filter: none !important;
-        border-right: 1px solid #eef0f4 !important;
+        background: rgba(255,255,255,0.70) !important;
+        backdrop-filter: blur(24px) saturate(180%) !important;
+        -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+        border-right: 1px solid rgba(255,255,255,0.5) !important;
       }
     }
   </style>
@@ -2711,7 +2711,7 @@
         <span class="mhome-hello">Xeko chào bạn 👋</span>
         <h1 class="mhome-title">Hôm nay mình đăng content gì nào?</h1>
       </div>
-      <button class="mhome-avatar" onclick="toggleSidebar()" aria-label="Menu">
+      <button class="mhome-avatar" onclick="switchPage('post')" aria-label="Mở Đăng bài">
         <img src="https://raw.githubusercontent.com/ngalinh/Xeko/main/xeko-avatar.png" alt="Xeko">
       </button>
     </div>
@@ -2721,11 +2721,6 @@
         <span class="mhome-tile-icon"><img src="icons/3d/post.png" alt="" loading="lazy"></span>
         <span class="mhome-tile-label">Đăng bài</span>
         <span class="mhome-tile-hint">Soạn & gửi ngay</span>
-      </button>
-      <button class="mhome-tile tile-dash" onclick="switchPage('dashboard')">
-        <span class="mhome-tile-icon"><img src="icons/3d/dash.png" alt="" loading="lazy"></span>
-        <span class="mhome-tile-label">Dashboard</span>
-        <span class="mhome-tile-hint">Thống kê & lịch</span>
       </button>
       <button class="mhome-tile tile-acc" onclick="switchPage('session')">
         <span class="mhome-tile-icon"><img src="icons/3d/users.png" alt="" loading="lazy"></span>
@@ -3045,7 +3040,7 @@
     <!-- Thống kê -->
     <div id="dashPanelStats" style="flex:1; overflow-y:auto; padding:20px;">
       <!-- Summary Cards (Schedulkan-style: icon-circle + number + label) -->
-      <div id="dashSummary" style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px;">
+      <div id="dashSummary" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:14px; margin-bottom:24px;">
         <div class="dash-card" style="background:#d8ebf7; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
           <div style="width:44px; height:44px; border-radius:12px; background:#4a9fe5; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0;"><svg class="xi xi-md"><use href="#ic-clock"/></svg></div>
           <div style="min-width:0;">
@@ -6607,7 +6602,7 @@
             <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupId}">${groupId}</td>
             <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msgShort}</td>
             <td style="padding:10px 12px; color:#bbb;">—</td>
-            <td style="padding:10px 12px; text-align:center;"><span style="background:#E0DDFD; color:#635BFF; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600;">↻ Đang đăng</span></td>
+            <td style="padding:10px 12px; text-align:center;"><span style="background:#E0DDFD; color:#635BFF; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">↻ Đang đăng</span></td>
             <td></td>
           </tr>`;
         }).join('');
@@ -6633,8 +6628,8 @@
           }
           const isRunning = sched.status === 'running';
           const statusBadge = isRunning
-            ? '<span style="background:#E0DDFD; color:#635BFF; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600;">↻ Đang đăng</span>'
-            : '<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600;">⏱ Chờ đăng</span>';
+            ? '<span style="background:#E0DDFD; color:#635BFF; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">↻ Đang đăng</span>'
+            : '<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">⏱ Chờ đăng</span>';
           const rowBg = isRunning ? '#F0EFFC' : '#f8f7ff';
           return `<tr id="schedRow-${sched.id}" style="border-bottom:1px solid #F0EFFC; background:${rowBg}; border-left:3px solid #C5C0FB;">
             <td style="padding:10px 10px; text-align:center; color:#5046E5; font-size:13px;">⏱</td>
@@ -6685,8 +6680,8 @@
             const platformLabel = row.platform === 'zalo' ? 'Zalo' : 'FB';
             const batchColor = row.batch_id ? batchColorMap[row.batch_id] : null;
             const statusBadge = row.success
-              ? '<span style="background:#d1fae5; color:#047857; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600;">✓ OK</span>'
-              : `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600;" title="${(row.error||'').replace(/"/g,'&quot;')}">✕ Lỗi</span>`;
+              ? '<span style="background:#d1fae5; color:#047857; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">✓ OK</span>'
+              : `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'').replace(/"/g,'&quot;')}">✕ Lỗi</span>`;
             const target = row.target === 'personal' ? 'Cá nhân' : row.target === 'group' ? 'Group' : (row.target || '-');
             const groupId = resolveGroupLabel(row.platform, row.group_id, row.group_name);
             const fullMsg = (row.message || '').replace(/"/g,'&quot;');
