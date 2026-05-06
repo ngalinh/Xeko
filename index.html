@@ -2543,6 +2543,16 @@
       color: #9ca3af !important;
     }
 
+    /* === Date/time inputs: dùng Stripe primary làm accent (calendar highlight) === */
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="week"] {
+      accent-color: #635BFF;
+      color-scheme: light;
+    }
+
     /* === Mobile: groupsTable - hide PHÂN LOẠI col + compact widths === */
     @media (max-width: 768px) {
       #groupsTable th:nth-child(4),
