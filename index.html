@@ -6143,6 +6143,14 @@
         const res = await fetch(BASE_URL + '/api/notifications');
         const items = await parseJson(res);
 
+        // Auto-refresh dashboard table khi có schedule completion mới
+        if (items.length > 0) {
+          const dashPage = document.getElementById('pageDashboard');
+          if (dashPage && dashPage.classList.contains('active') && typeof loadDashHistory === 'function') {
+            loadDashHistory();
+          }
+        }
+
         for (const n of items) {
           const targetLabels = {
             personal: 'FB Cá nhân',
