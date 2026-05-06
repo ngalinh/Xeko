@@ -207,22 +207,22 @@
     /* Inline buttons */
     .msg-buttons {
       display: flex;
-      flex-direction: column;
-      gap: 5px;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 8px;
       margin-top: 10px;
     }
     .msg-btn {
-      padding: 9px 16px;
-      border-radius: 8px;
+      padding: 8px 16px;
+      border-radius: 999px;
       border: 1px solid #dcd6ff;
-      background: #f0f9ff;
+      background: #fff;
       color: #7b68ee;
       cursor: pointer;
       font-size: 13px;
       font-weight: 500;
       transition: all 0.15s;
       text-align: center;
-      width: 100%;
     }
     .msg-btn:hover { background: #7b68ee; color: #fff; border-color: #7b68ee; }
 
@@ -923,8 +923,8 @@
       }
       .msg.user .link { color: #fff; text-decoration: underline; }
       .msg-btn {
-        border-radius: 14px;
-        padding: 11px 16px;
+        border-radius: 999px;
+        padding: 9px 16px;
         background: #fff;
         border-color: #eeeaff;
         box-shadow: 0 3px 10px rgba(147, 129, 255,0.08);
@@ -1385,7 +1385,7 @@
       .msg.user .link { color: #fff; text-decoration: underline; }
       .msg .link { color: #9381ff; }
       .msg-btn {
-        border-radius: 12px;
+        border-radius: 999px;
         background: #fff;
         border-color: #eeeaff;
         color: #9381ff;
