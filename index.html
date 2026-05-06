@@ -284,6 +284,24 @@
     .dash-filter-bar > .msel .msel-btn { width:100%; box-sizing:border-box; }
     .dash-filter-bar > .dash-search-wrap { flex:1.2; min-width:120px; }
     .dash-filter-bar > input[type=date] { flex:0 0 auto; }
+
+    /* Phase 4: 2-col grid (chart + side widget) — Prodify-style */
+    .dash-2col {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 900px) {
+      .dash-2col { grid-template-columns: 1fr; }
+    }
+    .dash-card-pro {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      border: 1px solid #f1f0f5;
+    }
     .msel-btn {
       display:flex; align-items:center; gap:6px; cursor:pointer;
       padding:8px 10px; border:1px solid #ddd; border-radius:8px;
@@ -3015,8 +3033,10 @@
         </div>
       </div>
 
+      <!-- Chart + Stats-by-profile: 2-col grid (Prodify-style) -->
+      <div class="dash-2col">
       <!-- Chart: bài đăng theo ngày / tài khoản -->
-      <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:20px; margin-bottom:16px;">
+      <div class="dash-card-pro">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
           <div style="font-weight:600; font-size:14px; color:#1e1e2e;">Theo ngày</div>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -3041,11 +3061,12 @@
         </div>
       </div>
 
-      <!-- Stats by Profile (below chart, updates with filter) -->
-      <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px; margin-bottom:16px;">
+      <!-- Stats by Profile (right column, updates with filter) -->
+      <div class="dash-card-pro" style="overflow-y:auto; max-height:340px; padding:16px;">
         <div style="font-weight:600; margin-bottom:12px; font-size:14px;">Theo tài khoản</div>
         <div id="statByProfile" style="font-size:13px;"></div>
       </div>
+      </div><!-- end dash-2col -->
 
       <!-- Filter bar -->
       <div class="dash-filter-bar">
