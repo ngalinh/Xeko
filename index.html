@@ -4642,7 +4642,18 @@
         }
 
         if (errors.length > 0) {
-          addBot(`Ui có vài chỗ Xeko chưa đặt được lịch nè:\n${errors.map(e => `• ${e}`).join('\n')}`);
+          const errMsg = `Ui có vài chỗ Xeko chưa đặt được lịch nè:\n${errors.map(e => `• ${e}`).join('\n')}`;
+          if (scheduled.length === 0) {
+            // Tất cả fail — khôi phục content + ảnh để user retry với giờ khác
+            input.value = savedMessage;
+            selectedFiles = [...filesToUpload];
+            updatePreview();
+            addBot(errMsg, [
+              { label: `${xekoIcon('clock')} Đặt lại lịch`, handler: () => showScheduleForm() },
+            ]);
+          } else {
+            addBot(errMsg);
+          }
         }
       } catch (e) {
         removeTyping();
