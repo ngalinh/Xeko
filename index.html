@@ -1221,13 +1221,14 @@
         background: currentColor;
       }
       .mhome-tile-icon {
-        width: 46px; height: 46px;
-        border-radius: 14px;
+        width: 56px; height: 56px;
         display: inline-flex; align-items: center; justify-content: center;
-        font-size: 22px;
-        background: rgba(255,255,255,0.75);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.06);
-        margin-bottom: 6px;
+        margin-bottom: 4px;
+      }
+      .mhome-tile-icon img {
+        width: 100%; height: 100%;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.12));
       }
       .mhome-tile-label {
         font-size: 16px; font-weight: 700; color: inherit;
@@ -2658,22 +2659,22 @@
 
     <div class="mhome-tiles">
       <button class="mhome-tile tile-post" onclick="switchPage('post')">
-        <span class="mhome-tile-icon"><svg class="xi xi-lg"><use href="#ic-post"/></svg></span>
+        <span class="mhome-tile-icon"><img src="icons/3d/post.png" alt="" loading="lazy"></span>
         <span class="mhome-tile-label">Đăng bài</span>
         <span class="mhome-tile-hint">Soạn & gửi ngay</span>
       </button>
       <button class="mhome-tile tile-dash" onclick="switchPage('dashboard')">
-        <span class="mhome-tile-icon"><svg class="xi xi-lg"><use href="#ic-dash"/></svg></span>
+        <span class="mhome-tile-icon"><img src="icons/3d/dash.png" alt="" loading="lazy"></span>
         <span class="mhome-tile-label">Dashboard</span>
         <span class="mhome-tile-hint">Thống kê & lịch</span>
       </button>
       <button class="mhome-tile tile-acc" onclick="switchPage('session')">
-        <span class="mhome-tile-icon"><svg class="xi xi-lg"><use href="#ic-users"/></svg></span>
+        <span class="mhome-tile-icon"><img src="icons/3d/users.png" alt="" loading="lazy"></span>
         <span class="mhome-tile-label">Tài khoản</span>
         <span class="mhome-tile-hint">Profile FB / Zalo</span>
       </button>
       <button class="mhome-tile tile-spy" disabled>
-        <span class="mhome-tile-icon"><svg class="xi xi-lg"><use href="#ic-search"/></svg></span>
+        <span class="mhome-tile-icon"><img src="icons/3d/spy.png" alt="" loading="lazy"></span>
         <span class="mhome-tile-label">Spy</span>
         <span class="mhome-tile-hint">Sắp ra mắt</span>
       </button>
