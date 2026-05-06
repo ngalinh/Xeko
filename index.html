@@ -1252,8 +1252,8 @@
         color: #3f7a3f;
       }
       .tile-spy {
-        background: #fce9c0;
-        color: #a6803a;
+        background: #fbe2d5;
+        color: #c4452a;
       }
 
       .mhome-foot {
@@ -2987,27 +2987,35 @@
       <!-- Lời chào -->
       <div id="dashGreeting" style="display:none; margin-bottom:18px; padding:14px 18px; background:linear-gradient(135deg,#fff5ec 0%,#eeeaff 100%); border:1px solid #dcd6ff; border-radius:12px; font-size:15px; color:#5b47c9; font-weight:600;"></div>
 
-      <!-- Summary Cards -->
+      <!-- Summary Cards (Schedulkan-style: icon-circle + number + label) -->
       <div id="dashSummary" style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px;">
-        <div class="dash-card" style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:16px;">
-          <div style="font-size:12px; color:#666; margin-bottom:4px;">Hôm nay</div>
-          <div id="statToday" style="font-size:28px; font-weight:700; color:#16a34a;">0</div>
-          <div style="font-size:11px; color:#999;">bài đăng</div>
+        <div class="dash-card" style="background:#d8ebf7; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
+          <div style="width:44px; height:44px; border-radius:12px; background:#4a9fe5; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0;"><svg class="xi xi-md"><use href="#ic-clock"/></svg></div>
+          <div style="min-width:0;">
+            <div id="statToday" style="font-size:24px; font-weight:700; color:#1f5f7a; line-height:1.1;">0</div>
+            <div style="font-size:12px; color:#4a9fe5; font-weight:600; margin-top:2px;">Hôm nay</div>
+          </div>
         </div>
-        <div class="dash-card" style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:16px;">
-          <div style="font-size:12px; color:#666; margin-bottom:4px;">Thành công</div>
-          <div id="statSuccess" style="font-size:28px; font-weight:700; color:#2563eb;">0</div>
-          <div style="font-size:11px; color:#999;">hôm nay</div>
+        <div class="dash-card" style="background:#d5ebd8; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
+          <div style="width:44px; height:44px; border-radius:12px; background:#5bab6e; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0;"><svg class="xi xi-md"><use href="#ic-check"/></svg></div>
+          <div style="min-width:0;">
+            <div id="statSuccess" style="font-size:24px; font-weight:700; color:#2e6b3f; line-height:1.1;">0</div>
+            <div style="font-size:12px; color:#5bab6e; font-weight:600; margin-top:2px;">Thành công</div>
+          </div>
         </div>
-        <div class="dash-card" style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px;">
-          <div style="font-size:12px; color:#666; margin-bottom:4px;">Thất bại</div>
-          <div id="statFail" style="font-size:28px; font-weight:700; color:#dc2626;">0</div>
-          <div style="font-size:11px; color:#999;">hôm nay</div>
+        <div class="dash-card" style="background:#fbe2d5; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
+          <div style="width:44px; height:44px; border-radius:12px; background:#e76f51; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0;"><svg class="xi xi-md"><use href="#ic-trash"/></svg></div>
+          <div style="min-width:0;">
+            <div id="statFail" style="font-size:24px; font-weight:700; color:#c4452a; line-height:1.1;">0</div>
+            <div style="font-size:12px; color:#e76f51; font-weight:600; margin-top:2px;">Thất bại</div>
+          </div>
         </div>
-        <div class="dash-card" style="background:#fff5ec; border:1px solid #c7c0ff; border-radius:12px; padding:16px;">
-          <div style="font-size:12px; color:#666; margin-bottom:4px;">Tổng cộng</div>
-          <div id="statTotal" style="font-size:28px; font-weight:700; color:#9381ff;">0</div>
-          <div style="font-size:11px; color:#999;">tất cả</div>
+        <div class="dash-card" style="background:#e8e5f7; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
+          <div style="width:44px; height:44px; border-radius:12px; background:#7b68ee; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0;"><svg class="xi xi-md"><use href="#ic-dash"/></svg></div>
+          <div style="min-width:0;">
+            <div id="statTotal" style="font-size:24px; font-weight:700; color:#5b47c9; line-height:1.1;">0</div>
+            <div style="font-size:12px; color:#7b68ee; font-weight:600; margin-top:2px;">Tổng cộng</div>
+          </div>
         </div>
       </div>
 
