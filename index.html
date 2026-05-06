@@ -2984,8 +2984,30 @@
 
     <!-- Thống kê -->
     <div id="dashPanelStats" style="flex:1; overflow-y:auto; padding:20px;">
-      <!-- Lời chào -->
-      <div id="dashGreeting" style="display:none; margin-bottom:18px; padding:14px 18px; background:linear-gradient(135deg,#fff5ec 0%,#eeeaff 100%); border:1px solid #dcd6ff; border-radius:12px; font-size:15px; color:#5b47c9; font-weight:600;"></div>
+      <!-- Hero greeting card (Schedulkan-style: greeting + progress ring) -->
+      <div style="background:#fff; border-radius:16px; padding:18px 22px; margin-bottom:18px; display:flex; align-items:center; gap:18px; flex-wrap:wrap; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+        <div style="flex:1; min-width:220px;">
+          <div id="dashGreeting" style="font-size:19px; font-weight:700; color:#1e1e2e; margin-bottom:4px; line-height:1.3;">👋 Xin chào!</div>
+          <div style="font-size:13px; color:#666; line-height:1.4; margin-bottom:14px;">Theo dõi tiến độ đăng bài hôm nay của bạn.</div>
+          <button onclick="document.getElementById('chartFrom') && document.getElementById('chartFrom').scrollIntoView({behavior:'smooth', block:'center'})" style="padding:9px 18px; background:#7b68ee; color:#fff; border:none; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(123,104,238,0.25);">Xem chi tiết →</button>
+        </div>
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div style="position:relative; width:86px; height:86px; flex-shrink:0;">
+            <svg width="86" height="86" viewBox="0 0 86 86">
+              <circle cx="43" cy="43" r="36" stroke="#f0f0f0" stroke-width="8" fill="none"/>
+              <circle id="dashProgressRing" cx="43" cy="43" r="36" stroke="#5bab6e" stroke-width="8" fill="none" stroke-dasharray="226" stroke-dashoffset="226" stroke-linecap="round" transform="rotate(-90 43 43)" style="transition:stroke-dashoffset 0.6s ease, stroke 0.3s ease;"/>
+            </svg>
+            <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column;">
+              <div id="dashProgressPct" style="font-size:19px; font-weight:700; color:#1e1e2e; line-height:1;">0</div>
+              <div style="font-size:9px; color:#999; margin-top:1px;">%</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px; color:#999; margin-bottom:2px;">Tỉ lệ thành công</div>
+            <div id="dashProgressLabel" style="font-size:14px; font-weight:700; color:#1e1e2e;">Bắt đầu nào 🚀</div>
+          </div>
+        </div>
+      </div>
 
       <!-- Summary Cards (Schedulkan-style: icon-circle + number + label) -->
       <div id="dashSummary" style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px;">
@@ -6339,6 +6361,20 @@
         document.getElementById('statSuccess').textContent = stats.today?.success_count || 0;
         document.getElementById('statFail').textContent = stats.today?.fail_count || 0;
         document.getElementById('statTotal').textContent = stats.summary?.total || 0;
+
+        const _succ = Number(stats.today?.success_count) || 0;
+        const _fail = Number(stats.today?.fail_count) || 0;
+        const _pct = (_succ + _fail) > 0 ? Math.round(_succ / (_succ + _fail) * 100) : 0;
+        const _ring = document.getElementById('dashProgressRing');
+        if (_ring) {
+          const C = 226;
+          _ring.setAttribute('stroke-dashoffset', String(C - C * _pct / 100));
+          _ring.setAttribute('stroke', _pct >= 80 ? '#5bab6e' : _pct >= 50 ? '#4a9fe5' : _pct >= 30 ? '#e76f51' : '#c4452a');
+        }
+        const _pctEl = document.getElementById('dashProgressPct');
+        if (_pctEl) _pctEl.textContent = _pct;
+        const _lbl = document.getElementById('dashProgressLabel');
+        if (_lbl) _lbl.textContent = _pct >= 80 ? 'Tuyệt vời 🎉' : _pct >= 50 ? 'Khá tốt 👍' : _pct >= 30 ? 'Cố lên 💪' : 'Bắt đầu nào 🚀';
 
         // Populate profile multi-select (deduplicate by profile key)
         if (stats.byProfile) {
