@@ -4398,6 +4398,25 @@
 
       const sessionBatchId = crypto.randomUUID();
 
+      // Tracker job "Đang đăng" để dashboard hiển thị live
+      const _now = new Date();
+      const _pad = n => String(n).padStart(2,'0');
+      const _activePostJob = {
+        tempId: 'post-' + Date.now(),
+        profileName: currentProfile,
+        timeLabel: `${_pad(_now.getHours())}:${_pad(_now.getMinutes())}:${_pad(_now.getSeconds())} ${_pad(_now.getDate())}/${_pad(_now.getMonth()+1)}/${_now.getFullYear()}`,
+        message: message,
+        ch: { type: target === 'personal' ? 'personal' : 'group', id: groupId || '', key: '', name: '' },
+      };
+      _activeRepostJobs.push(_activePostJob);
+      const _refreshDashIfActive = () => {
+        const dashPg = document.getElementById('pageDashboard');
+        if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
+          loadDashHistory();
+        }
+      };
+      _refreshDashIfActive();
+
       try {
         if (target) {
           const formData = new FormData();
@@ -4550,6 +4569,11 @@
           addBot(`Ui có lỗi rồi nè: ${e.message}`);
         }
       }
+
+      // Clear active post tracker
+      const _idx = _activeRepostJobs.indexOf(_activePostJob);
+      if (_idx !== -1) _activeRepostJobs.splice(_idx, 1);
+      _refreshDashIfActive();
 
       document.getElementById('sendBtn').disabled = false;
     }
