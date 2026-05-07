@@ -2893,26 +2893,26 @@
 
         <!-- Danh sách group (FB + Zalo gộp) -->
         <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:18px;">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
             <h3 style="font-size:15px; color:#1e1e2e; margin:0; display:flex; align-items:center; gap:8px;">
               <svg class="xi xi-md" style="color:#1E3A8A;"><use href="#ic-chat"/></svg> Danh sách group
             </h3>
-            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-              <div class="group-filter-tabs" style="display:flex; gap:4px; background:#f0f9ff; padding:3px; border-radius:10px;">
-                <button onclick="setGroupFilter('all')" data-filter="all" class="group-filter-tab active"
-                  style="padding:6px 14px; border:none; background:#fff; color:#3B82F6; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer; box-shadow:0 1px 3px rgba(37, 99, 235,0.15);">Tất cả</button>
-                <button onclick="setGroupFilter('fb')" data-filter="fb" class="group-filter-tab"
-                  style="padding:6px 14px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Facebook</button>
-                <button onclick="setGroupFilter('zalo')" data-filter="zalo" class="group-filter-tab"
-                  style="padding:6px 14px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Zalo</button>
-              </div>
-              <select id="groupCategoryFilter" onchange="setGroupCategoryFilter(this.value)"
-                style="padding:7px 10px; border:1px solid #DBEAFE; border-radius:8px; background:#fff; color:#3B82F6; font-size:12px; font-weight:600; cursor:pointer; min-width:140px;">
-                <option value="">Tất cả phân loại</option>
-              </select>
-              <button onclick="openGroupModal('add')"
-                style="padding:8px 14px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;">+ Thêm group</button>
+            <button onclick="openGroupModal('add')"
+              style="padding:8px 14px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;">+ Thêm group</button>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
+            <div class="group-filter-tabs" style="display:flex; gap:4px; background:#f0f9ff; padding:3px; border-radius:10px; flex:1; min-width:0;">
+              <button onclick="setGroupFilter('all')" data-filter="all" class="group-filter-tab active"
+                style="flex:1; padding:6px 10px; border:none; background:#fff; color:#3B82F6; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer; box-shadow:0 1px 3px rgba(37, 99, 235,0.15);">Tất cả</button>
+              <button onclick="setGroupFilter('fb')" data-filter="fb" class="group-filter-tab"
+                style="flex:1; padding:6px 10px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Facebook</button>
+              <button onclick="setGroupFilter('zalo')" data-filter="zalo" class="group-filter-tab"
+                style="flex:1; padding:6px 10px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Zalo</button>
             </div>
+            <select id="groupCategoryFilter" onchange="setGroupCategoryFilter(this.value)"
+              style="flex:1; min-width:140px; padding:7px 10px; border:1px solid #DBEAFE; border-radius:8px; background:#fff; color:#3B82F6; font-size:12px; font-weight:600; cursor:pointer;">
+              <option value="">Tất cả phân loại</option>
+            </select>
           </div>
           <div id="groupsTableWrap" style="overflow-x:auto;">
             <table id="groupsTable" style="width:100%; border-collapse:separate; border-spacing:0 4px; font-size:13px;">
@@ -3484,7 +3484,7 @@
 
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button onclick="closeGroupModal()" style="padding:9px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
-        <button onclick="saveGroupFromModal()" id="groupModalSaveBtn" style="padding:9px 20px; border:none; border-radius:8px; background:#3B82F6; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">💾 Lưu</button>
+        <button onclick="saveGroupFromModal()" id="groupModalSaveBtn" style="padding:9px 20px; border:none; border-radius:8px; background:#3B82F6; color:#fff; font-size:13px; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:6px;"><svg style="width:14px;height:14px;" aria-hidden="true"><use href="#ic-check"/></svg>Lưu</button>
       </div>
     </div>
   </div>
@@ -4394,6 +4394,25 @@
 
       const sessionBatchId = crypto.randomUUID();
 
+      // Tracker job "Đang đăng" để dashboard hiển thị live
+      const _now = new Date();
+      const _pad = n => String(n).padStart(2,'0');
+      const _activePostJob = {
+        tempId: 'post-' + Date.now(),
+        profileName: currentProfile,
+        timeLabel: `${_pad(_now.getHours())}:${_pad(_now.getMinutes())}:${_pad(_now.getSeconds())} ${_pad(_now.getDate())}/${_pad(_now.getMonth()+1)}/${_now.getFullYear()}`,
+        message: message,
+        ch: { type: target === 'personal' ? 'personal' : 'group', id: groupId || '', key: '', name: '' },
+      };
+      _activeRepostJobs.push(_activePostJob);
+      const _refreshDashIfActive = () => {
+        const dashPg = document.getElementById('pageDashboard');
+        if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
+          loadDashHistory();
+        }
+      };
+      _refreshDashIfActive();
+
       try {
         if (target) {
           const formData = new FormData();
@@ -4537,6 +4556,11 @@
           addBot(`Ui có lỗi rồi nè: ${e.message}`);
         }
       }
+
+      // Clear active post tracker
+      const _idx = _activeRepostJobs.indexOf(_activePostJob);
+      if (_idx !== -1) _activeRepostJobs.splice(_idx, 1);
+      _refreshDashIfActive();
 
       document.getElementById('sendBtn').disabled = false;
     }
@@ -5053,7 +5077,7 @@
                 ? '<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:6px; font-size:11px;">Chờ đăng</span>'
                 : '<span style="background:#eef2ff; color:#3B82F6; padding:2px 8px; border-radius:6px; font-size:11px;">Đang chạy</span>';
               const thumbs = (e.images && e.images.length)
-                ? `<div style="display:flex; gap:3px; margin-top:6px;">${e.images.slice(0,4).map(u => `<a href="${u}" target="_blank"><img src="${u}" style="width:36px; height:36px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px;"></a>`).join('')}${e.images.length > 4 ? `<span style="font-size:11px; color:#666; align-self:center;">+${e.images.length - 4}</span>` : ''}</div>`
+                ? `<div style="display:flex; gap:3px; margin-top:6px;">${e.images.slice(0,4).map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:36px; height:36px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px;"></a>`).join('')}${e.images.length > 4 ? `<span style="font-size:11px; color:#666; align-self:center;">+${e.images.length - 4}</span>` : ''}</div>`
                 : '';
               return `<div style="padding:10px 12px; border:1px solid #eef2ff; border-radius:8px;">
                 <div style="display:flex; align-items:center; gap:8px; font-size:12px;">
@@ -5905,9 +5929,9 @@
       keyInput.style.background = '#fff';
 
       if (mode === 'edit') {
-        title.textContent = '✏️ Chỉnh sửa group';
+        title.innerHTML = `<svg style="width:18px;height:18px;vertical-align:-3px;margin-right:6px;color:#3B82F6;" aria-hidden="true"><use href="#ic-edit"/></svg>Chỉnh sửa group`;
         typeRow.style.display = 'none';
-        saveBtn.textContent = '💾 Lưu thay đổi';
+        saveBtn.innerHTML = `<svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;" aria-hidden="true"><use href="#ic-check"/></svg>Lưu thay đổi`;
         const list = type === 'fb' ? (channelsData.fbGroups || []) : (channelsData.zaloGroups || []);
         const g = list.find(x => x.key === key);
         if (!g) { alert('Không tìm thấy group'); return; }
@@ -5922,7 +5946,7 @@
       } else {
         title.innerHTML = `<svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;color:#3B82F6;" aria-hidden="true"><use href="#ic-plus"/></svg>Thêm group`;
         typeRow.style.display = '';
-        saveBtn.textContent = '💾 Lưu';
+        saveBtn.innerHTML = `<svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;" aria-hidden="true"><use href="#ic-check"/></svg>Lưu`;
         setGroupModalType('fb');
       }
 
@@ -6725,7 +6749,7 @@
           if (imgCount > 0) {
             const shown = Math.min(imgCount, 4);
             const imgUrls = Array.from({length: shown}, (_, i) => `${BASE_URL}/api/schedule-image/${sched.id}/${i}`);
-            thumbs = `<div style="display:flex; gap:3px; align-items:center;">${imgUrls.map(u => `<a href="${u}" target="_blank"><img src="${u}" style="width:32px; height:32px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\'font-size:18px;\'>🖼️</span>'"></a>`).join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
+            thumbs = `<div style="display:flex; gap:3px; align-items:center;">${imgUrls.map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:32px; height:32px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\'font-size:18px;\'>🖼️</span>'"></a>`).join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
           } else {
             thumbs = '<span style="color:#bbb;">—</span>';
           }
@@ -6735,7 +6759,7 @@
             : '<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-clock"/></svg>Chờ đăng</span>';
           const rowBg = isRunning ? '#EFF6FF' : '#f8f7ff';
           return `<tr id="schedRow-${sched.id}" style="border-bottom:1px solid #EFF6FF; background:${rowBg}; border-left:3px solid #BFDBFE;">
-            <td style="padding:10px 10px; text-align:center; color:#1E3A8A; font-size:13px;">⏱</td>
+            <td style="padding:10px 10px; text-align:center;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
             <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
             <td style="padding:10px 12px; font-size:12px; white-space:nowrap;">${sched.profile || '-'}</td>
             <td style="padding:10px 12px; font-size:12px;">FB</td>
@@ -6796,7 +6820,7 @@
             let thumbs;
             if (images.length > 0) {
               const shown = images.slice(0, 4);
-              thumbs = `<div style="display:flex; gap:3px; align-items:center;">${shown.map(u => `<a href="${u}" target="_blank"><img src="${u}" style="width:32px; height:32px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:32px;height:32px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;align-items:center;justify-content:center;font-size:14px;'}))"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
+              thumbs = `<div style="display:flex; gap:3px; align-items:center;">${shown.map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:32px; height:32px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:32px;height:32px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;align-items:center;justify-content:center;font-size:14px;'}))"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
             } else if (imgCount > 0) {
               thumbs = `<div style="display:flex; gap:3px; align-items:center;">${Array.from({length: Math.min(imgCount, 4)}).map(() => '<span style="display:inline-flex; width:32px; height:32px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:14px;">🖼️</span>').join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
             } else {
@@ -7172,7 +7196,7 @@
         const src = item instanceof File ? URL.createObjectURL(item) : (item.startsWith('/') ? BASE_URL + item : item);
         const href = item instanceof File ? src : src;
         return `<div style="position:relative; display:inline-block; flex-shrink:0;">
-          <a href="${href}" target="_blank"><img src="${src}" style="width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid #e5e7eb; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:72px;height:72px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:8px;align-items:center;justify-content:center;font-size:28px;'}))"></a>
+          <a href="${href}" onclick="openLightbox(\'${href}\');return false;"><img src="${src}" style="width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid #e5e7eb; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:72px;height:72px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:8px;align-items:center;justify-content:center;font-size:28px;'}))"></a>
           ${_repostEditMode ? `<button type="button" onclick="_removeRepostImage(${i})" style="position:absolute; top:-6px; right:-6px; background:#ef4444; color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:13px; cursor:pointer; line-height:1; padding:0; display:flex; align-items:center; justify-content:center;">×</button>` : ''}
         </div>`;
       }).join('') + addBtn;
@@ -7332,7 +7356,36 @@
         loadDashHistory();
       })();
     }
+
+    // ===== Image Lightbox (in-app, có nút back) =====
+    function openLightbox(url) {
+      const lb = document.getElementById('imgLightbox');
+      const img = document.getElementById('imgLightboxImg');
+      img.src = url;
+      lb.style.display = 'flex';
+      // Disable body scroll while lightbox open
+      document.body.style.overflow = 'hidden';
+    }
+    function closeLightbox() {
+      document.getElementById('imgLightbox').style.display = 'none';
+      document.getElementById('imgLightboxImg').src = '';
+      document.body.style.overflow = '';
+    }
+    // ESC để đóng
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && document.getElementById('imgLightbox')?.style.display === 'flex') {
+        closeLightbox();
+      }
+    });
   </script>
+
+  <!-- Image Lightbox Modal -->
+  <div id="imgLightbox" onclick="if(event.target.id==='imgLightbox')closeLightbox()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:9999; align-items:center; justify-content:center; padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom);">
+    <button onclick="closeLightbox()" aria-label="Đóng" style="position:absolute; top:calc(env(safe-area-inset-top) + 12px); left:12px; display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:rgba(255,255,255,0.15); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.25); border-radius:999px; color:#fff; font-size:13px; font-weight:600; cursor:pointer; z-index:1;">
+      <svg style="width:16px;height:16px;" aria-hidden="true"><use href="#ic-x"/></svg> Đóng
+    </button>
+    <img id="imgLightboxImg" src="" alt="" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:8px;">
+  </div>
 
   <!-- PWA install FAB (mobile) -->
   <button type="button" id="pwaInstallBtn" class="pwa-install-btn" onclick="xekoTriggerInstall()" style="display:none;" aria-label="Cài đặt ứng dụng">
