@@ -717,11 +717,11 @@ app.get('/api/proxies', (req, res) => {
 });
 
 app.post('/api/proxies', (req, res) => {
-  const { label, host, port, user, pass, purchaseDate } = req.body;
+  const { label, host, port, user, pass, purchaseDate, expirationDate } = req.body;
   if (!host || !port) return res.status(400).json({ error: 'Thiếu host hoặc port' });
   const list = loadProxyList();
   const id = 'px_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  const proxy = { id, label: label || '', host, port, user: user || '', pass: pass || '', purchaseDate: purchaseDate || '' };
+  const proxy = { id, label: label || '', host, port, user: user || '', pass: pass || '', purchaseDate: purchaseDate || '', expirationDate: expirationDate || '' };
   list.push(proxy);
   saveProxyList(list);
   res.status(201).json(proxy);
@@ -729,12 +729,12 @@ app.post('/api/proxies', (req, res) => {
 
 app.put('/api/proxies/:id', (req, res) => {
   const { id } = req.params;
-  const { label, host, port, user, pass, purchaseDate } = req.body;
+  const { label, host, port, user, pass, purchaseDate, expirationDate } = req.body;
   if (!host || !port) return res.status(400).json({ error: 'Thiếu host hoặc port' });
   const list = loadProxyList();
   const idx = list.findIndex(p => p.id === id);
   if (idx < 0) return res.status(404).json({ error: 'Không tìm thấy proxy' });
-  list[idx] = { ...list[idx], label: label || '', host, port, user: user || '', pass: pass || '', purchaseDate: purchaseDate || '' };
+  list[idx] = { ...list[idx], label: label || '', host, port, user: user || '', pass: pass || '', purchaseDate: purchaseDate || '', expirationDate: expirationDate || '' };
   saveProxyList(list);
   res.json(list[idx]);
 });
