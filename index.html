@@ -288,7 +288,20 @@
     .dash-filter-bar > .msel { flex:1; min-width:100px; }
     .dash-filter-bar > .msel .msel-btn { width:100%; box-sizing:border-box; }
     .dash-filter-bar > .dash-search-wrap { flex:1.2; min-width:120px; }
-    .dash-filter-bar > input[type=date] { flex:0 0 auto; }
+    .dash-filter-bar > input[type=date] {
+      flex: 0 0 auto;
+      width: auto;
+      min-width: 140px;
+      max-width: 160px;
+      box-sizing: border-box;
+    }
+    @media (max-width: 768px) {
+      .dash-filter-bar > input[type=date] {
+        min-width: 120px;
+        max-width: 48%;
+        flex: 1 1 calc(50% - 4px);
+      }
+    }
 
     /* Phase 4: 2-col grid (chart + side widget) — Prodify-style */
     .dash-2col {
