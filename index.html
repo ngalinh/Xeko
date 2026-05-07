@@ -792,12 +792,17 @@
       #profileSidebar {
         flex-direction: row !important;
         max-height: none !important;
+        max-width: 100% !important;
         overflow-x: auto !important;
         overflow-y: hidden !important;
         padding: 6px !important;
       }
       #profileSidebar button {
         flex-shrink: 0;
+      }
+      #profileChannelMaster {
+        max-width: 100% !important;
+        overflow: hidden !important;
       }
 
       /* ---- mobile overflow & padding cleanup ---- */
@@ -2863,7 +2868,7 @@
             <h3 style="font-size:15px; color:#1e1e2e; margin:0; display:flex; align-items:center; gap:8px;">
               <svg class="xi xi-md" style="color:#5046E5;"><use href="#ic-chat"/></svg> Danh sách group
             </h3>
-            <div style="display:flex; gap:6px; align-items:center;">
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
               <div class="group-filter-tabs" style="display:flex; gap:4px; background:#f0f9ff; padding:3px; border-radius:10px;">
                 <button onclick="setGroupFilter('all')" data-filter="all" class="group-filter-tab active"
                   style="padding:6px 14px; border:none; background:#fff; color:#635BFF; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer; box-shadow:0 1px 3px rgba(80, 70, 229,0.15);">Tất cả</button>
