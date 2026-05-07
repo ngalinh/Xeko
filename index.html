@@ -3215,7 +3215,7 @@
         <span id="dashBulkCount" style="font-size:13px; color:#555; font-weight:500;"></span>
         <div style="display:flex; gap:8px;">
           <button onclick="clearDashSelection()" style="padding:6px 14px; border:1px solid #ddd; border-radius:7px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Bỏ chọn</button>
-          <button onclick="deleteSelectedRows()" style="padding:6px 14px; border:none; border-radius:7px; background:#ef4444; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">🗑️ Xóa đã chọn</button>
+          <button onclick="deleteSelectedRows()" style="padding:6px 14px; border:none; border-radius:7px; background:#ef4444; color:#fff; font-size:13px; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:6px;"><svg class="xi"><use href="#ic-trash"/></svg> Xóa đã chọn</button>
         </div>
       </div>
 
@@ -4056,7 +4056,7 @@
         });
         const zaloNames = (selection[pKey].zalo || []).map(c => {
           const ch = (p.zalo || []).find(f => f.id === c.id);
-          return ch ? `💬 ${ch.name}` : c.id;
+          return ch ? `${xekoIcon('chat')} ${ch.name}` : c.id;
         });
         const parts = [];
         if (fbNames.length > 0) parts.push(`📘 ${fbNames.join(', ')}`);
@@ -4759,7 +4759,7 @@
           msg += `\n\n`;
 
           if (s.status === 'pending') {
-            buttons.push({ label: `🗑 Xoá lịch #${s.id}`, handler: () => deleteSchedule(s.id) });
+            buttons.push({ label: `${xekoIcon('trash')} Xoá lịch #${s.id}`, handler: () => deleteSchedule(s.id) });
           }
         });
 
@@ -6988,12 +6988,12 @@
       const profileKey = document.getElementById('repostProfile').value;
       const groups = _getAccountGroups(profileKey);
       const options = [
-        { type: 'personal', platform: 'fb', label: '🏠 Cá nhân', sub: '' },
+        { type: 'personal', platform: 'fb', label: `${xekoIcon('home')} Cá nhân`, sub: '' },
         ...groups.map(g => ({
           type: 'group', platform: g._platform,
           key: g.key, id: g.id, name: g.name,
           zaloAccount: g._zaloAccount || '',
-          label: (g._platform === 'zalo' ? '💬 ' : '👥 ') + (g.name || g.key),
+          label: (g._platform === 'zalo' ? xekoIcon('chat') + ' ' : xekoIcon('users') + ' ') + (g.name || g.key),
           sub: g._platform === 'zalo' ? 'Zalo' : (g.id || ''),
         }))
       ];
@@ -7030,7 +7030,7 @@
     }
 
     function _onRepostProfileChange() {
-      _repostSelectedChannels = [{ type: 'personal', platform: 'fb', label: '🏠 Cá nhân', sub: '' }];
+      _repostSelectedChannels = [{ type: 'personal', platform: 'fb', label: `${xekoIcon('home')} Cá nhân`, sub: '' }];
       _renderRepostChannelList();
     }
 
@@ -7038,8 +7038,8 @@
       if (_repostSelectedChannels.length === 0) return '(chưa chọn kênh)';
       if (_repostSelectedChannels.length === 1) {
         const ch = _repostSelectedChannels[0];
-        if (ch.type === 'personal') return '🏠 Cá nhân';
-        return (ch.platform === 'zalo' ? '💬 ' : '👥 ') + (ch.name || ch.key || '');
+        if (ch.type === 'personal') return `${xekoIcon('home')} Cá nhân`;
+        return (ch.platform === 'zalo' ? xekoIcon('chat') + ' ' : xekoIcon('users') + ' ') + (ch.name || ch.key || '');
       }
       return `${_repostSelectedChannels.length} kênh đã chọn`;
     }
@@ -7069,7 +7069,7 @@
       } else {
         const originalGroupId = row.group_id || '';
         if (row.target === 'personal' || !originalGroupId) {
-          _repostSelectedChannels = [{ type: 'personal', platform: 'fb', label: '🏠 Cá nhân', sub: '' }];
+          _repostSelectedChannels = [{ type: 'personal', platform: 'fb', label: `${xekoIcon('home')} Cá nhân`, sub: '' }];
         } else {
           const matchedGroup = (channelsData.fbGroups || []).find(g => g.id === originalGroupId || g.key === originalGroupId);
           _repostSelectedChannels = [matchedGroup
