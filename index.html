@@ -2648,6 +2648,10 @@
       <symbol id="ic-chat" viewBox="0 0 24 24">
         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
       </symbol>
+      <symbol id="ic-zalo" viewBox="0 0 24 24">
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M9 10h6l-6 5h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
       <symbol id="ic-phone" viewBox="0 0 24 24">
         <rect x="5" y="2" width="14" height="20" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -3160,9 +3164,11 @@
 
       <!-- Filter bar -->
       <div class="dash-filter-bar">
-        <!-- Ngày từ / đến (đầu tiên) -->
-        <input type="date" id="dashFilterFrom" style="padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-        <input type="date" id="dashFilterTo" style="padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+        <!-- Ngày từ / đến (đầu tiên) - wrap chung 1 hàng -->
+        <div class="dash-date-pair" style="display:flex; gap:8px; flex:1 1 auto; min-width:0;">
+          <input type="date" id="dashFilterFrom" style="padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:13px; flex:1; min-width:0;">
+          <input type="date" id="dashFilterTo" style="padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:13px; flex:1; min-width:0;">
+        </div>
         <!-- Tài khoản -->
         <div class="msel" id="msel-profile" data-placeholder="Tất cả tài khoản">
           <div class="msel-btn" onclick="toggleMsel('msel-profile')">
@@ -3275,7 +3281,7 @@
   <!-- Modal chỉnh sửa profile -->
   <div id="editProfileModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
     <div style="background:#fff; border-radius:16px; padding:24px; width:420px; max-width:90%; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
-      <h3 style="font-size:16px; color:#1e1e2e; margin-bottom:16px;">✏️ Chỉnh sửa tài khoản</h3>
+      <h3 style="font-size:16px; color:#1e1e2e; margin-bottom:16px; display:flex; align-items:center; gap:8px;"><svg class="xi xi-md" style="color:#5046E5;"><use href="#ic-edit"/></svg> Chỉnh sửa tài khoản</h3>
       <input type="hidden" id="editKey">
       <div style="margin-bottom:12px;">
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Tên hiển thị</label>
@@ -3296,7 +3302,7 @@
       </div>
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button onclick="closeEditModal()" style="padding:8px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
-        <button onclick="saveProfile()" style="padding:8px 20px; border:none; border-radius:8px; background:#635BFF; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">💾 Lưu</button>
+        <button onclick="saveProfile()" style="padding:8px 20px; border:none; border-radius:8px; background:#635BFF; color:#fff; font-size:13px; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:6px;"><svg class="xi"><use href="#ic-check"/></svg> Lưu</button>
       </div>
     </div>
   </div>
@@ -3425,7 +3431,7 @@
           </button>
           <button type="button" onclick="setGroupModalType('zalo')" id="groupModalTypeZalo"
             style="flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff; color:#777; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
-            <svg class="xi" style="color:#5046E5;"><use href="#ic-chat"/></svg> Zalo
+            <svg class="xi" style="color:#5046E5;"><use href="#ic-zalo"/></svg> Zalo
           </button>
         </div>
       </div>
@@ -5218,7 +5224,7 @@
         const color = isFb ? '#1877f2' : '#5046E5';
         const icon = isFb
           ? '<img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:11px;height:11px;">'
-          : `<svg class="xi" style="width:11px;height:11px;"><use href="#ic-chat"/></svg>`;
+          : `<svg class="xi" style="width:11px;height:11px;"><use href="#ic-zalo"/></svg>`;
         return `<span style="display:inline-flex; align-items:center; gap:4px; padding:2px 8px; background:${bg}; color:${color}; border-radius:20px; font-size:11px; font-weight:600;">${icon}${escapeHtml(a.name)}</span>`;
       }).join('') + `</div>`;
     }
@@ -5823,7 +5829,7 @@
         const isFb = g._type === 'fb';
         const typeBadge = isFb
           ? `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e8f1ff; color:#1877f2; border-radius:20px; font-size:11px; font-weight:600;"><img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:12px;height:12px;">FB</span>`
-          : `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e6f2ff; color:#5046E5; border-radius:20px; font-size:11px; font-weight:600;"><svg class="xi" style="width:12px;height:12px;"><use href="#ic-chat"/></svg>Zalo</span>`;
+          : `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e6f2ff; color:#5046E5; border-radius:20px; font-size:11px; font-weight:600;"><svg class="xi" style="width:12px;height:12px;"><use href="#ic-zalo"/></svg>Zalo</span>`;
         const sub = isFb ? `ID: ${escapeHtml(g.id)}` : `Salework: ${escapeHtml(g.oid)}`;
         const keyColor = isFb ? '#635BFF' : '#5046E5';
         const category = g.category ? escapeHtml(g.category) : '<span style="color:#bbb; font-style:italic;">—</span>';
@@ -6131,14 +6137,14 @@
         const isFb = s.type === 'fb';
         const icon = isFb
           ? `<img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:13px;height:13px;">`
-          : `<svg class="xi" style="width:13px;height:13px; color:#5046E5;"><use href="#ic-chat"/></svg>`;
+          : `<svg class="xi" style="width:13px;height:13px; color:#5046E5;"><use href="#ic-zalo"/></svg>`;
         const accent = isFb ? '#635BFF' : '#5046E5';
         return `
-          <div style="margin-bottom:14px;">
+          <div style="margin-bottom:14px; max-width:100%; overflow:hidden;">
             <div style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:${accent}; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; padding-bottom:4px; border-bottom:1px dashed ${isFb ? '#E0DDFD' : '#b3d0ff'};">
               ${icon} ${escapeHtml(label)}
             </div>
-            <div style="display:flex; flex-direction:column; gap:2px;">
+            <div style="display:flex; flex-direction:column; gap:2px; max-width:100%;">
               ${s.items.map(g => {
                 const checked = isFb ? assignedFb.has(g.key) : assignedZalo.has(g.key);
                 const sub = isFb ? (g.id || '') : ('Salework: ' + (g.oid || ''));
