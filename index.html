@@ -282,7 +282,7 @@
     /* === Multi-select filter component === */
     .msel { position:relative; display:inline-block; }
     .dash-filter-bar { display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
-    .dash-filter-bar > .msel { flex:1; min-width:100px; }
+    .dash-filter-bar > .msel { flex:1; min-width:140px; }
     .dash-filter-bar > .msel .msel-btn { width:100%; box-sizing:border-box; }
     .dash-filter-bar > .dash-search-wrap { flex:1.2; min-width:120px; }
     .dash-filter-bar > input[type=date] {
@@ -2559,18 +2559,15 @@
       color-scheme: light;
     }
 
-    /* === Mobile: groupsTable - hide PHÂN LOẠI col + compact widths === */
+    /* === Mobile: groupsTable - cho phép horizontal scroll, không hide cột === */
     @media (max-width: 768px) {
-      #groupsTable th:nth-child(4),
-      #groupsTable td:nth-child(4) { display: none !important; }
       #groupsTable th:nth-child(1),
-      #groupsTable td:nth-child(1) { width: 56px !important; padding: 8px 4px !important; }
+      #groupsTable td:nth-child(1) { padding: 8px 6px !important; }
       #groupsTable th:nth-child(2),
-      #groupsTable td:nth-child(2) { width: 92px !important; max-width: 92px !important; padding: 8px 6px !important; }
-      #groupsTable th:nth-child(5),
-      #groupsTable td:nth-child(5) { width: 80px !important; padding: 8px 4px !important; }
-      #groupsTable td { font-size: 12px !important; }
-      #groupsTableWrap { overflow-x: hidden !important; }
+      #groupsTable td:nth-child(2) { padding: 8px 6px !important; }
+      #groupsTable td { font-size: 12px !important; white-space: nowrap !important; }
+      #groupsTable { min-width: 700px; }
+      #groupsTableWrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -3170,9 +3167,9 @@
       <!-- Filter bar -->
       <div class="dash-filter-bar">
         <!-- Ngày từ / đến (đầu tiên) - wrap chung 1 hàng -->
-        <div class="dash-date-pair" style="display:flex; gap:8px; flex:1 1 auto; min-width:0;">
-          <input type="date" id="dashFilterFrom" style="padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:13px; flex:1; min-width:0;">
-          <input type="date" id="dashFilterTo" style="padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:13px; flex:1; min-width:0;">
+        <div class="dash-date-pair" style="display:flex; gap:6px; flex:0 0 auto; min-width:0;">
+          <input type="date" id="dashFilterFrom" style="padding:8px 8px; border:1px solid #ddd; border-radius:8px; font-size:12px; width:115px; min-width:0;">
+          <input type="date" id="dashFilterTo" style="padding:8px 8px; border:1px solid #ddd; border-radius:8px; font-size:12px; width:115px; min-width:0;">
         </div>
         <!-- Tài khoản -->
         <div class="msel" id="msel-profile" data-placeholder="Tất cả tài khoản">
@@ -7490,9 +7487,9 @@
             ? u.profiles.map(k => profileNameMap[k] || k).join(', ')
             : '<em style="color:#999;">— chưa gán —</em>');
         const actions = isSuper
-          ? `<button onclick="editPermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#EFF6FF; border:1px solid #DBEAFE; border-radius:6px; font-size:12px; cursor:pointer; color:#3B82F6;">Sửa tên</button>`
-          : `<button onclick="editPermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#EFF6FF; border:1px solid #DBEAFE; border-radius:6px; font-size:12px; cursor:pointer; color:#3B82F6; margin-right:6px;">Sửa</button>
-             <button onclick="deletePermission('${escapeAttr(u.email)}')" style="padding:6px 12px; background:#fee2e2; border:1px solid #fecaca; border-radius:6px; font-size:12px; cursor:pointer; color:#dc2626;">Xoá</button>`;
+          ? `<button onclick="editPermission('${escapeAttr(u.email)}')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#DBEAFE;border:none;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;color:#1E3A8A;"><svg class="xi" style="width:13px;height:13px;"><use href="#ic-edit"/></svg>Sửa tên</button>`
+          : `<button onclick="editPermission('${escapeAttr(u.email)}')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#DBEAFE;border:none;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;color:#1E3A8A;margin-right:6px;"><svg class="xi" style="width:13px;height:13px;"><use href="#ic-edit"/></svg>Sửa</button>
+             <button onclick="deletePermission('${escapeAttr(u.email)}')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#fee2e2;border:none;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;color:#b91c1c;"><svg class="xi" style="width:13px;height:13px;"><use href="#ic-trash"/></svg>Xoá</button>`;
         const nameDisplay = u.name ? escapeHtml(u.name) : '<em style="color:#999;">—</em>';
         return `<tr style="border-bottom:1px solid #f3f4f6;">
           <td style="padding:14px 16px; font-size:14px; word-break:break-word;"><strong>${nameDisplay}</strong></td>
