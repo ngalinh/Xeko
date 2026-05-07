@@ -6703,7 +6703,7 @@
             <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupId}">${groupId}</td>
             <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msgShort}</td>
             <td style="padding:10px 12px; color:#bbb;">—</td>
-            <td style="padding:10px 12px; text-align:center;"><span style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">↻ Đang đăng</span></td>
+            <td style="padding:10px 12px; text-align:center;"><span style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span></td>
             <td></td>
           </tr>`;
         }).join('');
@@ -6729,8 +6729,8 @@
           }
           const isRunning = sched.status === 'running';
           const statusBadge = isRunning
-            ? '<span style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">↻ Đang đăng</span>'
-            : '<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">⏱ Chờ đăng</span>';
+            ? '<span style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span>'
+            : '<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-clock"/></svg>Chờ đăng</span>';
           const rowBg = isRunning ? '#EFF6FF' : '#f8f7ff';
           return `<tr id="schedRow-${sched.id}" style="border-bottom:1px solid #EFF6FF; background:${rowBg}; border-left:3px solid #BFDBFE;">
             <td style="padding:10px 10px; text-align:center; color:#1E3A8A; font-size:13px;">⏱</td>
@@ -6781,8 +6781,8 @@
             const platformLabel = row.platform === 'zalo' ? 'Zalo' : 'FB';
             const batchColor = row.batch_id ? batchColorMap[row.batch_id] : null;
             const statusBadge = row.success
-              ? '<span style="background:#d1fae5; color:#047857; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">✓ OK</span>'
-              : `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'').replace(/"/g,'&quot;')}">✕ Lỗi</span>`;
+              ? '<span style="background:#d1fae5; color:#047857; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-check"/></svg>OK</span>'
+              : `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'').replace(/"/g,'&quot;')}"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-x"/></svg>Lỗi</span>`;
             const target = row.target === 'personal' ? 'Cá nhân' : row.target === 'group' ? 'Group' : (row.target || '-');
             const groupId = resolveGroupLabel(row.platform, row.group_id, row.group_name);
             const fullMsg = (row.message || '').replace(/"/g,'&quot;');
