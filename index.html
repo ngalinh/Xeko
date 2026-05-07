@@ -7026,7 +7026,7 @@
       }
       _renderRepostChannelList();
       // Update display label
-      document.getElementById('repostChannelDisplay').textContent = _channelsDisplayLabel();
+      document.getElementById('repostChannelDisplay').innerHTML = _channelsDisplayLabel();
     }
 
     function _onRepostProfileChange() {
@@ -7095,7 +7095,7 @@
       }
 
       // Channel display (view mode)
-      document.getElementById('repostChannelDisplay').textContent = _channelsDisplayLabel();
+      document.getElementById('repostChannelDisplay').innerHTML = _channelsDisplayLabel();
       document.getElementById('repostChannelDisplay').style.display = '';
       document.getElementById('repostChannelList').style.display = 'none';
 
@@ -7171,7 +7171,7 @@
         editBtn.innerHTML = `${xekoIcon('search')} Xem lại`;
         editBtn.style.background = '#f3f4f6';
       } else {
-        channelDisplay.textContent = _channelsDisplayLabel();
+        channelDisplay.innerHTML = _channelsDisplayLabel();
         channelDisplay.style.display = '';
         channelList.style.display = 'none';
         editBtn.innerHTML = `${xekoIcon('edit')} Chỉnh sửa`;
