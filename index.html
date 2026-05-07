@@ -3696,10 +3696,10 @@
       return html + '</div>';
     }
 
-    function addBot(text, buttons = null, imgSrc = null) {
+    function addBot(text, buttons = null, imgSrc = null, extraClass = '') {
       const chat = document.getElementById('chatArea');
       const row = document.createElement('div');
-      row.className = 'msg-row bot';
+      row.className = 'msg-row bot' + (extraClass ? ' ' + extraClass : '');
 
       let msgHtml = text.replace(/\n/g, '<br>');
       if (imgSrc) msgHtml += `<img src="${imgSrc}" alt="screenshot">`;
@@ -3736,6 +3736,7 @@
 
       chat.appendChild(row);
       chat.scrollTop = chat.scrollHeight;
+      saveChatState();
     }
 
     function addUser(text, photos = []) {
@@ -3754,6 +3755,7 @@
         </div>`;
       chat.appendChild(row);
       chat.scrollTop = chat.scrollHeight;
+      saveChatState();
     }
 
     function addTyping() {
@@ -6267,10 +6269,13 @@
     })();
 
     function clearChat() {
+      clearChatState();
       document.getElementById('chatArea').innerHTML = '';
       currentProfile = null;
+      currentProfileName = null;
       currentTarget = null;
       postMode = 'now';
+      step = 'welcome';
       updateHeader('FB Auto Post');
       showWelcome();
     }
@@ -6335,14 +6340,102 @@
       } catch {}
     }, 10000);
 
-    // Xoa chat cu trong localStorage (neu con ton tai tu phien truoc)
+    // Xoa chat key cu (cua phien truoc khi co persist)
     localStorage.removeItem('xeko_chat');
     localStorage.removeItem('xeko_profile');
     localStorage.removeItem('xeko_target');
     localStorage.removeItem('xeko_mode');
 
-    // Khoi dong: luon hien welcome moi
-    showWelcome();
+    // ===== Persist chat state =====
+    // Luu chat history + state vars vao localStorage de khi quay lai PWA
+    // (vi du sau khi switch sang chatbot khac trong Basso) khong bi mat tien do.
+    // Chi luu khi co message moi (qua addBot/addUser) — khong luu text/anh chua gui.
+    const CHAT_STATE_KEY = 'xeko_chat_state_v1';
+    const CHAT_STATE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+
+    function saveChatState() {
+      try {
+        const chat = document.getElementById('chatArea');
+        if (!chat || chat.children.length === 0) return;
+        // Strip welcome-back banners (chi co button voi handler in-memory)
+        const clone = chat.cloneNode(true);
+        clone.querySelectorAll('.welcome-back').forEach(el => el.remove());
+        if (clone.children.length === 0) return;
+        const payload = {
+          html: clone.innerHTML,
+          currentProfile,
+          currentProfileName,
+          currentTarget,
+          postMode,
+          step,
+          ts: Date.now(),
+        };
+        localStorage.setItem(CHAT_STATE_KEY, JSON.stringify(payload));
+      } catch (e) {
+        // Quota exceeded hoac storage disabled — bo qua, khong crash flow
+      }
+    }
+
+    function clearChatState() {
+      try { localStorage.removeItem(CHAT_STATE_KEY); } catch {}
+    }
+
+    function restoreChatState() {
+      try {
+        const raw = localStorage.getItem(CHAT_STATE_KEY);
+        if (!raw) return false;
+        const state = JSON.parse(raw);
+        if (!state || !state.html) return false;
+        // Het han -> bo qua, khoi dong moi
+        if (!state.ts || Date.now() - state.ts > CHAT_STATE_TTL_MS) {
+          clearChatState();
+          return false;
+        }
+        const chat = document.getElementById('chatArea');
+        if (!chat) return false;
+        chat.innerHTML = state.html;
+        chat.scrollTop = chat.scrollHeight;
+        currentProfile = state.currentProfile || null;
+        currentProfileName = state.currentProfileName || null;
+        currentTarget = state.currentTarget || null;
+        postMode = state.postMode || 'now';
+        step = state.step || 'welcome';
+        if (currentProfileName) updateHeaderProfile(currentProfileName);
+        return true;
+      } catch {
+        clearChatState();
+        return false;
+      }
+    }
+
+    function showWelcomeBack() {
+      // Tuy step ma offer action phu hop. Cac button trong message cu khong
+      // con handler (vi luu html), nen them 1 message moi voi button active.
+      const buttons = [];
+      if (step === 'compose') {
+        buttons.push({ label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() });
+        buttons.push({ label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() });
+        buttons.push({ label: `${xekoIcon('user')} Đổi profile`, handler: () => showProfileSelect() });
+      } else if (step === 'mode') {
+        buttons.push({ label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') });
+        buttons.push({ label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') });
+      } else if (step === 'target') {
+        buttons.push({ label: `${xekoIcon('pin')} Chọn nơi đăng`, handler: () => showTargetSelect() });
+      } else {
+        buttons.push({ label: `${xekoIcon('user')} Chọn Profile`, handler: () => showProfileSelect() });
+      }
+      buttons.push({ label: `${xekoIcon('refresh')} Bắt đầu lại`, handler: () => { clearChat(); } });
+      // Mark banner voi class 'welcome-back' de saveChatState() loai tru
+      // (tranh duplicate banner moi lan reload PWA)
+      addBot('Bạn vừa quay lại Xeko 👋 Tiếp tục từ đây nhé!', buttons, null, 'welcome-back');
+    }
+
+    // Khoi dong: restore neu co state cu, neu khong thi welcome moi
+    if (restoreChatState()) {
+      showWelcomeBack();
+    } else {
+      showWelcome();
+    }
 
     // ===== DASHBOARD =====
     let dashPage = 0;
