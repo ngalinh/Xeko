@@ -2710,7 +2710,16 @@
   <!-- Sidebar -->
   <div class="sidebar">
     <div class="sidebar-logo">
-      <img src="https://raw.githubusercontent.com/ngalinh/Xeko/main/xeko-avatar.png" alt="Xeko">
+      <svg width="34" height="34" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="border-radius:10px;" alt="Xeko">
+        <defs>
+          <linearGradient id="xekoLogoGrad1" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#3B82F6"/>
+            <stop offset="100%" stop-color="#1E40AF"/>
+          </linearGradient>
+        </defs>
+        <rect width="100" height="100" rx="22" fill="url(#xekoLogoGrad1)"/>
+        <path d="M30 30 L70 70 M70 30 L30 70" stroke="#fff" stroke-width="10" stroke-linecap="round"/>
+      </svg>
       <span>Xeko</span>
     </div>
     <div class="sidebar-nav">
@@ -2755,8 +2764,17 @@
         <span class="mhome-hello">Xeko chào bạn 👋</span>
         <h1 class="mhome-title">Hôm nay mình đăng content gì nào?</h1>
       </div>
-      <button class="mhome-avatar" onclick="switchPage('post')" aria-label="Mở Đăng bài">
-        <img src="https://raw.githubusercontent.com/ngalinh/Xeko/main/xeko-avatar.png" alt="Xeko">
+      <button class="mhome-avatar" onclick="switchPage('post')" aria-label="Mở Đăng bài" style="display:inline-flex;align-items:center;justify-content:center;">
+        <svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="border-radius:inherit;" alt="Xeko">
+          <defs>
+            <linearGradient id="xekoLogoGrad2" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#3B82F6"/>
+              <stop offset="100%" stop-color="#1E40AF"/>
+            </linearGradient>
+          </defs>
+          <rect width="100" height="100" rx="22" fill="url(#xekoLogoGrad2)"/>
+          <path d="M30 30 L70 70 M70 30 L30 70" stroke="#fff" stroke-width="10" stroke-linecap="round"/>
+        </svg>
       </button>
     </div>
 
@@ -3651,7 +3669,7 @@
       throw new Error('Quá 10 phút chưa xong — kiểm tra FB tay.');
     }
 
-    const BOT_AVATAR = 'https://raw.githubusercontent.com/ngalinh/Xeko/main/xeko-avatar.png';
+    const BOT_AVATAR = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3B82F6"/><stop offset="100%" stop-color="#1E40AF"/></linearGradient></defs><rect width="100" height="100" rx="22" fill="url(#g)"/><path d="M30 30 L70 70 M70 30 L30 70" stroke="#fff" stroke-width="10" stroke-linecap="round"/></svg>');
 
     /** Return inline SVG icon markup referencing the sprite. */
     function xekoIcon(name, cls = 'xi') {
