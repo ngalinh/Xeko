@@ -3377,7 +3377,7 @@
   <div id="addAccountModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
     <div style="background:#fff; border-radius:16px; padding:24px; width:440px; max-width:92%; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-        <h3 style="font-size:16px; color:#1e1e2e; margin:0;">➕ Thêm tài khoản mới</h3>
+        <h3 style="font-size:16px; color:#1e1e2e; margin:0;"><svg style="width:18px;height:18px;vertical-align:-3px;margin-right:6px;color:#3B82F6;" aria-hidden="true"><use href="#ic-plus"/></svg>Thêm tài khoản mới</h3>
         <button onclick="closeAddAccountModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999; line-height:1; padding:0 4px;">×</button>
       </div>
       <div style="margin-bottom:14px;">
@@ -3422,7 +3422,7 @@
         <p style="font-size:11px; color:#888; margin:4px 0 0;">Quản lý danh sách proxy ở tab "IP Proxy".</p>
       </div>
       <button onclick="addNewAccount()" style="width:100%; padding:12px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer; margin-top:4px; box-sizing:border-box;">
-        ➕ Thêm và đăng nhập
+        <svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;" aria-hidden="true"><use href="#ic-plus"/></svg>Thêm và đăng nhập
       </button>
       <p id="newAccNote" style="font-size:12px; color:#999; margin-top:10px; margin-bottom:0;">
         * Lần đầu thêm tài khoản, Chromium sẽ mở lên để bạn đăng nhập thủ công.
@@ -3434,7 +3434,7 @@
   <div id="groupModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
     <div style="background:#fff; border-radius:16px; padding:24px; width:440px; max-width:92%; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-        <h3 id="groupModalTitle" style="font-size:16px; color:#1e1e2e; margin:0;">➕ Thêm group</h3>
+        <h3 id="groupModalTitle" style="font-size:16px; color:#1e1e2e; margin:0; display:flex; align-items:center; gap:6px;"><svg style="width:18px;height:18px;vertical-align:-3px;margin-right:6px;color:#3B82F6;" aria-hidden="true"><use href="#ic-plus"/></svg>Thêm group</h3>
         <button onclick="closeGroupModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999; line-height:1; padding:0 4px;">×</button>
       </div>
 
@@ -3492,7 +3492,7 @@
   <div id="deleteConfirmModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.35); z-index:2000; align-items:center; justify-content:center;">
     <div style="background:#fff; border-radius:14px; padding:28px 28px 24px; width:380px; max-width:92%; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
       <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
-        <span style="font-size:28px; line-height:1;">🗑️</span>
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:999px;background:#fee2e2;color:#b91c1c;flex-shrink:0;"><svg style="width:24px;height:24px;" aria-hidden="true"><use href="#ic-trash"/></svg></span>
         <h3 id="deleteConfirmTitle" style="font-size:16px; font-weight:700; color:#1e1e2e; margin:0;"></h3>
       </div>
       <p id="deleteConfirmDesc" style="font-size:13px; color:#666; margin:0 0 22px; line-height:1.6;"></p>
@@ -4995,7 +4995,7 @@
           body = `<div style="display:flex; flex-wrap:wrap; gap:3px;">
             ${fbCount > 0 ? `<span style="background:#DBEAFE; color:#1E3A8A; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">FB ${fbCount}</span>` : ''}
             ${errCount > 0 ? `<span style="background:#fef2f2; color:#dc2626; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">✕${errCount}</span>` : ''}
-            ${pendingCount > 0 ? `<span style="background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">⏳${pendingCount}</span>` : ''}
+            ${pendingCount > 0 ? `<span style="background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;"><svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;" aria-hidden="true"><use href="#ic-clock"/></svg>${pendingCount}</span>` : ''}
           </div>`;
         } else {
           // Desktop: mini-card strips (giống Meta Business Suite)
@@ -5037,7 +5037,7 @@
       detail.innerHTML = `
         <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:14px;">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-            <div style="font-weight:600; font-size:14px;">📅 Bài ngày ${key}</div>
+            <div style="font-weight:600; font-size:14px; display:flex; align-items:center; gap:6px;"><svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;color:#3B82F6;" aria-hidden="true"><use href="#ic-calendar"/></svg>Bài ngày ${key}</div>
             <button onclick="document.getElementById('calDayDetail').innerHTML=''" style="background:none; border:none; font-size:16px; cursor:pointer; color:#666;">✕</button>
           </div>
           <div style="display:flex; flex-direction:column; gap:8px;">
@@ -5056,7 +5056,7 @@
                 : '';
               return `<div style="padding:10px 12px; border:1px solid #eef2ff; border-radius:8px;">
                 <div style="display:flex; align-items:center; gap:8px; font-size:12px;">
-                  <span style="color:#666;">🕐 ${time}</span>
+                  <span style="color:#666; display:inline-flex; align-items:center; gap:4px;"><svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;color:#666;" aria-hidden="true"><use href="#ic-clock"/></svg>${time}</span>
                   <span style="color:#333; font-weight:600;">${plat}</span>
                   <span style="color:#555;">· ${e.target || '-'}</span>
                   <span style="margin-left:auto;">${statusBadge}</span>
@@ -5582,7 +5582,7 @@
       const container = document.getElementById('sessionResults');
       const btn = document.getElementById('checkSessionBtn');
       btn.disabled = true;
-      btn.textContent = '⏳ Đang kiểm tra...';
+      btn.innerHTML = `<svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;" aria-hidden="true"><use href="#ic-clock"/></svg>Đang kiểm tra...`;
       container.innerHTML = '<p style="color:#999;">Đang kiểm tra session các profile, vui lòng đợi...</p>';
 
       try {
@@ -5606,7 +5606,7 @@
                 <div style="font-weight:600; font-size:15px; color:#1e1e2e;">${r.name}</div>
                 <div style="font-size:13px; color:${s.color}; margin-top:2px;">${s.label} - ${r.message}</div>
               </div>
-              ${r.status === 'expired' ? `<button onclick="loginProfile('${r.profile}')" style="padding:8px 16px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer;">🔑 Đăng nhập lại</button>` : ''}
+              ${r.status === 'expired' ? `<button onclick="loginProfile('${r.profile}')" style="padding:8px 16px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer;"><svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;" aria-hidden="true"><use href="#ic-key"/></svg>Đăng nhập lại</button>` : ''}
             </div>`;
         });
 
@@ -5625,7 +5625,7 @@
       }
 
       btn.disabled = false;
-      btn.textContent = '🔍 Kiểm tra lại';
+      btn.textContent = `<svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;" aria-hidden="true"><use href="#ic-search"/></svg>Kiểm tra lại`;
     }
 
     async function loginProfile(profileKey) {
@@ -5644,7 +5644,7 @@
       // nên tránh tunnel/reverse-proxy timeout bằng cách không giữ HTTP lâu).
       const orig = btn.innerHTML;
       btn.disabled = true;
-      btn.innerHTML = '⏳ Đang test...';
+      btn.innerHTML = `<svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;" aria-hidden="true"><use href="#ic-clock"/></svg>Đang test...`;
       try {
         const startRes = await fetch(`${BASE_URL}/api/accounts/${encodeURIComponent(profileKey)}/test-proxy`, { method: 'POST' });
         const start = await parseJson(startRes);
@@ -5919,7 +5919,7 @@
         document.getElementById('groupModalName').value = g.name || '';
         document.getElementById('groupModalCategory').value = g.category || '';
       } else {
-        title.textContent = '➕ Thêm group';
+        title.innerHTML = `<svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;color:#3B82F6;" aria-hidden="true"><use href="#ic-plus"/></svg>Thêm group`;
         typeRow.style.display = '';
         saveBtn.textContent = '💾 Lưu';
         setGroupModalType('fb');
@@ -6080,23 +6080,21 @@
             ${xekoIcon('user')} <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(p.name)}</span>
           </div>
         </div>
-        <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; align-items:center;">
-          <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:200px;">
-            <span style="font-size:12px; color:#777; flex-shrink:0;">Zalo Salework:</span>
-            <select onchange="setProfileZaloAccount('${escapeHtml(p.key)}', this.value)"
-              style="flex:1; min-width:0; padding:6px 10px; border:1px solid #b3d0ff; border-radius:8px; font-size:12px; background:#fff; color:#333; cursor:pointer;">
-              ${zaloAccountOptions}
-            </select>
-          </div>
-          <select onchange="profileDetailCategoryFilter = this.value; renderProfileDetailSections();"
-            style="padding:7px 10px; border:1px solid #DBEAFE; border-radius:8px; background:#fff; color:#3B82F6; font-size:12px; font-weight:600; cursor:pointer; min-width:140px;">
-            ${catOpts}
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+          <span style="font-size:12px; color:#777; flex-shrink:0;">Zalo Salework:</span>
+          <select onchange="setProfileZaloAccount('${escapeHtml(p.key)}', this.value)"
+            style="flex:1; min-width:0; padding:6px 10px; border:1px solid #b3d0ff; border-radius:8px; font-size:12px; background:#fff; color:#333; cursor:pointer;">
+            ${zaloAccountOptions}
           </select>
         </div>
-        <div style="margin-bottom:12px;">
+        <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center;">
+          <select onchange="profileDetailCategoryFilter = this.value; renderProfileDetailSections();"
+            style="padding:7px 10px; border:1px solid #DBEAFE; border-radius:8px; background:#fff; color:#3B82F6; font-size:12px; font-weight:600; cursor:pointer; min-width:130px;">
+            ${catOpts}
+          </select>
           <input type="text" id="profileDetailSearchInput" value="${escapeHtml(profileDetailSearch)}" placeholder="🔍 Tìm group..."
             oninput="profileDetailSearch = this.value; renderProfileDetailSections();"
-            style="width:100%; box-sizing:border-box; padding:7px 12px; border:1px solid #DBEAFE; border-radius:8px; font-size:13px; background:#fff;">
+            style="flex:1; min-width:140px; padding:7px 12px; border:1px solid #DBEAFE; border-radius:8px; font-size:13px; background:#fff;">
         </div>
         <div id="profileDetailSections" style="max-height:440px; overflow-y:auto; padding-right:4px;"></div>
       `;
@@ -6158,7 +6156,7 @@
             <div style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:${accent}; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; padding-bottom:4px; border-bottom:1px dashed ${isFb ? '#DBEAFE' : '#b3d0ff'};">
               ${icon} ${escapeHtml(label)}
             </div>
-            <div style="display:flex; flex-direction:column; gap:2px; max-width:100%;">
+            <div style="display:flex; flex-direction:column; gap:2px; min-width:max-content;">
               ${s.items.map(g => {
                 const checked = isFb ? assignedFb.has(g.key) : assignedZalo.has(g.key);
                 const sub = isFb ? (g.id || '') : ('Salework: ' + (g.oid || ''));
@@ -6698,7 +6696,7 @@
           const msgShort = job.message ? (job.message.length > 60 ? job.message.substring(0, 60) + '…' : job.message) : '-';
           const fullMsg = (job.message || '').replace(/"/g, '&quot;');
           return `<tr id="${job.tempId}" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
-            <td style="padding:10px 10px; text-align:center; color:#1E3A8A; font-size:15px;">⏳</td>
+            <td style="padding:10px 10px; text-align:center;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
             <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${job.timeLabel}</td>
             <td style="padding:10px 12px; font-size:12px;">${job.profileName}</td>
             <td style="padding:10px 12px; font-size:12px;">FB</td>
@@ -6706,7 +6704,7 @@
             <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupId}">${groupId}</td>
             <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msgShort}</td>
             <td style="padding:10px 12px; color:#bbb;">—</td>
-            <td style="padding:10px 12px; text-align:center;"><span style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">↻ Đang đăng</span></td>
+            <td style="padding:10px 12px; text-align:center;"><span style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span></td>
             <td></td>
           </tr>`;
         }).join('');
@@ -6732,8 +6730,8 @@
           }
           const isRunning = sched.status === 'running';
           const statusBadge = isRunning
-            ? '<span style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">↻ Đang đăng</span>'
-            : '<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">⏱ Chờ đăng</span>';
+            ? '<span style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span>'
+            : '<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-clock"/></svg>Chờ đăng</span>';
           const rowBg = isRunning ? '#EFF6FF' : '#f8f7ff';
           return `<tr id="schedRow-${sched.id}" style="border-bottom:1px solid #EFF6FF; background:${rowBg}; border-left:3px solid #BFDBFE;">
             <td style="padding:10px 10px; text-align:center; color:#1E3A8A; font-size:13px;">⏱</td>
@@ -6784,8 +6782,8 @@
             const platformLabel = row.platform === 'zalo' ? 'Zalo' : 'FB';
             const batchColor = row.batch_id ? batchColorMap[row.batch_id] : null;
             const statusBadge = row.success
-              ? '<span style="background:#d1fae5; color:#047857; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">✓ OK</span>'
-              : `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'').replace(/"/g,'&quot;')}">✕ Lỗi</span>`;
+              ? '<span style="background:#d1fae5; color:#047857; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-check"/></svg>OK</span>'
+              : `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'').replace(/"/g,'&quot;')}"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-x"/></svg>Lỗi</span>`;
             const target = row.target === 'personal' ? 'Cá nhân' : row.target === 'group' ? 'Group' : (row.target || '-');
             const groupId = resolveGroupLabel(row.platform, row.group_id, row.group_name);
             const fullMsg = (row.message || '').replace(/"/g,'&quot;');
