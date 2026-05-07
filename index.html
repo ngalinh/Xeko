@@ -288,7 +288,20 @@
     .dash-filter-bar > .msel { flex:1; min-width:100px; }
     .dash-filter-bar > .msel .msel-btn { width:100%; box-sizing:border-box; }
     .dash-filter-bar > .dash-search-wrap { flex:1.2; min-width:120px; }
-    .dash-filter-bar > input[type=date] { flex:0 0 auto; }
+    .dash-filter-bar > input[type=date] {
+      flex: 0 0 auto;
+      width: auto;
+      min-width: 140px;
+      max-width: 160px;
+      box-sizing: border-box;
+    }
+    @media (max-width: 768px) {
+      .dash-filter-bar > input[type=date] {
+        min-width: 120px;
+        max-width: 48%;
+        flex: 1 1 calc(50% - 4px);
+      }
+    }
 
     /* Phase 4: 2-col grid (chart + side widget) — Prodify-style */
     .dash-2col {
@@ -6130,7 +6143,7 @@
                 const sub = isFb ? (g.id || '') : ('Salework: ' + (g.oid || ''));
                 const bg = checked ? (isFb ? '#f0f9ff' : '#e6f2ff') : 'transparent';
                 return `
-                  <label style="display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:6px; cursor:pointer; user-select:none; background:${bg};">
+                  <label style="display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:6px; cursor:pointer; user-select:none; background:${bg}; min-width:0; max-width:100%;">
                     <input type="checkbox" ${checked ? 'checked' : ''}
                       onchange="toggleProfileChannel('${escapeHtml(p.key)}','${s.type}','${escapeHtml(g.key)}',this.checked); renderProfileSidebar(); renderProfileDetailSections();"
                       style="cursor:pointer; accent-color:${accent};">
@@ -7027,7 +7040,7 @@
       }
       _renderRepostChannelList();
       // Update display label
-      document.getElementById('repostChannelDisplay').textContent = _channelsDisplayLabel();
+      document.getElementById('repostChannelDisplay').innerHTML = _channelsDisplayLabel();
     }
 
     function _onRepostProfileChange() {
@@ -7096,7 +7109,7 @@
       }
 
       // Channel display (view mode)
-      document.getElementById('repostChannelDisplay').textContent = _channelsDisplayLabel();
+      document.getElementById('repostChannelDisplay').innerHTML = _channelsDisplayLabel();
       document.getElementById('repostChannelDisplay').style.display = '';
       document.getElementById('repostChannelList').style.display = 'none';
 
@@ -7172,7 +7185,7 @@
         editBtn.innerHTML = `${xekoIcon('search')} Xem lại`;
         editBtn.style.background = '#f3f4f6';
       } else {
-        channelDisplay.textContent = _channelsDisplayLabel();
+        channelDisplay.innerHTML = _channelsDisplayLabel();
         channelDisplay.style.display = '';
         channelList.style.display = 'none';
         editBtn.innerHTML = `${xekoIcon('edit')} Chỉnh sửa`;
