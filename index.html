@@ -812,7 +812,10 @@
       }
       #profileChannelMaster {
         max-width: 100% !important;
-        overflow: hidden !important;
+      }
+      #profileDetail {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
       }
 
       /* ---- mobile overflow & padding cleanup ---- */
@@ -6151,7 +6154,7 @@
           : `<svg class="xi" style="width:13px;height:13px; color:#1E3A8A;"><use href="#ic-zalo"/></svg>`;
         const accent = isFb ? '#3B82F6' : '#2563EB';
         return `
-          <div style="margin-bottom:14px; max-width:100%; overflow:hidden;">
+          <div style="margin-bottom:14px;">
             <div style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:${accent}; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; padding-bottom:4px; border-bottom:1px dashed ${isFb ? '#DBEAFE' : '#b3d0ff'};">
               ${icon} ${escapeHtml(label)}
             </div>
@@ -6161,13 +6164,13 @@
                 const sub = isFb ? (g.id || '') : ('Salework: ' + (g.oid || ''));
                 const bg = checked ? (isFb ? '#f0f9ff' : '#e6f2ff') : 'transparent';
                 return `
-                  <label style="display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:6px; cursor:pointer; user-select:none; background:${bg}; min-width:0; max-width:100%;">
+                  <label style="display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:6px; cursor:pointer; user-select:none; background:${bg}; white-space:nowrap;">
                     <input type="checkbox" ${checked ? 'checked' : ''}
                       onchange="toggleProfileChannel('${escapeHtml(p.key)}','${s.type}','${escapeHtml(g.key)}',this.checked); renderProfileSidebar(); renderProfileDetailSections();"
                       style="cursor:pointer; accent-color:${accent};">
-                    <div style="flex:1; min-width:0;">
-                      <div style="font-size:13px; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(g.name)}</div>
-                      <div style="font-size:11px; color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(g.key)} · ${escapeHtml(sub)}</div>
+                    <div style="flex:1;">
+                      <div style="font-size:13px; color:#333; white-space:nowrap;">${escapeHtml(g.name)}</div>
+                      <div style="font-size:11px; color:#aaa; white-space:nowrap;">${escapeHtml(g.key)} · ${escapeHtml(sub)}</div>
                     </div>
                   </label>
                 `;
