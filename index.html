@@ -2893,26 +2893,26 @@
 
         <!-- Danh sách group (FB + Zalo gộp) -->
         <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:18px;">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
             <h3 style="font-size:15px; color:#1e1e2e; margin:0; display:flex; align-items:center; gap:8px;">
               <svg class="xi xi-md" style="color:#1E3A8A;"><use href="#ic-chat"/></svg> Danh sách group
             </h3>
-            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-              <div class="group-filter-tabs" style="display:flex; gap:4px; background:#f0f9ff; padding:3px; border-radius:10px;">
-                <button onclick="setGroupFilter('all')" data-filter="all" class="group-filter-tab active"
-                  style="padding:6px 14px; border:none; background:#fff; color:#3B82F6; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer; box-shadow:0 1px 3px rgba(37, 99, 235,0.15);">Tất cả</button>
-                <button onclick="setGroupFilter('fb')" data-filter="fb" class="group-filter-tab"
-                  style="padding:6px 14px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Facebook</button>
-                <button onclick="setGroupFilter('zalo')" data-filter="zalo" class="group-filter-tab"
-                  style="padding:6px 14px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Zalo</button>
-              </div>
-              <select id="groupCategoryFilter" onchange="setGroupCategoryFilter(this.value)"
-                style="padding:7px 10px; border:1px solid #DBEAFE; border-radius:8px; background:#fff; color:#3B82F6; font-size:12px; font-weight:600; cursor:pointer; min-width:140px;">
-                <option value="">Tất cả phân loại</option>
-              </select>
-              <button onclick="openGroupModal('add')"
-                style="padding:8px 14px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;">+ Thêm group</button>
+            <button onclick="openGroupModal('add')"
+              style="padding:8px 14px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;">+ Thêm group</button>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
+            <div class="group-filter-tabs" style="display:flex; gap:4px; background:#f0f9ff; padding:3px; border-radius:10px; flex:1; min-width:0;">
+              <button onclick="setGroupFilter('all')" data-filter="all" class="group-filter-tab active"
+                style="flex:1; padding:6px 10px; border:none; background:#fff; color:#3B82F6; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer; box-shadow:0 1px 3px rgba(37, 99, 235,0.15);">Tất cả</button>
+              <button onclick="setGroupFilter('fb')" data-filter="fb" class="group-filter-tab"
+                style="flex:1; padding:6px 10px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Facebook</button>
+              <button onclick="setGroupFilter('zalo')" data-filter="zalo" class="group-filter-tab"
+                style="flex:1; padding:6px 10px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Zalo</button>
             </div>
+            <select id="groupCategoryFilter" onchange="setGroupCategoryFilter(this.value)"
+              style="flex:1; min-width:140px; padding:7px 10px; border:1px solid #DBEAFE; border-radius:8px; background:#fff; color:#3B82F6; font-size:12px; font-weight:600; cursor:pointer;">
+              <option value="">Tất cả phân loại</option>
+            </select>
           </div>
           <div id="groupsTableWrap" style="overflow-x:auto;">
             <table id="groupsTable" style="width:100%; border-collapse:separate; border-spacing:0 4px; font-size:13px;">
@@ -3476,7 +3476,7 @@
 
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button onclick="closeGroupModal()" style="padding:9px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
-        <button onclick="saveGroupFromModal()" id="groupModalSaveBtn" style="padding:9px 20px; border:none; border-radius:8px; background:#3B82F6; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">💾 Lưu</button>
+        <button onclick="saveGroupFromModal()" id="groupModalSaveBtn" style="padding:9px 20px; border:none; border-radius:8px; background:#3B82F6; color:#fff; font-size:13px; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:6px;"><svg style="width:14px;height:14px;" aria-hidden="true"><use href="#ic-check"/></svg>Lưu</button>
       </div>
     </div>
   </div>
@@ -5904,9 +5904,9 @@
       keyInput.style.background = '#fff';
 
       if (mode === 'edit') {
-        title.textContent = '✏️ Chỉnh sửa group';
+        title.innerHTML = `<svg style="width:18px;height:18px;vertical-align:-3px;margin-right:6px;color:#3B82F6;" aria-hidden="true"><use href="#ic-edit"/></svg>Chỉnh sửa group`;
         typeRow.style.display = 'none';
-        saveBtn.textContent = '💾 Lưu thay đổi';
+        saveBtn.innerHTML = `<svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;" aria-hidden="true"><use href="#ic-check"/></svg>Lưu thay đổi`;
         const list = type === 'fb' ? (channelsData.fbGroups || []) : (channelsData.zaloGroups || []);
         const g = list.find(x => x.key === key);
         if (!g) { alert('Không tìm thấy group'); return; }
@@ -5921,7 +5921,7 @@
       } else {
         title.innerHTML = `<svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;color:#3B82F6;" aria-hidden="true"><use href="#ic-plus"/></svg>Thêm group`;
         typeRow.style.display = '';
-        saveBtn.textContent = '💾 Lưu';
+        saveBtn.innerHTML = `<svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;" aria-hidden="true"><use href="#ic-check"/></svg>Lưu`;
         setGroupModalType('fb');
       }
 
@@ -6734,7 +6734,7 @@
             : '<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-clock"/></svg>Chờ đăng</span>';
           const rowBg = isRunning ? '#EFF6FF' : '#f8f7ff';
           return `<tr id="schedRow-${sched.id}" style="border-bottom:1px solid #EFF6FF; background:${rowBg}; border-left:3px solid #BFDBFE;">
-            <td style="padding:10px 10px; text-align:center; color:#1E3A8A; font-size:13px;">⏱</td>
+            <td style="padding:10px 10px; text-align:center;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
             <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
             <td style="padding:10px 12px; font-size:12px; white-space:nowrap;">${sched.profile || '-'}</td>
             <td style="padding:10px 12px; font-size:12px;">FB</td>
