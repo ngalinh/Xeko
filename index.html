@@ -6129,7 +6129,7 @@
                 const sub = isFb ? (g.id || '') : ('Salework: ' + (g.oid || ''));
                 const bg = checked ? (isFb ? '#f0f9ff' : '#e6f2ff') : 'transparent';
                 return `
-                  <label style="display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:6px; cursor:pointer; user-select:none; background:${bg};">
+                  <label style="display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:6px; cursor:pointer; user-select:none; background:${bg}; min-width:0; max-width:100%;">
                     <input type="checkbox" ${checked ? 'checked' : ''}
                       onchange="toggleProfileChannel('${escapeHtml(p.key)}','${s.type}','${escapeHtml(g.key)}',this.checked); renderProfileSidebar(); renderProfileDetailSections();"
                       style="cursor:pointer; accent-color:${accent};">
