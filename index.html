@@ -282,7 +282,7 @@
     /* === Multi-select filter component === */
     .msel { position:relative; display:inline-block; }
     .dash-filter-bar { display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
-    .dash-filter-bar > .msel { flex:1; min-width:100px; }
+    .dash-filter-bar > .msel { flex:1; min-width:140px; }
     .dash-filter-bar > .msel .msel-btn { width:100%; box-sizing:border-box; }
     .dash-filter-bar > .dash-search-wrap { flex:1.2; min-width:120px; }
     .dash-filter-bar > input[type=date] {
@@ -3169,9 +3169,9 @@
       <!-- Filter bar -->
       <div class="dash-filter-bar">
         <!-- Ngày từ / đến (đầu tiên) - wrap chung 1 hàng -->
-        <div class="dash-date-pair" style="display:flex; gap:8px; flex:1 1 auto; min-width:0;">
-          <input type="date" id="dashFilterFrom" style="padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:13px; flex:1; min-width:0;">
-          <input type="date" id="dashFilterTo" style="padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:13px; flex:1; min-width:0;">
+        <div class="dash-date-pair" style="display:flex; gap:6px; flex:0 0 auto; min-width:0;">
+          <input type="date" id="dashFilterFrom" style="padding:8px 8px; border:1px solid #ddd; border-radius:8px; font-size:12px; width:115px; min-width:0;">
+          <input type="date" id="dashFilterTo" style="padding:8px 8px; border:1px solid #ddd; border-radius:8px; font-size:12px; width:115px; min-width:0;">
         </div>
         <!-- Tài khoản -->
         <div class="msel" id="msel-profile" data-placeholder="Tất cả tài khoản">
