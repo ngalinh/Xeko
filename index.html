@@ -6066,26 +6066,28 @@
       ].join('');
 
       detail.innerHTML = `
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+        <div style="margin-bottom:10px;">
           <div style="font-size:15px; font-weight:600; color:#3B82F6; display:flex; align-items:center; gap:6px; min-width:0;">
             ${xekoIcon('user')} <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(p.name)}</span>
           </div>
-          <div style="display:flex; align-items:center; gap:6px;">
-            <span style="font-size:12px; color:#777;">Zalo Salework:</span>
+        </div>
+        <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; align-items:center;">
+          <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:200px;">
+            <span style="font-size:12px; color:#777; flex-shrink:0;">Zalo Salework:</span>
             <select onchange="setProfileZaloAccount('${escapeHtml(p.key)}', this.value)"
-              style="padding:6px 10px; border:1px solid #b3d0ff; border-radius:8px; font-size:12px; background:#fff; color:#333; min-width:180px; cursor:pointer;">
+              style="flex:1; min-width:0; padding:6px 10px; border:1px solid #b3d0ff; border-radius:8px; font-size:12px; background:#fff; color:#333; cursor:pointer;">
               ${zaloAccountOptions}
             </select>
           </div>
-        </div>
-        <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
-          <input type="text" id="profileDetailSearchInput" value="${escapeHtml(profileDetailSearch)}" placeholder="🔍 Tìm group..."
-            oninput="profileDetailSearch = this.value; renderProfileDetailSections();"
-            style="flex:1; min-width:180px; padding:7px 12px; border:1px solid #DBEAFE; border-radius:8px; font-size:13px; background:#fff;">
           <select onchange="profileDetailCategoryFilter = this.value; renderProfileDetailSections();"
             style="padding:7px 10px; border:1px solid #DBEAFE; border-radius:8px; background:#fff; color:#3B82F6; font-size:12px; font-weight:600; cursor:pointer; min-width:140px;">
             ${catOpts}
           </select>
+        </div>
+        <div style="margin-bottom:12px;">
+          <input type="text" id="profileDetailSearchInput" value="${escapeHtml(profileDetailSearch)}" placeholder="🔍 Tìm group..."
+            oninput="profileDetailSearch = this.value; renderProfileDetailSections();"
+            style="width:100%; box-sizing:border-box; padding:7px 12px; border:1px solid #DBEAFE; border-radius:8px; font-size:13px; background:#fff;">
         </div>
         <div id="profileDetailSections" style="max-height:440px; overflow-y:auto; padding-right:4px;"></div>
       `;
