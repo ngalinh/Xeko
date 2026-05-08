@@ -5511,7 +5511,7 @@
               ${proxyStr ? `<button class="pc-btn pc-btn-edit" onclick="testProxyIp('${p.key}', this)" aria-label="Test IP" title="Test IP qua proxy">${xekoIcon('globe')}<span class="pc-btn-label">Test IP</span></button>` : ''}
               <button class="pc-btn pc-btn-edit" onclick="editProfile('${p.key}', '${p.name.replace(/'/g, "\\'")}', '${(p.email || '').replace(/'/g, "\\'")}', '${(proxyStr || '').replace(/'/g, "\\'")}')" title="Đổi proxy" aria-label="Đổi proxy">${xekoIcon('edit')}<span class="pc-btn-label">Sửa</span></button>
               <button class="pc-btn pc-btn-del" onclick="deleteProfile('facebook','${p.key}','${p.name.replace(/'/g, "\\'")}')" aria-label="Xoá" title="Xoá">
-                ${xekoIcon('trash')}
+                ${xekoIcon('trash')}<span class="pc-btn-label">Xoá</span>
               </button>
             </div>
           </div>`;
@@ -5546,7 +5546,7 @@
                     ${zproxyStr ? `<button class="pc-btn pc-btn-edit" onclick="testProxyIp('${z.key}', this)" aria-label="Test IP" title="Test IP qua proxy">${xekoIcon('globe')}<span class="pc-btn-label">Test IP</span></button>` : ''}
                     <button class="pc-btn pc-btn-edit" onclick="editZaloProfile('${z.key}', '${z.name.replace(/'/g, "\\'")}', '${(z.saleworkName || '').replace(/'/g, "\\'")}', '${(zproxyStr || '').replace(/'/g, "\\'")}')" title="Đổi proxy" aria-label="Đổi proxy">${xekoIcon('edit')}<span class="pc-btn-label">Sửa</span></button>
                     <button class="pc-btn pc-btn-del" onclick="deleteProfile('zalo','${z.key}','${z.name.replace(/'/g, "\\'")}')" aria-label="Xoá" title="Xoá">
-                      ${xekoIcon('trash')}
+                      ${xekoIcon('trash')}<span class="pc-btn-label">Xoá</span>
                     </button>
                   </div>
                 </div>`;

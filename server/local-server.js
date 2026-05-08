@@ -69,6 +69,8 @@ app.use((req, res, next) => {
 const TEMP_DIR = path.resolve(__dirname, 'temp');
 if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 
+// Format mở rộng để chấp nhận ảnh từ iPhone (HEIC/HEIF), webp, ...
+const ACCEPTED_IMAGE_EXTS = /\.(jpe?g|png|gif|webp|bmp|heic|heif)$/i;
 const upload = multer({
   storage: multer.diskStorage({
     destination: TEMP_DIR,
@@ -77,6 +79,17 @@ const upload = multer({
       cb(null, `${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`);
     },
   }),
+  limits: {
+    fileSize: 25 * 1024 * 1024,
+    files: 20,
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/') || ACCEPTED_IMAGE_EXTS.test(file.originalname)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`File "${file.originalname}" không phải ảnh (${file.mimetype})`));
+    }
+  },
 });
 
 function cleanupFiles(files) {
@@ -124,7 +137,7 @@ app.get('/api/job/:id', (req, res) => {
 });
 
 // ===== ĐĂNG BÀI FACEBOOK =====
-app.post('/api/post', upload.array('images', 10), async (req, res) => {
+app.post('/api/post', upload.array('images', 20), async (req, res) => {
   const { message, target, groupId } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
 
@@ -200,7 +213,7 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
 // ===== ĐĂNG ZALO =====
 const zaloJobs = new Map(); // jobId → { status, success, error }
 
-app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
+app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   const { profile, zaloAccountName, groupName, message } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
   const accountName = zaloAccountName || profile;
@@ -684,6 +697,30 @@ app.put('/api/permissions', (req, res) => {
 });
 
 // ===== START =====
+// Global error middleware: tra JSON ro rang thay vi plain text "Internal Server"
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  if (err && err.name === 'MulterError') {
+    const map = {
+      LIMIT_FILE_SIZE: 'Ảnh quá lớn (>25MB/ảnh). Resize trước khi upload nhé!',
+      LIMIT_FILE_COUNT: 'Vượt quá 20 ảnh / bài. Chia thành nhiều bài nha.',
+      LIMIT_UNEXPECTED_FILE: 'Vượt quá 20 ảnh / bài.',
+      LIMIT_PART_COUNT: 'Form data quá nhiều phần.',
+    };
+    const msg = map[err.code] || `Upload lỗi: ${err.message}`;
+    logger.warn(`Multer error: ${err.code} - ${err.message}`);
+    return res.status(400).json({ error: msg, code: err.code });
+  }
+  if (err && err.message && err.message.startsWith('File "')) {
+    logger.warn(`File filter reject: ${err.message}`);
+    return res.status(400).json({ error: err.message });
+  }
+  logger.error(`Unhandled error: ${err && err.stack || err}`);
+  res.status(500).json({
+    error: (err && err.message) || 'Lỗi server không xác định',
+  });
+});
+
 const PORT = process.env.LOCAL_PORT || 3001;
 app.listen(PORT, () => {
   logger.info(`Local Playwright server đang chạy: http://localhost:${PORT}`);
