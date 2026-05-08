@@ -1,5 +1,5 @@
 /* Xeko PWA service worker */
-const VERSION = 'xeko-pwa-v9';
+const VERSION = 'xeko-pwa-v10';
 const SHELL_CACHE = `shell-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
