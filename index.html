@@ -2829,7 +2829,7 @@
   <div class="input-area" id="inputArea">
     <button class="btn-icon btn-attach" onclick="document.getElementById('fileInput').click()" aria-label="Đính kèm ảnh"><svg class="xi xi-md"><use href="#ic-camera"/></svg></button>
     <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this)">
-    <textarea id="msgInput" rows="1" placeholder="Nhập nội dung bài viết... (Ctrl+Enter để gửi)" autocomplete="off" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();sendMessage();}" oninput="autoGrowMsgInput(this)"></textarea>
+    <textarea id="msgInput" rows="1" placeholder="Nhập nội dung bài viết" autocomplete="off" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();sendMessage();}" oninput="autoGrowMsgInput(this)"></textarea>
     <input type="text" id="groupIdInput" placeholder="Nhập Group ID..." autocomplete="off" style="display:none; width:140px;">
     <button class="btn-icon btn-send" id="sendBtn" onclick="sendMessage()" aria-label="Gửi"><svg class="xi xi-md"><use href="#ic-send"/></svg></button>
   </div>
