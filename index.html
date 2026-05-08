@@ -4429,6 +4429,16 @@
           if (currentProfile) formData.append('profile', currentProfile);
           await appendImages(formData, filesToUpload);
 
+          const targetLabel = (() => {
+            if (!target || target === 'personal') return `trang cá nhân (<strong>${currentProfile}</strong>)`;
+            if (target === 'group') return `Group <strong>#${groupId}</strong> (profile <strong>${currentProfile}</strong>)`;
+            if (target === 'shortcut') {
+              const scMap = { asale: 'Asale', tongkho: 'Tổng Kho' };
+              return `Group <strong>${scMap[groupId] || groupId}</strong> (profile <strong>${currentProfile}</strong>)`;
+            }
+            return target;
+          })();
+
           addTyping();
           const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: formData });
           const initial = await parseJson(res);
@@ -4440,21 +4450,17 @@
               { label: '🚫 Huỷ', handler: () => cancelPosting() },
             ]);
             addTyping();
-            data = await pollJob(initial.jobId);
+            // Save jobId de resume khi PWA reload giua chung
+            pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: targetLabel });
+            try {
+              data = await pollJob(initial.jobId);
+            } finally {
+              removePendingJob(initial.jobId);
+            }
           } else {
             data = initial;
           }
           removeTyping();
-
-          const targetLabel = (() => {
-            if (!target || target === 'personal') return `trang cá nhân (<strong>${currentProfile}</strong>)`;
-            if (target === 'group') return `Group <strong>#${groupId}</strong> (profile <strong>${currentProfile}</strong>)`;
-            if (target === 'shortcut') {
-              const scMap = { asale: 'Asale', tongkho: 'Tổng Kho' };
-              return `Group <strong>${scMap[groupId] || groupId}</strong> (profile <strong>${currentProfile}</strong>)`;
-            }
-            return target;
-          })();
 
           if (data.results) {
             data.results.forEach(r => {
@@ -4495,8 +4501,19 @@
                 { label: '🚫 Huỷ', handler: () => cancelPosting() },
               ]);
               addTyping();
+              pushPendingJob({
+                jobId: initial.jobId,
+                profile: currentProfile,
+                label: `Group <strong>#${gid}</strong>`,
+              });
             }
-            const cd = initial.jobId ? await pollJob(initial.jobId) : initial;
+            let cd;
+            if (initial.jobId) {
+              try { cd = await pollJob(initial.jobId); }
+              finally { removePendingJob(initial.jobId); }
+            } else {
+              cd = initial;
+            }
             removeTyping();
             if (cd.success) {
               let msg = `✅ Group <strong>#${gid}</strong> (profile <strong>${currentProfile}</strong>) xong rồi má, Xeko đăng nhanh như chớp luôn á!`;
@@ -6357,9 +6374,11 @@
       try {
         const chat = document.getElementById('chatArea');
         if (!chat || chat.children.length === 0) return;
-        // Strip welcome-back banners (chi co button voi handler in-memory)
+        // Strip welcome-back banners + typing indicator (transient UI)
         const clone = chat.cloneNode(true);
         clone.querySelectorAll('.welcome-back').forEach(el => el.remove());
+        const t = clone.querySelector('#typingMsg');
+        if (t) t.remove();
         if (clone.children.length === 0) return;
         const payload = {
           html: clone.innerHTML,
@@ -6430,9 +6449,76 @@
       addBot('Bạn vừa quay lại Xeko 👋 Tiếp tục từ đây nhé!', buttons, null, 'welcome-back');
     }
 
+    // ===== Pending jobs (resume polling sau khi PWA reload) =====
+    // Khi POST /api/post tra jobId, server van xu ly bai dang trong background
+    // du PWA bi kill. Save jobId vao localStorage de khi mo lai PWA con poll
+    // tiep va render ket qua thay vi mat tin (typing indicator stuck mai).
+    const PENDING_JOBS_KEY = 'xeko_pending_jobs_v1';
+    const PENDING_JOB_TTL_MS = 30 * 60 * 1000; // 30 phut (server timeout 10p + buffer)
+
+    function getPendingJobs() {
+      try { return JSON.parse(localStorage.getItem(PENDING_JOBS_KEY) || '[]'); }
+      catch { return []; }
+    }
+    function setPendingJobs(list) {
+      try { localStorage.setItem(PENDING_JOBS_KEY, JSON.stringify(list)); } catch {}
+    }
+    function pushPendingJob(job) {
+      const list = getPendingJobs();
+      list.push({ ...job, ts: Date.now() });
+      setPendingJobs(list);
+    }
+    function removePendingJob(jobId) {
+      setPendingJobs(getPendingJobs().filter(j => j.jobId !== jobId));
+    }
+
+    function renderResumedJobResult(job, data) {
+      const profile = job.profile || '?';
+      if (data && data.results) {
+        data.results.forEach(r => {
+          if (r.success) {
+            let msg = `✅ Đăng lên <strong>${r.target}</strong> (profile <strong>${profile}</strong>) xong rồi nha!`;
+            if (r.postUrl) msg += `\n<a class="link" href="${r.postUrl}" target="_blank">Xem bài viết</a>`;
+            addBot(msg);
+          } else {
+            addBot(`❌ Đăng <strong>${r.target}</strong> lỗi: ${r.error}`);
+          }
+        });
+      } else if (data && data.success) {
+        let msg = `✅ ${job.label || 'Xong'} (profile <strong>${profile}</strong>)`;
+        if (data.postUrl) msg += `\n<a class="link" href="${data.postUrl}" target="_blank">Xem bài viết</a>`;
+        addBot(msg);
+      } else {
+        addBot(`❌ Lỗi: ${(data && data.error) || 'unknown'}`);
+      }
+    }
+
+    async function resumePendingJobs() {
+      const now = Date.now();
+      const list = getPendingJobs();
+      const fresh = list.filter(j => now - (j.ts || 0) <= PENDING_JOB_TTL_MS);
+      if (fresh.length !== list.length) setPendingJobs(fresh);
+      if (fresh.length === 0) return;
+      addBot(
+        `⏳ Xeko đang theo dõi tiếp ${fresh.length} bài đăng từ phiên trước...`,
+        null, null, 'welcome-back'
+      );
+      for (const job of fresh) {
+        try {
+          const data = await pollJob(job.jobId);
+          renderResumedJobResult(job, data);
+        } catch (e) {
+          addBot(`❌ Bài "${job.label || ''}" lỗi: ${e.message}`);
+        } finally {
+          removePendingJob(job.jobId);
+        }
+      }
+    }
+
     // Khoi dong: restore neu co state cu, neu khong thi welcome moi
     if (restoreChatState()) {
       showWelcomeBack();
+      resumePendingJobs();
     } else {
       showWelcome();
     }
