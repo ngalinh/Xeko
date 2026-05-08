@@ -506,20 +506,20 @@
     .pc-btn {
       display: inline-flex; align-items: center; justify-content: center;
       gap: 6px;
-      padding: 7px 12px;
-      font-size: 12px; font-weight: 500;
-      border-radius: 8px;
-      border: 1px solid;
+      padding: 6px 12px;
+      font-size: 12px; font-weight: 600;
+      border-radius: 999px;
+      border: none;
       cursor: pointer;
       transition: background 0.12s, box-shadow 0.12s;
       white-space: nowrap;
     }
     .pc-btn:hover { box-shadow: 0 3px 10px rgba(37, 99, 235,0.14); }
-    .pc-btn-edit  { background: #f0f9ff; border-color: #DBEAFE; color: #1E3A8A; }
-    .pc-btn-login { background: #EFF6FF; border-color: #DBEAFE; color: #3B82F6; }
-    .pc-btn-login.pc-btn-zalo { background: #e8f4ff; border-color: #b3d9ff; color: #1E3A8A; }
-    .pc-btn-del   { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
-    .pc-btn .xi { width: 15px; height: 15px; }
+    .pc-btn-edit  { background: #DBEAFE; color: #1E3A8A; }
+    .pc-btn-login { background: #DBEAFE; color: #1E3A8A; }
+    .pc-btn-login.pc-btn-zalo { background: #DBEAFE; color: #1E3A8A; }
+    .pc-btn-del   { background: #fee2e2; color: #b91c1c; }
+    .pc-btn .xi { width: 13px; height: 13px; }
 
     /* ===== DARK MODE ===== */
     [data-theme="dark"] { color-scheme: dark; }
@@ -1811,25 +1811,26 @@
     }
     .profile-card .info .name { color: var(--xk-ink) !important; }
 
+    /* Match style với buttons "Sửa"/"Xoá" trang Phân quyền (pill blue/coral solid) */
     .pc-btn-edit  {
-      background: rgba(255,255,255,0.7) !important;
-      border-color: var(--xk-glass-edge) !important;
-      color: var(--xk-ink) !important;
+      background: #DBEAFE !important;
+      border: none !important;
+      color: #1E3A8A !important;
     }
     .pc-btn-login {
-      background: rgba(59, 130, 246,0.10) !important;
-      border-color: rgba(59, 130, 246,0.20) !important;
-      color: var(--xk-primary) !important;
+      background: #DBEAFE !important;
+      border: none !important;
+      color: #1E3A8A !important;
     }
     .pc-btn-login.pc-btn-zalo {
-      background: rgba(0,104,255,0.10) !important;
-      border-color: rgba(0,104,255,0.20) !important;
+      background: #DBEAFE !important;
+      border: none !important;
       color: #1E3A8A !important;
     }
     .pc-btn-del {
-      background: rgba(220,38,38,0.08) !important;
-      border-color: rgba(220,38,38,0.18) !important;
-      color: #c1331f !important;
+      background: #fee2e2 !important;
+      border: none !important;
+      color: #b91c1c !important;
     }
 
     /* ACCOUNT TAB BAR */
