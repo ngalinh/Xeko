@@ -7891,7 +7891,7 @@
             ? u.profiles.map(k => profileNameMap[k] || k).join(', ')
             : '<em style="color:#999;">— chưa gán —</em>');
         const actions = isSuper
-          ? `<button onclick="editPermission('${escapeAttr(u.email)}')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#DBEAFE;border:none;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;color:#1E3A8A;"><svg class="xi" style="width:13px;height:13px;"><use href="#ic-edit"/></svg>Sửa tên</button>`
+          ? `<button onclick="editPermission('${escapeAttr(u.email)}')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#DBEAFE;border:none;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;color:#1E3A8A;"><svg class="xi" style="width:13px;height:13px;"><use href="#ic-edit"/></svg>Sửa</button>`
           : `<button onclick="editPermission('${escapeAttr(u.email)}')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#DBEAFE;border:none;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;color:#1E3A8A;margin-right:6px;"><svg class="xi" style="width:13px;height:13px;"><use href="#ic-edit"/></svg>Sửa</button>
              <button onclick="deletePermission('${escapeAttr(u.email)}')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#fee2e2;border:none;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;color:#b91c1c;"><svg class="xi" style="width:13px;height:13px;"><use href="#ic-trash"/></svg>Xoá</button>`;
         const nameDisplay = u.name ? escapeHtml(u.name) : '<em style="color:#999;">—</em>';
@@ -7923,11 +7923,13 @@
       const profilesWrap = document.getElementById('permProfilesWrap');
       const adminLabel = isAdminCb.closest('label');
       const allLabel = allProfCb.closest('label');
+      // Super-admin phải LUÔN là admin Xeko -> lock checkbox đó.
+      // Còn allProfiles + profile list cho phép super-admin tự chỉnh.
       isAdminCb.disabled = isSuper;
-      allProfCb.disabled = isSuper;
+      allProfCb.disabled = false;
       if (adminLabel) adminLabel.style.opacity = isSuper ? '0.5' : '';
-      if (allLabel) allLabel.style.opacity = isSuper ? '0.5' : '';
-      if (profilesWrap) profilesWrap.style.display = isSuper ? 'none' : '';
+      if (allLabel) allLabel.style.opacity = '';
+      if (profilesWrap) profilesWrap.style.display = '';
     }
 
     function openPermissionModal() {
@@ -7953,7 +7955,7 @@
         const isSuper = email === superAdmin;
         _editingEmail = email;
         document.getElementById('permissionModalTitle').textContent =
-          (isSuper ? 'Sửa tên Super-admin: ' : 'Sửa phân quyền: ') + email;
+          (isSuper ? 'Sửa Super-admin: ' : 'Sửa phân quyền: ') + email;
         document.getElementById('permName').value = u.name || '';
         document.getElementById('permEmail').value = email;
         document.getElementById('permEmail').readOnly = true;
