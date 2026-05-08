@@ -2952,6 +2952,7 @@
                   <th style="padding:6px 10px; font-weight:600; width:200px;">Host : Port</th>
                   <th style="padding:6px 10px; font-weight:600; width:120px;">User</th>
                   <th style="padding:6px 10px; font-weight:600; width:120px;">Ngày mua</th>
+                  <th style="padding:6px 10px; font-weight:600; width:120px;">Ngày hết hạn</th>
                   <th style="padding:6px 10px; font-weight:600;">Tài khoản đang dùng</th>
                   <th style="padding:6px 10px; font-weight:600; width:96px; text-align:right;">Hành động</th>
                 </tr>
@@ -3354,10 +3355,17 @@
             style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
         </div>
       </div>
-      <div style="margin-bottom:18px;">
-        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Ngày mua (tuỳ chọn)</label>
-        <input type="date" id="proxyPurchaseDate"
-          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+      <div style="display:flex; gap:10px; margin-bottom:18px;">
+        <div style="flex:1;">
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Ngày mua (tuỳ chọn)</label>
+          <input type="date" id="proxyPurchaseDate"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+        </div>
+        <div style="flex:1;">
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Ngày hết hạn (tuỳ chọn)</label>
+          <input type="date" id="proxyExpirationDate"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
+        </div>
       </div>
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button onclick="closeProxyModal()" style="padding:9px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
@@ -5306,6 +5314,17 @@
       if (!m) return escapeHtml(s);
       return `${m[3]}/${m[2]}/${m[1]}`;
     }
+    function formatExpirationDate(s) {
+      if (!s) return '<span style="color:#bbb;">—</span>';
+      const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return escapeHtml(s);
+      const today = new Date(); today.setHours(0,0,0,0);
+      const exp = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+      const diffDays = Math.round((exp - today) / 86400000);
+      if (diffDays < 0) return `<span style="color:#dc2626; font-weight:600;">${m[3]}/${m[2]}/${m[1]}</span>`;
+      if (diffDays <= 7) return `<span style="color:#d97706; font-weight:600;">${m[3]}/${m[2]}/${m[1]}</span>`;
+      return `${m[3]}/${m[2]}/${m[1]}`;
+    }
     function fillProxySelect(selectEl, selectedId) {
       if (!selectEl) return;
       const proxies = loadProxies();
@@ -5359,7 +5378,7 @@
         ? '<svg class="xi xi-md" style="color:#1E3A8A;"><use href="#ic-globe"/></svg> Sửa IP Proxy'
         : '<svg class="xi xi-md" style="color:#1E3A8A;"><use href="#ic-globe"/></svg> Thêm IP Proxy';
       document.getElementById('proxyEditId').value = id || '';
-      let p = { label: '', host: '', port: '', user: '', pass: '', purchaseDate: '' };
+      let p = { label: '', host: '', port: '', user: '', pass: '', purchaseDate: '', expirationDate: '' };
       if (mode === 'edit' && id) {
         const found = loadProxies().find(x => x.id === id);
         if (found) p = found;
@@ -5370,6 +5389,7 @@
       document.getElementById('proxyUser').value = p.user || '';
       document.getElementById('proxyPass').value = p.pass || '';
       document.getElementById('proxyPurchaseDate').value = p.purchaseDate || '';
+      document.getElementById('proxyExpirationDate').value = p.expirationDate || '';
       document.getElementById('proxyModal').style.display = 'flex';
     }
     function closeProxyModal() {
@@ -5383,13 +5403,14 @@
       const user = document.getElementById('proxyUser').value.trim();
       const pass = document.getElementById('proxyPass').value;
       const purchaseDate = document.getElementById('proxyPurchaseDate').value;
+      const expirationDate = document.getElementById('proxyExpirationDate').value;
       if (!host || !port) { alert('Vui lòng nhập host và port!'); return; }
       try {
         const url = id ? `${BASE_URL}/api/proxies/${encodeURIComponent(id)}` : `${BASE_URL}/api/proxies`;
         const res = await fetch(url, {
           method: id ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ label, host, port, user, pass, purchaseDate }),
+          body: JSON.stringify({ label, host, port, user, pass, purchaseDate, expirationDate }),
         });
         if (!res.ok) { const d = await res.json().catch(() => ({})); alert('Lỗi lưu proxy: ' + (d.error || res.status)); return; }
         await fetchProxies();
@@ -5431,6 +5452,7 @@
           <td style="padding:10px 12px; color:#444; font-family:ui-monospace,Menlo,monospace; font-size:12px; vertical-align:top;">${escapeHtml(p.host)}:${escapeHtml(p.port)}</td>
           <td style="padding:10px 12px; color:#666; vertical-align:top;">${escapeHtml(p.user || '—')}</td>
           <td style="padding:10px 12px; color:#666; vertical-align:top; white-space:nowrap;">${formatPurchaseDate(p.purchaseDate)}</td>
+          <td style="padding:10px 12px; color:#666; vertical-align:top; white-space:nowrap;">${formatExpirationDate(p.expirationDate)}</td>
           <td style="padding:10px 12px; vertical-align:top;">${proxyUsageChipsHtml(p.id)}</td>
           <td style="padding:10px 12px; text-align:right; white-space:nowrap; vertical-align:top;">
             <button class="pc-btn pc-btn-edit" onclick="openProxyModal('edit','${p.id}')" title="Sửa" aria-label="Sửa">${xekoIcon('edit')}</button>
