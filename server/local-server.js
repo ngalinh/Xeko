@@ -81,7 +81,7 @@ const upload = multer({
   }),
   limits: {
     fileSize: 25 * 1024 * 1024,
-    files: 10,
+    files: 20,
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/') || ACCEPTED_IMAGE_EXTS.test(file.originalname)) {
@@ -137,7 +137,7 @@ app.get('/api/job/:id', (req, res) => {
 });
 
 // ===== ĐĂNG BÀI FACEBOOK =====
-app.post('/api/post', upload.array('images', 10), async (req, res) => {
+app.post('/api/post', upload.array('images', 20), async (req, res) => {
   const { message, target, groupId } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
 
@@ -213,7 +213,7 @@ app.post('/api/post', upload.array('images', 10), async (req, res) => {
 // ===== ĐĂNG ZALO =====
 const zaloJobs = new Map(); // jobId → { status, success, error }
 
-app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
+app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   const { profile, zaloAccountName, groupName, message } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
   const accountName = zaloAccountName || profile;
@@ -703,8 +703,8 @@ app.use((err, req, res, next) => {
   if (err && err.name === 'MulterError') {
     const map = {
       LIMIT_FILE_SIZE: 'Ảnh quá lớn (>25MB/ảnh). Resize trước khi upload nhé!',
-      LIMIT_FILE_COUNT: 'Vượt quá 10 ảnh / bài. Chia thành nhiều bài nha.',
-      LIMIT_UNEXPECTED_FILE: 'Vượt quá 10 ảnh / bài.',
+      LIMIT_FILE_COUNT: 'Vượt quá 20 ảnh / bài. Chia thành nhiều bài nha.',
+      LIMIT_UNEXPECTED_FILE: 'Vượt quá 20 ảnh / bài.',
       LIMIT_PART_COUNT: 'Form data quá nhiều phần.',
     };
     const msg = map[err.code] || `Upload lỗi: ${err.message}`;

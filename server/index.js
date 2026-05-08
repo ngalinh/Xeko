@@ -123,7 +123,7 @@ const upload = multer({
   }),
   limits: {
     fileSize: 25 * 1024 * 1024, // 25MB/ảnh — iPhone HD photo thường <15MB
-    files: 10,                   // tối đa 10 ảnh/bài
+    files: 20,                   // tối đa 20 ảnh/bài
   },
   fileFilter: (req, file, cb) => {
     // Một số iPhone export với mimetype 'application/octet-stream' — fallback
@@ -289,7 +289,7 @@ async function executePost({ profile, message, target, groupId, imagePaths, imag
 }
 
 // Dang bai (async job)
-app.post('/api/post', upload.array('images', 10), async (req, res) => {
+app.post('/api/post', upload.array('images', 20), async (req, res) => {
   checkDailyReset();
 
   const { message, target, groupId, profile, batchId } = req.body;
@@ -794,7 +794,7 @@ app.get('/api/sessions', async (req, res) => {
 const scheduler = require('./src/utils/scheduler');
 
 // Lên lịch đăng bài
-app.post('/api/schedule', upload.array('images', 10), (req, res) => {
+app.post('/api/schedule', upload.array('images', 20), (req, res) => {
   const { time, target, groupId, message, profile, type, groupName, zaloAccount } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
 
@@ -969,7 +969,7 @@ app.put('/api/channels/profile-channels', (req, res) => proxyToLocal(req, res, '
 app.post('/api/restart', (req, res) => proxyToLocal(req, res, 'POST', '/api/restart'));
 
 // ===== ZALO POST =====
-app.post('/api/zalo/post', upload.array('images', 10), async (req, res) => {
+app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   const LOCAL_URL = getLocalUrl();
   if (!LOCAL_URL) return res.status(503).json({ error: 'Local server chưa kết nối' });
 
@@ -1161,8 +1161,8 @@ app.use((err, req, res, next) => {
   if (err && err.name === 'MulterError') {
     const map = {
       LIMIT_FILE_SIZE: 'Ảnh quá lớn (>25MB/ảnh). Resize trước khi upload nhé!',
-      LIMIT_FILE_COUNT: 'Vượt quá 10 ảnh / bài. Chia thành nhiều bài nha.',
-      LIMIT_UNEXPECTED_FILE: 'Vượt quá 10 ảnh / bài.',
+      LIMIT_FILE_COUNT: 'Vượt quá 20 ảnh / bài. Chia thành nhiều bài nha.',
+      LIMIT_UNEXPECTED_FILE: 'Vượt quá 20 ảnh / bài.',
       LIMIT_PART_COUNT: 'Form data quá nhiều phần.',
     };
     const msg = map[err.code] || `Upload lỗi: ${err.message}`;
