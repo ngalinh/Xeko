@@ -3545,6 +3545,41 @@
     // Base URL tự động detect để hoạt động đúng ở cả /index.html lẫn /b/{id}/index.html
     const BASE_URL = window.location.pathname.replace(/\/[^/]*$/, '').replace(/\/$/, '');
 
+    // ===== Global 401 handler =====
+    // Wrap window.fetch de detect session expiry mid-flow va show toast.
+    // bootstrapAuth() chi check luc khoi dong — neu session het han trong khi
+    // dung, request bat ki cung tra 401. Show non-blocking toast voi link
+    // re-login thay vi de user thay loi mo ho.
+    (function() {
+      const _origFetch = window.fetch.bind(window);
+      let _shown = false;
+      window.fetch = async function(input, init) {
+        const res = await _origFetch(input, init);
+        if (!_shown && res && res.status === 401) {
+          try {
+            const url = (typeof input === 'string') ? input : (input && input.url) || '';
+            // Chi intercept Xeko API calls (cung origin, path /api/)
+            const u = new URL(url, window.location.origin);
+            if (u.origin === window.location.origin && u.pathname.includes('/api/')) {
+              _shown = true;
+              showSessionExpiredToast();
+            }
+          } catch {}
+        }
+        return res;
+      };
+    })();
+
+    function showSessionExpiredToast() {
+      if (document.getElementById('xekoSessionToast')) return;
+      const toast = document.createElement('div');
+      toast.id = 'xekoSessionToast';
+      toast.style.cssText = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#dc2626; color:#fff; padding:14px 22px; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.25); z-index:99999; font-size:14px; font-weight:500; cursor:pointer; max-width:90vw;';
+      toast.innerHTML = '🔒 Phiên đã hết hạn. Bấm để đăng nhập lại';
+      toast.onclick = () => { window.location.href = '/admin/login.html'; };
+      document.body.appendChild(toast);
+    }
+
     let currentProfile = null;
     let currentProfileName = null;
     let currentTarget = null;
@@ -4337,11 +4372,55 @@
             } else {
               addBot(`❌ Huhu Zalo <strong>${groupName}</strong> hỏng mất rồi: ${d.error || 'Không rõ lý do'}`);
             }
+            removePendingJob(jobId);
             return;
           }
         } catch {}
       }
       addBot(`⚠️ Zalo <strong>${groupName}</strong>: Xeko chờ 2 phút mà chưa thấy phản hồi, bạn check giúp mình nha!`);
+      removePendingJob(jobId);
+    }
+
+    // ===== Multi-tab coordination =====
+    // Server co mutex per profile o Playwright nen khong loi data, nhung 2 tab
+    // cung post 1 profile thi tab sau phai cho tab truoc xong (cham UX). Show
+    // info warning de user biet thay vi cu tuong "treo".
+    const _xekoTabChannel = (typeof BroadcastChannel !== 'undefined')
+      ? new BroadcastChannel('xeko-tabs') : null;
+    const _otherTabPosting = {}; // profile -> { ts, tabId }
+    const _xekoTabId = Math.random().toString(36).slice(2, 10);
+
+    if (_xekoTabChannel) {
+      _xekoTabChannel.onmessage = (e) => {
+        const { type, profile, tabId } = e.data || {};
+        if (!profile || tabId === _xekoTabId) return;
+        if (type === 'post-start') {
+          _otherTabPosting[profile] = { ts: Date.now(), tabId };
+        } else if (type === 'post-end') {
+          if (_otherTabPosting[profile] && _otherTabPosting[profile].tabId === tabId) {
+            delete _otherTabPosting[profile];
+          }
+        }
+      };
+    }
+
+    function broadcastTabPostStart(profile) {
+      if (!_xekoTabChannel || !profile) return;
+      try { _xekoTabChannel.postMessage({ type: 'post-start', profile, tabId: _xekoTabId }); } catch {}
+    }
+    function broadcastTabPostEnd(profile) {
+      if (!_xekoTabChannel || !profile) return;
+      try { _xekoTabChannel.postMessage({ type: 'post-end', profile, tabId: _xekoTabId }); } catch {}
+    }
+    function isOtherTabPosting(profile) {
+      const info = _otherTabPosting[profile];
+      if (!info) return false;
+      // Stale > 10 phut bo qua
+      if (Date.now() - info.ts > 10 * 60 * 1000) {
+        delete _otherTabPosting[profile];
+        return false;
+      }
+      return true;
     }
 
     // ===== Gửi bài =====
@@ -4393,6 +4472,13 @@
         groupId = target;
         target = 'shortcut';
       }
+
+      // Warn neu tab khac dang post cung profile (server mutex se serialize,
+      // user co the bi delay)
+      if (isOtherTabPosting(currentProfile)) {
+        addBot(`⚠️ Tab khác đang đăng bài profile <strong>${currentProfile}</strong>. Bài này sẽ chờ tab kia xong rồi mới chạy nha (server tự xếp hàng).`);
+      }
+      broadcastTabPostStart(currentProfile);
 
       clearImages();
       document.getElementById('sendBtn').disabled = true;
@@ -4555,6 +4641,12 @@
               removeTyping();
               if (zd.processing && zd.jobId) {
                 addBot(`⏳ Xeko đang đẩy bài lên Zalo <strong>${g.name}</strong> (${zaloAccount})...`);
+                pushPendingJob({
+                  kind: 'zalo',
+                  jobId: zd.jobId,
+                  groupName: g.name,
+                  account: zaloAccount,
+                });
                 pollZaloJob(zd.jobId, g.name, zaloAccount);
               } else if (zd.success) {
                 addBot(`✅ Zalo <strong>${g.name}</strong> (${zaloAccount}) xong xuôi nè, thấy Xeko giỏi chưa má 😎`);
@@ -4594,6 +4686,7 @@
       if (_idx !== -1) _activeRepostJobs.splice(_idx, 1);
       _refreshDashIfActive();
 
+      broadcastTabPostEnd(currentProfile);
       document.getElementById('sendBtn').disabled = false;
     }
 
@@ -6453,6 +6546,11 @@
     // Khi POST /api/post tra jobId, server van xu ly bai dang trong background
     // du PWA bi kill. Save jobId vao localStorage de khi mo lai PWA con poll
     // tiep va render ket qua thay vi mat tin (typing indicator stuck mai).
+    //
+    // kind:
+    //   'fb-chat'   — chatbot Đăng ngay (FB main + custom group)
+    //   'fb-repost' — dashboard repost
+    //   'zalo'      — Zalo post
     const PENDING_JOBS_KEY = 'xeko_pending_jobs_v1';
     const PENDING_JOB_TTL_MS = 30 * 60 * 1000; // 30 phut (server timeout 10p + buffer)
 
@@ -6465,7 +6563,7 @@
     }
     function pushPendingJob(job) {
       const list = getPendingJobs();
-      list.push({ ...job, ts: Date.now() });
+      list.push({ kind: 'fb-chat', ...job, ts: Date.now() });
       setPendingJobs(list);
     }
     function removePendingJob(jobId) {
@@ -6499,19 +6597,62 @@
       const fresh = list.filter(j => now - (j.ts || 0) <= PENDING_JOB_TTL_MS);
       if (fresh.length !== list.length) setPendingJobs(fresh);
       if (fresh.length === 0) return;
-      addBot(
-        `⏳ Xeko đang theo dõi tiếp ${fresh.length} bài đăng từ phiên trước...`,
-        null, null, 'welcome-back'
-      );
-      for (const job of fresh) {
-        try {
-          const data = await pollJob(job.jobId);
-          renderResumedJobResult(job, data);
-        } catch (e) {
-          addBot(`❌ Bài "${job.label || ''}" lỗi: ${e.message}`);
-        } finally {
-          removePendingJob(job.jobId);
+
+      const fbChat = fresh.filter(j => (j.kind || 'fb-chat') === 'fb-chat');
+      const fbRepost = fresh.filter(j => j.kind === 'fb-repost');
+      const zalo = fresh.filter(j => j.kind === 'zalo');
+
+      // FB chatbot — render result vao chat
+      if (fbChat.length > 0) {
+        addBot(
+          `⏳ Xeko đang theo dõi tiếp ${fbChat.length} bài đăng từ phiên trước...`,
+          null, null, 'welcome-back'
+        );
+        for (const job of fbChat) {
+          try {
+            const data = await pollJob(job.jobId);
+            renderResumedJobResult(job, data);
+          } catch (e) {
+            addBot(`❌ Bài "${job.label || ''}" lỗi: ${e.message}`);
+          } finally {
+            removePendingJob(job.jobId);
+          }
         }
+      }
+
+      // Zalo — dung pollZaloJob (da co addBot built-in)
+      for (const job of zalo) {
+        pollZaloJob(job.jobId, job.groupName, job.account)
+          .finally(() => removePendingJob(job.jobId));
+      }
+
+      // FB repost — repopulate _activeRepostJobs + spawn background poll
+      if (fbRepost.length > 0) {
+        for (const job of fbRepost) {
+          _activeRepostJobs.push({
+            tempId: job.tempId,
+            profileName: job.profileName,
+            timeLabel: job.timeLabel,
+            message: job.message,
+            ch: job.ch,
+          });
+        }
+        if (typeof loadDashHistory === 'function') {
+          const dashPg = document.getElementById('pageDashboard');
+          if (dashPg && dashPg.classList.contains('active')) loadDashHistory();
+        }
+        (async () => {
+          for (const job of fbRepost) {
+            try { await pollJob(job.jobId); } catch {}
+            const idx = _activeRepostJobs.findIndex(j => j.tempId === job.tempId);
+            if (idx !== -1) _activeRepostJobs.splice(idx, 1);
+            removePendingJob(job.jobId);
+          }
+          if (typeof loadDashHistory === 'function') {
+            const dashPg = document.getElementById('pageDashboard');
+            if (dashPg && dashPg.classList.contains('active')) loadDashHistory();
+          }
+        })();
       }
     }
 
@@ -7509,6 +7650,18 @@
         job.timeLabel = timeLabel;
         job.message = message;
         _activeRepostJobs.push(job);
+        // Persist de resume neu PWA reload giua chung
+        if (job.jobId) {
+          pushPendingJob({
+            kind: 'fb-repost',
+            jobId: job.jobId,
+            tempId: job.tempId,
+            profileName,
+            timeLabel,
+            message,
+            ch: job.ch,
+          });
+        }
       });
 
       // 3. Đóng modal ngay + render hàng tạm
@@ -7530,6 +7683,7 @@
           }
           const idx = _activeRepostJobs.indexOf(job);
           if (idx !== -1) _activeRepostJobs.splice(idx, 1);
+          if (job.jobId) removePendingJob(job.jobId);
         }
         loadDashHistory();
       })();
