@@ -2815,7 +2815,7 @@
       <h1>Đăng bài</h1>
       <span id="headerStatus">Đăng bài tự động</span>
     </div>
-    <button onclick="location.reload()" title="Làm mới trang" aria-label="Làm mới" style="margin-left:auto;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:1px solid #e5e7eb;background:#fff;color:#374151;cursor:pointer;flex-shrink:0;"><svg class="xi" style="width:16px;height:16px;"><use href="#ic-refresh"/></svg></button>
+    <button onclick="reloadFresh()" title="Làm mới trang" aria-label="Làm mới" style="margin-left:auto;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:1px solid #e5e7eb;background:#fff;color:#374151;cursor:pointer;flex-shrink:0;"><svg class="xi" style="width:16px;height:16px;"><use href="#ic-refresh"/></svg></button>
     <button id="btnChangeProfile" onclick="showProfileSelect()" style="display:none;margin-left:8px;padding:5px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#ffffff;color:#374151;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;"><svg class="xi xi-sm" aria-hidden="true"><use href="#ic-user"/></svg> <span class="btn-label">Đổi Profile</span></button>
   </div>
 
@@ -6394,6 +6394,14 @@
       window._customGroupIds = null;
       updateHeader('FB Auto Post');
       showWelcome();
+    }
+
+    // Reload nut header: lam moi full page + xoa chat state + pending jobs
+    // (truoc day chi reload thi chat persist se restore lai -> user tuong khong reload)
+    function reloadFresh() {
+      try { clearChatState(); } catch {}
+      try { localStorage.removeItem('xeko_pending_jobs_v1'); } catch {}
+      location.reload();
     }
 
     function focusInput() {
