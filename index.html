@@ -2571,6 +2571,9 @@
       #groupsTable td { font-size: 12px !important; white-space: nowrap !important; }
       #groupsTable { min-width: 700px; }
       #groupsTableWrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+      /* Đổi Profile button: chỉ hiện icon trên mobile để tiết kiệm chỗ */
+      #btnChangeProfile .btn-label { display: none !important; }
+      #btnChangeProfile { padding: 5px 8px !important; }
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -2813,7 +2816,7 @@
       <span id="headerStatus">Đăng bài tự động</span>
     </div>
     <button onclick="location.reload()" title="Làm mới trang" aria-label="Làm mới" style="margin-left:auto;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:1px solid #e5e7eb;background:#fff;color:#374151;cursor:pointer;flex-shrink:0;"><svg class="xi" style="width:16px;height:16px;"><use href="#ic-refresh"/></svg></button>
-    <button id="btnChangeProfile" onclick="showProfileSelect()" style="display:none;margin-left:8px;padding:5px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#ffffff;color:#374151;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;"><svg class="xi xi-sm" aria-hidden="true"><use href="#ic-user"/></svg> Đổi Profile</button>
+    <button id="btnChangeProfile" onclick="showProfileSelect()" style="display:none;margin-left:8px;padding:5px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#ffffff;color:#374151;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;"><svg class="xi xi-sm" aria-hidden="true"><use href="#ic-user"/></svg> <span class="btn-label">Đổi Profile</span></button>
   </div>
 
   <div class="chat-area" id="chatArea"></div>
@@ -6212,17 +6215,17 @@
       ].join('');
 
       detail.innerHTML = `
-        <div style="margin-bottom:10px;">
-          <div style="font-size:15px; font-weight:600; color:#3B82F6; display:flex; align-items:center; gap:6px; min-width:0;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+          <div style="font-size:15px; font-weight:600; color:#3B82F6; display:flex; align-items:center; gap:6px; min-width:0; flex:0 1 auto;">
             ${xekoIcon('user')} <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(p.name)}</span>
           </div>
-        </div>
-        <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
-          <span style="font-size:12px; color:#777; flex-shrink:0;">Zalo Salework:</span>
-          <select onchange="setProfileZaloAccount('${escapeHtml(p.key)}', this.value)"
-            style="flex:1; min-width:0; padding:6px 10px; border:1px solid #b3d0ff; border-radius:8px; font-size:12px; background:#fff; color:#333; cursor:pointer;">
-            ${zaloAccountOptions}
-          </select>
+          <div style="display:flex; align-items:center; gap:6px; flex:1 1 180px; min-width:0;">
+            <span style="font-size:11px; color:#777; flex-shrink:0;">Zalo:</span>
+            <select onchange="setProfileZaloAccount('${escapeHtml(p.key)}', this.value)"
+              style="flex:1; min-width:0; padding:5px 8px; border:1px solid #b3d0ff; border-radius:8px; font-size:12px; background:#fff; color:#333; cursor:pointer;">
+              ${zaloAccountOptions}
+            </select>
+          </div>
         </div>
         <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center;">
           <select onchange="profileDetailCategoryFilter = this.value; renderProfileDetailSections();"
@@ -7888,7 +7891,7 @@
             ? u.profiles.map(k => profileNameMap[k] || k).join(', ')
             : '<em style="color:#999;">— chưa gán —</em>');
         const actions = isSuper
-          ? `<button onclick="editPermission('${escapeAttr(u.email)}')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#DBEAFE;border:none;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;color:#1E3A8A;"><svg class="xi" style="width:13px;height:13px;"><use href="#ic-edit"/></svg>Sửa tên</button>`
+          ? `<button onclick="editPermission('${escapeAttr(u.email)}')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#DBEAFE;border:none;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;color:#1E3A8A;"><svg class="xi" style="width:13px;height:13px;"><use href="#ic-edit"/></svg>Sửa</button>`
           : `<button onclick="editPermission('${escapeAttr(u.email)}')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#DBEAFE;border:none;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;color:#1E3A8A;margin-right:6px;"><svg class="xi" style="width:13px;height:13px;"><use href="#ic-edit"/></svg>Sửa</button>
              <button onclick="deletePermission('${escapeAttr(u.email)}')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#fee2e2;border:none;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;color:#b91c1c;"><svg class="xi" style="width:13px;height:13px;"><use href="#ic-trash"/></svg>Xoá</button>`;
         const nameDisplay = u.name ? escapeHtml(u.name) : '<em style="color:#999;">—</em>';
@@ -7920,11 +7923,13 @@
       const profilesWrap = document.getElementById('permProfilesWrap');
       const adminLabel = isAdminCb.closest('label');
       const allLabel = allProfCb.closest('label');
+      // Super-admin phải LUÔN là admin Xeko -> lock checkbox đó.
+      // Còn allProfiles + profile list cho phép super-admin tự chỉnh.
       isAdminCb.disabled = isSuper;
-      allProfCb.disabled = isSuper;
+      allProfCb.disabled = false;
       if (adminLabel) adminLabel.style.opacity = isSuper ? '0.5' : '';
-      if (allLabel) allLabel.style.opacity = isSuper ? '0.5' : '';
-      if (profilesWrap) profilesWrap.style.display = isSuper ? 'none' : '';
+      if (allLabel) allLabel.style.opacity = '';
+      if (profilesWrap) profilesWrap.style.display = '';
     }
 
     function openPermissionModal() {
@@ -7950,7 +7955,7 @@
         const isSuper = email === superAdmin;
         _editingEmail = email;
         document.getElementById('permissionModalTitle').textContent =
-          (isSuper ? 'Sửa tên Super-admin: ' : 'Sửa phân quyền: ') + email;
+          (isSuper ? 'Sửa Super-admin: ' : 'Sửa phân quyền: ') + email;
         document.getElementById('permName').value = u.name || '';
         document.getElementById('permEmail').value = email;
         document.getElementById('permEmail').readOnly = true;

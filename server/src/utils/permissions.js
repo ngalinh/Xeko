@@ -149,7 +149,11 @@ function isXekoAdmin(email) {
 function getAllowedProfileKeys(email) {
   const u = getUser(email);
   if (!u) return [];
-  if (u.allProfiles || isXekoAdmin(email)) return null;
+  const e = normalize(email);
+  // Super-admin: tôn trọng setting (allProfiles + profiles[]) để filter view.
+  // Non-super admin: giữ bypass cũ — admin auto sees all (backwards-compat).
+  if (u.allProfiles) return null;
+  if (e !== SUPER_ADMIN_EMAIL && isXekoAdmin(email)) return null;
   return Array.isArray(u.profiles) ? u.profiles : [];
 }
 
@@ -187,8 +191,9 @@ function upsertUser({ email, name, isXekoAdmin: admin, allProfiles, profiles, no
     updatedAt: new Date().toISOString(),
   };
   if (e === SUPER_ADMIN_EMAIL) {
+    // Super-admin phải luôn là admin Xeko (không cho downgrade)
     data.users[e].isXekoAdmin = true;
-    data.users[e].allProfiles = true;
+    // allProfiles + profiles[] cho phép super-admin tự chỉnh để filter view
   }
   save(data);
   syncToLocal(data).catch(() => {});
