@@ -3321,10 +3321,6 @@
         <input type="text" id="editName" autocomplete="off" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
       </div>
       <div style="margin-bottom:12px;">
-        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Username</label>
-        <input type="text" id="editUsername" placeholder="Tên đăng nhập (tuỳ chọn)" autocomplete="off" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
-      </div>
-      <div style="margin-bottom:12px;">
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Email / SĐT</label>
         <input type="text" id="editEmail" autocomplete="off" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
       </div>
@@ -5547,7 +5543,7 @@
             </div>
             <div class="pc-actions">
               ${proxyStr ? `<button class="pc-btn pc-btn-edit" onclick="testProxyIp('${p.key}', this)" aria-label="Test IP" title="Test IP qua proxy">${xekoIcon('globe')}<span class="pc-btn-label">Test IP</span></button>` : ''}
-              <button class="pc-btn pc-btn-edit" onclick="editProfile('${p.key}', '${p.name.replace(/'/g, "\\'")}', '${(p.email || '').replace(/'/g, "\\'")}', '${(proxyStr || '').replace(/'/g, "\\'")}', '${(p.username || '').replace(/'/g, "\\'")}')" title="Đổi proxy" aria-label="Đổi proxy">${xekoIcon('edit')}<span class="pc-btn-label">Sửa</span></button>
+              <button class="pc-btn pc-btn-edit" onclick="editProfile('${p.key}', '${p.name.replace(/'/g, "\\'")}', '${(p.email || '').replace(/'/g, "\\'")}', '${(proxyStr || '').replace(/'/g, "\\'")}')" title="Đổi proxy" aria-label="Đổi proxy">${xekoIcon('edit')}<span class="pc-btn-label">Sửa</span></button>
               <button class="pc-btn pc-btn-del" onclick="deleteProfile('facebook','${p.key}','${p.name.replace(/'/g, "\\'")}')" aria-label="Xoá" title="Xoá">
                 ${xekoIcon('trash')}<span class="pc-btn-label">Xoá</span>
               </button>
@@ -5582,7 +5578,7 @@
                   </div>
                   <div class="pc-actions">
                     ${zproxyStr ? `<button class="pc-btn pc-btn-edit" onclick="testProxyIp('${z.key}', this)" aria-label="Test IP" title="Test IP qua proxy">${xekoIcon('globe')}<span class="pc-btn-label">Test IP</span></button>` : ''}
-                    <button class="pc-btn pc-btn-edit" onclick="editZaloProfile('${z.key}', '${z.name.replace(/'/g, "\\'")}', '${(z.saleworkName || '').replace(/'/g, "\\'")}', '${(zproxyStr || '').replace(/'/g, "\\'")}', '${(z.username || '').replace(/'/g, "\\'")}')" title="Đổi proxy" aria-label="Đổi proxy">${xekoIcon('edit')}<span class="pc-btn-label">Sửa</span></button>
+                    <button class="pc-btn pc-btn-edit" onclick="editZaloProfile('${z.key}', '${z.name.replace(/'/g, "\\'")}', '${(z.saleworkName || '').replace(/'/g, "\\'")}', '${(zproxyStr || '').replace(/'/g, "\\'")}')" title="Đổi proxy" aria-label="Đổi proxy">${xekoIcon('edit')}<span class="pc-btn-label">Sửa</span></button>
                     <button class="pc-btn pc-btn-del" onclick="deleteProfile('zalo','${z.key}','${z.name.replace(/'/g, "\\'")}')" aria-label="Xoá" title="Xoá">
                       ${xekoIcon('trash')}<span class="pc-btn-label">Xoá</span>
                     </button>
@@ -5614,11 +5610,10 @@
       } catch { return ''; }
     }
 
-    async function editZaloProfile(key, name, saleworkName, proxy, username) {
+    async function editZaloProfile(key, name, saleworkName, proxy) {
       await fetchProxies();
       document.getElementById('editKey').value = key;
       document.getElementById('editName').value = name;
-      document.getElementById('editUsername').value = username || '';
       document.getElementById('editEmail').value = saleworkName;
       document.getElementById('editPassword').value = '';
       fillProxySelect(document.getElementById('editProxyId'), findProxyIdByString(proxy));
@@ -5626,11 +5621,10 @@
       document.getElementById('editProfileModal').dataset.editType = 'zalo';
     }
 
-    async function editProfile(key, name, email, proxy, username) {
+    async function editProfile(key, name, email, proxy) {
       await fetchProxies();
       document.getElementById('editKey').value = key;
       document.getElementById('editName').value = name;
-      document.getElementById('editUsername').value = username || '';
       document.getElementById('editEmail').value = email;
       document.getElementById('editPassword').value = '';
       fillProxySelect(document.getElementById('editProxyId'), findProxyIdByString(proxy));
@@ -5646,7 +5640,6 @@
     async function saveProfile() {
       const key = document.getElementById('editKey').value;
       const name = document.getElementById('editName').value.trim();
-      const username = document.getElementById('editUsername').value.trim();
       const emailOrSalework = document.getElementById('editEmail').value.trim();
       const password = document.getElementById('editPassword').value;
       const proxyId = document.getElementById('editProxyId')?.value || '';
@@ -5657,7 +5650,7 @@
       if (!name) { alert('Vui lòng nhập tên hiển thị!'); return; }
 
       try {
-        const body = { name, username, type: editType, proxy };
+        const body = { name, type: editType, proxy };
         if (editType === 'zalo') {
           body.saleworkName = emailOrSalework;
         } else {

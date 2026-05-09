@@ -647,7 +647,6 @@ app.get('/api/accounts', async (req, res) => {
         return {
           key,
           name: meta?.name || key,
-          username: meta?.username || '',
           email: meta?.email || '',
           proxy: meta?.proxy || '',
         };
@@ -682,7 +681,7 @@ function saveProfilesMeta(data) {
 // Cập nhật thông tin profile
 app.put('/api/accounts/:key', async (req, res) => {
   const { key } = req.params;
-  const { name, username, email, password, type, saleworkName, proxy } = req.body;
+  const { name, email, password, type, saleworkName, proxy } = req.body;
 
   if (!name) return res.status(400).json({ error: 'Thiếu tên hiển thị' });
 
@@ -695,7 +694,7 @@ app.put('/api/accounts/:key', async (req, res) => {
       const response = await fetchFn(`${LOCAL_URL}/api/accounts/${key}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
-        body: JSON.stringify({ name, username, email, password, type, saleworkName, proxy }),
+        body: JSON.stringify({ name, email, password, type, saleworkName, proxy }),
       });
       const data = await response.json();
       return res.status(response.status).json(data);
@@ -710,10 +709,8 @@ app.put('/api/accounts/:key', async (req, res) => {
     }
     const meta = loadProfilesMeta();
     const proxyTrimmed = typeof proxy === 'string' ? proxy.trim() : undefined;
-    const usernameTrimmed = typeof username === 'string' ? username.trim() : undefined;
     meta[key] = {
       name,
-      username: usernameTrimmed !== undefined ? usernameTrimmed : ((meta[key] && meta[key].username) || ''),
       email: email || '',
       password: password || (meta[key] && meta[key].password) || '',
       proxy: proxyTrimmed !== undefined ? proxyTrimmed : ((meta[key] && meta[key].proxy) || ''),

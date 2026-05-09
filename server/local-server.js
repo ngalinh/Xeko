@@ -459,7 +459,6 @@ app.get('/api/accounts', (req, res) => {
       .map(e => ({
         key: e.name,
         name: meta[e.name]?.name || e.name,
-        username: meta[e.name]?.username || '',
         email: meta[e.name]?.email || '',
         proxy: meta[e.name]?.proxy || '',
       }));
@@ -474,9 +473,8 @@ app.get('/api/accounts', (req, res) => {
 
 app.put('/api/accounts/:key', (req, res) => {
   const { key } = req.params;
-  const { name, username, email, password, saleworkName, type, proxy } = req.body;
+  const { name, email, password, saleworkName, type, proxy } = req.body;
   const proxyTrimmed = typeof proxy === 'string' ? proxy.trim() : undefined;
-  const usernameTrimmed = typeof username === 'string' ? username.trim() : undefined;
   try {
     if (type === 'zalo') {
       const accounts = loadZaloAccounts();
@@ -486,7 +484,6 @@ app.put('/api/accounts/:key', (req, res) => {
         ...accounts[idx],
         name: name || accounts[idx].name,
         saleworkName: saleworkName || accounts[idx].saleworkName,
-        ...(usernameTrimmed !== undefined ? { username: usernameTrimmed } : {}),
         ...(proxyTrimmed !== undefined ? { proxy: proxyTrimmed } : {}),
       };
       saveZaloAccounts(accounts);
@@ -496,7 +493,6 @@ app.put('/api/accounts/:key', (req, res) => {
     const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8')) : {};
     meta[key] = {
       name,
-      username: usernameTrimmed !== undefined ? usernameTrimmed : (meta[key]?.username || ''),
       email: email || '',
       password: password || meta[key]?.password || '',
       proxy: proxyTrimmed !== undefined ? proxyTrimmed : (meta[key]?.proxy || ''),
