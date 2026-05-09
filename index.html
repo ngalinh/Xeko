@@ -342,6 +342,8 @@
     .msel-option input[type=checkbox] { accent-color:#1E3A8A; flex-shrink:0; cursor:pointer; }
     .msel-option span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .msel-divider { height:1px; background:#f3f4f6; margin:4px 0; }
+    #dashHistoryBody > tr:hover { background:#f9fafb !important; }
+    #dashHistoryBody > tr[data-batch-child]:hover { background:#f3f4f6 !important; }
 
     /* Image preview */
     .image-preview {
@@ -7055,13 +7057,13 @@
           const fullMsg = (job.message || '').replace(/"/g, '&quot;');
           const isPersonal = ch.type !== 'group';
           return `<tr id="${job.tempId}" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
-            <td style="padding:10px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
-            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msgShort}</td>
-            <td style="padding:10px 12px; color:#bbb;">—</td>
-            <td style="padding:10px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${job.profileName}</td>
-            <td style="padding:10px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">FB - ${targetLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${String(groupId).replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
-            <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${job.timeLabel}</td>
-            <td style="padding:10px 12px; text-align:center;"><span style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span></td>
+            <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
+            <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msgShort}</td>
+            <td style="padding:8px 12px; color:#bbb;">—</td>
+            <td style="padding:8px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${job.profileName}</td>
+            <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">FB - ${targetLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${String(groupId).replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
+            <td style="padding:8px 12px; white-space:nowrap; font-size:12px;">${job.timeLabel}</td>
+            <td style="padding:8px 12px; text-align:center;"><span style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span></td>
             <td></td>
           </tr>`;
         }).join('');
@@ -7092,13 +7094,13 @@
           const rowBg = isRunning ? '#EFF6FF' : '#f8f7ff';
           const schedIsPersonal = sched.target === 'personal';
           return `<tr id="schedRow-${sched.id}" style="border-bottom:1px solid #EFF6FF; background:${rowBg}; border-left:3px solid #BFDBFE;">
-            <td style="padding:10px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
-            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msg}</td>
-            <td style="padding:10px 12px;">${thumbs}</td>
-            <td style="padding:10px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sched.profile || '-'}</td>
-            <td style="padding:10px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">FB - ${targetLabel}</div>${schedIsPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupIdRaw.replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
-            <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
-            <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
+            <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
+            <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msg}</td>
+            <td style="padding:8px 12px;">${thumbs}</td>
+            <td style="padding:8px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sched.profile || '-'}</td>
+            <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">FB - ${targetLabel}</div>${schedIsPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupIdRaw.replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
+            <td style="padding:8px 12px; white-space:nowrap; font-size:12px;">${time}</td>
+            <td style="padding:8px 12px; text-align:center;">${statusBadge}</td>
             <td style="padding:8px 10px; text-align:center;">
               <button onclick="cancelScheduleFromTable(${sched.id})" title="Hủy lịch đăng" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
             </td>
@@ -7173,17 +7175,17 @@
             const time = fmtTime(row.timestamp);
             const groupId = resolveGroupLabel(row.platform, row.group_id, row.group_name);
             const fullMsg = (row.message || '').replace(/"/g,'&quot;');
-            const msg = row.message ? (row.message.length > 60 ? row.message.substring(0, 60) + '…' : row.message) : '-';
+            const msg = row.message ? (row.message.length > 160 ? row.message.substring(0, 160) + '…' : row.message) : '-';
             const profileName = row.profile_name || row.profile || '-';
             const thumbs = buildThumbs(row);
             return `<tr id="dashRow-${row.id}" style="border-bottom:1px solid #f3f4f6; background:#fff;">
-              <td style="padding:10px 10px;"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><span style="display:inline-block; width:10px; flex-shrink:0;"></span><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
-              <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;" title="${fullMsg}">${msg}</td>
-              <td style="padding:10px 12px;">${thumbs}</td>
-              <td style="padding:10px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${profileName.replace(/"/g,'&quot;')}">${profileName}</td>
-              <td style="padding:10px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${noiDangLabel(row)}</div>${row.target === 'personal' ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
-              <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
-              <td style="padding:10px 12px; text-align:center;">${statusBadgeFor(row)}</td>
+              <td style="padding:8px 10px;"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><span style="display:inline-block; width:10px; flex-shrink:0;"></span><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
+              <td style="padding:8px 12px; font-size:12px; font-weight:500; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;" title="${fullMsg}">${msg}</td>
+              <td style="padding:8px 12px;">${thumbs}</td>
+              <td style="padding:8px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${profileName.replace(/"/g,'&quot;')}">${profileName}</td>
+              <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${noiDangLabel(row)}</div>${row.target === 'personal' ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
+              <td style="padding:8px 12px; white-space:nowrap; font-size:12px;">${time}</td>
+              <td style="padding:8px 12px; text-align:center;">${statusBadgeFor(row)}</td>
               <td style="padding:8px 10px; text-align:center;">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
                   <button onclick="openRepostModal(${idx})" title="Đăng lại" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#DBEAFE;color:#1E3A8A;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#BFDBFE'" onmouseout="this.style.background='#DBEAFE'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
@@ -7199,7 +7201,7 @@
             const total = group.rows.length;
             const time = fmtTime(firstRow.timestamp);
             const fullMsg = (firstRow.message || '').replace(/"/g,'&quot;');
-            const msg = firstRow.message ? (firstRow.message.length > 60 ? firstRow.message.substring(0, 60) + '…' : firstRow.message) : '-';
+            const msg = firstRow.message ? (firstRow.message.length > 160 ? firstRow.message.substring(0, 160) + '…' : firstRow.message) : '-';
             const thumbs = buildThumbs(firstRow);
             const okCount = group.rows.filter(r => r.success).length;
             const failCount = total - okCount;
@@ -7234,13 +7236,13 @@
             const groupKey = (group.anchor.batch_id ? String(group.anchor.batch_id) : 'msg').replace(/[^a-zA-Z0-9_-]/g, '_') + '-' + firstIdx;
 
             const headerHtml = `<tr id="dashGroup-${groupKey}" data-group-key="${groupKey}" onclick="toggleBatchGroup('${groupKey}', event)" style="border-bottom:1px solid #f3f4f6; cursor:pointer; background:#fff;">
-              <td style="padding:10px 10px;" onclick="event.stopPropagation()"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-batch-ids="${idsAttr}" onchange="onBatchCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><svg class="caret" style="width:10px;height:10px;color:#6b7280;transition:transform .15s; cursor:pointer;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" onclick="event.stopPropagation(); toggleBatchGroup('${groupKey}')"><polyline points="9 6 15 12 9 18"/></svg><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
-              <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;" title="${fullMsg}">${msg}</td>
-              <td style="padding:10px 12px;">${thumbs}</td>
-              <td style="padding:10px 12px; font-size:12px;" title="${accTitle}">${repAccountCell}</td>
-              <td style="padding:10px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">Đã đăng ${total} nơi</div><div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${platBreakdown}</div></div></td>
-              <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
-              <td style="padding:10px 12px; text-align:center;">${summaryBadge}</td>
+              <td style="padding:8px 10px;" onclick="event.stopPropagation()"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-batch-ids="${idsAttr}" onchange="onBatchCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><svg class="caret" style="width:10px;height:10px;color:#6b7280;transition:transform .15s; cursor:pointer;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" onclick="event.stopPropagation(); toggleBatchGroup('${groupKey}')"><polyline points="9 6 15 12 9 18"/></svg><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
+              <td style="padding:8px 12px; font-size:12px; font-weight:500; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;" title="${fullMsg}">${msg}</td>
+              <td style="padding:8px 12px;">${thumbs}</td>
+              <td style="padding:8px 12px; font-size:12px;" title="${accTitle}">${repAccountCell}</td>
+              <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">Đã đăng ${total} nơi</div><div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${platBreakdown}</div></div></td>
+              <td style="padding:8px 12px; white-space:nowrap; font-size:12px;">${time}</td>
+              <td style="padding:8px 12px; text-align:center;">${summaryBadge}</td>
               <td style="padding:8px 10px; text-align:center;" onclick="event.stopPropagation()">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
                   <button onclick="openRepostModal(${firstIdx})" title="Đăng lại" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#DBEAFE;color:#1E3A8A;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#BFDBFE'" onmouseout="this.style.background='#DBEAFE'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
