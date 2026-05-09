@@ -7137,12 +7137,30 @@
             batchColorMap[k] = BATCH_COLORS[colorIdx++ % BATCH_COLORS.length];
           });
 
+          // Tính các "run" liên tiếp cùng batch_id (>1 dòng) để gộp ô Nội dung/Ảnh
+          const rowSpanInfo = histRows.map(() => ({ skip: false, span: 1 }));
+          {
+            let i = 0;
+            while (i < histRows.length) {
+              const bid = histRows[i].batch_id;
+              if (!bid || (batchCount[bid] || 0) <= 1) { i++; continue; }
+              let j = i + 1;
+              while (j < histRows.length && histRows[j].batch_id === bid) j++;
+              if (j - i > 1) {
+                rowSpanInfo[i].span = j - i;
+                for (let k = i + 1; k < j; k++) rowSpanInfo[k].skip = true;
+              }
+              i = j;
+            }
+          }
+
           tbody.innerHTML = activeRepostHtml + schedHtml + histRows.map((row, idx) => {
             const d = new Date(row.timestamp);
             const pad = n => String(n).padStart(2,'0');
             const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
             const platformLabel = row.platform === 'zalo' ? 'Zalo' : 'FB';
             const batchColor = row.batch_id ? batchColorMap[row.batch_id] : null;
+            const span = rowSpanInfo[idx];
             const statusBadge = row.success
               ? '<span style="background:#d1fae5; color:#047857; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-check"/></svg>OK</span>'
               : `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'').replace(/"/g,'&quot;')}"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-x"/></svg>Lỗi</span>`;
@@ -7168,6 +7186,17 @@
             const batchDot = batchColor
               ? `<span title="Đăng cùng phiên (${batchCount[row.batch_id]} bài)" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${batchColor}; margin-right:5px; flex-shrink:0; cursor:help;"></span>`
               : '';
+            // Gộp ô Nội dung & Ảnh cho các dòng cùng phiên đăng (lưu trữ chính)
+            const isMerged = span.span > 1;
+            const mergedBg = isMerged ? 'background:#fafafa;' : '';
+            const mergedBorder = isMerged ? 'border-right:1px solid #e5e7eb; border-left:1px solid #e5e7eb;' : '';
+            const contentTd = span.skip
+              ? ''
+              : `<td ${isMerged ? `rowspan="${span.span}"` : ''} style="padding:12px; font-size:12px; vertical-align:middle; ${mergedBg}${mergedBorder}" title="${fullMsg}"><div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;${isMerged ? 'font-weight:500;' : ''}">${msg}</div></td>`;
+            const imgTd = span.skip
+              ? ''
+              : `<td ${isMerged ? `rowspan="${span.span}"` : ''} style="padding:12px; vertical-align:middle; ${mergedBg}${mergedBorder}">${thumbs}</td>`;
+
             return `<tr id="dashRow-${row.id}" style="border-bottom:1px solid #f3f4f6;${batchColor ? `border-left:3px solid ${batchColor};` : ''}">
               <td style="padding:10px 10px; text-align:center;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"></td>
               <td style="padding:10px 12px; white-space:nowrap; font-size:12px;"><div style="display:flex; align-items:center;">${batchDot}${time}</div></td>
@@ -7175,8 +7204,8 @@
               <td style="padding:10px 12px; font-size:12px;">${platformLabel}</td>
               <td style="padding:10px 12px; font-size:12px;">${target}</td>
               <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${groupId}</td>
-              <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msg}</td>
-              <td style="padding:10px 12px;">${thumbs}</td>
+              ${contentTd}
+              ${imgTd}
               <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
               <td style="padding:8px 10px; text-align:center; position:relative;">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
