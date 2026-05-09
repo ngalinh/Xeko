@@ -4119,7 +4119,7 @@
       for (const pKey of Object.keys(selection)) {
         const p = buildTargetChannels(pKey, pKey);
         const fbNames = (selection[pKey].fb || []).map(c => {
-          if (c.id === 'custom') return `Group #${c.groupId}`;
+          if (c.id === 'custom') return getFbGroupDisplayName(c.groupId);
           const ch = (p.fb || []).find(f => f.id === c.id);
           return ch ? ch.name : c.id;
         });
@@ -4597,18 +4597,20 @@
             }
             removeTyping();
             if (cd.success) {
-              let msg = `✅ Group <strong>#${gid}</strong> (profile <strong>${currentProfile}</strong>) xong rồi má, Xeko đăng nhanh như chớp luôn á!`;
+              const gLabel = getFbGroupDisplayName(gid);
+              let msg = `✅ <strong>${gLabel}</strong> (profile <strong>${currentProfile}</strong>) xong rồi má, Xeko đăng nhanh như chớp luôn á!`;
               if (cd.postUrl) msg += `\n<a class="link" href="${cd.postUrl}" target="_blank">Xem bài viết</a>`;
               addBot(msg, null, cd.screenshot ? `/api/screenshot?t=${Date.now()}` : null);
             } else {
-              addBot(`❌ Huhu Group <strong>#${gid}</strong> Xeko đăng lỗi mất: ${cd.error}`);
+              addBot(`❌ Huhu <strong>${getFbGroupDisplayName(gid)}</strong> Xeko đăng lỗi mất: ${cd.error}`);
             }
           } catch (ce) {
             removeTyping();
+            const gLabel = getFbGroupDisplayName(gid);
             if (isProxyTimeout(ce)) {
-              addBot(`⏳ Group #${gid}: Xeko đang đăng nè, bạn check FB sau vài phút nha!`);
+              addBot(`⏳ ${gLabel}: Xeko đang đăng nè, bạn check FB sau vài phút nha!`);
             } else {
-              addBot(`Ui Group #${gid} có lỗi: ${ce.message}`);
+              addBot(`Ui ${gLabel} có lỗi: ${ce.message}`);
             }
           }
         }
@@ -4807,12 +4809,13 @@
         }
 
         for (const gid of customIds) {
+          const gLabel = getFbGroupDisplayName(gid);
           try {
             const data = await postSchedule({ target: 'group', groupId: gid });
-            if (data.success) scheduled.push(`Group #${gid}`);
-            else errors.push(`Group #${gid}: ${data.error}`);
+            if (data.success) scheduled.push(gLabel);
+            else errors.push(`${gLabel}: ${data.error}`);
           } catch (e) {
-            errors.push(`Group #${gid}: ${e.message}`);
+            errors.push(`${gLabel}: ${e.message}`);
           }
         }
 
@@ -5892,6 +5895,12 @@
 
     // ===== CHANNEL SETTINGS =====
     let channelsData = { fbGroups: [], profileChannels: {} };
+
+    function getFbGroupDisplayName(groupId) {
+      if (!groupId) return '';
+      const found = (channelsData.fbGroups || []).find(g => g && g.id === groupId);
+      return (found && found.name) ? found.name : `Group #${groupId}`;
+    }
 
     async function loadChannels() {
       try {
