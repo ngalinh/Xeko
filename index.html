@@ -4580,12 +4580,13 @@
             const initial = await parseJson(cr);
             if (initial.jobId) {
               removeTyping();
-              addBot(`⏳ Xeko đang đăng Group <strong>#${gid}</strong>...`);
+              const gLabel = getFbGroupDisplayName(gid);
+              addBot(`⏳ Xeko đang đăng <strong>${gLabel}</strong>...`);
               addTyping();
               pushPendingJob({
                 jobId: initial.jobId,
                 profile: currentProfile,
-                label: `Group <strong>#${gid}</strong>`,
+                label: `<strong>${gLabel}</strong>`,
               });
             }
             let cd;
