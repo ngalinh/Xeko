@@ -3624,6 +3624,12 @@
       el.style.height = 'auto';
       el.style.height = Math.min(el.scrollHeight, 100) + 'px';
     }
+    function resetMsgInput() {
+      const el = document.getElementById('msgInput');
+      if (!el) return;
+      el.value = '';
+      el.style.height = '';
+    }
 
     const ENCOURAGEMENTS = [
       'Ủa xong rồi á? Nhanh vãi 👀 Drop thêm bài đi, Xeko đang rảnh nè!',
@@ -4455,7 +4461,7 @@
 
       if (!message && selectedFiles.length === 0) return;
       if (!currentProfile) {
-        input.value = '';
+        resetMsgInput();
         addBot('Bạn chốt profile cho Xeko trước đã nha! Bấm 👤 Đổi Profile ở góc trên phải nhé.');
         return;
       }
@@ -4463,7 +4469,7 @@
       const hasZaloSelection = (zaloSelCheck.zalo || []).length > 0;
       const hasCustomFbSelection = (window._customGroupIds || []).length > 0;
       if (!currentTarget && !hasZaloSelection && !hasCustomFbSelection) {
-        input.value = '';
+        resetMsgInput();
         addBot('Bạn chọn nơi đăng giúp Xeko với nè!', [
           { label: `${xekoIcon('pin')} Chọn nơi đăng`, handler: () => showTargetSelect() },
         ]);
@@ -4476,7 +4482,7 @@
       const filesToUpload = [...selectedFiles];
       let userMsg = message || '';
       addUser(userMsg, photoUrls);
-      input.value = '';
+      resetMsgInput();
 
       let target = currentTarget;
       let groupId = null;
@@ -4766,7 +4772,7 @@
         return;
       }
       if (!currentProfile) {
-        input.value = '';
+        resetMsgInput();
         addBot('Bạn chốt profile cho Xeko trước đã nha! Bấm 👤 Đổi Profile ở góc trên phải nhé.');
         return;
       }
@@ -4776,7 +4782,7 @@
       const customIds = window._customGroupIds || [];
       const hasCustomFbSelection = customIds.length > 0;
       if (!currentTarget && !hasZaloSelection && !hasCustomFbSelection) {
-        input.value = '';
+        resetMsgInput();
         addBot('Bạn chọn nơi đăng trước đã nha!', [
           { label: `${xekoIcon('pin')} Chọn nơi đăng`, handler: () => showTargetSelect() },
         ]);
@@ -4800,7 +4806,7 @@
       const isoTime = new Date(time).toISOString();
 
       addUser(savedMessage, photoUrls);
-      input.value = '';
+      resetMsgInput();
       clearImages();
       addTyping();
 
