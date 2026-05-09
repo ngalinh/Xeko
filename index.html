@@ -4119,7 +4119,7 @@
       for (const pKey of Object.keys(selection)) {
         const p = buildTargetChannels(pKey, pKey);
         const fbNames = (selection[pKey].fb || []).map(c => {
-          if (c.id === 'custom') return getFbGroupDisplayName(c.groupId);
+          if (c.id === 'custom') return `Group FB ${getFbGroupDisplayName(c.groupId)}`;
           const ch = (p.fb || []).find(f => f.id === c.id);
           return ch ? ch.name : c.id;
         });
@@ -4369,16 +4369,16 @@
           const d = await r.json();
           if (d.status === 'done') {
             if (d.success) {
-              addBot(`✅ Zalo <strong>${groupName}</strong> (${account}) xong rồi nè, thấy Xeko giỏi chưa má 😎`);
+              addBot(`✅ Group Zalo <strong>${groupName}</strong> (${account}) xong rồi nè, thấy Xeko giỏi chưa má 😎`);
             } else {
-              addBot(`❌ Huhu Zalo <strong>${groupName}</strong> hỏng mất rồi: ${d.error || 'Không rõ lý do'}`);
+              addBot(`❌ Huhu Group Zalo <strong>${groupName}</strong> hỏng mất rồi: ${d.error || 'Không rõ lý do'}`);
             }
             removePendingJob(jobId);
             return;
           }
         } catch {}
       }
-      addBot(`⚠️ Zalo <strong>${groupName}</strong>: Xeko chờ 2 phút mà chưa thấy phản hồi, bạn check giúp mình nha!`);
+      addBot(`⚠️ Group Zalo <strong>${groupName}</strong>: Xeko chờ 2 phút mà chưa thấy phản hồi, bạn check giúp mình nha!`);
       removePendingJob(jobId);
     }
 
@@ -4581,12 +4581,12 @@
             if (initial.jobId) {
               removeTyping();
               const gLabel = getFbGroupDisplayName(gid);
-              addBot(`⏳ Xeko đang đăng <strong>${gLabel}</strong>...`);
+              addBot(`⏳ Xeko đang đăng Group FB <strong>${gLabel}</strong>...`);
               addTyping();
               pushPendingJob({
                 jobId: initial.jobId,
                 profile: currentProfile,
-                label: `<strong>${gLabel}</strong>`,
+                label: `Group FB <strong>${gLabel}</strong>`,
               });
             }
             let cd;
@@ -4599,19 +4599,19 @@
             removeTyping();
             if (cd.success) {
               const gLabel = getFbGroupDisplayName(gid);
-              let msg = `✅ <strong>${gLabel}</strong> (profile <strong>${currentProfile}</strong>) xong rồi má, Xeko đăng nhanh như chớp luôn á!`;
+              let msg = `✅ Group FB <strong>${gLabel}</strong> (profile <strong>${currentProfile}</strong>) xong rồi má, Xeko đăng nhanh như chớp luôn á!`;
               if (cd.postUrl) msg += `\n<a class="link" href="${cd.postUrl}" target="_blank">Xem bài viết</a>`;
               addBot(msg, null, cd.screenshot ? `/api/screenshot?t=${Date.now()}` : null);
             } else {
-              addBot(`❌ Huhu <strong>${getFbGroupDisplayName(gid)}</strong> Xeko đăng lỗi mất: ${cd.error}`);
+              addBot(`❌ Huhu Group FB <strong>${getFbGroupDisplayName(gid)}</strong> Xeko đăng lỗi mất: ${cd.error}`);
             }
           } catch (ce) {
             removeTyping();
             const gLabel = getFbGroupDisplayName(gid);
             if (isProxyTimeout(ce)) {
-              addBot(`⏳ ${gLabel}: Xeko đang đăng nè, bạn check FB sau vài phút nha!`);
+              addBot(`⏳ Group FB ${gLabel}: Xeko đang đăng nè, bạn check FB sau vài phút nha!`);
             } else {
-              addBot(`Ui ${gLabel} có lỗi: ${ce.message}`);
+              addBot(`Ui Group FB ${gLabel} có lỗi: ${ce.message}`);
             }
           }
         }
@@ -4636,7 +4636,7 @@
               const zd = await parseJson(zr);
               removeTyping();
               if (zd.processing && zd.jobId) {
-                addBot(`⏳ Xeko đang đẩy bài lên Zalo <strong>${g.name}</strong> (${zaloAccount})...`);
+                addBot(`⏳ Xeko đang đẩy bài lên Group Zalo <strong>${g.name}</strong> (${zaloAccount})...`);
                 pushPendingJob({
                   kind: 'zalo',
                   jobId: zd.jobId,
@@ -4645,13 +4645,13 @@
                 });
                 pollZaloJob(zd.jobId, g.name, zaloAccount);
               } else if (zd.success) {
-                addBot(`✅ Zalo <strong>${g.name}</strong> (${zaloAccount}) xong xuôi nè, thấy Xeko giỏi chưa má 😎`);
+                addBot(`✅ Group Zalo <strong>${g.name}</strong> (${zaloAccount}) xong xuôi nè, thấy Xeko giỏi chưa má 😎`);
               } else {
-                addBot(`❌ Huhu Zalo <strong>${g.name}</strong> bị lỗi rồi: ${zd.error || 'Không rõ lý do'}`);
+                addBot(`❌ Huhu Group Zalo <strong>${g.name}</strong> bị lỗi rồi: ${zd.error || 'Không rõ lý do'}`);
               }
             } catch (ze) {
               removeTyping();
-              addBot(`Ui Zalo ${g.name} có lỗi: ${ze.message}`);
+              addBot(`Ui Group Zalo ${g.name} có lỗi: ${ze.message}`);
             }
           }
         }
@@ -4810,7 +4810,7 @@
         }
 
         for (const gid of customIds) {
-          const gLabel = getFbGroupDisplayName(gid);
+          const gLabel = `Group FB ${getFbGroupDisplayName(gid)}`;
           try {
             const data = await postSchedule({ target: 'group', groupId: gid });
             if (data.success) scheduled.push(gLabel);
@@ -4830,10 +4830,10 @@
             if (!g) continue;
             try {
               const data = await postSchedule({ type: 'zalo', zaloAccount: zaloAccountName, groupName: g.name });
-              if (data.success) scheduled.push(`Zalo: ${g.name}`);
-              else errors.push(`Zalo ${g.name}: ${data.error}`);
+              if (data.success) scheduled.push(`Group Zalo ${g.name}`);
+              else errors.push(`Group Zalo ${g.name}: ${data.error}`);
             } catch (e) {
-              errors.push(`Zalo ${g.name}: ${e.message}`);
+              errors.push(`Group Zalo ${g.name}: ${e.message}`);
             }
           }
         }
@@ -5900,7 +5900,7 @@
     function getFbGroupDisplayName(groupId) {
       if (!groupId) return '';
       const found = (channelsData.fbGroups || []).find(g => g && g.id === groupId);
-      return (found && found.name) ? found.name : `Group #${groupId}`;
+      return (found && found.name) ? found.name : `#${groupId}`;
     }
 
     async function loadChannels() {
