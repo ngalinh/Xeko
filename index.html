@@ -7137,84 +7137,145 @@
             batchColorMap[k] = BATCH_COLORS[colorIdx++ % BATCH_COLORS.length];
           });
 
-          // Tính các "run" liên tiếp cùng batch_id (>1 dòng) để gộp ô Nội dung/Ảnh
-          const rowSpanInfo = histRows.map(() => ({ skip: false, span: 1 }));
+          // Gom các dòng liên tiếp cùng batch_id thành "phiên đăng" (để fold)
+          const groups = [];
           {
             let i = 0;
             while (i < histRows.length) {
               const bid = histRows[i].batch_id;
-              if (!bid || (batchCount[bid] || 0) <= 1) { i++; continue; }
+              if (!bid || (batchCount[bid] || 0) <= 1) {
+                groups.push({ batchId: null, rows: [histRows[i]], indices: [i] });
+                i++;
+                continue;
+              }
               let j = i + 1;
               while (j < histRows.length && histRows[j].batch_id === bid) j++;
-              if (j - i > 1) {
-                rowSpanInfo[i].span = j - i;
-                for (let k = i + 1; k < j; k++) rowSpanInfo[k].skip = true;
-              }
+              const indices = [];
+              for (let k = i; k < j; k++) indices.push(k);
+              groups.push({ batchId: bid, rows: histRows.slice(i, j), indices });
               i = j;
             }
           }
 
-          tbody.innerHTML = activeRepostHtml + schedHtml + histRows.map((row, idx) => {
-            const d = new Date(row.timestamp);
+          const fmtTime = (ts) => {
+            const d = new Date(ts);
             const pad = n => String(n).padStart(2,'0');
-            const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
-            const platformLabel = row.platform === 'zalo' ? 'Zalo' : 'FB';
-            const batchColor = row.batch_id ? batchColorMap[row.batch_id] : null;
-            const span = rowSpanInfo[idx];
-            const statusBadge = row.success
-              ? '<span style="background:#d1fae5; color:#047857; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-check"/></svg>OK</span>'
-              : `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'').replace(/"/g,'&quot;')}"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-x"/></svg>Lỗi</span>`;
-            const target = row.target === 'personal' ? 'Cá nhân' : row.target === 'group' ? 'Group' : (row.target || '-');
-            const groupId = resolveGroupLabel(row.platform, row.group_id, row.group_name);
-            const fullMsg = (row.message || '').replace(/"/g,'&quot;');
-            const msg = row.message ? (row.message.length > 60 ? row.message.substring(0, 60) + '…' : row.message) : '-';
+            return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+          };
+          const buildThumbs = (row) => {
             const imgCount = row.image_count || 0;
             const images = (Array.isArray(row.images) ? row.images : [])
               .map(u => u.startsWith('/uploads/') ? '/api/image/' + u.slice('/uploads/'.length) : u)
               .map(u => u.startsWith('/') ? BASE_URL + u : u);
-            let thumbs;
             if (images.length > 0) {
               const shown = images.slice(0, 4);
-              thumbs = `<div style="display:flex; gap:3px; align-items:center;">${shown.map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:32px; height:32px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:32px;height:32px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;align-items:center;justify-content:center;font-size:14px;'}))"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
-            } else if (imgCount > 0) {
-              thumbs = `<div style="display:flex; gap:3px; align-items:center;">${Array.from({length: Math.min(imgCount, 4)}).map(() => '<span style="display:inline-flex; width:32px; height:32px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:14px;">🖼️</span>').join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
-            } else {
-              thumbs = '<span style="color:#bbb;">—</span>';
+              return `<div style="display:flex; gap:3px; align-items:center;">${shown.map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:32px; height:32px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:32px;height:32px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;align-items:center;justify-content:center;font-size:14px;'}))"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
             }
+            if (imgCount > 0) {
+              return `<div style="display:flex; gap:3px; align-items:center;">${Array.from({length: Math.min(imgCount, 4)}).map(() => '<span style="display:inline-flex; width:32px; height:32px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:14px;">🖼️</span>').join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
+            }
+            return '<span style="color:#bbb;">—</span>';
+          };
+          const statusBadgeFor = (row) => row.success
+            ? '<span style="background:#d1fae5; color:#047857; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-check"/></svg>OK</span>'
+            : `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'').replace(/"/g,'&quot;')}"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-x"/></svg>Lỗi</span>`;
+
+          const renderSingleRow = (row, idx) => {
+            const time = fmtTime(row.timestamp);
+            const platformLabel = row.platform === 'zalo' ? 'Zalo' : 'FB';
+            const target = row.target === 'personal' ? 'Cá nhân' : row.target === 'group' ? 'Group' : (row.target || '-');
+            const groupId = resolveGroupLabel(row.platform, row.group_id, row.group_name);
+            const fullMsg = (row.message || '').replace(/"/g,'&quot;');
+            const msg = row.message ? (row.message.length > 60 ? row.message.substring(0, 60) + '…' : row.message) : '-';
             const profileName = row.profile_name || row.profile || '-';
-
-            const batchDot = batchColor
-              ? `<span title="Đăng cùng phiên (${batchCount[row.batch_id]} bài)" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${batchColor}; margin-right:5px; flex-shrink:0; cursor:help;"></span>`
-              : '';
-            // Gộp ô Nội dung & Ảnh cho các dòng cùng phiên đăng (lưu trữ chính)
-            const isMerged = span.span > 1;
-            const mergedBg = isMerged ? 'background:#fafafa;' : '';
-            const mergedBorder = isMerged ? 'border-right:1px solid #e5e7eb; border-left:1px solid #e5e7eb;' : '';
-            const contentTd = span.skip
-              ? ''
-              : `<td ${isMerged ? `rowspan="${span.span}"` : ''} style="padding:12px; font-size:12px; vertical-align:middle; ${mergedBg}${mergedBorder}" title="${fullMsg}"><div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;${isMerged ? 'font-weight:500;' : ''}">${msg}</div></td>`;
-            const imgTd = span.skip
-              ? ''
-              : `<td ${isMerged ? `rowspan="${span.span}"` : ''} style="padding:12px; vertical-align:middle; ${mergedBg}${mergedBorder}">${thumbs}</td>`;
-
-            return `<tr id="dashRow-${row.id}" style="border-bottom:1px solid #f3f4f6;${batchColor ? `border-left:3px solid ${batchColor};` : ''}">
+            const thumbs = buildThumbs(row);
+            return `<tr id="dashRow-${row.id}" style="border-bottom:1px solid #f3f4f6;">
               <td style="padding:10px 10px; text-align:center;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"></td>
-              <td style="padding:10px 12px; white-space:nowrap; font-size:12px;"><div style="display:flex; align-items:center;">${batchDot}${time}</div></td>
+              <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
               <td style="padding:10px 12px; font-size:12px; white-space:nowrap;">${profileName}</td>
               <td style="padding:10px 12px; font-size:12px;">${platformLabel}</td>
               <td style="padding:10px 12px; font-size:12px;">${target}</td>
               <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${groupId}</td>
-              ${contentTd}
-              ${imgTd}
-              <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
-              <td style="padding:8px 10px; text-align:center; position:relative;">
+              <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msg}</td>
+              <td style="padding:10px 12px;">${thumbs}</td>
+              <td style="padding:10px 12px; text-align:center;">${statusBadgeFor(row)}</td>
+              <td style="padding:8px 10px; text-align:center;">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
                   <button onclick="openRepostModal(${idx})" title="Repost" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#DBEAFE;color:#1E3A8A;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#BFDBFE'" onmouseout="this.style.background='#DBEAFE'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
                   <button onclick="openSingleDeleteConfirm(${row.id})" title="Xóa" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
                 </div>
               </td>
             </tr>`;
-          }).join('');
+          };
+
+          const renderGroup = (group) => {
+            const batchColor = batchColorMap[group.batchId] || '#94a3b8';
+            const firstRow = group.rows[0];
+            const firstIdx = group.indices[0];
+            const total = group.rows.length;
+            const time = fmtTime(firstRow.timestamp);
+            const fullMsg = (firstRow.message || '').replace(/"/g,'&quot;');
+            const msg = firstRow.message ? (firstRow.message.length > 60 ? firstRow.message.substring(0, 60) + '…' : firstRow.message) : '-';
+            const thumbs = buildThumbs(firstRow);
+            const okCount = group.rows.filter(r => r.success).length;
+            const failCount = total - okCount;
+            let summaryBadge;
+            if (failCount === 0) {
+              summaryBadge = `<span style="background:#d1fae5; color:#047857; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-check"/></svg>OK ${okCount}/${total}</span>`;
+            } else if (okCount === 0) {
+              summaryBadge = `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-x"/></svg>Lỗi ${failCount}/${total}</span>`;
+            } else {
+              summaryBadge = `<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">${okCount} OK · ${failCount} lỗi</span>`;
+            }
+            const idsAttr = group.rows.map(r => r.id).join(',');
+            const groupKey = String(group.batchId).replace(/[^a-zA-Z0-9_-]/g, '_') + '-' + firstIdx;
+
+            const headerHtml = `<tr id="dashGroup-${groupKey}" data-group-key="${groupKey}" onclick="toggleBatchGroup('${groupKey}', event)" style="border-bottom:1px solid #f3f4f6; border-left:3px solid ${batchColor}; cursor:pointer; background:#fff;">
+              <td style="padding:10px 10px; text-align:center;" onclick="event.stopPropagation()"><input type="checkbox" data-batch-ids="${idsAttr}" onchange="onBatchCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"></td>
+              <td style="padding:10px 12px; white-space:nowrap; font-size:12px;"><div style="display:flex; align-items:center; gap:6px;"><svg class="caret" style="width:10px;height:10px;color:#6b7280;transition:transform .15s;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>${time}</div></td>
+              <td colspan="4" style="padding:10px 12px; font-size:12px;"><span style="background:#eff6ff; color:#1e40af; padding:3px 10px; border-radius:999px; font-weight:600; font-size:11px; display:inline-flex; align-items:center; gap:4px;"><svg style="width:11px;height:11px;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Đã đăng ${total} nơi</span></td>
+              <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;" title="${fullMsg}">${msg}</td>
+              <td style="padding:10px 12px;">${thumbs}</td>
+              <td style="padding:10px 12px; text-align:center;">${summaryBadge}</td>
+              <td style="padding:8px 10px; text-align:center;" onclick="event.stopPropagation()">
+                <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
+                  <button onclick="openRepostModal(${firstIdx})" title="Đăng lại" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#DBEAFE;color:#1E3A8A;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#BFDBFE'" onmouseout="this.style.background='#DBEAFE'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
+                  <button onclick="openBatchDeleteConfirm('${idsAttr}')" title="Xóa toàn bộ phiên (${total} bài)" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
+                </div>
+              </td>
+            </tr>`;
+
+            const childrenHtml = group.rows.map((row, k) => {
+              const idx = group.indices[k];
+              const profileName = row.profile_name || row.profile || '-';
+              const platformLabel = row.platform === 'zalo' ? 'Zalo' : 'FB';
+              const target = row.target === 'personal' ? 'Cá nhân' : row.target === 'group' ? 'Group' : (row.target || '-');
+              const gid = resolveGroupLabel(row.platform, row.group_id, row.group_name);
+              const childTime = fmtTime(row.timestamp);
+              return `<tr id="dashRow-${row.id}" data-batch-child="${groupKey}" style="display:none; border-bottom:1px solid #f3f4f6; border-left:3px solid ${batchColor}; background:#fafbfc;">
+                <td style="padding:8px 10px; text-align:center;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"></td>
+                <td style="padding:8px 12px; white-space:nowrap; font-size:11px; color:#6b7280;"><span style="display:inline-block; padding-left:18px;">↳ ${childTime}</span></td>
+                <td style="padding:8px 12px; font-size:12px; white-space:nowrap;">${profileName}</td>
+                <td style="padding:8px 12px; font-size:12px;">${platformLabel}</td>
+                <td style="padding:8px 12px; font-size:12px;">${target}</td>
+                <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${gid}</td>
+                <td style="padding:8px 12px; color:#cbd5e1; font-size:12px; text-align:center;">·</td>
+                <td style="padding:8px 12px; color:#cbd5e1; font-size:12px; text-align:center;">·</td>
+                <td style="padding:8px 12px; text-align:center;">${statusBadgeFor(row)}</td>
+                <td style="padding:6px 10px; text-align:center;">
+                  <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
+                    <button onclick="openSingleDeleteConfirm(${row.id})" title="Xóa dòng này" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
+                  </div>
+                </td>
+              </tr>`;
+            }).join('');
+
+            return headerHtml + childrenHtml;
+          };
+
+          tbody.innerHTML = activeRepostHtml + schedHtml + groups.map(g =>
+            (g.batchId && g.rows.length > 1) ? renderGroup(g) : renderSingleRow(g.rows[0], g.indices[0])
+          ).join('');
         } else {
           window._dashRows = [];
           const fallbackHtml = activeRepostHtml + schedHtml;
@@ -7284,9 +7345,12 @@
     }
 
     function toggleSelectAll(checked) {
-      document.querySelectorAll('#dashHistoryBody input[type=checkbox]').forEach(cb => {
+      document.querySelectorAll('#dashHistoryBody input[type=checkbox][data-id]').forEach(cb => {
         cb.checked = checked;
         onRowCheckbox(cb);
+      });
+      document.querySelectorAll('#dashHistoryBody input[type=checkbox][data-batch-ids]').forEach(cb => {
+        cb.checked = checked;
       });
     }
 
@@ -7294,8 +7358,10 @@
       _dashSelectedIds.clear();
       document.querySelectorAll('#dashHistoryBody input[type=checkbox]').forEach(cb => {
         cb.checked = false;
-        const row = document.getElementById('dashRow-' + cb.dataset.id);
-        if (row) row.style.background = '';
+        if (cb.dataset.id) {
+          const row = document.getElementById('dashRow-' + cb.dataset.id);
+          if (row) { row.style.background = ''; row.style.boxShadow = ''; }
+        }
       });
       const sa = document.getElementById('dashSelectAll');
       if (sa) sa.checked = false;
@@ -7311,11 +7377,20 @@
       } else {
         bar.style.display = 'none';
       }
-      // Sync select-all checkbox state
-      const allCbs = document.querySelectorAll('#dashHistoryBody input[type=checkbox]');
+      // Sync select-all checkbox state (chỉ tính checkbox theo dòng, không tính header gộp)
+      const allCbs = document.querySelectorAll('#dashHistoryBody input[type=checkbox][data-id]');
       const sa = document.getElementById('dashSelectAll');
       if (sa && allCbs.length > 0) sa.indeterminate = count > 0 && count < allCbs.length;
       if (sa) sa.checked = allCbs.length > 0 && count === allCbs.length;
+
+      // Sync header batch checkbox theo trạng thái con
+      document.querySelectorAll('#dashHistoryBody input[type=checkbox][data-batch-ids]').forEach(cb => {
+        const ids = (cb.dataset.batchIds || '').split(',').filter(Boolean).map(Number);
+        if (ids.length === 0) return;
+        const selected = ids.filter(id => _dashSelectedIds.has(id)).length;
+        cb.checked = selected === ids.length;
+        cb.indeterminate = selected > 0 && selected < ids.length;
+      });
     }
 
     function deleteSelectedRows() {
@@ -7329,6 +7404,56 @@
           const data = await parseJson(res);
           if (!res.ok) throw new Error(data.error || 'Lỗi');
           _dashSelectedIds.clear();
+          loadDashHistory();
+        }
+      );
+    }
+
+    // ===== Foldable batch group =====
+    function toggleBatchGroup(groupKey, event) {
+      if (event) {
+        const t = event.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'BUTTON' || (t.closest && t.closest('button')))) return;
+      }
+      const header = document.getElementById('dashGroup-' + groupKey);
+      if (!header) return;
+      const isOpen = header.dataset.expanded === '1';
+      const next = !isOpen;
+      header.dataset.expanded = next ? '1' : '0';
+      const caret = header.querySelector('.caret');
+      if (caret) caret.style.transform = next ? 'rotate(90deg)' : 'rotate(0deg)';
+      document.querySelectorAll(`tr[data-batch-child="${CSS.escape(groupKey)}"]`).forEach(tr => {
+        tr.style.display = next ? '' : 'none';
+      });
+    }
+
+    function onBatchCheckbox(cb) {
+      const ids = (cb.dataset.batchIds || '').split(',').filter(Boolean).map(Number);
+      ids.forEach(id => {
+        if (cb.checked) _dashSelectedIds.add(id);
+        else _dashSelectedIds.delete(id);
+        const childRow = document.getElementById('dashRow-' + id);
+        if (childRow) {
+          const childCb = childRow.querySelector('input[type=checkbox]');
+          if (childCb) childCb.checked = cb.checked;
+          childRow.style.background = cb.checked ? '#DBEAFE' : '';
+          childRow.style.boxShadow = cb.checked ? 'inset 3px 0 0 #3B82F6' : '';
+        }
+      });
+      _updateBulkBar();
+    }
+
+    function openBatchDeleteConfirm(idsStr) {
+      const ids = (idsStr || '').split(',').filter(Boolean).map(Number);
+      if (ids.length === 0) return;
+      _openDeleteConfirm(
+        'Xóa toàn bộ phiên đăng',
+        `Bạn chắc chắn muốn xóa <strong>${ids.length} bài</strong> trong phiên đăng này?`,
+        async () => {
+          const res = await fetch(BASE_URL + '/api/post-history/bulk?ids=' + ids.join(','), { method: 'DELETE' });
+          const data = await parseJson(res);
+          if (!res.ok) throw new Error(data.error || 'Lỗi');
+          ids.forEach(id => _dashSelectedIds.delete(id));
           loadDashHistory();
         }
       );
