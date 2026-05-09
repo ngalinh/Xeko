@@ -7220,11 +7220,17 @@
             } else {
               summaryBadge = `<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">${okCount} OK · ${failCount} lỗi</span>`;
             }
-            // Tài khoản đại diện
-            const accSet = [...new Set(group.rows.map(r => r.profile_name || r.profile || '-'))];
-            const repAccount = accSet[0];
-            const repAccountLabel = accSet.length > 1 ? `${repAccount} <span style="color:#6b7280;font-weight:400;">+${accSet.length - 1}</span>` : repAccount;
-            const accTitle = accSet.join(', ').replace(/"/g,'&quot;');
+            // Tài khoản đại diện = phổ biến nhất trong phiên
+            const accCount = {};
+            group.rows.forEach(r => {
+              const a = r.profile_name || r.profile || '-';
+              accCount[a] = (accCount[a] || 0) + 1;
+            });
+            const accEntries = Object.entries(accCount).sort((a, b) => b[1] - a[1]);
+            const repAccount = accEntries[0][0];
+            const otherCount = accEntries.length - 1;
+            const accTitle = accEntries.map(([n, c]) => c > 1 ? `${n} (${c})` : n).join(', ').replace(/"/g, '&quot;');
+            const repAccountCell = `<div style="display:flex; align-items:center; gap:4px; min-width:0;"><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;">${repAccount}</span>${otherCount > 0 ? `<span style="flex-shrink:0; color:#6b7280; font-weight:400; font-size:11px;">+${otherCount}</span>` : ''}</div>`;
 
             const idsAttr = group.rows.map(r => r.id).join(',');
             const groupKey = (group.anchor.batch_id ? String(group.anchor.batch_id) : 'msg').replace(/[^a-zA-Z0-9_-]/g, '_') + '-' + firstIdx;
@@ -7233,7 +7239,7 @@
               <td style="padding:10px 10px;" onclick="event.stopPropagation()"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-batch-ids="${idsAttr}" onchange="onBatchCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><svg class="caret" style="width:10px;height:10px;color:#6b7280;transition:transform .15s; cursor:pointer;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" onclick="event.stopPropagation(); toggleBatchGroup('${groupKey}')"><polyline points="9 6 15 12 9 18"/></svg><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
               <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;" title="${fullMsg}">${msg}</td>
               <td style="padding:10px 12px;">${thumbs}</td>
-              <td style="padding:10px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${accTitle}">${repAccountLabel}</td>
+              <td style="padding:10px 12px; font-size:12px;" title="${accTitle}">${repAccountCell}</td>
               <td colspan="2" style="padding:10px 12px; font-size:12px;"><span style="background:#eff6ff; color:#1e40af; padding:3px 10px; border-radius:999px; font-weight:600; font-size:11px; display:inline-flex; align-items:center; gap:4px;"><svg style="width:11px;height:11px;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Đã đăng ${total} nơi</span></td>
               <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
               <td style="padding:10px 12px; text-align:center;">${summaryBadge}</td>
@@ -7252,8 +7258,8 @@
               const childTime = fmtTime(row.timestamp);
               return `<tr id="dashRow-${row.id}" data-batch-child="${groupKey}" style="display:none; border-bottom:1px solid #f3f4f6; border-left:3px solid ${groupColor}; background:#fafbfc;">
                 <td style="padding:8px 10px;"><div style="display:flex; align-items:center; gap:6px; padding-left:18px;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><span style="font-size:11px; color:#6b7280;">${stt}.${k + 1}</span></div></td>
-                <td style="padding:8px 12px; color:#cbd5e1; font-size:12px; text-align:center;">·</td>
-                <td style="padding:8px 12px; color:#cbd5e1; font-size:12px; text-align:center;">·</td>
+                <td style="background:#eef2f6;"></td>
+                <td style="background:#eef2f6;"></td>
                 <td style="padding:8px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${profileName.replace(/"/g,'&quot;')}">${profileName}</td>
                 <td style="padding:8px 12px; font-size:12px; white-space:nowrap;">${noiDangLabel(row)}</td>
                 <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${gid}</td>
