@@ -2855,7 +2855,7 @@
         <button onclick="switchAccountTab('profiles')" class="acc-tab active" id="tabProfiles"><svg class="xi"><use href="#ic-clipboard"/></svg> Tài khoản</button>
         <button onclick="switchAccountTab('channels')" class="acc-tab" id="tabChannels"><svg class="xi"><use href="#ic-settings"/></svg> Cài đặt kênh</button>
         <button onclick="switchAccountTab('proxies')" class="acc-tab" id="tabProxies"><svg class="xi"><use href="#ic-globe"/></svg> IP Proxy</button>
-        <button onclick="switchAccountTab('history')" class="acc-tab" id="tabHistory"><svg class="xi"><use href="#ic-scroll"/></svg> Lịch sử</button>
+        <button onclick="switchAccountTab('logs')" class="acc-tab" id="tabLogs"><svg class="xi"><use href="#ic-scroll"/></svg> Logs</button>
       </div>
 
       <!-- Tab: Danh sach tai khoan -->
@@ -2969,18 +2969,29 @@
         </div>
       </div>
 
-      <!-- Tab: Lich su -->
-      <div id="panelHistory" style="display:none;">
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-          <h3 style="font-size:15px; color:#1e1e2e;">Lịch sử hoạt động</h3>
-          <select id="historyFilter" onchange="loadLoginHistory()" style="padding:6px 12px; border-radius:6px; border:1px solid #ddd; font-size:13px; background:#fff;">
-            <option value="">Tất cả profile</option>
+      <!-- Tab: Logs -->
+      <div id="panelLogs" style="display:none;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+          <h3 style="font-size:15px; color:#1e1e2e;">Server logs</h3>
+          <input id="logsFilter" type="text" placeholder="Lọc theo từ khoá (vd: clone.linhthao, FAIL, postToPersonal)..."
+            oninput="if(window._logsFilterTimer)clearTimeout(window._logsFilterTimer); window._logsFilterTimer=setTimeout(loadLogs,400);"
+            style="flex:1; min-width:240px; padding:6px 12px; border-radius:6px; border:1px solid #ddd; font-size:13px; background:#fff;" />
+          <select id="logsLines" onchange="loadLogs()" style="padding:6px 12px; border-radius:6px; border:1px solid #ddd; font-size:13px; background:#fff;">
+            <option value="100">100 dòng</option>
+            <option value="200" selected>200 dòng</option>
+            <option value="500">500 dòng</option>
+            <option value="1000">1000 dòng</option>
+            <option value="2000">2000 dòng</option>
           </select>
-          <button onclick="loadLoginHistory()" style="padding:6px 14px; background:#EFF6FF; border:1px solid #DBEAFE; border-radius:6px; font-size:13px; cursor:pointer; color:#3B82F6; display:inline-flex; align-items:center; gap:6px;">
+          <label style="display:inline-flex; align-items:center; gap:6px; font-size:13px; color:#555; cursor:pointer;">
+            <input id="logsAutoRefresh" type="checkbox" onchange="toggleLogsAutoRefresh()"> Auto refresh (3s)
+          </label>
+          <button onclick="loadLogs()" style="padding:6px 14px; background:#EFF6FF; border:1px solid #DBEAFE; border-radius:6px; font-size:13px; cursor:pointer; color:#3B82F6; display:inline-flex; align-items:center; gap:6px;">
             <svg class="xi"><use href="#ic-refresh"/></svg> Làm mới
           </button>
         </div>
-        <div id="loginHistoryList" style="display:flex; flex-direction:column; gap:6px;"></div>
+        <div id="logsMeta" style="font-size:12px; color:#999; margin-bottom:8px;"></div>
+        <pre id="logsView" style="background:#0f172a; color:#e2e8f0; padding:14px 16px; border-radius:8px; font-size:12px; line-height:1.5; max-height:70vh; overflow:auto; margin:0; white-space:pre-wrap; word-break:break-word; font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;"></pre>
       </div>
 
     </div>
@@ -5260,17 +5271,22 @@
 
     // === Quan ly tai khoan ===
     function switchAccountTab(tab) {
-      ['profiles','channels','proxies','history'].forEach(t => {
+      ['profiles','channels','proxies','logs'].forEach(t => {
         const p = document.getElementById('panel' + t.charAt(0).toUpperCase() + t.slice(1));
         const b = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
         if (p) p.style.display = 'none';
         if (b) b.classList.remove('active');
       });
+      // Khi rời tab Logs thì dừng auto-refresh để không tốn request
+      if (tab !== 'logs' && window._logsAutoRefreshTimer) {
+        clearInterval(window._logsAutoRefreshTimer);
+        window._logsAutoRefreshTimer = null;
+      }
       const panel = document.getElementById('panel' + tab.charAt(0).toUpperCase() + tab.slice(1));
       const btn = document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1));
       if (panel) panel.style.display = '';
       if (btn) btn.classList.add('active');
-      if (tab === 'history') loadLoginHistory();
+      if (tab === 'logs') loadLogs();
       if (tab === 'channels') loadChannels();
       if (tab === 'proxies') renderProxiesTable();
     }
@@ -5832,65 +5848,59 @@
       }
     }
 
-    async function populateHistoryFilter() {
-      const select = document.getElementById('historyFilter');
-      if (!select) return;
-      const prev = select.value;
+    async function loadLogs() {
+      const view = document.getElementById('logsView');
+      const meta = document.getElementById('logsMeta');
+      if (!view) return;
+      const lines = document.getElementById('logsLines')?.value || 200;
+      const q = document.getElementById('logsFilter')?.value?.trim() || '';
+
       try {
-        const res = await fetch(BASE_URL + '/api/accounts');
-        const data = await parseJson(res);
-        const fb = data.facebook || [];
-        select.innerHTML = '<option value="">Tất cả profile</option>' +
-          fb.map(p => `<option value="${p.key}">${p.name}</option>`).join('');
-        // Giu lua chon cu neu van con trong danh sach
-        if (prev && Array.from(select.options).some(o => o.value === prev)) {
-          select.value = prev;
+        const params = new URLSearchParams({ lines });
+        if (q) params.set('q', q);
+        const res = await fetch(`${BASE_URL}/api/logs/tail?${params.toString()}`);
+        if (res.status === 403) {
+          view.textContent = '';
+          meta.innerHTML = '<span style="color:#dc2626;">Chỉ admin xem được logs.</span>';
+          return;
         }
+        const data = await parseJson(res);
+        if (data.error) {
+          meta.innerHTML = `<span style="color:#dc2626;">${data.error}</span>`;
+          return;
+        }
+        const arr = data.lines || [];
+        if (arr.length === 0) {
+          view.textContent = q ? `Không có dòng nào khớp "${q}".` : 'Log file rỗng.';
+        } else {
+          // Highlight ERROR / FAIL / WARN bằng màu để dễ scan
+          const escape = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const colored = arr.map(l => {
+            const e = escape(l);
+            if (/ERROR|FAIL/.test(l)) return `<span style="color:#fca5a5;">${e}</span>`;
+            if (/WARN/.test(l)) return `<span style="color:#fcd34d;">${e}</span>`;
+            if (/\[job [a-z0-9-]+\] start|\[postTo(Personal|Group) /.test(l)) return `<span style="color:#86efac;">${e}</span>`;
+            return e;
+          }).join('\n');
+          view.innerHTML = colored;
+          view.scrollTop = view.scrollHeight;
+        }
+        const sizeKB = data.size ? (data.size / 1024).toFixed(1) : 0;
+        const mtime = data.mtime ? new Date(data.mtime).toLocaleString('vi-VN') : '';
+        meta.textContent = `${arr.length} dòng · ${sizeKB} KB · cập nhật ${mtime}${q ? ` · lọc "${q}"` : ''}`;
       } catch (e) {
-        console.error('Không populate được history filter:', e);
+        meta.innerHTML = `<span style="color:#dc2626;">Lỗi tải logs: ${e.message}</span>`;
       }
     }
 
-    async function loadLoginHistory() {
-      await populateHistoryFilter();
-      const filter = document.getElementById('historyFilter')?.value || '';
-      const container = document.getElementById('loginHistoryList');
-
-      try {
-        const url = BASE_URL + (filter ? `/api/login-history?profile=${filter}` : '/api/login-history');
-        const res = await fetch(url);
-        const history = await parseJson(res);
-
-        if (history.length === 0) {
-          container.innerHTML = '<p style="color:#999; font-size:13px;">Chưa có lịch sử.</p>';
-          return;
-        }
-
-        const typeConfig = {
-          login: { icon: '🔑', color: '#16a34a', label: 'Đăng nhập' },
-          session_check: { icon: '✅', color: '#3B82F6', label: 'Kiểm tra session' },
-          session_expired: { icon: '❌', color: '#dc2626', label: 'Session hết hạn' },
-          post_success: { icon: '📝', color: '#16a34a', label: 'Đăng bài' },
-          post_error: { icon: '💥', color: '#dc2626', label: 'Lỗi đăng bài' },
-        };
-
-        let html = '';
-        history.forEach(h => {
-          const t = typeConfig[h.type] || { icon: '📌', color: '#999', label: h.type };
-          html += `
-            <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; background:#fff; border:1px solid #eee; border-radius:8px; font-size:13px;">
-              <span style="font-size:16px;">${t.icon}</span>
-              <div style="flex:1;">
-                <span style="font-weight:600;">${h.name}</span>
-                <span style="color:${t.color}; margin-left:6px;">${t.label}</span>
-                ${h.detail ? `<span style="color:#999; margin-left:4px;">- ${h.detail}</span>` : ''}
-              </div>
-              <span style="color:#aaa; font-size:11px; white-space:nowrap;">${h.time}</span>
-            </div>`;
-        });
-        container.innerHTML = html;
-      } catch (e) {
-        container.innerHTML = `<p style="color:red;">Lỗi: ${e.message}</p>`;
+    function toggleLogsAutoRefresh() {
+      const checked = document.getElementById('logsAutoRefresh')?.checked;
+      if (window._logsAutoRefreshTimer) {
+        clearInterval(window._logsAutoRefreshTimer);
+        window._logsAutoRefreshTimer = null;
+      }
+      if (checked) {
+        window._logsAutoRefreshTimer = setInterval(loadLogs, 3000);
       }
     }
 

@@ -27,6 +27,14 @@ function setProfile(profileName) {
   return activeProfileData;
 }
 
+// Kiểm tra profile có tồn tại không, KHÔNG mutate activeProfile global
+// (để fail-fast validate trong request handler mà không gây race với job đang chạy)
+function profileExists(profileName) {
+  if (!profileName) return false;
+  const profileDir = path.resolve(__dirname, `../../playwright-data/${profileName}`);
+  return fs.existsSync(profileDir);
+}
+
 function getActiveProfile() {
   if (!activeProfile) {
     throw new Error('Chưa chọn profile!');
@@ -105,17 +113,7 @@ async function ensureLoggedIn(page) {
   const profile = getActiveProfile();
   const url = page.url();
   if (url.includes('login') || url.includes('checkpoint')) {
-    logger.info(`Session hết hạn, đăng nhập lại (${profile.name})...`);
-    const emailInput = await page.$('input[name="email"]');
-    if (emailInput) {
-      await emailInput.fill(profile.email);
-      await randomDelay(500, 1000);
-      await page.fill('input[name="pass"]', profile.password);
-      await randomDelay(500, 1000);
-      await page.click('button[name="login"]');
-      await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 });
-      await randomDelay(3000, 5000);
-    }
+    throw new Error(`Session profile "${profile.name}" đã hết hạn (URL: ${url}). Mở lại profile từ tab "Quản lý tài khoản" để đăng nhập thủ công.`);
   }
 }
 
@@ -179,13 +177,22 @@ async function openCreatePost(page, isGroup = false) {
     : [
         '[aria-label*="Tạo bài viết"]',
         '[aria-label*="Create post"]',
+        '[aria-label*="Create a post"]',
         'div[role="button"]:has-text("đang nghĩ gì")',
         'div[role="button"]:has-text("on your mind")',
+        'div[role="button"]:has-text("Bạn viết gì đi")',
+        'div[role="button"]:has-text("viết gì đi")',
+        'div[role="button"]:has-text("Viết gì đó")',
+        'div[role="button"]:has-text("Bạn đang nghĩ gì")',
+        'div[role="button"]:has-text("Write something")',
         'span:has-text("bạn đang nghĩ gì")',
         'span:has-text("đang nghĩ gì thế")',
         'span:has-text("đang nghĩ gì")',
+        'span:has-text("Bạn viết gì đi")',
+        'span:has-text("viết gì đi")',
         '[aria-label*="nghĩ gì"]',
         '[aria-label*="on your mind"]',
+        '[aria-label*="viết gì"]',
       ];
 
   return await tryClick(page, selectors, 'Mở popup tạo bài');
@@ -393,42 +400,64 @@ async function submitPost(page) {
  */
 
 async function postToPersonal(message, imagePaths = []) {
+  const t0 = Date.now();
+  const profileSnap = getActiveProfile();
+  const tag = `[postToPersonal ${profileSnap.name}]`;
+  logger.info(`${tag} bắt đầu (msg=${message ? `${message.length} ký tự` : '∅'}, ảnh=${imagePaths.length})`);
+
   const browser = await getBrowser();
+  logger.info(`${tag} got browser (+${Date.now() - t0}ms)`);
   const page = await browser.newPage();
 
   try {
-    const profile = getActiveProfile();
-    logger.info(`Đăng bài lên trang cá nhân (${profile.name})...`);
     await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    logger.info(`${tag} loaded fb home (+${Date.now() - t0}ms, url=${page.url()})`);
     await randomDelay(3000, 5000);
     await ensureLoggedIn(page);
 
+    const tOpen = Date.now();
     if (!(await openCreatePost(page, false))) {
-      await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-open.png') });
-      throw new Error(funMsg.errPopupPersonal());
+      const debugPath = path.resolve(__dirname, `../../logs/debug-open-${profileSnap.name}-${Date.now()}.png`);
+      await page.screenshot({ path: debugPath }).catch(() => {});
+      const pageUrl = page.url();
+      const visibleHint = await page.evaluate(() => {
+        const candidates = document.querySelectorAll('[aria-label], div[role="button"]');
+        for (const el of candidates) {
+          const text = (el.getAttribute('aria-label') || el.textContent || '').trim();
+          if (/nghĩ|viết|mind|post|write/i.test(text) && text.length < 80) return text;
+        }
+        return '';
+      }).catch(() => '');
+      logger.error(`${tag} openCreatePost FAIL (sau ${Date.now() - tOpen}ms) — url=${pageUrl}, hint="${visibleHint}", screenshot=${path.basename(debugPath)}`);
+      throw new Error(`${funMsg.errPopupPersonal()} [url=${pageUrl}${visibleHint ? `, hint="${visibleHint}"` : ''}, screenshot=${path.basename(debugPath)}]`);
     }
+    logger.info(`${tag} mở popup OK (+${Date.now() - t0}ms)`);
     await randomDelay(2000, 3000);
 
     if (imagePaths.length > 0) {
+      const tImg = Date.now();
       const imgOk = await attachImages(page, imagePaths);
       if (!imgOk) throw new Error(funMsg.errUpload() + ' (xem logs/debug-upload.png)');
+      logger.info(`${tag} attach ${imagePaths.length} ảnh xong (${Date.now() - tImg}ms)`);
     }
     await randomDelay(1500, 2500);
 
-    if (message && !(await typeMessage(page, message))) {
-      throw new Error(funMsg.errTypeContent());
+    if (message) {
+      const tType = Date.now();
+      if (!(await typeMessage(page, message))) throw new Error(funMsg.errTypeContent());
+      logger.info(`${tag} nhập text xong (${Date.now() - tType}ms)`);
     }
     await randomDelay(1000, 2000);
 
+    const tSubmit = Date.now();
     const result = await submitPost(page);
     if (!result.success) {
       throw new Error(funMsg.errPost() + ' (xem logs/debug-failed.png)');
     }
-
-    logger.info('Đã đăng bài cá nhân thành công!');
+    logger.info(`${tag} submit xong (${Date.now() - tSubmit}ms) — total ${Date.now() - t0}ms ✅`);
     return { success: true, target: 'personal' };
   } catch (error) {
-    logger.error(`Lỗi: ${error.message}`);
+    logger.error(`${tag} FAIL sau ${Date.now() - t0}ms: ${error.message}`);
     return { success: false, error: error.message };
   } finally {
     await page.close();
@@ -516,4 +545,4 @@ async function closeBrowser() {
   }
 }
 
-module.exports = { setProfile, getActiveProfile, postToPersonal, postToGroup, closeBrowser };
+module.exports = { setProfile, profileExists, getActiveProfile, postToPersonal, postToGroup, closeBrowser };

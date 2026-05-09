@@ -295,13 +295,21 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   const { message, target, groupId, profile, batchId } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
 
-  // Kiem tra nhanh (sync) — trả lỗi luôn nếu sai
-  try {
-    if (profile) playwright.setProfile(profile);
-    else playwright.getActiveProfile();
-  } catch {
-    cleanupFiles(imagePaths);
-    return res.status(400).json({ error: 'Chưa chọn profile!' });
+  // Kiem tra nhanh (sync) — trả lỗi luôn nếu sai.
+  // KHÔNG được setProfile ở đây vì race với job đang chạy: nhiều request POST /api/post
+  // song song (dashboard "đăng 7 nơi") sẽ liên tục đè global activeProfile, khiến job
+  // đang await page.goto() đọc nhầm profile khác khi resume → fail openCreatePost.
+  if (profile) {
+    if (!playwright.profileExists(profile)) {
+      cleanupFiles(imagePaths);
+      return res.status(400).json({ error: `Profile "${profile}" không tồn tại — thêm tài khoản trong UI Web trước.` });
+    }
+  } else {
+    try { playwright.getActiveProfile(); }
+    catch {
+      cleanupFiles(imagePaths);
+      return res.status(400).json({ error: 'Chưa chọn profile!' });
+    }
   }
 
   if (postCount >= config.posting.maxPostsPerDay) {
@@ -322,11 +330,20 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   const jobId = createJob();
   res.json({ jobId, status: 'pending' });
 
+  const targetDesc = target === 'group' ? `group:${groupId}` : (target || 'personal');
+  logger.info(`[/api/post] queue job ${jobId} — profile=${profile || '(active)'}, target=${targetDesc}, images=${imagePaths.length}, batch=${batchId || '-'}`);
+  const tQueued = Date.now();
+
   // Chạy post qua serial queue — tránh race condition profile
-  queuePost(() => executePost({ profile, message, target, groupId, imagePaths, imageUrls, batchId }))
+  queuePost(() => {
+    const tStart = Date.now();
+    logger.info(`[job ${jobId}] start (waited ${tStart - tQueued}ms in queue) — profile=${profile || '(active)'}, target=${targetDesc}`);
+    return executePost({ profile, message, target, groupId, imagePaths, imageUrls, batchId })
+      .finally(() => logger.info(`[job ${jobId}] done in ${Date.now() - tStart}ms`));
+  })
     .then(result => setJobResult(jobId, result))
     .catch(error => {
-      logger.error(`Lỗi job ${jobId}: ${error.message}`);
+      logger.error(`[job ${jobId}] FAILED: ${error.message}`);
       setJobError(jobId, error.message);
     })
     .finally(() => cleanupFiles(imagePaths));
@@ -763,6 +780,46 @@ app.get('/api/login-history', (req, res) => {
   const profile = req.query.profile || null;
   const limit = parseInt(req.query.limit) || 50;
   res.json(loginHistory.getHistory(profile, limit));
+});
+
+// Tail N dòng cuối của logs/app.log — admin only.
+// Đọc theo block từ cuối file để tránh load full file 5MB vào RAM mỗi lần refresh.
+app.get('/api/logs/tail', (req, res) => {
+  if (!req.user || !permissions.isXekoAdmin(req.user.email)) {
+    return res.status(403).json({ error: 'Chỉ admin xem được logs' });
+  }
+  const lines = Math.min(parseInt(req.query.lines) || 200, 2000);
+  const q = (req.query.q || '').toString();
+  const logPath = path.resolve(__dirname, 'logs/app.log');
+  if (!fs.existsSync(logPath)) return res.json({ lines: [], path: logPath });
+
+  try {
+    const stat = fs.statSync(logPath);
+    const fd = fs.openSync(logPath, 'r');
+    const blockSize = 64 * 1024;
+    let buf = '';
+    let pos = stat.size;
+    let collected = 0;
+    while (pos > 0 && collected <= lines) {
+      const readSize = Math.min(blockSize, pos);
+      pos -= readSize;
+      const chunk = Buffer.alloc(readSize);
+      fs.readSync(fd, chunk, 0, readSize, pos);
+      buf = chunk.toString('utf8') + buf;
+      collected = (buf.match(/\n/g) || []).length;
+    }
+    fs.closeSync(fd);
+
+    let arr = buf.split('\n').filter(Boolean);
+    if (q) {
+      const needle = q.toLowerCase();
+      arr = arr.filter(l => l.toLowerCase().includes(needle));
+    }
+    arr = arr.slice(-lines);
+    res.json({ lines: arr, total: arr.length, size: stat.size, mtime: stat.mtime });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/api/sessions', async (req, res) => {
