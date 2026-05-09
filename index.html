@@ -7085,9 +7085,9 @@
           const imgCount = sched.imageCount || 0;
           let thumbs;
           if (imgCount > 0) {
-            const shown = Math.min(imgCount, 3);
+            const shown = Math.min(imgCount, 4);
             const imgUrls = Array.from({length: shown}, (_, i) => `${BASE_URL}/api/schedule-image/${sched.id}/${i}`);
-            thumbs = `<div style="display:flex; gap:3px; align-items:center;">${imgUrls.map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:40px; height:40px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\'font-size:18px;\'>🖼️</span>'"></a>`).join('')}${imgCount > 3 ? `<span style="font-size:11px; color:#666;">+${imgCount - 3}</span>` : ''}</div>`;
+            thumbs = `<div style="display:flex; gap:3px; align-items:center;">${imgUrls.map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:40px; height:40px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\'font-size:18px;\'>🖼️</span>'"></a>`).join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
           } else {
             thumbs = '<span style="color:#bbb;">—</span>';
           }
@@ -7158,11 +7158,11 @@
               .map(u => u.startsWith('/uploads/') ? '/api/image/' + u.slice('/uploads/'.length) : u)
               .map(u => u.startsWith('/') ? BASE_URL + u : u);
             if (images.length > 0) {
-              const shown = images.slice(0, 3);
-              return `<div style="display:flex; gap:3px; align-items:center;">${shown.map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:40px; height:40px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:40px;height:40px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;align-items:center;justify-content:center;font-size:14px;'}))"></a>`).join('')}${images.length > 3 ? `<span style="font-size:11px; color:#666;">+${images.length - 3}</span>` : ''}</div>`;
+              const shown = images.slice(0, 4);
+              return `<div style="display:flex; gap:3px; align-items:center;">${shown.map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:40px; height:40px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:40px;height:40px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;align-items:center;justify-content:center;font-size:14px;'}))"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
             }
             if (imgCount > 0) {
-              return `<div style="display:flex; gap:3px; align-items:center;">${Array.from({length: Math.min(imgCount, 3)}).map(() => '<span style="display:inline-flex; width:40px; height:40px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:14px;">🖼️</span>').join('')}${imgCount > 3 ? `<span style="font-size:11px; color:#666;">+${imgCount - 3}</span>` : ''}</div>`;
+              return `<div style="display:flex; gap:3px; align-items:center;">${Array.from({length: Math.min(imgCount, 4)}).map(() => '<span style="display:inline-flex; width:40px; height:40px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:14px;">🖼️</span>').join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
             }
             return '<span style="color:#bbb;">—</span>';
           };
