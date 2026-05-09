@@ -3180,71 +3180,74 @@
 
       <!-- Filter bar -->
       <div class="dash-filter-bar">
-        <!-- Ngày từ / đến (đầu tiên) - wrap chung 1 hàng -->
-        <div class="dash-date-pair" style="display:flex; gap:6px; flex:0 0 auto; min-width:0;">
-          <input type="date" id="dashFilterFrom" style="padding:8px 8px; border:1px solid #ddd; border-radius:8px; font-size:12px; width:115px; min-width:0;">
-          <input type="date" id="dashFilterTo" style="padding:8px 8px; border:1px solid #ddd; border-radius:8px; font-size:12px; width:115px; min-width:0;">
-        </div>
-        <!-- Tài khoản -->
-        <div class="msel" id="msel-profile" data-placeholder="Tất cả tài khoản">
-          <div class="msel-btn" onclick="toggleMsel('msel-profile')">
-            <span class="msel-label" id="msel-profile-label">Tất cả tài khoản</span>
-            <span class="msel-arrow">▾</span>
-          </div>
-          <div class="msel-panel" id="msel-profile-panel"></div>
-        </div>
-        <!-- Nền tảng -->
-        <div class="msel" id="msel-platform" data-placeholder="Tất cả nền tảng">
-          <div class="msel-btn" onclick="toggleMsel('msel-platform')">
-            <span class="msel-label" id="msel-platform-label">Tất cả nền tảng</span>
-            <span class="msel-arrow">▾</span>
-          </div>
-          <div class="msel-panel" id="msel-platform-panel">
-            <label class="msel-option"><input type="checkbox" value="" checked onchange="_mselChange('msel-platform',this,'')"><span>Tất cả nền tảng</span></label>
-            <label class="msel-option"><input type="checkbox" value="facebook" onchange="_mselChange('msel-platform',this,'facebook')"><span>Facebook</span></label>
-            <label class="msel-option"><input type="checkbox" value="zalo" onchange="_mselChange('msel-platform',this,'zalo')"><span>Zalo</span></label>
-          </div>
-        </div>
-        <!-- Nơi đăng -->
-        <div class="msel" id="msel-target" data-placeholder="Tất cả nơi đăng">
-          <div class="msel-btn" onclick="toggleMsel('msel-target')">
-            <span class="msel-label" id="msel-target-label">Tất cả nơi đăng</span>
-            <span class="msel-arrow">▾</span>
-          </div>
-          <div class="msel-panel" id="msel-target-panel">
-            <label class="msel-option"><input type="checkbox" value="" checked onchange="_mselChange('msel-target',this,'')"><span>Tất cả nơi đăng</span></label>
-            <label class="msel-option"><input type="checkbox" value="personal" onchange="_mselChange('msel-target',this,'personal')"><span>Cá nhân</span></label>
-            <label class="msel-option"><input type="checkbox" value="group" onchange="_mselChange('msel-target',this,'group')"><span>Group</span></label>
-          </div>
-        </div>
-        <!-- Nhóm -->
-        <div class="msel" id="msel-group" data-placeholder="Tất cả nhóm">
-          <div class="msel-btn" onclick="toggleMsel('msel-group')">
-            <span class="msel-label" id="msel-group-label">Tất cả nhóm</span>
-            <span class="msel-arrow">▾</span>
-          </div>
-          <div class="msel-panel" id="msel-group-panel"></div>
-        </div>
-        <!-- Trạng thái -->
-        <div class="msel" id="msel-status" data-placeholder="Tất cả trạng thái">
-          <div class="msel-btn" onclick="toggleMsel('msel-status')">
-            <span class="msel-label" id="msel-status-label">Tất cả trạng thái</span>
-            <span class="msel-arrow">▾</span>
-          </div>
-          <div class="msel-panel" id="msel-status-panel">
-            <label class="msel-option"><input type="checkbox" value="" checked onchange="_mselChange('msel-status',this,'')"><span>Tất cả trạng thái</span></label>
-            <label class="msel-option"><input type="checkbox" value="1" onchange="_mselChange('msel-status',this,'1')"><span>Thành công</span></label>
-            <label class="msel-option"><input type="checkbox" value="0" onchange="_mselChange('msel-status',this,'0')"><span>Thất bại</span></label>
-            <label class="msel-option"><input type="checkbox" value="pending" onchange="_mselChange('msel-status',this,'pending')"><span>Chờ đăng</span></label>
-            <label class="msel-option"><input type="checkbox" value="running" onchange="_mselChange('msel-status',this,'running')"><span>Đang đăng</span></label>
-          </div>
-        </div>
-        <!-- Tìm kiếm (sau Trạng thái) -->
-        <div class="dash-search-wrap" style="position:relative; display:inline-flex; align-items:center;">
+        <!-- Top row: search + Bộ lọc + Lọc -->
+        <div class="dash-search-wrap" style="position:relative; display:inline-flex; align-items:center; flex:1; min-width:200px;">
           <svg style="position:absolute; left:9px; color:#9ca3af; pointer-events:none;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" id="dashFilterSearch" placeholder="Tìm kiếm..." onkeydown="if(event.key==='Enter')loadDashHistory()" style="padding:8px 12px 8px 30px; border:1px solid #ddd; border-radius:8px; font-size:13px; width:100%; box-sizing:border-box;">
         </div>
-        <button onclick="loadDashHistory()" style="padding:8px 16px; background:#3B82F6; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:13px;">Lọc</button>
+        <button id="dashFilterToggleBtn" type="button" onclick="toggleDashFilterPanel()" style="padding:8px 14px; background:#fff; color:#374151; border:1px solid #ddd; border-radius:8px; cursor:pointer; font-size:13px; display:inline-flex; align-items:center; gap:6px; flex-shrink:0;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          Bộ lọc
+          <span id="dashFilterCountBadge" style="display:none; background:#3B82F6; color:#fff; font-size:10px; font-weight:700; padding:1px 6px; border-radius:999px; min-width:14px; text-align:center;">0</span>
+        </button>
+        <button onclick="loadDashHistory()" style="padding:8px 16px; background:#3B82F6; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:13px; flex-shrink:0;">Lọc</button>
+
+        <!-- Collapsible advanced filters -->
+        <div id="dashFilterPanel" style="display:none; flex-basis:100%; flex-wrap:wrap; gap:8px; margin-top:4px;">
+          <div class="dash-date-pair" style="display:flex; gap:6px; flex:0 0 auto; min-width:0;">
+            <input type="date" id="dashFilterFrom" onchange="_updateDashFilterBadge()" style="padding:8px 8px; border:1px solid #ddd; border-radius:8px; font-size:12px; width:115px; min-width:0;">
+            <input type="date" id="dashFilterTo" onchange="_updateDashFilterBadge()" style="padding:8px 8px; border:1px solid #ddd; border-radius:8px; font-size:12px; width:115px; min-width:0;">
+          </div>
+          <div class="msel" id="msel-profile" data-placeholder="Tất cả tài khoản">
+            <div class="msel-btn" onclick="toggleMsel('msel-profile')">
+              <span class="msel-label" id="msel-profile-label">Tất cả tài khoản</span>
+              <span class="msel-arrow">▾</span>
+            </div>
+            <div class="msel-panel" id="msel-profile-panel"></div>
+          </div>
+          <div class="msel" id="msel-platform" data-placeholder="Tất cả nền tảng">
+            <div class="msel-btn" onclick="toggleMsel('msel-platform')">
+              <span class="msel-label" id="msel-platform-label">Tất cả nền tảng</span>
+              <span class="msel-arrow">▾</span>
+            </div>
+            <div class="msel-panel" id="msel-platform-panel">
+              <label class="msel-option"><input type="checkbox" value="" checked onchange="_mselChange('msel-platform',this,'')"><span>Tất cả nền tảng</span></label>
+              <label class="msel-option"><input type="checkbox" value="facebook" onchange="_mselChange('msel-platform',this,'facebook')"><span>Facebook</span></label>
+              <label class="msel-option"><input type="checkbox" value="zalo" onchange="_mselChange('msel-platform',this,'zalo')"><span>Zalo</span></label>
+            </div>
+          </div>
+          <div class="msel" id="msel-target" data-placeholder="Tất cả nơi đăng">
+            <div class="msel-btn" onclick="toggleMsel('msel-target')">
+              <span class="msel-label" id="msel-target-label">Tất cả nơi đăng</span>
+              <span class="msel-arrow">▾</span>
+            </div>
+            <div class="msel-panel" id="msel-target-panel">
+              <label class="msel-option"><input type="checkbox" value="" checked onchange="_mselChange('msel-target',this,'')"><span>Tất cả nơi đăng</span></label>
+              <label class="msel-option"><input type="checkbox" value="personal" onchange="_mselChange('msel-target',this,'personal')"><span>Cá nhân</span></label>
+              <label class="msel-option"><input type="checkbox" value="group" onchange="_mselChange('msel-target',this,'group')"><span>Group</span></label>
+            </div>
+          </div>
+          <div class="msel" id="msel-group" data-placeholder="Tất cả nhóm">
+            <div class="msel-btn" onclick="toggleMsel('msel-group')">
+              <span class="msel-label" id="msel-group-label">Tất cả nhóm</span>
+              <span class="msel-arrow">▾</span>
+            </div>
+            <div class="msel-panel" id="msel-group-panel"></div>
+          </div>
+          <div class="msel" id="msel-status" data-placeholder="Tất cả trạng thái">
+            <div class="msel-btn" onclick="toggleMsel('msel-status')">
+              <span class="msel-label" id="msel-status-label">Tất cả trạng thái</span>
+              <span class="msel-arrow">▾</span>
+            </div>
+            <div class="msel-panel" id="msel-status-panel">
+              <label class="msel-option"><input type="checkbox" value="" checked onchange="_mselChange('msel-status',this,'')"><span>Tất cả trạng thái</span></label>
+              <label class="msel-option"><input type="checkbox" value="1" onchange="_mselChange('msel-status',this,'1')"><span>Thành công</span></label>
+              <label class="msel-option"><input type="checkbox" value="0" onchange="_mselChange('msel-status',this,'0')"><span>Thất bại</span></label>
+              <label class="msel-option"><input type="checkbox" value="pending" onchange="_mselChange('msel-status',this,'pending')"><span>Chờ đăng</span></label>
+              <label class="msel-option"><input type="checkbox" value="running" onchange="_mselChange('msel-status',this,'running')"><span>Đang đăng</span></label>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Bulk action bar (hiện khi chọn >= 1 hàng) -->
@@ -3263,10 +3266,10 @@
             <col style="width:6%;">
             <col style="width:19%;">
             <col style="width:13%;">
-            <col style="width:12%;">
+            <col style="width:13%;">
             <col style="width:19%;">
-            <col style="width:14%;">
-            <col style="width:9%;">
+            <col style="width:15%;">
+            <col style="width:7%;">
             <col style="width:8%;">
           </colgroup>
           <thead>
@@ -3286,7 +3289,7 @@
       </div>
 
       <!-- Pagination -->
-      <div id="dashPagination" style="display:flex; justify-content:center; gap:8px; margin-top:16px; padding-bottom:20px;"></div>
+      <div id="dashPagination" style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:16px; padding-bottom:20px; flex-wrap:wrap;"></div>
     </div>
   </div><!-- end pageDashboard -->
 
@@ -6746,6 +6749,7 @@
       }
       const placeholder = document.getElementById(id)?.dataset.placeholder || 'Tất cả';
       _mselUpdateLabel(id, placeholder);
+      if (typeof _updateDashFilterBadge === 'function') _updateDashFilterBadge();
     }
 
     function _mselUpdateLabel(id, placeholder) {
@@ -7081,9 +7085,9 @@
           const imgCount = sched.imageCount || 0;
           let thumbs;
           if (imgCount > 0) {
-            const shown = Math.min(imgCount, 4);
+            const shown = Math.min(imgCount, 3);
             const imgUrls = Array.from({length: shown}, (_, i) => `${BASE_URL}/api/schedule-image/${sched.id}/${i}`);
-            thumbs = `<div style="display:flex; gap:3px; align-items:center;">${imgUrls.map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:32px; height:32px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\'font-size:18px;\'>🖼️</span>'"></a>`).join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
+            thumbs = `<div style="display:flex; gap:3px; align-items:center;">${imgUrls.map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:40px; height:40px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\'font-size:18px;\'>🖼️</span>'"></a>`).join('')}${imgCount > 3 ? `<span style="font-size:11px; color:#666;">+${imgCount - 3}</span>` : ''}</div>`;
           } else {
             thumbs = '<span style="color:#bbb;">—</span>';
           }
@@ -7154,11 +7158,11 @@
               .map(u => u.startsWith('/uploads/') ? '/api/image/' + u.slice('/uploads/'.length) : u)
               .map(u => u.startsWith('/') ? BASE_URL + u : u);
             if (images.length > 0) {
-              const shown = images.slice(0, 4);
-              return `<div style="display:flex; gap:3px; align-items:center;">${shown.map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:32px; height:32px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:32px;height:32px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;align-items:center;justify-content:center;font-size:14px;'}))"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
+              const shown = images.slice(0, 3);
+              return `<div style="display:flex; gap:3px; align-items:center;">${shown.map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:40px; height:40px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:40px;height:40px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;align-items:center;justify-content:center;font-size:14px;'}))"></a>`).join('')}${images.length > 3 ? `<span style="font-size:11px; color:#666;">+${images.length - 3}</span>` : ''}</div>`;
             }
             if (imgCount > 0) {
-              return `<div style="display:flex; gap:3px; align-items:center;">${Array.from({length: Math.min(imgCount, 4)}).map(() => '<span style="display:inline-flex; width:32px; height:32px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:14px;">🖼️</span>').join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
+              return `<div style="display:flex; gap:3px; align-items:center;">${Array.from({length: Math.min(imgCount, 3)}).map(() => '<span style="display:inline-flex; width:40px; height:40px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:14px;">🖼️</span>').join('')}${imgCount > 3 ? `<span style="font-size:11px; color:#666;">+${imgCount - 3}</span>` : ''}</div>`;
             }
             return '<span style="color:#bbb;">—</span>';
           };
@@ -7289,20 +7293,53 @@
         const paginationEl = document.getElementById('dashPagination');
         if (showHistory) {
           const totalPages = Math.ceil(data.total / dashLimit);
+          const totalInfo = data.total > 0
+            ? `<span style="color:#6b7280; font-size:12px;">Tổng <strong style="color:#111827;">${data.total}</strong> bài${totalPages > 1 ? ` · Trang ${dashPage + 1}/${totalPages}` : ''}</span>`
+            : '';
+          let nav = '';
           if (totalPages > 1) {
-            let html = '';
-            if (dashPage > 0) html += `<button onclick="dashGoPage(${dashPage - 1})" style="padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer;">← Trước</button>`;
-            html += `<span style="padding:6px 12px; color:#666;">Trang ${dashPage + 1} / ${totalPages} (${data.total} bài)</span>`;
-            if (dashPage < totalPages - 1) html += `<button onclick="dashGoPage(${dashPage + 1})" style="padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer;">Sau →</button>`;
-            paginationEl.innerHTML = html;
-          } else {
-            paginationEl.innerHTML = data.total > 0 ? `<span style="color:#999; font-size:12px;">Tổng: ${data.total} bài</span>` : '';
+            const btn = (active) => `padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:${active ? '#fff' : '#f3f4f6'}; color:${active ? '#111827' : '#9ca3af'}; cursor:${active ? 'pointer' : 'not-allowed'}; font-size:12px;`;
+            nav = `<div style="display:flex; gap:6px;">
+              <button ${dashPage > 0 ? `onclick="dashGoPage(${dashPage - 1})"` : 'disabled'} style="${btn(dashPage > 0)}">← Trước</button>
+              <button ${dashPage < totalPages - 1 ? `onclick="dashGoPage(${dashPage + 1})"` : 'disabled'} style="${btn(dashPage < totalPages - 1)}">Sau →</button>
+            </div>`;
           }
+          paginationEl.innerHTML = totalInfo + nav;
         } else {
           paginationEl.innerHTML = '';
         }
       } catch (e) {
         console.error('History error:', e);
+      }
+    }
+
+    function toggleDashFilterPanel() {
+      const panel = document.getElementById('dashFilterPanel');
+      if (!panel) return;
+      panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    function _updateDashFilterBadge() {
+      const badge = document.getElementById('dashFilterCountBadge');
+      if (!badge) return;
+      let count = 0;
+      const from = document.getElementById('dashFilterFrom');
+      const to = document.getElementById('dashFilterTo');
+      if (from && from.value) count++;
+      if (to && to.value) count++;
+      ['msel-profile','msel-platform','msel-target','msel-group','msel-status'].forEach(id => {
+        const panel = document.getElementById(id + '-panel');
+        if (!panel) return;
+        const checked = panel.querySelectorAll('input[type=checkbox]:checked');
+        const all = panel.querySelector('input[type=checkbox][value=""]');
+        if (all && all.checked) return;
+        if (checked.length > 0) count++;
+      });
+      if (count > 0) {
+        badge.textContent = count;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
       }
     }
 
