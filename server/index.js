@@ -330,11 +330,20 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   const jobId = createJob();
   res.json({ jobId, status: 'pending' });
 
+  const targetDesc = target === 'group' ? `group:${groupId}` : (target || 'personal');
+  logger.info(`[/api/post] queue job ${jobId} — profile=${profile || '(active)'}, target=${targetDesc}, images=${imagePaths.length}, batch=${batchId || '-'}`);
+  const tQueued = Date.now();
+
   // Chạy post qua serial queue — tránh race condition profile
-  queuePost(() => executePost({ profile, message, target, groupId, imagePaths, imageUrls, batchId }))
+  queuePost(() => {
+    const tStart = Date.now();
+    logger.info(`[job ${jobId}] start (waited ${tStart - tQueued}ms in queue) — profile=${profile || '(active)'}, target=${targetDesc}`);
+    return executePost({ profile, message, target, groupId, imagePaths, imageUrls, batchId })
+      .finally(() => logger.info(`[job ${jobId}] done in ${Date.now() - tStart}ms`));
+  })
     .then(result => setJobResult(jobId, result))
     .catch(error => {
-      logger.error(`Lỗi job ${jobId}: ${error.message}`);
+      logger.error(`[job ${jobId}] FAILED: ${error.message}`);
       setJobError(jobId, error.message);
     })
     .finally(() => cleanupFiles(imagePaths));

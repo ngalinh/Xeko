@@ -400,18 +400,24 @@ async function submitPost(page) {
  */
 
 async function postToPersonal(message, imagePaths = []) {
+  const t0 = Date.now();
+  const profileSnap = getActiveProfile();
+  const tag = `[postToPersonal ${profileSnap.name}]`;
+  logger.info(`${tag} bắt đầu (msg=${message ? `${message.length} ký tự` : '∅'}, ảnh=${imagePaths.length})`);
+
   const browser = await getBrowser();
+  logger.info(`${tag} got browser (+${Date.now() - t0}ms)`);
   const page = await browser.newPage();
 
   try {
-    const profile = getActiveProfile();
-    logger.info(`Đăng bài lên trang cá nhân (${profile.name})...`);
     await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    logger.info(`${tag} loaded fb home (+${Date.now() - t0}ms, url=${page.url()})`);
     await randomDelay(3000, 5000);
     await ensureLoggedIn(page);
 
+    const tOpen = Date.now();
     if (!(await openCreatePost(page, false))) {
-      const debugPath = path.resolve(__dirname, `../../logs/debug-open-${profile.name}-${Date.now()}.png`);
+      const debugPath = path.resolve(__dirname, `../../logs/debug-open-${profileSnap.name}-${Date.now()}.png`);
       await page.screenshot({ path: debugPath }).catch(() => {});
       const pageUrl = page.url();
       const visibleHint = await page.evaluate(() => {
@@ -422,30 +428,36 @@ async function postToPersonal(message, imagePaths = []) {
         }
         return '';
       }).catch(() => '');
+      logger.error(`${tag} openCreatePost FAIL (sau ${Date.now() - tOpen}ms) — url=${pageUrl}, hint="${visibleHint}", screenshot=${path.basename(debugPath)}`);
       throw new Error(`${funMsg.errPopupPersonal()} [url=${pageUrl}${visibleHint ? `, hint="${visibleHint}"` : ''}, screenshot=${path.basename(debugPath)}]`);
     }
+    logger.info(`${tag} mở popup OK (+${Date.now() - t0}ms)`);
     await randomDelay(2000, 3000);
 
     if (imagePaths.length > 0) {
+      const tImg = Date.now();
       const imgOk = await attachImages(page, imagePaths);
       if (!imgOk) throw new Error(funMsg.errUpload() + ' (xem logs/debug-upload.png)');
+      logger.info(`${tag} attach ${imagePaths.length} ảnh xong (${Date.now() - tImg}ms)`);
     }
     await randomDelay(1500, 2500);
 
-    if (message && !(await typeMessage(page, message))) {
-      throw new Error(funMsg.errTypeContent());
+    if (message) {
+      const tType = Date.now();
+      if (!(await typeMessage(page, message))) throw new Error(funMsg.errTypeContent());
+      logger.info(`${tag} nhập text xong (${Date.now() - tType}ms)`);
     }
     await randomDelay(1000, 2000);
 
+    const tSubmit = Date.now();
     const result = await submitPost(page);
     if (!result.success) {
       throw new Error(funMsg.errPost() + ' (xem logs/debug-failed.png)');
     }
-
-    logger.info('Đã đăng bài cá nhân thành công!');
+    logger.info(`${tag} submit xong (${Date.now() - tSubmit}ms) — total ${Date.now() - t0}ms ✅`);
     return { success: true, target: 'personal' };
   } catch (error) {
-    logger.error(`Lỗi: ${error.message}`);
+    logger.error(`${tag} FAIL sau ${Date.now() - t0}ms: ${error.message}`);
     return { success: false, error: error.message };
   } finally {
     await page.close();
