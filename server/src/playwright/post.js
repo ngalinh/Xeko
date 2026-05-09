@@ -105,17 +105,7 @@ async function ensureLoggedIn(page) {
   const profile = getActiveProfile();
   const url = page.url();
   if (url.includes('login') || url.includes('checkpoint')) {
-    logger.info(`Session hết hạn, đăng nhập lại (${profile.name})...`);
-    const emailInput = await page.$('input[name="email"]');
-    if (emailInput) {
-      await emailInput.fill(profile.email);
-      await randomDelay(500, 1000);
-      await page.fill('input[name="pass"]', profile.password);
-      await randomDelay(500, 1000);
-      await page.click('button[name="login"]');
-      await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 });
-      await randomDelay(3000, 5000);
-    }
+    throw new Error(`Session profile "${profile.name}" đã hết hạn (URL: ${url}). Mở lại profile từ tab "Quản lý tài khoản" để đăng nhập thủ công.`);
   }
 }
 
@@ -179,13 +169,22 @@ async function openCreatePost(page, isGroup = false) {
     : [
         '[aria-label*="Tạo bài viết"]',
         '[aria-label*="Create post"]',
+        '[aria-label*="Create a post"]',
         'div[role="button"]:has-text("đang nghĩ gì")',
         'div[role="button"]:has-text("on your mind")',
+        'div[role="button"]:has-text("Bạn viết gì đi")',
+        'div[role="button"]:has-text("viết gì đi")',
+        'div[role="button"]:has-text("Viết gì đó")',
+        'div[role="button"]:has-text("Bạn đang nghĩ gì")',
+        'div[role="button"]:has-text("Write something")',
         'span:has-text("bạn đang nghĩ gì")',
         'span:has-text("đang nghĩ gì thế")',
         'span:has-text("đang nghĩ gì")',
+        'span:has-text("Bạn viết gì đi")',
+        'span:has-text("viết gì đi")',
         '[aria-label*="nghĩ gì"]',
         '[aria-label*="on your mind"]',
+        '[aria-label*="viết gì"]',
       ];
 
   return await tryClick(page, selectors, 'Mở popup tạo bài');
@@ -404,8 +403,18 @@ async function postToPersonal(message, imagePaths = []) {
     await ensureLoggedIn(page);
 
     if (!(await openCreatePost(page, false))) {
-      await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-open.png') });
-      throw new Error(funMsg.errPopupPersonal());
+      const debugPath = path.resolve(__dirname, `../../logs/debug-open-${profile.name}-${Date.now()}.png`);
+      await page.screenshot({ path: debugPath }).catch(() => {});
+      const pageUrl = page.url();
+      const visibleHint = await page.evaluate(() => {
+        const candidates = document.querySelectorAll('[aria-label], div[role="button"]');
+        for (const el of candidates) {
+          const text = (el.getAttribute('aria-label') || el.textContent || '').trim();
+          if (/nghĩ|viết|mind|post|write/i.test(text) && text.length < 80) return text;
+        }
+        return '';
+      }).catch(() => '');
+      throw new Error(`${funMsg.errPopupPersonal()} [url=${pageUrl}${visibleHint ? `, hint="${visibleHint}"` : ''}, screenshot=${path.basename(debugPath)}]`);
     }
     await randomDelay(2000, 3000);
 
