@@ -782,6 +782,46 @@ app.get('/api/login-history', (req, res) => {
   res.json(loginHistory.getHistory(profile, limit));
 });
 
+// Tail N dòng cuối của logs/app.log — admin only.
+// Đọc theo block từ cuối file để tránh load full file 5MB vào RAM mỗi lần refresh.
+app.get('/api/logs/tail', (req, res) => {
+  if (!req.user || !permissions.isXekoAdmin(req.user.email)) {
+    return res.status(403).json({ error: 'Chỉ admin xem được logs' });
+  }
+  const lines = Math.min(parseInt(req.query.lines) || 200, 2000);
+  const q = (req.query.q || '').toString();
+  const logPath = path.resolve(__dirname, 'logs/app.log');
+  if (!fs.existsSync(logPath)) return res.json({ lines: [], path: logPath });
+
+  try {
+    const stat = fs.statSync(logPath);
+    const fd = fs.openSync(logPath, 'r');
+    const blockSize = 64 * 1024;
+    let buf = '';
+    let pos = stat.size;
+    let collected = 0;
+    while (pos > 0 && collected <= lines) {
+      const readSize = Math.min(blockSize, pos);
+      pos -= readSize;
+      const chunk = Buffer.alloc(readSize);
+      fs.readSync(fd, chunk, 0, readSize, pos);
+      buf = chunk.toString('utf8') + buf;
+      collected = (buf.match(/\n/g) || []).length;
+    }
+    fs.closeSync(fd);
+
+    let arr = buf.split('\n').filter(Boolean);
+    if (q) {
+      const needle = q.toLowerCase();
+      arr = arr.filter(l => l.toLowerCase().includes(needle));
+    }
+    arr = arr.slice(-lines);
+    res.json({ lines: arr, total: arr.length, size: stat.size, mtime: stat.mtime });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/sessions', async (req, res) => {
   // Session check cần Playwright - proxy sang local server
   if (getLocalUrl()) {
