@@ -3258,27 +3258,25 @@
       <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
         <table style="width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed;">
           <colgroup>
-            <col style="width:3%;">
-            <col style="width:13%;">
-            <col style="width:11%;">
-            <col style="width:4%;">
             <col style="width:6%;">
-            <col style="width:11%;">
             <col style="width:18%;">
             <col style="width:13%;">
+            <col style="width:11%;">
+            <col style="width:11%;">
+            <col style="width:11%;">
+            <col style="width:13%;">
+            <col style="width:9%;">
             <col style="width:8%;">
-            <col style="width:6%;">
           </colgroup>
           <thead>
             <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
-              <th style="padding:10px 10px; text-align:center;"><input type="checkbox" id="dashSelectAll" onchange="toggleSelectAll(this.checked)" style="cursor:pointer; width:14px; height:14px;"></th>
-              <th style="padding:10px 12px; text-align:left; font-weight:600;">Thời gian</th>
-              <th style="padding:10px 12px; text-align:left; font-weight:600;">Tài khoản</th>
-              <th style="padding:10px 12px; text-align:left; font-weight:600;">Nền tảng</th>
-              <th style="padding:10px 12px; text-align:left; font-weight:600;">Nơi đăng</th>
-              <th style="padding:10px 12px; text-align:left; font-weight:600;">ID nhóm</th>
+              <th style="padding:10px 10px; text-align:left; font-weight:600;"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="dashSelectAll" onchange="toggleSelectAll(this.checked)" style="cursor:pointer; width:14px; height:14px;"><span>STT</span></div></th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Nội dung</th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Ảnh</th>
+              <th style="padding:10px 12px; text-align:left; font-weight:600;">Tài khoản</th>
+              <th style="padding:10px 12px; text-align:left; font-weight:600;">Nơi đăng</th>
+              <th style="padding:10px 12px; text-align:left; font-weight:600;">ID nhóm</th>
+              <th style="padding:10px 12px; text-align:left; font-weight:600;">Thời gian</th>
               <th style="padding:10px 12px; text-align:center; font-weight:600;">Trạng thái</th>
               <th style="padding:10px 12px; text-align:center; font-weight:600;">Thao tác</th>
             </tr>
@@ -7058,14 +7056,13 @@
           const msgShort = job.message ? (job.message.length > 60 ? job.message.substring(0, 60) + '…' : job.message) : '-';
           const fullMsg = (job.message || '').replace(/"/g, '&quot;');
           return `<tr id="${job.tempId}" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
-            <td style="padding:10px 10px; text-align:center;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
-            <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${job.timeLabel}</td>
-            <td style="padding:10px 12px; font-size:12px;">${job.profileName}</td>
-            <td style="padding:10px 12px; font-size:12px;">FB</td>
-            <td style="padding:10px 12px; font-size:12px;">${targetLabel}</td>
-            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupId}">${groupId}</td>
+            <td style="padding:10px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
             <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msgShort}</td>
             <td style="padding:10px 12px; color:#bbb;">—</td>
+            <td style="padding:10px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${job.profileName}</td>
+            <td style="padding:10px 12px; font-size:12px;">FB - ${targetLabel}</td>
+            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupId}">${groupId}</td>
+            <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${job.timeLabel}</td>
             <td style="padding:10px 12px; text-align:center;"><span style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span></td>
             <td></td>
           </tr>`;
@@ -7096,14 +7093,13 @@
             : '<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-clock"/></svg>Chờ đăng</span>';
           const rowBg = isRunning ? '#EFF6FF' : '#f8f7ff';
           return `<tr id="schedRow-${sched.id}" style="border-bottom:1px solid #EFF6FF; background:${rowBg}; border-left:3px solid #BFDBFE;">
-            <td style="padding:10px 10px; text-align:center;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
-            <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
-            <td style="padding:10px 12px; font-size:12px; white-space:nowrap;">${sched.profile || '-'}</td>
-            <td style="padding:10px 12px; font-size:12px;">FB</td>
-            <td style="padding:10px 12px; font-size:12px;">${targetLabel}</td>
-            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupIdRaw.replace(/"/g,'&quot;')}">${groupId}</td>
+            <td style="padding:10px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
             <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msg}</td>
             <td style="padding:10px 12px;">${thumbs}</td>
+            <td style="padding:10px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sched.profile || '-'}</td>
+            <td style="padding:10px 12px; font-size:12px;">FB - ${targetLabel}</td>
+            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupIdRaw.replace(/"/g,'&quot;')}">${groupId}</td>
+            <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
             <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
             <td style="padding:8px 10px; text-align:center;">
               <button onclick="cancelScheduleFromTable(${sched.id})" title="Hủy lịch đăng" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
@@ -7127,35 +7123,30 @@
         if (histRows.length > 0) {
           window._dashRows = histRows;
 
-          // Tính batch_id nào xuất hiện nhiều hơn 1 lần → gán màu
-          const BATCH_COLORS = ['#2563EB','#06b6d4','#f59e0b','#10b981','#ef4444','#2563EB','#ec4899'];
-          const batchCount = {};
-          histRows.forEach(r => { if (r.batch_id) batchCount[r.batch_id] = (batchCount[r.batch_id] || 0) + 1; });
-          const batchColorMap = {};
-          let colorIdx = 0;
-          Object.keys(batchCount).filter(k => batchCount[k] > 1).forEach(k => {
-            batchColorMap[k] = BATCH_COLORS[colorIdx++ % BATCH_COLORS.length];
-          });
-
-          // Gom các dòng liên tiếp cùng batch_id thành "phiên đăng" (để fold)
+          // Gom các dòng liên tiếp cùng batch_id HOẶC cùng nội dung message thành "phiên đăng"
           const groups = [];
           {
-            let i = 0;
-            while (i < histRows.length) {
-              const bid = histRows[i].batch_id;
-              if (!bid || (batchCount[bid] || 0) <= 1) {
-                groups.push({ batchId: null, rows: [histRows[i]], indices: [i] });
-                i++;
-                continue;
+            let current = null;
+            for (let i = 0; i < histRows.length; i++) {
+              const row = histRows[i];
+              const merge = current && (
+                (current.anchor.batch_id && row.batch_id && current.anchor.batch_id === row.batch_id) ||
+                (current.anchor.message && row.message && current.anchor.message === row.message)
+              );
+              if (merge) {
+                current.rows.push(row);
+                current.indices.push(i);
+              } else {
+                current = { anchor: row, rows: [row], indices: [i] };
+                groups.push(current);
               }
-              let j = i + 1;
-              while (j < histRows.length && histRows[j].batch_id === bid) j++;
-              const indices = [];
-              for (let k = i; k < j; k++) indices.push(k);
-              groups.push({ batchId: bid, rows: histRows.slice(i, j), indices });
-              i = j;
             }
           }
+
+          // Gán màu cho phiên >1 dòng
+          const GROUP_COLORS = ['#2563EB','#06b6d4','#f59e0b','#10b981','#ef4444','#ec4899'];
+          let _gColorIdx = 0;
+          groups.forEach(g => { if (g.rows.length > 1) g.color = GROUP_COLORS[_gColorIdx++ % GROUP_COLORS.length]; });
 
           const fmtTime = (ts) => {
             const d = new Date(ts);
@@ -7179,37 +7170,39 @@
           const statusBadgeFor = (row) => row.success
             ? '<span style="background:#d1fae5; color:#047857; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-check"/></svg>OK</span>'
             : `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'').replace(/"/g,'&quot;')}"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-x"/></svg>Lỗi</span>`;
+          const noiDangLabel = (row) => {
+            const platform = row.platform === 'zalo' ? 'Zalo' : 'FB';
+            const target = row.target === 'personal' ? 'Cá nhân' : row.target === 'group' ? 'Group' : (row.target || '');
+            return target ? `${platform} - ${target}` : platform;
+          };
 
-          const renderSingleRow = (row, idx) => {
+          const renderSingleRow = (row, idx, stt) => {
             const time = fmtTime(row.timestamp);
-            const platformLabel = row.platform === 'zalo' ? 'Zalo' : 'FB';
-            const target = row.target === 'personal' ? 'Cá nhân' : row.target === 'group' ? 'Group' : (row.target || '-');
             const groupId = resolveGroupLabel(row.platform, row.group_id, row.group_name);
             const fullMsg = (row.message || '').replace(/"/g,'&quot;');
             const msg = row.message ? (row.message.length > 60 ? row.message.substring(0, 60) + '…' : row.message) : '-';
             const profileName = row.profile_name || row.profile || '-';
             const thumbs = buildThumbs(row);
             return `<tr id="dashRow-${row.id}" style="border-bottom:1px solid #f3f4f6;">
-              <td style="padding:10px 10px; text-align:center;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"></td>
-              <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
-              <td style="padding:10px 12px; font-size:12px; white-space:nowrap;">${profileName}</td>
-              <td style="padding:10px 12px; font-size:12px;">${platformLabel}</td>
-              <td style="padding:10px 12px; font-size:12px;">${target}</td>
-              <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${groupId}</td>
+              <td style="padding:10px 10px;"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><span style="font-size:12px; color:#374151;">${stt}</span></div></td>
               <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msg}</td>
               <td style="padding:10px 12px;">${thumbs}</td>
+              <td style="padding:10px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${profileName.replace(/"/g,'&quot;')}">${profileName}</td>
+              <td style="padding:10px 12px; font-size:12px; white-space:nowrap;">${noiDangLabel(row)}</td>
+              <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${groupId}</td>
+              <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
               <td style="padding:10px 12px; text-align:center;">${statusBadgeFor(row)}</td>
               <td style="padding:8px 10px; text-align:center;">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
-                  <button onclick="openRepostModal(${idx})" title="Repost" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#DBEAFE;color:#1E3A8A;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#BFDBFE'" onmouseout="this.style.background='#DBEAFE'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
+                  <button onclick="openRepostModal(${idx})" title="Đăng lại" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#DBEAFE;color:#1E3A8A;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#BFDBFE'" onmouseout="this.style.background='#DBEAFE'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
                   <button onclick="openSingleDeleteConfirm(${row.id})" title="Xóa" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
                 </div>
               </td>
             </tr>`;
           };
 
-          const renderGroup = (group) => {
-            const batchColor = batchColorMap[group.batchId] || '#94a3b8';
+          const renderGroup = (group, stt) => {
+            const groupColor = group.color || '#94a3b8';
             const firstRow = group.rows[0];
             const firstIdx = group.indices[0];
             const total = group.rows.length;
@@ -7227,15 +7220,22 @@
             } else {
               summaryBadge = `<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">${okCount} OK · ${failCount} lỗi</span>`;
             }
-            const idsAttr = group.rows.map(r => r.id).join(',');
-            const groupKey = String(group.batchId).replace(/[^a-zA-Z0-9_-]/g, '_') + '-' + firstIdx;
+            // Tài khoản đại diện
+            const accSet = [...new Set(group.rows.map(r => r.profile_name || r.profile || '-'))];
+            const repAccount = accSet[0];
+            const repAccountLabel = accSet.length > 1 ? `${repAccount} <span style="color:#6b7280;font-weight:400;">+${accSet.length - 1}</span>` : repAccount;
+            const accTitle = accSet.join(', ').replace(/"/g,'&quot;');
 
-            const headerHtml = `<tr id="dashGroup-${groupKey}" data-group-key="${groupKey}" onclick="toggleBatchGroup('${groupKey}', event)" style="border-bottom:1px solid #f3f4f6; border-left:3px solid ${batchColor}; cursor:pointer; background:#fff;">
-              <td style="padding:10px 10px; text-align:center;" onclick="event.stopPropagation()"><input type="checkbox" data-batch-ids="${idsAttr}" onchange="onBatchCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"></td>
-              <td style="padding:10px 12px; white-space:nowrap; font-size:12px;"><div style="display:flex; align-items:center; gap:6px;"><svg class="caret" style="width:10px;height:10px;color:#6b7280;transition:transform .15s;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>${time}</div></td>
-              <td colspan="4" style="padding:10px 12px; font-size:12px;"><span style="background:#eff6ff; color:#1e40af; padding:3px 10px; border-radius:999px; font-weight:600; font-size:11px; display:inline-flex; align-items:center; gap:4px;"><svg style="width:11px;height:11px;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Đã đăng ${total} nơi</span></td>
+            const idsAttr = group.rows.map(r => r.id).join(',');
+            const groupKey = (group.anchor.batch_id ? String(group.anchor.batch_id) : 'msg').replace(/[^a-zA-Z0-9_-]/g, '_') + '-' + firstIdx;
+
+            const headerHtml = `<tr id="dashGroup-${groupKey}" data-group-key="${groupKey}" onclick="toggleBatchGroup('${groupKey}', event)" style="border-bottom:1px solid #f3f4f6; border-left:3px solid ${groupColor}; cursor:pointer; background:#fff;">
+              <td style="padding:10px 10px;" onclick="event.stopPropagation()"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-batch-ids="${idsAttr}" onchange="onBatchCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><svg class="caret" style="width:10px;height:10px;color:#6b7280;transition:transform .15s; cursor:pointer;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" onclick="event.stopPropagation(); toggleBatchGroup('${groupKey}')"><polyline points="9 6 15 12 9 18"/></svg><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
               <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;" title="${fullMsg}">${msg}</td>
               <td style="padding:10px 12px;">${thumbs}</td>
+              <td style="padding:10px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${accTitle}">${repAccountLabel}</td>
+              <td colspan="2" style="padding:10px 12px; font-size:12px;"><span style="background:#eff6ff; color:#1e40af; padding:3px 10px; border-radius:999px; font-weight:600; font-size:11px; display:inline-flex; align-items:center; gap:4px;"><svg style="width:11px;height:11px;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Đã đăng ${total} nơi</span></td>
+              <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
               <td style="padding:10px 12px; text-align:center;">${summaryBadge}</td>
               <td style="padding:8px 10px; text-align:center;" onclick="event.stopPropagation()">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
@@ -7248,19 +7248,16 @@
             const childrenHtml = group.rows.map((row, k) => {
               const idx = group.indices[k];
               const profileName = row.profile_name || row.profile || '-';
-              const platformLabel = row.platform === 'zalo' ? 'Zalo' : 'FB';
-              const target = row.target === 'personal' ? 'Cá nhân' : row.target === 'group' ? 'Group' : (row.target || '-');
               const gid = resolveGroupLabel(row.platform, row.group_id, row.group_name);
               const childTime = fmtTime(row.timestamp);
-              return `<tr id="dashRow-${row.id}" data-batch-child="${groupKey}" style="display:none; border-bottom:1px solid #f3f4f6; border-left:3px solid ${batchColor}; background:#fafbfc;">
-                <td style="padding:8px 10px; text-align:center;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"></td>
-                <td style="padding:8px 12px; white-space:nowrap; font-size:11px; color:#6b7280;"><span style="display:inline-block; padding-left:18px;">↳ ${childTime}</span></td>
-                <td style="padding:8px 12px; font-size:12px; white-space:nowrap;">${profileName}</td>
-                <td style="padding:8px 12px; font-size:12px;">${platformLabel}</td>
-                <td style="padding:8px 12px; font-size:12px;">${target}</td>
+              return `<tr id="dashRow-${row.id}" data-batch-child="${groupKey}" style="display:none; border-bottom:1px solid #f3f4f6; border-left:3px solid ${groupColor}; background:#fafbfc;">
+                <td style="padding:8px 10px;"><div style="display:flex; align-items:center; gap:6px; padding-left:18px;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><span style="font-size:11px; color:#6b7280;">${stt}.${k + 1}</span></div></td>
+                <td style="padding:8px 12px; color:#cbd5e1; font-size:12px; text-align:center;">·</td>
+                <td style="padding:8px 12px; color:#cbd5e1; font-size:12px; text-align:center;">·</td>
+                <td style="padding:8px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${profileName.replace(/"/g,'&quot;')}">${profileName}</td>
+                <td style="padding:8px 12px; font-size:12px; white-space:nowrap;">${noiDangLabel(row)}</td>
                 <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${gid}</td>
-                <td style="padding:8px 12px; color:#cbd5e1; font-size:12px; text-align:center;">·</td>
-                <td style="padding:8px 12px; color:#cbd5e1; font-size:12px; text-align:center;">·</td>
+                <td style="padding:8px 12px; white-space:nowrap; font-size:11px; color:#6b7280;">${childTime}</td>
                 <td style="padding:8px 12px; text-align:center;">${statusBadgeFor(row)}</td>
                 <td style="padding:6px 10px; text-align:center;">
                   <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
@@ -7273,13 +7270,14 @@
             return headerHtml + childrenHtml;
           };
 
-          tbody.innerHTML = activeRepostHtml + schedHtml + groups.map(g =>
-            (g.batchId && g.rows.length > 1) ? renderGroup(g) : renderSingleRow(g.rows[0], g.indices[0])
-          ).join('');
+          tbody.innerHTML = activeRepostHtml + schedHtml + groups.map((g, gi) => {
+            const stt = gi + 1;
+            return g.rows.length > 1 ? renderGroup(g, stt) : renderSingleRow(g.rows[0], g.indices[0], stt);
+          }).join('');
         } else {
           window._dashRows = [];
           const fallbackHtml = activeRepostHtml + schedHtml;
-          tbody.innerHTML = fallbackHtml || '<tr><td colspan="10" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
+          tbody.innerHTML = fallbackHtml || '<tr><td colspan="9" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
         }
 
         // Pagination (ẩn khi đang filter pending/running)
