@@ -7141,11 +7141,6 @@
             }
           }
 
-          // Gán màu cho phiên >1 dòng
-          const GROUP_COLORS = ['#2563EB','#06b6d4','#f59e0b','#10b981','#ef4444','#ec4899'];
-          let _gColorIdx = 0;
-          groups.forEach(g => { if (g.rows.length > 1) g.color = GROUP_COLORS[_gColorIdx++ % GROUP_COLORS.length]; });
-
           const fmtTime = (ts) => {
             const d = new Date(ts);
             const pad = n => String(n).padStart(2,'0');
@@ -7199,7 +7194,6 @@
           };
 
           const renderGroup = (group, stt) => {
-            const groupColor = group.color || '#94a3b8';
             const firstRow = group.rows[0];
             const firstIdx = group.indices[0];
             const total = group.rows.length;
@@ -7232,7 +7226,7 @@
             const idsAttr = group.rows.map(r => r.id).join(',');
             const groupKey = (group.anchor.batch_id ? String(group.anchor.batch_id) : 'msg').replace(/[^a-zA-Z0-9_-]/g, '_') + '-' + firstIdx;
 
-            const headerHtml = `<tr id="dashGroup-${groupKey}" data-group-key="${groupKey}" onclick="toggleBatchGroup('${groupKey}', event)" style="border-bottom:1px solid #f3f4f6; border-left:3px solid ${groupColor}; cursor:pointer; background:#fff;">
+            const headerHtml = `<tr id="dashGroup-${groupKey}" data-group-key="${groupKey}" onclick="toggleBatchGroup('${groupKey}', event)" style="border-bottom:1px solid #f3f4f6; cursor:pointer; background:#fff;">
               <td style="padding:10px 10px;" onclick="event.stopPropagation()"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-batch-ids="${idsAttr}" onchange="onBatchCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><svg class="caret" style="width:10px;height:10px;color:#6b7280;transition:transform .15s; cursor:pointer;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" onclick="event.stopPropagation(); toggleBatchGroup('${groupKey}')"><polyline points="9 6 15 12 9 18"/></svg><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
               <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;" title="${fullMsg}">${msg}</td>
               <td style="padding:10px 12px;">${thumbs}</td>
@@ -7253,7 +7247,7 @@
               const profileName = row.profile_name || row.profile || '-';
               const gid = resolveGroupLabel(row.platform, row.group_id, row.group_name);
               const childTime = fmtTime(row.timestamp);
-              return `<tr id="dashRow-${row.id}" data-batch-child="${groupKey}" style="display:none; border-bottom:1px solid #f3f4f6; border-left:3px solid ${groupColor}; background:#fafbfc;">
+              return `<tr id="dashRow-${row.id}" data-batch-child="${groupKey}" style="display:none; border-bottom:1px solid #f3f4f6; background:#fafbfc;">
                 <td style="padding:8px 10px;"><div style="display:flex; align-items:center; gap:6px; padding-left:18px;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><span style="font-size:11px; color:#6b7280;">${stt}.${k + 1}</span></div></td>
                 <td style="background:#eef2f6;"></td>
                 <td style="background:#eef2f6;"></td>
