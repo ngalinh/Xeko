@@ -3259,12 +3259,11 @@
         <table style="width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed;">
           <colgroup>
             <col style="width:6%;">
-            <col style="width:18%;">
+            <col style="width:19%;">
             <col style="width:13%;">
-            <col style="width:11%;">
-            <col style="width:11%;">
-            <col style="width:11%;">
-            <col style="width:13%;">
+            <col style="width:12%;">
+            <col style="width:19%;">
+            <col style="width:14%;">
             <col style="width:9%;">
             <col style="width:8%;">
           </colgroup>
@@ -3275,7 +3274,6 @@
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Ảnh</th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Tài khoản</th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Nơi đăng</th>
-              <th style="padding:10px 12px; text-align:left; font-weight:600;">ID nhóm</th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Thời gian</th>
               <th style="padding:10px 12px; text-align:center; font-weight:600;">Trạng thái</th>
               <th style="padding:10px 12px; text-align:center; font-weight:600;">Thao tác</th>
@@ -7055,13 +7053,13 @@
           const groupId = ch.id || ch.key || '-';
           const msgShort = job.message ? (job.message.length > 60 ? job.message.substring(0, 60) + '…' : job.message) : '-';
           const fullMsg = (job.message || '').replace(/"/g, '&quot;');
+          const isPersonal = ch.type !== 'group';
           return `<tr id="${job.tempId}" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
             <td style="padding:10px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
             <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msgShort}</td>
             <td style="padding:10px 12px; color:#bbb;">—</td>
             <td style="padding:10px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${job.profileName}</td>
-            <td style="padding:10px 12px; font-size:12px;">FB - ${targetLabel}</td>
-            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupId}">${groupId}</td>
+            <td style="padding:10px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">FB - ${targetLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${String(groupId).replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
             <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${job.timeLabel}</td>
             <td style="padding:10px 12px; text-align:center;"><span style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span></td>
             <td></td>
@@ -7092,13 +7090,13 @@
             ? '<span style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span>'
             : '<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-clock"/></svg>Chờ đăng</span>';
           const rowBg = isRunning ? '#EFF6FF' : '#f8f7ff';
+          const schedIsPersonal = sched.target === 'personal';
           return `<tr id="schedRow-${sched.id}" style="border-bottom:1px solid #EFF6FF; background:${rowBg}; border-left:3px solid #BFDBFE;">
             <td style="padding:10px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
             <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msg}</td>
             <td style="padding:10px 12px;">${thumbs}</td>
             <td style="padding:10px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sched.profile || '-'}</td>
-            <td style="padding:10px 12px; font-size:12px;">FB - ${targetLabel}</td>
-            <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupIdRaw.replace(/"/g,'&quot;')}">${groupId}</td>
+            <td style="padding:10px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">FB - ${targetLabel}</div>${schedIsPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupIdRaw.replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
             <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
             <td style="padding:10px 12px; text-align:center;">${statusBadge}</td>
             <td style="padding:8px 10px; text-align:center;">
@@ -7188,8 +7186,7 @@
               <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msg}</td>
               <td style="padding:10px 12px;">${thumbs}</td>
               <td style="padding:10px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${profileName.replace(/"/g,'&quot;')}">${profileName}</td>
-              <td style="padding:10px 12px; font-size:12px; white-space:nowrap;">${noiDangLabel(row)}</td>
-              <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${groupId}</td>
+              <td style="padding:10px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${noiDangLabel(row)}</div>${row.target === 'personal' ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
               <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
               <td style="padding:10px 12px; text-align:center;">${statusBadgeFor(row)}</td>
               <td style="padding:8px 10px; text-align:center;">
@@ -7240,7 +7237,7 @@
               <td style="padding:10px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;" title="${fullMsg}">${msg}</td>
               <td style="padding:10px 12px;">${thumbs}</td>
               <td style="padding:10px 12px; font-size:12px;" title="${accTitle}">${repAccountCell}</td>
-              <td colspan="2" style="padding:10px 12px; font-size:12px;"><span style="background:#eff6ff; color:#1e40af; padding:3px 10px; border-radius:999px; font-weight:600; font-size:11px; display:inline-flex; align-items:center; gap:4px;"><svg style="width:11px;height:11px;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Đã đăng ${total} nơi</span></td>
+              <td style="padding:10px 12px; font-size:12px;"><span style="background:#eff6ff; color:#1e40af; padding:3px 10px; border-radius:999px; font-weight:600; font-size:11px; display:inline-flex; align-items:center; gap:4px;"><svg style="width:11px;height:11px;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Đã đăng ${total} nơi</span></td>
               <td style="padding:10px 12px; white-space:nowrap; font-size:12px;">${time}</td>
               <td style="padding:10px 12px; text-align:center;">${summaryBadge}</td>
               <td style="padding:8px 10px; text-align:center;" onclick="event.stopPropagation()">
@@ -7261,8 +7258,7 @@
                 <td style="background:#eef2f6;"></td>
                 <td style="background:#eef2f6;"></td>
                 <td style="padding:8px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${profileName.replace(/"/g,'&quot;')}">${profileName}</td>
-                <td style="padding:8px 12px; font-size:12px; white-space:nowrap;">${noiDangLabel(row)}</td>
-                <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${gid}</td>
+                <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${noiDangLabel(row)}</div>${row.target === 'personal' ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${gid}</div>`}</div></td>
                 <td style="padding:8px 12px; white-space:nowrap; font-size:11px; color:#6b7280;">${childTime}</td>
                 <td style="padding:8px 12px; text-align:center;">${statusBadgeFor(row)}</td>
                 <td style="padding:6px 10px; text-align:center;">
@@ -7283,7 +7279,7 @@
         } else {
           window._dashRows = [];
           const fallbackHtml = activeRepostHtml + schedHtml;
-          tbody.innerHTML = fallbackHtml || '<tr><td colspan="9" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
+          tbody.innerHTML = fallbackHtml || '<tr><td colspan="8" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
         }
 
         // Pagination (ẩn khi đang filter pending/running)
