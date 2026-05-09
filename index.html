@@ -7222,7 +7222,7 @@
             });
             const platBreakdown = Object.entries(platCount)
               .sort((a, b) => b[1] - a[1])
-              .map(([p, c]) => c > 1 ? `${p} (${c})` : p)
+              .map(([p, c]) => `${p} (${c})`)
               .join(' · ');
             const accEntries = Object.entries(accCount).sort((a, b) => b[1] - a[1]);
             const repAccount = accEntries[0][0];
