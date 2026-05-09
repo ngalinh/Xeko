@@ -295,13 +295,21 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   const { message, target, groupId, profile, batchId } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
 
-  // Kiem tra nhanh (sync) — trả lỗi luôn nếu sai
-  try {
-    if (profile) playwright.setProfile(profile);
-    else playwright.getActiveProfile();
-  } catch {
-    cleanupFiles(imagePaths);
-    return res.status(400).json({ error: 'Chưa chọn profile!' });
+  // Kiem tra nhanh (sync) — trả lỗi luôn nếu sai.
+  // KHÔNG được setProfile ở đây vì race với job đang chạy: nhiều request POST /api/post
+  // song song (dashboard "đăng 7 nơi") sẽ liên tục đè global activeProfile, khiến job
+  // đang await page.goto() đọc nhầm profile khác khi resume → fail openCreatePost.
+  if (profile) {
+    if (!playwright.profileExists(profile)) {
+      cleanupFiles(imagePaths);
+      return res.status(400).json({ error: `Profile "${profile}" không tồn tại — thêm tài khoản trong UI Web trước.` });
+    }
+  } else {
+    try { playwright.getActiveProfile(); }
+    catch {
+      cleanupFiles(imagePaths);
+      return res.status(400).json({ error: 'Chưa chọn profile!' });
+    }
   }
 
   if (postCount >= config.posting.maxPostsPerDay) {

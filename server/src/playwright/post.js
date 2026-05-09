@@ -27,6 +27,14 @@ function setProfile(profileName) {
   return activeProfileData;
 }
 
+// Kiểm tra profile có tồn tại không, KHÔNG mutate activeProfile global
+// (để fail-fast validate trong request handler mà không gây race với job đang chạy)
+function profileExists(profileName) {
+  if (!profileName) return false;
+  const profileDir = path.resolve(__dirname, `../../playwright-data/${profileName}`);
+  return fs.existsSync(profileDir);
+}
+
 function getActiveProfile() {
   if (!activeProfile) {
     throw new Error('Chưa chọn profile!');
@@ -525,4 +533,4 @@ async function closeBrowser() {
   }
 }
 
-module.exports = { setProfile, getActiveProfile, postToPersonal, postToGroup, closeBrowser };
+module.exports = { setProfile, profileExists, getActiveProfile, postToPersonal, postToGroup, closeBrowser };
