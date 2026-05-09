@@ -3264,12 +3264,12 @@
         <table style="width:100%; min-width:1080px; border-collapse:collapse; font-size:13px; table-layout:fixed;">
           <colgroup>
             <col style="width:5%;">
-            <col style="width:20%;">
-            <col style="width:15%;">
-            <col style="width:12%;">
-            <col style="width:19%;">
-            <col style="width:13%;">
-            <col style="width:8%;">
+            <col style="width:24%;">
+            <col style="width:16%;">
+            <col style="width:11%;">
+            <col style="width:17%;">
+            <col style="width:10%;">
+            <col style="width:9%;">
             <col style="width:8%;">
           </colgroup>
           <thead>
@@ -7060,13 +7060,15 @@
           const msgShort = job.message ? (job.message.length > 60 ? job.message.substring(0, 60) + '…' : job.message) : '-';
           const fullMsg = (job.message || '').replace(/"/g, '&quot;');
           const isPersonal = ch.type !== 'group';
+          const [tPart = '-', dPart = ''] = (job.timeLabel || '').split(' ');
+          const timeStacked = `<div style="line-height:1.3;"><div style="font-size:12px;">${tPart}</div><div style="font-size:11px; color:#6b7280;">${dPart}</div></div>`;
           return `<tr id="${job.tempId}" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
             <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
             <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msgShort}</td>
             <td style="padding:8px 12px; color:#bbb;">—</td>
             <td style="padding:8px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${job.profileName}</td>
             <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">FB - ${targetLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${String(groupId).replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
-            <td style="padding:8px 12px; white-space:nowrap; font-size:12px;">${job.timeLabel}</td>
+            <td style="padding:8px 12px; vertical-align:middle;">${timeStacked}</td>
             <td style="padding:8px 12px; text-align:center;"><span style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span></td>
             <td></td>
           </tr>`;
@@ -7076,7 +7078,9 @@
         const schedHtml = schedToShow.map(sched => {
           const d = new Date(sched.timeISO || sched.time);
           const pad = n => String(n).padStart(2,'0');
-          const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+          const timePart = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+          const datePart = `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+          const time = `<div style="line-height:1.3;"><div style="font-size:12px;">${timePart}</div><div style="font-size:11px; color:#6b7280;">${datePart}</div></div>`;
           const targetLabel = sched.target === 'personal' ? 'Cá nhân' : sched.target === 'group' ? 'Group' : sched.target === 'all' ? 'Tất cả' : sched.target === 'allgroup' ? 'Tất cả Group' : (sched.target || '-');
           const groupId = resolveGroupLabel(sched.type, sched.groupId, sched.groupName);
           const groupIdRaw = sched.groupId || sched.groupName || '';
@@ -7103,7 +7107,7 @@
             <td style="padding:8px 12px;">${thumbs}</td>
             <td style="padding:8px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sched.profile || '-'}</td>
             <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">FB - ${targetLabel}</div>${schedIsPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupIdRaw.replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
-            <td style="padding:8px 12px; white-space:nowrap; font-size:12px;">${time}</td>
+            <td style="padding:8px 12px; vertical-align:middle;">${time}</td>
             <td style="padding:8px 12px; text-align:center;">${statusBadge}</td>
             <td style="padding:8px 10px; text-align:center;">
               <button onclick="cancelScheduleFromTable(${sched.id})" title="Hủy lịch đăng" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
