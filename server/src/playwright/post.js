@@ -501,7 +501,12 @@ async function postToPersonal(message, imagePaths = []) {
     const tSubmit = Date.now();
     const result = await submitPost(page);
     if (!result.success) {
-      throw new Error(funMsg.errPost() + ' (xem logs/debug-failed.png)');
+      // FB reject phổ biến nhất với clone account: đăng ảnh không kèm caption.
+      // Đổi error chung "Thôi xong!" thành hướng dẫn cụ thể để user biết phải làm gì.
+      const hint = (!message && imagePaths.length > 0)
+        ? 'FB không cho đăng bài chỉ có ảnh không text. Bạn thêm caption (vài dòng nội dung) rồi đăng lại nha!'
+        : funMsg.errPost();
+      throw new Error(`${hint} (xem logs/debug-failed.png)`);
     }
     logger.info(`${tag} submit xong (${Date.now() - tSubmit}ms) — total ${Date.now() - t0}ms ✅`);
     return { success: true, target: 'personal' };
@@ -572,7 +577,10 @@ async function postToGroup(groupId, message, imagePaths = []) {
     // Nhấn Đăng
     const result = await submitPost(page);
     if (!result.success) {
-      throw new Error(funMsg.errPost() + ' (xem logs/debug-failed.png)');
+      const hint = (!message && imagePaths.length > 0)
+        ? 'FB không cho đăng bài chỉ có ảnh không text. Bạn thêm caption (vài dòng nội dung) rồi đăng lại nha!'
+        : funMsg.errPost();
+      throw new Error(`${hint} (xem logs/debug-failed.png)`);
     }
 
     logger.info(`Đã đăng bài group ${groupId} thành công!`);
