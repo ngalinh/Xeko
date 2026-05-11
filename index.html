@@ -4637,7 +4637,7 @@
             removeTyping();
             const gLabel = getFbGroupDisplayName(gid);
             if (isProxyTimeout(ce)) {
-              addBot(`⏳ Group FB ${gLabel}: Xeko đang đăng nè, bạn check FB sau vài phút nha!`);
+              addBot(`⚠️ Group FB <strong>${gLabel}</strong>: mạng/proxy timeout, Xeko chưa xác nhận được bài đăng. Check FB + tab Dashboard sau 1-2 phút nha, đừng bấm đăng lại liền vì có thể đã đăng rồi đó!`);
             } else {
               addBot(`Ui Group FB ${gLabel} có lỗi: ${ce.message}`);
             }
@@ -4693,7 +4693,7 @@
       } catch (e) {
         removeTyping();
         if (isProxyTimeout(e)) {
-          addBot('⏳ Xeko đang đăng bài nè (chắc 1–2 phút thôi). Bạn ghé Facebook check sau nha, đừng bấm đăng lại không lại trùng bài đó!', [
+          addBot('⚠️ Mạng/proxy timeout — Xeko chưa xác nhận được bài đã đăng hay chưa. Bạn check Facebook + tab Dashboard sau 1-2 phút giúp nha, đừng bấm đăng lại liền vì có thể đã đăng thành công rồi đó!', [
             { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
             { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
             { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
@@ -7898,8 +7898,15 @@
             jobs.push({ ch, jobId: initial.jobId, initial, done: !initial.jobId });
           }
         } catch (e) {
-          jobs.push({ ch, done: true, ok: false, error: e.message });
+          jobs.push({ ch, done: true, ok: false, error: e.message, timeout: isProxyTimeout(e) });
         }
+      }
+
+      // Nếu có channel bị proxy timeout, cảnh báo user — trước đây nuốt im lặng
+      // làm user tưởng không có gì chạy.
+      const timedOut = jobs.filter(j => j.timeout);
+      if (timedOut.length > 0) {
+        alert(`⚠️ ${timedOut.length}/${channels.length} kênh: mạng/proxy timeout, server có thể vẫn đang đăng ngầm.\n\nCheck Facebook + tab Dashboard sau 1-2 phút, đừng repost lại liền tránh trùng bài.`);
       }
 
       // 2. Đăng ký job vào _activeRepostJobs để loadDashHistory() tự render lại khi cần
