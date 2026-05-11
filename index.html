@@ -4057,6 +4057,28 @@
           <span class="ch-tag fb">FB</span>
         </label>`;
       }
+
+      // "Cá nhân + chia sẻ lên nhóm": 1 bài đăng trên cá nhân, dùng FB share-to-group
+      // để syndicate sang nhiều nhóm. Mutex với các kênh FB khác — check vào sẽ uncheck
+      // hết kênh FB còn lại để tránh đăng trùng.
+      const shareGroupOptions = (p.fb || []).filter(c => c.id !== 'personal');
+      if (shareGroupOptions.length > 0) {
+        panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="share-groups">
+          <input type="checkbox" onchange="onShareGroupsToggle(${pid}, this.checked)"> ${xekoIcon('users')} FB Cá nhân + chia sẻ lên nhóm (1 bài)
+          <span class="ch-tag fb">FB</span>
+        </label>`;
+        panelHtml += `<div id="shareGroupsInput_${pid}" style="display:none; padding:4px 14px 10px 38px; background:#f0f9ff; border-radius:8px; margin:4px 14px;">
+          <div style="font-size:12px; color:#666; margin-bottom:6px;">Tick nhóm Xeko sẽ chia sẻ kèm (tối đa 9):</div>`;
+        for (const ch of shareGroupOptions) {
+          // ch.name có dạng "Group <tên>" — bỏ prefix để khớp tên FB hiển thị trong dialog
+          const groupName = ch.name.replace(/^Group\s+/, '');
+          panelHtml += `<label style="display:block; padding:3px 0; font-size:13px; cursor:pointer;">
+            <input type="checkbox" class="share-group-cb" data-share-name="${escapeAttr(groupName)}" onchange="enforceShareGroupLimit(${pid})"> ${escapeHtml(groupName)}
+          </label>`;
+        }
+        panelHtml += `</div>`;
+      }
+
       // Custom group option
       panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="custom">
         <input type="checkbox" onchange="onChannelChange(${pid}); toggleCustomGroupInput(${pid}, this.checked)"> ${xekoIcon('link')} Group khác...
@@ -4137,6 +4159,44 @@
       if (el) el.style.display = show ? 'block' : 'none';
     }
 
+    // "Cá nhân + chia sẻ lên nhóm" loại trừ các kênh FB còn lại (tránh đăng trùng:
+    // postPersonalAndShareToGroups đã đăng 1 bài rồi syndicate, không cần loop group)
+    function onShareGroupsToggle(pid, checked) {
+      const panel = document.getElementById(`channelPanel_${pid}`);
+      if (!panel) return;
+      const box = document.getElementById(`shareGroupsInput_${pid}`);
+      if (box) box.style.display = checked ? 'block' : 'none';
+
+      if (checked) {
+        panel.querySelectorAll('.channel-item.ch-fb input[type="checkbox"]').forEach(cb => {
+          const item = cb.closest('.channel-item');
+          if (item && item.dataset.chid !== 'share-groups') {
+            cb.checked = false;
+            cb.disabled = true;
+          }
+        });
+        const customInput = document.getElementById(`customGroupInput_${pid}`);
+        if (customInput) customInput.style.display = 'none';
+      } else {
+        panel.querySelectorAll('.channel-item.ch-fb input[type="checkbox"]').forEach(cb => {
+          cb.disabled = false;
+        });
+        panel.querySelectorAll(`#shareGroupsInput_${pid} .share-group-cb`).forEach(cb => { cb.checked = false; });
+      }
+      onChannelChange(pid);
+    }
+
+    // FB enforce 9 nhóm/lần — block tick thêm khi đã đủ
+    function enforceShareGroupLimit(pid) {
+      const cbs = document.querySelectorAll(`#shareGroupsInput_${pid} .share-group-cb`);
+      const checkedCount = Array.from(cbs).filter(cb => cb.checked).length;
+      if (checkedCount >= 9) {
+        cbs.forEach(cb => { if (!cb.checked) cb.disabled = true; });
+      } else {
+        cbs.forEach(cb => { cb.disabled = false; });
+      }
+    }
+
     function buildChannelSummary(selection) {
       if (!selection) return '';
       const summaryParts = [];
@@ -4144,6 +4204,10 @@
         const p = buildTargetChannels(pKey, pKey);
         const fbNames = (selection[pKey].fb || []).map(c => {
           if (c.id === 'custom') return `Group FB ${getFbGroupDisplayName(c.groupId)}`;
+          if (c.id === 'share-groups') {
+            const kws = c.shareGroupKeywords || [];
+            return `FB Cá nhân + chia sẻ ${kws.length} nhóm (${kws.join(', ')})`;
+          }
           const ch = (p.fb || []).find(f => f.id === c.id);
           return ch ? ch.name : c.id;
         });
@@ -4179,6 +4243,16 @@
         return;
       }
 
+      // Validate share-groups: phải tick ít nhất 1 nhóm
+      const hasShareGroups = panel.querySelector('.channel-item[data-chid="share-groups"] input:checked');
+      const shareGroupKeywords = hasShareGroups
+        ? Array.from(panel.querySelectorAll(`#shareGroupsInput_${pid} .share-group-cb:checked`)).map(cb => cb.dataset.shareName)
+        : [];
+      if (hasShareGroups && shareGroupKeywords.length === 0) {
+        addBot('Bạn tick ít nhất 1 nhóm để Xeko chia sẻ kèm nha!');
+        return;
+      }
+
       // Collect selected channels grouped by profile
       const selected = {};
       checkedItems.forEach(cb => {
@@ -4195,6 +4269,8 @@
           ids.forEach(gid => {
             selected[profile].fb.push({ id: 'custom', groupId: gid });
           });
+        } else if (chid === 'share-groups') {
+          selected[profile].fb.push({ id: 'share-groups', shareGroupKeywords });
         } else {
           selected[profile].fb.push({ id: chid });
         }
@@ -4217,32 +4293,39 @@
 
       // Determine target type for backward compat
       const activeSel = selected[currentProfile] || { fb: [], zalo: [] };
-      const fbIds = (activeSel.fb || []).filter(c => c.id !== 'custom').map(c => c.id);
-
-      // Separate built-in shortcuts from profile-assigned groups
-      const specialIds = ['personal', 'asale', 'tongkho'];
-      const standardIds = fbIds.filter(id => specialIds.includes(id));
-      const profileGroupKeys = fbIds.filter(id => !specialIds.includes(id));
-
-      // Profile-assigned groups: look up actual FB group IDs and post via custom group loop
-      const profileGroupFbIds = profileGroupKeys.map(key => {
-        const g = (channelsData.fbGroups || []).find(x => x.key === key);
-        return g ? g.id : null;
-      }).filter(Boolean);
-
-      // Merge profile group IDs with manually-entered custom group IDs
-      const manualCustomIds = (activeSel.fb || []).filter(c => c.id === 'custom').map(c => c.groupId);
-      window._customGroupIds = [...profileGroupFbIds, ...manualCustomIds];
+      const shareGroupsSel = (activeSel.fb || []).find(c => c.id === 'share-groups');
 
       let target = null;
-      if (standardIds.includes('personal') && standardIds.includes('asale') && standardIds.includes('tongkho')) {
-        target = 'all';
-      } else if (standardIds.includes('asale') && standardIds.includes('tongkho') && !standardIds.includes('personal')) {
-        target = 'allgroup';
-      } else if (standardIds.length === 1 && standardIds[0] === 'personal') {
-        target = 'personal';
-      } else if (standardIds.length === 1 && (standardIds[0] === 'asale' || standardIds[0] === 'tongkho')) {
-        target = standardIds[0];
+      if (shareGroupsSel) {
+        // 1 bài cá nhân + share lên N nhóm: backend dùng FB native share, không loop group
+        target = 'personal-share-groups';
+        window._shareToGroupKeywords = shareGroupsSel.shareGroupKeywords || [];
+        window._customGroupIds = [];
+      } else {
+        window._shareToGroupKeywords = null;
+        const fbIds = (activeSel.fb || []).filter(c => c.id !== 'custom').map(c => c.id);
+
+        const specialIds = ['personal', 'asale', 'tongkho'];
+        const standardIds = fbIds.filter(id => specialIds.includes(id));
+        const profileGroupKeys = fbIds.filter(id => !specialIds.includes(id));
+
+        const profileGroupFbIds = profileGroupKeys.map(key => {
+          const g = (channelsData.fbGroups || []).find(x => x.key === key);
+          return g ? g.id : null;
+        }).filter(Boolean);
+
+        const manualCustomIds = (activeSel.fb || []).filter(c => c.id === 'custom').map(c => c.groupId);
+        window._customGroupIds = [...profileGroupFbIds, ...manualCustomIds];
+
+        if (standardIds.includes('personal') && standardIds.includes('asale') && standardIds.includes('tongkho')) {
+          target = 'all';
+        } else if (standardIds.includes('asale') && standardIds.includes('tongkho') && !standardIds.includes('personal')) {
+          target = 'allgroup';
+        } else if (standardIds.length === 1 && standardIds[0] === 'personal') {
+          target = 'personal';
+        } else if (standardIds.length === 1 && (standardIds[0] === 'asale' || standardIds[0] === 'tongkho')) {
+          target = standardIds[0];
+        }
       }
 
       currentTarget = target;
@@ -4537,6 +4620,10 @@
           if (groupId) formData.append('groupId', groupId);
           formData.append('batchId', sessionBatchId);
           if (currentProfile) formData.append('profile', currentProfile);
+          if (target === 'personal-share-groups') {
+            const kws = window._shareToGroupKeywords || [];
+            formData.append('groupKeywords', JSON.stringify(kws));
+          }
           await appendImages(formData, filesToUpload);
 
           const targetLabel = (() => {
@@ -4545,6 +4632,10 @@
             if (target === 'shortcut') {
               const scMap = { asale: 'Asale', tongkho: 'Tổng Kho' };
               return `Group <strong>${scMap[groupId] || groupId}</strong> (profile <strong>${currentProfile}</strong>)`;
+            }
+            if (target === 'personal-share-groups') {
+              const kws = window._shareToGroupKeywords || [];
+              return `trang cá nhân + chia sẻ lên <strong>${kws.length} nhóm</strong> (${kws.join(', ')})`;
             }
             return target;
           })();
@@ -4828,9 +4919,16 @@
 
       try {
         if (target) {
-          const data = await postSchedule({ target, groupId });
-          if (data.success) scheduled.push(TARGET_LABELS[currentTarget] || target);
-          else errors.push(`${TARGET_LABELS[currentTarget] || target}: ${data.error}`);
+          const extra = { target, groupId };
+          if (target === 'personal-share-groups') {
+            extra.groupKeywords = JSON.stringify(window._shareToGroupKeywords || []);
+          }
+          const data = await postSchedule(extra);
+          const label = target === 'personal-share-groups'
+            ? `FB Cá nhân + chia sẻ ${(window._shareToGroupKeywords || []).length} nhóm`
+            : (TARGET_LABELS[currentTarget] || target);
+          if (data.success) scheduled.push(label);
+          else errors.push(`${label}: ${data.error}`);
         }
 
         for (const gid of customIds) {

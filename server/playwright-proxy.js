@@ -157,6 +157,18 @@ async function postToGroup(groupId, message, imagePaths = []) {
   return res;
 }
 
+async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywords = []) {
+  // groupKeywords là array → serialize qua JSON khi đi multipart
+  const res = await callLocal(
+    'POST',
+    '/api/post',
+    { message, target: 'personal-share-groups', groupKeywords: JSON.stringify(groupKeywords) },
+    imagePaths
+  );
+  if (res.jobId) return pollLocalJob(res.jobId);
+  return res;
+}
+
 async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths = [] }) {
   return callLocal('POST', '/api/zalo/post',
     { profile: zaloAccountName, groupName, message },
@@ -175,6 +187,7 @@ module.exports = {
   getActiveProfile,
   postToPersonal,
   postToGroup,
+  postPersonalAndShareToGroups,
   postToZaloGroup,
   closeBrowser,
 };

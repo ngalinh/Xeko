@@ -227,7 +227,7 @@ setInterval(() => {
   }
 }, 3600_000);
 
-async function executePost({ profile, message, target, groupId, imagePaths, imageUrls, batchId }) {
+async function executePost({ profile, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId }) {
   if (profile) playwright.setProfile(profile);
 
   // Snapshot 1 lần ngay đầu — không gọi getActiveProfile() sau await (global có thể bị đổi)
@@ -296,6 +296,22 @@ async function executePost({ profile, message, target, groupId, imagePaths, imag
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
   }
 
+  // personal + chia sẻ lên nhóm trong 1 bài đăng
+  if (target === 'personal-share-groups') {
+    const keywords = Array.isArray(groupKeywords) ? groupKeywords : [];
+    if (keywords.length === 0) {
+      // Không có nhóm → fallback đăng cá nhân thường
+      const r = await playwright.postToPersonal(message, imagePaths);
+      postCount++;
+      postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+      return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
+    }
+    const r = await playwright.postPersonalAndShareToGroups(message, imagePaths, keywords);
+    postCount++;
+    postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'personal+groups', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId, meta: { sharedGroups: keywords } });
+    return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, sharedGroups: keywords };
+  }
+
   // personal (default)
   const r = await playwright.postToPersonal(message, imagePaths);
   postCount++;
@@ -309,6 +325,18 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
 
   const { message, target, groupId, profile, batchId } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
+
+  // groupKeywords gửi qua multipart dưới dạng JSON string (target=personal-share-groups)
+  let groupKeywords = [];
+  if (req.body.groupKeywords) {
+    try {
+      const parsed = JSON.parse(req.body.groupKeywords);
+      if (Array.isArray(parsed)) groupKeywords = parsed.map(k => String(k).trim()).filter(Boolean);
+    } catch {
+      cleanupFiles(imagePaths);
+      return res.status(400).json({ error: 'groupKeywords phải là JSON array hợp lệ' });
+    }
+  }
 
   // Kiem tra nhanh (sync) — trả lỗi luôn nếu sai.
   // KHÔNG được setProfile ở đây vì race với job đang chạy: nhiều request POST /api/post
@@ -353,7 +381,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   queuePost(() => {
     const tStart = Date.now();
     logger.info(`[job ${jobId}] start (waited ${tStart - tQueued}ms in queue) — profile=${profile || '(active)'}, target=${targetDesc}`);
-    return executePost({ profile, message, target, groupId, imagePaths, imageUrls, batchId })
+    return executePost({ profile, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId })
       .finally(() => logger.info(`[job ${jobId}] done in ${Date.now() - tStart}ms`));
   })
     .then(result => setJobResult(jobId, result))
@@ -867,7 +895,7 @@ const scheduler = require('./src/utils/scheduler');
 
 // Lên lịch đăng bài
 app.post('/api/schedule', upload.array('images', 20), (req, res) => {
-  const { time, target, groupId, message, profile, type, groupName, zaloAccount } = req.body;
+  const { time, target, groupId, message, profile, type, groupName, zaloAccount, groupKeywords } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
 
   if (!profile) {
@@ -876,7 +904,7 @@ app.post('/api/schedule', upload.array('images', 20), (req, res) => {
   }
 
   try {
-    const job = scheduler.addSchedule({ time, target, groupId, message, imagePaths, profile, type, groupName, zaloAccount });
+    const job = scheduler.addSchedule({ time, target, groupId, message, imagePaths, profile, type, groupName, zaloAccount, groupKeywords });
     res.json({
       success: true,
       message: `Đã lên lịch đăng bài lúc ${job.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`,

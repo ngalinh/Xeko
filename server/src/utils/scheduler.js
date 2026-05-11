@@ -5,6 +5,13 @@ const { queuePost } = require('./post-queue');
 const fs = require('fs');
 const path = require('path');
 
+function safeParseArray(s) {
+  try {
+    const v = JSON.parse(s);
+    return Array.isArray(v) ? v : [];
+  } catch { return []; }
+}
+
 // Persist temp images sang /data/uploads để history tham chiếu được lâu dài.
 // Mirror behavior với persistImages() trong server/index.js.
 const UPLOADS_DIR = path.resolve(__dirname, '../../../data/uploads');
@@ -39,7 +46,7 @@ const notifications = [];
 /**
  * Thêm lịch đăng bài
  */
-function addSchedule({ time, target, groupId, message, imagePaths, profile, type, groupName, zaloAccount }) {
+function addSchedule({ time, target, groupId, message, imagePaths, profile, type, groupName, zaloAccount, groupKeywords }) {
   const id = nextId++;
   const scheduleTime = new Date(time);
 
@@ -73,6 +80,7 @@ function addSchedule({ time, target, groupId, message, imagePaths, profile, type
     target,
     groupId,
     groupName,
+    groupKeywords: Array.isArray(groupKeywords) ? groupKeywords : (groupKeywords ? safeParseArray(groupKeywords) : []),
     zaloAccount: zaloAccount || null,
     message,
     imagePaths: ownImagePaths,
@@ -160,6 +168,15 @@ async function executeSchedule(job) {
     if (job.target === 'personal') {
       result = await playwright.postToPersonal(job.message, job.imagePaths);
       postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'personal', message: job.message, imageCount: imgCount, images: imageUrls, success: result.success, error: result.error, postUrl: result.postUrl, source: 'schedule' });
+    } else if (job.target === 'personal-share-groups') {
+      const keywords = Array.isArray(job.groupKeywords) ? job.groupKeywords : [];
+      if (keywords.length === 0) {
+        result = await playwright.postToPersonal(job.message, job.imagePaths);
+        postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'personal', message: job.message, imageCount: imgCount, images: imageUrls, success: result.success, error: result.error, postUrl: result.postUrl, source: 'schedule' });
+      } else {
+        result = await playwright.postPersonalAndShareToGroups(job.message, job.imagePaths, keywords);
+        postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'personal+groups', message: job.message, imageCount: imgCount, images: imageUrls, success: result.success, error: result.error, postUrl: result.postUrl, source: 'schedule', meta: { sharedGroups: keywords } });
+      }
     } else if (job.target === 'group') {
       result = await playwright.postToGroup(job.groupId, job.message, job.imagePaths);
       postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'group', groupId: job.groupId, groupName: job.groupName, message: job.message, imageCount: imgCount, images: imageUrls, success: result.success, error: result.error, postUrl: result.postUrl, source: 'schedule' });
