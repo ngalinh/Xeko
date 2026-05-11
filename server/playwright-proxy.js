@@ -124,6 +124,15 @@ function getActiveProfile() {
   return { name: _activeProfileName || _activeProfile, key: _activeProfile };
 }
 
+// Handler /api/post gọi sync để fail-fast 400 khi profile sai. Trong proxy mode
+// profile sống ở máy local, không thể HTTP-check sync — trả true (giả định OK)
+// để không crash. Nếu profile thật sự không tồn tại, setProfile/postToPersonal
+// sẽ throw error rõ ràng từ local-server sau đó (chậm hơn 1 round trip nhưng
+// vẫn fail có message).
+function profileExists(_profileName) {
+  return true;
+}
+
 // Poll /api/job/:id trên máy local cho đến khi xong
 async function pollLocalJob(jobId, maxWaitMs = 10 * 60 * 1000) {
   const start = Date.now();
@@ -162,6 +171,7 @@ async function closeBrowser() {
 
 module.exports = {
   setProfile,
+  profileExists,
   getActiveProfile,
   postToPersonal,
   postToGroup,
