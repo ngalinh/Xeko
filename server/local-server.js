@@ -141,6 +141,17 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   const { message, target, groupId } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
 
+  let groupKeywords = [];
+  if (req.body.groupKeywords) {
+    try {
+      const parsed = JSON.parse(req.body.groupKeywords);
+      if (Array.isArray(parsed)) groupKeywords = parsed.map(k => String(k).trim()).filter(Boolean);
+    } catch {
+      cleanupFiles(imagePaths);
+      return res.status(400).json({ error: 'groupKeywords phải là JSON array hợp lệ' });
+    }
+  }
+
   try {
     playwright.getActiveProfile();
   } catch {
@@ -194,6 +205,17 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
         if (!gId) { setJobError(jobId, `Group "${groupId}" không tồn tại`); return; }
         const result = await playwright.postToGroup(gId, message, imagePaths);
         setJobResult(jobId, { success: result.success, error: result.error, postUrl: result.postUrl });
+        return;
+      }
+
+      if (target === 'personal-share-groups') {
+        if (groupKeywords.length === 0) {
+          const r = await playwright.postToPersonal(message, imagePaths);
+          setJobResult(jobId, { success: r.success, error: r.error, postUrl: r.postUrl });
+          return;
+        }
+        const r = await playwright.postPersonalAndShareToGroups(message, imagePaths, groupKeywords);
+        setJobResult(jobId, { success: r.success, error: r.error, postUrl: r.postUrl, sharedGroups: groupKeywords });
         return;
       }
 
