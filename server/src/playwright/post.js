@@ -414,7 +414,7 @@ function extractPostUrl(obj, depth = 0) {
 
 // Lắng nghe response GraphQL để bắt permalink bài vừa đăng.
 // FB trả NDJSON (nhiều JSON cách nhau bằng \n), parse từng dòng.
-function listenForPostUrl(page, { timeoutMs = 20000 } = {}) {
+function listenForPostUrl(page, { timeoutMs = 20000, debug = false } = {}) {
   return new Promise((resolve) => {
     let done = false;
     const finish = (val) => {
@@ -429,11 +429,19 @@ function listenForPostUrl(page, { timeoutMs = 20000 } = {}) {
     async function handler(res) {
       try {
         const url = res.url();
-        if (!url.includes('/api/graphql')) return;
+        // Nới rộng filter — FB có nhiều endpoint khác nhau cho mutation post
+        if (!/\/(api\/graphql|graphqlbatch|ajax\/.*post)/.test(url)) return;
         const ct = res.headers()['content-type'] || '';
-        if (!ct.includes('json') && !ct.includes('javascript')) return;
+        if (!ct.includes('json') && !ct.includes('javascript') && !ct.includes('text')) return;
 
         const text = await res.text();
+
+        // DEBUG: nếu body có chứa keyword liên quan post → log raw để phân tích shape
+        if (debug && /story_create|StoryCreate|composer|legacy_story_api_id|permalink|pfbid/i.test(text)) {
+          const preview = text.slice(0, 3000).replace(/\s+/g, ' ');
+          logger.info(`[GraphQL DEBUG] url=${url.slice(0, 120)} body[0..3000]=${preview}`);
+        }
+
         for (const line of text.split('\n')) {
           if (!line.trim()) continue;
           let json;
@@ -453,7 +461,7 @@ function listenForPostUrl(page, { timeoutMs = 20000 } = {}) {
 
 async function submitPost(page) {
   // Phải attach listener TRƯỚC khi click — response GraphQL về sau vài trăm ms
-  const urlPromise = listenForPostUrl(page, { timeoutMs: 20000 });
+  const urlPromise = listenForPostUrl(page, { timeoutMs: 20000, debug: true });
 
   await page.evaluate(() => {
     document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
