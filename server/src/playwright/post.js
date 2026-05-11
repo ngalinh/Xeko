@@ -427,19 +427,34 @@ function listenForPostUrl(page, { timeoutMs = 20000, debug = false } = {}) {
     const timer = setTimeout(() => finish(null), timeoutMs);
 
     async function handler(res) {
+      const url = res.url();
       try {
-        const url = res.url();
-        // Nới rộng filter — FB có nhiều endpoint khác nhau cho mutation post
-        if (!/\/(api\/graphql|graphqlbatch|ajax\/.*post)/.test(url)) return;
+        // DEBUG: log MỌI request tới facebook để biết FB hit endpoint nào khi đăng
+        if (debug && /facebook\.com|fbcdn/.test(url)) {
+          const method = res.request().method();
+          const status = res.status();
+          if (method === 'POST' || /graphql|ajax|composer|story/i.test(url)) {
+            logger.info(`[NET ${method} ${status}] ${url.slice(0, 200)}`);
+          }
+        }
+
+        // Bắt mọi response có khả năng chứa post data
+        if (!/graphql|composer|story_create|ajax\/.*post|api\/post/i.test(url)) return;
         const ct = res.headers()['content-type'] || '';
         if (!ct.includes('json') && !ct.includes('javascript') && !ct.includes('text')) return;
 
-        const text = await res.text();
+        let text;
+        try {
+          text = await res.text();
+        } catch (e) {
+          if (debug) logger.warn(`[BODY-FAIL] ${url.slice(0, 120)}: ${e.message}`);
+          return;
+        }
 
-        // DEBUG: nếu body có chứa keyword liên quan post → log raw để phân tích shape
-        if (debug && /story_create|StoryCreate|composer|legacy_story_api_id|permalink|pfbid/i.test(text)) {
-          const preview = text.slice(0, 3000).replace(/\s+/g, ' ');
-          logger.info(`[GraphQL DEBUG] url=${url.slice(0, 120)} body[0..3000]=${preview}`);
+        // DEBUG: log raw body cho mọi response match URL filter (dù có keyword hay không)
+        if (debug && text.length > 100) {
+          const preview = text.slice(0, 2500).replace(/\s+/g, ' ');
+          logger.info(`[BODY] ${url.slice(0, 120)} len=${text.length} preview=${preview}`);
         }
 
         for (const line of text.split('\n')) {
@@ -453,7 +468,9 @@ function listenForPostUrl(page, { timeoutMs = 20000, debug = false } = {}) {
             return;
           }
         }
-      } catch { /* res.text() có thể fail nếu navigation, bỏ qua */ }
+      } catch (e) {
+        if (debug) logger.warn(`[HANDLER-ERR] ${url.slice(0, 120)}: ${e.message}`);
+      }
     }
     page.on('response', handler);
   });
