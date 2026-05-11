@@ -381,7 +381,80 @@ async function attachImages(page, imagePaths) {
   return uploaded;
 }
 
+// Đệ quy tìm permalink trong payload GraphQL.
+// FB shape thay đổi nhiều version → duyệt key bất kỳ thay vì hardcode path.
+function extractPostUrl(obj, depth = 0) {
+  if (!obj || typeof obj !== 'object' || depth > 10) return null;
+
+  const direct = obj.url || obj.permalink_url;
+  if (typeof direct === 'string' && /facebook\.com\/.+\/(posts|permalink|groups)\//.test(direct)) {
+    return direct;
+  }
+
+  // Một số mutation trả story + actor + legacy id → ghép URL
+  const story = obj.story;
+  if (story && typeof story === 'object') {
+    const actor = story.actor || (Array.isArray(story.actors) ? story.actors[0] : null);
+    const actorId = actor && actor.id;
+    const legacy = story.legacy_story_api_id || story.post_id;
+    if (actorId && legacy) {
+      return `https://www.facebook.com/${actorId}/posts/${legacy}`;
+    }
+  }
+
+  for (const key of Object.keys(obj)) {
+    const v = obj[key];
+    if (v && typeof v === 'object') {
+      const r = extractPostUrl(v, depth + 1);
+      if (r) return r;
+    }
+  }
+  return null;
+}
+
+// Lắng nghe response GraphQL để bắt permalink bài vừa đăng.
+// FB trả NDJSON (nhiều JSON cách nhau bằng \n), parse từng dòng.
+function listenForPostUrl(page, { timeoutMs = 20000 } = {}) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (val) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      page.off('response', handler);
+      resolve(val);
+    };
+    const timer = setTimeout(() => finish(null), timeoutMs);
+
+    async function handler(res) {
+      try {
+        const url = res.url();
+        if (!url.includes('/api/graphql')) return;
+        const ct = res.headers()['content-type'] || '';
+        if (!ct.includes('json') && !ct.includes('javascript')) return;
+
+        const text = await res.text();
+        for (const line of text.split('\n')) {
+          if (!line.trim()) continue;
+          let json;
+          try { json = JSON.parse(line); } catch { continue; }
+          const found = extractPostUrl(json);
+          if (found) {
+            logger.info(`Bắt được postUrl từ GraphQL: ${found}`);
+            finish(found);
+            return;
+          }
+        }
+      } catch { /* res.text() có thể fail nếu navigation, bỏ qua */ }
+    }
+    page.on('response', handler);
+  });
+}
+
 async function submitPost(page) {
+  // Phải attach listener TRƯỚC khi click — response GraphQL về sau vài trăm ms
+  const urlPromise = listenForPostUrl(page, { timeoutMs: 20000 });
+
   await page.evaluate(() => {
     document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
   });
@@ -441,7 +514,9 @@ async function submitPost(page) {
     return { success: false };
   }
 
-  return { success: true };
+  const postUrl = await urlPromise;
+  if (!postUrl) logger.warn('Không bắt được postUrl từ GraphQL (timeout)');
+  return { success: true, postUrl };
 }
 
 /**
@@ -508,8 +583,8 @@ async function postToPersonal(message, imagePaths = []) {
         : funMsg.errPost();
       throw new Error(`${hint} (xem logs/debug-failed.png)`);
     }
-    logger.info(`${tag} submit xong (${Date.now() - tSubmit}ms) — total ${Date.now() - t0}ms ✅`);
-    return { success: true, target: 'personal' };
+    logger.info(`${tag} submit xong (${Date.now() - tSubmit}ms) — total ${Date.now() - t0}ms ✅${result.postUrl ? ` postUrl=${result.postUrl}` : ''}`);
+    return { success: true, target: 'personal', postUrl: result.postUrl || null };
   } catch (error) {
     logger.error(`${tag} FAIL sau ${Date.now() - t0}ms: ${error.message}`);
     return { success: false, error: error.message };
@@ -583,8 +658,8 @@ async function postToGroup(groupId, message, imagePaths = []) {
       throw new Error(`${hint} (xem logs/debug-failed.png)`);
     }
 
-    logger.info(`Đã đăng bài group ${groupId} thành công!`);
-    return { success: true, target: `group:${groupId}` };
+    logger.info(`Đã đăng bài group ${groupId} thành công!${result.postUrl ? ` postUrl=${result.postUrl}` : ''}`);
+    return { success: true, target: `group:${groupId}`, postUrl: result.postUrl || null };
   } catch (error) {
     logger.error(`Lỗi: ${error.message}`);
     return { success: false, error: error.message };
