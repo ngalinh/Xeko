@@ -266,6 +266,7 @@ async function attachImages(page, imagePaths) {
 
   logger.info(`Đính kèm ${imagePaths.length} ảnh...`);
   let uploaded = false;
+  let uploadMethod = '';
 
   // Tìm nút Ảnh/Video trong popup
   const photoSelectors = [
@@ -277,7 +278,7 @@ async function attachImages(page, imagePaths) {
   // Cách 1: Click nút Ảnh/Video + bắt filechooser (không mở dialog)
   try {
     const [fileChooser] = await Promise.all([
-      page.waitForEvent('filechooser', { timeout: 10000 }),
+      page.waitForEvent('filechooser', { timeout: 20000 }),
       (async () => {
         await randomDelay(500, 1000);
         for (const sel of photoSelectors) {
@@ -305,30 +306,78 @@ async function attachImages(page, imagePaths) {
 
     await fileChooser.setFiles(imagePaths);
     uploaded = true;
+    uploadMethod = 'filechooser';
     logger.info(`Upload ${imagePaths.length} ảnh thành công (filechooser)`);
   } catch (e) {
     logger.error(`Filechooser failed: ${e.message}`);
   }
 
-  // Cách 2: Fallback - tìm input[type=file] trực tiếp
+  // Cách 2: Fallback - tìm input[type=file] trực tiếp.
+  // FB render nhiều input file ẩn (ảnh, video, profile pic) — input đầu tiên
+  // có thể chỉ accept 1 file hoặc không phải input ảnh post → upload thiếu.
+  // Ưu tiên input có accept="image/*" + multiple để khớp post photo input.
   if (!uploaded) {
-    const fileInputs = await page.$$('input[type="file"]');
-    for (const input of fileInputs) {
+    const candidates = await page.$$('input[type="file"]');
+    const scored = [];
+    for (const input of candidates) {
+      const accept = (await input.getAttribute('accept')) || '';
+      const multiple = (await input.getAttribute('multiple')) !== null;
+      let score = 0;
+      if (accept.includes('image')) score += 2;
+      if (multiple || imagePaths.length === 1) score += 1;
+      scored.push({ input, score, accept, multiple });
+    }
+    scored.sort((a, b) => b.score - a.score);
+
+    for (const { input, score, accept, multiple } of scored) {
       try {
         await input.setInputFiles(imagePaths);
         uploaded = true;
-        logger.info(`Upload ${imagePaths.length} ảnh thành công (direct input)`);
+        uploadMethod = `direct input score=${score} accept="${accept}" multiple=${multiple}`;
+        logger.info(`Upload ${imagePaths.length} ảnh thành công (${uploadMethod})`);
         break;
-      } catch { continue; }
+      } catch (e) {
+        logger.warn(`Direct input score=${score} fail: ${e.message}`);
+        continue;
+      }
     }
   }
 
   if (!uploaded) {
     logger.error('KHÔNG UPLOAD ĐƯỢC ẢNH!');
     await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-upload.png') });
+    return false;
   }
 
+  // Verify: chờ FB render preview rồi đếm thumbnail trong dialog. Nếu thiếu
+  // (vd FB nuốt mất ảnh do input không support multiple), log warning + chụp
+  // ảnh debug — không throw, vì có thể vẫn đăng được phần ảnh đã nhận.
   await randomDelay(3000, 6000);
+  if (imagePaths.length > 1) {
+    try {
+      const thumbCount = await page.evaluate(() => {
+        const dialog = document.querySelector('div[role="dialog"]');
+        if (!dialog) return -1;
+        const imgs = dialog.querySelectorAll('img');
+        let count = 0;
+        for (const img of imgs) {
+          const src = img.getAttribute('src') || '';
+          // FB preview ảnh dạng blob: hoặc data: URL trước khi upload xong.
+          if (src.startsWith('blob:') || src.startsWith('data:')) count++;
+        }
+        return count;
+      });
+      if (thumbCount >= 0 && thumbCount < imagePaths.length) {
+        logger.warn(`Chỉ thấy ${thumbCount}/${imagePaths.length} thumbnail (method=${uploadMethod}) — FB có thể đã nuốt mất ảnh`);
+        await page.screenshot({ path: path.resolve(__dirname, `../../logs/debug-upload-mismatch-${Date.now()}.png`) }).catch(() => {});
+      } else if (thumbCount >= imagePaths.length) {
+        logger.info(`Verify OK: ${thumbCount} thumbnail trong dialog`);
+      }
+    } catch (e) {
+      logger.warn(`Không count được thumbnail: ${e.message}`);
+    }
+  }
+
   return uploaded;
 }
 
