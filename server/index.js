@@ -57,6 +57,21 @@ a{color:#4f46e5;text-decoration:none}</style>
   next();
 });
 
+// Early request logger cho các POST endpoint hay timeout / mất handle.
+// Log NGAY sau khi auth pass, TRƯỚC multer + handler — để khi user báo "ko thấy
+// chạy", ta phân biệt được:
+//   - Có dòng [REQ] này mà không có [/api/post] queue job → multer fail/hang
+//   - Không có dòng [REQ] này → request chưa tới Express (proxy/network cắt)
+const _LOG_POST_PATHS = new Set(['/api/post', '/api/schedule', '/api/zalo/post']);
+app.use((req, res, next) => {
+  if (req.method === 'POST' && _LOG_POST_PATHS.has(req.path)) {
+    const len = req.headers['content-length'] || '?';
+    const ua = (req.headers['user-agent'] || '').slice(0, 50);
+    logger.info(`[REQ] POST ${req.path} — len=${len}, ip=${req.ip}, ua="${ua}"`);
+  }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, '../')));
 
 async function getFetch() {
