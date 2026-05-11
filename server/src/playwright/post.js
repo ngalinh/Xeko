@@ -384,10 +384,10 @@ async function attachImages(page, imagePaths) {
 // Đệ quy tìm permalink trong payload GraphQL.
 // FB shape thay đổi nhiều version → duyệt key bất kỳ thay vì hardcode path.
 function extractPostUrl(obj, depth = 0) {
-  if (!obj || typeof obj !== 'object' || depth > 10) return null;
+  if (!obj || typeof obj !== 'object' || depth > 15) return null;
 
-  const direct = obj.url || obj.permalink_url;
-  if (typeof direct === 'string' && /facebook\.com\/.+\/(posts|permalink|groups)\//.test(direct)) {
+  const direct = obj.url || obj.permalink_url || obj.wwwURL || obj.share_url;
+  if (typeof direct === 'string' && /facebook\.com\/[^"\s]*\/(posts|permalink|groups|story\.php|photo)/.test(direct)) {
     return direct;
   }
 
@@ -412,11 +412,45 @@ function extractPostUrl(obj, depth = 0) {
   return null;
 }
 
+// story_create chỉ trả post_id + story_id (numeric/base64) — không có URL.
+// Dùng làm fallback nếu listener timeout mà chưa bắt được URL.
+function extractPostId(obj, depth = 0) {
+  if (!obj || typeof obj !== 'object' || depth > 10) return null;
+  if (obj.story_create && typeof obj.story_create === 'object') {
+    return obj.story_create.post_id || obj.story_create.story_id || null;
+  }
+  for (const key of Object.keys(obj)) {
+    const v = obj[key];
+    if (v && typeof v === 'object') {
+      const r = extractPostId(v, depth + 1);
+      if (r) return r;
+    }
+  }
+  return null;
+}
+
+// Parse body GraphQL: thử whole-JSON trước (response minified 1 line),
+// fallback NDJSON (response @stream/@defer nhiều chunk).
+function parseGraphQLBody(text) {
+  const results = [];
+  try {
+    results.push(JSON.parse(text));
+    return results;
+  } catch {}
+  for (const line of text.split('\n')) {
+    const t = line.trim();
+    if (!t) continue;
+    try { results.push(JSON.parse(t)); } catch { continue; }
+  }
+  return results;
+}
+
 // Lắng nghe response GraphQL để bắt permalink bài vừa đăng.
 // FB trả NDJSON (nhiều JSON cách nhau bằng \n), parse từng dòng.
 function listenForPostUrl(page, { timeoutMs = 20000, debug = false } = {}) {
   return new Promise((resolve) => {
     let done = false;
+    let fallbackPostId = null; // backup: post_id từ story_create nếu không bắt được URL full
     const finish = (val) => {
       if (done) return;
       done = true;
@@ -424,21 +458,20 @@ function listenForPostUrl(page, { timeoutMs = 20000, debug = false } = {}) {
       page.off('response', handler);
       resolve(val);
     };
-    const timer = setTimeout(() => finish(null), timeoutMs);
+    const timer = setTimeout(() => {
+      // Hết timeout: nếu có post_id từ story_create → ghép URL fallback
+      if (fallbackPostId) {
+        const fb = `https://www.facebook.com/${fallbackPostId}`;
+        logger.info(`postUrl fallback từ post_id: ${fb}`);
+        finish(fb);
+      } else {
+        finish(null);
+      }
+    }, timeoutMs);
 
     async function handler(res) {
       const url = res.url();
       try {
-        // DEBUG: log MỌI request tới facebook để biết FB hit endpoint nào khi đăng
-        if (debug && /facebook\.com|fbcdn/.test(url)) {
-          const method = res.request().method();
-          const status = res.status();
-          if (method === 'POST' || /graphql|ajax|composer|story/i.test(url)) {
-            logger.info(`[NET ${method} ${status}] ${url.slice(0, 200)}`);
-          }
-        }
-
-        // Bắt mọi response có khả năng chứa post data
         if (!/graphql|composer|story_create|ajax\/.*post|api\/post/i.test(url)) return;
         const ct = res.headers()['content-type'] || '';
         if (!ct.includes('json') && !ct.includes('javascript') && !ct.includes('text')) return;
@@ -451,21 +484,24 @@ function listenForPostUrl(page, { timeoutMs = 20000, debug = false } = {}) {
           return;
         }
 
-        // DEBUG: log raw body cho mọi response match URL filter (dù có keyword hay không)
-        if (debug && text.length > 100) {
-          const preview = text.slice(0, 2500).replace(/\s+/g, ' ');
-          logger.info(`[BODY] ${url.slice(0, 120)} len=${text.length} preview=${preview}`);
+        const jsons = parseGraphQLBody(text);
+        if (debug && jsons.length === 0 && text.length > 100) {
+          logger.warn(`[PARSE-FAIL] ${url.slice(0, 120)} len=${text.length} preview=${text.slice(0, 300)}`);
         }
 
-        for (const line of text.split('\n')) {
-          if (!line.trim()) continue;
-          let json;
-          try { json = JSON.parse(line); } catch { continue; }
+        for (const json of jsons) {
           const found = extractPostUrl(json);
           if (found) {
             logger.info(`Bắt được postUrl từ GraphQL: ${found}`);
             finish(found);
             return;
+          }
+          if (!fallbackPostId) {
+            const pid = extractPostId(json);
+            if (pid) {
+              fallbackPostId = pid;
+              logger.info(`Bắt được post_id (fallback): ${pid}`);
+            }
           }
         }
       } catch (e) {
@@ -478,7 +514,7 @@ function listenForPostUrl(page, { timeoutMs = 20000, debug = false } = {}) {
 
 async function submitPost(page) {
   // Phải attach listener TRƯỚC khi click — response GraphQL về sau vài trăm ms
-  const urlPromise = listenForPostUrl(page, { timeoutMs: 20000, debug: true });
+  const urlPromise = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
 
   await page.evaluate(() => {
     document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
