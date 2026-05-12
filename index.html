@@ -4235,7 +4235,13 @@
         } else if (chid === 'cat') {
           // Bundle theo category — keywords là array tên nhóm raw từ data attr
           let keywords = [];
-          try { keywords = JSON.parse(item.dataset.keywords || '[]'); } catch {}
+          const raw = item.dataset.keywords || '[]';
+          try { keywords = JSON.parse(raw); } catch (e) {
+            console.warn('[share-to-groups] parse data-keywords fail', { raw, err: e.message });
+          }
+          if (!Array.isArray(keywords) || keywords.length === 0) {
+            console.warn('[share-to-groups] empty keywords for category', item.dataset.category, { raw });
+          }
           selected[profile].fb.push({ id: 'cat', category: item.dataset.category || '', keywords });
         } else {
           selected[profile].fb.push({ id: chid });
