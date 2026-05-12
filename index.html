@@ -180,6 +180,13 @@
     .msg-header { font-size: 12px; font-weight: 600; color: #555; }
     .msg-header .time { font-weight: 400; color: #aaa; margin-left: 8px; }
     .msg-row.user .msg-header { text-align: right; }
+
+    /* Grouped (continuation) messages: hide avatar/header, tighten spacing */
+    .msg-row.grouped { margin-top: -14px; }
+    .msg-row.grouped .msg-avatar { visibility: hidden; margin-top: 0; height: 0; }
+    .msg-row.grouped .msg-header { display: none; }
+    .msg-row.bot.grouped .msg.bot { border-radius: 16px; }
+    .msg-row.user.grouped .msg.user { border-radius: 16px; }
     .msg {
       padding: 12px 16px;
       font-size: 14px;
@@ -191,6 +198,20 @@
       border: 1px solid #eee;
       border-radius: 4px 16px 16px 16px;
       color: #1e1e2e;
+    }
+    /* Status accents — viền trái màu giúp scan nhanh tiến trình/kết quả */
+    .msg.bot.status-progress {
+      background: #F8FAFC;
+      border-color: #E2E8F0;
+      color: #64748B;
+      border-left: 3px solid #94A3B8;
+    }
+    .msg.bot.status-success {
+      border-left: 3px solid #10B981;
+    }
+    .msg.bot.status-error {
+      border-left: 3px solid #EF4444;
+      background: #FEF2F2;
     }
     .msg.user {
       background: #EFF6FF;
@@ -204,6 +225,31 @@
     }
     .msg .link { color: #3B82F6; word-break: break-all; text-decoration: none; font-weight: 500; }
     .msg .link:hover { text-decoration: underline; }
+
+    /* Chip-style "Xem bài viết" CTA — nổi bật hơn link inline */
+    .msg .post-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      border: 1px solid #DBEAFE;
+      background: #fff;
+      color: #3B82F6;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.15s;
+      line-height: 1;
+    }
+    .msg .post-link:hover {
+      background: #3B82F6;
+      color: #fff;
+      border-color: #3B82F6;
+      text-decoration: none;
+    }
+    .msg .post-link svg { width: 13px; height: 13px; flex-shrink: 0; }
     .msg-time { display: none; }
 
     /* Inline buttons */
@@ -538,10 +584,15 @@
     [data-theme="dark"] .header { background: #16172b; border-color: #2a2a4a; }
     [data-theme="dark"] .header-info h1 { color: #e0e0e0; }
     [data-theme="dark"] .msg.bot { background: #1e1e3a; border-color: #2a2a4a; color: #e0e0e0; }
+    [data-theme="dark"] .msg.bot.status-progress { background: #1a1a30; border-color: #2a2a4a; color: #94A3B8; border-left-color: #475569; }
+    [data-theme="dark"] .msg.bot.status-success { border-left-color: #10B981; }
+    [data-theme="dark"] .msg.bot.status-error { background: #2a1a1f; border-left-color: #EF4444; }
     [data-theme="dark"] .msg.user { background: #3B82F6; color: #fff; }
     [data-theme="dark"] .msg-header { color: #999; }
     [data-theme="dark"] .msg-header .time { color: #666; }
     [data-theme="dark"] .msg .link { color: #BFDBFE; }
+    [data-theme="dark"] .msg .post-link { background: #1e1e3a; border-color: #3a3a5a; color: #BFDBFE; }
+    [data-theme="dark"] .msg .post-link:hover { background: #3B82F6; border-color: #3B82F6; color: #fff; }
     [data-theme="dark"] .msg-btn { background: #1e1e3a; border-color: #3a3a5a; color: #BFDBFE; }
     [data-theme="dark"] .msg-btn:hover { background: #3B82F6; border-color: #3B82F6; color: #fff; }
     [data-theme="dark"] .input-area { background: #16172b; border-color: #2a2a4a; }
@@ -689,6 +740,9 @@
 
       /* Chat area */
       .chat-area { padding: 12px 12px 8px; gap: 14px; }
+
+      /* Tighten grouped spacing on mobile too */
+      .msg-row.grouped { margin-top: -8px; }
 
       /* Messages wider on mobile */
       .msg-row { max-width: 90%; }
@@ -3658,7 +3712,31 @@
       'Đăng bài đều là level pro đó nha, bạn có muốn lên pro không? 😏',
       'Page cần ăn đều nha bạn ơi, một bài nữa đi 🍜',
     ];
-    function pickEncouragement() {
+    // Variants for batches that posted to multiple targets in one go —
+    // tránh câu "1 bài / một bài" khi thực tế đăng nhiều nơi.
+    const MULTI_ENCOURAGEMENTS = [
+      n => `Xong ${n} bài liền tay luôn nè 🔥 Drop tiếp đi bestie!`,
+      n => `${n} bài đã bay lên FB rồi má! Xeko đang sạc pin chờ bài tiếp 🔋`,
+      n => `Combo ${n} bài cùng lúc, page bạn hôm nay nóng dữ dội á 🌶️`,
+      n => `${n} bài trong 1 lượt? Slay quá đi, tiếp luôn nha! 👑`,
+      n => `Xeko vừa đăng xong ${n} bài, tay còn ấm lắm — bài tiếp đâu? ✨`,
+      n => `Quẩy ${n} bài liên hoàn rồi nè, Xeko sẵn sàng nhận bài tiếp ⚡`,
+    ];
+
+    const ZERO_ENCOURAGEMENTS = [
+      'Lần này hỏng hết rồi má 😭 Bạn check lại profile/kết nối rồi đăng lại nha!',
+      'Xeko fail toàn tập, ngại quá 🙈 Bạn coi lỗi rồi thử lại giúp mình nhé!',
+      'Huhu không bài nào lên được, bạn xem lại setup giúp Xeko với 🙏',
+    ];
+
+    function pickEncouragement(n = 1) {
+      if (n === 0) {
+        return ZERO_ENCOURAGEMENTS[Math.floor(Math.random() * ZERO_ENCOURAGEMENTS.length)];
+      }
+      if (n > 1) {
+        const t = MULTI_ENCOURAGEMENTS[Math.floor(Math.random() * MULTI_ENCOURAGEMENTS.length)];
+        return t(n);
+      }
       return ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)];
     }
 
@@ -3758,8 +3836,21 @@
 
     function addBot(text, buttons = null, imgSrc = null, extraClass = '') {
       const chat = document.getElementById('chatArea');
+      const last = chat.lastElementChild;
+      const isGrouped =
+        last &&
+        last.classList.contains('msg-row') &&
+        last.classList.contains('bot') &&
+        last.id !== 'typingMsg';
       const row = document.createElement('div');
-      row.className = 'msg-row bot' + (extraClass ? ' ' + extraClass : '');
+      row.className = 'msg-row bot' + (extraClass ? ' ' + extraClass : '') + (isGrouped ? ' grouped' : '');
+
+      // Auto status by leading emoji — giúp scan nhanh thành công / lỗi / đang chạy
+      const trimmed = (text || '').trimStart();
+      let bubbleStatus = '';
+      if (trimmed.startsWith('✅')) bubbleStatus = 'success';
+      else if (trimmed.startsWith('❌') || trimmed.startsWith('⚠️')) bubbleStatus = 'error';
+      else if (trimmed.startsWith('⏳')) bubbleStatus = 'progress';
 
       let msgHtml = text.replace(/\n/g, '<br>');
       if (imgSrc) msgHtml += `<img src="${imgSrc}" alt="screenshot">`;
@@ -3773,7 +3864,7 @@
         <img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko">
         <div class="msg-wrapper">
           <div class="msg-header">Xeko <span class="time">${now()}</span></div>
-          <div class="msg bot">${msgHtml}</div>
+          <div class="msg bot${bubbleStatus ? ' status-' + bubbleStatus : ''}">${msgHtml}</div>
         </div>`;
 
       if (buttons) {
@@ -3797,12 +3888,55 @@
       chat.appendChild(row);
       chat.scrollTop = chat.scrollHeight;
       saveChatState();
+      return row;
+    }
+
+    // Replace the content of an existing bot bubble (used to morph
+    // "⏳ đang đăng…" into the final ✅/❌ message instead of leaving
+    // the progress bubble stuck in the chat).
+    function morphBot(row, text, status = '', imgSrc = null, buttons = null) {
+      if (!row) return null;
+      const bubble = row.querySelector('.msg.bot');
+      if (!bubble) return null;
+      let html = (text || '').replace(/\n/g, '<br>');
+      if (imgSrc) html += `<img src="${imgSrc}" alt="screenshot">`;
+      if (buttons) {
+        html += '<div class="msg-buttons">';
+        buttons.forEach((b, i) => { html += `<button class="msg-btn" data-btn="${i}">${b.label}</button>`; });
+        html += '</div>';
+      }
+      bubble.innerHTML = html;
+      bubble.classList.remove('status-progress', 'status-success', 'status-error');
+      if (status) bubble.classList.add('status-' + status);
+      if (buttons) {
+        row.querySelectorAll('[data-btn]').forEach(btn => {
+          const b = buttons[+btn.dataset.btn];
+          btn.addEventListener('click', () => {
+            try {
+              if (typeof b.handler === 'function') b.handler();
+              else if (typeof b.action === 'string') new Function(b.action)();
+            } catch (err) {
+              console.error('[msg-btn]', err);
+              addBot(`Ui nút này lỗi rồi nè: ${err && err.message ? err.message : err}`);
+            }
+          });
+        });
+      }
+      const chat = document.getElementById('chatArea');
+      if (chat) chat.scrollTop = chat.scrollHeight;
+      saveChatState();
+      return row;
     }
 
     function addUser(text, photos = []) {
       const chat = document.getElementById('chatArea');
+      const last = chat.lastElementChild;
+      const isGrouped =
+        last &&
+        last.classList.contains('msg-row') &&
+        last.classList.contains('user');
       const row = document.createElement('div');
-      row.className = 'msg-row user';
+      row.className = 'msg-row user' + (isGrouped ? ' grouped' : '');
 
       let content = '';
       if (text) content += text.replace(/\n/g, '<br>');
@@ -3842,7 +3976,10 @@
       document.getElementById('headerStatus').textContent = text;
     }
     function updateHeaderProfile(name) {
-      document.getElementById('headerStatus').textContent = `Profile: ${name}`;
+      const el = document.getElementById('headerStatus');
+      // Bỏ prefix "Profile:" — đã có nút "Đổi Profile" cạnh bên rồi, prefix
+      // chỉ làm rối. Dùng icon 👤 nhỏ để gợi ý đây là tên profile.
+      el.innerHTML = `<svg class="xi xi-sm" aria-hidden="true" style="vertical-align:-2px;margin-right:4px;opacity:.7;"><use href="#ic-user"/></svg>${escapeHtml(name)}`;
       const btn = document.getElementById('btnChangeProfile');
       if (btn) btn.style.display = 'block';
     }
@@ -4437,7 +4574,7 @@
     });
 
     // Poll kết quả Zalo post async — cập nhật chatbot khi Playwright hoàn thành
-    async function pollZaloJob(jobId, groupName, account) {
+    async function pollZaloJob(jobId, groupName, account, progressRow = null) {
       const maxTries = 24; // tối đa 2 phút (24 × 5s)
       for (let i = 0; i < maxTries; i++) {
         await new Promise(r => setTimeout(r, 5000));
@@ -4446,17 +4583,23 @@
           if (!r.ok) continue;
           const d = await r.json();
           if (d.status === 'done') {
+            const okMsg = `✅ Group Zalo <strong>${groupName}</strong> (${account}) xong rồi nè, thấy Xeko giỏi chưa má 😎`;
+            const errMsg = `❌ Huhu Group Zalo <strong>${groupName}</strong> hỏng mất rồi: ${d.error || 'Không rõ lý do'}`;
             if (d.success) {
-              addBot(`✅ Group Zalo <strong>${groupName}</strong> (${account}) xong rồi nè, thấy Xeko giỏi chưa má 😎`);
+              if (progressRow) morphBot(progressRow, okMsg, 'success');
+              else addBot(okMsg);
             } else {
-              addBot(`❌ Huhu Group Zalo <strong>${groupName}</strong> hỏng mất rồi: ${d.error || 'Không rõ lý do'}`);
+              if (progressRow) morphBot(progressRow, errMsg, 'error');
+              else addBot(errMsg);
             }
             removePendingJob(jobId);
             return;
           }
         } catch {}
       }
-      addBot(`⚠️ Group Zalo <strong>${groupName}</strong>: Xeko chờ 2 phút mà chưa thấy phản hồi, bạn check giúp mình nha!`);
+      const timeoutMsg = `⚠️ Group Zalo <strong>${groupName}</strong>: Xeko chờ 2 phút mà chưa thấy phản hồi, bạn check giúp mình nha!`;
+      if (progressRow) morphBot(progressRow, timeoutMsg, 'error');
+      else addBot(timeoutMsg);
       removePendingJob(jobId);
     }
 
@@ -4575,6 +4718,15 @@
         ch: { type: target === 'personal' ? 'personal' : 'group', id: groupId || '', key: '', name: '' },
       };
       _activeRepostJobs.push(_activePostJob);
+
+      // Track number of successful posts in this batch (for encouragement)
+      let successCount = 0;
+      const countSuccess = (d) => {
+        if (!d) return 0;
+        if (Array.isArray(d.results)) return d.results.filter(r => r.success).length;
+        return d.success ? 1 : 0;
+      };
+
       const _refreshDashIfActive = () => {
         const dashPg = document.getElementById('pageDashboard');
         if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
@@ -4608,10 +4760,11 @@
           const initial = await parseJson(res);
 
           let data;
+          let progressRow = null;
           if (initial.jobId) {
             removeTyping();
-            addBot('⏳ Xeko đang đăng bài nè, bạn chờ xíu nha...');
-            addTyping();
+            progressRow = addBot('⏳ Xeko đang đăng bài nè, bạn chờ xíu nha...');
+            progressRow?.querySelector('.msg.bot')?.classList.add('status-progress');
             // Save jobId de resume khi PWA reload giua chung
             pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: targetLabel });
             try {
@@ -4621,25 +4774,50 @@
             }
           } else {
             data = initial;
+            removeTyping();
           }
-          removeTyping();
+          successCount += countSuccess(data);
 
           if (data.results) {
-            data.results.forEach(r => {
+            data.results.forEach((r, i) => {
               if (r.success) {
                 let msg = `✅ Đăng lên <strong>${r.target}</strong> (profile <strong>${currentProfile}</strong>) xong rồi má ơi, content này xuất sắc quá đi!`;
-                if (r.postUrl) msg += `\n<a class="link" href="${r.postUrl}" target="_blank">Xem bài viết</a>`;
-                addBot(msg, null, r.screenshot ? `/api/screenshot?t=${Date.now()}` : null);
+                if (r.postUrl) msg += `\n<a class="post-link" href="${r.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
+                const shot = r.screenshot ? `/api/screenshot?t=${Date.now()}` : null;
+                if (progressRow && i === 0) {
+                  morphBot(progressRow, msg, 'success', shot);
+                  progressRow = null;
+                } else {
+                  addBot(msg, null, shot);
+                }
               } else {
-                addBot(`❌ Huhu Xeko đăng <strong>${r.target}</strong> hỏng mất rồi: ${r.error}`);
+                const errMsg = `❌ Huhu Xeko đăng <strong>${r.target}</strong> hỏng mất rồi: ${r.error}`;
+                if (progressRow && i === 0) {
+                  morphBot(progressRow, errMsg, 'error');
+                  progressRow = null;
+                } else {
+                  addBot(errMsg);
+                }
               }
             });
           } else if (data.success) {
             let msg = `✅ Xong ${targetLabel} rồi má, Xeko chưa thấy content nào đỉnh như vậy luôn á!`;
-            if (data.postUrl) msg += `\n<a class="link" href="${data.postUrl}" target="_blank">Xem bài viết</a>`;
-            addBot(msg, null, data.screenshot ? `/api/screenshot?t=${Date.now()}` : null);
+            if (data.postUrl) msg += `\n<a class="post-link" href="${data.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
+            const shot = data.screenshot ? `/api/screenshot?t=${Date.now()}` : null;
+            if (progressRow) {
+              morphBot(progressRow, msg, 'success', shot);
+              progressRow = null;
+            } else {
+              addBot(msg, null, shot);
+            }
           } else {
-            addBot(`Ui có lỗi rồi nè: ${data.error}`);
+            const errMsg = `Ui có lỗi rồi nè: ${data.error}`;
+            if (progressRow) {
+              morphBot(progressRow, errMsg, 'error');
+              progressRow = null;
+            } else {
+              addBot(errMsg);
+            }
           }
         }
 
@@ -4647,6 +4825,7 @@
         const customIds = window._customGroupIds || [];
         for (const gid of customIds) {
           addTyping();
+          let groupProgressRow = null;
           try {
             const cf = new FormData();
             cf.append('message', message);
@@ -4659,8 +4838,8 @@
             if (initial.jobId) {
               removeTyping();
               const gLabel = getFbGroupDisplayName(gid);
-              addBot(`⏳ Xeko đang đăng Group FB <strong>${gLabel}</strong>...`);
-              addTyping();
+              groupProgressRow = addBot(`⏳ Xeko đang đăng Group FB <strong>${gLabel}</strong>...`);
+              groupProgressRow?.querySelector('.msg.bot')?.classList.add('status-progress');
               pushPendingJob({
                 jobId: initial.jobId,
                 profile: currentProfile,
@@ -4673,24 +4852,29 @@
               finally { removePendingJob(initial.jobId); }
             } else {
               cd = initial;
+              removeTyping();
             }
-            removeTyping();
             if (cd.success) {
+              successCount += 1;
               const gLabel = getFbGroupDisplayName(gid);
               let msg = `✅ Group FB <strong>${gLabel}</strong> (profile <strong>${currentProfile}</strong>) xong rồi má, Xeko đăng nhanh như chớp luôn á!`;
-              if (cd.postUrl) msg += `\n<a class="link" href="${cd.postUrl}" target="_blank">Xem bài viết</a>`;
-              addBot(msg, null, cd.screenshot ? `/api/screenshot?t=${Date.now()}` : null);
+              if (cd.postUrl) msg += `\n<a class="post-link" href="${cd.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
+              const shot = cd.screenshot ? `/api/screenshot?t=${Date.now()}` : null;
+              if (groupProgressRow) morphBot(groupProgressRow, msg, 'success', shot);
+              else addBot(msg, null, shot);
             } else {
-              addBot(`❌ Huhu Group FB <strong>${getFbGroupDisplayName(gid)}</strong> Xeko đăng lỗi mất: ${cd.error}`);
+              const errMsg = `❌ Huhu Group FB <strong>${getFbGroupDisplayName(gid)}</strong> Xeko đăng lỗi mất: ${cd.error}`;
+              if (groupProgressRow) morphBot(groupProgressRow, errMsg, 'error');
+              else addBot(errMsg);
             }
           } catch (ce) {
             removeTyping();
             const gLabel = getFbGroupDisplayName(gid);
-            if (isProxyTimeout(ce)) {
-              addBot(`⚠️ Group FB <strong>${gLabel}</strong>: mạng/proxy timeout, Xeko chưa xác nhận được bài đăng. Check FB + tab Dashboard sau 1-2 phút nha, đừng bấm đăng lại liền vì có thể đã đăng rồi đó!`);
-            } else {
-              addBot(`Ui Group FB ${gLabel} có lỗi: ${ce.message}`);
-            }
+            const errMsg = isProxyTimeout(ce)
+              ? `⚠️ Group FB <strong>${gLabel}</strong>: mạng/proxy timeout, Xeko chưa xác nhận được bài đăng. Check FB + tab Dashboard sau 1-2 phút nha, đừng bấm đăng lại liền vì có thể đã đăng rồi đó!`
+              : `Ui Group FB ${gLabel} có lỗi: ${ce.message}`;
+            if (groupProgressRow) morphBot(groupProgressRow, errMsg, 'error');
+            else addBot(errMsg);
           }
         }
 
@@ -4715,15 +4899,17 @@
               const zd = await parseJson(zr);
               removeTyping();
               if (zd.processing && zd.jobId) {
-                addBot(`⏳ Xeko đang đẩy bài lên Group Zalo <strong>${g.name}</strong> (${zaloAccount})...`);
+                const zRow = addBot(`⏳ Xeko đang đẩy bài lên Group Zalo <strong>${g.name}</strong> (${zaloAccount})...`);
+                zRow?.querySelector('.msg.bot')?.classList.add('status-progress');
                 pushPendingJob({
                   kind: 'zalo',
                   jobId: zd.jobId,
                   groupName: g.name,
                   account: zaloAccount,
                 });
-                pollZaloJob(zd.jobId, g.name, zaloAccount);
+                pollZaloJob(zd.jobId, g.name, zaloAccount, zRow);
               } else if (zd.success) {
+                successCount += 1;
                 addBot(`✅ Group Zalo <strong>${g.name}</strong> (${zaloAccount}) xong xuôi nè, thấy Xeko giỏi chưa má 😎`);
               } else {
                 addBot(`❌ Huhu Group Zalo <strong>${g.name}</strong> bị lỗi rồi: ${zd.error || 'Không rõ lý do'}`);
@@ -4735,8 +4921,8 @@
           }
         }
 
-        // Hien nut tiep tuc
-        addBot(pickEncouragement(), [
+        // Hien nut tiep tuc — câu chốt theo số bài thật sự đăng được
+        addBot(pickEncouragement(successCount), [
           { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
           { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
           { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
@@ -6684,7 +6870,7 @@
         data.results.forEach(r => {
           if (r.success) {
             let msg = `✅ Đăng lên <strong>${r.target}</strong> (profile <strong>${profile}</strong>) xong rồi nha!`;
-            if (r.postUrl) msg += `\n<a class="link" href="${r.postUrl}" target="_blank">Xem bài viết</a>`;
+            if (r.postUrl) msg += `\n<a class="post-link" href="${r.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
             addBot(msg);
           } else {
             addBot(`❌ Đăng <strong>${r.target}</strong> lỗi: ${r.error}`);
@@ -6692,7 +6878,7 @@
         });
       } else if (data && data.success) {
         let msg = `✅ ${job.label || 'Xong'} (profile <strong>${profile}</strong>)`;
-        if (data.postUrl) msg += `\n<a class="link" href="${data.postUrl}" target="_blank">Xem bài viết</a>`;
+        if (data.postUrl) msg += `\n<a class="post-link" href="${data.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
         addBot(msg);
       } else {
         addBot(`❌ Lỗi: ${(data && data.error) || 'unknown'}`);
