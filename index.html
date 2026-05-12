@@ -4075,14 +4075,13 @@
         </label>`;
       }
 
-      // Bundle theo category — 1 bài cá nhân + share-to-group cho toàn bộ nhóm
-      // trong category. User tick category nào thì lấy hết group trong đó làm keyword.
+      // Bundle theo category — tick = đăng riêng từng nhóm trong category (path
+      // cũ qua _customGroupIds). data-keys lưu group key để lookup FB ID khi submit.
       const fbBundles = groupFbByCategory(p);
       for (const bundle of fbBundles) {
-        const keywords = bundle.groups.map(g => g.rawName);
+        const keys = bundle.groups.map(g => g.id);
         const tooltip = bundle.groups.map(g => g.rawName).join(', ');
-        // Dùng escapeHtml (không escapeAttr) — JSON luôn chứa " phải convert → &quot;
-        panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="cat" data-category="${escapeHtml(bundle.category)}" data-keywords="${escapeHtml(JSON.stringify(keywords))}" title="${escapeHtml(tooltip)}">
+        panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="cat" data-category="${escapeHtml(bundle.category)}" data-keys="${escapeHtml(JSON.stringify(keys))}" title="${escapeHtml(tooltip)}">
           <input type="checkbox" onchange="onChannelChange(${pid})"> ${xekoIcon('users')} ${escapeHtml(bundle.category)} <span style="color:#888; font-size:12px;">(${bundle.groups.length} nhóm)</span>
           <span class="ch-tag fb">FB</span>
         </label>`;
@@ -4177,8 +4176,8 @@
         const fbNames = (selection[pKey].fb || []).map(c => {
           if (c.id === 'custom') return `Group FB ${getFbGroupDisplayName(c.groupId)}`;
           if (c.id === 'cat') {
-            const kws = c.keywords || [];
-            return `📁 ${c.category} (${kws.length} nhóm)`;
+            const keys = c.groupKeys || [];
+            return `📁 ${c.category} (${keys.length} nhóm)`;
           }
           const ch = (p.fb || []).find(f => f.id === c.id);
           return ch ? ch.name : c.id;
@@ -4233,16 +4232,16 @@
             selected[profile].fb.push({ id: 'custom', groupId: gid });
           });
         } else if (chid === 'cat') {
-          // Bundle theo category — keywords là array tên nhóm raw từ data attr
-          let keywords = [];
-          const raw = item.dataset.keywords || '[]';
-          try { keywords = JSON.parse(raw); } catch (e) {
-            console.warn('[share-to-groups] parse data-keywords fail', { raw, err: e.message });
+          // Bundle theo category — parse group keys để lookup FB ID & đăng riêng từng nhóm
+          let groupKeys = [];
+          const raw = item.dataset.keys || '[]';
+          try { groupKeys = JSON.parse(raw); } catch (e) {
+            console.warn('[category-bundle] parse data-keys fail', { raw, err: e.message });
           }
-          if (!Array.isArray(keywords) || keywords.length === 0) {
-            console.warn('[share-to-groups] empty keywords for category', item.dataset.category, { raw });
+          if (!Array.isArray(groupKeys) || groupKeys.length === 0) {
+            console.warn('[category-bundle] empty keys for category', item.dataset.category, { raw });
           }
-          selected[profile].fb.push({ id: 'cat', category: item.dataset.category || '', keywords });
+          selected[profile].fb.push({ id: 'cat', category: item.dataset.category || '', groupKeys });
         } else {
           selected[profile].fb.push({ id: chid });
         }
@@ -4267,45 +4266,37 @@
       const activeSel = selected[currentProfile] || { fb: [], zalo: [] };
       const catSels = (activeSel.fb || []).filter(c => c.id === 'cat');
 
+      // Category bundle → gom group keys → lookup FB ID → đẩy vào _customGroupIds
+      // (path cũ: đăng riêng từng nhóm). Bỏ flow share-to-group cho ổn định.
+      const catGroupKeys = [];
+      const seenKey = new Set();
+      for (const c of catSels) {
+        for (const k of (c.groupKeys || [])) {
+          if (!seenKey.has(k)) { seenKey.add(k); catGroupKeys.push(k); }
+        }
+      }
+      const catGroupFbIds = catGroupKeys.map(key => {
+        const g = (channelsData.fbGroups || []).find(x => x.key === key);
+        return g ? g.id : null;
+      }).filter(Boolean);
+
+      const fbIds = (activeSel.fb || []).filter(c => c.id !== 'custom' && c.id !== 'cat').map(c => c.id);
+
+      const specialIds = ['personal', 'asale', 'tongkho'];
+      const standardIds = fbIds.filter(id => specialIds.includes(id));
+
+      const manualCustomIds = (activeSel.fb || []).filter(c => c.id === 'custom').map(c => c.groupId);
+      window._customGroupIds = [...catGroupFbIds, ...manualCustomIds];
+
       let target = null;
-      if (catSels.length > 0) {
-        // Gom keywords từ tất cả category đã tick → dedup → cap 9
-        const merged = [];
-        const seen = new Set();
-        for (const c of catSels) {
-          for (const kw of (c.keywords || [])) {
-            const k = String(kw).trim();
-            if (!k || seen.has(k.toLowerCase())) continue;
-            seen.add(k.toLowerCase());
-            merged.push(k);
-          }
-        }
-        const finalKeywords = merged.slice(0, 9);
-        if (merged.length > 9) {
-          addBot(`⚠️ Bạn chọn ${merged.length} nhóm nhưng FB chỉ cho share tối đa 9, Xeko sẽ lấy 9 nhóm đầu nha.`);
-        }
-        target = 'personal-share-groups';
-        window._shareToGroupKeywords = finalKeywords;
-        window._customGroupIds = [];
-      } else {
-        window._shareToGroupKeywords = null;
-        const fbIds = (activeSel.fb || []).filter(c => c.id !== 'custom').map(c => c.id);
-
-        const specialIds = ['personal', 'asale', 'tongkho'];
-        const standardIds = fbIds.filter(id => specialIds.includes(id));
-
-        const manualCustomIds = (activeSel.fb || []).filter(c => c.id === 'custom').map(c => c.groupId);
-        window._customGroupIds = [...manualCustomIds];
-
-        if (standardIds.includes('personal') && standardIds.includes('asale') && standardIds.includes('tongkho')) {
-          target = 'all';
-        } else if (standardIds.includes('asale') && standardIds.includes('tongkho') && !standardIds.includes('personal')) {
-          target = 'allgroup';
-        } else if (standardIds.length === 1 && standardIds[0] === 'personal') {
-          target = 'personal';
-        } else if (standardIds.length === 1 && (standardIds[0] === 'asale' || standardIds[0] === 'tongkho')) {
-          target = standardIds[0];
-        }
+      if (standardIds.includes('personal') && standardIds.includes('asale') && standardIds.includes('tongkho')) {
+        target = 'all';
+      } else if (standardIds.includes('asale') && standardIds.includes('tongkho') && !standardIds.includes('personal')) {
+        target = 'allgroup';
+      } else if (standardIds.length === 1 && standardIds[0] === 'personal') {
+        target = 'personal';
+      } else if (standardIds.length === 1 && (standardIds[0] === 'asale' || standardIds[0] === 'tongkho')) {
+        target = standardIds[0];
       }
 
       currentTarget = target;
@@ -4600,10 +4591,6 @@
           if (groupId) formData.append('groupId', groupId);
           formData.append('batchId', sessionBatchId);
           if (currentProfile) formData.append('profile', currentProfile);
-          if (target === 'personal-share-groups') {
-            const kws = window._shareToGroupKeywords || [];
-            formData.append('groupKeywords', JSON.stringify(kws));
-          }
           await appendImages(formData, filesToUpload);
 
           const targetLabel = (() => {
@@ -4612,10 +4599,6 @@
             if (target === 'shortcut') {
               const scMap = { asale: 'Asale', tongkho: 'Tổng Kho' };
               return `Group <strong>${scMap[groupId] || groupId}</strong> (profile <strong>${currentProfile}</strong>)`;
-            }
-            if (target === 'personal-share-groups') {
-              const kws = window._shareToGroupKeywords || [];
-              return `trang cá nhân + chia sẻ lên <strong>${kws.length} nhóm</strong> (${kws.join(', ')})`;
             }
             return target;
           })();
@@ -4900,14 +4883,8 @@
 
       try {
         if (target) {
-          const extra = { target, groupId };
-          if (target === 'personal-share-groups') {
-            extra.groupKeywords = JSON.stringify(window._shareToGroupKeywords || []);
-          }
-          const data = await postSchedule(extra);
-          const label = target === 'personal-share-groups'
-            ? `FB Cá nhân + chia sẻ ${(window._shareToGroupKeywords || []).length} nhóm`
-            : (TARGET_LABELS[currentTarget] || target);
+          const data = await postSchedule({ target, groupId });
+          const label = TARGET_LABELS[currentTarget] || target;
           if (data.success) scheduled.push(label);
           else errors.push(`${label}: ${data.error}`);
         }
