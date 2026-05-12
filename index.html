@@ -8077,15 +8077,6 @@
           console.warn('[SW] registration failed:', err);
         });
       });
-      // SW báo có version mới → reload để nạp HTML/JS mới (guard tránh loop)
-      let __xekoReloaded = false;
-      navigator.serviceWorker.addEventListener('message', (evt) => {
-        if (evt.data?.type === 'SW_UPDATED' && !__xekoReloaded) {
-          __xekoReloaded = true;
-          console.info('[SW] updated to', evt.data.version, '— reloading');
-          location.reload();
-        }
-      });
     }
 
     // Capture install prompt; surface a small floating button on mobile
