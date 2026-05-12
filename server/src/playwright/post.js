@@ -1054,4 +1054,4 @@ async function closeBrowser() {
   }
 }
 
-module.exports = { setProfile, profileExists, getActiveProfile, postToPersonal, postToGroup, postPersonalAndShareToGroups, closeBrowser };
+module.exports = { setProfile, profileExists, getActiveProfile, getBrowser, postToPersonal, postToGroup, postPersonalAndShareToGroups, closeBrowser };

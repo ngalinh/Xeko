@@ -23,6 +23,8 @@ const crypto = require('crypto');
 const fs = require('fs');
 
 const playwright = require('./src/playwright/post');
+const scrape = require('./src/playwright/scrape');
+const scrapeStore = require('./src/database/scrape-store');
 const salework = require('./src/playwright/salework');
 const sessionCheck = require('./src/utils/session-check');
 const loginHistory = require('./src/utils/login-history');
@@ -230,6 +232,50 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
       cleanupFiles(imagePaths);
     }
   })();
+});
+
+// ===== SCRAPE FACEBOOK =====
+app.post('/api/scrape/profile', async (req, res) => {
+  const { profileUrl, limit, save } = req.body || {};
+  if (!profileUrl) return res.status(400).json({ error: 'Thiếu profileUrl' });
+
+  let activeProfile;
+  try {
+    activeProfile = playwright.getActiveProfile();
+  } catch {
+    return res.status(400).json({ error: 'Chưa chọn profile!' });
+  }
+
+  const jobId = createJob();
+  res.json({ jobId, status: 'pending' });
+
+  (async () => {
+    try {
+      const result = await scrape.scrapeProfile({ profileUrl, limit });
+      if (save !== false && result.posts.length > 0) {
+        scrapeStore.saveScrapedBatch({
+          sourceType: 'profile',
+          sourceUrl: result.source_url,
+          scrapedAt: result.scraped_at,
+          profile: activeProfile.name,
+          posts: result.posts,
+        });
+      }
+      setJobResult(jobId, result);
+    } catch (e) {
+      logger.error(`[scrape/profile] job ${jobId} failed: ${e.message}`);
+      setJobError(jobId, e.message);
+    }
+  })();
+});
+
+app.get('/api/scrape/posts', (req, res) => {
+  const sourceType = String(req.query.sourceType || 'profile');
+  const sourceUrl = String(req.query.sourceUrl || '');
+  const limit = parseInt(req.query.limit, 10) || 100;
+  if (!sourceUrl) return res.status(400).json({ error: 'Thiếu sourceUrl' });
+  const posts = scrapeStore.listScrapedBySource(sourceType, sourceUrl, limit);
+  res.json({ count: posts.length, posts });
 });
 
 // ===== ĐĂNG ZALO =====
