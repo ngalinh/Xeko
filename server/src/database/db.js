@@ -51,32 +51,4 @@ if (!cols.includes('batch_id')) {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_post_logs_batch_id ON post_logs(batch_id)`);
 }
 
-// Bang scraped_posts: luu bai viet scrape duoc tu FB (profile/page/group)
-// UNIQUE(source_type, source_url, post_id) cho phep cung 1 post xuat hien
-// trong nhieu source (vd: profile + group reshare) ma khong va cham.
-db.exec(`
-  CREATE TABLE IF NOT EXISTS scraped_posts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    scraped_at TEXT NOT NULL,
-    source_type TEXT NOT NULL,
-    source_url TEXT NOT NULL,
-    post_id TEXT,
-    permalink TEXT,
-    author_name TEXT,
-    author_url TEXT,
-    text TEXT,
-    time_text TEXT,
-    images TEXT,
-    reaction_count INTEGER,
-    comment_count INTEGER,
-    share_count INTEGER,
-    profile TEXT,
-    UNIQUE(source_type, source_url, post_id)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_scraped_posts_scraped_at ON scraped_posts(scraped_at);
-  CREATE INDEX IF NOT EXISTS idx_scraped_posts_source ON scraped_posts(source_type, source_url);
-  CREATE INDEX IF NOT EXISTS idx_scraped_posts_post_id ON scraped_posts(post_id);
-`);
-
 module.exports = db;
