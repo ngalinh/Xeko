@@ -4720,6 +4720,7 @@
               zf.append('zaloAccountName', zaloAccount);
               zf.append('groupName', g.name);
               zf.append('message', message);
+              zf.append('batchId', sessionBatchId);
               await appendImages(zf, filesToUpload);
               const zr = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: zf });
               const zd = await parseJson(zr);
@@ -7948,12 +7949,14 @@
       }).catch(() => {});
 
       // 1. Submit tất cả jobs (modal vẫn mở để đọc ảnh từ DOM)
+      const repostBatchId = crypto.randomUUID();
       const jobs = [];
       for (let i = 0; i < channels.length; i++) {
         const ch = channels[i];
         submitBtn.innerHTML = `${xekoIcon('clock')} ${i + 1}/${channels.length}...`;
         try {
           const fd = await _buildRepostFormData(message);
+          fd.append('batchId', repostBatchId);
           if (ch.platform === 'zalo') {
             fd.append('zaloAccountName', ch.zaloAccount || '');
             fd.append('groupName', ch.name || '');
