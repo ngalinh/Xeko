@@ -1,5 +1,5 @@
 /* Xeko PWA service worker */
-const VERSION = 'xeko-pwa-v17';
+const VERSION = 'xeko-pwa-v16';
 const SHELL_CACHE = `shell-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
@@ -24,14 +24,7 @@ self.addEventListener('activate', (event) => {
           .filter((k) => k !== SHELL_CACHE && k !== RUNTIME_CACHE)
           .map((k) => caches.delete(k))
       )
-    ).then(() => self.clients.claim()).then(async () => {
-      // Page reload hết tab đang mở — clients.claim() chỉ control SW mới,
-      // không nạp lại JS cũ đang chạy. Cần postMessage cho client tự reload.
-      const clients = await self.clients.matchAll({ type: 'window' });
-      for (const client of clients) {
-        client.postMessage({ type: 'SW_UPDATED', version: VERSION });
-      }
-    })
+    ).then(() => self.clients.claim())
   );
 });
 
