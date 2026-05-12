@@ -4081,7 +4081,8 @@
       for (const bundle of fbBundles) {
         const keywords = bundle.groups.map(g => g.rawName);
         const tooltip = bundle.groups.map(g => g.rawName).join(', ');
-        panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="cat" data-category="${escapeAttr(bundle.category)}" data-keywords="${escapeAttr(JSON.stringify(keywords))}" title="${escapeAttr(tooltip)}">
+        // Dùng escapeHtml (không escapeAttr) — JSON luôn chứa " phải convert → &quot;
+        panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="cat" data-category="${escapeHtml(bundle.category)}" data-keywords="${escapeHtml(JSON.stringify(keywords))}" title="${escapeHtml(tooltip)}">
           <input type="checkbox" onchange="onChannelChange(${pid})"> ${xekoIcon('users')} ${escapeHtml(bundle.category)} <span style="color:#888; font-size:12px;">(${bundle.groups.length} nhóm)</span>
           <span class="ch-tag fb">FB</span>
         </label>`;
