@@ -512,9 +512,85 @@ function listenForPostUrl(page, { timeoutMs = 20000, debug = false } = {}) {
   });
 }
 
-// Trong dialog "Cài đặt bài viết": click "Chia sẻ lên nhóm" → check checkbox theo
-// keyword (substring, case-insensitive) → click "Xong". FB không có ô search nên
-// phải scroll lazy-load. Giới hạn 9 nhóm/lần (FB enforce).
+// Click row "Chia sẻ lên nhóm" trong dialog "Cài đặt bài viết".
+// :has-text() khớp cả parent → click có thể trượt → walk DOM từ text node lên row
+// clickable thật ([role="button"]/[role="listitem"]).
+async function clickShareToGroupsRow(page) {
+  const okJs = await page.evaluate(() => {
+    const dialogs = document.querySelectorAll('div[role="dialog"]');
+    const dialog = dialogs[dialogs.length - 1];
+    if (!dialog) return { ok: false, reason: 'no-dialog' };
+
+    const TARGETS = ['Chia sẻ lên nhóm', 'Share to groups', 'Share to Groups'];
+    const candidates = dialog.querySelectorAll('span, h2, h3, h4, div');
+    for (const el of candidates) {
+      const text = (el.textContent || '').trim();
+      if (!TARGETS.includes(text)) continue;
+
+      let row = el;
+      for (let i = 0; i < 10 && row.parentElement; i++) {
+        row = row.parentElement;
+        const role = row.getAttribute('role');
+        if (role === 'button' || role === 'listitem' || row.tagName === 'BUTTON') {
+          row.click();
+          return { ok: true, via: role || row.tagName };
+        }
+      }
+      // Fallback: click chính text element
+      el.click();
+      return { ok: true, via: 'text-direct' };
+    }
+    return { ok: false, reason: 'text-not-found' };
+  });
+
+  if (okJs.ok) {
+    logger.info(`shareToGroups: click "Chia sẻ lên nhóm" OK (${okJs.via})`);
+    return true;
+  }
+  logger.warn(`shareToGroups: click "Chia sẻ lên nhóm" FAIL (${okJs.reason})`);
+  return false;
+}
+
+// Đợi dialog thứ cấp "Chia sẻ lên nhóm" (list checkbox) xuất hiện
+async function waitForShareDialog(page, timeoutMs = 10000) {
+  try {
+    await page.waitForFunction(() => {
+      const dialogs = document.querySelectorAll('div[role="dialog"]');
+      const last = dialogs[dialogs.length - 1];
+      if (!last) return false;
+      const text = last.textContent || '';
+      return (text.includes('Chọn nhóm') || text.includes('Choose groups') || text.includes('Choose group')) &&
+             last.querySelectorAll('[role="checkbox"]').length > 0;
+    }, { timeout: timeoutMs });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Click "Xong" trong dialog chia sẻ nhóm
+async function clickXongInShareDialog(page) {
+  const ok = await page.evaluate(() => {
+    const dialogs = document.querySelectorAll('div[role="dialog"]');
+    const dialog = dialogs[dialogs.length - 1];
+    if (!dialog) return false;
+    const candidates = dialog.querySelectorAll('div[role="button"], button, [aria-label]');
+    for (const btn of candidates) {
+      const text = (btn.textContent || '').trim();
+      const label = btn.getAttribute('aria-label') || '';
+      if (text === 'Xong' || text === 'Done' || label === 'Xong' || label === 'Done') {
+        btn.click();
+        return true;
+      }
+    }
+    return false;
+  });
+  return ok;
+}
+
+// Trong dialog "Cài đặt bài viết": click "Chia sẻ lên nhóm" → tick checkbox theo
+// keyword (substring, case-insensitive) → "Xong". FB không có ô search → scroll
+// lazy-load. Giới hạn 9 nhóm/lần.
 async function shareToGroupsInSettings(page, keywords) {
   const list = (keywords || []).map(k => String(k).trim()).filter(Boolean);
   if (list.length === 0) return { selected: 0, missed: [] };
@@ -524,17 +600,33 @@ async function shareToGroupsInSettings(page, keywords) {
   const targets = list.slice(0, 9);
   logger.info(`shareToGroups: chia sẻ lên ${targets.length} nhóm — ${targets.join(', ')}`);
 
-  const opened = await tryClick(page, [
-    'div[role="dialog"] div[role="button"]:has-text("Chia sẻ lên nhóm")',
-    'div[role="dialog"] div[aria-label*="Chia sẻ lên nhóm"]',
-    'div[role="dialog"] span:has-text("Chia sẻ lên nhóm")',
-  ], 'Mở "Chia sẻ lên nhóm"');
-
-  if (!opened) {
-    logger.warn('shareToGroups: không tìm thấy nút "Chia sẻ lên nhóm" — bỏ qua');
+  // Đợi dialog "Cài đặt bài viết" render đủ row trước khi tìm "Chia sẻ lên nhóm"
+  try {
+    await page.waitForFunction(() => {
+      const dialogs = document.querySelectorAll('div[role="dialog"]');
+      const last = dialogs[dialogs.length - 1];
+      if (!last) return false;
+      const text = last.textContent || '';
+      return text.includes('Chia sẻ lên nhóm') || text.includes('Share to groups');
+    }, { timeout: 15000 });
+  } catch {
+    await page.screenshot({ path: path.resolve(__dirname, `../../logs/debug-no-share-row-${Date.now()}.png`) }).catch(() => {});
+    logger.warn('shareToGroups: không thấy row "Chia sẻ lên nhóm" trong "Cài đặt bài viết"');
     return { selected: 0, missed: targets };
   }
-  await randomDelay(1500, 2500);
+  await randomDelay(800, 1500);
+
+  if (!(await clickShareToGroupsRow(page))) {
+    await page.screenshot({ path: path.resolve(__dirname, `../../logs/debug-share-click-${Date.now()}.png`) }).catch(() => {});
+    return { selected: 0, missed: targets };
+  }
+
+  if (!(await waitForShareDialog(page))) {
+    await page.screenshot({ path: path.resolve(__dirname, `../../logs/debug-share-dialog-${Date.now()}.png`) }).catch(() => {});
+    logger.warn('shareToGroups: dialog "Chọn nhóm" không mở sau khi click — bỏ qua');
+    return { selected: 0, missed: targets };
+  }
+  await randomDelay(500, 1000);
 
   const selected = [];
   const missed = [];
@@ -544,18 +636,91 @@ async function shareToGroupsInSettings(page, keywords) {
   }
 
   await randomDelay(500, 1000);
-  const done = await tryClick(page, [
-    'div[role="dialog"] div[aria-label="Xong"]',
-    'div[role="dialog"] div[role="button"]:has-text("Xong")',
-    'div[role="dialog"] span:has-text("Xong")',
-  ], 'Click "Xong"');
-  if (!done) {
+  if (!(await clickXongInShareDialog(page))) {
     logger.warn('shareToGroups: không click được "Xong" — fallback Enter');
     await page.keyboard.press('Enter');
+  } else {
+    logger.info('shareToGroups: click "Xong" OK');
   }
   await randomDelay(1500, 2500);
 
   return { selected: selected.length, missed };
+}
+
+// Submit flow RIÊNG cho path share-to-group — tách hẳn submitPost của postToPersonal
+// để không ảnh hưởng đăng riêng lẻ. Click Tiếp → Cài đặt bài viết → Chia sẻ lên nhóm
+// → tick group → Xong → Đăng.
+async function submitPostAndShareGroups(page, keywords) {
+  const urlPromise = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
+
+  await page.evaluate(() => {
+    document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
+  });
+  await randomDelay(1000, 1500);
+
+  // Bước 1: click "Tiếp" để vào "Cài đặt bài viết". KHÔNG fallback "Đăng" — sẽ skip
+  // mất bước chọn nhóm.
+  const step1 = await tryClick(page, [
+    'div[aria-label="Tiếp"]',
+    'div[aria-label="Next"]',
+  ], 'Bước 1 - Tiếp');
+
+  if (!step1) {
+    logger.warn('submitPostAndShareGroups: không click được "Tiếp" — fallback Tab+Enter');
+    for (let i = 0; i < 5; i++) {
+      await page.keyboard.press('Tab');
+      await randomDelay(200, 400);
+    }
+    await page.keyboard.press('Enter');
+  }
+  await randomDelay(2000, 4000);
+
+  // Bước 2: trong "Cài đặt bài viết", click "Chia sẻ lên nhóm" → tick group → Xong
+  const shareResult = await shareToGroupsInSettings(page, keywords);
+  logger.info(`submitPostAndShareGroups: shared ${shareResult.selected}/${keywords.length}${shareResult.missed.length ? ` (miss: ${shareResult.missed.join(', ')})` : ''}`);
+
+  // Bước 3: click "Đăng" để post
+  await page.evaluate(() => {
+    document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
+  });
+  await randomDelay(1000, 1500);
+
+  const step3 = await tryClick(page, [
+    'div[aria-label="Đăng"]',
+    'div[aria-label="Post"]',
+  ], 'Bước 3 - Đăng');
+
+  if (!step3) {
+    await page.evaluate(() => {
+      const buttons = document.querySelectorAll('div[role="button"]');
+      for (const btn of buttons) {
+        const label = btn.getAttribute('aria-label');
+        if (label === 'Đăng' || label === 'Post') {
+          btn.click();
+          return;
+        }
+      }
+      const spans = document.querySelectorAll('span');
+      for (const span of spans) {
+        if (span.textContent.trim() === 'Đăng' || span.textContent.trim() === 'Post') {
+          span.closest('div[role="button"]')?.click();
+          return;
+        }
+      }
+    });
+  }
+
+  await randomDelay(5000, 8000);
+
+  const stillOpen = await page.$('div[role="dialog"] span:has-text("Tạo bài viết"), div[role="dialog"] span:has-text("Cài đặt bài viết")');
+  if (stillOpen) {
+    await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-share-submit-failed.png') }).catch(() => {});
+    return { success: false, sharedGroups: shareResult.selected };
+  }
+
+  const postUrl = await urlPromise;
+  if (!postUrl) logger.warn('submitPostAndShareGroups: không bắt được postUrl từ GraphQL (timeout)');
+  return { success: true, postUrl, sharedGroups: shareResult.selected, missedGroups: shareResult.missed };
 }
 
 // Scroll dialog cuối cùng cho đến khi tìm thấy checkbox của nhóm chứa keyword.
@@ -606,10 +771,7 @@ async function selectGroupCheckbox(page, keyword) {
   return false;
 }
 
-async function submitPost(page, opts = {}) {
-  const { shareToGroupKeywords = [] } = opts;
-  const hasGroups = shareToGroupKeywords.length > 0;
-
+async function submitPost(page) {
   // Phải attach listener TRƯỚC khi click — response GraphQL về sau vài trăm ms
   const urlPromise = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
 
@@ -618,22 +780,14 @@ async function submitPost(page, opts = {}) {
   });
   await randomDelay(1000, 1500);
 
-  // Khi cần chia sẻ nhóm phải bám "Tiếp" để vào trang "Cài đặt bài viết";
-  // bỏ fallback "Đăng" vì sẽ skip mất bước chọn nhóm.
-  const step1Selectors = hasGroups
-    ? ['div[aria-label="Tiếp"]', 'div[aria-label="Next"]']
-    : [
-        'div[aria-label="Tiếp"]',
-        'div[aria-label="Next"]',
-        'div[aria-label="Đăng"]',
-        'div[aria-label="Post"]',
-      ];
-  const step1 = await tryClick(page, step1Selectors, 'Bước 1');
+  const step1 = await tryClick(page, [
+    'div[aria-label="Tiếp"]',
+    'div[aria-label="Next"]',
+    'div[aria-label="Đăng"]',
+    'div[aria-label="Post"]',
+  ], 'Bước 1');
 
   if (!step1) {
-    if (hasGroups) {
-      logger.warn('submitPost: không tìm thấy "Tiếp" — không chia sẻ nhóm được, fallback Enter');
-    }
     for (let i = 0; i < 5; i++) {
       await page.keyboard.press('Tab');
       await randomDelay(200, 400);
@@ -642,10 +796,6 @@ async function submitPost(page, opts = {}) {
   }
 
   await randomDelay(2000, 4000);
-
-  if (hasGroups && step1) {
-    await shareToGroupsInSettings(page, shareToGroupKeywords);
-  }
 
   await page.evaluate(() => {
     document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
@@ -803,15 +953,15 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
     }
     await randomDelay(1000, 2000);
 
-    const result = await submitPost(page, { shareToGroupKeywords: kwList });
+    const result = await submitPostAndShareGroups(page, kwList);
     if (!result.success) {
       const hint = (!message && imagePaths.length > 0)
         ? 'FB không cho đăng bài chỉ có ảnh không text. Bạn thêm caption rồi đăng lại nha!'
         : funMsg.errPost();
-      throw new Error(`${hint} (xem logs/debug-failed.png)`);
+      throw new Error(`${hint} (xem logs/debug-share-submit-failed.png)`);
     }
-    logger.info(`${tag} xong (${Date.now() - t0}ms) ✅${result.postUrl ? ` postUrl=${result.postUrl}` : ''}`);
-    return { success: true, target: 'personal+groups', postUrl: result.postUrl || null, groups: kwList };
+    logger.info(`${tag} xong (${Date.now() - t0}ms) ✅ shared=${result.sharedGroups}/${kwList.length}${result.postUrl ? ` postUrl=${result.postUrl}` : ''}`);
+    return { success: true, target: 'personal+groups', postUrl: result.postUrl || null, groups: kwList, sharedGroups: result.sharedGroups, missedGroups: result.missedGroups };
   } catch (error) {
     logger.error(`${tag} FAIL sau ${Date.now() - t0}ms: ${error.message}`);
     return { success: false, error: error.message };
