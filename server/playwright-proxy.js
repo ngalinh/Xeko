@@ -176,6 +176,18 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
   );
 }
 
+async function scrapeProfile({ profileUrl, limit = 20, save = true } = {}) {
+  const res = await callLocal('POST', '/api/scrape/profile', { profileUrl, limit, save });
+  if (res.jobId) return pollLocalJob(res.jobId);
+  return res;
+}
+
+async function listScrapedPosts({ sourceType = 'profile', sourceUrl, limit = 100 } = {}) {
+  if (!sourceUrl) throw new Error('Thiếu sourceUrl');
+  const qs = new URLSearchParams({ sourceType, sourceUrl, limit: String(limit) }).toString();
+  return callLocal('GET', `/api/scrape/posts?${qs}`);
+}
+
 async function closeBrowser() {
   // Không cần làm gì trên server — browser chạy ở local
   return Promise.resolve();
@@ -189,5 +201,7 @@ module.exports = {
   postToGroup,
   postPersonalAndShareToGroups,
   postToZaloGroup,
+  scrapeProfile,
+  listScrapedPosts,
   closeBrowser,
 };
