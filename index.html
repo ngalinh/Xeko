@@ -2717,6 +2717,9 @@
         <polyline points="16 17 21 12 16 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         <line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
       </symbol>
+      <symbol id="ic-back" viewBox="0 0 24 24">
+        <polyline points="15 18 9 12 15 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
       <symbol id="ic-check" viewBox="0 0 24 24">
         <path d="m5 12 5 5L20 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
       </symbol>
@@ -2819,7 +2822,7 @@
             <div id="currentUserEmail" style="font-weight:600; color:#3B82F6; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">-</div>
             <div id="currentUserRole" style="color:#888; font-size:11px;">-</div>
           </div>
-          <button onclick="logoutXeko()" title="Đăng xuất" aria-label="Đăng xuất" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:#fff;border:none;border-radius:999px;cursor:pointer;color:#1E3A8A;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,0.05);"><svg class="xi" style="width:15px;height:15px;"><use href="#ic-logout"/></svg></button>
+          <button onclick="goBackXeko()" title="Quay lại" aria-label="Quay lại" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:#fff;border:none;border-radius:999px;cursor:pointer;color:#1E3A8A;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,0.05);"><svg class="xi" style="width:15px;height:15px;"><use href="#ic-back"/></svg></button>
         </div>
       </div>
     </div>
@@ -8347,8 +8350,12 @@
       if (navPerm) navPerm.style.display = user.isXekoAdmin ? '' : 'none';
     }
 
-    function logoutXeko() {
-      window.location.href = '/admin/login.html';
+    function goBackXeko() {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = '/';
+      }
     }
 
     // ====== Tab Phân quyền ======
