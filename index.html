@@ -7237,11 +7237,10 @@
         if (histRows.length > 0) {
           window._dashRows = histRows;
 
-          // Gom các dòng liên tiếp cùng batch_id HOẶC cùng nội dung message VÀ cùng hình ảnh thành "phiên đăng"
-          const sameImages = (a, b) => {
-            const ai = Array.isArray(a) ? a : [], bi = Array.isArray(b) ? b : [];
-            if (ai.length !== bi.length) return false;
-            return JSON.stringify([...ai].sort()) === JSON.stringify([...bi].sort());
+          // Gom các dòng liên tiếp cùng batch_id HOẶC cùng nội dung message VÀ cùng số ảnh thành "phiên đăng"
+          const sameImageCount = (a, b) => {
+            const ac = Array.isArray(a) ? a.length : 0, bc = Array.isArray(b) ? b.length : 0;
+            return ac === bc;
           };
           const groups = [];
           {
@@ -7250,7 +7249,7 @@
               const row = histRows[i];
               const merge = current && (
                 (current.anchor.batch_id && row.batch_id && current.anchor.batch_id === row.batch_id) ||
-                (current.anchor.message && row.message && current.anchor.message === row.message && sameImages(current.anchor.images, row.images))
+                (current.anchor.message && row.message && current.anchor.message === row.message && sameImageCount(current.anchor.images, row.images))
               );
               if (merge) {
                 current.rows.push(row);
