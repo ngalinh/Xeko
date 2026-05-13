@@ -4137,6 +4137,9 @@
       postMode = mode;
       const modeLabel = mode === 'now' ? 'Đăng ngay' : 'Lên lịch';
       addUser(modeLabel);
+      // Ack ngắn trước khi render panel kênh (panel hơi nặng, ack giúp user
+      // thấy click được ghi nhận liền thay vì chờ panel build xong)
+      addBot(mode === 'now' ? 'Ok, đăng liền nha 👌' : 'Ok, mình hẹn giờ nha 🕐');
       // STEP 4: Chon noi dang
       showTargetSelect();
     }
@@ -4256,6 +4259,10 @@
 
       panelHtml += `</div>`;
 
+      // Inline error slot — hiển thị validation fail trong panel thay vì
+      // spawn thêm bot bubble (tránh spam khi user bấm "Tiếp tục" liên tục)
+      panelHtml += `<div class="channel-error" id="channelError_${pid}" style="display:none; color:#dc2626; font-size:13px; margin-top:10px; padding:8px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px;"></div>`;
+
       // Action buttons
       panelHtml += `<div class="msg-buttons" style="margin-top:12px;">
         <button class="msg-btn" onclick="confirmChannelSelection(${pid})">${xekoIcon('check')} Tiếp tục</button>
@@ -4317,6 +4324,17 @@
       if (el) el.style.display = show ? 'block' : 'none';
     }
 
+    function setChannelError(pid, msg) {
+      const el = document.getElementById(`channelError_${pid}`);
+      if (!el) return;
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+    function clearChannelError(pid) {
+      const el = document.getElementById(`channelError_${pid}`);
+      if (el) el.style.display = 'none';
+    }
+
 
     function buildChannelSummary(selection) {
       if (!selection) return '';
@@ -4351,9 +4369,11 @@
       const panel = document.getElementById(`channelPanel_${pid}`);
       if (!panel) return;
 
+      clearChannelError(pid);
+
       const checkedItems = panel.querySelectorAll('.channel-item input:checked');
       if (checkedItems.length === 0) {
-        addBot('Xeko cần bạn tick ít nhất 1 kênh thì mới đăng được nha!');
+        setChannelError(pid, 'Bạn chọn ít nhất 1 kênh thì Xeko mới đăng được nha!');
         return;
       }
 
@@ -4361,7 +4381,7 @@
       const customGroupInput = document.getElementById(`customGroupId_${pid}`);
       const hasCustom = panel.querySelector('.channel-item[data-chid="custom"] input:checked');
       if (hasCustom && customGroupInput && !customGroupInput.value.trim()) {
-        addBot('Bạn nhập Group ID cho "Group khác" giúp Xeko với nha!');
+        setChannelError(pid, 'Bạn nhập Group ID cho "Group khác" giúp Xeko với nha!');
         return;
       }
 
