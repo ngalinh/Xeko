@@ -1605,10 +1605,87 @@ async function _qpPickOneGroup(page, keyword) {
 }
 
 // --- Step 6: click "Đăng" và chờ dialog đóng ---
+// Pattern y hệt "Xong" step 5c: aria-label="Đăng" primary, walk-up text fallback.
+// Cần phân biệt với "Đăng ngay" (text trong row "Lịch đăng") → dùng exact match.
+// Cũng phân biệt "Lưu" (button bên cạnh) — aria-label đã tách rõ.
+// Verify: chờ dialog "Cài đặt bài viết" và "Tạo bài viết" đều biến mất (post xong).
+// Bắt postUrl từ GraphQL listener (reuse listenForPostUrl, đã proven).
 async function qpStep6Submit(page, steps) {
-  // TODO(selector): chờ outerHTML nút "Đăng" + cách detect dialog đóng
-  await _qpLog(steps, 'Step 6: click "Đăng" — selector chưa cấu hình');
-  return { success: false };
+  // Listener phải attach TRƯỚC khi click — response GraphQL về sau vài trăm ms
+  const urlPromise = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
+
+  let clickedVia = null;
+
+  // A. aria-label exact
+  for (const lbl of ['Đăng', 'Post']) {
+    try {
+      await page.locator('div[role="dialog"]').last().locator(`[aria-label="${lbl}"]`).first().click({ timeout: 3000 });
+      clickedVia = `aria-label="${lbl}"`;
+      break;
+    } catch (_) {}
+  }
+
+  // B. Walk-up exact text "Đăng"/"Post" → role=button
+  if (!clickedVia) {
+    const ok = await page.evaluate(() => {
+      const dialogs = document.querySelectorAll('div[role="dialog"]');
+      const dialog = dialogs[dialogs.length - 1];
+      if (!dialog) return false;
+      for (const s of dialog.querySelectorAll('span')) {
+        const t = (s.textContent || '').trim();
+        if (t !== 'Đăng' && t !== 'Post') continue;
+        let el = s;
+        for (let i = 0; i < 8 && el.parentElement; i++) {
+          el = el.parentElement;
+          if (el.getAttribute('role') === 'button') {
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 || r.height === 0) continue;
+            el.click();
+            return true;
+          }
+        }
+      }
+      return false;
+    });
+    if (ok) clickedVia = 'walk-up text→role=button';
+  }
+
+  if (!clickedVia) {
+    await _qpLog(steps, 'Step 6: KHÔNG tìm thấy nút "Đăng"');
+    return { success: false, error: 'no Đăng button' };
+  }
+  await _qpLog(steps, `Step 6: click "Đăng" OK (${clickedVia})`);
+
+  // Verify: cả dialog "Cài đặt bài viết" và "Tạo bài viết" phải đóng
+  let dialogClosed = false;
+  try {
+    await page.waitForFunction(() => {
+      const dialogs = document.querySelectorAll('div[role="dialog"]');
+      for (const d of dialogs) {
+        const t = d.textContent || '';
+        if (t.includes('Cài đặt bài viết') || t.includes('Post settings')) return false;
+        if (t.includes('Tạo bài viết') || t.includes('Create post') || t.includes('Create Post')) return false;
+      }
+      return true;
+    }, { timeout: 30000 });
+    dialogClosed = true;
+  } catch {}
+
+  if (!dialogClosed) {
+    const shot = await _qpScreenshot(page, 'step6-still-open');
+    await _qpLog(steps, `Step 6: dialog không đóng sau 30s (screenshot=${shot}) — có thể FB hiển thị lỗi/captcha`);
+    return { success: false, error: `dialog không đóng (screenshot=${shot})` };
+  }
+
+  await _qpLog(steps, 'Step 6: dialog đã đóng — post submitted');
+  const postUrl = await urlPromise;
+  if (postUrl) {
+    await _qpLog(steps, `Step 6: postUrl = ${postUrl}`);
+  } else {
+    await _qpLog(steps, 'Step 6: không bắt được postUrl (GraphQL timeout) — vẫn coi là thành công vì dialog đóng');
+  }
+
+  return { success: true, postUrl };
 }
 
 /**
@@ -1683,9 +1760,14 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
       };
     }
 
-    // Nhánh chỉ đăng cá nhân: thẳng đến step 6 (skip Tiếp / Chia sẻ)
-    // TODO: FB UI mới có thể yêu cầu Tiếp → Cài đặt → Đăng kể cả không share.
-    //       Sẽ confirm khi build step 1+2 xong và test thực tế.
+    // Nhánh chỉ đăng cá nhân: vẫn phải qua "Tiếp" → "Cài đặt bài viết" → "Đăng"
+    // (FB UI mới không còn nút "Đăng" thẳng ở modal "Tạo bài viết", chỉ có "Tiếp")
+    if (!(await qpStep3ClickNext(page, steps))) {
+      const shot = await _qpScreenshot(page, 'step3-personal-fail');
+      return { success: false, error: `Step 3 (personal) fail (screenshot=${shot})`, steps };
+    }
+    await randomDelay(2000, 3500);
+
     const submit = await qpStep6Submit(page, steps);
     logger.info(`${tag} done personal-only (+${Date.now() - t0}ms)`);
     return {
