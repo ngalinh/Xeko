@@ -1191,7 +1191,7 @@ app.get('/api/me', async (req, res) => {
     roles: user.roles,
     isXekoAdmin: permissions.isXekoAdmin(user.email),
     isSuperAdmin: permissions.isSuperAdmin(user.email),
-    allProfiles: !!(info && info.allProfiles) || permissions.isXekoAdmin(user.email),
+    allProfiles: permissions.getAllowedProfileKeys(user.email) === null,
     allowedProfiles: permissions.getAllowedProfileKeys(user.email),
   });
 });

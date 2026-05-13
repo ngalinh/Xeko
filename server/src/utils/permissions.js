@@ -43,8 +43,8 @@ function load() {
       };
       save(parsed);
     } else {
+      // Only lock isXekoAdmin; let allProfiles + profiles[] be user-editable for super-admin.
       parsed.users[SUPER_ADMIN_EMAIL].isXekoAdmin = true;
-      parsed.users[SUPER_ADMIN_EMAIL].allProfiles = true;
     }
     return parsed;
   } catch (e) {
