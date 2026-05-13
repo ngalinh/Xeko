@@ -233,7 +233,8 @@ async function executePost({ profile, message, target, groupId, groupKeywords, i
   // Snapshot 1 lần ngay đầu — không gọi getActiveProfile() sau await (global có thể bị đổi)
   const _pData = playwright.getActiveProfile();
   const profileKey  = profile || _pData.key || '';
-  const profileName = _pData.name || profileKey;
+  // In proxy mode setProfile resolves the display name async, so read meta directly
+  const profileName = (loadProfilesMeta()[profileKey] || {}).name || _pData.name || profileKey;
 
   if (!batchId) batchId = crypto.randomUUID();
 
