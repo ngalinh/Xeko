@@ -3669,6 +3669,7 @@
 
     let currentProfile = null;
     let currentProfileName = null;
+    let _profileDisplayNames = {}; // key → display name map for chatbot
     let currentTarget = null;
     let selectedFiles = [];
     let step = 'welcome'; // welcome -> profile -> target -> compose
@@ -4023,6 +4024,7 @@
         const res = await fetch(BASE_URL + '/api/accounts');
         const data = await parseJson(res);
         const profiles = (data && data.facebook) || [];
+        profiles.forEach(p => { _profileDisplayNames[p.key] = p.name || p.key; });
 
         if (profiles.length === 0) {
           addBot(
@@ -4082,6 +4084,7 @@
       try {
         const res = await fetch(BASE_URL + '/api/accounts');
         const data = await parseJson(res);
+        data.facebook.forEach(p => { _profileDisplayNames[p.key] = p.name || p.key; });
         const buttons = data.facebook.map(p => ({
           label: `${xekoIcon('user')} ${p.name}`,
           handler: () => selectProfile(p.key),
@@ -4330,7 +4333,8 @@
         if (fbNames.length > 0) parts.push(`📘 ${fbNames.join(', ')}`);
         if (zaloNames.length > 0) parts.push(zaloNames.join(', '));
         if (parts.length > 0) {
-          summaryParts.push(`<strong>${pKey}:</strong> ${parts.join(' • ')}`);
+          const pLabel = _profileDisplayNames[pKey] || pKey;
+          summaryParts.push(`<strong>${pLabel}:</strong> ${parts.join(' • ')}`);
         }
       }
       return summaryParts.join('<br>');
@@ -4701,7 +4705,7 @@
       // Warn neu tab khac dang post cung profile (server mutex se serialize,
       // user co the bi delay)
       if (isOtherTabPosting(currentProfile)) {
-        addBot(`⚠️ Tab khác đang đăng bài profile <strong>${currentProfile}</strong>. Bài này sẽ chờ tab kia xong rồi mới chạy nha (server tự xếp hàng).`);
+        addBot(`⚠️ Tab khác đang đăng bài profile <strong>${currentProfileName}</strong>. Bài này sẽ chờ tab kia xong rồi mới chạy nha (server tự xếp hàng).`);
       }
       broadcastTabPostStart(currentProfile);
 
@@ -4715,7 +4719,7 @@
       const _pad = n => String(n).padStart(2,'0');
       const _activePostJob = {
         tempId: 'post-' + Date.now(),
-        profileName: currentProfile,
+        profileName: currentProfileName,
         timeLabel: `${_pad(_now.getHours())}:${_pad(_now.getMinutes())}:${_pad(_now.getSeconds())} ${_pad(_now.getDate())}/${_pad(_now.getMonth()+1)}/${_now.getFullYear()}`,
         message: message,
         ch: { type: target === 'personal' ? 'personal' : 'group', id: groupId || '', key: '', name: '' },
@@ -4749,11 +4753,11 @@
           await appendImages(formData, filesToUpload);
 
           const targetLabel = (() => {
-            if (!target || target === 'personal') return `trang cá nhân (<strong>${currentProfile}</strong>)`;
-            if (target === 'group') return `Group <strong>#${groupId}</strong> (profile <strong>${currentProfile}</strong>)`;
+            if (!target || target === 'personal') return `trang cá nhân (<strong>${currentProfileName}</strong>)`;
+            if (target === 'group') return `Group <strong>#${groupId}</strong> (profile <strong>${currentProfileName}</strong>)`;
             if (target === 'shortcut') {
               const scMap = { asale: 'Asale', tongkho: 'Tổng Kho' };
-              return `Group <strong>${scMap[groupId] || groupId}</strong> (profile <strong>${currentProfile}</strong>)`;
+              return `Group <strong>${scMap[groupId] || groupId}</strong> (profile <strong>${currentProfileName}</strong>)`;
             }
             return target;
           })();
@@ -4784,7 +4788,7 @@
           if (data.results) {
             data.results.forEach((r, i) => {
               if (r.success) {
-                let msg = `✅ Đăng lên <strong>${r.target}</strong> (profile <strong>${currentProfile}</strong>) xong rồi má ơi, content này xuất sắc quá đi!`;
+                let msg = `✅ Đăng lên <strong>${r.target}</strong> (profile <strong>${currentProfileName}</strong>) xong rồi má ơi, content này xuất sắc quá đi!`;
                 if (r.postUrl) msg += `\n<a class="post-link" href="${r.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
                 const shot = r.screenshot ? `/api/screenshot?t=${Date.now()}` : null;
                 if (progressRow && i === 0) {
@@ -4860,7 +4864,7 @@
             if (cd.success) {
               successCount += 1;
               const gLabel = getFbGroupDisplayName(gid);
-              let msg = `✅ Group FB <strong>${gLabel}</strong> (profile <strong>${currentProfile}</strong>) xong rồi má, Xeko đăng nhanh như chớp luôn á!`;
+              let msg = `✅ Group FB <strong>${gLabel}</strong> (profile <strong>${currentProfileName}</strong>) xong rồi má, Xeko đăng nhanh như chớp luôn á!`;
               if (cd.postUrl) msg += `\n<a class="post-link" href="${cd.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
               const shot = cd.screenshot ? `/api/screenshot?t=${Date.now()}` : null;
               if (groupProgressRow) morphBot(groupProgressRow, msg, 'success', shot);
