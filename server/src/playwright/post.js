@@ -1138,169 +1138,186 @@ async function qpStep1OpenComposer(page, steps) {
   }
 }
 
-// --- Step 2: nhập message + upload ảnh vào composer ---
-// 2a. Text input: ưu tiên data-lexical-editor="true" (Lexical framework, stable).
-//     Fallback: aria-placeholder contains "nghĩ"/"on your mind"; cuối cùng role=textbox+contenteditable.
-// 2b. Ảnh: click [aria-label="Ảnh/video"] trong last dialog + waitForEvent('filechooser').
+// --- Step 2: upload ảnh + nhập message vào composer ---
+// ⚠ Thứ tự theo flow đăng cũ ổn định: ẢNH TRƯỚC → TEXT SAU.
+//   Sau khi upload, dialog reflow + expand → editor render ổn định hơn.
+// 2a. Ảnh: click [aria-label="Ảnh/video"] + waitForEvent('filechooser').
 //     Fallback: input[type=file][accept*=image] direct setInputFiles.
+// 2b. Text: scroll dialog top → page.$$() find visible editor → click force → paste.
+//     Selectors KHÔNG lock tag (FB UI mới dùng <p>, cũ dùng <div>).
 async function qpStep2FillContent(page, steps, message, imagePaths) {
-  // -------- 2a. Nhập text --------
-  if (message && message.length > 0) {
-    // Tìm + focus editor (scope vào last dialog để tránh khớp nhầm element ngoài modal)
-    const editorFound = await page.evaluate(() => {
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const dialog = dialogs[dialogs.length - 1];
-      if (!dialog) return { ok: false, reason: 'no-dialog' };
-      const candidates = [
-        '[contenteditable="true"][data-lexical-editor="true"]',
-        '[contenteditable="true"][aria-placeholder*="nghĩ"]',
-        '[contenteditable="true"][aria-placeholder*="on your mind" i]',
-        '[role="textbox"][contenteditable="true"]',
-      ];
-      for (const sel of candidates) {
-        const el = dialog.querySelector(sel);
-        if (el) {
-          const r = el.getBoundingClientRect();
-          if (r.width === 0 || r.height === 0) continue;
-          el.scrollIntoView({ block: 'center' });
-          el.focus();
-          // Click giữa element để chắc chắn caret active
-          el.click();
-          return { ok: true, via: sel };
-        }
-      }
-      return { ok: false, reason: 'no-editor' };
-    });
+  // -------- 2a. Upload ảnh (TRƯỚC như flow cũ) --------
+  if (imagePaths && imagePaths.length > 0) {
+    let uploadVia = null;
 
-    if (!editorFound.ok) {
-      await _qpLog(steps, `Step 2a: KHÔNG tìm thấy editor (${editorFound.reason})`);
-      return false;
-    }
-    await _qpLog(steps, `Step 2a: focus editor OK (${editorFound.via})`);
-    await randomDelay(300, 600);
-
-    // Nhập text — clipboard paste trước (instant, hợp Lexical), fallback execCommand → keyboard.type
-    let typedVia = null;
+    // B1. filechooser pattern: click nút Ảnh/video (scoped vào last dialog) → bắt filechooser
     try {
-      await page.evaluate(async (txt) => navigator.clipboard.writeText(txt), message);
-      await page.keyboard.press('Control+v');
-      typedVia = 'clipboard';
-    } catch (_) {}
-
-    if (!typedVia) {
-      const okExec = await page.evaluate((txt) => document.execCommand('insertText', false, txt), message);
-      if (okExec) typedVia = 'execCommand';
+      const [fileChooser] = await Promise.all([
+        page.waitForEvent('filechooser', { timeout: 15000 }),
+        page.evaluate(() => {
+          const dialogs = document.querySelectorAll('div[role="dialog"]');
+          const dialog = dialogs[dialogs.length - 1];
+          if (!dialog) return false;
+          const labels = ['Ảnh/video', 'Photo/video', 'Ảnh/Video'];
+          for (const lbl of labels) {
+            const btn = dialog.querySelector(`[aria-label="${lbl}"]`);
+            if (btn) {
+              const r = btn.getBoundingClientRect();
+              if (r.width === 0 || r.height === 0) continue;
+              btn.click();
+              return true;
+            }
+          }
+          return false;
+        }),
+      ]);
+      await fileChooser.setFiles(imagePaths);
+      uploadVia = 'filechooser';
+    } catch (e) {
+      await _qpLog(steps, `Step 2a: filechooser fail (${e.message.slice(0, 80)}) — thử input[type=file] direct`);
     }
 
-    if (!typedVia) {
-      await page.keyboard.type(message);
-      typedVia = 'keyboard.type';
+    // B2. Fallback: input[type=file] direct (scoring accept=image + multiple)
+    if (!uploadVia) {
+      const okDirect = await (async () => {
+        const inputs = await page.$$('input[type="file"]');
+        const scored = [];
+        for (const input of inputs) {
+          const accept = (await input.getAttribute('accept')) || '';
+          const multiple = (await input.getAttribute('multiple')) !== null;
+          let score = 0;
+          if (accept.includes('image')) score += 2;
+          if (multiple || imagePaths.length === 1) score += 1;
+          scored.push({ input, score });
+        }
+        scored.sort((a, b) => b.score - a.score);
+        for (const { input, score } of scored) {
+          try {
+            await input.setInputFiles(imagePaths);
+            uploadVia = `direct-input(score=${score})`;
+            return true;
+          } catch { continue; }
+        }
+        return false;
+      })();
+      if (!okDirect) {
+        await _qpLog(steps, 'Step 2a: KHÔNG upload được ảnh (cả filechooser + direct input đều fail)');
+        return false;
+      }
     }
 
-    // Verify text actually entered
-    await randomDelay(400, 800);
-    const verifyText = await page.evaluate(() => {
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const dialog = dialogs[dialogs.length - 1];
-      if (!dialog) return '';
-      const ed = dialog.querySelector('[contenteditable="true"][data-lexical-editor="true"]')
-              || dialog.querySelector('[role="textbox"][contenteditable="true"]');
-      return ed ? (ed.textContent || '').trim() : '';
-    });
-    if (!verifyText || !verifyText.includes(message.slice(0, Math.min(20, message.length)))) {
-      await _qpLog(steps, `Step 2a: nhập text ${typedVia} XONG nhưng verify fail (text="${verifyText.slice(0, 40)}")`);
-      return false;
+    // Verify thumbnail: chờ blob: preview render
+    await randomDelay(3000, 5000);
+    if (imagePaths.length > 1) {
+      const thumbCount = await page.evaluate(() => {
+        const dialogs = document.querySelectorAll('div[role="dialog"]');
+        const dialog = dialogs[dialogs.length - 1];
+        if (!dialog) return -1;
+        let n = 0;
+        for (const img of dialog.querySelectorAll('img')) {
+          const src = img.getAttribute('src') || '';
+          if (src.startsWith('blob:') || src.startsWith('data:')) n++;
+        }
+        return n;
+      });
+      if (thumbCount >= 0 && thumbCount < imagePaths.length) {
+        await _qpLog(steps, `Step 2a: upload OK (${uploadVia}) nhưng chỉ thấy ${thumbCount}/${imagePaths.length} thumbnail`);
+      } else {
+        await _qpLog(steps, `Step 2a: upload OK (${uploadVia}, ${imagePaths.length} ảnh, ${thumbCount} thumb)`);
+      }
+    } else {
+      await _qpLog(steps, `Step 2a: upload OK (${uploadVia}, 1 ảnh)`);
     }
-    await _qpLog(steps, `Step 2a: nhập text OK (${typedVia}, ${message.length} ký tự)`);
   } else {
-    await _qpLog(steps, 'Step 2a: skip — message rỗng');
+    await _qpLog(steps, 'Step 2a: skip — không có ảnh');
   }
 
-  // -------- 2b. Upload ảnh --------
-  if (!imagePaths || imagePaths.length === 0) {
-    await _qpLog(steps, 'Step 2b: skip — không có ảnh');
+  // -------- 2b. Nhập text (SAU như flow cũ) --------
+  if (!message || message.length === 0) {
+    await _qpLog(steps, 'Step 2b: skip — message rỗng');
     return true;
   }
 
-  let uploadVia = null;
-  // B1. filechooser pattern: click nút Ảnh/video (scoped vào last dialog) → bắt filechooser
-  try {
-    const [fileChooser] = await Promise.all([
-      page.waitForEvent('filechooser', { timeout: 15000 }),
-      page.evaluate(() => {
-        const dialogs = document.querySelectorAll('div[role="dialog"]');
-        const dialog = dialogs[dialogs.length - 1];
-        if (!dialog) return false;
-        const labels = ['Ảnh/video', 'Photo/video', 'Ảnh/Video'];
-        for (const lbl of labels) {
-          const btn = dialog.querySelector(`[aria-label="${lbl}"]`);
-          if (btn) {
-            const r = btn.getBoundingClientRect();
-            if (r.width === 0 || r.height === 0) continue;
-            btn.click();
-            return true;
-          }
-        }
-        return false;
-      }),
-    ]);
-    await fileChooser.setFiles(imagePaths);
-    uploadVia = 'filechooser';
-  } catch (e) {
-    await _qpLog(steps, `Step 2b: filechooser fail (${e.message.slice(0, 80)}) — thử input[type=file] direct`);
+  // Scroll dialog top (theo flow cũ) — editor có thể bị scroll out of view sau upload
+  await page.evaluate(() => {
+    document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = 0);
+  });
+  await randomDelay(500, 1000);
+
+  // Selectors KHÔNG lock tag (FB UI mới dùng <p>, cũ dùng <div>)
+  const CANDIDATES = [
+    '[contenteditable="true"][data-lexical-editor="true"]',
+    '[contenteditable="true"][aria-placeholder*="nghĩ"]',
+    '[contenteditable="true"][aria-placeholder*="on your mind" i]',
+    '[contenteditable="true"][aria-label*="nghĩ"]',
+    '[contenteditable="true"][aria-label*="mind" i]',
+    '[role="textbox"][contenteditable="true"]',
+    '[contenteditable="true"]',  // last-resort: bất kỳ contenteditable visible nào
+  ];
+
+  // Pattern flow cũ: page.$$ + isVisible + scrollIntoViewIfNeeded + click force
+  let editorVia = null;
+  for (const selector of CANDIDATES) {
+    try {
+      const editors = await page.$$(selector);
+      for (const editor of editors) {
+        const isVisible = await editor.isVisible();
+        if (!isVisible) continue;
+        await editor.scrollIntoViewIfNeeded();
+        await randomDelay(300, 600);
+        await editor.click({ force: true });
+        await randomDelay(300, 500);
+        editorVia = selector;
+        break;
+      }
+      if (editorVia) break;
+    } catch { continue; }
   }
 
-  // B2. Fallback: tìm input[type=file] direct, ưu tiên input có accept="image" + multiple
-  if (!uploadVia) {
-    const okDirect = await (async () => {
-      const inputs = await page.$$('input[type="file"]');
-      const scored = [];
-      for (const input of inputs) {
-        const accept = (await input.getAttribute('accept')) || '';
-        const multiple = (await input.getAttribute('multiple')) !== null;
-        let score = 0;
-        if (accept.includes('image')) score += 2;
-        if (multiple || imagePaths.length === 1) score += 1;
-        scored.push({ input, score });
-      }
-      scored.sort((a, b) => b.score - a.score);
-      for (const { input, score } of scored) {
-        try {
-          await input.setInputFiles(imagePaths);
-          uploadVia = `direct-input(score=${score})`;
-          return true;
-        } catch { continue; }
-      }
-      return false;
-    })();
-    if (!okDirect) {
-      await _qpLog(steps, 'Step 2b: KHÔNG upload được ảnh (cả filechooser + direct input đều fail)');
-      return false;
-    }
-  }
-
-  // Verify thumbnail: chờ blob: preview render trong dialog
-  await randomDelay(3000, 5000);
-  if (imagePaths.length > 1) {
-    const thumbCount = await page.evaluate(() => {
+  if (!editorVia) {
+    // Diagnostic dump
+    const debug = await page.evaluate(() => {
+      const allCE = document.querySelectorAll('[contenteditable="true"]');
       const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const dialog = dialogs[dialogs.length - 1];
-      if (!dialog) return -1;
-      let n = 0;
-      for (const img of dialog.querySelectorAll('img')) {
-        const src = img.getAttribute('src') || '';
-        if (src.startsWith('blob:') || src.startsWith('data:')) n++;
-      }
-      return n;
+      return {
+        numDialogs: dialogs.length,
+        numContentEditable: allCE.length,
+        ceInfo: Array.from(allCE).slice(0, 5).map(el => ({
+          tag: el.tagName,
+          role: el.getAttribute('role'),
+          dataLexical: el.getAttribute('data-lexical-editor'),
+          ariaPlaceholder: (el.getAttribute('aria-placeholder') || '').slice(0, 60),
+          ariaLabel: (el.getAttribute('aria-label') || '').slice(0, 60),
+          inDialog: !!el.closest('div[role="dialog"]'),
+          visible: (() => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; })(),
+        })),
+      };
     });
-    if (thumbCount >= 0 && thumbCount < imagePaths.length) {
-      await _qpLog(steps, `Step 2b: upload OK (${uploadVia}) nhưng chỉ thấy ${thumbCount}/${imagePaths.length} thumbnail`);
-    } else {
-      await _qpLog(steps, `Step 2b: upload OK (${uploadVia}, ${imagePaths.length} ảnh, ${thumbCount} thumb)`);
-    }
-  } else {
-    await _qpLog(steps, `Step 2b: upload OK (${uploadVia}, 1 ảnh)`);
+    const shot = await _qpScreenshot(page, 'step2b-no-editor');
+    await _qpLog(steps, `Step 2b: KHÔNG tìm thấy editor visible — debug=${JSON.stringify(debug)} (screenshot=${shot})`);
+    return false;
   }
+
+  // Paste text — clipboard → execCommand → keyboard.type (giống pasteText flow cũ)
+  let typedVia = null;
+  try {
+    await page.evaluate(async (txt) => navigator.clipboard.writeText(txt), message);
+    await page.keyboard.press('Control+v');
+    typedVia = 'clipboard';
+  } catch (_) {}
+
+  if (!typedVia) {
+    const okExec = await page.evaluate((txt) => document.execCommand('insertText', false, txt), message);
+    if (okExec) typedVia = 'execCommand';
+  }
+
+  if (!typedVia) {
+    await page.keyboard.type(message);
+    typedVia = 'keyboard.type';
+  }
+
+  await _qpLog(steps, `Step 2b: nhập text OK (editor=${editorVia}, type=${typedVia}, ${message.length} ký tự)`);
+  await randomDelay(400, 800);
 
   return true;
 }
