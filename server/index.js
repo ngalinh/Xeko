@@ -296,13 +296,14 @@ setInterval(() => {
   }
 }, 3600_000);
 
-async function executePost({ profile, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId }) {
+async function executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId }) {
   if (profile) await playwright.setProfile(profile);
 
   // Snapshot 1 lần ngay đầu — không gọi getActiveProfile() sau await (global có thể bị đổi)
   const _pData = playwright.getActiveProfile();
   const profileKey  = profile || _pData.key || '';
-  const profileName = _pData.name || profileKey;
+  // Prefer display name sent from frontend (most reliable), fall back to server-resolved name
+  const profileName = profileDisplayName || _pData.name || profileKey;
 
   if (!batchId) batchId = crypto.randomUUID();
 
@@ -392,7 +393,7 @@ async function executePost({ profile, message, target, groupId, groupKeywords, i
 app.post('/api/post', upload.array('images', 20), async (req, res) => {
   checkDailyReset();
 
-  const { message, target, groupId, profile, batchId } = req.body;
+  const { message, target, groupId, profile, profileDisplayName, batchId } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
 
   // groupKeywords gửi qua multipart dưới dạng JSON string (target=personal-share-groups)
@@ -450,7 +451,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   queuePost(() => {
     const tStart = Date.now();
     logger.info(`[job ${jobId}] start (waited ${tStart - tQueued}ms in queue) — profile=${profile || '(active)'}, target=${targetDesc}`);
-    return executePost({ profile, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId })
+    return executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId })
       .finally(() => logger.info(`[job ${jobId}] done in ${Date.now() - tStart}ms`));
   })
     .then(result => setJobResult(jobId, result))
