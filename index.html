@@ -7104,6 +7104,28 @@
       });
     }
 
+    // Gom các raw profile (FB key + Zalo saleworkName) thành Profile group
+    // theo cấu hình "Gán kênh cho từng Profile". Trả về:
+    //   - groups: [{ key, name, fbKey, zaloAccount }]
+    //   - fbKeyToGroup: { [fbProfileKey]: group }
+    //   - zaloAccountToGroup: { [saleworkName]: group }
+    function buildProfileGroups() {
+      const pChs = channelsData.profileChannels || {};
+      const groups = profilesCache.map(p => ({
+        key: p.key,
+        name: p.name || p.key,
+        fbKey: p.key,
+        zaloAccount: (pChs[p.key] && pChs[p.key].zaloAccount) || null,
+      }));
+      const fbKeyToGroup = {};
+      const zaloAccountToGroup = {};
+      groups.forEach(g => {
+        fbKeyToGroup[g.fbKey] = g;
+        if (g.zaloAccount) zaloAccountToGroup[g.zaloAccount] = g;
+      });
+      return { groups, fbKeyToGroup, zaloAccountToGroup };
+    }
+
     function renderStatByProfile(allProfiles) {
       const profileEl = document.getElementById('statByProfile');
       if (!profileEl) return;
@@ -7111,17 +7133,14 @@
         profileEl.innerHTML = '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>';
         return;
       }
-      const pChs = channelsData.profileChannels || {};
-      const fbToZalo = {};
-      const zaloToFb = {};
-      Object.entries(pChs).forEach(([fbKey, cfg]) => {
-        if (cfg.zaloAccount) { fbToZalo[fbKey] = cfg.zaloAccount; zaloToFb[cfg.zaloAccount] = fbKey; }
-      });
-      const fbStats = allProfiles.filter(p => p.platform !== 'zalo');
-      const zaloStats = allProfiles.filter(p => p.platform === 'zalo');
+      const { groups, fbKeyToGroup, zaloAccountToGroup } = buildProfileGroups();
+      const fbStatMap = {};
       const zaloStatMap = {};
-      zaloStats.forEach(p => { zaloStatMap[p.profile] = p; });
-      const claimedZalo = new Set();
+      allProfiles.forEach(p => {
+        if (p.platform === 'zalo') zaloStatMap[p.profile] = p;
+        else fbStatMap[p.profile] = p;
+      });
+
       const renderPlatformRow = (p, label, badgeBg, badgeColor) => {
         return `<div style="margin-top:8px;">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
@@ -7137,25 +7156,51 @@
           </div>
         </div>`;
       };
+
+      const renderCard = (title, total, success, fail, rowsHtml) => `
+        <div style="background:#fafafa; border:1px solid #f0f0f0; border-radius:10px; padding:12px 14px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:4px;">
+            <div style="font-weight:600; font-size:13px; color:#1e1e2e; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;" title="${escapeHtml(title)}">${escapeHtml(title)}</div>
+            <span style="font-size:12px; white-space:nowrap; flex-shrink:0;">
+              <strong>${total}</strong>
+              <span style="color:#16a34a; margin-left:4px;">✓${success}</span>
+              <span style="color:#dc2626;"> ✗${fail}</span>
+            </span>
+          </div>
+          <div style="height:1px; background:#f3f4f6; margin-top:6px;"></div>
+          ${rowsHtml}
+        </div>`;
+
       const cards = [];
-      fbStats.forEach(fb => {
-        const zaloName = fbToZalo[fb.profile];
-        const zalo = zaloName ? zaloStatMap[zaloName] : null;
-        if (zalo) claimedZalo.add(zaloName);
-        const fbRow = renderPlatformRow(fb, 'FB', '#e8f0fe', '#1877f2');
-        const zaloRow = zalo ? renderPlatformRow(zalo, 'Zalo', '#e8f0ff', '#2563EB') : '';
-        const divider = zalo ? `<div style="height:1px; background:#f3f4f6; margin-top:8px;"></div>` : '';
-        cards.push(`<div style="background:#fafafa; border:1px solid #f0f0f0; border-radius:10px; padding:12px 14px;">
-          <div style="font-weight:600; font-size:13px; color:#1e1e2e; margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(fb.profile_name || fb.profile)}">${escapeHtml(fb.profile_name || fb.profile)}</div>
-          ${divider}${fbRow}${zaloRow}
-        </div>`);
+
+      // 1. Render card cho mỗi Profile group (Linh Thao US, Linh Duong US, ...)
+      groups.forEach(g => {
+        const fb = fbStatMap[g.fbKey];
+        const zalo = g.zaloAccount ? zaloStatMap[g.zaloAccount] : null;
+        if (!fb && !zalo) return;
+        const total   = (fb?.total || 0)         + (zalo?.total || 0);
+        const success = (fb?.success_count || 0) + (zalo?.success_count || 0);
+        const fail    = (fb?.fail_count || 0)    + (zalo?.fail_count || 0);
+        const rows = (fb ? renderPlatformRow(fb, 'FB', '#e8f0fe', '#1877f2') : '')
+                   + (zalo ? renderPlatformRow(zalo, 'Zalo', '#e8f0ff', '#2563EB') : '');
+        cards.push(renderCard(g.name, total, success, fail, rows));
       });
-      zaloStats.filter(p => !claimedZalo.has(p.profile)).forEach(zalo => {
-        cards.push(`<div style="background:#fafafa; border:1px solid #f0f0f0; border-radius:10px; padding:12px 14px;">
-          <div style="font-weight:600; font-size:13px; color:#1e1e2e; margin-bottom:2px;">${escapeHtml(zalo.profile_name || zalo.profile)}</div>
-          ${renderPlatformRow(zalo, 'Zalo', '#e8f0ff', '#2563EB')}
-        </div>`);
-      });
+
+      // 2. Fallback: raw rows không thuộc Profile group nào (vd profile bị xoá khỏi
+      //    profiles-meta, hoặc Zalo account chưa được gán cho profile)
+      allProfiles
+        .filter(p => p.platform !== 'zalo' && !fbKeyToGroup[p.profile])
+        .forEach(fb => {
+          const rows = renderPlatformRow(fb, 'FB', '#e8f0fe', '#1877f2');
+          cards.push(renderCard(fb.profile_name || fb.profile, fb.total, fb.success_count, fb.fail_count, rows));
+        });
+      allProfiles
+        .filter(p => p.platform === 'zalo' && !zaloAccountToGroup[p.profile])
+        .forEach(zalo => {
+          const rows = renderPlatformRow(zalo, 'Zalo', '#e8f0ff', '#2563EB');
+          cards.push(renderCard(zalo.profile_name || zalo.profile, zalo.total, zalo.success_count, zalo.fail_count, rows));
+        });
+
       profileEl.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px;">${cards.join('')}</div>`;
     }
 
@@ -7168,6 +7213,19 @@
             if (chRes.ok) channelsData = await parseJson(chRes);
           } catch {}
           populateDashGroupFilter();
+        }
+
+        // Load profiles meta (để gom thống kê theo Profile name, vd "Linh Thao US")
+        if (profilesCache.length === 0) {
+          try {
+            const allParam = (CURRENT_USER && CURRENT_USER.isXekoAdmin) ? '?all=1' : '';
+            const accRes = await fetch(`${BASE_URL}/api/accounts` + allParam);
+            if (accRes.ok) {
+              const accData = await parseJson(accRes);
+              profilesCache = accData.facebook || [];
+              zaloAccountsCache = (accData.zalo || []).map(z => z.saleworkName).filter(Boolean);
+            }
+          } catch {}
         }
 
         // Load statistics (all-time, for summary cards + populate profile dropdown)
@@ -7282,10 +7340,18 @@
         }
         rows.forEach(r => dateSet.add(r.date));
         const dates = [...dateSet].sort();
+
+        // Gom data theo Profile group ("Linh Thao US" = FB clone.linhthao + Zalo linh-thao-us-authentic).
+        // Endpoint daily-by-profile không trả platform, nhưng FB key (folder name) và Zalo saleworkName
+        // luôn được lookup ở 2 map khác nhau nên không xung đột.
+        const { fbKeyToGroup, zaloAccountToGroup } = buildProfileGroups();
         const profileMap = {};
         rows.forEach(r => {
-          if (!profileMap[r.profile]) profileMap[r.profile] = { name: r.profile_name || r.profile, data: {} };
-          profileMap[r.profile].data[r.date] = r.count;
+          const g = fbKeyToGroup[r.profile] || zaloAccountToGroup[r.profile];
+          const groupKey = g ? g.key : r.profile;
+          const groupName = g ? g.name : (r.profile_name || r.profile);
+          if (!profileMap[groupKey]) profileMap[groupKey] = { name: groupName, data: {} };
+          profileMap[groupKey].data[r.date] = (profileMap[groupKey].data[r.date] || 0) + r.count;
         });
 
         const profiles = Object.keys(profileMap);
