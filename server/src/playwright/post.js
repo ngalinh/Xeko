@@ -1306,10 +1306,69 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
 }
 
 // --- Step 3: click "Tiếp" để sang dialog "Cài đặt bài viết" ---
+// Pattern y hệt step 1: span text exact "Tiếp"/"Next" → walk up đến [role="button"].
+// Exact match (===) tránh khớp nhầm "Tiếp tục", "Bước tiếp theo".
 async function qpStep3ClickNext(page, steps) {
-  // TODO(selector): chờ outerHTML nút "Tiếp"
-  await _qpLog(steps, 'Step 3: click "Tiếp" — selector chưa cấu hình');
-  return false;
+  let clickedVia = null;
+
+  // A. Walk-up từ span exact text → role=button (scope last dialog)
+  try {
+    const ok = await page.evaluate(() => {
+      const dialogs = document.querySelectorAll('div[role="dialog"]');
+      const dialog = dialogs[dialogs.length - 1];
+      if (!dialog) return false;
+      for (const s of dialog.querySelectorAll('span')) {
+        const t = (s.textContent || '').trim();
+        if (t !== 'Tiếp' && t !== 'Next') continue;
+        let el = s;
+        for (let i = 0; i < 8 && el.parentElement; i++) {
+          el = el.parentElement;
+          if (el.getAttribute('role') === 'button') {
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 || r.height === 0) continue;
+            el.scrollIntoView({ block: 'center' });
+            el.click();
+            return true;
+          }
+        }
+      }
+      return false;
+    });
+    if (ok) clickedVia = 'walk-up text→role=button';
+  } catch (_) {}
+
+  // B. Fallback aria-label (phòng FB version add aria-label sau)
+  if (!clickedVia) {
+    for (const lbl of ['Tiếp', 'Next']) {
+      try {
+        const loc = page.locator(`div[role="dialog"]`).last().locator(`[aria-label="${lbl}"]`).first();
+        await loc.click({ timeout: 3000 });
+        clickedVia = `aria-label="${lbl}"`;
+        break;
+      } catch (_) {}
+    }
+  }
+
+  if (!clickedVia) {
+    await _qpLog(steps, 'Step 3: KHÔNG tìm thấy nút "Tiếp" — cả 2 strategy fail');
+    return false;
+  }
+
+  // Verify: dialog chuyển sang "Cài đặt bài viết"
+  try {
+    await page.waitForFunction(() => {
+      const dialogs = document.querySelectorAll('div[role="dialog"]');
+      const last = dialogs[dialogs.length - 1];
+      if (!last) return false;
+      const t = last.textContent || '';
+      return t.includes('Cài đặt bài viết') || t.includes('Post settings') || t.includes('Post Settings');
+    }, { timeout: 10000 });
+    await _qpLog(steps, `Step 3: OK — click "Tiếp" (${clickedVia}), dialog "Cài đặt bài viết" mở`);
+    return true;
+  } catch {
+    await _qpLog(steps, `Step 3: clicked (${clickedVia}) nhưng dialog "Cài đặt bài viết" không xuất hiện sau 10s`);
+    return false;
+  }
 }
 
 // --- Step 4: trong "Cài đặt bài viết" click row "Chia sẻ lên nhóm" ---
