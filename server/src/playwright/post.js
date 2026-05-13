@@ -1435,10 +1435,173 @@ async function qpStep4OpenShareToGroups(page, steps) {
 }
 
 // --- Step 5: tick group theo keyword + click "Xong" ---
+// Checkbox: native input[type="checkbox"] (FB UI mới) HOẶC [role="checkbox"] (UI cũ).
+// Match keyword: exact text priority → substring fallback.
+// Lazy-load: scroll dialog 400px/lần, max 30 attempts.
+// Xong: aria-label="Xong" primary, walk-up text fallback (pattern step 3).
 async function qpStep5PickGroups(page, steps, keywords) {
-  // TODO(selector): chờ outerHTML checkbox row + nút "Xong"
-  await _qpLog(steps, `Step 5: pick ${keywords.length} group + click "Xong" — selector chưa cấu hình`);
-  return { selected: 0, missed: keywords };
+  const selected = [];
+  const missed = [];
+
+  for (const kw of keywords) {
+    const result = await _qpPickOneGroup(page, kw);
+    if (result.ok) {
+      selected.push(kw);
+      await _qpLog(steps, `Step 5: "${kw}" — ${result.alreadyChecked ? 'đã tick trước' : 'tick OK'} (match ${result.matchType})`);
+    } else {
+      missed.push(kw);
+      await _qpLog(steps, `Step 5: "${kw}" FAIL — ${result.reason}`);
+    }
+    await randomDelay(300, 600);
+  }
+
+  if (selected.length === 0) {
+    await _qpLog(steps, 'Step 5: không tick được group nào → skip "Xong"');
+    return { selected: 0, missed };
+  }
+
+  // Click "Xong"
+  await randomDelay(500, 1000);
+  let xongVia = null;
+  for (const lbl of ['Xong', 'Done']) {
+    try {
+      await page.locator('div[role="dialog"]').last().locator(`[aria-label="${lbl}"]`).first().click({ timeout: 3000 });
+      xongVia = `aria-label="${lbl}"`;
+      break;
+    } catch (_) {}
+  }
+  if (!xongVia) {
+    // Fallback: walk-up exact text
+    const ok = await page.evaluate(() => {
+      const dialogs = document.querySelectorAll('div[role="dialog"]');
+      const dialog = dialogs[dialogs.length - 1];
+      if (!dialog) return false;
+      for (const s of dialog.querySelectorAll('span')) {
+        const t = (s.textContent || '').trim();
+        if (t !== 'Xong' && t !== 'Done') continue;
+        let el = s;
+        for (let i = 0; i < 8 && el.parentElement; i++) {
+          el = el.parentElement;
+          if (el.getAttribute('role') === 'button') { el.click(); return true; }
+        }
+      }
+      return false;
+    });
+    if (ok) xongVia = 'walk-up text→role=button';
+  }
+
+  if (!xongVia) {
+    await _qpLog(steps, 'Step 5: KHÔNG click được "Xong" — cả 2 strategy fail');
+    return { selected: selected.length, missed };
+  }
+  await _qpLog(steps, `Step 5: click "Xong" OK (${xongVia})`);
+
+  // Verify: dialog "Chọn nhóm" đóng, quay lại "Cài đặt bài viết"
+  try {
+    await page.waitForFunction(() => {
+      const dialogs = document.querySelectorAll('div[role="dialog"]');
+      const last = dialogs[dialogs.length - 1];
+      if (!last) return false;
+      const t = last.textContent || '';
+      return (t.includes('Cài đặt bài viết') || t.includes('Post settings')) &&
+             !t.includes('Chọn nhóm') && !t.includes('Choose groups');
+    }, { timeout: 8000 });
+    await _qpLog(steps, 'Step 5: verify OK — quay về "Cài đặt bài viết"');
+  } catch {
+    await _qpLog(steps, 'Step 5: clicked "Xong" nhưng verify "Cài đặt bài viết" timeout — tiếp tục thử step 6');
+  }
+
+  return { selected: selected.length, missed };
+}
+
+// Tick 1 group theo keyword với exact-match priority + substring fallback + scroll lazy-load
+async function _qpPickOneGroup(page, keyword) {
+  const kwLower = keyword.toLowerCase();
+  const kwExact = keyword.trim();
+
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const result = await page.evaluate(({ kwLower, kwExact }) => {
+      const dialogs = document.querySelectorAll('div[role="dialog"]');
+      const dialog = dialogs[dialogs.length - 1];
+      if (!dialog) return { status: 'no-dialog' };
+
+      // FB UI mới = native input, UI cũ = role="checkbox" — support cả 2
+      const checkboxes = dialog.querySelectorAll('input[type="checkbox"], [role="checkbox"]');
+      if (checkboxes.length === 0) return { status: 'no-checkbox' };
+
+      // Walk-up từ checkbox tìm row container (largest ancestor có đúng 1 checkbox)
+      function findRow(cb) {
+        let row = cb;
+        for (let i = 0; i < 8; i++) {
+          const next = row.parentElement;
+          if (!next) break;
+          const cbCount = next.querySelectorAll('input[type="checkbox"], [role="checkbox"]').length;
+          if (cbCount > 1) break;
+          row = next;
+        }
+        return row;
+      }
+
+      function isChecked(cb) {
+        if (cb.getAttribute('aria-checked') === 'true') return true;
+        if (cb.tagName === 'INPUT' && cb.checked === true) return true;
+        return false;
+      }
+
+      // Phase 1: exact text match — tránh "Test" tick nhầm "Test 1"
+      for (const cb of checkboxes) {
+        const row = findRow(cb);
+        for (const t of row.querySelectorAll('span, h2, h3, h4')) {
+          if ((t.textContent || '').trim() === kwExact) {
+            cb.scrollIntoView({ block: 'center' });
+            const r = cb.getBoundingClientRect();
+            if (r.width === 0 || r.height === 0) {
+              // Native input có thể visually hidden — click vào row thay vì checkbox
+              row.click();
+              return { status: 'ok', alreadyChecked: isChecked(cb), matchType: 'exact (row click)' };
+            }
+            const already = isChecked(cb);
+            if (!already) cb.click();
+            return { status: 'ok', alreadyChecked: already, matchType: 'exact' };
+          }
+        }
+      }
+
+      // Phase 2: substring fallback (case-insensitive)
+      for (const cb of checkboxes) {
+        const row = findRow(cb);
+        const text = (row.textContent || '').toLowerCase();
+        if (text.includes(kwLower)) {
+          cb.scrollIntoView({ block: 'center' });
+          const r = cb.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0) {
+            row.click();
+            return { status: 'ok', alreadyChecked: isChecked(cb), matchType: 'substring (row click)' };
+          }
+          const already = isChecked(cb);
+          if (!already) cb.click();
+          return { status: 'ok', alreadyChecked: already, matchType: 'substring' };
+        }
+      }
+
+      // Không match → scroll lazy-load (tìm scrollable descendant)
+      let scroller = dialog;
+      for (const el of dialog.querySelectorAll('*')) {
+        if (el.scrollHeight > el.clientHeight + 20) { scroller = el; break; }
+      }
+      scroller.scrollBy(0, 400);
+      return { status: 'scrolled' };
+    }, { kwLower, kwExact });
+
+    if (result.status === 'ok') {
+      return { ok: true, alreadyChecked: result.alreadyChecked, matchType: result.matchType };
+    }
+    if (result.status === 'no-dialog' || result.status === 'no-checkbox') {
+      return { ok: false, reason: result.status };
+    }
+    await randomDelay(300, 500);
+  }
+  return { ok: false, reason: 'không thấy sau 30 lần scroll' };
 }
 
 // --- Step 6: click "Đăng" và chờ dialog đóng ---
