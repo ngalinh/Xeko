@@ -660,7 +660,7 @@ app.get('/api/accounts', async (req, res) => {
       const data = await response.json();
       if (!wantAll && req.user) {
         if (Array.isArray(data.facebook)) data.facebook = permissions.filterProfiles(req.user.email, data.facebook);
-        if (Array.isArray(data.zalo)) data.zalo = permissions.filterProfiles(req.user.email, data.zalo);
+        // Zalo accounts have different keys from FB profiles — never filter them by FB profile keys
       }
       return res.json(data);
     } catch (e) {
