@@ -169,6 +169,17 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
   return res;
 }
 
+// Quick Post v2 — flow đang build, gọi sync về local (endpoint test)
+async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywords = []) {
+  if (!_activeProfile) throw new Error('Chưa chọn profile!');
+  return callLocal(
+    'POST',
+    '/api/fb-quick-post-test',
+    { profile: _activeProfile, message, groupKeywords: JSON.stringify(groupKeywords || []) },
+    imagePaths
+  );
+}
+
 async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths = [] }) {
   return callLocal('POST', '/api/zalo/post',
     { profile: zaloAccountName, groupName, message },
@@ -188,6 +199,7 @@ module.exports = {
   postToPersonal,
   postToGroup,
   postPersonalAndShareToGroups,
+  quickPostToPersonalAndGroups,
   postToZaloGroup,
   closeBrowser,
 };

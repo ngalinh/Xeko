@@ -238,6 +238,46 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   })();
 });
 
+// ===== TEST: FB QUICK POST V2 (dev only — flow build mới) =====
+// Sync handler để dễ debug. Chỉ dùng từ trang "Test FB" trong UI.
+app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res) => {
+  const { profile, message } = req.body;
+  const imagePaths = (req.files || []).map(f => f.path);
+
+  let groupKeywords = [];
+  if (req.body.groupKeywords) {
+    try {
+      const parsed = JSON.parse(req.body.groupKeywords);
+      if (Array.isArray(parsed)) groupKeywords = parsed.map(k => String(k).trim()).filter(Boolean);
+    } catch {
+      cleanupFiles(imagePaths);
+      return res.status(400).json({ error: 'groupKeywords phải là JSON array hợp lệ' });
+    }
+  }
+
+  if (!profile) {
+    cleanupFiles(imagePaths);
+    return res.status(400).json({ error: 'Thiếu profile' });
+  }
+
+  try {
+    playwright.setProfile(profile);
+  } catch (e) {
+    cleanupFiles(imagePaths);
+    return res.status(400).json({ error: e.message });
+  }
+
+  try {
+    const result = await playwright.quickPostToPersonalAndGroups(message || '', imagePaths, groupKeywords);
+    res.json(result);
+  } catch (e) {
+    logger.error(`[fb-quick-post-test] Exception: ${e.message}`);
+    res.status(500).json({ error: e.message, steps: [] });
+  } finally {
+    cleanupFiles(imagePaths);
+  }
+});
+
 // ===== ĐĂNG ZALO =====
 const zaloJobs = new Map(); // jobId → { status, success, error }
 
