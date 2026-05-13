@@ -7203,7 +7203,7 @@
     // ===== Dashboard Chart =====
     let _dashChart = null;
     let _chartType = 'bar';
-    const CHART_PALETTE = ['#2563EB','#BFDBFE','#BFDBFE','#06b6d4','#10b981','#f59e0b','#ec4899','#f97316'];
+    const CHART_PALETTE = ['#2563EB','#BFDBFE','#06b6d4','#10b981','#f59e0b','#ec4899','#f97316','#8b5cf6'];
 
     function setChartType(type) {
       _chartType = type;
@@ -7259,8 +7259,28 @@
 
         const rows = await fetch(BASE_URL + '/api/statistics/daily-by-profile?' + params.toString()).then(r => r.json());
 
-        // Build labels (dates) and datasets per profile
-        const dateSet = new Set(rows.map(r => r.date));
+        // Build labels (dates) and datasets per profile.
+        // Fill every day in the selected range so the X axis stays continuous
+        // even on days with zero posts.
+        let rangeStart, rangeEnd;
+        if (from && to) {
+          rangeStart = from;
+          rangeEnd = to;
+        } else {
+          const end = new Date();
+          rangeEnd = end.toISOString().slice(0, 10);
+          const start = new Date();
+          start.setDate(start.getDate() - (Number(days) - 1));
+          rangeStart = start.toISOString().slice(0, 10);
+        }
+        const dateSet = new Set();
+        const cursor = new Date(rangeStart + 'T00:00:00Z');
+        const stop = new Date(rangeEnd + 'T00:00:00Z');
+        while (cursor <= stop) {
+          dateSet.add(cursor.toISOString().slice(0, 10));
+          cursor.setUTCDate(cursor.getUTCDate() + 1);
+        }
+        rows.forEach(r => dateSet.add(r.date));
         const dates = [...dateSet].sort();
         const profileMap = {};
         rows.forEach(r => {
