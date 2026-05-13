@@ -1054,4 +1054,158 @@ async function closeBrowser() {
   }
 }
 
-module.exports = { setProfile, profileExists, getActiveProfile, postToPersonal, postToGroup, postPersonalAndShareToGroups, closeBrowser };
+// =============================================================================
+// QUICK POST v2 — flow đăng nhanh build lại từ đầu theo UI FB mới (2026)
+// Flow: Tạo bài viết → nhập text + ảnh → Tiếp → Cài đặt bài viết →
+//       Chia sẻ lên nhóm → tick groups → Xong → Đăng
+// Mỗi step có log + screenshot debug khi fail. KHÔNG dùng chung helper với flow cũ.
+// =============================================================================
+
+async function _qpLog(steps, line) {
+  logger.info(`[quickPost] ${line}`);
+  steps.push(line);
+}
+
+async function _qpScreenshot(page, name) {
+  try {
+    const p = path.resolve(__dirname, `../../logs/qp-${name}-${Date.now()}.png`);
+    await page.screenshot({ path: p });
+    return path.basename(p);
+  } catch { return null; }
+}
+
+// --- Step 1: mở popup "Tạo bài viết" từ feed (đang ở facebook.com home) ---
+async function qpStep1OpenComposer(page, steps) {
+  // TODO(selector): chờ outerHTML element "Bạn đang nghĩ gì thế?" / nút Tạo bài viết
+  await _qpLog(steps, 'Step 1: open composer — selector chưa cấu hình');
+  return false;
+}
+
+// --- Step 2: nhập message + upload ảnh vào composer ---
+async function qpStep2FillContent(page, steps, message, imagePaths) {
+  // TODO(selector): chờ outerHTML của contenteditable + nút Ảnh/Video
+  await _qpLog(steps, `Step 2: fill content (msg=${(message||'').length} ký tự, ảnh=${imagePaths.length}) — selector chưa cấu hình`);
+  return false;
+}
+
+// --- Step 3: click "Tiếp" để sang dialog "Cài đặt bài viết" ---
+async function qpStep3ClickNext(page, steps) {
+  // TODO(selector): chờ outerHTML nút "Tiếp"
+  await _qpLog(steps, 'Step 3: click "Tiếp" — selector chưa cấu hình');
+  return false;
+}
+
+// --- Step 4: trong "Cài đặt bài viết" click row "Chia sẻ lên nhóm" ---
+async function qpStep4OpenShareToGroups(page, steps) {
+  // TODO(selector): chờ outerHTML row "Chia sẻ lên nhóm"
+  await _qpLog(steps, 'Step 4: open "Chia sẻ lên nhóm" — selector chưa cấu hình');
+  return false;
+}
+
+// --- Step 5: tick group theo keyword + click "Xong" ---
+async function qpStep5PickGroups(page, steps, keywords) {
+  // TODO(selector): chờ outerHTML checkbox row + nút "Xong"
+  await _qpLog(steps, `Step 5: pick ${keywords.length} group + click "Xong" — selector chưa cấu hình`);
+  return { selected: 0, missed: keywords };
+}
+
+// --- Step 6: click "Đăng" và chờ dialog đóng ---
+async function qpStep6Submit(page, steps) {
+  // TODO(selector): chờ outerHTML nút "Đăng" + cách detect dialog đóng
+  await _qpLog(steps, 'Step 6: click "Đăng" — selector chưa cấu hình');
+  return { success: false };
+}
+
+/**
+ * Đăng nhanh: đăng bài cá nhân + share lên nhóm theo keyword.
+ * Tất cả selector sẽ điền dần qua từng step.
+ *
+ * @param {string} message
+ * @param {string[]} imagePaths
+ * @param {string[]} groupKeywords  Để rỗng = không share group (sẽ click "Đăng" luôn).
+ * @returns {Promise<{success: boolean, postUrl?: string, sharedGroups?: number, missedGroups?: string[], steps: string[], error?: string}>}
+ */
+async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywords = []) {
+  const t0 = Date.now();
+  const profileSnap = getActiveProfile();
+  const tag = `[quickPost ${profileSnap.name}]`;
+  const steps = [];
+  logger.info(`${tag} bắt đầu (msg=${message ? `${message.length} ký tự` : '∅'}, ảnh=${imagePaths.length}, groups=${groupKeywords.length})`);
+
+  const keywords = (groupKeywords || []).map(k => String(k).trim()).filter(Boolean).slice(0, 9);
+  const wantShare = keywords.length > 0;
+
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+
+  try {
+    await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await randomDelay(3000, 5000);
+    await ensureLoggedIn(page);
+
+    if (!(await qpStep1OpenComposer(page, steps))) {
+      const shot = await _qpScreenshot(page, 'step1-fail');
+      return { success: false, error: `Step 1 fail (screenshot=${shot})`, steps };
+    }
+    await randomDelay(1500, 2500);
+
+    if (!(await qpStep2FillContent(page, steps, message, imagePaths))) {
+      const shot = await _qpScreenshot(page, 'step2-fail');
+      return { success: false, error: `Step 2 fail (screenshot=${shot})`, steps };
+    }
+    await randomDelay(1500, 2500);
+
+    // Nhánh có share group: Tiếp → Chia sẻ lên nhóm → tick → Xong → Đăng
+    if (wantShare) {
+      if (!(await qpStep3ClickNext(page, steps))) {
+        const shot = await _qpScreenshot(page, 'step3-fail');
+        return { success: false, error: `Step 3 fail (screenshot=${shot})`, steps };
+      }
+      await randomDelay(2000, 3500);
+
+      if (!(await qpStep4OpenShareToGroups(page, steps))) {
+        const shot = await _qpScreenshot(page, 'step4-fail');
+        return { success: false, error: `Step 4 fail (screenshot=${shot})`, steps };
+      }
+      await randomDelay(1000, 2000);
+
+      const pick = await qpStep5PickGroups(page, steps, keywords);
+      if (pick.selected === 0 && keywords.length > 0) {
+        const shot = await _qpScreenshot(page, 'step5-fail');
+        return { success: false, error: `Step 5 fail — không tick được group nào (screenshot=${shot})`, steps, missedGroups: pick.missed };
+      }
+      await randomDelay(1500, 2500);
+
+      const submit = await qpStep6Submit(page, steps);
+      logger.info(`${tag} done (+${Date.now() - t0}ms)`);
+      return {
+        success: submit.success,
+        postUrl: submit.postUrl,
+        sharedGroups: pick.selected,
+        missedGroups: pick.missed,
+        steps,
+        error: submit.success ? undefined : (submit.error || 'Step 6 fail'),
+      };
+    }
+
+    // Nhánh chỉ đăng cá nhân: thẳng đến step 6 (skip Tiếp / Chia sẻ)
+    // TODO: FB UI mới có thể yêu cầu Tiếp → Cài đặt → Đăng kể cả không share.
+    //       Sẽ confirm khi build step 1+2 xong và test thực tế.
+    const submit = await qpStep6Submit(page, steps);
+    logger.info(`${tag} done personal-only (+${Date.now() - t0}ms)`);
+    return {
+      success: submit.success,
+      postUrl: submit.postUrl,
+      steps,
+      error: submit.success ? undefined : (submit.error || 'Step 6 fail'),
+    };
+  } catch (e) {
+    logger.error(`${tag} exception: ${e.message}`);
+    const shot = await _qpScreenshot(page, 'exception');
+    return { success: false, error: `${e.message} (screenshot=${shot})`, steps };
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
+module.exports = { setProfile, profileExists, getActiveProfile, postToPersonal, postToGroup, postPersonalAndShareToGroups, quickPostToPersonalAndGroups, closeBrowser };

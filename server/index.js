@@ -468,6 +468,46 @@ app.get('/api/job/:id', (req, res) => {
   res.json(job);
 });
 
+// ===== TEST: FB Quick Post v2 (dev only) =====
+// Sync proxy → local. Dùng từ trang "Test FB" trong UI để build flow đăng nhanh.
+app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res) => {
+  const { profile, message } = req.body;
+  const imagePaths = (req.files || []).map(f => f.path);
+
+  let groupKeywords = [];
+  if (req.body.groupKeywords) {
+    try {
+      const parsed = JSON.parse(req.body.groupKeywords);
+      if (Array.isArray(parsed)) groupKeywords = parsed.map(k => String(k).trim()).filter(Boolean);
+    } catch {
+      cleanupFiles(imagePaths);
+      return res.status(400).json({ error: 'groupKeywords phải là JSON array hợp lệ' });
+    }
+  }
+
+  if (!profile) {
+    cleanupFiles(imagePaths);
+    return res.status(400).json({ error: 'Thiếu profile' });
+  }
+
+  try {
+    await playwright.setProfile(profile);
+  } catch (e) {
+    cleanupFiles(imagePaths);
+    return res.status(400).json({ error: e.message });
+  }
+
+  try {
+    const result = await playwright.quickPostToPersonalAndGroups(message || '', imagePaths, groupKeywords);
+    res.json(result);
+  } catch (e) {
+    logger.error(`[fb-quick-post-test] Exception: ${e.message}`);
+    res.status(500).json({ error: e.message, steps: [] });
+  } finally {
+    cleanupFiles(imagePaths);
+  }
+});
+
 // Lay screenshot moi nhat
 app.get('/api/screenshot', (req, res) => {
   const screenshotPath = path.resolve(__dirname, '../logs/latest-post.png');
