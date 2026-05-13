@@ -1075,10 +1075,67 @@ async function _qpScreenshot(page, name) {
 }
 
 // --- Step 1: mở popup "Tạo bài viết" từ feed (đang ở facebook.com home) ---
+// Strategy: text "đang nghĩ gì" / "on your mind" trong span → walk up đến [role="button"].
+// Hash class (x1lliihq...) FB regen 1-2 tuần/lần → KHÔNG dùng.
+// Text có chèn tên user ("Linh Thảo ơi, bạn đang nghĩ gì thế?") → chỉ match substring ổn định.
 async function qpStep1OpenComposer(page, steps) {
-  // TODO(selector): chờ outerHTML element "Bạn đang nghĩ gì thế?" / nút Tạo bài viết
-  await _qpLog(steps, 'Step 1: open composer — selector chưa cấu hình');
-  return false;
+  await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
+
+  // A. Walk-up từ span text → role="button"
+  let clickedVia = null;
+  try {
+    const ok = await page.evaluate(() => {
+      const RE = /đang nghĩ gì|on your mind/i;
+      const spans = document.querySelectorAll('span');
+      for (const s of spans) {
+        if (!RE.test(s.textContent || '')) continue;
+        let el = s;
+        for (let i = 0; i < 8 && el.parentElement; i++) {
+          el = el.parentElement;
+          if (el.getAttribute('role') === 'button') {
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 || r.height === 0) continue;
+            el.scrollIntoView({ block: 'center' });
+            el.click();
+            return true;
+          }
+        }
+      }
+      return false;
+    });
+    if (ok) clickedVia = 'walk-up text→role=button';
+  } catch (_) {}
+
+  // B. Fallback: Playwright role locator filter by text
+  if (!clickedVia) {
+    try {
+      const loc = page.getByRole('button').filter({ hasText: /đang nghĩ gì|on your mind/i }).first();
+      await loc.click({ timeout: 5000 });
+      clickedVia = 'getByRole+filter';
+    } catch (_) {}
+  }
+
+  if (!clickedVia) {
+    await _qpLog(steps, 'Step 1: KHÔNG tìm thấy nút composer — cả 2 strategy fail');
+    return false;
+  }
+
+  // Verify: dialog "Tạo bài viết" xuất hiện
+  try {
+    await page.waitForFunction(() => {
+      const dialogs = document.querySelectorAll('div[role="dialog"]');
+      for (const d of dialogs) {
+        const t = d.textContent || '';
+        if (t.includes('Tạo bài viết') || t.includes('Create post') || t.includes('Create Post')) return true;
+      }
+      return false;
+    }, { timeout: 10000 });
+    await _qpLog(steps, `Step 1: OK — click composer (${clickedVia}), dialog "Tạo bài viết" mở`);
+    return true;
+  } catch {
+    await _qpLog(steps, `Step 1: clicked (${clickedVia}) nhưng dialog "Tạo bài viết" không mở sau 10s`);
+    return false;
+  }
 }
 
 // --- Step 2: nhập message + upload ảnh vào composer ---
