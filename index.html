@@ -4607,7 +4607,7 @@
               else addBot(errMsg);
             }
             removePendingJob(jobId);
-            return;
+            return !!d.success;
           }
         } catch {}
       }
@@ -4615,6 +4615,7 @@
       if (progressRow) morphBot(progressRow, timeoutMsg, 'error');
       else addBot(timeoutMsg);
       removePendingJob(jobId);
+      return false;
     }
 
     // ===== Multi-tab coordination =====
@@ -4897,6 +4898,7 @@
         const zaloSel = (window._channelSelection || {})[currentProfile] || { zalo: [], zaloAccount: '' };
         const zaloGroups = zaloSel.zalo || [];
         const zaloAccount = zaloSel.zaloAccount;
+        const zaloPollPromises = [];
         if (zaloGroups.length > 0 && zaloAccount) {
           const allZalo = channelsData.zaloGroups || [];
           for (const z of zaloGroups) {
@@ -4922,7 +4924,7 @@
                   groupName: g.name,
                   account: zaloAccount,
                 });
-                pollZaloJob(zd.jobId, g.name, zaloAccount, zRow);
+                zaloPollPromises.push(pollZaloJob(zd.jobId, g.name, zaloAccount, zRow));
               } else if (zd.success) {
                 successCount += 1;
                 addBot(`✅ Group Zalo <strong>${g.name}</strong> (${zaloAccount}) xong rồi nha!`);
@@ -4934,6 +4936,10 @@
               addBot(botSystemError(`đăng Group Zalo ${g.name}`, ze));
             }
           }
+        }
+        if (zaloPollPromises.length > 0) {
+          const zaloResults = await Promise.all(zaloPollPromises);
+          successCount += zaloResults.filter(Boolean).length;
         }
 
         // Hien nut tiep tuc — câu chốt theo số bài thật sự đăng được
