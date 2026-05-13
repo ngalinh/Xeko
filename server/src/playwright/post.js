@@ -1256,6 +1256,8 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
   ];
 
   // Pattern flow cũ: page.$$ + isVisible + scrollIntoViewIfNeeded + click force
+  // Capture editorHandle ngoài loop để verify text sau khi nhập
+  let editorHandle = null;
   let editorVia = null;
   for (const selector of CANDIDATES) {
     try {
@@ -1267,14 +1269,15 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
         await randomDelay(300, 600);
         await editor.click({ force: true });
         await randomDelay(300, 500);
+        editorHandle = editor;
         editorVia = selector;
         break;
       }
-      if (editorVia) break;
+      if (editorHandle) break;
     } catch { continue; }
   }
 
-  if (!editorVia) {
+  if (!editorHandle) {
     // Diagnostic dump
     const debug = await page.evaluate(() => {
       const allCE = document.querySelectorAll('[contenteditable="true"]');
@@ -1298,25 +1301,74 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
     return false;
   }
 
-  // Paste text — clipboard → execCommand → keyboard.type (giống pasteText flow cũ)
+  // Nhập text: thử 4 phương pháp theo thứ tự, VERIFY thực tế sau mỗi cách.
+  // - keyboard.insertText: dispatch InputEvent — Lexical xử lý tốt nhất.
+  // - clipboard + Ctrl+V: phải sync ~300ms trước khi press, hợp legacy editor.
+  // - execCommand: deprecated nhưng vẫn work trên 1 số element.
+  // - keyboard.type: chậm nhưng reliable cuối cùng.
+  const getEditorText = () => editorHandle.evaluate(el => (el.textContent || '').trim());
+
+  const methods = [
+    {
+      name: 'keyboard.insertText',
+      run: async () => {
+        await editorHandle.focus();
+        await randomDelay(150, 300);
+        await page.keyboard.insertText(message);
+      },
+    },
+    {
+      name: 'clipboard+Ctrl+V',
+      run: async () => {
+        await editorHandle.focus();
+        await page.evaluate(async (txt) => navigator.clipboard.writeText(txt), message);
+        await page.waitForTimeout(300);  // chờ clipboard sync OS-level
+        await editorHandle.click({ force: true });  // re-focus phòng blur
+        await page.keyboard.press('Control+v');
+      },
+    },
+    {
+      name: 'execCommand',
+      run: async () => {
+        await editorHandle.focus();
+        await editorHandle.evaluate((el, txt) => document.execCommand('insertText', false, txt), message);
+      },
+    },
+    {
+      name: 'keyboard.type',
+      run: async () => {
+        await editorHandle.focus();
+        await page.keyboard.type(message, { delay: 30 });
+      },
+    },
+  ];
+
   let typedVia = null;
-  try {
-    await page.evaluate(async (txt) => navigator.clipboard.writeText(txt), message);
-    await page.keyboard.press('Control+v');
-    typedVia = 'clipboard';
-  } catch (_) {}
-
-  if (!typedVia) {
-    const okExec = await page.evaluate((txt) => document.execCommand('insertText', false, txt), message);
-    if (okExec) typedVia = 'execCommand';
+  const textBefore = await getEditorText();
+  for (const m of methods) {
+    try {
+      await m.run();
+      await randomDelay(400, 700);
+      const text = await getEditorText();
+      // Verify: text editor phải có nội dung mới so với trước (length > textBefore + ít nhất 1 ký tự)
+      if (text.length > textBefore.length) {
+        typedVia = m.name;
+        break;
+      }
+      await _qpLog(steps, `Step 2b: thử "${m.name}" — editor text length=${text.length} (chưa khớp), thử cách khác`);
+    } catch (e) {
+      await _qpLog(steps, `Step 2b: thử "${m.name}" exception: ${e.message.slice(0, 80)}`);
+    }
   }
 
   if (!typedVia) {
-    await page.keyboard.type(message);
-    typedVia = 'keyboard.type';
+    const finalText = await getEditorText();
+    const shot = await _qpScreenshot(page, 'step2b-type-fail');
+    await _qpLog(steps, `Step 2b: TẤT CẢ 4 cách nhập text fail (editor text="${finalText.slice(0, 30)}", screenshot=${shot})`);
+    return false;
   }
 
-  await _qpLog(steps, `Step 2b: nhập text OK (editor=${editorVia}, type=${typedVia}, ${message.length} ký tự)`);
+  await _qpLog(steps, `Step 2b: nhập text OK (editor=${editorVia}, method=${typedVia}, ${message.length} ký tự)`);
   await randomDelay(400, 800);
 
   return true;
