@@ -5619,7 +5619,8 @@
     let _proxyAccountCache = null;
     async function fetchAccountsForProxy() {
       try {
-        const res = await fetch(BASE_URL + '/api/accounts');
+        const allParam = (CURRENT_USER && CURRENT_USER.isXekoAdmin) ? '?all=1' : '';
+        const res = await fetch(BASE_URL + '/api/accounts' + allParam);
         const data = await parseJson(res);
         const list = [];
         (data.facebook || []).forEach(p => list.push({ type: 'facebook', key: p.key, name: p.name, proxy: p.proxy || '' }));
@@ -5770,7 +5771,8 @@
       const fbContainer = document.getElementById('fbProfileList');
 
       try {
-        const res = await fetch(BASE_URL + '/api/accounts');
+        const allParam = (CURRENT_USER && CURRENT_USER.isXekoAdmin) ? '?all=1' : '';
+        const res = await fetch(BASE_URL + '/api/accounts' + allParam);
         const data = await parseJson(res);
 
         // FB profiles
@@ -6422,7 +6424,8 @@
       if (!sidebar || !detail) return;
       errorEl.style.display = 'none';
       try {
-        const res = await fetch(`${BASE_URL}/api/accounts`);
+        const allParam = (CURRENT_USER && CURRENT_USER.isXekoAdmin) ? '?all=1' : '';
+        const res = await fetch(`${BASE_URL}/api/accounts` + allParam);
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await parseJson(res);
         profilesCache = data.facebook || [];
