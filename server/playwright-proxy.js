@@ -109,14 +109,14 @@ async function getFetch() {
 
 // ===== API tương thích với playwright/post.js =====
 
-function setProfile(profileName) {
+async function setProfile(profileName) {
   _activeProfile = profileName;
   _activeProfileName = profileName;
-  // Gọi async nhưng không await (để tương thích sync interface)
-  callLocal('POST', '/api/profile', { profile: profileName })
-    .then(r => { if (r.name) _activeProfileName = r.name; })
-    .catch(() => {});
-  return { name: profileName, key: profileName };
+  try {
+    const r = await callLocal('POST', '/api/profile', { profile: profileName });
+    if (r.name) _activeProfileName = r.name;
+  } catch (_) {}
+  return { name: _activeProfileName, key: profileName };
 }
 
 function getActiveProfile() {

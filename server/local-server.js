@@ -103,7 +103,13 @@ app.post('/api/profile', (req, res) => {
   const { profile } = req.body;
   try {
     const p = playwright.setProfile(profile);
-    res.json({ success: true, name: p.name || profile });
+    const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
+    let displayName = p.name || profile;
+    try {
+      const meta = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
+      if (meta[profile] && meta[profile].name) displayName = meta[profile].name;
+    } catch (_) {}
+    res.json({ success: true, name: displayName });
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
