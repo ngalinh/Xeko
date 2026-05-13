@@ -1323,67 +1323,89 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
 }
 
 // --- Step 3: click "Tiếp" để sang dialog "Cài đặt bài viết" ---
-// Pattern y hệt step 1: span text exact "Tiếp"/"Next" → walk up đến [role="button"].
+// Pattern y hệt step 2 (broadened scope sau khi gặp issue dialog portal):
+// quét toàn document — phase 1: aria-label="Tiếp", phase 2: text exact "Tiếp".
 // Exact match (===) tránh khớp nhầm "Tiếp tục", "Bước tiếp theo".
 async function qpStep3ClickNext(page, steps) {
-  let clickedVia = null;
-
-  // A. Walk-up từ span exact text → role=button (scope last dialog)
+  // Chờ button "Tiếp" xuất hiện visible (toàn document, không scope dialog)
   try {
-    const ok = await page.evaluate(() => {
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const dialog = dialogs[dialogs.length - 1];
-      if (!dialog) return false;
-      for (const s of dialog.querySelectorAll('span')) {
-        const t = (s.textContent || '').trim();
-        if (t !== 'Tiếp' && t !== 'Next') continue;
-        let el = s;
-        for (let i = 0; i < 8 && el.parentElement; i++) {
-          el = el.parentElement;
-          if (el.getAttribute('role') === 'button') {
-            const r = el.getBoundingClientRect();
-            if (r.width === 0 || r.height === 0) continue;
-            el.scrollIntoView({ block: 'center' });
-            el.click();
-            return true;
-          }
+    await page.waitForFunction(() => {
+      const buttons = document.querySelectorAll('div[role="button"], button[role="button"], button');
+      for (const btn of buttons) {
+        const aria = btn.getAttribute('aria-label') || '';
+        const text = (btn.textContent || '').trim();
+        if (aria === 'Tiếp' || aria === 'Next' || text === 'Tiếp' || text === 'Next') {
+          const r = btn.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) return true;
         }
       }
       return false;
+    }, { timeout: 10000 });
+  } catch {
+    const debug = await page.evaluate(() => {
+      const buttons = document.querySelectorAll('div[role="button"], button');
+      const sample = [];
+      for (const btn of buttons) {
+        const aria = btn.getAttribute('aria-label') || '';
+        const text = (btn.textContent || '').trim();
+        if (text.length === 0 && !aria) continue;
+        if (text.length > 40) continue;
+        sample.push({ aria: aria.slice(0, 30), text: text.slice(0, 30) });
+        if (sample.length >= 20) break;
+      }
+      return { numButtons: buttons.length, sample };
     });
-    if (ok) clickedVia = 'walk-up text→role=button';
-  } catch (_) {}
-
-  // B. Fallback aria-label (phòng FB version add aria-label sau)
-  if (!clickedVia) {
-    for (const lbl of ['Tiếp', 'Next']) {
-      try {
-        const loc = page.locator(`div[role="dialog"]`).last().locator(`[aria-label="${lbl}"]`).first();
-        await loc.click({ timeout: 3000 });
-        clickedVia = `aria-label="${lbl}"`;
-        break;
-      } catch (_) {}
-    }
-  }
-
-  if (!clickedVia) {
-    await _qpLog(steps, 'Step 3: KHÔNG tìm thấy nút "Tiếp" — cả 2 strategy fail');
+    const shot = await _qpScreenshot(page, 'step3-no-button');
+    await _qpLog(steps, `Step 3: nút "Tiếp" không xuất hiện sau 10s — debug=${JSON.stringify(debug)} (screenshot=${shot})`);
     return false;
   }
+
+  // Tìm + click — broad scope, aria-label trước, text exact sau
+  const clickResult = await page.evaluate(() => {
+    const buttons = document.querySelectorAll('div[role="button"], button[role="button"], button');
+    // Phase 1: aria-label exact
+    for (const btn of buttons) {
+      const aria = btn.getAttribute('aria-label') || '';
+      if (aria !== 'Tiếp' && aria !== 'Next') continue;
+      const r = btn.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      btn.scrollIntoView({ block: 'center' });
+      btn.click();
+      return { ok: true, via: `aria-label="${aria}"` };
+    }
+    // Phase 2: text content exact (sau khi normalize whitespace)
+    for (const btn of buttons) {
+      const text = (btn.textContent || '').trim();
+      if (text !== 'Tiếp' && text !== 'Next') continue;
+      const r = btn.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      btn.scrollIntoView({ block: 'center' });
+      btn.click();
+      return { ok: true, via: 'text-exact' };
+    }
+    return { ok: false };
+  });
+
+  if (!clickResult.ok) {
+    await _qpLog(steps, 'Step 3: button visible nhưng click fail (race?)');
+    return false;
+  }
+  await _qpLog(steps, `Step 3: click "Tiếp" OK (${clickResult.via})`);
 
   // Verify: dialog chuyển sang "Cài đặt bài viết"
   try {
     await page.waitForFunction(() => {
       const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const last = dialogs[dialogs.length - 1];
-      if (!last) return false;
-      const t = last.textContent || '';
-      return t.includes('Cài đặt bài viết') || t.includes('Post settings') || t.includes('Post Settings');
+      for (const d of dialogs) {
+        const t = d.textContent || '';
+        if (t.includes('Cài đặt bài viết') || t.includes('Post settings') || t.includes('Post Settings')) return true;
+      }
+      return false;
     }, { timeout: 10000 });
-    await _qpLog(steps, `Step 3: OK — click "Tiếp" (${clickedVia}), dialog "Cài đặt bài viết" mở`);
+    await _qpLog(steps, 'Step 3: verify OK — dialog "Cài đặt bài viết" mở');
     return true;
   } catch {
-    await _qpLog(steps, `Step 3: clicked (${clickedVia}) nhưng dialog "Cài đặt bài viết" không xuất hiện sau 10s`);
+    await _qpLog(steps, `Step 3: clicked (${clickResult.via}) nhưng dialog "Cài đặt bài viết" không xuất hiện sau 10s`);
     return false;
   }
 }
