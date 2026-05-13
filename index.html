@@ -3690,30 +3690,30 @@
     }
 
     const ENCOURAGEMENTS = [
-      'Ủa xong rồi á? Nhanh vãi 👀 Drop thêm bài đi, Xeko đang rảnh nè!',
-      'Một bài thôi hả? Yếu ớt quá bạn ơi 😂 Thả thêm đi nào!',
+      'Bài lên sóng rồi nè! Có bài nào nữa cứ thả vào đây nha 🚀',
+      'Xong 1 bài rồi đó, đăng đều cho page ấm áp nha 🔥',
       'Xeko vừa đăng xong tay còn ấm, bạn có bài nào tiếp không? 🔥',
-      'Não cá vàng nhớ không: đăng đều mới có reach nha 🐟',
+      'Đăng đều đặn là chìa khóa, bạn đang đi đúng hướng rồi 💪',
       'Một bài = khởi đầu tốt. Hai bài = slay. Ba bài = trang chủ đây rồi 👑',
       'Xeko idle 0 giây, sẵn sàng nhận bài tiếp ngay bây giờ ⚡',
-      'Thả một bài rồi đi ngủ à? Không được đâu nha bestie 😤',
-      'Content dropped! Giờ bạn định đi đâu vậy? Ở đây drop thêm đi 👀',
+      'Có bài kế tiếp chưa? Xeko sẵn sàng đăng tiếp nha ✨',
+      'Content dropped! Lúc nào có bài mới cứ thả vào đây nha 👀',
       'Xeko thấy bạn có vibe đăng bài hôm nay lắm, đừng dừng lại 🔥',
-      'Plot twist: thuật toán FB thích người đăng đều, không phải đăng 1 bài rồi mất tích 😂',
-      'Chill thôi nhưng mà... bài tiếp đâu? 👀',
-      'Bạn vừa thả bài xịn, giờ Xeko đang chờ bài tiếp đây nè 🥺',
+      'Plot twist: thuật toán FB thích người đăng đều — bạn đang làm đúng đó 😎',
+      'Bài tiếp đâu rồi nè? 👀',
+      'Bài đã lên, Xeko đang chờ bài tiếp đây nè 🥺',
       'Đăng một bài = tốt. Đăng đều = rất tốt. Dùng Xeko = đỉnh của chóp 😎',
-      'GG! Bài lên rồi, Xeko đói bài lắm r còn bài nào không 😂',
-      'Xeko: sẵn sàng 100%. Bạn: còn bài không? 👀',
-      'Đừng để Xeko ngồi không tội nghiệp lắm, drop bài tiếp đi 🥺',
+      'Bài lên rồi nha! Còn bài nào nữa không? 🎯',
+      'Xeko: sẵn sàng 100%. Bạn cứ thả bài tiếp khi nào sẵn sàng 👀',
+      '1 bài xong xuôi, Xeko sẵn sàng chờ bài kế tiếp ✨',
       'Page đang on fire đó, đừng tắt lửa nha! 🔥',
-      'Bài vừa lên sóng rồi nè~ Giờ Xeko đang nhìn bạn chờ bài tiếp đây 👁️',
-      'Fr fr bạn đang làm tốt lắm, tiếp tục đi đừng dừng 💅',
-      'Ủa bạn chưa xong à? Xeko tưởng còn nhiều bài hơn chứ 😏',
+      'Bài vừa lên sóng rồi nè~ Bài tiếp khi nào đăng tiếp nha 👁️',
+      'Bạn đang làm tốt lắm, cứ tiếp tục nha 💅',
+      'Bài lên đẹp rồi đó! Có bài nào nữa không nè 🌟',
       'Một bài vừa bay lên FB rồi! Bài tiếp theo đang ở đâu? 🛸',
-      'Xeko không biết mệt, bạn thì sao? Drop thêm đi nào 😤',
+      'Xeko không biết mệt, lúc nào cần đăng cứ gọi nha ⚡',
       'Vừa xong 1 bài mà Xeko đã hype cho bài tiếp rồi nè 🎉',
-      'Đăng bài đều là level pro đó nha, bạn có muốn lên pro không? 😏',
+      'Đăng bài đều là level pro đó nha, bạn đang đi đúng hướng rồi 👑',
       'Page cần ăn đều nha bạn ơi, một bài nữa đi 🍜',
     ];
     // Variants for batches that posted to multiple targets in one go —
@@ -3883,7 +3883,7 @@
               }
             } catch (err) {
               console.error('[msg-btn]', err);
-              addBot(`Ui nút này lỗi rồi nè: ${err && err.message ? err.message : err}`);
+              addBot(botSystemError('xử lý nút bấm', err));
             }
           });
         });
@@ -3921,7 +3921,7 @@
               else if (typeof b.action === 'string') new Function(b.action)();
             } catch (err) {
               console.error('[msg-btn]', err);
-              addBot(`Ui nút này lỗi rồi nè: ${err && err.message ? err.message : err}`);
+              addBot(botSystemError('xử lý nút bấm', err));
             }
           });
         });
@@ -3988,6 +3988,13 @@
       if (btn) btn.style.display = 'block';
     }
 
+    // Tone neutral cho lỗi hệ thống: nói rõ action user nên làm, raw error
+    // detail nhét vào <small> để không lấn câu chính.
+    function botSystemError(action, err) {
+      const detail = (err && err.message) ? err.message : (typeof err === 'string' ? err : 'không rõ');
+      return `Có lỗi khi ${action}. Bạn thử lại nha.<br><small style="opacity:.7">Chi tiết: ${escapeHtml(detail)}</small>`;
+    }
+
     let postMode = 'now'; // 'now' hoac 'schedule'
 
     const TARGET_LABELS = {
@@ -4047,7 +4054,7 @@
           ]
         );
       } catch (e) {
-        addBot(`Ui Xeko load danh sách profile không nổi rồi: ${e.message}`);
+        addBot(botSystemError('tải danh sách profile', e));
       }
     }
 
@@ -4073,7 +4080,7 @@
         );
         step = 'mode';
       } catch (e) {
-        addBot(`Ui set profile không được: ${e.message}`);
+        addBot(botSystemError('đặt profile', e));
       }
     }
 
@@ -4091,12 +4098,12 @@
         }));
         addBot('Bạn chọn profile trình duyệt cho Xeko với nha:', buttons);
       } catch (e) {
-        addBot(`Ui Xeko load danh sách profile không nổi rồi: ${e.message}`);
+        addBot(botSystemError('tải danh sách profile', e));
       }
     }
 
     function selectProfile(name) {
-      addUser(name);
+      addUser(_profileDisplayNames[name] || name);
 
       fetch(BASE_URL + '/api/profile', {
         method: 'POST',
@@ -4122,7 +4129,7 @@
         );
         step = 'mode';
       })
-      .catch(e => addBot(`Ui có lỗi rồi nè: ${e.message}`));
+      .catch(e => addBot(botSystemError('đặt profile', e)));
     }
 
     // ===== STEP 3: Chọn chế độ =====
@@ -4590,7 +4597,7 @@
           if (!r.ok) continue;
           const d = await r.json();
           if (d.status === 'done') {
-            const okMsg = `✅ Group Zalo <strong>${groupName}</strong> (${account}) xong rồi nè, thấy Xeko giỏi chưa má 😎`;
+            const okMsg = `✅ Group Zalo <strong>${groupName}</strong> (${account}) xong rồi nha!`;
             const errMsg = `❌ Huhu Group Zalo <strong>${groupName}</strong> hỏng mất rồi: ${d.error || 'Không rõ lý do'}`;
             if (d.success) {
               if (progressRow) morphBot(progressRow, okMsg, 'success');
@@ -4789,7 +4796,7 @@
           if (data.results) {
             data.results.forEach((r, i) => {
               if (r.success) {
-                let msg = `✅ Đăng lên <strong>${r.target}</strong> (profile <strong>${currentProfileName}</strong>) xong rồi má ơi, content này xuất sắc quá đi!`;
+                let msg = `✅ Đăng lên <strong>${r.target}</strong> (profile <strong>${currentProfileName}</strong>) xong rồi nha!`;
                 if (r.postUrl) msg += `\n<a class="post-link" href="${r.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
                 const shot = r.screenshot ? `/api/screenshot?t=${Date.now()}` : null;
                 if (progressRow && i === 0) {
@@ -4809,7 +4816,7 @@
               }
             });
           } else if (data.success) {
-            let msg = `✅ Xong ${targetLabel} rồi má, Xeko chưa thấy content nào đỉnh như vậy luôn á!`;
+            let msg = `✅ Xong ${targetLabel} rồi nha!`;
             if (data.postUrl) msg += `\n<a class="post-link" href="${data.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
             const shot = data.screenshot ? `/api/screenshot?t=${Date.now()}` : null;
             if (progressRow) {
@@ -4819,7 +4826,7 @@
               addBot(msg, null, shot);
             }
           } else {
-            const errMsg = `Ui có lỗi rồi nè: ${data.error}`;
+            const errMsg = botSystemError('đăng bài', data.error);
             if (progressRow) {
               morphBot(progressRow, errMsg, 'error');
               progressRow = null;
@@ -4865,7 +4872,7 @@
             if (cd.success) {
               successCount += 1;
               const gLabel = getFbGroupDisplayName(gid);
-              let msg = `✅ Group FB <strong>${gLabel}</strong> (profile <strong>${currentProfileName}</strong>) xong rồi má, Xeko đăng nhanh như chớp luôn á!`;
+              let msg = `✅ Group FB <strong>${gLabel}</strong> (profile <strong>${currentProfileName}</strong>) xong rồi nha!`;
               if (cd.postUrl) msg += `\n<a class="post-link" href="${cd.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
               const shot = cd.screenshot ? `/api/screenshot?t=${Date.now()}` : null;
               if (groupProgressRow) morphBot(groupProgressRow, msg, 'success', shot);
@@ -4880,7 +4887,7 @@
             const gLabel = getFbGroupDisplayName(gid);
             const errMsg = isProxyTimeout(ce)
               ? `⚠️ Group FB <strong>${gLabel}</strong>: mạng/proxy timeout, Xeko chưa xác nhận được bài đăng. Check FB + tab Dashboard sau 1-2 phút nha, đừng bấm đăng lại liền vì có thể đã đăng rồi đó!`
-              : `Ui Group FB ${gLabel} có lỗi: ${ce.message}`;
+              : botSystemError(`đăng Group FB ${gLabel}`, ce);
             if (groupProgressRow) morphBot(groupProgressRow, errMsg, 'error');
             else addBot(errMsg);
           }
@@ -4918,13 +4925,13 @@
                 pollZaloJob(zd.jobId, g.name, zaloAccount, zRow);
               } else if (zd.success) {
                 successCount += 1;
-                addBot(`✅ Group Zalo <strong>${g.name}</strong> (${zaloAccount}) xong xuôi nè, thấy Xeko giỏi chưa má 😎`);
+                addBot(`✅ Group Zalo <strong>${g.name}</strong> (${zaloAccount}) xong rồi nha!`);
               } else {
                 addBot(`❌ Huhu Group Zalo <strong>${g.name}</strong> bị lỗi rồi: ${zd.error || 'Không rõ lý do'}`);
               }
             } catch (ze) {
               removeTyping();
-              addBot(`Ui Group Zalo ${g.name} có lỗi: ${ze.message}`);
+              addBot(botSystemError(`đăng Group Zalo ${g.name}`, ze));
             }
           }
         }
@@ -4944,7 +4951,7 @@
             { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
           ]);
         } else {
-          addBot(`Ui có lỗi rồi nè: ${e.message}`);
+          addBot(botSystemError('đăng bài', e));
         }
       }
 
@@ -5164,7 +5171,7 @@
         }
       } catch (e) {
         removeTyping();
-        addBot(`Ui có lỗi rồi nè: ${e.message}`);
+        addBot(botSystemError('đặt lịch', e));
       }
     }
 
@@ -5203,7 +5210,7 @@
         addBot(msg, buttons);
       } catch (e) {
         removeTyping();
-        addBot(`Ui có lỗi rồi nè: ${e.message}`);
+        addBot(botSystemError('tải danh sách lịch', e));
       }
     }
 
@@ -5217,10 +5224,10 @@
             { label: `${xekoIcon('clipboard')} Xem lịch`, handler: () => showScheduleList() },
           ]);
         } else {
-          addBot(`Ui có lỗi rồi nè: ${data.error}`);
+          addBot(botSystemError('xoá lịch', data.error));
         }
       } catch (e) {
-        addBot(`Ui có lỗi rồi nè: ${e.message}`);
+        addBot(botSystemError('xoá lịch', e));
       }
     }
 
