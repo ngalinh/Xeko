@@ -1372,10 +1372,66 @@ async function qpStep3ClickNext(page, steps) {
 }
 
 // --- Step 4: trong "Cài đặt bài viết" click row "Chia sẻ lên nhóm" ---
+// Row title là <span> exact text "Chia sẻ lên nhóm". Element clickable ở 1-10 cấp
+// parent, chấp nhận role=button | role=listitem | <button> | tabindex="0".
+// Fallback: click span trực tiếp (đôi khi FB bubble handler).
 async function qpStep4OpenShareToGroups(page, steps) {
-  // TODO(selector): chờ outerHTML row "Chia sẻ lên nhóm"
-  await _qpLog(steps, 'Step 4: open "Chia sẻ lên nhóm" — selector chưa cấu hình');
-  return false;
+  const result = await page.evaluate(() => {
+    const dialogs = document.querySelectorAll('div[role="dialog"]');
+    const dialog = dialogs[dialogs.length - 1];
+    if (!dialog) return { ok: false, reason: 'no-dialog' };
+
+    const TARGETS = ['Chia sẻ lên nhóm', 'Share to groups', 'Share to Groups'];
+    // Quét cả span/h*/div để bắt mọi pattern FB render title
+    const candidates = dialog.querySelectorAll('span, h2, h3, h4, div');
+    for (const el of candidates) {
+      const text = (el.textContent || '').trim();
+      if (!TARGETS.includes(text)) continue;
+
+      // Walk-up tìm element clickable
+      let row = el;
+      for (let i = 0; i < 10 && row.parentElement; i++) {
+        row = row.parentElement;
+        const role = row.getAttribute('role');
+        const tabindex = row.getAttribute('tabindex');
+        if (role === 'button' || role === 'listitem' || row.tagName === 'BUTTON' || tabindex === '0') {
+          const r = row.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0) continue;
+          row.scrollIntoView({ block: 'center' });
+          row.click();
+          return { ok: true, via: `walk-up (${role || row.tagName.toLowerCase() || `tabindex=${tabindex}`})` };
+        }
+      }
+      // Fallback: click span trực tiếp
+      el.scrollIntoView({ block: 'center' });
+      el.click();
+      return { ok: true, via: 'text-direct' };
+    }
+    return { ok: false, reason: 'text-not-found' };
+  });
+
+  if (!result.ok) {
+    await _qpLog(steps, `Step 4: KHÔNG tìm thấy row "Chia sẻ lên nhóm" (${result.reason})`);
+    return false;
+  }
+
+  // Verify: dialog thứ cấp "Chọn nhóm" mở với [role="checkbox"]
+  try {
+    await page.waitForFunction(() => {
+      const dialogs = document.querySelectorAll('div[role="dialog"]');
+      const last = dialogs[dialogs.length - 1];
+      if (!last) return false;
+      const text = last.textContent || '';
+      const hasTitle = text.includes('Chọn nhóm') || text.includes('Choose groups') || text.includes('Choose group');
+      const hasCheckbox = last.querySelectorAll('[role="checkbox"]').length > 0;
+      return hasTitle && hasCheckbox;
+    }, { timeout: 10000 });
+    await _qpLog(steps, `Step 4: OK — click row (${result.via}), dialog "Chọn nhóm" mở với checkboxes`);
+    return true;
+  } catch {
+    await _qpLog(steps, `Step 4: clicked (${result.via}) nhưng dialog "Chọn nhóm" không xuất hiện sau 10s`);
+    return false;
+  }
 }
 
 // --- Step 5: tick group theo keyword + click "Xong" ---
