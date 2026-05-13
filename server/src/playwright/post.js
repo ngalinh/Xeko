@@ -1146,37 +1146,72 @@ async function qpStep1OpenComposer(page, steps) {
 async function qpStep2FillContent(page, steps, message, imagePaths) {
   // -------- 2a. Nhập text --------
   if (message && message.length > 0) {
-    // Tìm + focus editor (scope vào last dialog để tránh khớp nhầm element ngoài modal)
-    const editorFound = await page.evaluate(() => {
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const dialog = dialogs[dialogs.length - 1];
-      if (!dialog) return { ok: false, reason: 'no-dialog' };
-      const candidates = [
-        '[contenteditable="true"][data-lexical-editor="true"]',
-        '[contenteditable="true"][aria-placeholder*="nghĩ"]',
-        '[contenteditable="true"][aria-placeholder*="on your mind" i]',
-        '[role="textbox"][contenteditable="true"]',
-      ];
-      for (const sel of candidates) {
-        const el = dialog.querySelector(sel);
-        if (el) {
+    // Editor có thể chưa render xong khi dialog vừa mở (FB animate). Chờ tối đa 10s.
+    // Query trên TOÀN page (không chỉ last dialog) vì FB có thể render editor qua portal.
+    const CANDIDATES = [
+      '[contenteditable="true"][data-lexical-editor="true"]',
+      '[contenteditable="true"][aria-placeholder*="nghĩ"]',
+      '[contenteditable="true"][aria-placeholder*="on your mind" i]',
+      '[role="textbox"][contenteditable="true"]',
+    ];
+
+    try {
+      await page.waitForFunction((sels) => {
+        for (const sel of sels) {
+          const els = document.querySelectorAll(sel);
+          for (const el of els) {
+            const r = el.getBoundingClientRect();
+            if (r.width > 0 && r.height > 0) return true;
+          }
+        }
+        return false;
+      }, CANDIDATES, { timeout: 10000 });
+    } catch {
+      // Timeout: vẫn chưa thấy editor visible — chụp debug + log DOM info
+      const debug = await page.evaluate(() => {
+        const allCE = document.querySelectorAll('[contenteditable="true"]');
+        const allTB = document.querySelectorAll('[role="textbox"]');
+        const dialogs = document.querySelectorAll('div[role="dialog"]');
+        return {
+          numDialogs: dialogs.length,
+          numContentEditable: allCE.length,
+          numTextbox: allTB.length,
+          ceInfo: Array.from(allCE).slice(0, 5).map(el => ({
+            tag: el.tagName,
+            role: el.getAttribute('role'),
+            dataLexical: el.getAttribute('data-lexical-editor'),
+            ariaPlaceholder: (el.getAttribute('aria-placeholder') || '').slice(0, 60),
+            inDialog: !!el.closest('div[role="dialog"]'),
+            visible: (() => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; })(),
+          })),
+        };
+      });
+      const shot = await _qpScreenshot(page, 'step2a-no-editor');
+      await _qpLog(steps, `Step 2a: editor không xuất hiện sau 10s — debug=${JSON.stringify(debug)} (screenshot=${shot})`);
+      return false;
+    }
+
+    // Editor đã visible → tìm + focus (toàn document)
+    const editorFound = await page.evaluate((sels) => {
+      for (const sel of sels) {
+        const els = document.querySelectorAll(sel);
+        for (const el of els) {
           const r = el.getBoundingClientRect();
           if (r.width === 0 || r.height === 0) continue;
           el.scrollIntoView({ block: 'center' });
           el.focus();
-          // Click giữa element để chắc chắn caret active
           el.click();
-          return { ok: true, via: sel };
+          return { ok: true, via: sel, inDialog: !!el.closest('div[role="dialog"]') };
         }
       }
-      return { ok: false, reason: 'no-editor' };
-    });
+      return { ok: false };
+    }, CANDIDATES);
 
     if (!editorFound.ok) {
-      await _qpLog(steps, `Step 2a: KHÔNG tìm thấy editor (${editorFound.reason})`);
+      await _qpLog(steps, 'Step 2a: editor visible nhưng focus fail (race condition?)');
       return false;
     }
-    await _qpLog(steps, `Step 2a: focus editor OK (${editorFound.via})`);
+    await _qpLog(steps, `Step 2a: focus editor OK (${editorFound.via}, inDialog=${editorFound.inDialog})`);
     await randomDelay(300, 600);
 
     // Nhập text — clipboard paste trước (instant, hợp Lexical), fallback execCommand → keyboard.type
