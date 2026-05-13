@@ -228,13 +228,12 @@ setInterval(() => {
 }, 3600_000);
 
 async function executePost({ profile, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId }) {
-  if (profile) playwright.setProfile(profile);
+  if (profile) await playwright.setProfile(profile);
 
   // Snapshot 1 lần ngay đầu — không gọi getActiveProfile() sau await (global có thể bị đổi)
   const _pData = playwright.getActiveProfile();
   const profileKey  = profile || _pData.key || '';
-  // In proxy mode setProfile resolves the display name async, so read meta directly
-  const profileName = (loadProfilesMeta()[profileKey] || {}).name || _pData.name || profileKey;
+  const profileName = _pData.name || profileKey;
 
   if (!batchId) batchId = crypto.randomUUID();
 
