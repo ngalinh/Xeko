@@ -86,7 +86,7 @@ async function syncToLocal(data) {
       logger.warn(`permissions syncToLocal: HTTP ${res.status}`);
     }
   } catch (e) {
-    logger.warn(`permissions syncToLocal: ${e.message}`);
+    logger.info(`permissions syncToLocal: LOCAL chưa sẵn sàng (${e.message})`);
   }
 }
 
@@ -110,7 +110,7 @@ async function restoreFromLocal() {
     logger.info(`permissions restored from LOCAL (${Object.keys(data.users).length} users)`);
     return true;
   } catch (e) {
-    logger.warn(`permissions restoreFromLocal: ${e.message}`);
+    logger.info(`permissions restoreFromLocal: LOCAL chưa sẵn sàng (${e.message})`);
     return false;
   }
 }
