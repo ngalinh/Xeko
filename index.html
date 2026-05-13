@@ -4062,7 +4062,7 @@
         const data = await parseJson(res);
         if (!res.ok) throw new Error(data.error || `Lỗi ${res.status}`);
         currentProfile = profile.key;
-        currentProfileName = data.name || profile.name;
+        currentProfileName = _profileDisplayNames[profile.key] || profile.name || data.name || profile.key;
         updateHeaderProfile(currentProfileName);
         addBot(
           `Xeko chào bạn 👋 Profile <strong>${currentProfileName}</strong> đã sẵn sàng rồi nha!\nBạn muốn Xeko đăng liền hay lên lịch?`,
@@ -4110,7 +4110,7 @@
       })
       .then(data => {
         currentProfile = name;
-        currentProfileName = data.name || name;
+        currentProfileName = _profileDisplayNames[name] || data.name || name;
         updateHeaderProfile(currentProfileName);
         // STEP 3: Chon che do
         addBot(
