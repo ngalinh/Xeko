@@ -1,0 +1,14 @@
+{
+  "name": "xeko-image-server",
+  "version": "1.0.0",
+  "description": "Image storage micro-service for Xeko — chạy trên VPS phụ, nhận upload từ server chính và serve thumbnail cho history.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "multer": "^2.1.1"
+  }
+}

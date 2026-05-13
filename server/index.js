@@ -92,7 +92,7 @@ if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 const UPLOADS_DIR = path.resolve(__dirname, '../data/uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
-app.get('/api/image/:date/:filename', (req, res) => {
+app.get('/api/image/:date/:filename', async (req, res) => {
   const { date, filename } = req.params;
   // Chặn path traversal
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || /[/\\]/.test(filename)) {
@@ -100,11 +100,32 @@ app.get('/api/image/:date/:filename', (req, res) => {
   }
   const filePath = path.join(UPLOADS_DIR, date, filename);
   if (!filePath.startsWith(UPLOADS_DIR)) return res.status(400).send('Bad request');
-  if (!fs.existsSync(filePath)) return res.status(404).send('Not found');
-  res.sendFile(filePath);
+  if (fs.existsSync(filePath)) return res.sendFile(filePath);
+
+  // Proxy fallback: khi bật IMAGE_SERVER_PROXY_MODE, ảnh được lưu ở VPS phụ
+  // (qua SSH tunnel hoặc internal network) và URL trong history vẫn là
+  // /api/image/... — VPS chính proxy ngầm tới image server.
+  const IMAGE_SERVER_URL = (process.env.IMAGE_SERVER_URL || '').replace(/\/+$/, '');
+  if (process.env.IMAGE_SERVER_PROXY_MODE === 'true' && IMAGE_SERVER_URL) {
+    try {
+      const fetchFn = await getFetch();
+      const upstream = await fetchFn(`${IMAGE_SERVER_URL}/img/${date}/${filename}`);
+      if (!upstream.ok) return res.status(upstream.status).send('Not found');
+      const ct = upstream.headers.get('content-type');
+      if (ct) res.set('Content-Type', ct);
+      const buf = Buffer.from(await upstream.arrayBuffer());
+      return res.send(buf);
+    } catch (e) {
+      logger.warn(`/api/image proxy upstream fail: ${e.message}`);
+      return res.status(502).send('Upstream error');
+    }
+  }
+  return res.status(404).send('Not found');
 });
 
-function persistImages(imagePaths) {
+// Lưu local — dùng trực tiếp khi chưa cấu hình IMAGE_SERVER_URL, hoặc làm
+// fallback khi gọi VPS ảnh thất bại. URL trả về là path tương đối /api/image/...
+function persistImagesLocal(imagePaths) {
   if (!imagePaths || !imagePaths.length) return [];
   const now = new Date();
   const dateDir = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -120,10 +141,58 @@ function persistImages(imagePaths) {
       fs.copyFileSync(p, target);
       urls.push(`/api/image/${dateDir}/${filename}`);
     } catch (e) {
-      logger.error(`persistImages: ${e.message}`);
+      logger.error(`persistImagesLocal: ${e.message}`);
     }
   }
   return urls;
+}
+
+// Upload sang VPS ảnh phụ. Nếu IMAGE_SERVER_URL không set thì fallback local.
+// Nếu upload fail (network, 5xx...) cũng fallback local — không để mất thumbnail.
+async function persistImages(imagePaths) {
+  if (!imagePaths || !imagePaths.length) return [];
+
+  const IMAGE_SERVER_URL = (process.env.IMAGE_SERVER_URL || '').replace(/\/+$/, '');
+  if (!IMAGE_SERVER_URL) return persistImagesLocal(imagePaths);
+
+  try {
+    const fetchFn = await getFetch();
+    const FormData = (await import('form-data')).default;
+    const form = new FormData();
+    let appended = 0;
+    for (const p of imagePaths) {
+      if (!fs.existsSync(p)) continue;
+      form.append('images', fs.createReadStream(p), { filename: path.basename(p) });
+      appended++;
+    }
+    if (!appended) return [];
+
+    const apiKey = process.env.IMAGE_SERVER_API_KEY || '';
+    const response = await fetchFn(`${IMAGE_SERVER_URL}/upload`, {
+      method: 'POST',
+      headers: { ...form.getHeaders(), 'x-api-key': apiKey },
+      body: form,
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`HTTP ${response.status} ${text.slice(0, 200)}`);
+    }
+    const data = await response.json();
+    if (!Array.isArray(data.urls)) throw new Error('Invalid response from image server');
+
+    // Proxy mode: image server bind nội bộ (SSH tunnel...), browser không reach
+    // được trực tiếp → đảo URL về /api/image/... để route trên VPS chính proxy.
+    if (process.env.IMAGE_SERVER_PROXY_MODE === 'true') {
+      return data.urls.map((u) => {
+        const m = String(u).match(/\/img\/(\d{4}-\d{2}-\d{2})\/([^/?#]+)/);
+        return m ? `/api/image/${m[1]}/${m[2]}` : u;
+      });
+    }
+    return data.urls;
+  } catch (e) {
+    logger.warn(`persistImages: upload remote thất bại (${e.message}) → fallback local`);
+    return persistImagesLocal(imagePaths);
+  }
 }
 
 // Format mimetype mở rộng để chấp nhận ảnh từ iPhone (HEIC/HEIF) và webp
@@ -367,7 +436,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
 
   // Copy ảnh sang uploads/ (persistent) để DB log URL + browser render thumbnail
   // sau này. File gốc trong temp/ vẫn giữ để Playwright dùng, dọn ở finally.
-  const imageUrls = persistImages(imagePaths);
+  const imageUrls = await persistImages(imagePaths);
 
   // Tạo job, trả jobId ngay
   const jobId = createJob();
@@ -1075,7 +1144,7 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
 
   const imagePaths = (req.files || []).map(f => f.path);
   // Persist ảnh trước khi proxy — đảm bảo files còn tồn tại (ReadStream chưa consume)
-  const zaloImageUrls = persistImages(imagePaths);
+  const zaloImageUrls = await persistImages(imagePaths);
   try {
     const fetchFn = await getFetch();
     const FormData = (await import('form-data')).default;
