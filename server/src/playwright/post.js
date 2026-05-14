@@ -1238,46 +1238,43 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
     return true;
   }
 
+  // Wait extra cho FB settle sau khi upload ảnh xong
+  await randomDelay(1500, 2500);
+
   // Scroll dialog top (theo flow cũ) — editor có thể bị scroll out of view sau upload
   await page.evaluate(() => {
     document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = 0);
   });
   await randomDelay(500, 1000);
 
-  // Selectors KHÔNG lock tag (FB UI mới dùng <p>, cũ dùng <div>)
-  const CANDIDATES = [
-    '[contenteditable="true"][data-lexical-editor="true"]',
-    '[contenteditable="true"][aria-placeholder*="nghĩ"]',
-    '[contenteditable="true"][aria-placeholder*="on your mind" i]',
-    '[contenteditable="true"][aria-label*="nghĩ"]',
-    '[contenteditable="true"][aria-label*="mind" i]',
-    '[role="textbox"][contenteditable="true"]',
-    '[contenteditable="true"]',  // last-resort: bất kỳ contenteditable visible nào
-  ];
+  // Pick editor theo SCORING thay vì priority list — robust hơn khi có nhiều
+  // contenteditable visible (search box, hidden composer, etc).
+  // Ưu tiên: data-lexical-editor > role=textbox > aria-placeholder "nghĩ"/"mind" > inDialog > kích thước lớn.
+  const editorHandle = await page.evaluateHandle(() => {
+    const all = Array.from(document.querySelectorAll('[contenteditable="true"]'));
+    const visible = all.filter(el => {
+      const r = el.getBoundingClientRect();
+      return r.width > 50 && r.height > 20;  // đủ lớn để là editor thật
+    });
+    if (visible.length === 0) return null;
+    const score = (el) => {
+      let s = 0;
+      if (el.getAttribute('data-lexical-editor') === 'true') s += 100;
+      if (el.getAttribute('role') === 'textbox') s += 50;
+      const ap = el.getAttribute('aria-placeholder') || '';
+      const al = el.getAttribute('aria-label') || '';
+      if (/nghĩ|mind/i.test(ap) || /nghĩ|mind/i.test(al)) s += 50;
+      if (el.closest('div[role="dialog"]')) s += 30;
+      const r = el.getBoundingClientRect();
+      s += Math.min(r.width / 10, 20);  // bonus kích thước
+      return s;
+    };
+    visible.sort((a, b) => score(b) - score(a));
+    return visible[0];
+  });
 
-  // Pattern flow cũ: page.$$ + isVisible + scrollIntoViewIfNeeded + click force
-  // Capture editorHandle ngoài loop để verify text sau khi nhập
-  let editorHandle = null;
-  let editorVia = null;
-  for (const selector of CANDIDATES) {
-    try {
-      const editors = await page.$$(selector);
-      for (const editor of editors) {
-        const isVisible = await editor.isVisible();
-        if (!isVisible) continue;
-        await editor.scrollIntoViewIfNeeded();
-        await randomDelay(300, 600);
-        await editor.click({ force: true });
-        await randomDelay(300, 500);
-        editorHandle = editor;
-        editorVia = selector;
-        break;
-      }
-      if (editorHandle) break;
-    } catch { continue; }
-  }
-
-  if (!editorHandle) {
+  const editorEl = editorHandle.asElement();
+  if (!editorEl) {
     // Diagnostic dump
     const debug = await page.evaluate(() => {
       const allCE = document.querySelectorAll('[contenteditable="true"]');
@@ -1301,18 +1298,46 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
     return false;
   }
 
-  // Nhập text: thử 4 phương pháp theo thứ tự, VERIFY thực tế sau mỗi cách.
-  // - keyboard.insertText: dispatch InputEvent — Lexical xử lý tốt nhất.
-  // - clipboard + Ctrl+V: phải sync ~300ms trước khi press, hợp legacy editor.
-  // - execCommand: deprecated nhưng vẫn work trên 1 số element.
-  // - keyboard.type: chậm nhưng reliable cuối cùng.
-  const getEditorText = () => editorHandle.evaluate(el => (el.textContent || '').trim());
+  // Log thông tin editor đã chọn
+  const editorInfo = await editorEl.evaluate(el => ({
+    tag: el.tagName,
+    dataLexical: el.getAttribute('data-lexical-editor'),
+    role: el.getAttribute('role'),
+    ariaPlaceholder: (el.getAttribute('aria-placeholder') || '').slice(0, 40),
+  }));
+
+  // Multi-click + focus để chắc chắn editor active (sau upload, FB có thể blur)
+  await editorEl.scrollIntoViewIfNeeded();
+  await randomDelay(200, 400);
+  await editorEl.click({ force: true });
+  await randomDelay(200, 400);
+  await editorEl.click({ force: true });  // click lần 2 phòng blur
+  await randomDelay(300, 500);
+  await editorEl.focus();
+  await randomDelay(200, 400);
+
+  // Verify focus
+  const isFocused = await editorEl.evaluate(el => document.activeElement === el);
+  await _qpLog(steps, `Step 2b: editor=${editorInfo.tag}[data-lexical=${editorInfo.dataLexical}, role=${editorInfo.role}], focused=${isFocused}`);
+
+  // Methods theo thứ tự: keyboard.type RELIABLE NHẤT cho Lexical (Lexical listen
+  // keydown + beforeinput per-keystroke). keyboard.insertText/clipboard dispatch
+  // single InputEvent — Lexical đôi khi không xử lý đúng.
+  const getEditorText = () => editorEl.evaluate(el => (el.textContent || '').trim());
 
   const methods = [
     {
+      name: 'keyboard.type',
+      run: async () => {
+        await editorEl.focus();
+        await randomDelay(150, 300);
+        await page.keyboard.type(message, { delay: 50 });
+      },
+    },
+    {
       name: 'keyboard.insertText',
       run: async () => {
-        await editorHandle.focus();
+        await editorEl.focus();
         await randomDelay(150, 300);
         await page.keyboard.insertText(message);
       },
@@ -1320,25 +1345,18 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
     {
       name: 'clipboard+Ctrl+V',
       run: async () => {
-        await editorHandle.focus();
+        await editorEl.click({ force: true });
+        await editorEl.focus();
         await page.evaluate(async (txt) => navigator.clipboard.writeText(txt), message);
         await page.waitForTimeout(300);  // chờ clipboard sync OS-level
-        await editorHandle.click({ force: true });  // re-focus phòng blur
         await page.keyboard.press('Control+v');
       },
     },
     {
       name: 'execCommand',
       run: async () => {
-        await editorHandle.focus();
-        await editorHandle.evaluate((el, txt) => document.execCommand('insertText', false, txt), message);
-      },
-    },
-    {
-      name: 'keyboard.type',
-      run: async () => {
-        await editorHandle.focus();
-        await page.keyboard.type(message, { delay: 30 });
+        await editorEl.focus();
+        await editorEl.evaluate((el, txt) => document.execCommand('insertText', false, txt), message);
       },
     },
   ];
@@ -1348,16 +1366,15 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
   for (const m of methods) {
     try {
       await m.run();
-      await randomDelay(400, 700);
+      await randomDelay(600, 1000);
       const text = await getEditorText();
-      // Verify: text editor phải có nội dung mới so với trước (length > textBefore + ít nhất 1 ký tự)
       if (text.length > textBefore.length) {
         typedVia = m.name;
         break;
       }
-      await _qpLog(steps, `Step 2b: thử "${m.name}" — editor text length=${text.length} (chưa khớp), thử cách khác`);
+      await _qpLog(steps, `Step 2b: "${m.name}" — text length=${text.length} (trước=${textBefore.length}) chưa tăng, thử cách khác`);
     } catch (e) {
-      await _qpLog(steps, `Step 2b: thử "${m.name}" exception: ${e.message.slice(0, 80)}`);
+      await _qpLog(steps, `Step 2b: "${m.name}" exception: ${e.message.slice(0, 80)}`);
     }
   }
 
@@ -1368,7 +1385,7 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
     return false;
   }
 
-  await _qpLog(steps, `Step 2b: nhập text OK (editor=${editorVia}, method=${typedVia}, ${message.length} ký tự)`);
+  await _qpLog(steps, `Step 2b: nhập text OK (method=${typedVia}, ${message.length} ký tự)`);
   await randomDelay(400, 800);
 
   return true;
