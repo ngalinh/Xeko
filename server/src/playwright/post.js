@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const config = require('../../config/default');
 const logger = require('../utils/logger');
-const { randomDelay } = require('../utils/delay');
+const { randomDelay, humanType } = require('../utils/delay');
 const funMsg = require('../utils/fun-messages');
 const { getFbProxyForProfile } = require('../utils/proxy');
 
@@ -211,8 +211,8 @@ async function pasteText(page, message) {
   const ok = await page.evaluate((txt) => document.execCommand('insertText', false, txt), message);
   if (ok) return;
 
-  // 3. keyboard.type toàn bộ một lần (không delay từng ký tự)
-  await page.keyboard.type(message);
+  // 3. Gõ phím với delay random per-char (giống người, tránh signal bot)
+  await humanType(page.keyboard, message);
 }
 
 async function typeMessage(page, message) {
