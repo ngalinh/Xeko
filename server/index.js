@@ -1336,10 +1336,10 @@ app.delete('/api/admin/users/:email', auth.requireAdmin(), (req, res) => {
 // Local server tự đăng ký URL tunnel mới khi khởi động
 let dynamicLocalUrl = process.env.PLAYWRIGHT_LOCAL_URL || null;
 
+const apiKeyHelper = require('./src/utils/api-key');
 app.post('/api/register-local', (req, res) => {
   const { url } = req.body;
-  const apiKey = req.headers['x-api-key'];
-  if (apiKey !== (process.env.LOCAL_API_KEY || 'change-this-secret-key')) {
+  if (!apiKeyHelper.verify(req)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   if (!url) return res.status(400).json({ error: 'Missing url' });
