@@ -1247,16 +1247,44 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
   });
   await randomDelay(500, 1000);
 
-  // Pick editor theo SCORING thay vì priority list — robust hơn khi có nhiều
-  // contenteditable visible (search box, hidden composer, etc).
-  // Ưu tiên: data-lexical-editor > role=textbox > aria-placeholder "nghĩ"/"mind" > inDialog > kích thước lớn.
+  // Pick editor theo SCORING + STRICT visibility.
+  // Nếu có modal "Tạo bài viết" mở → CHỈ pick editor trong dialog đó (tránh composer
+  // feed inline ngoài modal cũng có data-lexical=true visible).
   const editorHandle = await page.evaluateHandle(() => {
     const all = Array.from(document.querySelectorAll('[contenteditable="true"]'));
-    const visible = all.filter(el => {
+
+    // Strict visibility: visible bounding box + in viewport + không opacity:0/visibility:hidden
+    const isReallyVisible = (el) => {
       const r = el.getBoundingClientRect();
-      return r.width > 50 && r.height > 20;  // đủ lớn để là editor thật
-    });
+      if (r.width < 50 || r.height < 20) return false;
+      if (r.bottom < 0 || r.top > window.innerHeight) return false;
+      if (r.right < 0 || r.left > window.innerWidth) return false;
+      const style = window.getComputedStyle(el);
+      if (style.visibility === 'hidden' || style.display === 'none') return false;
+      if (parseFloat(style.opacity) < 0.5) return false;
+      return true;
+    };
+
+    const visible = all.filter(isReallyVisible);
     if (visible.length === 0) return null;
+
+    // Nếu có dialog "Tạo bài viết" / "Create post" → CHỈ lấy editor trong dialog đó
+    const dialogs = document.querySelectorAll('div[role="dialog"]');
+    let modalDialog = null;
+    for (const d of dialogs) {
+      const t = d.textContent || '';
+      if (t.includes('Tạo bài viết') || t.includes('Create post') || t.includes('Create Post')) {
+        modalDialog = d;
+        break;
+      }
+    }
+
+    let candidates = visible;
+    if (modalDialog) {
+      const inModal = visible.filter(el => modalDialog.contains(el));
+      if (inModal.length > 0) candidates = inModal;
+    }
+
     const score = (el) => {
       let s = 0;
       if (el.getAttribute('data-lexical-editor') === 'true') s += 100;
@@ -1264,13 +1292,12 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
       const ap = el.getAttribute('aria-placeholder') || '';
       const al = el.getAttribute('aria-label') || '';
       if (/nghĩ|mind/i.test(ap) || /nghĩ|mind/i.test(al)) s += 50;
-      if (el.closest('div[role="dialog"]')) s += 30;
       const r = el.getBoundingClientRect();
       s += Math.min(r.width / 10, 20);  // bonus kích thước
       return s;
     };
-    visible.sort((a, b) => score(b) - score(a));
-    return visible[0];
+    candidates.sort((a, b) => score(b) - score(a));
+    return candidates[0];
   });
 
   const editorEl = editorHandle.asElement();
@@ -1298,27 +1325,22 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
     return false;
   }
 
-  // Log thông tin editor đã chọn
+  // Log thông tin editor đã chọn để debug
   const editorInfo = await editorEl.evaluate(el => ({
     tag: el.tagName,
     dataLexical: el.getAttribute('data-lexical-editor'),
     role: el.getAttribute('role'),
     ariaPlaceholder: (el.getAttribute('aria-placeholder') || '').slice(0, 40),
+    inDialog: !!el.closest('div[role="dialog"]'),
+    rect: (() => { const r = el.getBoundingClientRect(); return `${Math.round(r.width)}x${Math.round(r.height)}@${Math.round(r.left)},${Math.round(r.top)}`; })(),
   }));
+  await _qpLog(steps, `Step 2b: editor=${editorInfo.tag}[lexical=${editorInfo.dataLexical}, role=${editorInfo.role}, inDialog=${editorInfo.inDialog}, ${editorInfo.rect}]`);
 
-  // Multi-click + focus để chắc chắn editor active (sau upload, FB có thể blur)
+  // Single click force (theo flow cũ — 2nd click có thể blur Lexical)
   await editorEl.scrollIntoViewIfNeeded();
-  await randomDelay(200, 400);
+  await randomDelay(300, 600);
   await editorEl.click({ force: true });
-  await randomDelay(200, 400);
-  await editorEl.click({ force: true });  // click lần 2 phòng blur
   await randomDelay(300, 500);
-  await editorEl.focus();
-  await randomDelay(200, 400);
-
-  // Verify focus
-  const isFocused = await editorEl.evaluate(el => document.activeElement === el);
-  await _qpLog(steps, `Step 2b: editor=${editorInfo.tag}[data-lexical=${editorInfo.dataLexical}, role=${editorInfo.role}], focused=${isFocused}`);
 
   // Methods theo thứ tự: keyboard.type RELIABLE NHẤT cho Lexical (Lexical listen
   // keydown + beforeinput per-keystroke). keyboard.insertText/clipboard dispatch
@@ -1329,15 +1351,13 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
     {
       name: 'keyboard.type',
       run: async () => {
-        await editorEl.focus();
-        await randomDelay(150, 300);
         await page.keyboard.type(message, { delay: 50 });
       },
     },
     {
       name: 'keyboard.insertText',
       run: async () => {
-        await editorEl.focus();
+        await editorEl.click({ force: true });
         await randomDelay(150, 300);
         await page.keyboard.insertText(message);
       },
@@ -1346,7 +1366,6 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
       name: 'clipboard+Ctrl+V',
       run: async () => {
         await editorEl.click({ force: true });
-        await editorEl.focus();
         await page.evaluate(async (txt) => navigator.clipboard.writeText(txt), message);
         await page.waitForTimeout(300);  // chờ clipboard sync OS-level
         await page.keyboard.press('Control+v');
@@ -1355,7 +1374,7 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
     {
       name: 'execCommand',
       run: async () => {
-        await editorEl.focus();
+        await editorEl.click({ force: true });
         await editorEl.evaluate((el, txt) => document.execCommand('insertText', false, txt), message);
       },
     },
