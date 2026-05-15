@@ -4,6 +4,7 @@ const fs = require('fs');
 const logger = require('./logger');
 const loginHistory = require('./login-history');
 const { getFbProxyForProfile } = require('./proxy');
+const { getProfileDeviceFingerprint } = require('./device-fingerprint');
 
 const PLAYWRIGHT_DATA_DIR = path.resolve(__dirname, '../../playwright-data');
 const META_FILE = path.resolve(__dirname, '../../config/profiles-meta.json');
@@ -44,10 +45,11 @@ async function checkSession(profileKey, profile) {
   let browser = null;
   try {
     const proxy = getFbProxyForProfile(profileKey, profile);
+    const { userAgent, viewport } = getProfileDeviceFingerprint(profileKey);
     browser = await safeLaunchPersistentContext(userDataDir, {
       headless: true,
-      viewport: { width: 1280, height: 720 },
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      viewport,
+      userAgent,
       args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
       ...(proxy ? { proxy } : {}),
     });

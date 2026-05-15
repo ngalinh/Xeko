@@ -433,10 +433,13 @@ app.post('/api/accounts', (req, res) => {
 
       const proxyOpt = parseProxy(proxy);
       if (proxyOpt) logger.info(`FB "${name}" dùng proxy: ${proxyOpt.server}`);
+      const { getProfileDeviceFingerprint } = require('./src/utils/device-fingerprint');
+      const { userAgent, viewport } = getProfileDeviceFingerprint(key);
       const browser = await safeLaunchPersistentContext(profileDir, {
         headless: false,
         slowMo: 500,
-        viewport: { width: 1280, height: 720 },
+        viewport,
+        userAgent,
         ...(proxyOpt ? { proxy: proxyOpt } : {}),
       });
       const page = browser.pages()[0] || await browser.newPage();

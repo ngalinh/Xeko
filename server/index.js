@@ -149,11 +149,23 @@ function persistImagesLocal(imagePaths) {
 
 // Upload sang VPS ảnh phụ. Nếu IMAGE_SERVER_URL không set thì fallback local.
 // Nếu upload fail (network, 5xx...) cũng fallback local — không để mất thumbnail.
+//
+// Circuit breaker: sau khi remote fail, tạm coi remote down trong 5 phút để
+// tránh spam warn + tốn thời gian retry mỗi post. Hết cooldown sẽ probe lại.
+const _remoteImgState = { downUntil: 0, lastWarnAt: 0 };
+const REMOTE_COOLDOWN_MS = 5 * 60 * 1000;
+
 async function persistImages(imagePaths) {
   if (!imagePaths || !imagePaths.length) return [];
 
   const IMAGE_SERVER_URL = (process.env.IMAGE_SERVER_URL || '').replace(/\/+$/, '');
   if (!IMAGE_SERVER_URL) return persistImagesLocal(imagePaths);
+
+  const now = Date.now();
+  if (_remoteImgState.downUntil > now) {
+    // Im lặng fallback local trong cooldown — đã warn từ đầu chu kỳ
+    return persistImagesLocal(imagePaths);
+  }
 
   try {
     const fetchFn = await getFetch();
@@ -180,6 +192,12 @@ async function persistImages(imagePaths) {
     const data = await response.json();
     if (!Array.isArray(data.urls)) throw new Error('Invalid response from image server');
 
+    // Remote phục hồi sau cooldown — log để biết
+    if (_remoteImgState.downUntil) {
+      logger.info('persistImages: remote image server đã phục hồi');
+      _remoteImgState.downUntil = 0;
+    }
+
     // Proxy mode: image server bind nội bộ (SSH tunnel...), browser không reach
     // được trực tiếp → đảo URL về /api/image/... để route trên VPS chính proxy.
     if (process.env.IMAGE_SERVER_PROXY_MODE === 'true') {
@@ -190,7 +208,12 @@ async function persistImages(imagePaths) {
     }
     return data.urls;
   } catch (e) {
-    logger.warn(`persistImages: upload remote thất bại (${e.message}) → fallback local`);
+    // Mở circuit breaker — skip remote 5 phút tới, chỉ warn 1 lần
+    _remoteImgState.downUntil = now + REMOTE_COOLDOWN_MS;
+    if (now - _remoteImgState.lastWarnAt > REMOTE_COOLDOWN_MS) {
+      logger.warn(`persistImages: remote down (${e.message}) → fallback local trong ${REMOTE_COOLDOWN_MS / 60000} phút`);
+      _remoteImgState.lastWarnAt = now;
+    }
     return persistImagesLocal(imagePaths);
   }
 }

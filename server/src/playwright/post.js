@@ -6,6 +6,8 @@ const logger = require('../utils/logger');
 const { randomDelay, humanType } = require('../utils/delay');
 const funMsg = require('../utils/fun-messages');
 const { getFbProxyForProfile } = require('../utils/proxy');
+const { getProfileDeviceFingerprint } = require('../utils/device-fingerprint');
+const { checkProxy } = require('../utils/proxy-health');
 
 // Browser context theo profile key
 const browsers = {};
@@ -77,11 +79,22 @@ async function getBrowser() {
       try {
         const proxy = getFbProxyForProfile(key, profile);
         if (proxy && attempt === 0) logger.info(`Profile "${key}" dùng proxy: ${proxy.server}`);
+
+        // Pre-flight proxy health check (TCP probe, ~3s, cached 5 phút).
+        // Fail-fast trước khi launch browser tốn 20+s rồi crash với "ERR_PROXY_CONNECTION_FAILED".
+        if (proxy) {
+          const health = await checkProxy(proxy);
+          if (!health.ok) {
+            throw new Error(`Proxy "${proxy.server}" không kết nối được: ${health.error}. Kiểm tra proxy còn sống không / IP whitelist / credentials.`);
+          }
+        }
+
+        const { userAgent, viewport } = getProfileDeviceFingerprint(key);
         const ctx = await safeLaunchPersistentContext(userDataDir, {
           headless: false,
           slowMo: config.playwright.slowMo,
-          viewport: { width: 1280, height: 720 },
-          userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+          viewport,
+          userAgent,
           args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
           permissions: ['clipboard-read', 'clipboard-write'],
           ...(proxy ? { proxy } : {}),
