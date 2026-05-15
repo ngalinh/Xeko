@@ -1611,15 +1611,29 @@ async function _qpPickOneGroup(page, keyword) {
     // Wait sau scrollIntoView để dialog ổn định
     await randomDelay(300, 500);
 
-    // Helper: verify aria-checked
-    const verifyChecked = async () => {
-      return await page.evaluate(() => {
-        const cb = document.querySelector('[data-qpick-cb]');
-        if (!cb) return null;
-        if (cb.getAttribute('aria-checked') === 'true') return true;
-        if (cb.tagName === 'INPUT' && cb.checked === true) return true;
+    // Verify by KEYWORD (re-find checkbox sau mỗi click — React có thể re-render
+    // và mất data-qpick-cb marker). Chờ state change tối đa 3s.
+    const waitForToggle = async () => {
+      try {
+        await page.waitForFunction((kw) => {
+          const checkboxes = document.querySelectorAll('input[type="checkbox"], [role="checkbox"]');
+          for (const cb of checkboxes) {
+            const row = cb.closest('[role="button"], [role="listitem"]')
+                     || cb.parentElement?.parentElement
+                     || cb.parentElement;
+            if (!row) continue;
+            const text = (row.textContent || '').toLowerCase();
+            if (text.includes(kw.toLowerCase())) {
+              if (cb.getAttribute('aria-checked') === 'true') return true;
+              if (cb.tagName === 'INPUT' && cb.checked === true) return true;
+            }
+          }
+          return false;
+        }, kwLower, { timeout: 3000 });
+        return true;
+      } catch {
         return false;
-      });
+      }
     };
 
     // Multi-strategy click — row là role="button" tabindex="0" nên focus+Enter/Space
@@ -1732,15 +1746,18 @@ async function _qpPickOneGroup(page, keyword) {
 
     let toggled = false;
     let usedStrategy = null;
+    const triedLog = [];
     for (const s of strategies) {
       try {
         await s.fn();
-      } catch (_) {
+      } catch (e) {
+        triedLog.push(`${s.name}=err`);
         continue;
       }
-      await page.waitForTimeout(400);
-      const nowChecked = await verifyChecked();
-      if (nowChecked === true) {
+      // Wait state change tối đa 3s (FB re-render có thể chậm)
+      const ok = await waitForToggle();
+      triedLog.push(`${s.name}=${ok ? 'OK' : 'no'}`);
+      if (ok) {
         toggled = true;
         usedStrategy = s.name;
         break;
@@ -1759,7 +1776,7 @@ async function _qpPickOneGroup(page, keyword) {
       const searchTag = usedSearch ? ' [searched]' : '';
       return { ok: true, alreadyChecked: false, matchType: `${findResult.matchType}${searchTag} via ${usedStrategy}` };
     }
-    return { ok: false, reason: `Match ${findResult.matchType} nhưng tất cả ${strategies.length} click strategy không toggle state` };
+    return { ok: false, reason: `Match ${findResult.matchType} nhưng tất cả strategy fail. Tried: [${triedLog.join(', ')}]` };
   }
   return { ok: false, reason: `không thấy sau ${maxAttempts} lần scroll${usedSearch ? ' (đã search)' : ''}` };
 }
