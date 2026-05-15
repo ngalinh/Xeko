@@ -1453,14 +1453,60 @@ async function qpStep5PickGroups(page, steps, keywords) {
 // FB UI mới: <input type=checkbox> bị ẩn (opacity:0 / pointer-events:none) — click input
 // trực tiếp KHÔNG trigger React state. Phải click row/label wrapper (chỗ user thật click).
 // Multi-strategy click + verify aria-checked thực sự đổi state.
+// Có thêm: nếu dialog có search box → gõ keyword filter trước khi scroll list.
 async function _qpPickOneGroup(page, keyword) {
   const kwLower = keyword.toLowerCase();
   const kwExact = keyword.trim();
 
-  for (let attempt = 0; attempt < 30; attempt++) {
+  // Step 1: nếu có search box trong dialog → gõ keyword để filter list (skip scroll)
+  const usedSearch = await (async () => {
+    try {
+      const searchInfo = await page.evaluate(() => {
+        const dialogs = document.querySelectorAll('div[role="dialog"]');
+        const dialog = dialogs[dialogs.length - 1];
+        if (!dialog) return null;
+        // Tìm search input: input[type=search/text] hoặc contenteditable với aria-label "Tìm/Search"
+        const inputs = dialog.querySelectorAll('input[type="search"], input[type="text"], [contenteditable="true"]');
+        for (const el of inputs) {
+          const ph = el.getAttribute('placeholder') || el.getAttribute('aria-placeholder') || el.getAttribute('aria-label') || '';
+          if (/tìm|search/i.test(ph)) {
+            const r = el.getBoundingClientRect();
+            if (r.width > 50 && r.height > 10) {
+              el.setAttribute('data-qpick-search', '1');
+              return { found: true, placeholder: ph.slice(0, 40) };
+            }
+          }
+        }
+        return null;
+      });
+
+      if (searchInfo && searchInfo.found) {
+        const searchEl = await page.$('[data-qpick-search]');
+        if (searchEl) {
+          await searchEl.click({ force: true });
+          await randomDelay(200, 400);
+          // Clear existing (Ctrl+A + Delete)
+          await page.keyboard.press('Control+a');
+          await page.keyboard.press('Delete');
+          await randomDelay(100, 200);
+          await page.keyboard.type(keyword, { delay: 30 });
+          await randomDelay(800, 1200);  // chờ FB filter list
+          await page.evaluate(() => {
+            document.querySelectorAll('[data-qpick-search]').forEach(el => el.removeAttribute('data-qpick-search'));
+          });
+          return true;
+        }
+      }
+    } catch (_) {}
+    return false;
+  })();
+
+  // Step 2: vòng tìm + click. Nếu đã search → list ngắn, ít cần scroll.
+  const maxAttempts = usedSearch ? 5 : 30;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     // Phase A: tìm checkbox match + đánh dấu element bằng data-attr để click sau
     const findResult = await page.evaluate(({ kwLower, kwExact }) => {
-      // Cleanup marker cũ (nếu attempt trước fail)
+      // Cleanup marker cũ
       document.querySelectorAll('[data-qpick-cb]').forEach(el => el.removeAttribute('data-qpick-cb'));
       document.querySelectorAll('[data-qpick-row]').forEach(el => el.removeAttribute('data-qpick-row'));
 
@@ -1519,7 +1565,7 @@ async function _qpPickOneGroup(page, keyword) {
       }
 
       if (!matched) {
-        // Scroll lazy-load (tìm scrollable descendant)
+        // Scroll lazy-load
         let scroller = dialog;
         for (const el of dialog.querySelectorAll('*')) {
           if (el.scrollHeight > el.clientHeight + 20) { scroller = el; break; }
@@ -1528,7 +1574,6 @@ async function _qpPickOneGroup(page, keyword) {
         return { status: 'scrolled' };
       }
 
-      // Đánh dấu để Playwright tìm lại + click sau (qua attribute selector)
       matched.cb.setAttribute('data-qpick-cb', '1');
       matched.row.setAttribute('data-qpick-row', '1');
       matched.cb.scrollIntoView({ block: 'center' });
@@ -1559,7 +1604,10 @@ async function _qpPickOneGroup(page, keyword) {
       return { ok: true, alreadyChecked: true, matchType: findResult.matchType };
     }
 
-    // Helper: check aria-checked thực sự true
+    // Wait sau scrollIntoView để dialog ổn định
+    await randomDelay(300, 500);
+
+    // Helper: verify aria-checked
     const verifyChecked = async () => {
       return await page.evaluate(() => {
         const cb = document.querySelector('[data-qpick-cb]');
@@ -1570,12 +1618,40 @@ async function _qpPickOneGroup(page, keyword) {
       });
     };
 
-    // Multi-strategy click: ưu tiên click ROW qua Playwright real mouse (trigger React đúng),
-    // fallback JS click row → real click cb → JS click cb.
+    // Multi-strategy click — thêm focus+Space (toggle native checkbox bằng keyboard),
+    // dispatch pointer events, click at offset
     const strategies = [
       { name: 'row-pw-click', fn: async () => {
         const el = await page.$('[data-qpick-row]');
         if (el) await el.click({ force: true });
+      }},
+      { name: 'cb-focus-space', fn: async () => {
+        // Native checkbox: focus + Space = toggle. Bypass click handler hoàn toàn.
+        const el = await page.$('[data-qpick-cb]');
+        if (el) {
+          await el.focus();
+          await randomDelay(100, 200);
+          await page.keyboard.press('Space');
+        }
+      }},
+      { name: 'row-pw-click-offset', fn: async () => {
+        // Click ở góc trái-trên row (offset) — tránh center có thể là text bị overlay
+        const el = await page.$('[data-qpick-row]');
+        if (el) await el.click({ force: true, position: { x: 10, y: 10 } });
+      }},
+      { name: 'row-dispatch-pointer', fn: async () => {
+        // Dispatch pointer + mouse events thủ công với isTrusted=false (FB có thể accept)
+        await page.evaluate(() => {
+          const el = document.querySelector('[data-qpick-row]');
+          if (!el) return;
+          const r = el.getBoundingClientRect();
+          const opts = { bubbles: true, cancelable: true, composed: true, clientX: r.left + 20, clientY: r.top + 20, button: 0 };
+          el.dispatchEvent(new PointerEvent('pointerdown', { ...opts, pointerType: 'mouse' }));
+          el.dispatchEvent(new MouseEvent('mousedown', opts));
+          el.dispatchEvent(new PointerEvent('pointerup', { ...opts, pointerType: 'mouse' }));
+          el.dispatchEvent(new MouseEvent('mouseup', opts));
+          el.dispatchEvent(new MouseEvent('click', opts));
+        });
       }},
       { name: 'cb-pw-click', fn: async () => {
         const el = await page.$('[data-qpick-cb]');
@@ -1621,11 +1697,12 @@ async function _qpPickOneGroup(page, keyword) {
     });
 
     if (toggled) {
-      return { ok: true, alreadyChecked: false, matchType: `${findResult.matchType} via ${usedStrategy}` };
+      const searchTag = usedSearch ? ' [searched]' : '';
+      return { ok: true, alreadyChecked: false, matchType: `${findResult.matchType}${searchTag} via ${usedStrategy}` };
     }
-    return { ok: false, reason: `Match ${findResult.matchType} nhưng tất cả 4 click strategy không toggle state (aria-checked vẫn false)` };
+    return { ok: false, reason: `Match ${findResult.matchType} nhưng tất cả ${strategies.length} click strategy không toggle state` };
   }
-  return { ok: false, reason: 'không thấy sau 30 lần scroll' };
+  return { ok: false, reason: `không thấy sau ${maxAttempts} lần scroll${usedSearch ? ' (đã search)' : ''}` };
 }
 
 // --- Step 6: click "Đăng" và chờ dialog đóng ---
