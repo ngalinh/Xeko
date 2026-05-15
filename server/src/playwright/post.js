@@ -1150,17 +1150,42 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
   if (imagePaths && imagePaths.length > 0) {
     let uploadVia = null;
 
-    // B1. filechooser pattern: click nút Ảnh/video (scoped vào last dialog) → bắt filechooser
+    // B1. filechooser pattern: click nút Ảnh/video → bắt filechooser
+    // Timeout 20s (theo flow cũ, was 15s). Click aria-label exact, fallback icon search.
     try {
       const [fileChooser] = await Promise.all([
-        page.waitForEvent('filechooser', { timeout: 15000 }),
+        page.waitForEvent('filechooser', { timeout: 20000 }),
         page.evaluate(() => {
           const dialogs = document.querySelectorAll('div[role="dialog"]');
           const dialog = dialogs[dialogs.length - 1];
-          if (!dialog) return false;
-          const labels = ['Ảnh/video', 'Photo/video', 'Ảnh/Video'];
-          for (const lbl of labels) {
-            const btn = dialog.querySelector(`[aria-label="${lbl}"]`);
+          // B1.1: aria-label exact trong last dialog
+          if (dialog) {
+            const labels = ['Ảnh/video', 'Photo/video', 'Ảnh/Video'];
+            for (const lbl of labels) {
+              const btn = dialog.querySelector(`[aria-label="${lbl}"]`);
+              if (btn) {
+                const r = btn.getBoundingClientRect();
+                if (r.width === 0 || r.height === 0) continue;
+                btn.click();
+                return true;
+              }
+            }
+            // B1.2: icon search trong dialog — quét role=button có aria chứa "nh"/"hoto"/"ideo"
+            const icons = dialog.querySelectorAll('div[role="button"]');
+            for (const icon of icons) {
+              const label = icon.getAttribute('aria-label') || '';
+              if (/nh|hoto|ideo/.test(label) && label.length < 30) {
+                const r = icon.getBoundingClientRect();
+                if (r.width === 0 || r.height === 0) continue;
+                icon.click();
+                return true;
+              }
+            }
+          }
+          // B1.3: fallback — search toàn page (FB có thể render qua portal)
+          const allLabels = ['Ảnh/video', 'Photo/video', 'Ảnh/Video'];
+          for (const lbl of allLabels) {
+            const btn = document.querySelector(`[aria-label="${lbl}"]`);
             if (btn) {
               const r = btn.getBoundingClientRect();
               if (r.width === 0 || r.height === 0) continue;
@@ -1409,10 +1434,16 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
 }
 
 // --- Step 3: click "Tiếp" để sang dialog "Cài đặt bài viết" ---
-// Pattern y hệt step 2 (broadened scope sau khi gặp issue dialog portal):
-// quét toàn document — phase 1: aria-label="Tiếp", phase 2: text exact "Tiếp".
-// Exact match (===) tránh khớp nhầm "Tiếp tục", "Bước tiếp theo".
+// Pattern broad scope (toàn document, không lock dialog vì FB có thể render portal):
+// scroll dialog BOTTOM (theo flow cũ submitPost) → phase 1 aria-label, phase 2 text exact.
+// Có Tab+Enter fallback (theo flow cũ) khi click thường fail.
 async function qpStep3ClickNext(page, steps) {
+  // Scroll tất cả dialog xuống BOTTOM trước khi tìm button submit (theo flow cũ submitPost)
+  await page.evaluate(() => {
+    document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
+  });
+  await randomDelay(800, 1500);
+
   // Chờ button "Tiếp" xuất hiện visible (toàn document, không scope dialog)
   try {
     await page.waitForFunction(() => {
@@ -1428,22 +1459,46 @@ async function qpStep3ClickNext(page, steps) {
       return false;
     }, { timeout: 10000 });
   } catch {
-    const debug = await page.evaluate(() => {
-      const buttons = document.querySelectorAll('div[role="button"], button');
-      const sample = [];
-      for (const btn of buttons) {
-        const aria = btn.getAttribute('aria-label') || '';
-        const text = (btn.textContent || '').trim();
-        if (text.length === 0 && !aria) continue;
-        if (text.length > 40) continue;
-        sample.push({ aria: aria.slice(0, 30), text: text.slice(0, 30) });
-        if (sample.length >= 20) break;
-      }
-      return { numButtons: buttons.length, sample };
-    });
-    const shot = await _qpScreenshot(page, 'step3-no-button');
-    await _qpLog(steps, `Step 3: nút "Tiếp" không xuất hiện sau 10s — debug=${JSON.stringify(debug)} (screenshot=${shot})`);
-    return false;
+    // Không có "Tiếp" visible — có thể FB variant không có Tiếp step.
+    // Theo flow cũ: thử Tab+Enter trước khi declare fail
+    await _qpLog(steps, 'Step 3: không thấy nút "Tiếp" sau 10s — thử Tab+Enter fallback');
+    for (let i = 0; i < 5; i++) {
+      await page.keyboard.press('Tab');
+      await randomDelay(200, 400);
+    }
+    await page.keyboard.press('Enter');
+    await randomDelay(2000, 3000);
+
+    // Verify: dialog chuyển sang "Cài đặt bài viết"
+    try {
+      await page.waitForFunction(() => {
+        const dialogs = document.querySelectorAll('div[role="dialog"]');
+        for (const d of dialogs) {
+          const t = d.textContent || '';
+          if (t.includes('Cài đặt bài viết') || t.includes('Post settings') || t.includes('Post Settings')) return true;
+        }
+        return false;
+      }, { timeout: 5000 });
+      await _qpLog(steps, 'Step 3: Tab+Enter fallback OK — dialog "Cài đặt bài viết" mở');
+      return true;
+    } catch {
+      const debug = await page.evaluate(() => {
+        const buttons = document.querySelectorAll('div[role="button"], button');
+        const sample = [];
+        for (const btn of buttons) {
+          const aria = btn.getAttribute('aria-label') || '';
+          const text = (btn.textContent || '').trim();
+          if (text.length === 0 && !aria) continue;
+          if (text.length > 40) continue;
+          sample.push({ aria: aria.slice(0, 30), text: text.slice(0, 30) });
+          if (sample.length >= 20) break;
+        }
+        return { numButtons: buttons.length, sample };
+      });
+      const shot = await _qpScreenshot(page, 'step3-no-button');
+      await _qpLog(steps, `Step 3: cả waitFor + Tab+Enter fallback fail — debug=${JSON.stringify(debug)} (screenshot=${shot})`);
+      return false;
+    }
   }
 
   // Tìm + click — broad scope, aria-label trước, text exact sau
@@ -1473,10 +1528,16 @@ async function qpStep3ClickNext(page, steps) {
   });
 
   if (!clickResult.ok) {
-    await _qpLog(steps, 'Step 3: button visible nhưng click fail (race?)');
-    return false;
+    // Click thường fail → Tab+Enter fallback (theo flow cũ submitPost)
+    await _qpLog(steps, 'Step 3: button visible nhưng JS click fail — thử Tab+Enter');
+    for (let i = 0; i < 5; i++) {
+      await page.keyboard.press('Tab');
+      await randomDelay(200, 400);
+    }
+    await page.keyboard.press('Enter');
+  } else {
+    await _qpLog(steps, `Step 3: click "Tiếp" OK (${clickResult.via})`);
   }
-  await _qpLog(steps, `Step 3: click "Tiếp" OK (${clickResult.via})`);
 
   // Verify: dialog chuyển sang "Cài đặt bài viết"
   try {
@@ -1491,7 +1552,7 @@ async function qpStep3ClickNext(page, steps) {
     await _qpLog(steps, 'Step 3: verify OK — dialog "Cài đặt bài viết" mở');
     return true;
   } catch {
-    await _qpLog(steps, `Step 3: clicked (${clickResult.via}) nhưng dialog "Cài đặt bài viết" không xuất hiện sau 10s`);
+    await _qpLog(steps, `Step 3: clicked nhưng dialog "Cài đặt bài viết" không xuất hiện sau 10s`);
     return false;
   }
 }
@@ -1738,6 +1799,12 @@ async function _qpPickOneGroup(page, keyword) {
 async function qpStep6Submit(page, steps) {
   // Listener phải attach TRƯỚC khi click — response GraphQL về sau vài trăm ms
   const urlPromise = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
+
+  // Scroll tất cả dialog xuống BOTTOM (theo flow cũ submitPost) — submit button ở cuối
+  await page.evaluate(() => {
+    document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
+  });
+  await randomDelay(800, 1500);
 
   let clickedVia = null;
 
