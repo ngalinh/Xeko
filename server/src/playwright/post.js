@@ -1269,14 +1269,55 @@ async function qpStep3ClickNext(page, steps) {
 // parent, chấp nhận role=button | role=listitem | <button> | tabindex="0".
 // Fallback: click span trực tiếp (đôi khi FB bubble handler).
 async function qpStep4OpenShareToGroups(page, steps) {
-  const result = await page.evaluate(() => {
-    const dialogs = document.querySelectorAll('div[role="dialog"]');
-    const dialog = dialogs[dialogs.length - 1];
-    if (!dialog) return { ok: false, reason: 'no-dialog' };
+  // Wait cho row "Chia sẻ lên nhóm" render (race: dialog vừa mở, các row chưa append)
+  // Quét TOÀN DOCUMENT (không scope dialog) — FB có thể render rows qua portal
+  try {
+    await page.waitForFunction(() => {
+      const TARGETS = ['Chia sẻ lên nhóm', 'Share to groups', 'Share to Groups'];
+      const candidates = document.querySelectorAll('span, h2, h3, h4');
+      for (const el of candidates) {
+        const text = (el.textContent || '').trim();
+        if (TARGETS.includes(text)) {
+          const r = el.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) return true;
+        }
+      }
+      return false;
+    }, { timeout: 10000 });
+  } catch {
+    // Diagnostic: dump 30 text samples từ last dialog để xem text thực tế là gì
+    const debug = await page.evaluate(() => {
+      const dialogs = document.querySelectorAll('div[role="dialog"]');
+      const last = dialogs[dialogs.length - 1];
+      if (!last) return { reason: 'no-dialog' };
+      const samples = [];
+      const spans = last.querySelectorAll('span, h2, h3, h4');
+      for (const el of spans) {
+        const t = (el.textContent || '').trim();
+        if (t.length === 0 || t.length > 60) continue;
+        samples.push(t);
+        if (samples.length >= 30) break;
+      }
+      // Cũng check xem text "Chia sẻ" có xuất hiện trong toàn document không
+      const allTexts = document.body.textContent || '';
+      const hasShareText = /Chia sẻ|Share to/.test(allTexts);
+      return {
+        numDialogs: dialogs.length,
+        lastDialogTextStart: (last.textContent || '').slice(0, 200),
+        samples,
+        hasShareTextInBody: hasShareText,
+      };
+    });
+    const shot = await _qpScreenshot(page, 'step4-no-row');
+    await _qpLog(steps, `Step 4: KHÔNG tìm thấy row "Chia sẻ lên nhóm" sau 10s — debug=${JSON.stringify(debug)} (screenshot=${shot})`);
+    return false;
+  }
 
+  // Tìm + click — broad scope, exact match trước, walk-up clickable ancestor
+  const result = await page.evaluate(() => {
     const TARGETS = ['Chia sẻ lên nhóm', 'Share to groups', 'Share to Groups'];
-    // Quét cả span/h*/div để bắt mọi pattern FB render title
-    const candidates = dialog.querySelectorAll('span, h2, h3, h4, div');
+    // Broad scope: toàn document (last dialog có thể không chứa row do FB portal)
+    const candidates = document.querySelectorAll('span, h2, h3, h4');
     for (const el of candidates) {
       const text = (el.textContent || '').trim();
       if (!TARGETS.includes(text)) continue;
@@ -1316,7 +1357,8 @@ async function qpStep4OpenShareToGroups(page, steps) {
       if (!last) return false;
       const text = last.textContent || '';
       const hasTitle = text.includes('Chọn nhóm') || text.includes('Choose groups') || text.includes('Choose group');
-      const hasCheckbox = last.querySelectorAll('[role="checkbox"]').length > 0;
+      // Checkbox: support cả native input + role=checkbox
+      const hasCheckbox = last.querySelectorAll('input[type="checkbox"], [role="checkbox"]').length > 0;
       return hasTitle && hasCheckbox;
     }, { timeout: 10000 });
     await _qpLog(steps, `Step 4: OK — click row (${result.via}), dialog "Chọn nhóm" mở với checkboxes`);
