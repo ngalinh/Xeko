@@ -1518,6 +1518,10 @@ async function _qpPickOneGroup(page, keyword) {
       if (checkboxes.length === 0) return { status: 'no-checkbox' };
 
       function findRow(cb) {
+        // Ưu tiên: tìm ancestor [role="button"] (FB's clickable row container — đúng nhất)
+        const btn = cb.closest('[role="button"], [role="listitem"]');
+        if (btn) return btn;
+        // Fallback: walk up theo checkbox count
         let row = cb;
         for (let i = 0; i < 8; i++) {
           const next = row.parentElement;
@@ -1618,15 +1622,53 @@ async function _qpPickOneGroup(page, keyword) {
       });
     };
 
-    // Multi-strategy click — thêm focus+Space (toggle native checkbox bằng keyboard),
-    // dispatch pointer events, click at offset
+    // Multi-strategy click — row là role="button" tabindex="0" nên focus+Enter/Space
+    // sẽ activate button qua a11y standard, bypass overlay div che click.
     const strategies = [
+      { name: 'row-focus-enter', fn: async () => {
+        // role="button" tabindex="0" → focus + Enter = activate (a11y standard)
+        const el = await page.$('[data-qpick-row]');
+        if (el) {
+          await el.focus();
+          await randomDelay(100, 200);
+          await page.keyboard.press('Enter');
+        }
+      }},
+      { name: 'row-focus-space', fn: async () => {
+        // role="button" tabindex="0" → focus + Space = activate (a11y standard)
+        const el = await page.$('[data-qpick-row]');
+        if (el) {
+          await el.focus();
+          await randomDelay(100, 200);
+          await page.keyboard.press('Space');
+        }
+      }},
+      { name: 'row-pw-click-disable-overlay', fn: async () => {
+        // Tạm disable pointer-events của overlay [data-visualcompletion="ignore"]
+        // trong row để click pass through đến role="button"
+        await page.evaluate(() => {
+          const row = document.querySelector('[data-qpick-row]');
+          if (!row) return;
+          row.querySelectorAll('[data-visualcompletion="ignore"]').forEach(el => {
+            el.dataset.qpickOriginalPe = el.style.pointerEvents || '';
+            el.style.pointerEvents = 'none';
+          });
+        });
+        const el = await page.$('[data-qpick-row]');
+        if (el) await el.click({ force: true });
+        await page.evaluate(() => {
+          document.querySelectorAll('[data-qpick-original-pe]').forEach(el => {
+            el.style.pointerEvents = el.dataset.qpickOriginalPe;
+            delete el.dataset.qpickOriginalPe;
+          });
+        });
+      }},
       { name: 'row-pw-click', fn: async () => {
         const el = await page.$('[data-qpick-row]');
         if (el) await el.click({ force: true });
       }},
       { name: 'cb-focus-space', fn: async () => {
-        // Native checkbox: focus + Space = toggle. Bypass click handler hoàn toàn.
+        // Native checkbox: focus + Space = toggle native input behavior
         const el = await page.$('[data-qpick-cb]');
         if (el) {
           await el.focus();
@@ -1635,12 +1677,11 @@ async function _qpPickOneGroup(page, keyword) {
         }
       }},
       { name: 'row-pw-click-offset', fn: async () => {
-        // Click ở góc trái-trên row (offset) — tránh center có thể là text bị overlay
         const el = await page.$('[data-qpick-row]');
         if (el) await el.click({ force: true, position: { x: 10, y: 10 } });
       }},
       { name: 'row-dispatch-pointer', fn: async () => {
-        // Dispatch pointer + mouse events thủ công với isTrusted=false (FB có thể accept)
+        // Dispatch chuỗi pointer + mouse events thủ công
         await page.evaluate(() => {
           const el = document.querySelector('[data-qpick-row]');
           if (!el) return;
@@ -1651,6 +1692,24 @@ async function _qpPickOneGroup(page, keyword) {
           el.dispatchEvent(new PointerEvent('pointerup', { ...opts, pointerType: 'mouse' }));
           el.dispatchEvent(new MouseEvent('mouseup', opts));
           el.dispatchEvent(new MouseEvent('click', opts));
+        });
+      }},
+      { name: 'row-react-onclick', fn: async () => {
+        // Last resort: gọi React onClick handler trực tiếp qua __reactProps fiber
+        await page.evaluate(() => {
+          const el = document.querySelector('[data-qpick-row]');
+          if (!el) return;
+          const propsKey = Object.keys(el).find(k => k.startsWith('__reactProps$'));
+          if (!propsKey) return;
+          const props = el[propsKey];
+          if (props && typeof props.onClick === 'function') {
+            const fakeEvent = {
+              bubbles: true, cancelable: true, defaultPrevented: false,
+              preventDefault: () => {}, stopPropagation: () => {},
+              currentTarget: el, target: el, type: 'click',
+            };
+            props.onClick(fakeEvent);
+          }
         });
       }},
       { name: 'cb-pw-click', fn: async () => {
