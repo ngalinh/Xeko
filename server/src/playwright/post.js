@@ -1074,53 +1074,17 @@ async function _qpScreenshot(page, name) {
   } catch { return null; }
 }
 
-// --- Step 1: mở popup "Tạo bài viết" từ feed (đang ở facebook.com home) ---
-// Strategy: text "đang nghĩ gì" / "on your mind" trong span → walk up đến [role="button"].
-// Hash class (x1lliihq...) FB regen 1-2 tuần/lần → KHÔNG dùng.
-// Text có chèn tên user ("Linh Thảo ơi, bạn đang nghĩ gì thế?") → chỉ match substring ổn định.
+// --- Step 1: mở popup "Tạo bài viết" — DELEGATE sang openCreatePost cũ (proven) ---
+// Wrap openCreatePost để giữ logging step + verify dialog mở.
 async function qpStep1OpenComposer(page, steps) {
-  await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
-
-  // A. Walk-up từ span text → role="button"
-  let clickedVia = null;
-  try {
-    const ok = await page.evaluate(() => {
-      const RE = /đang nghĩ gì|on your mind/i;
-      const spans = document.querySelectorAll('span');
-      for (const s of spans) {
-        if (!RE.test(s.textContent || '')) continue;
-        let el = s;
-        for (let i = 0; i < 8 && el.parentElement; i++) {
-          el = el.parentElement;
-          if (el.getAttribute('role') === 'button') {
-            const r = el.getBoundingClientRect();
-            if (r.width === 0 || r.height === 0) continue;
-            el.scrollIntoView({ block: 'center' });
-            el.click();
-            return true;
-          }
-        }
-      }
-      return false;
-    });
-    if (ok) clickedVia = 'walk-up text→role=button';
-  } catch (_) {}
-
-  // B. Fallback: Playwright role locator filter by text
-  if (!clickedVia) {
-    try {
-      const loc = page.getByRole('button').filter({ hasText: /đang nghĩ gì|on your mind/i }).first();
-      await loc.click({ timeout: 5000 });
-      clickedVia = 'getByRole+filter';
-    } catch (_) {}
-  }
-
-  if (!clickedVia) {
-    await _qpLog(steps, 'Step 1: KHÔNG tìm thấy nút composer — cả 2 strategy fail');
+  const ok = await openCreatePost(page, false);
+  if (!ok) {
+    const shot = await _qpScreenshot(page, 'step1-fail');
+    await _qpLog(steps, `Step 1: openCreatePost (cũ) fail (screenshot=${shot})`);
     return false;
   }
 
-  // Verify: dialog "Tạo bài viết" xuất hiện
+  // Verify: dialog "Tạo bài viết" xuất hiện (delay + check)
   try {
     await page.waitForFunction(() => {
       const dialogs = document.querySelectorAll('div[role="dialog"]');
@@ -1130,306 +1094,49 @@ async function qpStep1OpenComposer(page, steps) {
       }
       return false;
     }, { timeout: 10000 });
-    await _qpLog(steps, `Step 1: OK — click composer (${clickedVia}), dialog "Tạo bài viết" mở`);
+    await _qpLog(steps, 'Step 1: openCreatePost (cũ) OK — dialog "Tạo bài viết" mở');
     return true;
   } catch {
-    await _qpLog(steps, `Step 1: clicked (${clickedVia}) nhưng dialog "Tạo bài viết" không mở sau 10s`);
+    await _qpLog(steps, 'Step 1: openCreatePost (cũ) clicked nhưng dialog "Tạo bài viết" không mở sau 10s');
     return false;
   }
 }
 
-// --- Step 2: upload ảnh + nhập message vào composer ---
-// ⚠ Thứ tự theo flow đăng cũ ổn định: ẢNH TRƯỚC → TEXT SAU.
-//   Sau khi upload, dialog reflow + expand → editor render ổn định hơn.
-// 2a. Ảnh: click [aria-label="Ảnh/video"] + waitForEvent('filechooser').
-//     Fallback: input[type=file][accept*=image] direct setInputFiles.
-// 2b. Text: scroll dialog top → page.$$() find visible editor → click force → paste.
-//     Selectors KHÔNG lock tag (FB UI mới dùng <p>, cũ dùng <div>).
+// --- Step 2: upload ảnh + nhập text — DELEGATE sang attachImages + typeMessage cũ ---
+// Thứ tự + timing y hệt postToPersonal flow cũ (đã proven):
+//   randomDelay(2000-3000) → attachImages → randomDelay(1500-2500) → typeMessage → randomDelay(1000-2000)
 async function qpStep2FillContent(page, steps, message, imagePaths) {
-  // -------- 2a. Upload ảnh (TRƯỚC như flow cũ) --------
+  await randomDelay(2000, 3000);
+
+  // 2a. Upload ảnh (TRƯỚC như flow cũ)
   if (imagePaths && imagePaths.length > 0) {
-    let uploadVia = null;
-
-    // B1. filechooser pattern: click nút Ảnh/video → bắt filechooser
-    // Timeout 20s (theo flow cũ, was 15s). Click aria-label exact, fallback icon search.
-    try {
-      const [fileChooser] = await Promise.all([
-        page.waitForEvent('filechooser', { timeout: 20000 }),
-        page.evaluate(() => {
-          const dialogs = document.querySelectorAll('div[role="dialog"]');
-          const dialog = dialogs[dialogs.length - 1];
-          // B1.1: aria-label exact trong last dialog
-          if (dialog) {
-            const labels = ['Ảnh/video', 'Photo/video', 'Ảnh/Video'];
-            for (const lbl of labels) {
-              const btn = dialog.querySelector(`[aria-label="${lbl}"]`);
-              if (btn) {
-                const r = btn.getBoundingClientRect();
-                if (r.width === 0 || r.height === 0) continue;
-                btn.click();
-                return true;
-              }
-            }
-            // B1.2: icon search trong dialog — quét role=button có aria chứa "nh"/"hoto"/"ideo"
-            const icons = dialog.querySelectorAll('div[role="button"]');
-            for (const icon of icons) {
-              const label = icon.getAttribute('aria-label') || '';
-              if (/nh|hoto|ideo/.test(label) && label.length < 30) {
-                const r = icon.getBoundingClientRect();
-                if (r.width === 0 || r.height === 0) continue;
-                icon.click();
-                return true;
-              }
-            }
-          }
-          // B1.3: fallback — search toàn page (FB có thể render qua portal)
-          const allLabels = ['Ảnh/video', 'Photo/video', 'Ảnh/Video'];
-          for (const lbl of allLabels) {
-            const btn = document.querySelector(`[aria-label="${lbl}"]`);
-            if (btn) {
-              const r = btn.getBoundingClientRect();
-              if (r.width === 0 || r.height === 0) continue;
-              btn.click();
-              return true;
-            }
-          }
-          return false;
-        }),
-      ]);
-      await fileChooser.setFiles(imagePaths);
-      uploadVia = 'filechooser';
-    } catch (e) {
-      await _qpLog(steps, `Step 2a: filechooser fail (${e.message.slice(0, 80)}) — thử input[type=file] direct`);
+    const ok = await attachImages(page, imagePaths);
+    if (!ok) {
+      const shot = await _qpScreenshot(page, 'step2a-fail');
+      await _qpLog(steps, `Step 2a: attachImages (cũ) fail (screenshot=${shot})`);
+      return false;
     }
-
-    // B2. Fallback: input[type=file] direct (scoring accept=image + multiple)
-    if (!uploadVia) {
-      const okDirect = await (async () => {
-        const inputs = await page.$$('input[type="file"]');
-        const scored = [];
-        for (const input of inputs) {
-          const accept = (await input.getAttribute('accept')) || '';
-          const multiple = (await input.getAttribute('multiple')) !== null;
-          let score = 0;
-          if (accept.includes('image')) score += 2;
-          if (multiple || imagePaths.length === 1) score += 1;
-          scored.push({ input, score });
-        }
-        scored.sort((a, b) => b.score - a.score);
-        for (const { input, score } of scored) {
-          try {
-            await input.setInputFiles(imagePaths);
-            uploadVia = `direct-input(score=${score})`;
-            return true;
-          } catch { continue; }
-        }
-        return false;
-      })();
-      if (!okDirect) {
-        await _qpLog(steps, 'Step 2a: KHÔNG upload được ảnh (cả filechooser + direct input đều fail)');
-        return false;
-      }
-    }
-
-    // Verify thumbnail: chờ blob: preview render
-    await randomDelay(3000, 5000);
-    if (imagePaths.length > 1) {
-      const thumbCount = await page.evaluate(() => {
-        const dialogs = document.querySelectorAll('div[role="dialog"]');
-        const dialog = dialogs[dialogs.length - 1];
-        if (!dialog) return -1;
-        let n = 0;
-        for (const img of dialog.querySelectorAll('img')) {
-          const src = img.getAttribute('src') || '';
-          if (src.startsWith('blob:') || src.startsWith('data:')) n++;
-        }
-        return n;
-      });
-      if (thumbCount >= 0 && thumbCount < imagePaths.length) {
-        await _qpLog(steps, `Step 2a: upload OK (${uploadVia}) nhưng chỉ thấy ${thumbCount}/${imagePaths.length} thumbnail`);
-      } else {
-        await _qpLog(steps, `Step 2a: upload OK (${uploadVia}, ${imagePaths.length} ảnh, ${thumbCount} thumb)`);
-      }
-    } else {
-      await _qpLog(steps, `Step 2a: upload OK (${uploadVia}, 1 ảnh)`);
-    }
+    await _qpLog(steps, `Step 2a: attachImages (cũ) OK, ${imagePaths.length} ảnh`);
   } else {
     await _qpLog(steps, 'Step 2a: skip — không có ảnh');
   }
 
-  // -------- 2b. Nhập text (SAU như flow cũ) --------
-  if (!message || message.length === 0) {
-    await _qpLog(steps, 'Step 2b: skip — message rỗng');
-    return true;
-  }
-
-  // Wait extra cho FB settle sau khi upload ảnh xong
   await randomDelay(1500, 2500);
 
-  // Scroll dialog top (theo flow cũ) — editor có thể bị scroll out of view sau upload
-  await page.evaluate(() => {
-    document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = 0);
-  });
-  await randomDelay(500, 1000);
-
-  // Pick editor — match aria-placeholder "nghĩ"/"mind" là SIGNAL MẠNH NHẤT
-  // (chỉ main composer editor mới có placeholder này). Bỏ scope-to-dialog vì
-  // FB có thể render Lexical qua React portal — editor ở body level, không
-  // trong [role="dialog"].
-  const editorHandle = await page.evaluateHandle(() => {
-    const all = Array.from(document.querySelectorAll('[contenteditable="true"]'));
-
-    // Strict visibility: visible bounding box + in viewport + không opacity:0/visibility:hidden
-    const isReallyVisible = (el) => {
-      const r = el.getBoundingClientRect();
-      if (r.width < 30 || r.height < 10) return false;  // hạ ngưỡng — <p> có thể slim
-      if (r.bottom < 0 || r.top > window.innerHeight) return false;
-      if (r.right < 0 || r.left > window.innerWidth) return false;
-      const style = window.getComputedStyle(el);
-      if (style.visibility === 'hidden' || style.display === 'none') return false;
-      if (parseFloat(style.opacity) < 0.5) return false;
-      return true;
-    };
-
-    const visible = all.filter(isReallyVisible);
-    if (visible.length === 0) return null;
-
-    // Filter STRICT: chỉ editor có aria-placeholder match "nghĩ"/"mind" hoặc data-lexical-editor=true
-    // (loại bỏ comment box, search box, các contenteditable khác)
-    const matched = visible.filter(el => {
-      const ap = el.getAttribute('aria-placeholder') || '';
-      const al = el.getAttribute('aria-label') || '';
-      if (/nghĩ|mind/i.test(ap) || /nghĩ|mind/i.test(al)) return true;
-      if (el.getAttribute('data-lexical-editor') === 'true') return true;
+  // 2b. Nhập text (SAU như flow cũ)
+  if (message && message.length > 0) {
+    const ok = await typeMessage(page, message);
+    if (!ok) {
+      const shot = await _qpScreenshot(page, 'step2b-fail');
+      await _qpLog(steps, `Step 2b: typeMessage (cũ) fail (screenshot=${shot})`);
       return false;
-    });
-
-    const pool = matched.length > 0 ? matched : visible;
-
-    const score = (el) => {
-      let s = 0;
-      const ap = el.getAttribute('aria-placeholder') || '';
-      const al = el.getAttribute('aria-label') || '';
-      // Match placeholder "nghĩ"/"mind" là signal MẠNH NHẤT — chỉ main composer có
-      if (/nghĩ|mind/i.test(ap) || /nghĩ|mind/i.test(al)) s += 200;
-      if (el.getAttribute('data-lexical-editor') === 'true') s += 100;
-      if (el.getAttribute('role') === 'textbox') s += 50;
-      if (el.closest('div[role="dialog"], [aria-modal="true"]')) s += 30;
-      const r = el.getBoundingClientRect();
-      s += Math.min(r.width / 10, 30);  // bonus kích thước
-      return s;
-    };
-    pool.sort((a, b) => score(b) - score(a));
-    return pool[0];
-  });
-
-  const editorEl = editorHandle.asElement();
-  if (!editorEl) {
-    // Diagnostic dump
-    const debug = await page.evaluate(() => {
-      const allCE = document.querySelectorAll('[contenteditable="true"]');
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      return {
-        numDialogs: dialogs.length,
-        numContentEditable: allCE.length,
-        ceInfo: Array.from(allCE).slice(0, 8).map(el => ({
-          tag: el.tagName,
-          role: el.getAttribute('role'),
-          dataLexical: el.getAttribute('data-lexical-editor'),
-          ariaPlaceholder: (el.getAttribute('aria-placeholder') || '').slice(0, 60),
-          ariaLabel: (el.getAttribute('aria-label') || '').slice(0, 60),
-          inDialog: !!el.closest('div[role="dialog"]'),
-          rect: (() => { const r = el.getBoundingClientRect(); return `${Math.round(r.width)}x${Math.round(r.height)}@${Math.round(r.left)},${Math.round(r.top)}`; })(),
-        })),
-      };
-    });
-    const shot = await _qpScreenshot(page, 'step2b-no-editor');
-    await _qpLog(steps, `Step 2b: KHÔNG tìm thấy editor visible — debug=${JSON.stringify(debug)} (screenshot=${shot})`);
-    return false;
-  }
-
-  // Log thông tin editor đã chọn
-  const editorInfo = await editorEl.evaluate(el => ({
-    tag: el.tagName,
-    dataLexical: el.getAttribute('data-lexical-editor'),
-    role: el.getAttribute('role'),
-    ariaPlaceholder: (el.getAttribute('aria-placeholder') || '').slice(0, 40),
-    inDialog: !!el.closest('div[role="dialog"]'),
-    rect: (() => { const r = el.getBoundingClientRect(); return `${Math.round(r.width)}x${Math.round(r.height)}@${Math.round(r.left)},${Math.round(r.top)}`; })(),
-  }));
-  await _qpLog(steps, `Step 2b: editor=${editorInfo.tag}[lexical=${editorInfo.dataLexical}, role=${editorInfo.role}, placeholder="${editorInfo.ariaPlaceholder}", inDialog=${editorInfo.inDialog}, ${editorInfo.rect}]`);
-
-  // Single click force tại offset cố định (10, 10) — tránh click vào CENTER có thể bị overlay che
-  await editorEl.scrollIntoViewIfNeeded();
-  await randomDelay(300, 600);
-  await editorEl.click({ force: true, position: { x: 10, y: 5 } });
-  await randomDelay(300, 500);
-
-  // Methods theo thứ tự: keyboard.type RELIABLE NHẤT cho Lexical (Lexical listen
-  // keydown + beforeinput per-keystroke). keyboard.insertText/clipboard dispatch
-  // single InputEvent — Lexical đôi khi không xử lý đúng.
-  const getEditorText = () => editorEl.evaluate(el => (el.textContent || '').trim());
-
-  const methods = [
-    {
-      name: 'keyboard.type',
-      run: async () => {
-        await page.keyboard.type(message, { delay: 50 });
-      },
-    },
-    {
-      name: 'keyboard.insertText',
-      run: async () => {
-        await editorEl.click({ force: true });
-        await randomDelay(150, 300);
-        await page.keyboard.insertText(message);
-      },
-    },
-    {
-      name: 'clipboard+Ctrl+V',
-      run: async () => {
-        await editorEl.click({ force: true });
-        await page.evaluate(async (txt) => navigator.clipboard.writeText(txt), message);
-        await page.waitForTimeout(300);  // chờ clipboard sync OS-level
-        await page.keyboard.press('Control+v');
-      },
-    },
-    {
-      name: 'execCommand',
-      run: async () => {
-        await editorEl.click({ force: true });
-        await editorEl.evaluate((el, txt) => document.execCommand('insertText', false, txt), message);
-      },
-    },
-  ];
-
-  let typedVia = null;
-  const textBefore = await getEditorText();
-  for (const m of methods) {
-    try {
-      await m.run();
-      await randomDelay(600, 1000);
-      const text = await getEditorText();
-      if (text.length > textBefore.length) {
-        typedVia = m.name;
-        break;
-      }
-      await _qpLog(steps, `Step 2b: "${m.name}" — text length=${text.length} (trước=${textBefore.length}) chưa tăng, thử cách khác`);
-    } catch (e) {
-      await _qpLog(steps, `Step 2b: "${m.name}" exception: ${e.message.slice(0, 80)}`);
     }
+    await _qpLog(steps, `Step 2b: typeMessage (cũ) OK, ${message.length} ký tự`);
+  } else {
+    await _qpLog(steps, 'Step 2b: skip — không có message');
   }
 
-  if (!typedVia) {
-    const finalText = await getEditorText();
-    const shot = await _qpScreenshot(page, 'step2b-type-fail');
-    await _qpLog(steps, `Step 2b: TẤT CẢ 4 cách nhập text fail (editor text="${finalText.slice(0, 30)}", screenshot=${shot})`);
-    return false;
-  }
-
-  await _qpLog(steps, `Step 2b: nhập text OK (method=${typedVia}, ${message.length} ký tự)`);
-  await randomDelay(400, 800);
-
+  await randomDelay(1000, 2000);
   return true;
 }
 
