@@ -1247,16 +1247,17 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
   });
   await randomDelay(500, 1000);
 
-  // Pick editor theo SCORING + STRICT visibility.
-  // Nếu có modal "Tạo bài viết" mở → CHỈ pick editor trong dialog đó (tránh composer
-  // feed inline ngoài modal cũng có data-lexical=true visible).
+  // Pick editor — match aria-placeholder "nghĩ"/"mind" là SIGNAL MẠNH NHẤT
+  // (chỉ main composer editor mới có placeholder này). Bỏ scope-to-dialog vì
+  // FB có thể render Lexical qua React portal — editor ở body level, không
+  // trong [role="dialog"].
   const editorHandle = await page.evaluateHandle(() => {
     const all = Array.from(document.querySelectorAll('[contenteditable="true"]'));
 
     // Strict visibility: visible bounding box + in viewport + không opacity:0/visibility:hidden
     const isReallyVisible = (el) => {
       const r = el.getBoundingClientRect();
-      if (r.width < 50 || r.height < 20) return false;
+      if (r.width < 30 || r.height < 10) return false;  // hạ ngưỡng — <p> có thể slim
       if (r.bottom < 0 || r.top > window.innerHeight) return false;
       if (r.right < 0 || r.left > window.innerWidth) return false;
       const style = window.getComputedStyle(el);
@@ -1268,36 +1269,33 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
     const visible = all.filter(isReallyVisible);
     if (visible.length === 0) return null;
 
-    // Nếu có dialog "Tạo bài viết" / "Create post" → CHỈ lấy editor trong dialog đó
-    const dialogs = document.querySelectorAll('div[role="dialog"]');
-    let modalDialog = null;
-    for (const d of dialogs) {
-      const t = d.textContent || '';
-      if (t.includes('Tạo bài viết') || t.includes('Create post') || t.includes('Create Post')) {
-        modalDialog = d;
-        break;
-      }
-    }
+    // Filter STRICT: chỉ editor có aria-placeholder match "nghĩ"/"mind" hoặc data-lexical-editor=true
+    // (loại bỏ comment box, search box, các contenteditable khác)
+    const matched = visible.filter(el => {
+      const ap = el.getAttribute('aria-placeholder') || '';
+      const al = el.getAttribute('aria-label') || '';
+      if (/nghĩ|mind/i.test(ap) || /nghĩ|mind/i.test(al)) return true;
+      if (el.getAttribute('data-lexical-editor') === 'true') return true;
+      return false;
+    });
 
-    let candidates = visible;
-    if (modalDialog) {
-      const inModal = visible.filter(el => modalDialog.contains(el));
-      if (inModal.length > 0) candidates = inModal;
-    }
+    const pool = matched.length > 0 ? matched : visible;
 
     const score = (el) => {
       let s = 0;
-      if (el.getAttribute('data-lexical-editor') === 'true') s += 100;
-      if (el.getAttribute('role') === 'textbox') s += 50;
       const ap = el.getAttribute('aria-placeholder') || '';
       const al = el.getAttribute('aria-label') || '';
-      if (/nghĩ|mind/i.test(ap) || /nghĩ|mind/i.test(al)) s += 50;
+      // Match placeholder "nghĩ"/"mind" là signal MẠNH NHẤT — chỉ main composer có
+      if (/nghĩ|mind/i.test(ap) || /nghĩ|mind/i.test(al)) s += 200;
+      if (el.getAttribute('data-lexical-editor') === 'true') s += 100;
+      if (el.getAttribute('role') === 'textbox') s += 50;
+      if (el.closest('div[role="dialog"], [aria-modal="true"]')) s += 30;
       const r = el.getBoundingClientRect();
-      s += Math.min(r.width / 10, 20);  // bonus kích thước
+      s += Math.min(r.width / 10, 30);  // bonus kích thước
       return s;
     };
-    candidates.sort((a, b) => score(b) - score(a));
-    return candidates[0];
+    pool.sort((a, b) => score(b) - score(a));
+    return pool[0];
   });
 
   const editorEl = editorHandle.asElement();
@@ -1309,14 +1307,14 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
       return {
         numDialogs: dialogs.length,
         numContentEditable: allCE.length,
-        ceInfo: Array.from(allCE).slice(0, 5).map(el => ({
+        ceInfo: Array.from(allCE).slice(0, 8).map(el => ({
           tag: el.tagName,
           role: el.getAttribute('role'),
           dataLexical: el.getAttribute('data-lexical-editor'),
           ariaPlaceholder: (el.getAttribute('aria-placeholder') || '').slice(0, 60),
           ariaLabel: (el.getAttribute('aria-label') || '').slice(0, 60),
           inDialog: !!el.closest('div[role="dialog"]'),
-          visible: (() => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; })(),
+          rect: (() => { const r = el.getBoundingClientRect(); return `${Math.round(r.width)}x${Math.round(r.height)}@${Math.round(r.left)},${Math.round(r.top)}`; })(),
         })),
       };
     });
@@ -1325,7 +1323,7 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
     return false;
   }
 
-  // Log thông tin editor đã chọn để debug
+  // Log thông tin editor đã chọn
   const editorInfo = await editorEl.evaluate(el => ({
     tag: el.tagName,
     dataLexical: el.getAttribute('data-lexical-editor'),
@@ -1334,12 +1332,12 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
     inDialog: !!el.closest('div[role="dialog"]'),
     rect: (() => { const r = el.getBoundingClientRect(); return `${Math.round(r.width)}x${Math.round(r.height)}@${Math.round(r.left)},${Math.round(r.top)}`; })(),
   }));
-  await _qpLog(steps, `Step 2b: editor=${editorInfo.tag}[lexical=${editorInfo.dataLexical}, role=${editorInfo.role}, inDialog=${editorInfo.inDialog}, ${editorInfo.rect}]`);
+  await _qpLog(steps, `Step 2b: editor=${editorInfo.tag}[lexical=${editorInfo.dataLexical}, role=${editorInfo.role}, placeholder="${editorInfo.ariaPlaceholder}", inDialog=${editorInfo.inDialog}, ${editorInfo.rect}]`);
 
-  // Single click force (theo flow cũ — 2nd click có thể blur Lexical)
+  // Single click force tại offset cố định (10, 10) — tránh click vào CENTER có thể bị overlay che
   await editorEl.scrollIntoViewIfNeeded();
   await randomDelay(300, 600);
-  await editorEl.click({ force: true });
+  await editorEl.click({ force: true, position: { x: 10, y: 5 } });
   await randomDelay(300, 500);
 
   // Methods theo thứ tự: keyboard.type RELIABLE NHẤT cho Lexical (Lexical listen
