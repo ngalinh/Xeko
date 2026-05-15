@@ -27,8 +27,26 @@ if (!process.env.PLAYWRIGHT_BROWSERS_PATH) {
   }
 }
 
-// Require Playwright SAU khi set env
-const { chromium } = require('playwright');
+// Require Playwright SAU khi set env.
+// Ưu tiên playwright-extra + stealth plugin để ẩn các signal automation
+// (navigator.webdriver, chrome.runtime, permissions.query, WebGL vendor, ...).
+// Fallback về playwright vanilla nếu chưa cài deps — không brick server.
+let chromium;
+let _stealthEnabled = false;
+try {
+  const { chromium: extraChromium } = require('playwright-extra');
+  const stealth = require('puppeteer-extra-plugin-stealth')();
+  extraChromium.use(stealth);
+  chromium = extraChromium;
+  _stealthEnabled = true;
+} catch (e) {
+  console.warn(
+    '[playwright-launch] Stealth plugin chưa cài (' + e.code + '). ' +
+    'Chạy: cd server && npm install — để bật anti-detection. ' +
+    'Đang dùng playwright vanilla.'
+  );
+  ({ chromium } = require('playwright'));
+}
 
 function isMissingBrowserError(e) {
   return /Executable doesn'?t exist|chromium_headless_shell|chrome-headless-shell|Looks like Playwright was just installed/i.test(e?.message || '');
@@ -111,4 +129,5 @@ module.exports = {
   isMissingBrowserError,
   chromium, // re-export để các module khác không cần require playwright riêng
   BROWSERS_PATH,
+  stealthEnabled: _stealthEnabled,
 };
