@@ -5,6 +5,7 @@ const logger = require('../utils/logger');
 const { getZaloProxyForAccount } = require('../utils/proxy');
 const { randomDelay, humanType } = require('../utils/delay');
 const { getProfileDeviceFingerprint } = require('../utils/device-fingerprint');
+const { checkProxy } = require('../utils/proxy-health');
 
 const DEBUG_SCREENSHOT_DIR = '/tmp/salework-debug';
 
@@ -225,6 +226,16 @@ async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message
 
   const proxy = getZaloProxyForAccount(accountKey);
   if (proxy) logger.info(`[salework] Account "${zaloAccountName}" dùng proxy: ${proxy.server}`);
+
+  if (proxy) {
+    const health = await checkProxy(proxy);
+    if (!health.ok) {
+      return {
+        success: false,
+        error: `Proxy "${proxy.server}" không kết nối được: ${health.error}. Sửa proxy ở tab Tài khoản Zalo.`,
+      };
+    }
+  }
 
   // Fingerprint riêng cho mỗi Zalo account (namespace 'zalo:' để tránh va FB)
   const { userAgent, viewport } = getProfileDeviceFingerprint(`zalo:${accountKey || zaloAccountName}`);
