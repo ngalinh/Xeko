@@ -1449,22 +1449,28 @@ async function qpStep5PickGroups(page, steps, keywords) {
   return { selected: selected.length, missed };
 }
 
-// Tick 1 group theo keyword với exact-match priority + substring fallback + scroll lazy-load
+// Tick 1 group theo keyword với exact-match priority + substring fallback + scroll lazy-load.
+// FB UI mới: <input type=checkbox> bị ẩn (opacity:0 / pointer-events:none) — click input
+// trực tiếp KHÔNG trigger React state. Phải click row/label wrapper (chỗ user thật click).
+// Multi-strategy click + verify aria-checked thực sự đổi state.
 async function _qpPickOneGroup(page, keyword) {
   const kwLower = keyword.toLowerCase();
   const kwExact = keyword.trim();
 
   for (let attempt = 0; attempt < 30; attempt++) {
-    const result = await page.evaluate(({ kwLower, kwExact }) => {
+    // Phase A: tìm checkbox match + đánh dấu element bằng data-attr để click sau
+    const findResult = await page.evaluate(({ kwLower, kwExact }) => {
+      // Cleanup marker cũ (nếu attempt trước fail)
+      document.querySelectorAll('[data-qpick-cb]').forEach(el => el.removeAttribute('data-qpick-cb'));
+      document.querySelectorAll('[data-qpick-row]').forEach(el => el.removeAttribute('data-qpick-row'));
+
       const dialogs = document.querySelectorAll('div[role="dialog"]');
       const dialog = dialogs[dialogs.length - 1];
       if (!dialog) return { status: 'no-dialog' };
 
-      // FB UI mới = native input, UI cũ = role="checkbox" — support cả 2
       const checkboxes = dialog.querySelectorAll('input[type="checkbox"], [role="checkbox"]');
       if (checkboxes.length === 0) return { status: 'no-checkbox' };
 
-      // Walk-up từ checkbox tìm row container (largest ancestor có đúng 1 checkbox)
       function findRow(cb) {
         let row = cb;
         for (let i = 0; i < 8; i++) {
@@ -1483,58 +1489,141 @@ async function _qpPickOneGroup(page, keyword) {
         return false;
       }
 
-      // Phase 1: exact text match — tránh "Test" tick nhầm "Test 1"
+      let matched = null;
+      let matchType = null;
+
+      // Phase 1: exact
       for (const cb of checkboxes) {
         const row = findRow(cb);
         for (const t of row.querySelectorAll('span, h2, h3, h4')) {
           if ((t.textContent || '').trim() === kwExact) {
-            cb.scrollIntoView({ block: 'center' });
-            const r = cb.getBoundingClientRect();
-            if (r.width === 0 || r.height === 0) {
-              // Native input có thể visually hidden — click vào row thay vì checkbox
-              row.click();
-              return { status: 'ok', alreadyChecked: isChecked(cb), matchType: 'exact (row click)' };
-            }
-            const already = isChecked(cb);
-            if (!already) cb.click();
-            return { status: 'ok', alreadyChecked: already, matchType: 'exact' };
+            matched = { cb, row };
+            matchType = 'exact';
+            break;
+          }
+        }
+        if (matched) break;
+      }
+
+      // Phase 2: substring fallback
+      if (!matched) {
+        for (const cb of checkboxes) {
+          const row = findRow(cb);
+          const text = (row.textContent || '').toLowerCase();
+          if (text.includes(kwLower)) {
+            matched = { cb, row };
+            matchType = 'substring';
+            break;
           }
         }
       }
 
-      // Phase 2: substring fallback (case-insensitive)
-      for (const cb of checkboxes) {
-        const row = findRow(cb);
-        const text = (row.textContent || '').toLowerCase();
-        if (text.includes(kwLower)) {
-          cb.scrollIntoView({ block: 'center' });
-          const r = cb.getBoundingClientRect();
-          if (r.width === 0 || r.height === 0) {
-            row.click();
-            return { status: 'ok', alreadyChecked: isChecked(cb), matchType: 'substring (row click)' };
-          }
-          const already = isChecked(cb);
-          if (!already) cb.click();
-          return { status: 'ok', alreadyChecked: already, matchType: 'substring' };
+      if (!matched) {
+        // Scroll lazy-load (tìm scrollable descendant)
+        let scroller = dialog;
+        for (const el of dialog.querySelectorAll('*')) {
+          if (el.scrollHeight > el.clientHeight + 20) { scroller = el; break; }
         }
+        scroller.scrollBy(0, 400);
+        return { status: 'scrolled' };
       }
 
-      // Không match → scroll lazy-load (tìm scrollable descendant)
-      let scroller = dialog;
-      for (const el of dialog.querySelectorAll('*')) {
-        if (el.scrollHeight > el.clientHeight + 20) { scroller = el; break; }
-      }
-      scroller.scrollBy(0, 400);
-      return { status: 'scrolled' };
+      // Đánh dấu để Playwright tìm lại + click sau (qua attribute selector)
+      matched.cb.setAttribute('data-qpick-cb', '1');
+      matched.row.setAttribute('data-qpick-row', '1');
+      matched.cb.scrollIntoView({ block: 'center' });
+
+      return {
+        status: 'matched',
+        matchType,
+        alreadyChecked: isChecked(matched.cb),
+      };
     }, { kwLower, kwExact });
 
-    if (result.status === 'ok') {
-      return { ok: true, alreadyChecked: result.alreadyChecked, matchType: result.matchType };
+    if (findResult.status === 'scrolled') {
+      await randomDelay(300, 500);
+      continue;
     }
-    if (result.status === 'no-dialog' || result.status === 'no-checkbox') {
-      return { ok: false, reason: result.status };
+    if (findResult.status === 'no-dialog' || findResult.status === 'no-checkbox') {
+      return { ok: false, reason: findResult.status };
     }
-    await randomDelay(300, 500);
+
+    // status === 'matched'
+    if (findResult.alreadyChecked) {
+      await page.evaluate(() => {
+        document.querySelectorAll('[data-qpick-cb], [data-qpick-row]').forEach(el => {
+          el.removeAttribute('data-qpick-cb');
+          el.removeAttribute('data-qpick-row');
+        });
+      });
+      return { ok: true, alreadyChecked: true, matchType: findResult.matchType };
+    }
+
+    // Helper: check aria-checked thực sự true
+    const verifyChecked = async () => {
+      return await page.evaluate(() => {
+        const cb = document.querySelector('[data-qpick-cb]');
+        if (!cb) return null;
+        if (cb.getAttribute('aria-checked') === 'true') return true;
+        if (cb.tagName === 'INPUT' && cb.checked === true) return true;
+        return false;
+      });
+    };
+
+    // Multi-strategy click: ưu tiên click ROW qua Playwright real mouse (trigger React đúng),
+    // fallback JS click row → real click cb → JS click cb.
+    const strategies = [
+      { name: 'row-pw-click', fn: async () => {
+        const el = await page.$('[data-qpick-row]');
+        if (el) await el.click({ force: true });
+      }},
+      { name: 'cb-pw-click', fn: async () => {
+        const el = await page.$('[data-qpick-cb]');
+        if (el) await el.click({ force: true });
+      }},
+      { name: 'row-js-click', fn: async () => {
+        await page.evaluate(() => {
+          const el = document.querySelector('[data-qpick-row]');
+          if (el) el.click();
+        });
+      }},
+      { name: 'cb-js-click', fn: async () => {
+        await page.evaluate(() => {
+          const el = document.querySelector('[data-qpick-cb]');
+          if (el) el.click();
+        });
+      }},
+    ];
+
+    let toggled = false;
+    let usedStrategy = null;
+    for (const s of strategies) {
+      try {
+        await s.fn();
+      } catch (_) {
+        continue;
+      }
+      await page.waitForTimeout(400);
+      const nowChecked = await verifyChecked();
+      if (nowChecked === true) {
+        toggled = true;
+        usedStrategy = s.name;
+        break;
+      }
+    }
+
+    // Cleanup markers
+    await page.evaluate(() => {
+      document.querySelectorAll('[data-qpick-cb], [data-qpick-row]').forEach(el => {
+        el.removeAttribute('data-qpick-cb');
+        el.removeAttribute('data-qpick-row');
+      });
+    });
+
+    if (toggled) {
+      return { ok: true, alreadyChecked: false, matchType: `${findResult.matchType} via ${usedStrategy}` };
+    }
+    return { ok: false, reason: `Match ${findResult.matchType} nhưng tất cả 4 click strategy không toggle state (aria-checked vẫn false)` };
   }
   return { ok: false, reason: 'không thấy sau 30 lần scroll' };
 }
