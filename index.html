@@ -4140,6 +4140,7 @@
           `Xeko chào bạn 👋 Profile <strong>${currentProfileName}</strong> đã sẵn sàng rồi nha!\nBạn muốn Xeko đăng liền hay lên lịch?`,
           [
             { label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') },
+            { label: '⚡ Đăng nhanh FB', handler: () => selectMode('quickfb') },
             { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
           ]
         );
@@ -4189,6 +4190,7 @@
           `Xeko chốt profile <strong>${currentProfileName}</strong> rồi nha!\nGiờ bạn muốn Xeko đăng liền hay lên lịch giúp nè?`,
           [
             { label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') },
+            { label: '⚡ Đăng nhanh FB', handler: () => selectMode('quickfb') },
             { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
           ]
         );
@@ -4200,11 +4202,14 @@
     // ===== STEP 3: Chọn chế độ =====
     function selectMode(mode) {
       postMode = mode;
-      const modeLabel = mode === 'now' ? 'Đăng ngay' : 'Lên lịch';
+      const modeLabel = mode === 'now' ? 'Đăng ngay' : (mode === 'quickfb' ? 'Đăng nhanh FB' : 'Lên lịch');
       addUser(modeLabel);
       // Ack ngắn trước khi render panel kênh (panel hơi nặng, ack giúp user
       // thấy click được ghi nhận liền thay vì chờ panel build xong)
-      addBot(mode === 'now' ? 'Ok, đăng liền nha 👌' : 'Ok, mình hẹn giờ nha 🕐');
+      const ack = mode === 'now' ? 'Ok, đăng liền nha 👌'
+                : mode === 'quickfb' ? 'Ok, đăng nhanh lên FB cá nhân + share group cùng lúc nha ⚡ (FB only, tối đa 9 group)'
+                : 'Ok, mình hẹn giờ nha 🕐';
+      addBot(ack);
       // STEP 4: Chon noi dang
       showTargetSelect();
     }
@@ -4262,10 +4267,14 @@
       await loadChannels();
       channelPanelId++;
       const pid = channelPanelId;
-      const modeEmoji = postMode === 'now' ? '✏️' : '🕐';
-      const modeLabel = postMode === 'now' ? 'Đăng ngay' : 'Lên lịch';
+      const modeEmoji = postMode === 'now' ? '✏️' : (postMode === 'quickfb' ? '⚡' : '🕐');
+      const modeLabel = postMode === 'now' ? 'Đăng ngay' : (postMode === 'quickfb' ? 'Đăng nhanh FB' : 'Lên lịch');
 
       const p = buildTargetChannels(currentProfile, currentProfileName);
+      // Quickfb mode = FB only — strip zalo channels từ panel để user không pick nhầm
+      if (postMode === 'quickfb') {
+        p.zalo = [];
+      }
       let panelHtml = `<div class="channel-panel" id="channelPanel_${pid}">`;
 
       // Platform toggles
@@ -4558,6 +4567,7 @@
         'Xeko đăng liền hay lên lịch giúp bạn nè?',
         [
           { label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') },
+          { label: '⚡ Đăng nhanh FB', handler: () => selectMode('quickfb') },
           { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
         ]
       );
@@ -4835,12 +4845,42 @@
       };
       _refreshDashIfActive();
 
+      // ===== QUICKFB MODE: gộp tất cả FB groups thành 1 POST share-to-groups =====
+      // Thay vì N+1 separate posts (path cũ), dùng FB native share dialog:
+      // 1 post lên FB cá nhân + share lên tối đa 9 nhóm cùng lúc.
+      let _quickfbGroupKeywords = null;
+      if (postMode === 'quickfb') {
+        const _activeSel = selected[currentProfile] || { fb: [] };
+        const _names = [];
+        for (const c of (_activeSel.fb || [])) {
+          if (c.id === 'cat' && Array.isArray(c.groupKeys)) {
+            for (const k of c.groupKeys) {
+              const g = (channelsData.fbGroups || []).find(x => x.key === k);
+              if (g && g.name) _names.push(g.name);
+            }
+          } else if (c.id !== 'personal' && c.id !== 'custom') {
+            const g = (channelsData.fbGroups || []).find(x => x.key === c.id);
+            if (g && g.name) _names.push(g.name);
+          }
+        }
+        // Dedupe theo tên
+        _quickfbGroupKeywords = [...new Set(_names)];
+        if (_quickfbGroupKeywords.length > 9) {
+          addBot(`⚠️ FB share dialog chỉ tối đa 9 group/lần. Bạn chọn ${_quickfbGroupKeywords.length}, Xeko sẽ chỉ lấy 9 group đầu nha.`);
+          _quickfbGroupKeywords = _quickfbGroupKeywords.slice(0, 9);
+        }
+        // Override target để dùng flow share-to-groups (server side đã swap sang quickPostToPersonalAndGroups)
+        target = 'personal-share-groups';
+        groupId = null;
+      }
+
       try {
         if (target) {
           const formData = new FormData();
           formData.append('message', message);
           formData.append('target', target);
           if (groupId) formData.append('groupId', groupId);
+          if (_quickfbGroupKeywords) formData.append('groupKeywords', JSON.stringify(_quickfbGroupKeywords));
           formData.append('batchId', sessionBatchId);
           if (currentProfile) formData.append('profile', currentProfile);
           if (currentProfileName && currentProfileName !== currentProfile) formData.append('profileDisplayName', currentProfileName);
@@ -4922,8 +4962,8 @@
           }
         }
 
-        // Post to custom groups if any
-        const customIds = window._customGroupIds || [];
+        // Post to custom groups if any — SKIP cho quickfb mode (đã share qua 1 post duy nhất)
+        const customIds = (postMode === 'quickfb') ? [] : (window._customGroupIds || []);
         for (const gid of customIds) {
           addTyping();
           let groupProgressRow = null;
@@ -7057,6 +7097,7 @@
         buttons.push({ label: `${xekoIcon('user')} Đổi profile`, handler: () => showProfileSelect() });
       } else if (step === 'mode') {
         buttons.push({ label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') });
+        buttons.push({ label: '⚡ Đăng nhanh FB', handler: () => selectMode('quickfb') });
         buttons.push({ label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') });
       } else if (step === 'target') {
         buttons.push({ label: `${xekoIcon('pin')} Chọn nơi đăng`, handler: () => showTargetSelect() });
