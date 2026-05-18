@@ -233,8 +233,17 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
           setJobResult(jobId, { success: r.success, error: r.error, postUrl: r.postUrl });
           return;
         }
-        const r = await playwright.postPersonalAndShareToGroups(message, imagePaths, groupKeywords);
-        setJobResult(jobId, { success: r.success, error: r.error, postUrl: r.postUrl, sharedGroups: groupKeywords });
+        // Swap sang quickPostToPersonalAndGroups (đã verified work) thay cho
+        // postPersonalAndShareToGroups cũ (unstable). Hỗ trợ "Đăng nhanh FB" mode.
+        const r = await playwright.quickPostToPersonalAndGroups(message, imagePaths, groupKeywords);
+        setJobResult(jobId, {
+          success: r.success,
+          error: r.error,
+          postUrl: r.postUrl,
+          sharedGroups: r.sharedGroups != null ? r.sharedGroups : groupKeywords.length,
+          missedGroups: r.missedGroups || [],
+          steps: r.steps,
+        });
         return;
       }
 
