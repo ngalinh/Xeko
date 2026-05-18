@@ -1854,6 +1854,43 @@ async function qpStep6Submit(page, steps) {
  * @param {string[]} groupKeywords  Để rỗng = không share group (sẽ click "Đăng" luôn).
  * @returns {Promise<{success: boolean, postUrl?: string, sharedGroups?: number, missedGroups?: string[], steps: string[], error?: string}>}
  */
+// Helper: close share-groups dialog ("Chọn nhóm") để quay về "Cài đặt bài viết"
+// Dùng khi step 4/5 fail và cần fallback sang đăng cá nhân không share group.
+async function _qpCloseShareGroupsDialog(page) {
+  const dialog = page.locator('div[role="dialog"]').filter({ hasText: 'Chọn nhóm' }).first();
+  // Method 1: click back arrow trong dialog (aria-label Quay lại/Back)
+  for (const lbl of ['Quay lại', 'Back']) {
+    try {
+      await dialog.locator(`[aria-label="${lbl}"]`).first().click({ force: true, timeout: 2000 });
+      break;
+    } catch (_) {}
+  }
+  // Verify dialog "Chọn nhóm" đã đóng
+  try {
+    await page.waitForFunction(() => {
+      const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+      for (const d of ds) {
+        if ((d.textContent || '').includes('Chọn nhóm')) return false;
+      }
+      return true;
+    }, { timeout: 3000 });
+    return true;
+  } catch {
+    // Method 2: Escape key (fallback)
+    await page.keyboard.press('Escape');
+    try {
+      await page.waitForFunction(() => {
+        const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+        for (const d of ds) {
+          if ((d.textContent || '').includes('Chọn nhóm')) return false;
+        }
+        return true;
+      }, { timeout: 2000 });
+      return true;
+    } catch { return false; }
+  }
+}
+
 async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywords = []) {
   const t0 = Date.now();
   const profileSnap = getActiveProfile();
@@ -1885,6 +1922,8 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
     await randomDelay(600, 1000);
 
     // Nhánh có share group: Tiếp → Chia sẻ lên nhóm → tick → Xong → Đăng
+    // FALLBACK an toàn: nếu step 4/5 fail (chưa post), tự click "Đăng" để post
+    // cá nhân thay vì để mất luôn cả bài cá nhân.
     if (wantShare) {
       if (!(await qpStep3ClickNext(page, steps))) {
         const shot = await _qpScreenshot(page, 'step3-fail');
@@ -1892,19 +1931,53 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
       }
       await randomDelay(800, 1500);
 
-      if (!(await qpStep4OpenShareToGroups(page, steps))) {
-        const shot = await _qpScreenshot(page, 'step4-fail');
-        return { success: false, error: `Step 4 fail (screenshot=${shot})`, steps };
+      // Step 4: open share-groups dialog
+      const step4ok = await qpStep4OpenShareToGroups(page, steps);
+
+      if (!step4ok) {
+        // FALLBACK 1: vẫn ở "Cài đặt bài viết" → click "Đăng" để post personal-only
+        await _qpLog(steps, '⚠ Step 4 fail → fallback đăng cá nhân không share group');
+        const submit = await qpStep6Submit(page, steps);
+        logger.info(`${tag} fallback personal-only (+${Date.now() - t0}ms)`);
+        return {
+          success: submit.success,
+          postUrl: submit.postUrl,
+          sharedGroups: 0,
+          missedGroups: keywords,
+          partialSuccess: submit.success,
+          steps,
+          error: submit.success ? undefined : (submit.error || 'Step 4 fail và fallback Đăng cũng fail'),
+        };
       }
       await randomDelay(500, 1000);
 
+      // Step 5: tick groups
       const pick = await qpStep5PickGroups(page, steps, keywords);
+
       if (pick.selected === 0 && keywords.length > 0) {
-        const shot = await _qpScreenshot(page, 'step5-fail');
-        return { success: false, error: `Step 5 fail — không tick được group nào (screenshot=${shot})`, steps, missedGroups: pick.missed };
+        // FALLBACK 2: stuck ở "Chọn nhóm" → close dialog → quay về "Cài đặt" → Đăng personal-only
+        await _qpLog(steps, '⚠ Step 5 fail (0 groups ticked) → cancel "Chọn nhóm" → fallback đăng cá nhân');
+        const closed = await _qpCloseShareGroupsDialog(page);
+        if (!closed) {
+          const shot = await _qpScreenshot(page, 'step5-cant-cancel');
+          return { success: false, error: `Step 5 fail và không close được "Chọn nhóm" để fallback (screenshot=${shot})`, steps, missedGroups: pick.missed };
+        }
+        await randomDelay(600, 1000);
+        const submit = await qpStep6Submit(page, steps);
+        logger.info(`${tag} fallback personal-only sau step5 fail (+${Date.now() - t0}ms)`);
+        return {
+          success: submit.success,
+          postUrl: submit.postUrl,
+          sharedGroups: 0,
+          missedGroups: pick.missed,
+          partialSuccess: submit.success,
+          steps,
+          error: submit.success ? undefined : (submit.error || 'Step 5 fail và fallback Đăng cũng fail'),
+        };
       }
       await randomDelay(600, 1000);
 
+      // Happy path: ticked some groups → step 6 Đăng (full flow)
       const submit = await qpStep6Submit(page, steps);
       logger.info(`${tag} done (+${Date.now() - t0}ms)`);
       return {
@@ -1912,6 +1985,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
         postUrl: submit.postUrl,
         sharedGroups: pick.selected,
         missedGroups: pick.missed,
+        partialSuccess: submit.success && pick.missed.length > 0,  // partial nếu missed some groups
         steps,
         error: submit.success ? undefined : (submit.error || 'Step 6 fail'),
       };

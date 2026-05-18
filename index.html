@@ -4942,11 +4942,21 @@
               }
             });
           } else if (data.success) {
-            let msg = `✅ Xong ${targetLabel} rồi nha!`;
+            let msg;
+            const isShareFlow = (target === 'personal-share-groups');
+            if (isShareFlow && data.partialSuccess && data.missedGroups && data.missedGroups.length > 0) {
+              // Đăng cá nhân OK nhưng share group fail
+              msg = `⚠️ Đăng FB cá nhân <strong>${currentProfileName}</strong> OK, nhưng share lên ${data.missedGroups.length} nhóm <strong>${data.missedGroups.join(', ')}</strong> fail (không tick được). Bạn share thủ công hoặc retry nha.`;
+            } else if (isShareFlow && data.sharedGroups > 0) {
+              msg = `✅ Xeko đã đăng FB cá nhân <strong>${currentProfileName}</strong> + share lên <strong>${data.sharedGroups} nhóm</strong> rồi nha!`;
+            } else {
+              msg = `✅ Xong ${targetLabel} rồi nha!`;
+            }
             if (data.postUrl) msg += `\n<a class="post-link" href="${data.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
             const shot = data.screenshot ? `/api/screenshot?t=${Date.now()}` : null;
+            const statusKind = (isShareFlow && data.partialSuccess) ? 'warning' : 'success';
             if (progressRow) {
-              morphBot(progressRow, msg, 'success', shot);
+              morphBot(progressRow, msg, statusKind, shot);
               progressRow = null;
             } else {
               addBot(msg, null, shot);

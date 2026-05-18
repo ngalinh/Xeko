@@ -242,6 +242,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
           postUrl: r.postUrl,
           sharedGroups: r.sharedGroups != null ? r.sharedGroups : groupKeywords.length,
           missedGroups: r.missedGroups || [],
+          partialSuccess: r.partialSuccess === true,
           steps: r.steps,
         });
         return;
