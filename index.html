@@ -4850,7 +4850,7 @@
       // 1 post lên FB cá nhân + share lên tối đa 9 nhóm cùng lúc.
       let _quickfbGroupKeywords = null;
       if (postMode === 'quickfb') {
-        const _activeSel = selected[currentProfile] || { fb: [] };
+        const _activeSel = (window._channelSelection || {})[currentProfile] || { fb: [] };
         const _names = [];
         for (const c of (_activeSel.fb || [])) {
           if (c.id === 'cat' && Array.isArray(c.groupKeys)) {
