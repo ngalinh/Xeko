@@ -1531,6 +1531,65 @@ async function _qpPickOneGroup(page, keyword) {
       dialog.getByRole('button', { name: kw }).first().click({ force: true, timeout: 3000 }) },
     { name: 'getByText(exact).click', fn: () =>
       dialog.getByText(kw, { exact: true }).first().click({ force: true, timeout: 3000 }) },
+    { name: 'mouse.click on checkbox icon', fn: async () => {
+      // Click thẳng tọa độ pixel của visible icon (<i data-visualcompletion="css-img">)
+      // Bypass overlay + accessibility — đây là chỗ user thật sự click khi tick group
+      const coords = await page.evaluate((k) => {
+        const ds = document.querySelectorAll('div[role="dialog"]');
+        const d = ds[ds.length - 1];
+        if (!d) return null;
+        for (const cb of d.querySelectorAll('input[type="checkbox"], [role="checkbox"]')) {
+          const row = cb.closest('[role="button"], [role="listitem"]') || cb.parentElement;
+          if (!row) continue;
+          let titleMatch = false;
+          for (const t of row.querySelectorAll('span, h2, h3, h4')) {
+            if ((t.textContent || '').trim() === k) { titleMatch = true; break; }
+          }
+          if (!titleMatch) continue;
+          // Ưu tiên: visible icon <i> (background-image CSS sprite); fallback: input rect
+          const icon = row.querySelector('i[data-visualcompletion="css-img"]')
+                    || row.querySelector('i[style*="background-image"]')
+                    || cb;
+          const r = icon.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0) return null;
+          return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        }
+        return null;
+      }, kw);
+      if (!coords) throw new Error('không tìm được tọa độ icon');
+      // Hover trước, rồi mousedown + mouseup riêng (giống user thật click)
+      await page.mouse.move(coords.x, coords.y);
+      await randomDelay(100, 200);
+      await page.mouse.down();
+      await randomDelay(50, 100);
+      await page.mouse.up();
+    }},
+    { name: 'mouse.click on row center', fn: async () => {
+      // Hover + click coordinates ở center của row (full chain mouse events)
+      const coords = await page.evaluate((k) => {
+        const ds = document.querySelectorAll('div[role="dialog"]');
+        const d = ds[ds.length - 1];
+        if (!d) return null;
+        for (const cb of d.querySelectorAll('input[type="checkbox"], [role="checkbox"]')) {
+          const row = cb.closest('[role="button"], [role="listitem"]') || cb.parentElement;
+          if (!row) continue;
+          let titleMatch = false;
+          for (const t of row.querySelectorAll('span, h2, h3, h4')) {
+            if ((t.textContent || '').trim() === k) { titleMatch = true; break; }
+          }
+          if (!titleMatch) continue;
+          const r = row.getBoundingClientRect();
+          return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        }
+        return null;
+      }, kw);
+      if (!coords) throw new Error('không tìm được tọa độ row');
+      await page.mouse.move(coords.x, coords.y);
+      await randomDelay(150, 300);
+      await page.mouse.down();
+      await randomDelay(50, 100);
+      await page.mouse.up();
+    }},
   ];
 
   // Verify: chờ aria-checked đổi (re-find theo keyword, không phụ thuộc marker)
