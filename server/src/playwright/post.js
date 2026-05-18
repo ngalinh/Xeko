@@ -1349,22 +1349,44 @@ async function qpStep4OpenShareToGroups(page, steps) {
     return false;
   }
 
-  // Verify: dialog thứ cấp "Chọn nhóm" mở với [role="checkbox"]
+  // Verify: dialog thứ cấp "Chọn nhóm" mở với checkbox.
+  // Lỏng scope — quét MỌI dialog (không chỉ last), HOẶC fallback check toàn body.
+  // FB modal portal có thể stack DOM theo thứ tự khác → dialog mới chưa chắc là last.
   try {
     await page.waitForFunction(() => {
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const last = dialogs[dialogs.length - 1];
-      if (!last) return false;
-      const text = last.textContent || '';
-      const hasTitle = text.includes('Chọn nhóm') || text.includes('Choose groups') || text.includes('Choose group');
-      // Checkbox: support cả native input + role=checkbox
-      const hasCheckbox = last.querySelectorAll('input[type="checkbox"], [role="checkbox"]').length > 0;
-      return hasTitle && hasCheckbox;
-    }, { timeout: 10000 });
+      // Check 1: bất kỳ dialog nào chứa "Chọn nhóm" + có checkbox
+      const dialogs = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+      for (const d of dialogs) {
+        const text = d.textContent || '';
+        if (text.includes('Chọn nhóm') || text.includes('Choose groups') || text.includes('Choose group')) {
+          const hasCb = d.querySelectorAll('input[type="checkbox"], [role="checkbox"]').length > 0;
+          if (hasCb) return true;
+        }
+      }
+      // Check 2: fallback toàn body — "Chọn nhóm" chỉ xuất hiện ở dialog mới
+      // (dialog "Cài đặt bài viết" chứa "Chia sẻ lên nhóm" — KHÔNG chứa "Chọn nhóm")
+      const bodyText = document.body.textContent || '';
+      const hasChoose = bodyText.includes('Chọn nhóm') || bodyText.includes('Choose groups') || bodyText.includes('Choose group');
+      const hasAnyCb = document.querySelectorAll('input[type="checkbox"], [role="checkbox"]').length > 0;
+      return hasChoose && hasAnyCb;
+    }, { timeout: 15000 });
     await _qpLog(steps, `Step 4: OK — click row (${result.via}), dialog "Chọn nhóm" mở với checkboxes`);
     return true;
   } catch {
-    await _qpLog(steps, `Step 4: clicked (${result.via}) nhưng dialog "Chọn nhóm" không xuất hiện sau 10s`);
+    // Diagnostic dump để debug
+    const debug = await page.evaluate(() => {
+      const dialogs = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+      const bodyText = document.body.textContent || '';
+      return {
+        numDialogs: dialogs.length,
+        dialogTexts: Array.from(dialogs).map(d => (d.textContent || '').slice(0, 120)),
+        bodyHasChonNhom: bodyText.includes('Chọn nhóm'),
+        bodyHasChiaSe: bodyText.includes('Chia sẻ lên nhóm'),
+        numCheckboxes: document.querySelectorAll('input[type="checkbox"], [role="checkbox"]').length,
+      };
+    });
+    const shot = await _qpScreenshot(page, 'step4-verify-fail');
+    await _qpLog(steps, `Step 4: clicked (${result.via}) nhưng verify fail sau 15s — debug=${JSON.stringify(debug)} (screenshot=${shot})`);
     return false;
   }
 }
