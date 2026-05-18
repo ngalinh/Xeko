@@ -1451,334 +1451,125 @@ async function qpStep5PickGroups(page, steps, keywords) {
 
 // Tick 1 group theo keyword với exact-match priority + substring fallback + scroll lazy-load.
 // FB UI mới: <input type=checkbox> bị ẩn (opacity:0 / pointer-events:none) — click input
-// trực tiếp KHÔNG trigger React state. Phải click row/label wrapper (chỗ user thật click).
-// Multi-strategy click + verify aria-checked thực sự đổi state.
-// Có thêm: nếu dialog có search box → gõ keyword filter trước khi scroll list.
+
+// Tick 1 group bằng Playwright accessibility locator (B3 approach).
+// Dùng getByRole + .check() / .click() built-in — Playwright tự handle scroll into view,
+// actionability check, retries. Fall back qua nhiều variant của getByRole.
 async function _qpPickOneGroup(page, keyword) {
-  const kwLower = keyword.toLowerCase();
-  const kwExact = keyword.trim();
+  const kw = keyword.trim();
+  const escapedKw = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  // Step 1: nếu có search box trong dialog → gõ keyword để filter list (skip scroll)
-  const usedSearch = await (async () => {
-    try {
-      const searchInfo = await page.evaluate(() => {
-        const dialogs = document.querySelectorAll('div[role="dialog"]');
-        const dialog = dialogs[dialogs.length - 1];
-        if (!dialog) return null;
-        // Tìm search input: input[type=search/text] hoặc contenteditable với aria-label "Tìm/Search"
-        const inputs = dialog.querySelectorAll('input[type="search"], input[type="text"], [contenteditable="true"]');
-        for (const el of inputs) {
-          const ph = el.getAttribute('placeholder') || el.getAttribute('aria-placeholder') || el.getAttribute('aria-label') || '';
-          if (/tìm|search/i.test(ph)) {
-            const r = el.getBoundingClientRect();
-            if (r.width > 50 && r.height > 10) {
-              el.setAttribute('data-qpick-search', '1');
-              return { found: true, placeholder: ph.slice(0, 40) };
-            }
-          }
-        }
-        return null;
-      });
-
-      if (searchInfo && searchInfo.found) {
-        const searchEl = await page.$('[data-qpick-search]');
-        if (searchEl) {
-          await searchEl.click({ force: true });
-          await randomDelay(200, 400);
-          // Clear existing (Ctrl+A + Delete)
-          await page.keyboard.press('Control+a');
-          await page.keyboard.press('Delete');
-          await randomDelay(100, 200);
-          await page.keyboard.type(keyword, { delay: 30 });
-          await randomDelay(800, 1200);  // chờ FB filter list
-          await page.evaluate(() => {
-            document.querySelectorAll('[data-qpick-search]').forEach(el => el.removeAttribute('data-qpick-search'));
-          });
-          return true;
+  // Scroll lazy-load: đảm bảo group nằm trong DOM trước khi dùng locator
+  let foundInDom = false;
+  for (let i = 0; i < 20; i++) {
+    const result = await page.evaluate((k) => {
+      const ds = document.querySelectorAll('div[role="dialog"]');
+      const d = ds[ds.length - 1];
+      if (!d) return 'no-dialog';
+      for (const s of d.querySelectorAll('span, h2, h3, h4')) {
+        if ((s.textContent || '').trim() === k) {
+          s.scrollIntoView({ block: 'center' });
+          return 'found';
         }
       }
-    } catch (_) {}
+      // Scroll scrollable descendant
+      let scroller = d;
+      for (const el of d.querySelectorAll('*')) {
+        if (el.scrollHeight > el.clientHeight + 20) { scroller = el; break; }
+      }
+      scroller.scrollBy(0, 400);
+      return 'scrolled';
+    }, kw);
+
+    if (result === 'no-dialog') return { ok: false, reason: 'no-dialog' };
+    if (result === 'found') { foundInDom = true; break; }
+    await randomDelay(300, 500);
+  }
+
+  if (!foundInDom) return { ok: false, reason: `Không thấy group "${kw}" sau 20 scrolls` };
+  await randomDelay(500, 800);  // settle sau scrollIntoView
+
+  // Check alreadyChecked trước khi thử click
+  const isAlreadyChecked = await page.evaluate((k) => {
+    const ds = document.querySelectorAll('div[role="dialog"]');
+    const d = ds[ds.length - 1];
+    if (!d) return false;
+    for (const cb of d.querySelectorAll('input[type="checkbox"], [role="checkbox"]')) {
+      const row = cb.closest('[role="button"], [role="listitem"]') || cb.parentElement;
+      if (!row) continue;
+      // Kiểm tra row chứa keyword
+      let titleMatch = false;
+      for (const t of row.querySelectorAll('span, h2, h3, h4')) {
+        if ((t.textContent || '').trim() === k) { titleMatch = true; break; }
+      }
+      if (!titleMatch) continue;
+      if (cb.getAttribute('aria-checked') === 'true') return true;
+      if (cb.tagName === 'INPUT' && cb.checked === true) return true;
+    }
     return false;
-  })();
+  }, kw);
 
-  // Step 2: vòng tìm + click. Nếu đã search → list ngắn, ít cần scroll.
-  const maxAttempts = usedSearch ? 5 : 30;
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    // Phase A: tìm checkbox match + đánh dấu element bằng data-attr để click sau
-    const findResult = await page.evaluate(({ kwLower, kwExact }) => {
-      // Cleanup marker cũ
-      document.querySelectorAll('[data-qpick-cb]').forEach(el => el.removeAttribute('data-qpick-cb'));
-      document.querySelectorAll('[data-qpick-row]').forEach(el => el.removeAttribute('data-qpick-row'));
+  if (isAlreadyChecked) {
+    return { ok: true, alreadyChecked: true, matchType: 'exact (đã tick trước)' };
+  }
 
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const dialog = dialogs[dialogs.length - 1];
-      if (!dialog) return { status: 'no-dialog' };
+  // B3: Playwright accessibility locator strategies
+  const dialog = page.locator('div[role="dialog"]').last();
+  const startRe = new RegExp('^' + escapedKw + '(\\s|$|,)', 'i');
+  const exactRe = new RegExp('^' + escapedKw + '$', 'i');
 
-      const checkboxes = dialog.querySelectorAll('input[type="checkbox"], [role="checkbox"]');
-      if (checkboxes.length === 0) return { status: 'no-checkbox' };
+  const tries = [
+    { name: 'getByRole(checkbox,exactRe).check', fn: () =>
+      dialog.getByRole('checkbox', { name: exactRe }).first().check({ force: true, timeout: 3000 }) },
+    { name: 'getByRole(checkbox,name,exact).check', fn: () =>
+      dialog.getByRole('checkbox', { name: kw, exact: true }).first().check({ force: true, timeout: 3000 }) },
+    { name: 'getByRole(checkbox,substring).check', fn: () =>
+      dialog.getByRole('checkbox', { name: kw }).first().check({ force: true, timeout: 3000 }) },
+    { name: 'getByRole(button,startRe).click', fn: () =>
+      dialog.getByRole('button', { name: startRe }).first().click({ force: true, timeout: 3000 }) },
+    { name: 'getByRole(button,name).click', fn: () =>
+      dialog.getByRole('button', { name: kw }).first().click({ force: true, timeout: 3000 }) },
+    { name: 'getByText(exact).click', fn: () =>
+      dialog.getByText(kw, { exact: true }).first().click({ force: true, timeout: 3000 }) },
+  ];
 
-      function findRow(cb) {
-        // Ưu tiên: tìm ancestor [role="button"] (FB's clickable row container — đúng nhất)
-        const btn = cb.closest('[role="button"], [role="listitem"]');
-        if (btn) return btn;
-        // Fallback: walk up theo checkbox count
-        let row = cb;
-        for (let i = 0; i < 8; i++) {
-          const next = row.parentElement;
-          if (!next) break;
-          const cbCount = next.querySelectorAll('input[type="checkbox"], [role="checkbox"]').length;
-          if (cbCount > 1) break;
-          row = next;
+  // Verify: chờ aria-checked đổi (re-find theo keyword, không phụ thuộc marker)
+  const waitForToggle = async () => {
+    try {
+      await page.waitForFunction((k) => {
+        for (const cb of document.querySelectorAll('input[type="checkbox"], [role="checkbox"]')) {
+          const row = cb.closest('[role="button"], [role="listitem"]') || cb.parentElement;
+          if (!row) continue;
+          let match = false;
+          for (const t of row.querySelectorAll('span, h2, h3, h4')) {
+            if ((t.textContent || '').trim() === k) { match = true; break; }
+          }
+          if (!match) continue;
+          if (cb.getAttribute('aria-checked') === 'true') return true;
+          if (cb.tagName === 'INPUT' && cb.checked === true) return true;
         }
-        return row;
-      }
-
-      function isChecked(cb) {
-        if (cb.getAttribute('aria-checked') === 'true') return true;
-        if (cb.tagName === 'INPUT' && cb.checked === true) return true;
         return false;
-      }
+      }, kw, { timeout: 3000 });
+      return true;
+    } catch { return false; }
+  };
 
-      let matched = null;
-      let matchType = null;
-
-      // Phase 1: exact
-      for (const cb of checkboxes) {
-        const row = findRow(cb);
-        for (const t of row.querySelectorAll('span, h2, h3, h4')) {
-          if ((t.textContent || '').trim() === kwExact) {
-            matched = { cb, row };
-            matchType = 'exact';
-            break;
-          }
-        }
-        if (matched) break;
-      }
-
-      // Phase 2: substring fallback
-      if (!matched) {
-        for (const cb of checkboxes) {
-          const row = findRow(cb);
-          const text = (row.textContent || '').toLowerCase();
-          if (text.includes(kwLower)) {
-            matched = { cb, row };
-            matchType = 'substring';
-            break;
-          }
-        }
-      }
-
-      if (!matched) {
-        // Scroll lazy-load
-        let scroller = dialog;
-        for (const el of dialog.querySelectorAll('*')) {
-          if (el.scrollHeight > el.clientHeight + 20) { scroller = el; break; }
-        }
-        scroller.scrollBy(0, 400);
-        return { status: 'scrolled' };
-      }
-
-      matched.cb.setAttribute('data-qpick-cb', '1');
-      matched.row.setAttribute('data-qpick-row', '1');
-      matched.cb.scrollIntoView({ block: 'center' });
-
-      return {
-        status: 'matched',
-        matchType,
-        alreadyChecked: isChecked(matched.cb),
-      };
-    }, { kwLower, kwExact });
-
-    if (findResult.status === 'scrolled') {
-      await randomDelay(300, 500);
+  const triedLog = [];
+  for (const t of tries) {
+    try {
+      await t.fn();
+    } catch (e) {
+      triedLog.push(`${t.name}=err`);
       continue;
     }
-    if (findResult.status === 'no-dialog' || findResult.status === 'no-checkbox') {
-      return { ok: false, reason: findResult.status };
+    const ok = await waitForToggle();
+    triedLog.push(`${t.name}=${ok ? 'OK' : 'no-toggle'}`);
+    if (ok) {
+      return { ok: true, alreadyChecked: false, matchType: `pw-a11y via ${t.name}` };
     }
-
-    // status === 'matched'
-    if (findResult.alreadyChecked) {
-      await page.evaluate(() => {
-        document.querySelectorAll('[data-qpick-cb], [data-qpick-row]').forEach(el => {
-          el.removeAttribute('data-qpick-cb');
-          el.removeAttribute('data-qpick-row');
-        });
-      });
-      return { ok: true, alreadyChecked: true, matchType: findResult.matchType };
-    }
-
-    // Wait sau scrollIntoView để dialog ổn định
-    await randomDelay(300, 500);
-
-    // Verify by KEYWORD (re-find checkbox sau mỗi click — React có thể re-render
-    // và mất data-qpick-cb marker). Chờ state change tối đa 3s.
-    const waitForToggle = async () => {
-      try {
-        await page.waitForFunction((kw) => {
-          const checkboxes = document.querySelectorAll('input[type="checkbox"], [role="checkbox"]');
-          for (const cb of checkboxes) {
-            const row = cb.closest('[role="button"], [role="listitem"]')
-                     || cb.parentElement?.parentElement
-                     || cb.parentElement;
-            if (!row) continue;
-            const text = (row.textContent || '').toLowerCase();
-            if (text.includes(kw.toLowerCase())) {
-              if (cb.getAttribute('aria-checked') === 'true') return true;
-              if (cb.tagName === 'INPUT' && cb.checked === true) return true;
-            }
-          }
-          return false;
-        }, kwLower, { timeout: 3000 });
-        return true;
-      } catch {
-        return false;
-      }
-    };
-
-    // Multi-strategy click — row là role="button" tabindex="0" nên focus+Enter/Space
-    // sẽ activate button qua a11y standard, bypass overlay div che click.
-    const strategies = [
-      { name: 'row-focus-enter', fn: async () => {
-        // role="button" tabindex="0" → focus + Enter = activate (a11y standard)
-        const el = await page.$('[data-qpick-row]');
-        if (el) {
-          await el.focus();
-          await randomDelay(100, 200);
-          await page.keyboard.press('Enter');
-        }
-      }},
-      { name: 'row-focus-space', fn: async () => {
-        // role="button" tabindex="0" → focus + Space = activate (a11y standard)
-        const el = await page.$('[data-qpick-row]');
-        if (el) {
-          await el.focus();
-          await randomDelay(100, 200);
-          await page.keyboard.press('Space');
-        }
-      }},
-      { name: 'row-pw-click-disable-overlay', fn: async () => {
-        // Tạm disable pointer-events của overlay [data-visualcompletion="ignore"]
-        // trong row để click pass through đến role="button"
-        await page.evaluate(() => {
-          const row = document.querySelector('[data-qpick-row]');
-          if (!row) return;
-          row.querySelectorAll('[data-visualcompletion="ignore"]').forEach(el => {
-            el.dataset.qpickOriginalPe = el.style.pointerEvents || '';
-            el.style.pointerEvents = 'none';
-          });
-        });
-        const el = await page.$('[data-qpick-row]');
-        if (el) await el.click({ force: true });
-        await page.evaluate(() => {
-          document.querySelectorAll('[data-qpick-original-pe]').forEach(el => {
-            el.style.pointerEvents = el.dataset.qpickOriginalPe;
-            delete el.dataset.qpickOriginalPe;
-          });
-        });
-      }},
-      { name: 'row-pw-click', fn: async () => {
-        const el = await page.$('[data-qpick-row]');
-        if (el) await el.click({ force: true });
-      }},
-      { name: 'cb-focus-space', fn: async () => {
-        // Native checkbox: focus + Space = toggle native input behavior
-        const el = await page.$('[data-qpick-cb]');
-        if (el) {
-          await el.focus();
-          await randomDelay(100, 200);
-          await page.keyboard.press('Space');
-        }
-      }},
-      { name: 'row-pw-click-offset', fn: async () => {
-        const el = await page.$('[data-qpick-row]');
-        if (el) await el.click({ force: true, position: { x: 10, y: 10 } });
-      }},
-      { name: 'row-dispatch-pointer', fn: async () => {
-        // Dispatch chuỗi pointer + mouse events thủ công
-        await page.evaluate(() => {
-          const el = document.querySelector('[data-qpick-row]');
-          if (!el) return;
-          const r = el.getBoundingClientRect();
-          const opts = { bubbles: true, cancelable: true, composed: true, clientX: r.left + 20, clientY: r.top + 20, button: 0 };
-          el.dispatchEvent(new PointerEvent('pointerdown', { ...opts, pointerType: 'mouse' }));
-          el.dispatchEvent(new MouseEvent('mousedown', opts));
-          el.dispatchEvent(new PointerEvent('pointerup', { ...opts, pointerType: 'mouse' }));
-          el.dispatchEvent(new MouseEvent('mouseup', opts));
-          el.dispatchEvent(new MouseEvent('click', opts));
-        });
-      }},
-      { name: 'row-react-onclick', fn: async () => {
-        // Last resort: gọi React onClick handler trực tiếp qua __reactProps fiber
-        await page.evaluate(() => {
-          const el = document.querySelector('[data-qpick-row]');
-          if (!el) return;
-          const propsKey = Object.keys(el).find(k => k.startsWith('__reactProps$'));
-          if (!propsKey) return;
-          const props = el[propsKey];
-          if (props && typeof props.onClick === 'function') {
-            const fakeEvent = {
-              bubbles: true, cancelable: true, defaultPrevented: false,
-              preventDefault: () => {}, stopPropagation: () => {},
-              currentTarget: el, target: el, type: 'click',
-            };
-            props.onClick(fakeEvent);
-          }
-        });
-      }},
-      { name: 'cb-pw-click', fn: async () => {
-        const el = await page.$('[data-qpick-cb]');
-        if (el) await el.click({ force: true });
-      }},
-      { name: 'row-js-click', fn: async () => {
-        await page.evaluate(() => {
-          const el = document.querySelector('[data-qpick-row]');
-          if (el) el.click();
-        });
-      }},
-      { name: 'cb-js-click', fn: async () => {
-        await page.evaluate(() => {
-          const el = document.querySelector('[data-qpick-cb]');
-          if (el) el.click();
-        });
-      }},
-    ];
-
-    let toggled = false;
-    let usedStrategy = null;
-    const triedLog = [];
-    for (const s of strategies) {
-      try {
-        await s.fn();
-      } catch (e) {
-        triedLog.push(`${s.name}=err`);
-        continue;
-      }
-      // Wait state change tối đa 3s (FB re-render có thể chậm)
-      const ok = await waitForToggle();
-      triedLog.push(`${s.name}=${ok ? 'OK' : 'no'}`);
-      if (ok) {
-        toggled = true;
-        usedStrategy = s.name;
-        break;
-      }
-    }
-
-    // Cleanup markers
-    await page.evaluate(() => {
-      document.querySelectorAll('[data-qpick-cb], [data-qpick-row]').forEach(el => {
-        el.removeAttribute('data-qpick-cb');
-        el.removeAttribute('data-qpick-row');
-      });
-    });
-
-    if (toggled) {
-      const searchTag = usedSearch ? ' [searched]' : '';
-      return { ok: true, alreadyChecked: false, matchType: `${findResult.matchType}${searchTag} via ${usedStrategy}` };
-    }
-    return { ok: false, reason: `Match ${findResult.matchType} nhưng tất cả strategy fail. Tried: [${triedLog.join(', ')}]` };
   }
-  return { ok: false, reason: `không thấy sau ${maxAttempts} lần scroll${usedSearch ? ' (đã search)' : ''}` };
+
+  return { ok: false, reason: `B3 fail: [${triedLog.join(', ')}]` };
 }
 
 // --- Step 6: click "Đăng" và chờ dialog đóng ---
