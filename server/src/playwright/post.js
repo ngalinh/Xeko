@@ -1417,21 +1417,42 @@ async function qpStep5PickGroups(page, steps, keywords) {
     return { selected: 0, missed };
   }
 
-  // Click "Xong"
+  // Click "Xong" — scope vào dialog chứa "Chọn nhóm" (không phải last dialog)
   await randomDelay(500, 1000);
   let xongVia = null;
+  const shareDialog = page.locator('div[role="dialog"]').filter({ hasText: 'Chọn nhóm' }).first();
+
+  // A. aria-label exact trong share dialog
   for (const lbl of ['Xong', 'Done']) {
     try {
-      await page.locator('div[role="dialog"]').last().locator(`[aria-label="${lbl}"]`).first().click({ timeout: 3000 });
+      await shareDialog.locator(`[aria-label="${lbl}"]`).first().click({ force: true, timeout: 3000 });
       xongVia = `aria-label="${lbl}"`;
       break;
     } catch (_) {}
   }
+
+  // B. getByRole(button, name=Xong) trong share dialog
   if (!xongVia) {
-    // Fallback: walk-up exact text
+    for (const lbl of ['Xong', 'Done']) {
+      try {
+        await shareDialog.getByRole('button', { name: lbl, exact: true }).first().click({ force: true, timeout: 3000 });
+        xongVia = `getByRole(button,${lbl})`;
+        break;
+      } catch (_) {}
+    }
+  }
+
+  // C. Fallback: walk-up exact text trong share dialog
+  if (!xongVia) {
     const ok = await page.evaluate(() => {
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const dialog = dialogs[dialogs.length - 1];
+      const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+      let dialog = null;
+      for (const cand of ds) {
+        const t = cand.textContent || '';
+        if (t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')) {
+          dialog = cand; break;
+        }
+      }
       if (!dialog) return false;
       for (const s of dialog.querySelectorAll('span')) {
         const t = (s.textContent || '').trim();
@@ -1439,7 +1460,13 @@ async function qpStep5PickGroups(page, steps, keywords) {
         let el = s;
         for (let i = 0; i < 8 && el.parentElement; i++) {
           el = el.parentElement;
-          if (el.getAttribute('role') === 'button') { el.click(); return true; }
+          if (el.getAttribute('role') === 'button') {
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 || r.height === 0) continue;
+            el.scrollIntoView({ block: 'center' });
+            el.click();
+            return true;
+          }
         }
       }
       return false;
@@ -1448,24 +1475,25 @@ async function qpStep5PickGroups(page, steps, keywords) {
   }
 
   if (!xongVia) {
-    await _qpLog(steps, 'Step 5: KHÔNG click được "Xong" — cả 2 strategy fail');
+    const shot = await _qpScreenshot(page, 'step5-xong-fail');
+    await _qpLog(steps, `Step 5: KHÔNG click được "Xong" (screenshot=${shot})`);
     return { selected: selected.length, missed };
   }
   await _qpLog(steps, `Step 5: click "Xong" OK (${xongVia})`);
 
-  // Verify: dialog "Chọn nhóm" đóng, quay lại "Cài đặt bài viết"
+  // Verify: dialog "Chọn nhóm" đóng (không còn dialog nào chứa "Chọn nhóm")
   try {
     await page.waitForFunction(() => {
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const last = dialogs[dialogs.length - 1];
-      if (!last) return false;
-      const t = last.textContent || '';
-      return (t.includes('Cài đặt bài viết') || t.includes('Post settings')) &&
-             !t.includes('Chọn nhóm') && !t.includes('Choose groups');
+      const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+      for (const d of ds) {
+        const t = d.textContent || '';
+        if (t.includes('Chọn nhóm') || t.includes('Choose groups')) return false;  // vẫn còn dialog "Chọn nhóm"
+      }
+      return true;  // dialog "Chọn nhóm" đã đóng
     }, { timeout: 8000 });
-    await _qpLog(steps, 'Step 5: verify OK — quay về "Cài đặt bài viết"');
+    await _qpLog(steps, 'Step 5: verify OK — dialog "Chọn nhóm" đã đóng');
   } catch {
-    await _qpLog(steps, 'Step 5: clicked "Xong" nhưng verify "Cài đặt bài viết" timeout — tiếp tục thử step 6');
+    await _qpLog(steps, 'Step 5: clicked "Xong" nhưng dialog "Chọn nhóm" vẫn mở — tiếp tục thử step 6');
   }
 
   return { selected: selected.length, missed };
