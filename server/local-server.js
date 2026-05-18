@@ -28,6 +28,12 @@ const sessionCheck = require('./src/utils/session-check');
 const loginHistory = require('./src/utils/login-history');
 const logger = require('./src/utils/logger');
 const { parseProxy } = require('./src/utils/proxy');
+const apiKey = require('./src/utils/api-key');
+const rateLimit = require('./src/utils/rate-limit');
+
+// Fail-fast nếu LOCAL_API_KEY chưa đặt / còn placeholder mặc định.
+// Server local accept request từ tunnel public → key yếu = mở cửa.
+apiKey.assertConfigured('local-server');
 
 const ZALO_ACCOUNTS_FILE = path.resolve(__dirname, 'config/zalo-accounts.json');
 
@@ -54,12 +60,10 @@ function saveZaloAccounts(accounts) {
 const app = express();
 app.use(express.json());
 
-// ===== API KEY AUTH =====
-const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
-
+// ===== API KEY AUTH (timing-safe compare, đã assertConfigured ở trên) =====
 app.use((req, res, next) => {
   if (req.path === '/health') return next(); // bỏ qua auth cho health check
-  if (req.headers['x-api-key'] !== API_KEY) {
+  if (!apiKey.verify(req)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   next();
@@ -158,11 +162,20 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
     }
   }
 
+  let activeProfile;
   try {
-    playwright.getActiveProfile();
+    activeProfile = playwright.getActiveProfile();
   } catch {
     cleanupFiles(imagePaths);
     return res.status(400).json({ error: 'Chưa chọn profile!' });
+  }
+
+  // Rate limit theo profile — tránh spam đẩy đến FB
+  const rl = rateLimit.check(activeProfile.key);
+  if (!rl.ok) {
+    cleanupFiles(imagePaths);
+    res.setHeader('Retry-After', Math.ceil(rl.retryAfterMs / 1000));
+    return res.status(429).json({ error: rl.reason, retryAfterMs: rl.retryAfterMs });
   }
 
   // Trả jobId ngay, Playwright chạy ở background tránh proxy timeout
@@ -268,11 +281,18 @@ app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res)
     return res.status(400).json({ error: e.message });
   }
 
-  // Trả jobId ngay
+  // Rate limit per profile (từ main)
+  const rl = rateLimit.check(profile);
+  if (!rl.ok) {
+    cleanupFiles(imagePaths);
+    res.setHeader('Retry-After', Math.ceil(rl.retryAfterMs / 1000));
+    return res.status(429).json({ error: rl.reason, retryAfterMs: rl.retryAfterMs });
+  }
+
+  // Trả jobId ngay, chạy background (async job pattern — tránh tunnel timeout)
   const jobId = createJob();
   res.json({ jobId, status: 'pending' });
 
-  // Chạy background
   (async () => {
     try {
       const result = await playwright.quickPostToPersonalAndGroups(message || '', imagePaths, groupKeywords);
@@ -299,6 +319,14 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   if (!accountName || !groupName) {
     cleanupFiles(imagePaths);
     return res.status(400).json({ error: 'Thiếu zaloAccountName/profile hoặc groupName' });
+  }
+
+  // Rate limit per Zalo account (key trước khi resolve để chặn ngay cả lookup fail)
+  const rl = rateLimit.check(`zalo:${accountName}`);
+  if (!rl.ok) {
+    cleanupFiles(imagePaths);
+    res.setHeader('Retry-After', Math.ceil(rl.retryAfterMs / 1000));
+    return res.status(429).json({ error: rl.reason, retryAfterMs: rl.retryAfterMs });
   }
 
   // Look up accountKey from zaloAccounts (match by key, name, or saleworkName)
@@ -412,10 +440,13 @@ app.post('/api/accounts', (req, res) => {
 
       const proxyOpt = parseProxy(proxy);
       if (proxyOpt) logger.info(`FB "${name}" dùng proxy: ${proxyOpt.server}`);
+      const { getProfileDeviceFingerprint } = require('./src/utils/device-fingerprint');
+      const { userAgent, viewport } = getProfileDeviceFingerprint(key);
       const browser = await safeLaunchPersistentContext(profileDir, {
         headless: false,
         slowMo: 500,
-        viewport: { width: 1280, height: 720 },
+        viewport,
+        userAgent,
         ...(proxyOpt ? { proxy: proxyOpt } : {}),
       });
       const page = browser.pages()[0] || await browser.newPage();
