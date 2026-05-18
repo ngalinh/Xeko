@@ -5485,13 +5485,21 @@
     }
 
     function _renderFbqtResult(data) {
+      // Edge case: data có jobId nhưng KHÔNG có success/error → cloud không poll (OLD code)
+      // Vẫn render những gì có để user biết
+      if (data == null || (data.success === undefined && !data.error && !data.steps && data.jobId)) {
+        _fbqtLog(`⚠ Response chưa hoàn tất: ${JSON.stringify(data).slice(0, 200)}`, '#fbbf24');
+        _fbqtLog(`  (Cloud server có thể chưa update — nhưng local server đã chạy xong, check FB profile để xác nhận)`, '#94a3b8');
+        return;
+      }
       if (data.success) {
         _fbqtLog(`✓ THÀNH CÔNG`, '#4ade80');
         if (data.postUrl) _fbqtLog(`  postUrl: ${data.postUrl}`, '#a5b4fc');
         if (data.sharedGroups != null) _fbqtLog(`  sharedGroups: ${data.sharedGroups}`, '#a5b4fc');
         if (data.missedGroups && data.missedGroups.length) _fbqtLog(`  missedGroups: ${data.missedGroups.join(', ')}`, '#fbbf24');
       } else {
-        _fbqtLog(`✗ THẤT BẠI: ${data.error || 'không rõ'}`, '#f87171');
+        const errMsg = data.error || (data == null ? 'response null' : `raw=${JSON.stringify(data).slice(0, 200)}`);
+        _fbqtLog(`✗ THẤT BẠI: ${errMsg}`, '#f87171');
       }
       if (data.steps && Array.isArray(data.steps)) {
         for (const s of data.steps) _fbqtLog(`  · ${s}`, '#94a3b8');
