@@ -1734,22 +1734,43 @@ async function qpStep6Submit(page, steps) {
   });
   await randomDelay(800, 1500);
 
+  // Scope vào dialog "Cài đặt bài viết" (chứa "Đăng" button + "Lưu" button)
+  // FB modal portal có thể stack DOM khác thứ tự — không dùng last dialog
+  const settingsDialog = page.locator('div[role="dialog"]').filter({ hasText: 'Cài đặt bài viết' }).first();
+
   let clickedVia = null;
 
-  // A. aria-label exact
+  // A. aria-label exact trong settings dialog
   for (const lbl of ['Đăng', 'Post']) {
     try {
-      await page.locator('div[role="dialog"]').last().locator(`[aria-label="${lbl}"]`).first().click({ timeout: 3000 });
+      await settingsDialog.locator(`[aria-label="${lbl}"]`).first().click({ force: true, timeout: 3000 });
       clickedVia = `aria-label="${lbl}"`;
       break;
     } catch (_) {}
   }
 
-  // B. Walk-up exact text "Đăng"/"Post" → role=button
+  // B. getByRole(button, name=Đăng) trong settings dialog
+  if (!clickedVia) {
+    for (const lbl of ['Đăng', 'Post']) {
+      try {
+        await settingsDialog.getByRole('button', { name: lbl, exact: true }).first().click({ force: true, timeout: 3000 });
+        clickedVia = `getByRole(button,${lbl})`;
+        break;
+      } catch (_) {}
+    }
+  }
+
+  // C. Walk-up exact text trong dialog "Cài đặt bài viết" (scoped)
   if (!clickedVia) {
     const ok = await page.evaluate(() => {
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const dialog = dialogs[dialogs.length - 1];
+      const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+      let dialog = null;
+      for (const cand of ds) {
+        const t = cand.textContent || '';
+        if (t.includes('Cài đặt bài viết') || t.includes('Post settings') || t.includes('Post Settings')) {
+          dialog = cand; break;
+        }
+      }
       if (!dialog) return false;
       for (const s of dialog.querySelectorAll('span')) {
         const t = (s.textContent || '').trim();
@@ -1760,6 +1781,7 @@ async function qpStep6Submit(page, steps) {
           if (el.getAttribute('role') === 'button') {
             const r = el.getBoundingClientRect();
             if (r.width === 0 || r.height === 0) continue;
+            el.scrollIntoView({ block: 'center' });
             el.click();
             return true;
           }
@@ -1771,8 +1793,9 @@ async function qpStep6Submit(page, steps) {
   }
 
   if (!clickedVia) {
-    await _qpLog(steps, 'Step 6: KHÔNG tìm thấy nút "Đăng"');
-    return { success: false, error: 'no Đăng button' };
+    const shot = await _qpScreenshot(page, 'step6-no-button');
+    await _qpLog(steps, `Step 6: KHÔNG tìm thấy nút "Đăng" (screenshot=${shot})`);
+    return { success: false, error: `no Đăng button (screenshot=${shot})` };
   }
   await _qpLog(steps, `Step 6: click "Đăng" OK (${clickedVia})`);
 

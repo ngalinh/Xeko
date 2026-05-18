@@ -5445,26 +5445,56 @@
       _fbqtLog(`▶ Bắt đầu: profile=${profile}, msg=${message.length} ký tự, ảnh=${imagesInput.files.length}, groups=[${groupKeywords.join(', ')}]`, '#60a5fa');
 
       try {
+        // 1. Submit job → nhận jobId ngay
         const res = await fetch(BASE_URL + '/api/fb-quick-post-test', { method: 'POST', body: fd });
-        const data = await parseJson(res);
+        const submitData = await parseJson(res);
         if (!res.ok) {
-          _fbqtLog(`✗ HTTP ${res.status}: ${data.error || 'lỗi không xác định'}`, '#f87171');
-        } else if (data.success) {
-          _fbqtLog(`✓ THÀNH CÔNG`, '#4ade80');
-          if (data.postUrl) _fbqtLog(`  postUrl: ${data.postUrl}`, '#a5b4fc');
-          if (data.sharedGroups != null) _fbqtLog(`  sharedGroups: ${data.sharedGroups}`, '#a5b4fc');
-          if (data.missedGroups && data.missedGroups.length) _fbqtLog(`  missedGroups: ${data.missedGroups.join(', ')}`, '#fbbf24');
-        } else {
-          _fbqtLog(`✗ THẤT BẠI: ${data.error || 'không rõ'}`, '#f87171');
+          _fbqtLog(`✗ HTTP ${res.status}: ${submitData.error || 'lỗi không xác định'}`, '#f87171');
+          return;
         }
-        if (data.steps && Array.isArray(data.steps)) {
-          for (const s of data.steps) _fbqtLog(`  · ${s}`, '#94a3b8');
+        if (!submitData.jobId) {
+          // Backward compat: nếu server trả sync result (chưa update)
+          _renderFbqtResult(submitData);
+          return;
         }
+        _fbqtLog(`⏳ Job ${submitData.jobId.slice(0, 8)} đã queue, đang chạy...`, '#94a3b8');
+
+        // 2. Poll job result (10 phút max)
+        const start = Date.now();
+        while (Date.now() - start < 10 * 60 * 1000) {
+          await new Promise(r => setTimeout(r, 3000));
+          const jr = await fetch(BASE_URL + '/api/job/' + submitData.jobId);
+          const job = await parseJson(jr);
+          if (job.status === 'done') {
+            _renderFbqtResult(job.result || {});
+            return;
+          }
+          if (job.status === 'failed') {
+            _fbqtLog(`✗ Job failed: ${job.error || 'không rõ'}`, '#f87171');
+            return;
+          }
+          // pending → continue polling
+        }
+        _fbqtLog(`✗ Job timeout sau 10 phút`, '#f87171');
       } catch (e) {
         _fbqtLog(`✗ Exception: ${e.message}`, '#f87171');
       } finally {
         btn.disabled = false;
         btn.textContent = '▶ Chạy test';
+      }
+    }
+
+    function _renderFbqtResult(data) {
+      if (data.success) {
+        _fbqtLog(`✓ THÀNH CÔNG`, '#4ade80');
+        if (data.postUrl) _fbqtLog(`  postUrl: ${data.postUrl}`, '#a5b4fc');
+        if (data.sharedGroups != null) _fbqtLog(`  sharedGroups: ${data.sharedGroups}`, '#a5b4fc');
+        if (data.missedGroups && data.missedGroups.length) _fbqtLog(`  missedGroups: ${data.missedGroups.join(', ')}`, '#fbbf24');
+      } else {
+        _fbqtLog(`✗ THẤT BẠI: ${data.error || 'không rõ'}`, '#f87171');
+      }
+      if (data.steps && Array.isArray(data.steps)) {
+        for (const s of data.steps) _fbqtLog(`  · ${s}`, '#94a3b8');
       }
     }
 

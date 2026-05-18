@@ -169,15 +169,17 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
   return res;
 }
 
-// Quick Post v2 — flow đang build, gọi sync về local (endpoint test)
+// Quick Post v2 — async job pattern (tránh tunnel timeout khi test > 1-2 phút)
 async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywords = []) {
   if (!_activeProfile) throw new Error('Chưa chọn profile!');
-  return callLocal(
+  const res = await callLocal(
     'POST',
     '/api/fb-quick-post-test',
     { profile: _activeProfile, message, groupKeywords: JSON.stringify(groupKeywords || []) },
     imagePaths
   );
+  if (res.jobId) return pollLocalJob(res.jobId);
+  return res;
 }
 
 async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths = [] }) {
