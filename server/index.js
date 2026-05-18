@@ -491,8 +491,9 @@ app.get('/api/job/:id', (req, res) => {
   res.json(job);
 });
 
-// ===== TEST: FB Quick Post v2 (dev only) =====
-// Sync proxy → local. Dùng từ trang "Test FB" trong UI để build flow đăng nhanh.
+// ===== TEST: FB Quick Post v2 (dev only) — ASYNC JOB pattern =====
+// Test có thể chạy > 2 phút → cloud proxy nginx 502 nếu sync.
+// Trả jobId ngay, chạy background, UI poll /api/job/:id.
 app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res) => {
   const { profile, message } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
@@ -513,22 +514,25 @@ app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res)
     return res.status(400).json({ error: 'Thiếu profile' });
   }
 
-  try {
-    await playwright.setProfile(profile);
-  } catch (e) {
-    cleanupFiles(imagePaths);
-    return res.status(400).json({ error: e.message });
-  }
+  // Trả jobId ngay
+  const jobId = createJob();
+  res.json({ jobId, status: 'pending' });
+  logger.info(`[fb-quick-post-test] queue job ${jobId} — profile=${profile}, groups=${groupKeywords.length}, ảnh=${imagePaths.length}`);
 
-  try {
-    const result = await playwright.quickPostToPersonalAndGroups(message || '', imagePaths, groupKeywords);
-    res.json(result);
-  } catch (e) {
-    logger.error(`[fb-quick-post-test] Exception: ${e.message}`);
-    res.status(500).json({ error: e.message, steps: [] });
-  } finally {
-    cleanupFiles(imagePaths);
-  }
+  // Chạy background
+  (async () => {
+    try {
+      await playwright.setProfile(profile);
+      const result = await playwright.quickPostToPersonalAndGroups(message || '', imagePaths, groupKeywords);
+      setJobResult(jobId, result);
+      logger.info(`[fb-quick-post-test] job ${jobId} done — success=${result.success}`);
+    } catch (e) {
+      logger.error(`[fb-quick-post-test] job ${jobId} FAILED: ${e.message}`);
+      setJobError(jobId, e.message);
+    } finally {
+      cleanupFiles(imagePaths);
+    }
+  })();
 });
 
 // Lay screenshot moi nhat

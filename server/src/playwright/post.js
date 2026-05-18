@@ -1087,53 +1087,17 @@ async function _qpScreenshot(page, name) {
   } catch { return null; }
 }
 
-// --- Step 1: mở popup "Tạo bài viết" từ feed (đang ở facebook.com home) ---
-// Strategy: text "đang nghĩ gì" / "on your mind" trong span → walk up đến [role="button"].
-// Hash class (x1lliihq...) FB regen 1-2 tuần/lần → KHÔNG dùng.
-// Text có chèn tên user ("Linh Thảo ơi, bạn đang nghĩ gì thế?") → chỉ match substring ổn định.
+// --- Step 1: mở popup "Tạo bài viết" — DELEGATE sang openCreatePost cũ (proven) ---
+// Wrap openCreatePost để giữ logging step + verify dialog mở.
 async function qpStep1OpenComposer(page, steps) {
-  await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
-
-  // A. Walk-up từ span text → role="button"
-  let clickedVia = null;
-  try {
-    const ok = await page.evaluate(() => {
-      const RE = /đang nghĩ gì|on your mind/i;
-      const spans = document.querySelectorAll('span');
-      for (const s of spans) {
-        if (!RE.test(s.textContent || '')) continue;
-        let el = s;
-        for (let i = 0; i < 8 && el.parentElement; i++) {
-          el = el.parentElement;
-          if (el.getAttribute('role') === 'button') {
-            const r = el.getBoundingClientRect();
-            if (r.width === 0 || r.height === 0) continue;
-            el.scrollIntoView({ block: 'center' });
-            el.click();
-            return true;
-          }
-        }
-      }
-      return false;
-    });
-    if (ok) clickedVia = 'walk-up text→role=button';
-  } catch (_) {}
-
-  // B. Fallback: Playwright role locator filter by text
-  if (!clickedVia) {
-    try {
-      const loc = page.getByRole('button').filter({ hasText: /đang nghĩ gì|on your mind/i }).first();
-      await loc.click({ timeout: 5000 });
-      clickedVia = 'getByRole+filter';
-    } catch (_) {}
-  }
-
-  if (!clickedVia) {
-    await _qpLog(steps, 'Step 1: KHÔNG tìm thấy nút composer — cả 2 strategy fail');
+  const ok = await openCreatePost(page, false);
+  if (!ok) {
+    const shot = await _qpScreenshot(page, 'step1-fail');
+    await _qpLog(steps, `Step 1: openCreatePost (cũ) fail (screenshot=${shot})`);
     return false;
   }
 
-  // Verify: dialog "Tạo bài viết" xuất hiện
+  // Verify: dialog "Tạo bài viết" xuất hiện (delay + check)
   try {
     await page.waitForFunction(() => {
       const dialogs = document.querySelectorAll('div[role="dialog"]');
@@ -1143,260 +1107,172 @@ async function qpStep1OpenComposer(page, steps) {
       }
       return false;
     }, { timeout: 10000 });
-    await _qpLog(steps, `Step 1: OK — click composer (${clickedVia}), dialog "Tạo bài viết" mở`);
+    await _qpLog(steps, 'Step 1: openCreatePost (cũ) OK — dialog "Tạo bài viết" mở');
     return true;
   } catch {
-    await _qpLog(steps, `Step 1: clicked (${clickedVia}) nhưng dialog "Tạo bài viết" không mở sau 10s`);
+    await _qpLog(steps, 'Step 1: openCreatePost (cũ) clicked nhưng dialog "Tạo bài viết" không mở sau 10s');
     return false;
   }
 }
 
-// --- Step 2: upload ảnh + nhập message vào composer ---
-// ⚠ Thứ tự theo flow đăng cũ ổn định: ẢNH TRƯỚC → TEXT SAU.
-//   Sau khi upload, dialog reflow + expand → editor render ổn định hơn.
-// 2a. Ảnh: click [aria-label="Ảnh/video"] + waitForEvent('filechooser').
-//     Fallback: input[type=file][accept*=image] direct setInputFiles.
-// 2b. Text: scroll dialog top → page.$$() find visible editor → click force → paste.
-//     Selectors KHÔNG lock tag (FB UI mới dùng <p>, cũ dùng <div>).
+// --- Step 2: upload ảnh + nhập text — DELEGATE sang attachImages + typeMessage cũ ---
+// Thứ tự + timing y hệt postToPersonal flow cũ (đã proven):
+//   randomDelay(2000-3000) → attachImages → randomDelay(1500-2500) → typeMessage → randomDelay(1000-2000)
 async function qpStep2FillContent(page, steps, message, imagePaths) {
-  // -------- 2a. Upload ảnh (TRƯỚC như flow cũ) --------
+  await randomDelay(2000, 3000);
+
+  // 2a. Upload ảnh (TRƯỚC như flow cũ)
   if (imagePaths && imagePaths.length > 0) {
-    let uploadVia = null;
-
-    // B1. filechooser pattern: click nút Ảnh/video (scoped vào last dialog) → bắt filechooser
-    try {
-      const [fileChooser] = await Promise.all([
-        page.waitForEvent('filechooser', { timeout: 15000 }),
-        page.evaluate(() => {
-          const dialogs = document.querySelectorAll('div[role="dialog"]');
-          const dialog = dialogs[dialogs.length - 1];
-          if (!dialog) return false;
-          const labels = ['Ảnh/video', 'Photo/video', 'Ảnh/Video'];
-          for (const lbl of labels) {
-            const btn = dialog.querySelector(`[aria-label="${lbl}"]`);
-            if (btn) {
-              const r = btn.getBoundingClientRect();
-              if (r.width === 0 || r.height === 0) continue;
-              btn.click();
-              return true;
-            }
-          }
-          return false;
-        }),
-      ]);
-      await fileChooser.setFiles(imagePaths);
-      uploadVia = 'filechooser';
-    } catch (e) {
-      await _qpLog(steps, `Step 2a: filechooser fail (${e.message.slice(0, 80)}) — thử input[type=file] direct`);
+    const ok = await attachImages(page, imagePaths);
+    if (!ok) {
+      const shot = await _qpScreenshot(page, 'step2a-fail');
+      await _qpLog(steps, `Step 2a: attachImages (cũ) fail (screenshot=${shot})`);
+      return false;
     }
-
-    // B2. Fallback: input[type=file] direct (scoring accept=image + multiple)
-    if (!uploadVia) {
-      const okDirect = await (async () => {
-        const inputs = await page.$$('input[type="file"]');
-        const scored = [];
-        for (const input of inputs) {
-          const accept = (await input.getAttribute('accept')) || '';
-          const multiple = (await input.getAttribute('multiple')) !== null;
-          let score = 0;
-          if (accept.includes('image')) score += 2;
-          if (multiple || imagePaths.length === 1) score += 1;
-          scored.push({ input, score });
-        }
-        scored.sort((a, b) => b.score - a.score);
-        for (const { input, score } of scored) {
-          try {
-            await input.setInputFiles(imagePaths);
-            uploadVia = `direct-input(score=${score})`;
-            return true;
-          } catch { continue; }
-        }
-        return false;
-      })();
-      if (!okDirect) {
-        await _qpLog(steps, 'Step 2a: KHÔNG upload được ảnh (cả filechooser + direct input đều fail)');
-        return false;
-      }
-    }
-
-    // Verify thumbnail: chờ blob: preview render
-    await randomDelay(3000, 5000);
-    if (imagePaths.length > 1) {
-      const thumbCount = await page.evaluate(() => {
-        const dialogs = document.querySelectorAll('div[role="dialog"]');
-        const dialog = dialogs[dialogs.length - 1];
-        if (!dialog) return -1;
-        let n = 0;
-        for (const img of dialog.querySelectorAll('img')) {
-          const src = img.getAttribute('src') || '';
-          if (src.startsWith('blob:') || src.startsWith('data:')) n++;
-        }
-        return n;
-      });
-      if (thumbCount >= 0 && thumbCount < imagePaths.length) {
-        await _qpLog(steps, `Step 2a: upload OK (${uploadVia}) nhưng chỉ thấy ${thumbCount}/${imagePaths.length} thumbnail`);
-      } else {
-        await _qpLog(steps, `Step 2a: upload OK (${uploadVia}, ${imagePaths.length} ảnh, ${thumbCount} thumb)`);
-      }
-    } else {
-      await _qpLog(steps, `Step 2a: upload OK (${uploadVia}, 1 ảnh)`);
-    }
+    await _qpLog(steps, `Step 2a: attachImages (cũ) OK, ${imagePaths.length} ảnh`);
   } else {
     await _qpLog(steps, 'Step 2a: skip — không có ảnh');
   }
 
-  // -------- 2b. Nhập text (SAU như flow cũ) --------
-  if (!message || message.length === 0) {
-    await _qpLog(steps, 'Step 2b: skip — message rỗng');
-    return true;
+  await randomDelay(1500, 2500);
+
+  // 2b. Nhập text (SAU như flow cũ)
+  if (message && message.length > 0) {
+    const ok = await typeMessage(page, message);
+    if (!ok) {
+      const shot = await _qpScreenshot(page, 'step2b-fail');
+      await _qpLog(steps, `Step 2b: typeMessage (cũ) fail (screenshot=${shot})`);
+      return false;
+    }
+    await _qpLog(steps, `Step 2b: typeMessage (cũ) OK, ${message.length} ký tự`);
+  } else {
+    await _qpLog(steps, 'Step 2b: skip — không có message');
   }
 
-  // Scroll dialog top (theo flow cũ) — editor có thể bị scroll out of view sau upload
-  await page.evaluate(() => {
-    document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = 0);
-  });
-  await randomDelay(500, 1000);
-
-  // Selectors KHÔNG lock tag (FB UI mới dùng <p>, cũ dùng <div>)
-  const CANDIDATES = [
-    '[contenteditable="true"][data-lexical-editor="true"]',
-    '[contenteditable="true"][aria-placeholder*="nghĩ"]',
-    '[contenteditable="true"][aria-placeholder*="on your mind" i]',
-    '[contenteditable="true"][aria-label*="nghĩ"]',
-    '[contenteditable="true"][aria-label*="mind" i]',
-    '[role="textbox"][contenteditable="true"]',
-    '[contenteditable="true"]',  // last-resort: bất kỳ contenteditable visible nào
-  ];
-
-  // Pattern flow cũ: page.$$ + isVisible + scrollIntoViewIfNeeded + click force
-  let editorVia = null;
-  for (const selector of CANDIDATES) {
-    try {
-      const editors = await page.$$(selector);
-      for (const editor of editors) {
-        const isVisible = await editor.isVisible();
-        if (!isVisible) continue;
-        await editor.scrollIntoViewIfNeeded();
-        await randomDelay(300, 600);
-        await editor.click({ force: true });
-        await randomDelay(300, 500);
-        editorVia = selector;
-        break;
-      }
-      if (editorVia) break;
-    } catch { continue; }
-  }
-
-  if (!editorVia) {
-    // Diagnostic dump
-    const debug = await page.evaluate(() => {
-      const allCE = document.querySelectorAll('[contenteditable="true"]');
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      return {
-        numDialogs: dialogs.length,
-        numContentEditable: allCE.length,
-        ceInfo: Array.from(allCE).slice(0, 5).map(el => ({
-          tag: el.tagName,
-          role: el.getAttribute('role'),
-          dataLexical: el.getAttribute('data-lexical-editor'),
-          ariaPlaceholder: (el.getAttribute('aria-placeholder') || '').slice(0, 60),
-          ariaLabel: (el.getAttribute('aria-label') || '').slice(0, 60),
-          inDialog: !!el.closest('div[role="dialog"]'),
-          visible: (() => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; })(),
-        })),
-      };
-    });
-    const shot = await _qpScreenshot(page, 'step2b-no-editor');
-    await _qpLog(steps, `Step 2b: KHÔNG tìm thấy editor visible — debug=${JSON.stringify(debug)} (screenshot=${shot})`);
-    return false;
-  }
-
-  // Paste text — clipboard → execCommand → keyboard.type (giống pasteText flow cũ)
-  let typedVia = null;
-  try {
-    await page.evaluate(async (txt) => navigator.clipboard.writeText(txt), message);
-    await page.keyboard.press('Control+v');
-    typedVia = 'clipboard';
-  } catch (_) {}
-
-  if (!typedVia) {
-    const okExec = await page.evaluate((txt) => document.execCommand('insertText', false, txt), message);
-    if (okExec) typedVia = 'execCommand';
-  }
-
-  if (!typedVia) {
-    await page.keyboard.type(message);
-    typedVia = 'keyboard.type';
-  }
-
-  await _qpLog(steps, `Step 2b: nhập text OK (editor=${editorVia}, type=${typedVia}, ${message.length} ký tự)`);
-  await randomDelay(400, 800);
-
+  await randomDelay(1000, 2000);
   return true;
 }
 
 // --- Step 3: click "Tiếp" để sang dialog "Cài đặt bài viết" ---
-// Pattern y hệt step 1: span text exact "Tiếp"/"Next" → walk up đến [role="button"].
-// Exact match (===) tránh khớp nhầm "Tiếp tục", "Bước tiếp theo".
+// Pattern broad scope (toàn document, không lock dialog vì FB có thể render portal):
+// scroll dialog BOTTOM (theo flow cũ submitPost) → phase 1 aria-label, phase 2 text exact.
+// Có Tab+Enter fallback (theo flow cũ) khi click thường fail.
 async function qpStep3ClickNext(page, steps) {
-  let clickedVia = null;
+  // Scroll tất cả dialog xuống BOTTOM trước khi tìm button submit (theo flow cũ submitPost)
+  await page.evaluate(() => {
+    document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
+  });
+  await randomDelay(800, 1500);
 
-  // A. Walk-up từ span exact text → role=button (scope last dialog)
+  // Chờ button "Tiếp" xuất hiện visible (toàn document, không scope dialog)
   try {
-    const ok = await page.evaluate(() => {
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const dialog = dialogs[dialogs.length - 1];
-      if (!dialog) return false;
-      for (const s of dialog.querySelectorAll('span')) {
-        const t = (s.textContent || '').trim();
-        if (t !== 'Tiếp' && t !== 'Next') continue;
-        let el = s;
-        for (let i = 0; i < 8 && el.parentElement; i++) {
-          el = el.parentElement;
-          if (el.getAttribute('role') === 'button') {
-            const r = el.getBoundingClientRect();
-            if (r.width === 0 || r.height === 0) continue;
-            el.scrollIntoView({ block: 'center' });
-            el.click();
-            return true;
-          }
+    await page.waitForFunction(() => {
+      const buttons = document.querySelectorAll('div[role="button"], button[role="button"], button');
+      for (const btn of buttons) {
+        const aria = btn.getAttribute('aria-label') || '';
+        const text = (btn.textContent || '').trim();
+        if (aria === 'Tiếp' || aria === 'Next' || text === 'Tiếp' || text === 'Next') {
+          const r = btn.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) return true;
         }
       }
       return false;
-    });
-    if (ok) clickedVia = 'walk-up text→role=button';
-  } catch (_) {}
+    }, { timeout: 10000 });
+  } catch {
+    // Không có "Tiếp" visible — có thể FB variant không có Tiếp step.
+    // Theo flow cũ: thử Tab+Enter trước khi declare fail
+    await _qpLog(steps, 'Step 3: không thấy nút "Tiếp" sau 10s — thử Tab+Enter fallback');
+    for (let i = 0; i < 5; i++) {
+      await page.keyboard.press('Tab');
+      await randomDelay(200, 400);
+    }
+    await page.keyboard.press('Enter');
+    await randomDelay(2000, 3000);
 
-  // B. Fallback aria-label (phòng FB version add aria-label sau)
-  if (!clickedVia) {
-    for (const lbl of ['Tiếp', 'Next']) {
-      try {
-        const loc = page.locator(`div[role="dialog"]`).last().locator(`[aria-label="${lbl}"]`).first();
-        await loc.click({ timeout: 3000 });
-        clickedVia = `aria-label="${lbl}"`;
-        break;
-      } catch (_) {}
+    // Verify: dialog chuyển sang "Cài đặt bài viết"
+    try {
+      await page.waitForFunction(() => {
+        const dialogs = document.querySelectorAll('div[role="dialog"]');
+        for (const d of dialogs) {
+          const t = d.textContent || '';
+          if (t.includes('Cài đặt bài viết') || t.includes('Post settings') || t.includes('Post Settings')) return true;
+        }
+        return false;
+      }, { timeout: 5000 });
+      await _qpLog(steps, 'Step 3: Tab+Enter fallback OK — dialog "Cài đặt bài viết" mở');
+      return true;
+    } catch {
+      const debug = await page.evaluate(() => {
+        const buttons = document.querySelectorAll('div[role="button"], button');
+        const sample = [];
+        for (const btn of buttons) {
+          const aria = btn.getAttribute('aria-label') || '';
+          const text = (btn.textContent || '').trim();
+          if (text.length === 0 && !aria) continue;
+          if (text.length > 40) continue;
+          sample.push({ aria: aria.slice(0, 30), text: text.slice(0, 30) });
+          if (sample.length >= 20) break;
+        }
+        return { numButtons: buttons.length, sample };
+      });
+      const shot = await _qpScreenshot(page, 'step3-no-button');
+      await _qpLog(steps, `Step 3: cả waitFor + Tab+Enter fallback fail — debug=${JSON.stringify(debug)} (screenshot=${shot})`);
+      return false;
     }
   }
 
-  if (!clickedVia) {
-    await _qpLog(steps, 'Step 3: KHÔNG tìm thấy nút "Tiếp" — cả 2 strategy fail');
-    return false;
+  // Tìm + click — broad scope, aria-label trước, text exact sau
+  const clickResult = await page.evaluate(() => {
+    const buttons = document.querySelectorAll('div[role="button"], button[role="button"], button');
+    // Phase 1: aria-label exact
+    for (const btn of buttons) {
+      const aria = btn.getAttribute('aria-label') || '';
+      if (aria !== 'Tiếp' && aria !== 'Next') continue;
+      const r = btn.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      btn.scrollIntoView({ block: 'center' });
+      btn.click();
+      return { ok: true, via: `aria-label="${aria}"` };
+    }
+    // Phase 2: text content exact (sau khi normalize whitespace)
+    for (const btn of buttons) {
+      const text = (btn.textContent || '').trim();
+      if (text !== 'Tiếp' && text !== 'Next') continue;
+      const r = btn.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      btn.scrollIntoView({ block: 'center' });
+      btn.click();
+      return { ok: true, via: 'text-exact' };
+    }
+    return { ok: false };
+  });
+
+  if (!clickResult.ok) {
+    // Click thường fail → Tab+Enter fallback (theo flow cũ submitPost)
+    await _qpLog(steps, 'Step 3: button visible nhưng JS click fail — thử Tab+Enter');
+    for (let i = 0; i < 5; i++) {
+      await page.keyboard.press('Tab');
+      await randomDelay(200, 400);
+    }
+    await page.keyboard.press('Enter');
+  } else {
+    await _qpLog(steps, `Step 3: click "Tiếp" OK (${clickResult.via})`);
   }
 
   // Verify: dialog chuyển sang "Cài đặt bài viết"
   try {
     await page.waitForFunction(() => {
       const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const last = dialogs[dialogs.length - 1];
-      if (!last) return false;
-      const t = last.textContent || '';
-      return t.includes('Cài đặt bài viết') || t.includes('Post settings') || t.includes('Post Settings');
+      for (const d of dialogs) {
+        const t = d.textContent || '';
+        if (t.includes('Cài đặt bài viết') || t.includes('Post settings') || t.includes('Post Settings')) return true;
+      }
+      return false;
     }, { timeout: 10000 });
-    await _qpLog(steps, `Step 3: OK — click "Tiếp" (${clickedVia}), dialog "Cài đặt bài viết" mở`);
+    await _qpLog(steps, 'Step 3: verify OK — dialog "Cài đặt bài viết" mở');
     return true;
   } catch {
-    await _qpLog(steps, `Step 3: clicked (${clickedVia}) nhưng dialog "Cài đặt bài viết" không xuất hiện sau 10s`);
+    await _qpLog(steps, `Step 3: clicked nhưng dialog "Cài đặt bài viết" không xuất hiện sau 10s`);
     return false;
   }
 }
@@ -1406,14 +1282,55 @@ async function qpStep3ClickNext(page, steps) {
 // parent, chấp nhận role=button | role=listitem | <button> | tabindex="0".
 // Fallback: click span trực tiếp (đôi khi FB bubble handler).
 async function qpStep4OpenShareToGroups(page, steps) {
-  const result = await page.evaluate(() => {
-    const dialogs = document.querySelectorAll('div[role="dialog"]');
-    const dialog = dialogs[dialogs.length - 1];
-    if (!dialog) return { ok: false, reason: 'no-dialog' };
+  // Wait cho row "Chia sẻ lên nhóm" render (race: dialog vừa mở, các row chưa append)
+  // Quét TOÀN DOCUMENT (không scope dialog) — FB có thể render rows qua portal
+  try {
+    await page.waitForFunction(() => {
+      const TARGETS = ['Chia sẻ lên nhóm', 'Share to groups', 'Share to Groups'];
+      const candidates = document.querySelectorAll('span, h2, h3, h4');
+      for (const el of candidates) {
+        const text = (el.textContent || '').trim();
+        if (TARGETS.includes(text)) {
+          const r = el.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) return true;
+        }
+      }
+      return false;
+    }, { timeout: 10000 });
+  } catch {
+    // Diagnostic: dump 30 text samples từ last dialog để xem text thực tế là gì
+    const debug = await page.evaluate(() => {
+      const dialogs = document.querySelectorAll('div[role="dialog"]');
+      const last = dialogs[dialogs.length - 1];
+      if (!last) return { reason: 'no-dialog' };
+      const samples = [];
+      const spans = last.querySelectorAll('span, h2, h3, h4');
+      for (const el of spans) {
+        const t = (el.textContent || '').trim();
+        if (t.length === 0 || t.length > 60) continue;
+        samples.push(t);
+        if (samples.length >= 30) break;
+      }
+      // Cũng check xem text "Chia sẻ" có xuất hiện trong toàn document không
+      const allTexts = document.body.textContent || '';
+      const hasShareText = /Chia sẻ|Share to/.test(allTexts);
+      return {
+        numDialogs: dialogs.length,
+        lastDialogTextStart: (last.textContent || '').slice(0, 200),
+        samples,
+        hasShareTextInBody: hasShareText,
+      };
+    });
+    const shot = await _qpScreenshot(page, 'step4-no-row');
+    await _qpLog(steps, `Step 4: KHÔNG tìm thấy row "Chia sẻ lên nhóm" sau 10s — debug=${JSON.stringify(debug)} (screenshot=${shot})`);
+    return false;
+  }
 
+  // Tìm + click — broad scope, exact match trước, walk-up clickable ancestor
+  const result = await page.evaluate(() => {
     const TARGETS = ['Chia sẻ lên nhóm', 'Share to groups', 'Share to Groups'];
-    // Quét cả span/h*/div để bắt mọi pattern FB render title
-    const candidates = dialog.querySelectorAll('span, h2, h3, h4, div');
+    // Broad scope: toàn document (last dialog có thể không chứa row do FB portal)
+    const candidates = document.querySelectorAll('span, h2, h3, h4');
     for (const el of candidates) {
       const text = (el.textContent || '').trim();
       if (!TARGETS.includes(text)) continue;
@@ -1445,21 +1362,44 @@ async function qpStep4OpenShareToGroups(page, steps) {
     return false;
   }
 
-  // Verify: dialog thứ cấp "Chọn nhóm" mở với [role="checkbox"]
+  // Verify: dialog thứ cấp "Chọn nhóm" mở với checkbox.
+  // Lỏng scope — quét MỌI dialog (không chỉ last), HOẶC fallback check toàn body.
+  // FB modal portal có thể stack DOM theo thứ tự khác → dialog mới chưa chắc là last.
   try {
     await page.waitForFunction(() => {
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const last = dialogs[dialogs.length - 1];
-      if (!last) return false;
-      const text = last.textContent || '';
-      const hasTitle = text.includes('Chọn nhóm') || text.includes('Choose groups') || text.includes('Choose group');
-      const hasCheckbox = last.querySelectorAll('[role="checkbox"]').length > 0;
-      return hasTitle && hasCheckbox;
-    }, { timeout: 10000 });
+      // Check 1: bất kỳ dialog nào chứa "Chọn nhóm" + có checkbox
+      const dialogs = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+      for (const d of dialogs) {
+        const text = d.textContent || '';
+        if (text.includes('Chọn nhóm') || text.includes('Choose groups') || text.includes('Choose group')) {
+          const hasCb = d.querySelectorAll('input[type="checkbox"], [role="checkbox"]').length > 0;
+          if (hasCb) return true;
+        }
+      }
+      // Check 2: fallback toàn body — "Chọn nhóm" chỉ xuất hiện ở dialog mới
+      // (dialog "Cài đặt bài viết" chứa "Chia sẻ lên nhóm" — KHÔNG chứa "Chọn nhóm")
+      const bodyText = document.body.textContent || '';
+      const hasChoose = bodyText.includes('Chọn nhóm') || bodyText.includes('Choose groups') || bodyText.includes('Choose group');
+      const hasAnyCb = document.querySelectorAll('input[type="checkbox"], [role="checkbox"]').length > 0;
+      return hasChoose && hasAnyCb;
+    }, { timeout: 15000 });
     await _qpLog(steps, `Step 4: OK — click row (${result.via}), dialog "Chọn nhóm" mở với checkboxes`);
     return true;
   } catch {
-    await _qpLog(steps, `Step 4: clicked (${result.via}) nhưng dialog "Chọn nhóm" không xuất hiện sau 10s`);
+    // Diagnostic dump để debug
+    const debug = await page.evaluate(() => {
+      const dialogs = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+      const bodyText = document.body.textContent || '';
+      return {
+        numDialogs: dialogs.length,
+        dialogTexts: Array.from(dialogs).map(d => (d.textContent || '').slice(0, 120)),
+        bodyHasChonNhom: bodyText.includes('Chọn nhóm'),
+        bodyHasChiaSe: bodyText.includes('Chia sẻ lên nhóm'),
+        numCheckboxes: document.querySelectorAll('input[type="checkbox"], [role="checkbox"]').length,
+      };
+    });
+    const shot = await _qpScreenshot(page, 'step4-verify-fail');
+    await _qpLog(steps, `Step 4: clicked (${result.via}) nhưng verify fail sau 15s — debug=${JSON.stringify(debug)} (screenshot=${shot})`);
     return false;
   }
 }
@@ -1490,21 +1430,42 @@ async function qpStep5PickGroups(page, steps, keywords) {
     return { selected: 0, missed };
   }
 
-  // Click "Xong"
+  // Click "Xong" — scope vào dialog chứa "Chọn nhóm" (không phải last dialog)
   await randomDelay(500, 1000);
   let xongVia = null;
+  const shareDialog = page.locator('div[role="dialog"]').filter({ hasText: 'Chọn nhóm' }).first();
+
+  // A. aria-label exact trong share dialog
   for (const lbl of ['Xong', 'Done']) {
     try {
-      await page.locator('div[role="dialog"]').last().locator(`[aria-label="${lbl}"]`).first().click({ timeout: 3000 });
+      await shareDialog.locator(`[aria-label="${lbl}"]`).first().click({ force: true, timeout: 3000 });
       xongVia = `aria-label="${lbl}"`;
       break;
     } catch (_) {}
   }
+
+  // B. getByRole(button, name=Xong) trong share dialog
   if (!xongVia) {
-    // Fallback: walk-up exact text
+    for (const lbl of ['Xong', 'Done']) {
+      try {
+        await shareDialog.getByRole('button', { name: lbl, exact: true }).first().click({ force: true, timeout: 3000 });
+        xongVia = `getByRole(button,${lbl})`;
+        break;
+      } catch (_) {}
+    }
+  }
+
+  // C. Fallback: walk-up exact text trong share dialog
+  if (!xongVia) {
     const ok = await page.evaluate(() => {
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const dialog = dialogs[dialogs.length - 1];
+      const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+      let dialog = null;
+      for (const cand of ds) {
+        const t = cand.textContent || '';
+        if (t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')) {
+          dialog = cand; break;
+        }
+      }
       if (!dialog) return false;
       for (const s of dialog.querySelectorAll('span')) {
         const t = (s.textContent || '').trim();
@@ -1512,7 +1473,13 @@ async function qpStep5PickGroups(page, steps, keywords) {
         let el = s;
         for (let i = 0; i < 8 && el.parentElement; i++) {
           el = el.parentElement;
-          if (el.getAttribute('role') === 'button') { el.click(); return true; }
+          if (el.getAttribute('role') === 'button') {
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 || r.height === 0) continue;
+            el.scrollIntoView({ block: 'center' });
+            el.click();
+            return true;
+          }
         }
       }
       return false;
@@ -1521,117 +1488,247 @@ async function qpStep5PickGroups(page, steps, keywords) {
   }
 
   if (!xongVia) {
-    await _qpLog(steps, 'Step 5: KHÔNG click được "Xong" — cả 2 strategy fail');
+    const shot = await _qpScreenshot(page, 'step5-xong-fail');
+    await _qpLog(steps, `Step 5: KHÔNG click được "Xong" (screenshot=${shot})`);
     return { selected: selected.length, missed };
   }
   await _qpLog(steps, `Step 5: click "Xong" OK (${xongVia})`);
 
-  // Verify: dialog "Chọn nhóm" đóng, quay lại "Cài đặt bài viết"
+  // Verify: dialog "Chọn nhóm" đóng (không còn dialog nào chứa "Chọn nhóm")
   try {
     await page.waitForFunction(() => {
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const last = dialogs[dialogs.length - 1];
-      if (!last) return false;
-      const t = last.textContent || '';
-      return (t.includes('Cài đặt bài viết') || t.includes('Post settings')) &&
-             !t.includes('Chọn nhóm') && !t.includes('Choose groups');
+      const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+      for (const d of ds) {
+        const t = d.textContent || '';
+        if (t.includes('Chọn nhóm') || t.includes('Choose groups')) return false;  // vẫn còn dialog "Chọn nhóm"
+      }
+      return true;  // dialog "Chọn nhóm" đã đóng
     }, { timeout: 8000 });
-    await _qpLog(steps, 'Step 5: verify OK — quay về "Cài đặt bài viết"');
+    await _qpLog(steps, 'Step 5: verify OK — dialog "Chọn nhóm" đã đóng');
   } catch {
-    await _qpLog(steps, 'Step 5: clicked "Xong" nhưng verify "Cài đặt bài viết" timeout — tiếp tục thử step 6');
+    await _qpLog(steps, 'Step 5: clicked "Xong" nhưng dialog "Chọn nhóm" vẫn mở — tiếp tục thử step 6');
   }
 
   return { selected: selected.length, missed };
 }
 
-// Tick 1 group theo keyword với exact-match priority + substring fallback + scroll lazy-load
+// Tick 1 group theo keyword với exact-match priority + substring fallback + scroll lazy-load.
+// FB UI mới: <input type=checkbox> bị ẩn (opacity:0 / pointer-events:none) — click input
+
+// Tick 1 group bằng Playwright accessibility locator (B3 approach).
+// Dùng getByRole + .check() / .click() built-in — Playwright tự handle scroll into view,
+// actionability check, retries. Fall back qua nhiều variant của getByRole.
+// QUAN TRỌNG: scope vào dialog "Chọn nhóm" (chứa text này) thay vì last dialog —
+// FB modal portal có thể stack DOM khác thứ tự visual.
 async function _qpPickOneGroup(page, keyword) {
-  const kwLower = keyword.toLowerCase();
-  const kwExact = keyword.trim();
+  const kw = keyword.trim();
+  const escapedKw = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  for (let attempt = 0; attempt < 30; attempt++) {
-    const result = await page.evaluate(({ kwLower, kwExact }) => {
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const dialog = dialogs[dialogs.length - 1];
-      if (!dialog) return { status: 'no-dialog' };
+  // Helper JS in browser: tìm dialog "Chọn nhóm" trong tất cả role=dialog
+  const FIND_SHARE_DIALOG = `(function(){
+    const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+    for (const d of ds) {
+      const t = d.textContent || '';
+      if (t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')) return d;
+    }
+    return null;
+  })()`;
 
-      // FB UI mới = native input, UI cũ = role="checkbox" — support cả 2
-      const checkboxes = dialog.querySelectorAll('input[type="checkbox"], [role="checkbox"]');
-      if (checkboxes.length === 0) return { status: 'no-checkbox' };
-
-      // Walk-up từ checkbox tìm row container (largest ancestor có đúng 1 checkbox)
-      function findRow(cb) {
-        let row = cb;
-        for (let i = 0; i < 8; i++) {
-          const next = row.parentElement;
-          if (!next) break;
-          const cbCount = next.querySelectorAll('input[type="checkbox"], [role="checkbox"]').length;
-          if (cbCount > 1) break;
-          row = next;
-        }
-        return row;
-      }
-
-      function isChecked(cb) {
-        if (cb.getAttribute('aria-checked') === 'true') return true;
-        if (cb.tagName === 'INPUT' && cb.checked === true) return true;
-        return false;
-      }
-
-      // Phase 1: exact text match — tránh "Test" tick nhầm "Test 1"
-      for (const cb of checkboxes) {
-        const row = findRow(cb);
-        for (const t of row.querySelectorAll('span, h2, h3, h4')) {
-          if ((t.textContent || '').trim() === kwExact) {
-            cb.scrollIntoView({ block: 'center' });
-            const r = cb.getBoundingClientRect();
-            if (r.width === 0 || r.height === 0) {
-              // Native input có thể visually hidden — click vào row thay vì checkbox
-              row.click();
-              return { status: 'ok', alreadyChecked: isChecked(cb), matchType: 'exact (row click)' };
-            }
-            const already = isChecked(cb);
-            if (!already) cb.click();
-            return { status: 'ok', alreadyChecked: already, matchType: 'exact' };
-          }
+  // Scroll lazy-load: đảm bảo group nằm trong DOM trước khi dùng locator
+  let foundInDom = false;
+  for (let i = 0; i < 20; i++) {
+    const result = await page.evaluate((k) => {
+      // Inline tìm share dialog (chứa "Chọn nhóm")
+      const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+      let d = null;
+      for (const cand of ds) {
+        const t = cand.textContent || '';
+        if (t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')) {
+          d = cand; break;
         }
       }
+      if (!d) return 'no-share-dialog';
 
-      // Phase 2: substring fallback (case-insensitive)
-      for (const cb of checkboxes) {
-        const row = findRow(cb);
-        const text = (row.textContent || '').toLowerCase();
-        if (text.includes(kwLower)) {
-          cb.scrollIntoView({ block: 'center' });
-          const r = cb.getBoundingClientRect();
-          if (r.width === 0 || r.height === 0) {
-            row.click();
-            return { status: 'ok', alreadyChecked: isChecked(cb), matchType: 'substring (row click)' };
-          }
-          const already = isChecked(cb);
-          if (!already) cb.click();
-          return { status: 'ok', alreadyChecked: already, matchType: 'substring' };
+      for (const s of d.querySelectorAll('span, h2, h3, h4')) {
+        if ((s.textContent || '').trim() === k) {
+          s.scrollIntoView({ block: 'center' });
+          return 'found';
         }
       }
-
-      // Không match → scroll lazy-load (tìm scrollable descendant)
-      let scroller = dialog;
-      for (const el of dialog.querySelectorAll('*')) {
+      // Scroll scrollable descendant trong share dialog
+      let scroller = d;
+      for (const el of d.querySelectorAll('*')) {
         if (el.scrollHeight > el.clientHeight + 20) { scroller = el; break; }
       }
       scroller.scrollBy(0, 400);
-      return { status: 'scrolled' };
-    }, { kwLower, kwExact });
+      return 'scrolled';
+    }, kw);
 
-    if (result.status === 'ok') {
-      return { ok: true, alreadyChecked: result.alreadyChecked, matchType: result.matchType };
-    }
-    if (result.status === 'no-dialog' || result.status === 'no-checkbox') {
-      return { ok: false, reason: result.status };
-    }
+    if (result === 'no-share-dialog') return { ok: false, reason: 'no-share-dialog' };
+    if (result === 'found') { foundInDom = true; break; }
     await randomDelay(300, 500);
   }
-  return { ok: false, reason: 'không thấy sau 30 lần scroll' };
+
+  if (!foundInDom) return { ok: false, reason: `Không thấy group "${kw}" sau 20 scrolls` };
+  await randomDelay(500, 800);  // settle sau scrollIntoView
+
+  // Check alreadyChecked trước khi thử click — scope share dialog
+  const isAlreadyChecked = await page.evaluate((k) => {
+    const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+    let d = null;
+    for (const cand of ds) {
+      const t = cand.textContent || '';
+      if (t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')) {
+        d = cand; break;
+      }
+    }
+    if (!d) return false;
+    for (const cb of d.querySelectorAll('input[type="checkbox"], [role="checkbox"]')) {
+      const row = cb.closest('[role="button"], [role="listitem"]') || cb.parentElement;
+      if (!row) continue;
+      let titleMatch = false;
+      for (const t of row.querySelectorAll('span, h2, h3, h4')) {
+        if ((t.textContent || '').trim() === k) { titleMatch = true; break; }
+      }
+      if (!titleMatch) continue;
+      if (cb.getAttribute('aria-checked') === 'true') return true;
+      if (cb.tagName === 'INPUT' && cb.checked === true) return true;
+    }
+    return false;
+  }, kw);
+
+  if (isAlreadyChecked) {
+    return { ok: true, alreadyChecked: true, matchType: 'exact (đã tick trước)' };
+  }
+
+  // B3: Playwright accessibility locator strategies — scope vào dialog chứa "Chọn nhóm"
+  const dialog = page.locator('div[role="dialog"]').filter({ hasText: 'Chọn nhóm' }).first();
+  const startRe = new RegExp('^' + escapedKw + '(\\s|$|,)', 'i');
+  const exactRe = new RegExp('^' + escapedKw + '$', 'i');
+
+  const tries = [
+    { name: 'getByRole(checkbox,exactRe).check', fn: () =>
+      dialog.getByRole('checkbox', { name: exactRe }).first().check({ force: true, timeout: 3000 }) },
+    { name: 'getByRole(checkbox,name,exact).check', fn: () =>
+      dialog.getByRole('checkbox', { name: kw, exact: true }).first().check({ force: true, timeout: 3000 }) },
+    { name: 'getByRole(checkbox,substring).check', fn: () =>
+      dialog.getByRole('checkbox', { name: kw }).first().check({ force: true, timeout: 3000 }) },
+    { name: 'getByRole(button,startRe).click', fn: () =>
+      dialog.getByRole('button', { name: startRe }).first().click({ force: true, timeout: 3000 }) },
+    { name: 'getByRole(button,name).click', fn: () =>
+      dialog.getByRole('button', { name: kw }).first().click({ force: true, timeout: 3000 }) },
+    { name: 'getByText(exact).click', fn: () =>
+      dialog.getByText(kw, { exact: true }).first().click({ force: true, timeout: 3000 }) },
+    { name: 'mouse.click on checkbox icon', fn: async () => {
+      // Click thẳng tọa độ pixel của visible icon (<i data-visualcompletion="css-img">)
+      // Bypass overlay + accessibility — đây là chỗ user thật sự click khi tick group
+      const coords = await page.evaluate((k) => {
+        const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+        let d = null;
+        for (const cand of ds) {
+          const t = cand.textContent || '';
+          if (t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')) {
+            d = cand; break;
+          }
+        }
+        if (!d) return null;
+        for (const cb of d.querySelectorAll('input[type="checkbox"], [role="checkbox"]')) {
+          const row = cb.closest('[role="button"], [role="listitem"]') || cb.parentElement;
+          if (!row) continue;
+          let titleMatch = false;
+          for (const t of row.querySelectorAll('span, h2, h3, h4')) {
+            if ((t.textContent || '').trim() === k) { titleMatch = true; break; }
+          }
+          if (!titleMatch) continue;
+          // Ưu tiên: visible icon <i> (background-image CSS sprite); fallback: input rect
+          const icon = row.querySelector('i[data-visualcompletion="css-img"]')
+                    || row.querySelector('i[style*="background-image"]')
+                    || cb;
+          const r = icon.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0) return null;
+          return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        }
+        return null;
+      }, kw);
+      if (!coords) throw new Error('không tìm được tọa độ icon');
+      // Hover trước, rồi mousedown + mouseup riêng (giống user thật click)
+      await page.mouse.move(coords.x, coords.y);
+      await randomDelay(100, 200);
+      await page.mouse.down();
+      await randomDelay(50, 100);
+      await page.mouse.up();
+    }},
+    { name: 'mouse.click on row center', fn: async () => {
+      // Hover + click coordinates ở center của row (full chain mouse events)
+      const coords = await page.evaluate((k) => {
+        const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+        let d = null;
+        for (const cand of ds) {
+          const t = cand.textContent || '';
+          if (t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')) {
+            d = cand; break;
+          }
+        }
+        if (!d) return null;
+        for (const cb of d.querySelectorAll('input[type="checkbox"], [role="checkbox"]')) {
+          const row = cb.closest('[role="button"], [role="listitem"]') || cb.parentElement;
+          if (!row) continue;
+          let titleMatch = false;
+          for (const t of row.querySelectorAll('span, h2, h3, h4')) {
+            if ((t.textContent || '').trim() === k) { titleMatch = true; break; }
+          }
+          if (!titleMatch) continue;
+          const r = row.getBoundingClientRect();
+          return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        }
+        return null;
+      }, kw);
+      if (!coords) throw new Error('không tìm được tọa độ row');
+      await page.mouse.move(coords.x, coords.y);
+      await randomDelay(150, 300);
+      await page.mouse.down();
+      await randomDelay(50, 100);
+      await page.mouse.up();
+    }},
+  ];
+
+  // Verify: chờ aria-checked đổi (re-find theo keyword, không phụ thuộc marker)
+  const waitForToggle = async () => {
+    try {
+      await page.waitForFunction((k) => {
+        for (const cb of document.querySelectorAll('input[type="checkbox"], [role="checkbox"]')) {
+          const row = cb.closest('[role="button"], [role="listitem"]') || cb.parentElement;
+          if (!row) continue;
+          let match = false;
+          for (const t of row.querySelectorAll('span, h2, h3, h4')) {
+            if ((t.textContent || '').trim() === k) { match = true; break; }
+          }
+          if (!match) continue;
+          if (cb.getAttribute('aria-checked') === 'true') return true;
+          if (cb.tagName === 'INPUT' && cb.checked === true) return true;
+        }
+        return false;
+      }, kw, { timeout: 3000 });
+      return true;
+    } catch { return false; }
+  };
+
+  const triedLog = [];
+  for (const t of tries) {
+    try {
+      await t.fn();
+    } catch (e) {
+      triedLog.push(`${t.name}=err`);
+      continue;
+    }
+    const ok = await waitForToggle();
+    triedLog.push(`${t.name}=${ok ? 'OK' : 'no-toggle'}`);
+    if (ok) {
+      return { ok: true, alreadyChecked: false, matchType: `pw-a11y via ${t.name}` };
+    }
+  }
+
+  return { ok: false, reason: `B3 fail: [${triedLog.join(', ')}]` };
 }
 
 // --- Step 6: click "Đăng" và chờ dialog đóng ---
@@ -1644,22 +1741,49 @@ async function qpStep6Submit(page, steps) {
   // Listener phải attach TRƯỚC khi click — response GraphQL về sau vài trăm ms
   const urlPromise = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
 
+  // Scroll tất cả dialog xuống BOTTOM (theo flow cũ submitPost) — submit button ở cuối
+  await page.evaluate(() => {
+    document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
+  });
+  await randomDelay(800, 1500);
+
+  // Scope vào dialog "Cài đặt bài viết" (chứa "Đăng" button + "Lưu" button)
+  // FB modal portal có thể stack DOM khác thứ tự — không dùng last dialog
+  const settingsDialog = page.locator('div[role="dialog"]').filter({ hasText: 'Cài đặt bài viết' }).first();
+
   let clickedVia = null;
 
-  // A. aria-label exact
+  // A. aria-label exact trong settings dialog
   for (const lbl of ['Đăng', 'Post']) {
     try {
-      await page.locator('div[role="dialog"]').last().locator(`[aria-label="${lbl}"]`).first().click({ timeout: 3000 });
+      await settingsDialog.locator(`[aria-label="${lbl}"]`).first().click({ force: true, timeout: 3000 });
       clickedVia = `aria-label="${lbl}"`;
       break;
     } catch (_) {}
   }
 
-  // B. Walk-up exact text "Đăng"/"Post" → role=button
+  // B. getByRole(button, name=Đăng) trong settings dialog
+  if (!clickedVia) {
+    for (const lbl of ['Đăng', 'Post']) {
+      try {
+        await settingsDialog.getByRole('button', { name: lbl, exact: true }).first().click({ force: true, timeout: 3000 });
+        clickedVia = `getByRole(button,${lbl})`;
+        break;
+      } catch (_) {}
+    }
+  }
+
+  // C. Walk-up exact text trong dialog "Cài đặt bài viết" (scoped)
   if (!clickedVia) {
     const ok = await page.evaluate(() => {
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const dialog = dialogs[dialogs.length - 1];
+      const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+      let dialog = null;
+      for (const cand of ds) {
+        const t = cand.textContent || '';
+        if (t.includes('Cài đặt bài viết') || t.includes('Post settings') || t.includes('Post Settings')) {
+          dialog = cand; break;
+        }
+      }
       if (!dialog) return false;
       for (const s of dialog.querySelectorAll('span')) {
         const t = (s.textContent || '').trim();
@@ -1670,6 +1794,7 @@ async function qpStep6Submit(page, steps) {
           if (el.getAttribute('role') === 'button') {
             const r = el.getBoundingClientRect();
             if (r.width === 0 || r.height === 0) continue;
+            el.scrollIntoView({ block: 'center' });
             el.click();
             return true;
           }
@@ -1681,8 +1806,9 @@ async function qpStep6Submit(page, steps) {
   }
 
   if (!clickedVia) {
-    await _qpLog(steps, 'Step 6: KHÔNG tìm thấy nút "Đăng"');
-    return { success: false, error: 'no Đăng button' };
+    const shot = await _qpScreenshot(page, 'step6-no-button');
+    await _qpLog(steps, `Step 6: KHÔNG tìm thấy nút "Đăng" (screenshot=${shot})`);
+    return { success: false, error: `no Đăng button (screenshot=${shot})` };
   }
   await _qpLog(steps, `Step 6: click "Đăng" OK (${clickedVia})`);
 

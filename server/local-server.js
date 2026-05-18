@@ -251,8 +251,9 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   })();
 });
 
-// ===== TEST: FB QUICK POST V2 (dev only — flow build mới) =====
-// Sync handler để dễ debug. Chỉ dùng từ trang "Test FB" trong UI.
+// ===== TEST: FB QUICK POST V2 — ASYNC JOB pattern =====
+// Tránh tunnel/proxy timeout khi test chạy > 1-2 phút.
+// Trả jobId ngay, chạy background, store result vào postJobs.
 app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res) => {
   const { profile, message } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
@@ -280,7 +281,7 @@ app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res)
     return res.status(400).json({ error: e.message });
   }
 
-  // Rate limit per profile
+  // Rate limit per profile (từ main)
   const rl = rateLimit.check(profile);
   if (!rl.ok) {
     cleanupFiles(imagePaths);
@@ -288,15 +289,21 @@ app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res)
     return res.status(429).json({ error: rl.reason, retryAfterMs: rl.retryAfterMs });
   }
 
-  try {
-    const result = await playwright.quickPostToPersonalAndGroups(message || '', imagePaths, groupKeywords);
-    res.json(result);
-  } catch (e) {
-    logger.error(`[fb-quick-post-test] Exception: ${e.message}`);
-    res.status(500).json({ error: e.message, steps: [] });
-  } finally {
-    cleanupFiles(imagePaths);
-  }
+  // Trả jobId ngay, chạy background (async job pattern — tránh tunnel timeout)
+  const jobId = createJob();
+  res.json({ jobId, status: 'pending' });
+
+  (async () => {
+    try {
+      const result = await playwright.quickPostToPersonalAndGroups(message || '', imagePaths, groupKeywords);
+      setJobResult(jobId, result);
+    } catch (e) {
+      logger.error(`[fb-quick-post-test] job ${jobId} FAILED: ${e.message}`);
+      setJobError(jobId, e.message);
+    } finally {
+      cleanupFiles(imagePaths);
+    }
+  })();
 });
 
 // ===== ĐĂNG ZALO =====
