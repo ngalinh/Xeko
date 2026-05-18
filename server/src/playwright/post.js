@@ -1477,24 +1477,44 @@ async function qpStep5PickGroups(page, steps, keywords) {
 // Tick 1 group bằng Playwright accessibility locator (B3 approach).
 // Dùng getByRole + .check() / .click() built-in — Playwright tự handle scroll into view,
 // actionability check, retries. Fall back qua nhiều variant của getByRole.
+// QUAN TRỌNG: scope vào dialog "Chọn nhóm" (chứa text này) thay vì last dialog —
+// FB modal portal có thể stack DOM khác thứ tự visual.
 async function _qpPickOneGroup(page, keyword) {
   const kw = keyword.trim();
   const escapedKw = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // Helper JS in browser: tìm dialog "Chọn nhóm" trong tất cả role=dialog
+  const FIND_SHARE_DIALOG = `(function(){
+    const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+    for (const d of ds) {
+      const t = d.textContent || '';
+      if (t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')) return d;
+    }
+    return null;
+  })()`;
 
   // Scroll lazy-load: đảm bảo group nằm trong DOM trước khi dùng locator
   let foundInDom = false;
   for (let i = 0; i < 20; i++) {
     const result = await page.evaluate((k) => {
-      const ds = document.querySelectorAll('div[role="dialog"]');
-      const d = ds[ds.length - 1];
-      if (!d) return 'no-dialog';
+      // Inline tìm share dialog (chứa "Chọn nhóm")
+      const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+      let d = null;
+      for (const cand of ds) {
+        const t = cand.textContent || '';
+        if (t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')) {
+          d = cand; break;
+        }
+      }
+      if (!d) return 'no-share-dialog';
+
       for (const s of d.querySelectorAll('span, h2, h3, h4')) {
         if ((s.textContent || '').trim() === k) {
           s.scrollIntoView({ block: 'center' });
           return 'found';
         }
       }
-      // Scroll scrollable descendant
+      // Scroll scrollable descendant trong share dialog
       let scroller = d;
       for (const el of d.querySelectorAll('*')) {
         if (el.scrollHeight > el.clientHeight + 20) { scroller = el; break; }
@@ -1503,7 +1523,7 @@ async function _qpPickOneGroup(page, keyword) {
       return 'scrolled';
     }, kw);
 
-    if (result === 'no-dialog') return { ok: false, reason: 'no-dialog' };
+    if (result === 'no-share-dialog') return { ok: false, reason: 'no-share-dialog' };
     if (result === 'found') { foundInDom = true; break; }
     await randomDelay(300, 500);
   }
@@ -1511,15 +1531,20 @@ async function _qpPickOneGroup(page, keyword) {
   if (!foundInDom) return { ok: false, reason: `Không thấy group "${kw}" sau 20 scrolls` };
   await randomDelay(500, 800);  // settle sau scrollIntoView
 
-  // Check alreadyChecked trước khi thử click
+  // Check alreadyChecked trước khi thử click — scope share dialog
   const isAlreadyChecked = await page.evaluate((k) => {
-    const ds = document.querySelectorAll('div[role="dialog"]');
-    const d = ds[ds.length - 1];
+    const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+    let d = null;
+    for (const cand of ds) {
+      const t = cand.textContent || '';
+      if (t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')) {
+        d = cand; break;
+      }
+    }
     if (!d) return false;
     for (const cb of d.querySelectorAll('input[type="checkbox"], [role="checkbox"]')) {
       const row = cb.closest('[role="button"], [role="listitem"]') || cb.parentElement;
       if (!row) continue;
-      // Kiểm tra row chứa keyword
       let titleMatch = false;
       for (const t of row.querySelectorAll('span, h2, h3, h4')) {
         if ((t.textContent || '').trim() === k) { titleMatch = true; break; }
@@ -1535,8 +1560,8 @@ async function _qpPickOneGroup(page, keyword) {
     return { ok: true, alreadyChecked: true, matchType: 'exact (đã tick trước)' };
   }
 
-  // B3: Playwright accessibility locator strategies
-  const dialog = page.locator('div[role="dialog"]').last();
+  // B3: Playwright accessibility locator strategies — scope vào dialog chứa "Chọn nhóm"
+  const dialog = page.locator('div[role="dialog"]').filter({ hasText: 'Chọn nhóm' }).first();
   const startRe = new RegExp('^' + escapedKw + '(\\s|$|,)', 'i');
   const exactRe = new RegExp('^' + escapedKw + '$', 'i');
 
@@ -1557,8 +1582,14 @@ async function _qpPickOneGroup(page, keyword) {
       // Click thẳng tọa độ pixel của visible icon (<i data-visualcompletion="css-img">)
       // Bypass overlay + accessibility — đây là chỗ user thật sự click khi tick group
       const coords = await page.evaluate((k) => {
-        const ds = document.querySelectorAll('div[role="dialog"]');
-        const d = ds[ds.length - 1];
+        const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+        let d = null;
+        for (const cand of ds) {
+          const t = cand.textContent || '';
+          if (t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')) {
+            d = cand; break;
+          }
+        }
         if (!d) return null;
         for (const cb of d.querySelectorAll('input[type="checkbox"], [role="checkbox"]')) {
           const row = cb.closest('[role="button"], [role="listitem"]') || cb.parentElement;
@@ -1589,8 +1620,14 @@ async function _qpPickOneGroup(page, keyword) {
     { name: 'mouse.click on row center', fn: async () => {
       // Hover + click coordinates ở center của row (full chain mouse events)
       const coords = await page.evaluate((k) => {
-        const ds = document.querySelectorAll('div[role="dialog"]');
-        const d = ds[ds.length - 1];
+        const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
+        let d = null;
+        for (const cand of ds) {
+          const t = cand.textContent || '';
+          if (t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')) {
+            d = cand; break;
+          }
+        }
         if (!d) return null;
         for (const cb of d.querySelectorAll('input[type="checkbox"], [role="checkbox"]')) {
           const row = cb.closest('[role="button"], [role="listitem"]') || cb.parentElement;
