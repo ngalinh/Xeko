@@ -3013,7 +3013,7 @@
             <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:4px; display:flex; align-items:center; gap:8px;"><svg class="xi xi-md" style="color:#1E3A8A;"><use href="#ic-user"/></svg> Gán kênh cho từng Profile</h3>
             <p style="font-size:12px; color:#999; margin-bottom:14px;">Mỗi profile hiển thị các kênh đã gán. Bấm "+ Thêm" để gán thêm, bấm "×" để bỏ gán.</p>
             <div id="profileChannelError" style="color:#e53e3e; font-size:13px; display:none; margin-bottom:10px;">Lỗi tải danh sách profile</div>
-            <div id="profileChannelGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:12px;"></div>
+            <div id="profileChannelGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(380px,1fr)); gap:12px;"></div>
           </div>
           <!-- Group picker popup (shared, positioned by JS) -->
           <div id="groupPickerPopup" style="display:none; position:fixed; z-index:9999; background:#fff; border:1.5px solid #BFDBFE; border-radius:12px; box-shadow:0 8px 32px rgba(37,99,235,0.15); width:300px; padding:12px;">
@@ -6592,7 +6592,7 @@
         return `
           <tr style="background:#fafafa;">
             <td style="padding:7px 8px; border-top-left-radius:8px; border-bottom-left-radius:8px;">${typeBadge}</td>
-            <td style="padding:7px 8px; font-weight:700; color:${keyColor}; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:110px;" title="${escapeHtml(g.key)}">${escapeHtml(g.key)}</td>
+            <td style="padding:7px 8px; font-weight:700; color:${keyColor}; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(g.key)}</td>
             <td style="padding:7px 8px; min-width:0;">
               <div style="font-size:12px; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${nameTitle}">${escapeHtml(g.name)}</div>
               <div style="font-size:10px; color:#999; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${category ? `<span style="color:#6B7280;">${category}</span>` : sub}</div>
@@ -6812,17 +6812,16 @@
             <div style="width:36px; height:36px; background:${avatarColor}; border-radius:99px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:14px; font-weight:700; flex-shrink:0;">${initial}</div>
             <div style="flex:1; min-width:0;">
               <div style="font-size:13px; font-weight:700; color:#1e1e2e; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</div>
-              <div style="font-size:10px; color:${isEmpty ? '#F59E0B' : '#94a3b8'};">${isEmpty ? 'Chưa có group nào' : totalCount + ' group đã gán'}</div>
+              <div style="display:flex; align-items:center; gap:4px; margin-top:3px;">
+                <span style="font-size:10px; color:#94a3b8; flex-shrink:0;">Zalo:</span>
+                <select onchange="setProfileZaloAccount('${escapeHtml(p.key)}', this.value)"
+                  style="flex:1; min-width:0; padding:2px 6px; border:1px solid #e2e8f0; border-radius:6px; font-size:10px; background:#fff; color:#555; cursor:pointer; max-width:160px;">
+                  ${zaloOpts}
+                </select>
+              </div>
             </div>
             <button onclick="openGroupPicker('${escapeHtml(p.key)}', this)"
               style="padding:5px 10px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap; flex-shrink:0;">+ Thêm</button>
-          </div>
-          <div style="display:flex; align-items:center; gap:6px;">
-            <span style="font-size:11px; color:#777; flex-shrink:0;">Zalo:</span>
-            <select onchange="setProfileZaloAccount('${escapeHtml(p.key)}', this.value)"
-              style="flex:1; min-width:0; padding:5px 8px; border:1px solid #e2e8f0; border-radius:8px; font-size:11px; background:#fff; color:#333; cursor:pointer;">
-              ${zaloOpts}
-            </select>
           </div>
           ${(fbChips || zaloChips) ? `
           <div style="display:flex; flex-wrap:wrap; gap:5px; align-items:center; min-height:28px;">
