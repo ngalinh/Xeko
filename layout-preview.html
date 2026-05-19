@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Channel Layout Preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f3f4f6; padding: 24px; }
+  h1 { text-align: center; font-size: 18px; color: #374151; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 960px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .card h2 { font-size: 13px; font-weight: 700; color: #6366f1; margin-bottom: 4px; }
+  .card p { font-size: 11px; color: #9ca3af; margin-bottom: 14px; }
+  .bubble { background: #f9fafb; border-radius: 12px; padding: 14px; border: 1px solid #e5e7eb; font-size: 13px; }
+  .bubble-header { font-size: 12px; color: #374151; margin-bottom: 10px; }
+  .bubble-header strong { color: #111; }
+
+  /* ===== LAYOUT 1: Current ===== */
+  .platform-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .plat-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
+    padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    background: #3B82F6; color: #fff; border: none; cursor: default; }
+  .profile-section { border: 1px solid #EFF6FF; border-radius: 10px; overflow: hidden; }
+  .profile-header { padding: 7px 12px; font-size: 12px; font-weight: 600; color: #1E3A8A;
+    background: #fafafa; border-bottom: 1px solid #eef0f4; }
+  .ch-item { display: flex; align-items: center; gap: 7px; padding: 7px 12px;
+    font-size: 12px; color: #333; border-bottom: 1px solid #f0ecf9; cursor: pointer; }
+  .ch-item:last-child { border-bottom: none; }
+  .ch-item input { accent-color: #3B82F6; width: 14px; height: 14px; }
+  .ch-tag { font-size: 10px; padding: 1px 5px; border-radius: 4px; font-weight: 600; margin-left: auto; }
+  .fb { background: #e8f0fe; color: #1877f2; }
+  .zalo { background: #e6f0ff; color: #1E3A8A; }
+  .muted { color: #888; font-size: 11px; }
+  .action-row { display: flex; gap: 8px; margin-top: 10px; }
+  .act-btn { flex: 1; padding: 8px; border-radius: 8px; border: none; font-size: 12px; font-weight: 600;
+    background: #EFF6FF; color: #1E3A8A; cursor: default; }
+
+  /* ===== LAYOUT 2: Chip toggle ===== */
+  .chip-row { display: flex; flex-wrap: wrap; gap: 7px; }
+  .chip { display: flex; align-items: center; gap: 5px; padding: 6px 11px; border-radius: 20px;
+    font-size: 12px; font-weight: 500; cursor: default; border: 1.5px solid;
+    transition: all 0.15s; }
+  .chip.active.fb-chip { background: #EFF6FF; border-color: #3B82F6; color: #1d4ed8; }
+  .chip.active.zalo-chip { background: #e6f0ff; border-color: #1E3A8A; color: #1E3A8A; }
+  .chip.active .chip-dot { width: 7px; height: 7px; border-radius: 50%; background: #3B82F6; }
+  .chip.active.zalo-chip .chip-dot { background: #1E3A8A; }
+  .chip-group-label { font-size: 11px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; margin-top: 8px; }
+
+  /* ===== LAYOUT 3: 2-col grid ===== */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #f0ecf9; }
+  .two-col .ch-item { background: #fff; border-bottom: none; padding: 6px 10px; font-size: 11.5px; }
+  .two-col .ch-item .ch-tag { font-size: 9px; }
+
+  /* ===== LAYOUT 4: Platform sections ===== */
+  .plat-section { margin-bottom: 8px; }
+  .plat-section-header { display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+    border-radius: 8px 8px 0 0; font-size: 12px; font-weight: 700; }
+  .plat-section-header.fb-head { background: #EFF6FF; color: #1d4ed8; }
+  .plat-section-header.zalo-head { background: #e6f0ff; color: #1E3A8A; }
+  .plat-section-header input { accent-color: #3B82F6; width: 13px; height: 13px; }
+  .plat-channels { border: 1.5px solid #DBEAFE; border-top: none; border-radius: 0 0 8px 8px; overflow: hidden; }
+  .plat-ch-item { display: flex; align-items: center; gap: 7px; padding: 6px 12px;
+    font-size: 12px; color: #333; border-bottom: 1px solid #EFF6FF; cursor: pointer; }
+  .plat-ch-item:last-child { border-bottom: none; }
+  .plat-ch-item input { accent-color: #3B82F6; width: 13px; height: 13px; }
+  .zalo-border { border-color: #BFDBFE; }
+  .zalo-border .plat-ch-item { border-color: #e6f0ff; }
+
+  .badge { background: #f0fdf4; color: #16a34a; font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 600; margin-left: 8px; }
+</style>
+</head>
+<body>
+<h1>Minh hoạ các layout hiển thị danh sách kênh</h1>
+<div class="grid">
+
+  <!-- CARD 1: Current -->
+  <div class="card">
+    <h2>📌 Layout hiện tại (List đầy đủ)</h2>
+    <p>Mỗi kênh chiếm 1 hàng, có badge FB/Zalo bên phải</p>
+    <div class="bubble">
+      <div class="bubble-header">✏️ <strong>Đăng bài</strong> — Chế độ: Đăng ngay<br>Bạn tick kênh để Xeko đăng nha:</div>
+      <div class="platform-row">
+        <div class="plat-btn">📘 Facebook</div>
+        <div class="plat-btn" style="background:#1E3A8A;">💬 Zalo</div>
+      </div>
+      <div class="profile-section">
+        <div class="profile-header">👤 Linh Thảo US</div>
+        <label class="ch-item"><input type="checkbox" checked> 🖥️ FB Profile <span class="ch-tag fb">FB</span></label>
+        <label class="ch-item"><input type="checkbox" checked> 👥 RL <span class="muted">(1 nhóm)</span> <span class="ch-tag fb">FB</span></label>
+        <label class="ch-item"><input type="checkbox" checked> 👥 Test <span class="muted">(1 nhóm)</span> <span class="ch-tag fb">FB</span></label>
+        <label class="ch-item"><input type="checkbox" checked> 🔗 Group khác... <span class="ch-tag fb">FB</span></label>
+        <label class="ch-item"><input type="checkbox" checked> 💬 Test đăng bài <span class="ch-tag zalo">Zalo</span></label>
+      </div>
+      <div class="action-row">
+        <div class="act-btn">✓ Tiếp tục</div>
+        <div class="act-btn">↻ Đổi chế độ</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARD 2: Chip Toggle -->
+  <div class="card">
+    <h2>✨ Layout 1: Chip / Toggle</h2>
+    <p>Mỗi kênh là 1 chip nhỏ gọn, click để bật/tắt — không cần checkbox truyền thống</p>
+    <div class="bubble">
+      <div class="bubble-header">✏️ <strong>Đăng bài</strong> — Chế độ: Đăng ngay<br>Chọn kênh muốn đăng:</div>
+      <div style="font-size:11px; color:#6b7280; margin-bottom:4px;">👤 Linh Thảo US</div>
+      <div class="chip-group-label">📘 Facebook</div>
+      <div class="chip-row">
+        <div class="chip active fb-chip"><div class="chip-dot"></div> 🖥️ FB Profile</div>
+        <div class="chip active fb-chip"><div class="chip-dot"></div> 👥 RL <span class="muted" style="font-size:10px;">(1n)</span></div>
+        <div class="chip active fb-chip"><div class="chip-dot"></div> 👥 Test <span class="muted" style="font-size:10px;">(1n)</span></div>
+        <div class="chip active fb-chip"><div class="chip-dot"></div> 🔗 Group khác...</div>
+      </div>
+      <div class="chip-group-label">💬 Zalo</div>
+      <div class="chip-row">
+        <div class="chip active zalo-chip"><div class="chip-dot"></div> 💬 Test đăng bài</div>
+      </div>
+      <div class="action-row" style="margin-top:12px;">
+        <div class="act-btn">✓ Tiếp tục</div>
+        <div class="act-btn">↻ Đổi chế độ</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARD 3: 2-col Grid -->
+  <div class="card">
+    <h2>📐 Layout 2: 2 cột Grid</h2>
+    <p>Chia thành 2 cột song song, giảm chiều cao panel xuống gần một nửa</p>
+    <div class="bubble">
+      <div class="bubble-header">✏️ <strong>Đăng bài</strong> — Chế độ: Đăng ngay<br>Bạn tick kênh để Xeko đăng nha:</div>
+      <div class="platform-row">
+        <div class="plat-btn">📘 Facebook</div>
+        <div class="plat-btn" style="background:#1E3A8A;">💬 Zalo</div>
+      </div>
+      <div class="profile-section">
+        <div class="profile-header">👤 Linh Thảo US</div>
+        <div class="two-col">
+          <label class="ch-item"><input type="checkbox" checked> 🖥️ FB Profile <span class="ch-tag fb">FB</span></label>
+          <label class="ch-item"><input type="checkbox" checked> 👥 RL <span class="muted">(1n)</span> <span class="ch-tag fb">FB</span></label>
+          <label class="ch-item"><input type="checkbox" checked> 👥 Test <span class="muted">(1n)</span> <span class="ch-tag fb">FB</span></label>
+          <label class="ch-item"><input type="checkbox" checked> 🔗 Group khác... <span class="ch-tag fb">FB</span></label>
+          <label class="ch-item" style="grid-column: span 2;"><input type="checkbox" checked> 💬 Test đăng bài <span class="ch-tag zalo">Zalo</span></label>
+        </div>
+      </div>
+      <div class="action-row">
+        <div class="act-btn">✓ Tiếp tục</div>
+        <div class="act-btn">↻ Đổi chế độ</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARD 4: Platform sections -->
+  <div class="card">
+    <h2>📂 Layout 3: Nhóm theo Platform</h2>
+    <p>Tách FB và Zalo thành 2 block riêng với header có checkbox tổng, không cần badge tag</p>
+    <div class="bubble">
+      <div class="bubble-header">✏️ <strong>Đăng bài</strong> — Chế độ: Đăng ngay<br>Chọn kênh để Xeko đăng:</div>
+      <div style="font-size:11px; color:#6b7280; margin-bottom:8px;">👤 Linh Thảo US</div>
+      <div class="plat-section">
+        <div class="plat-section-header fb-head"><input type="checkbox" checked> 📘 Facebook <span class="badge">4 kênh</span></div>
+        <div class="plat-channels">
+          <label class="plat-ch-item"><input type="checkbox" checked> 🖥️ FB Profile</label>
+          <label class="plat-ch-item"><input type="checkbox" checked> 👥 RL <span class="muted">(1 nhóm)</span></label>
+          <label class="plat-ch-item"><input type="checkbox" checked> 👥 Test <span class="muted">(1 nhóm)</span></label>
+          <label class="plat-ch-item"><input type="checkbox" checked> 🔗 Group khác...</label>
+        </div>
+      </div>
+      <div class="plat-section">
+        <div class="plat-section-header zalo-head"><input type="checkbox" checked> 💬 Zalo <span class="badge" style="background:#e6f0ff; color:#1E3A8A;">1 kênh</span></div>
+        <div class="plat-channels zalo-border">
+          <label class="plat-ch-item"><input type="checkbox" checked> 💬 Test đăng bài</label>
+        </div>
+      </div>
+      <div class="action-row">
+        <div class="act-btn">✓ Tiếp tục</div>
+        <div class="act-btn">↻ Đổi chế độ</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
