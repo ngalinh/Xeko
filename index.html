@@ -537,8 +537,8 @@
     .acc-tab.active { color: #3B82F6; border-bottom-color: #3B82F6; }
 
     .profile-card {
-      display: flex; align-items: center; gap: 14px;
-      padding: 14px 18px; background: #fff; border: 1px solid #eee;
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 14px; background: #fff; border: 1px solid #eee;
       border-radius: 10px; transition: all 0.15s;
     }
     .profile-card:hover { border-color: #d0d0ff; }
@@ -2947,10 +2947,11 @@
         </div>
 
         <!-- Facebook profiles -->
-        <h4 style="font-size:13px; color:#999; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:16px;height:16px;vertical-align:middle;"> Facebook
-        </h4>
-        <div id="fbProfileList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;"></div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; padding-bottom:8px; border-bottom:1.5px solid #EFF6FF;">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:16px;height:16px;">
+          <span style="font-size:12px; font-weight:700; color:#1877f2; text-transform:uppercase; letter-spacing:0.5px;">Facebook</span>
+        </div>
+        <div id="fbProfileList" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(440px,1fr)); gap:8px; margin-bottom:20px;"></div>
 
         <!-- Session check results -->
         <div id="sessionResults" style="display:flex; flex-direction:column; gap:10px; margin-top:16px;"></div>
@@ -6142,10 +6143,10 @@
             fbContainer.parentNode.insertBefore(zaloSection, fbContainer.nextSibling);
           }
           zaloSection.innerHTML = `
-            <h4 style="font-size:13px; color:#999; margin-bottom:10px; margin-top:8px; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:6px;">
-              ${xekoIcon('chat')} Zalo
-            </h4>
-            <div style="display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; margin-top:8px; padding-bottom:8px; border-bottom:1.5px solid #e0f2fe;">
+              ${xekoIcon('chat')} <span style="font-size:12px; font-weight:700; color:#0369a1; text-transform:uppercase; letter-spacing:0.5px;">Zalo</span>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(440px,1fr)); gap:8px;">
               ${data.zalo.map(z => {
                 const zproxyStr = z.proxy || '';
                 const zproxyHtml = zproxyStr
