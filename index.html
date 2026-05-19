@@ -2986,14 +2986,20 @@
                 <option value="">Tất cả phân loại</option>
               </select>
             </div>
-            <div id="groupsTableWrap" style="overflow-x:auto; max-height:560px; overflow-y:auto;">
-              <table id="groupsTable" style="width:100%; border-collapse:separate; border-spacing:0 3px; font-size:12px;">
+            <div id="groupsTableWrap" style="max-height:560px; overflow-y:auto; overflow-x:hidden;">
+              <table id="groupsTable" style="width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0 3px; font-size:12px;">
+                <colgroup>
+                  <col style="width:60px;">
+                  <col style="width:90px;">
+                  <col>
+                  <col style="width:72px;">
+                </colgroup>
                 <thead>
                   <tr style="text-align:left; color:#888; font-size:10px; text-transform:uppercase; letter-spacing:0.3px;">
-                    <th style="padding:5px 8px; font-weight:600; width:54px;">Loại</th>
-                    <th style="padding:5px 8px; font-weight:600; width:110px;">Key</th>
+                    <th style="padding:5px 8px; font-weight:600;">Loại</th>
+                    <th style="padding:5px 8px; font-weight:600;">Key</th>
                     <th style="padding:5px 8px; font-weight:600;">Tên hiển thị</th>
-                    <th style="padding:5px 8px; font-weight:600; width:80px; text-align:right;">Hành động</th>
+                    <th style="padding:5px 8px; font-weight:600; text-align:right;">Hành động</th>
                   </tr>
                 </thead>
                 <tbody id="groupsTableBody"></tbody>
