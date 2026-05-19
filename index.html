@@ -3363,7 +3363,7 @@
             </div>
             <div class="msel-panel" id="msel-target-panel">
               <label class="msel-option"><input type="checkbox" value="" checked onchange="_mselChange('msel-target',this,'')"><span>Tất cả nơi đăng</span></label>
-              <label class="msel-option"><input type="checkbox" value="personal" onchange="_mselChange('msel-target',this,'personal')"><span>Cá nhân</span></label>
+              <label class="msel-option"><input type="checkbox" value="personal" onchange="_mselChange('msel-target',this,'personal')"><span>Profile</span></label>
               <label class="msel-option"><input type="checkbox" value="group" onchange="_mselChange('msel-target',this,'group')"><span>Group</span></label>
             </div>
           </div>
@@ -4063,13 +4063,13 @@
     let postMode = 'now'; // 'now' hoac 'schedule'
 
     const TARGET_LABELS = {
-      personal: 'FB Cá nhân',
+      personal: 'FB Profile',
       'personal-share-groups': 'Profile + Groups',
       'personal+groups': 'Profile + Groups',
       asale: 'Group Asale',
       tongkho: 'Group Tổng Kho',
       allgroup: '2 Group (Asale + Tổng Kho)',
-      all: 'Cá nhân + 2 Group',
+      all: 'Profile + 2 Group',
       custom: 'Group khác',
     };
 
@@ -4209,7 +4209,7 @@
       // Ack ngắn trước khi render panel kênh (panel hơi nặng, ack giúp user
       // thấy click được ghi nhận liền thay vì chờ panel build xong)
       const ack = mode === 'now' ? 'Ok, đăng liền nha 👌'
-                : mode === 'quickfb' ? 'Ok, đăng nhanh lên FB cá nhân + share group cùng lúc nha ⚡ (FB only, tối đa 9 group)'
+                : mode === 'quickfb' ? 'Ok, đăng nhanh lên FB Profile + share group cùng lúc nha ⚡ (FB only, tối đa 9 group)'
                 : 'Ok, mình hẹn giờ nha 🕐';
       addBot(ack);
       // STEP 4: Chon noi dang
@@ -4232,7 +4232,7 @@
       return {
         label: profileName || profileKey,
         fb: [
-          { id: 'personal', name: 'FB Cá nhân', icon: xekoIcon('phone') },
+          { id: 'personal', name: 'FB Profile', icon: xekoIcon('phone') },
           ...allFbGroups
             .filter(g => fbGroupKeys.includes(g.key))
             .map(g => ({ id: g.key, name: `Group ${g.name}`, icon: xekoIcon('users'), rawName: g.name, category: (g.category || '').trim() })),
@@ -4587,7 +4587,7 @@
 
       let targetText = TARGET_LABELS[target];
       if (target === 'allgroup') targetText = 'Asale + Tổng Kho';
-      if (target === 'all') targetText = 'FB Cá nhân + Asale + Tổng Kho';
+      if (target === 'all') targetText = 'FB Profile + Asale + Tổng Kho';
 
       if (postMode === 'schedule') {
         showScheduleForm();
@@ -4901,7 +4901,7 @@
           await appendImages(formData, filesToUpload);
 
           const targetLabel = (() => {
-            if (!target || target === 'personal') return `FB cá nhân (<strong>${currentProfileName}</strong>)`;
+            if (!target || target === 'personal') return `FB Profile (<strong>${currentProfileName}</strong>)`;
             if (target === 'group') return `Group <strong>#${groupId}</strong> (profile <strong>${currentProfileName}</strong>)`;
             if (target === 'shortcut') {
               const scMap = { asale: 'Asale', tongkho: 'Tổng Kho' };
@@ -4960,9 +4960,9 @@
             const isShareFlow = !!_shareGroupKeywords;
             if (isShareFlow && data.partialSuccess && data.missedGroups && data.missedGroups.length > 0) {
               // Đăng cá nhân OK nhưng share group fail
-              msg = `⚠️ Đăng FB cá nhân <strong>${currentProfileName}</strong> OK, nhưng share lên ${data.missedGroups.length} nhóm <strong>${data.missedGroups.join(', ')}</strong> fail (không tick được). Bạn share thủ công hoặc retry nha.`;
+              msg = `⚠️ Đăng FB Profile <strong>${currentProfileName}</strong> OK, nhưng share lên ${data.missedGroups.length} nhóm <strong>${data.missedGroups.join(', ')}</strong> fail (không tick được). Bạn share thủ công hoặc retry nha.`;
             } else if (isShareFlow && data.sharedGroups > 0) {
-              msg = `✅ Xeko đã đăng FB cá nhân <strong>${currentProfileName}</strong> + share lên <strong>${data.sharedGroups} nhóm</strong> rồi nha!`;
+              msg = `✅ Xeko đã đăng FB Profile <strong>${currentProfileName}</strong> + share lên <strong>${data.sharedGroups} nhóm</strong> rồi nha!`;
             } else {
               msg = `✅ Xong ${targetLabel} rồi nha!`;
             }
@@ -5136,7 +5136,7 @@
       } else {
         targetText = TARGET_LABELS[currentTarget] || 'Chưa chọn';
         if (currentTarget === 'allgroup') targetText = 'Asale + Tổng Kho';
-        if (currentTarget === 'all') targetText = 'FB Cá nhân + Asale + Tổng Kho';
+        if (currentTarget === 'all') targetText = 'FB Profile + Asale + Tổng Kho';
       }
 
       const chat = document.getElementById('chatArea');
@@ -5631,7 +5631,7 @@
             platform: r.platform || 'facebook',
             status: r.success ? 'done' : 'error',
             profile: r.profile_name || r.profile,
-            target: r.group_name || (r.target === 'personal' ? 'Cá nhân' : (r.target || '')),
+            target: r.group_name || (r.target === 'personal' ? 'Profile' : (r.target || '')),
             groupId: r.group_id,
             message: r.message,
             imageCount: r.image_count || 0,
@@ -6999,11 +6999,11 @@
 
         for (const n of items) {
           const targetLabels = {
-            personal: 'FB Cá nhân',
+            personal: 'FB Profile',
             group: 'Group',
             allgroup: '2 Group',
             shortcut: 'Group',
-            all: 'Cá nhân + 2 Group',
+            all: 'Profile + 2 Group',
           };
           const isZalo = n.jobType === 'zalo';
           const targetText = isZalo
@@ -7715,7 +7715,7 @@
         // --- Render repost-in-progress rows (giữ lại khi reload) ---
         const repostHtml = _activeRepostJobs.map(job => {
           const ch = job.ch;
-          const targetLabel = ch.type === 'group' ? 'Group' : 'Cá nhân';
+          const targetLabel = ch.type === 'group' ? 'Group' : 'Profile';
           const groupId = ch.id || ch.key || '-';
           const msgShort = job.message ? (job.message.length > 60 ? job.message.substring(0, 60) + '…' : job.message) : '-';
           const fullMsg = (job.message || '').replace(/"/g, '&quot;');
@@ -7741,7 +7741,7 @@
           const timePart = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
           const datePart = `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
           const time = `<div style="line-height:1.3;"><div style="font-size:12px;">${timePart}</div><div style="font-size:11px; color:#6b7280;">${datePart}</div></div>`;
-          const targetLabel = sched.target === 'personal' ? 'Cá nhân' : sched.target === 'group' ? 'Group' : (sched.target === 'personal-share-groups' || sched.target === 'personal+groups') ? 'Profile + Groups' : sched.target === 'all' ? 'Tất cả' : sched.target === 'allgroup' ? 'Tất cả Group' : (sched.target || '-');
+          const targetLabel = sched.target === 'personal' ? 'Profile' : sched.target === 'group' ? 'Group' : (sched.target === 'personal-share-groups' || sched.target === 'personal+groups') ? 'Profile + Groups' : sched.target === 'all' ? 'Tất cả' : sched.target === 'allgroup' ? 'Tất cả Group' : (sched.target || '-');
           const groupId = resolveGroupLabel(sched.type, sched.groupId, sched.groupName);
           const groupIdRaw = sched.groupId || sched.groupName || '';
           const fullMsg = (sched.message || '').replace(/"/g,'&quot;');
@@ -7848,7 +7848,7 @@
             : `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'').replace(/"/g,'&quot;')}"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-x"/></svg>Failed</span>`;
           const noiDangLabel = (row) => {
             const platform = row.platform === 'zalo' ? 'Zalo' : 'FB';
-            const target = row.target === 'personal' ? 'Cá nhân' : row.target === 'group' ? 'Group' : (row.target === 'personal-share-groups' || row.target === 'personal+groups') ? 'Profile + Groups' : (row.target || '');
+            const target = row.target === 'personal' ? 'Profile' : row.target === 'group' ? 'Group' : (row.target === 'personal-share-groups' || row.target === 'personal+groups') ? 'Profile + Groups' : (row.target || '');
             return target ? `${platform} - ${target}` : platform;
           };
           const postLinkIcon = (url) => url ? `<a href="${String(url).replace(/"/g,'&quot;')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Mở bài đăng" style="color:#3B82F6; text-decoration:none; flex-shrink:0; display:inline-flex; align-items:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : '';
@@ -8255,7 +8255,7 @@
       const profileKey = document.getElementById('repostProfile').value;
       const groups = _getAccountGroups(profileKey);
       const options = [
-        { type: 'personal', platform: 'fb', label: `${xekoIcon('home')} Cá nhân`, sub: '' },
+        { type: 'personal', platform: 'fb', label: `${xekoIcon('home')} Profile`, sub: '' },
         ...groups.map(g => ({
           type: 'group', platform: g._platform,
           key: g.key, id: g.id, name: g.name,
@@ -8297,7 +8297,7 @@
     }
 
     function _onRepostProfileChange() {
-      _repostSelectedChannels = [{ type: 'personal', platform: 'fb', label: `${xekoIcon('home')} Cá nhân`, sub: '' }];
+      _repostSelectedChannels = [{ type: 'personal', platform: 'fb', label: `${xekoIcon('home')} Profile`, sub: '' }];
       _renderRepostChannelList();
     }
 
@@ -8305,7 +8305,7 @@
       if (_repostSelectedChannels.length === 0) return '(chưa chọn kênh)';
       if (_repostSelectedChannels.length === 1) {
         const ch = _repostSelectedChannels[0];
-        if (ch.type === 'personal') return `${xekoIcon('home')} Cá nhân`;
+        if (ch.type === 'personal') return `${xekoIcon('home')} Profile`;
         return (ch.platform === 'zalo' ? xekoIcon('chat') + ' ' : xekoIcon('users') + ' ') + (ch.name || ch.key || '');
       }
       return `${_repostSelectedChannels.length} kênh đã chọn`;
@@ -8336,7 +8336,7 @@
       } else {
         const originalGroupId = row.group_id || '';
         if (row.target === 'personal' || !originalGroupId) {
-          _repostSelectedChannels = [{ type: 'personal', platform: 'fb', label: `${xekoIcon('home')} Cá nhân`, sub: '' }];
+          _repostSelectedChannels = [{ type: 'personal', platform: 'fb', label: `${xekoIcon('home')} Profile`, sub: '' }];
         } else {
           const matchedGroup = (channelsData.fbGroups || []).find(g => g.id === originalGroupId || g.key === originalGroupId);
           _repostSelectedChannels = [matchedGroup
