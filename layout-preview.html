@@ -200,6 +200,201 @@
     </div>
   </div>
 
+
+  <!-- OPTION D: Drawer slide-out -->
+  <div class="option">
+    <div class="option-label">Phuong an D — Drawer keo ra tu ben phai</div>
+    <div class="option-desc">Gan kenh chiem toan bo chieu rong. Bam nut "Quan ly group" thi drawer truot ra tu ben phai che len. Gon nhat khi khong can xem ca 2 cung luc.</div>
+    <div class="mock" style="position:relative; overflow:hidden;">
+      <div class="row" style="height:340px;">
+        <div class="panel" style="width:180px; border-right:1px solid #e2e8f0; background:#fafafa;">
+          <div class="panel-title">Profiles</div>
+          <div class="profile-item active">Linh Duong US <span class="profile-count">4·2</span></div>
+          <div class="profile-item">Linh Thao US <span class="profile-count">2·1</span></div>
+          <div class="profile-item">Linh Duong <span class="profile-count">2·2</span></div>
+          <div class="profile-item">Linh Thao <span class="profile-count">3·2</span></div>
+        </div>
+        <div class="panel" style="flex:1; overflow-y:auto;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+            <span style="font-size:13px; font-weight:700; flex:1;">Gan kenh cho: Linh Duong US</span>
+            <button style="padding:6px 12px; background:#f1f5f9; color:#374151; border:1px solid #e2e8f0; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer;">Quan ly group &rarr;</button>
+          </div>
+          <div style="display:flex; gap:8px; margin-bottom:10px;">
+            <select class="fs"><option>Tat ca phan loai</option></select>
+            <input class="search-box" placeholder="Tim group...">
+            <select class="fs"><option>Zalo: Linh Duong Us</option></select>
+          </div>
+          <div class="section-header">FACEBOOK · CONG TY</div>
+          <div class="ch-item checked"><input type="checkbox" checked><div><div class="ch-name">Asale</div><div class="ch-sub">asale · 350987965423767</div></div></div>
+          <div class="ch-item checked"><input type="checkbox" checked><div><div class="ch-name">Tong Kho</div><div class="ch-sub">tongkho · 532093344311571</div></div></div>
+          <div class="section-header zalo">ZALO · GROUP ZALO LD</div>
+          <div class="ch-item checked"><input type="checkbox" checked><div><div class="ch-name">Si Hang Order My, Anh - Linh Duong</div></div></div>
+          <div class="ch-item"><input type="checkbox"><div><div class="ch-name">Kho Hang My Co San - Linh Duong</div></div></div>
+        </div>
+      </div>
+      <!-- Drawer overlay -->
+      <div style="position:absolute; top:0; right:0; width:340px; height:100%; background:#fff; border-left:2px solid #3B82F6; box-shadow:-4px 0 20px rgba(0,0,0,0.12); padding:14px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; align-items:center; margin-bottom:4px;">
+          <span style="font-size:13px; font-weight:700; flex:1;">Danh sach group</span>
+          <button class="add-btn">+ Them</button>
+          <button style="margin-left:8px; background:none; border:none; font-size:16px; cursor:pointer; color:#999;">&times;</button>
+        </div>
+        <div class="filter-bar">
+          <button class="filter-tab active">Tat ca</button>
+          <button class="filter-tab">FB</button>
+          <button class="filter-tab">Zalo</button>
+          <select class="fs"><option>Tat ca loai</option></select>
+        </div>
+        <div class="gtrow"><span class="badge-fb">FB</span><span class="key" style="width:80px;">asale</span><span class="name">Asale / Cty</span><div class="acts"><button class="edit">e</button><button class="del">x</button></div></div>
+        <div class="gtrow"><span class="badge-fb">FB</span><span class="key" style="width:80px;">tongkho</span><span class="name">Tong Kho / Cty</span><div class="acts"><button class="edit">e</button><button class="del">x</button></div></div>
+        <div class="gtrow"><span class="badge-zalo">Zalo</span><span class="key" style="width:80px;">testdangbaoi</span><span class="name">Test dang bai</span><div class="acts"><button class="edit">e</button><button class="del">x</button></div></div>
+        <div class="gtrow"><span class="badge-zalo">Zalo</span><span class="key" style="width:80px;">grouporderlinh</span><span class="name">Si Hang Order...</span><div class="acts"><button class="edit">e</button><button class="del">x</button></div></div>
+        <div class="gtrow"><span class="badge-zalo">Zalo</span><span class="key" style="width:80px;">groupsanlinh</span><span class="name">Tong Kho Hang...</span><div class="acts"><button class="edit">e</button><button class="del">x</button></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION E: Resizable split -->
+  <div class="option">
+    <div class="option-label">Phuong an E — 2 cot co thanh keo chinh ty le</div>
+    <div class="option-desc">Nguoi dung tu keo thanh chia giua de dieu chinh do rong 2 cot theo y muon. Linh hoat nhat.</div>
+    <div class="mock">
+      <div class="row" style="height:360px; position:relative;">
+        <!-- Left: group list -->
+        <div class="panel" style="width:45%; border-right:none; overflow-y:auto;">
+          <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+            <div class="panel-title" style="flex:1; margin:0;">Danh sach group</div>
+            <button class="add-btn">+ Them</button>
+          </div>
+          <div class="filter-bar">
+            <button class="filter-tab active">Tat ca</button>
+            <button class="filter-tab">FB</button>
+            <button class="filter-tab">Zalo</button>
+            <select class="fs"><option>Tat ca phan loai</option></select>
+          </div>
+          <div class="gtrow"><span class="badge-fb">FB</span><span class="key" style="width:100px;">asale</span><span class="name">Asale · Cong ty</span><div class="acts"><button class="edit">e</button><button class="del">x</button></div></div>
+          <div class="gtrow"><span class="badge-fb">FB</span><span class="key" style="width:100px;">tongkho</span><span class="name">Tong Kho · Cty</span><div class="acts"><button class="edit">e</button><button class="del">x</button></div></div>
+          <div class="gtrow"><span class="badge-fb">FB</span><span class="key" style="width:100px;">test</span><span class="name">Test · RL</span><div class="acts"><button class="edit">e</button><button class="del">x</button></div></div>
+          <div class="gtrow"><span class="badge-fb">FB</span><span class="key" style="width:100px;">test1</span><span class="name">Test 1 · Test</span><div class="acts"><button class="edit">e</button><button class="del">x</button></div></div>
+          <div class="gtrow"><span class="badge-zalo">Zalo</span><span class="key" style="width:100px;">testdangbaoi</span><span class="name">Test dang bai</span><div class="acts"><button class="edit">e</button><button class="del">x</button></div></div>
+          <div class="gtrow"><span class="badge-zalo">Zalo</span><span class="key" style="width:100px;">grouporderlinh...</span><span class="name">Si Hang Order...</span><div class="acts"><button class="edit">e</button><button class="del">x</button></div></div>
+          <div class="gtrow"><span class="badge-zalo">Zalo</span><span class="key" style="width:100px;">groupsanlinh...</span><span class="name">Tong Kho Hang...</span><div class="acts"><button class="edit">e</button><button class="del">x</button></div></div>
+        </div>
+        <!-- Splitter handle -->
+        <div style="width:8px; background:#e2e8f0; cursor:col-resize; display:flex; align-items:center; justify-content:center; flex-shrink:0; position:relative;">
+          <div style="width:2px; height:40px; background:#94a3b8; border-radius:2px;"></div>
+        </div>
+        <!-- Right: profile + detail -->
+        <div style="flex:1; display:flex; overflow:hidden;">
+          <div class="panel" style="width:150px; border-right:1px solid #e2e8f0; background:#fafafa;">
+            <div class="panel-title">Profiles</div>
+            <div class="profile-item active">Linh Duong US <span class="profile-count">4·2</span></div>
+            <div class="profile-item">Linh Thao US <span class="profile-count">2·1</span></div>
+            <div class="profile-item">Linh Duong <span class="profile-count">2·2</span></div>
+            <div class="profile-item">Linh Thao <span class="profile-count">3·2</span></div>
+          </div>
+          <div class="panel" style="flex:1; overflow-y:auto;">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:10px; flex-wrap:wrap;">
+              <span style="font-size:12px; font-weight:700;">Linh Duong US</span>
+              <select class="fs" style="flex:1; min-width:80px;"><option>Linh Duong Us</option></select>
+            </div>
+            <input class="search-box" placeholder="Tim group..." style="width:100%; margin-bottom:8px;">
+            <div class="section-header">FB · CONG TY</div>
+            <div class="ch-item checked"><input type="checkbox" checked><div><div class="ch-name">Asale</div></div></div>
+            <div class="ch-item checked"><input type="checkbox" checked><div><div class="ch-name">Tong Kho</div></div></div>
+            <div class="section-header zalo">ZALO · GROUP LD</div>
+            <div class="ch-item checked"><input type="checkbox" checked><div><div class="ch-name">Si Hang Order My...</div></div></div>
+            <div class="ch-item"><input type="checkbox"><div><div class="ch-name">Kho Hang My Co San</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION F: Group as chip bar -->
+  <div class="option">
+    <div class="option-label">Phuong an F — Group list dang chip tag ngang</div>
+    <div class="option-desc">Group list hien thi thanh cac chip/card nho nam ngang tren cung, co the cuon ngang. Phia duoi la gan kenh full-width. Kieu nay rat gon va hien dai.</div>
+    <div class="mock">
+      <!-- Chip bar -->
+      <div style="padding:12px; border-bottom:1.5px solid #e2e8f0; background:#fafafa;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <span style="font-size:12px; font-weight:700; color:#1e1e2e;">Danh sach group</span>
+          <div style="display:flex; gap:3px; background:#f0f9ff; padding:2px; border-radius:8px;">
+            <button style="padding:3px 8px; border:none; background:#fff; color:#3B82F6; font-size:10px; font-weight:700; border-radius:6px; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.1);">Tat ca</button>
+            <button style="padding:3px 8px; border:none; background:transparent; color:#64748b; font-size:10px; font-weight:600; border-radius:6px; cursor:pointer;">FB</button>
+            <button style="padding:3px 8px; border:none; background:transparent; color:#64748b; font-size:10px; font-weight:600; border-radius:6px; cursor:pointer;">Zalo</button>
+          </div>
+          <button class="add-btn" style="margin-left:auto;">+ Them group</button>
+        </div>
+        <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:4px;">
+          <div style="display:flex; align-items:center; gap:6px; background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:6px 10px; flex-shrink:0; min-width:0;">
+            <span class="badge-fb">FB</span>
+            <div style="min-width:0;">
+              <div style="font-size:11px; font-weight:700; color:#3B82F6; white-space:nowrap;">asale</div>
+              <div style="font-size:10px; color:#888; white-space:nowrap;">Asale · Cty</div>
+            </div>
+            <div style="display:flex; gap:3px; margin-left:4px;"><button class="edit" style="width:18px;height:18px;border:none;border-radius:99px;cursor:pointer;font-size:9px;background:#DBEAFE;color:#1E3A8A;">e</button><button class="del" style="width:18px;height:18px;border:none;border-radius:99px;cursor:pointer;font-size:9px;background:#fee2e2;color:#b91c1c;">x</button></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:6px 10px; flex-shrink:0;">
+            <span class="badge-fb">FB</span>
+            <div><div style="font-size:11px; font-weight:700; color:#3B82F6; white-space:nowrap;">tongkho</div><div style="font-size:10px; color:#888; white-space:nowrap;">Tong Kho · Cty</div></div>
+            <div style="display:flex; gap:3px; margin-left:4px;"><button class="edit" style="width:18px;height:18px;border:none;border-radius:99px;cursor:pointer;font-size:9px;background:#DBEAFE;color:#1E3A8A;">e</button><button class="del" style="width:18px;height:18px;border:none;border-radius:99px;cursor:pointer;font-size:9px;background:#fee2e2;color:#b91c1c;">x</button></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:6px 10px; flex-shrink:0;">
+            <span class="badge-zalo">Zalo</span>
+            <div><div style="font-size:11px; font-weight:700; color:#0369a1; white-space:nowrap;">testdangbaoi</div><div style="font-size:10px; color:#888; white-space:nowrap;">Test dang bai</div></div>
+            <div style="display:flex; gap:3px; margin-left:4px;"><button class="edit" style="width:18px;height:18px;border:none;border-radius:99px;cursor:pointer;font-size:9px;background:#DBEAFE;color:#1E3A8A;">e</button><button class="del" style="width:18px;height:18px;border:none;border-radius:99px;cursor:pointer;font-size:9px;background:#fee2e2;color:#b91c1c;">x</button></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:6px 10px; flex-shrink:0;">
+            <span class="badge-zalo">Zalo</span>
+            <div><div style="font-size:11px; font-weight:700; color:#0369a1; white-space:nowrap;">grouporderlinh...</div><div style="font-size:10px; color:#888; white-space:nowrap;">Si Hang Order...</div></div>
+            <div style="display:flex; gap:3px; margin-left:4px;"><button class="edit" style="width:18px;height:18px;border:none;border-radius:99px;cursor:pointer;font-size:9px;background:#DBEAFE;color:#1E3A8A;">e</button><button class="del" style="width:18px;height:18px;border:none;border-radius:99px;cursor:pointer;font-size:9px;background:#fee2e2;color:#b91c1c;">x</button></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:6px 10px; flex-shrink:0;">
+            <span class="badge-zalo">Zalo</span>
+            <div><div style="font-size:11px; font-weight:700; color:#0369a1; white-space:nowrap;">groupsanlinh...</div><div style="font-size:10px; color:#888; white-space:nowrap;">Tong Kho Hang...</div></div>
+            <div style="display:flex; gap:3px; margin-left:4px;"><button class="edit" style="width:18px;height:18px;border:none;border-radius:99px;cursor:pointer;font-size:9px;background:#DBEAFE;color:#1E3A8A;">e</button><button class="del" style="width:18px;height:18px;border:none;border-radius:99px;cursor:pointer;font-size:9px;background:#fee2e2;color:#b91c1c;">x</button></div>
+          </div>
+        </div>
+      </div>
+      <!-- Profile + assign full width -->
+      <div class="row" style="height:270px;">
+        <div class="panel" style="width:170px; border-right:1px solid #e2e8f0; background:#fafafa;">
+          <div class="panel-title">Profiles</div>
+          <div class="profile-item active">Linh Duong US <span class="profile-count">4·2</span></div>
+          <div class="profile-item">Linh Thao US <span class="profile-count">2·1</span></div>
+          <div class="profile-item">Linh Duong <span class="profile-count">2·2</span></div>
+          <div class="profile-item">Linh Thao <span class="profile-count">3·2</span></div>
+        </div>
+        <div class="panel" style="flex:1; overflow-y:auto;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+            <span style="font-size:13px; font-weight:700;">Linh Duong US</span>
+            <span style="font-size:11px; color:#888;">Zalo:</span>
+            <select class="fs" style="flex:1;"><option>Linh Duong Us</option></select>
+            <select class="fs"><option>Tat ca phan loai</option></select>
+            <input class="search-box" placeholder="Tim group...">
+          </div>
+          <div class="section-header">FACEBOOK · CONG TY</div>
+          <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:4px;">
+            <div class="ch-item checked"><input type="checkbox" checked><div><div class="ch-name">Asale</div></div></div>
+            <div class="ch-item checked"><input type="checkbox" checked><div><div class="ch-name">Tong Kho</div></div></div>
+          </div>
+          <div class="section-header zalo">ZALO · GROUP ZALO LD</div>
+          <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:4px;">
+            <div class="ch-item checked"><input type="checkbox" checked><div><div class="ch-name">Si Hang Order My</div></div></div>
+            <div class="ch-item"><input type="checkbox"><div><div class="ch-name">Kho Hang My Co San</div></div></div>
+          </div>
+          <div class="section-header zalo">ZALO · GROUP ZALO LT</div>
+          <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:4px;">
+            <div class="ch-item"><input type="checkbox"><div><div class="ch-name">Si Hang Order LT</div></div></div>
+            <div class="ch-item"><input type="checkbox"><div><div class="ch-name">Tong Kho Hang San</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 </body>
 </html>
