@@ -4334,6 +4334,9 @@
       panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="custom">
         <span class="ch-dot"></span><input type="checkbox" onchange="onChannelChange(${pid}); toggleCustomGroupInput(${pid}, this.checked)"> ${xekoIcon('link')} Group khác...
       </label>`;
+      panelHtml += `<div id="customGroupInput_${pid}" style="display:none; width:100%; margin-top:2px;">
+        <input type="text" id="customGroupId_${pid}" placeholder="Nhập Group ID, cách nhau bởi dấu phẩy..." autocomplete="off" style="width:100%; padding:7px 12px; border-radius:8px; border:1px solid #DBEAFE; font-size:13px; background:#f0f9ff; color:#333; box-sizing:border-box;">
+      </div>`;
 
       // Zalo chips
       if (p.zalo.length > 0) {
@@ -4346,11 +4349,6 @@
       }
 
       panelHtml += `</div>`; // close chip-wrap
-
-      // Custom group input sits outside the chip flow
-      panelHtml += `<div id="customGroupInput_${pid}" style="display:none; padding:4px 12px 10px;">
-        <input type="text" id="customGroupId_${pid}" placeholder="Nhập Group ID, cách nhau bởi dấu phẩy..." autocomplete="off" style="width:100%; padding:7px 12px; border-radius:8px; border:1px solid #DBEAFE; font-size:13px; background:#f0f9ff; color:#333;">
-      </div>`;
 
       panelHtml += `</div>`; // close profile-section
 
