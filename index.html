@@ -538,8 +538,8 @@
 
     .profile-card {
       display: flex; align-items: center; gap: 12px;
-      padding: 11px 14px; background: #fff; border: 1px solid #eee;
-      border-radius: 10px; transition: all 0.15s;
+      padding: 11px 14px; background: #fff; border: 1px solid #e2e8f0;
+      border-radius: 12px; transition: all 0.15s;
     }
     .profile-card:hover { border-color: #d0d0ff; }
     .profile-card .avatar {
@@ -6150,18 +6150,23 @@
         const res = await fetch(BASE_URL + '/api/accounts' + allParam);
         const data = await parseJson(res);
 
+        const avatarColors = ['#3B82F6','#8B5CF6','#10B981','#F59E0B','#EF4444','#EC4899','#06B6D4'];
+        const getAvatarColor = name => avatarColors[Math.abs((name||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % avatarColors.length];
+
         // FB profiles
         fbContainer.innerHTML = data.facebook.map(p => {
           const proxyStr = p.proxy || '';
           const proxyHtml = proxyStr
-            ? ` · <span style="display:inline-flex; align-items:center; gap:4px; color:#1E3A8A;">${xekoIcon('globe')} ${escapeHtml(proxyDisplay(proxyStr))}</span>`
+            ? `<span style="display:inline-flex; align-items:center; gap:4px; color:#1E3A8A; font-size:12px;">${xekoIcon('globe')} ${escapeHtml(proxyDisplay(proxyStr))}</span>`
             : '';
+          const initial = (p.name || '?')[0].toUpperCase();
+          const avatarColor = getAvatarColor(p.name);
           return `
           <div class="profile-card">
-            <div class="avatar">${xekoIcon('user','xi xi-md')}</div>
+            <div style="width:40px; height:40px; background:${avatarColor}; border-radius:99px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; font-weight:700; flex-shrink:0;">${initial}</div>
             <div class="info">
               <div class="name">${escapeHtml(p.name)}</div>
-              <div class="detail">${escapeHtml(p.email || p.key)} · Chromium profile: ${escapeHtml(p.key)}${proxyHtml}</div>
+              <div class="detail">${escapeHtml(p.email || p.key)} · Chromium profile: ${escapeHtml(p.key)}${proxyHtml ? ' · ' + proxyHtml : ''}</div>
             </div>
             <div class="pc-actions">
               ${proxyStr ? `<button class="pc-btn pc-btn-edit" onclick="testProxyIp('${p.key}', this)" aria-label="Test IP" title="Test IP qua proxy">${xekoIcon('globe')}<span class="pc-btn-label">Test IP</span></button>` : ''}
@@ -6189,14 +6194,16 @@
               ${data.zalo.map(z => {
                 const zproxyStr = z.proxy || '';
                 const zproxyHtml = zproxyStr
-                  ? ` · <span style="display:inline-flex; align-items:center; gap:4px; color:#1E3A8A;">${xekoIcon('globe')} ${escapeHtml(proxyDisplay(zproxyStr))}</span>`
+                  ? `<span style="display:inline-flex; align-items:center; gap:4px; color:#1E3A8A; font-size:12px;">${xekoIcon('globe')} ${escapeHtml(proxyDisplay(zproxyStr))}</span>`
                   : '';
+                const zinitial = (z.name || '?')[0].toUpperCase();
+                const zavatarColor = getAvatarColor(z.name);
                 return `
                 <div class="profile-card">
-                  <div class="avatar" style="background:#e8f4ff; color:#1E3A8A;">${xekoIcon('chat','xi xi-md')}</div>
+                  <div style="width:40px; height:40px; background:${zavatarColor}; border-radius:99px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; font-weight:700; flex-shrink:0;">${zinitial}</div>
                   <div class="info">
                     <div class="name">${escapeHtml(z.name)}</div>
-                    <div class="detail">Key: ${escapeHtml(z.key)} · Salework: ${escapeHtml(z.saleworkName)}${zproxyHtml}</div>
+                    <div class="detail">Key: ${escapeHtml(z.key)} · Salework: ${escapeHtml(z.saleworkName)}${zproxyHtml ? ' · ' + zproxyHtml : ''}</div>
                   </div>
                   <div class="pc-actions">
                     ${zproxyStr ? `<button class="pc-btn pc-btn-edit" onclick="testProxyIp('${z.key}', this)" aria-label="Test IP" title="Test IP qua proxy">${xekoIcon('globe')}<span class="pc-btn-label">Test IP</span></button>` : ''}
