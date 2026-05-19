@@ -2933,26 +2933,21 @@
       <!-- Tab navigation -->
       <div class="acc-tab-bar" style="display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid #eee; padding-bottom:12px; flex-wrap:wrap;">
         <button onclick="switchAccountTab('profiles')" class="acc-tab active" id="tabProfiles"><svg class="xi"><use href="#ic-clipboard"/></svg> Tài khoản</button>
-        <button onclick="switchAccountTab('proxies')" class="acc-tab" id="tabProxies"><svg class="xi"><use href="#ic-globe"/></svg> IP Proxy</button>
+        <button onclick="switchAccountTab('channels')" class="acc-tab" id="tabChannels"><svg class="xi"><use href="#ic-settings"/></svg> Kênh</button>
         <button onclick="switchAccountTab('logs')" class="acc-tab" id="tabLogs"><svg class="xi"><use href="#ic-scroll"/></svg> Logs</button>
       </div>
 
-      <!-- Tab: Tài khoản (gộp accounts + kênh) -->
+      <!-- Tab: Tài khoản (accounts + proxy) -->
       <div id="panelProfiles">
-
         <!-- Sub-tab bar -->
         <div style="display:flex; gap:2px; background:#EFF6FF; border-radius:12px; padding:4px; margin-bottom:16px; width:fit-content;">
           <button id="accSubTabAccounts" onclick="switchProfileSubTab('accounts')"
             style="padding:7px 18px; border:none; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; background:#fff; color:#1E3A8A; box-shadow:0 1px 4px rgba(37,99,235,0.15);">
             <svg class="xi" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="#ic-user"/></svg>Tài khoản
           </button>
-          <button id="accSubTabAssign" onclick="switchProfileSubTab('assign')"
+          <button id="accSubTabProxies" onclick="switchProfileSubTab('proxies')"
             style="padding:7px 18px; border:none; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; background:transparent; color:#64748b;">
-            <svg class="xi" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="#ic-user"/></svg>Gán kênh
-          </button>
-          <button id="accSubTabGroups" onclick="switchProfileSubTab('groups')"
-            style="padding:7px 18px; border:none; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; background:transparent; color:#64748b;">
-            <svg class="xi" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="#ic-chat"/></svg>Danh sách group
+            <svg class="xi" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="#ic-globe"/></svg>IP Proxy
           </button>
         </div>
 
@@ -2972,81 +2967,8 @@
           <div id="sessionResults" style="display:flex; flex-direction:column; gap:10px; margin-top:16px;"></div>
         </div>
 
-        <!-- Sub: Gán kênh -->
-        <div id="accPanelAssign" style="display:none;">
-          <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px;">
-            <div id="profileChannelError" style="color:#e53e3e; font-size:13px; display:none; margin-bottom:10px;">Lỗi tải danh sách profile</div>
-            <div id="profileChannelGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(380px,1fr)); gap:12px;"></div>
-          </div>
-        </div>
-
-        <!-- Sub: Danh sách group -->
-        <div id="accPanelGroups" style="display:none;">
-          <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:18px;">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
-              <h3 style="font-size:15px; color:#1e1e2e; margin:0; display:flex; align-items:center; gap:8px;">
-                <svg class="xi xi-md" style="color:#1E3A8A;"><use href="#ic-chat"/></svg> Danh sách group
-              </h3>
-              <button onclick="openGroupModal('add')"
-                style="padding:6px 14px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;">+ Thêm group</button>
-            </div>
-            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
-              <div class="group-filter-tabs" style="display:flex; gap:4px; background:#f0f9ff; padding:3px; border-radius:10px; flex:1; min-width:0;">
-                <button onclick="setGroupFilter('all')" data-filter="all" class="group-filter-tab active"
-                  style="flex:1; padding:6px 10px; border:none; background:#fff; color:#3B82F6; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer; box-shadow:0 1px 3px rgba(37,99,235,0.15);">Tất cả</button>
-                <button onclick="setGroupFilter('fb')" data-filter="fb" class="group-filter-tab"
-                  style="flex:1; padding:6px 10px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Facebook</button>
-                <button onclick="setGroupFilter('zalo')" data-filter="zalo" class="group-filter-tab"
-                  style="flex:1; padding:6px 10px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Zalo</button>
-              </div>
-              <select id="groupCategoryFilter" onchange="setGroupCategoryFilter(this.value)"
-                style="flex:1; min-width:140px; padding:7px 10px; border:1px solid #DBEAFE; border-radius:8px; background:#fff; color:#3B82F6; font-size:12px; font-weight:600; cursor:pointer;">
-                <option value="">Tất cả phân loại</option>
-              </select>
-            </div>
-            <div id="groupsTableWrap" style="overflow-x:hidden; overflow-y:auto; max-height:600px;">
-              <table id="groupsTable" style="width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0 4px; font-size:13px;">
-                <colgroup>
-                  <col style="width:70px;">
-                  <col style="width:180px;">
-                  <col>
-                  <col style="width:160px;">
-                  <col style="width:96px;">
-                </colgroup>
-                <thead>
-                  <tr style="text-align:left; color:#888; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">
-                    <th style="padding:6px 10px; font-weight:600;">Loại</th>
-                    <th style="padding:6px 10px; font-weight:600;">Key</th>
-                    <th style="padding:6px 10px; font-weight:600;">Tên hiển thị</th>
-                    <th style="padding:6px 10px; font-weight:600;">Phân loại</th>
-                    <th style="padding:6px 10px; font-weight:600; text-align:right;">Hành động</th>
-                  </tr>
-                </thead>
-                <tbody id="groupsTableBody"></tbody>
-              </table>
-              <p id="noGroupsMsg" style="font-size:13px; color:#999; margin:16px 0 0; text-align:center; display:none;">Chưa có group nào. Bấm "+ Thêm group" để bắt đầu.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Group picker popup -->
-        <div id="groupPickerPopup" style="display:none; position:fixed; z-index:9999; background:#fff; border:1.5px solid #BFDBFE; border-radius:12px; box-shadow:0 8px 32px rgba(37,99,235,0.15); width:300px; padding:12px;">
-          <div style="display:flex; gap:4px; background:#f0f9ff; padding:3px; border-radius:8px; margin-bottom:8px;">
-            <button onclick="setPickerTab('all')" id="pickerTabAll" style="flex:1; padding:4px 6px; border:none; background:#3B82F6; color:#fff; font-size:11px; font-weight:600; border-radius:6px; cursor:pointer;">Tất cả</button>
-            <button onclick="setPickerTab('fb')" id="pickerTabFb" style="flex:1; padding:4px 6px; border:none; background:transparent; color:#64748b; font-size:11px; font-weight:600; border-radius:6px; cursor:pointer;">Facebook</button>
-            <button onclick="setPickerTab('zalo')" id="pickerTabZalo" style="flex:1; padding:4px 6px; border:none; background:transparent; color:#64748b; font-size:11px; font-weight:600; border-radius:6px; cursor:pointer;">Zalo</button>
-          </div>
-          <input id="pickerSearch" type="text" placeholder="🔍 Tìm group..." oninput="renderPickerList()"
-            style="width:100%; padding:6px 10px; border:1px solid #DBEAFE; border-radius:8px; font-size:12px; margin-bottom:6px;">
-          <div id="pickerList" style="max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:2px;"></div>
-        </div>
-
-      </div>
-
-      <!-- panelAdd removed — form moved to addAccountModal below -->
-
-      <!-- Tab: IP Proxy -->
-      <div id="panelProxies" style="display:none;">
+        <!-- Sub: IP Proxy -->
+        <div id="accPanelProxies" style="display:none;">
         <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:18px;">
           <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
             <h3 style="font-size:15px; color:#1e1e2e; margin:0; flex:1; display:flex; align-items:center; gap:8px;">
@@ -3073,6 +2995,96 @@
             </table>
             <p id="noProxiesMsg" style="font-size:13px; color:#999; margin:16px 0 0; text-align:center; display:none;">Chưa có proxy nào. Bấm "+ Thêm proxy" để bắt đầu.</p>
           </div>
+        </div>
+      </div>
+      </div><!-- end panelProfiles -->
+
+      <!-- Tab: Kênh (gán kênh + danh sách group) -->
+      <div id="panelChannels" style="display:none;">
+        <!-- Sub-tab bar -->
+        <div style="display:flex; gap:2px; background:#EFF6FF; border-radius:12px; padding:4px; margin-bottom:16px; width:fit-content;">
+          <button id="chSubTabAssign" onclick="switchChannelSubTab('assign')"
+            style="padding:7px 18px; border:none; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; background:#fff; color:#1E3A8A; box-shadow:0 1px 4px rgba(37,99,235,0.15);">
+            <svg class="xi" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="#ic-settings"/></svg>Gán kênh
+          </button>
+          <button id="chSubTabGroups" onclick="switchChannelSubTab('groups')"
+            style="padding:7px 18px; border:none; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; background:transparent; color:#64748b;">
+            <svg class="xi" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="#ic-globe"/></svg>Danh sách group
+          </button>
+        </div>
+
+        <!-- Sub: Gán kênh -->
+        <div id="chPanelAssign">
+          <div id="profileChannelError" style="display:none; color:#b91c1c; font-size:13px; margin-bottom:10px; padding:8px 12px; background:#fee2e2; border-radius:8px;"></div>
+          <div id="profileChannelGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(380px,1fr)); gap:12px;"></div>
+        </div>
+
+        <!-- Sub: Danh sách group -->
+        <div id="chPanelGroups" style="display:none;">
+          <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:18px;">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
+              <h3 style="font-size:15px; color:#1e1e2e; margin:0; flex:1; display:flex; align-items:center; gap:8px;">
+                <svg class="xi xi-md" style="color:#1E3A8A;"><use href="#ic-globe"/></svg> Danh sách Group
+              </h3>
+              <button onclick="openGroupModal('add','fb',null)"
+                style="padding:8px 14px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">+ Thêm group</button>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+              <div style="display:flex; gap:2px; background:#f1f5f9; border-radius:8px; padding:3px;">
+                <button class="group-filter-tab" data-filter="all" onclick="setGroupFilter('all')"
+                  style="padding:5px 12px; border:none; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; background:#fff; color:#3B82F6; box-shadow:0 1px 3px rgba(37,99,235,0.15);">Tất cả</button>
+                <button class="group-filter-tab" data-filter="fb" onclick="setGroupFilter('fb')"
+                  style="padding:5px 12px; border:none; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; background:transparent; color:#777;">Facebook</button>
+                <button class="group-filter-tab" data-filter="zalo" onclick="setGroupFilter('zalo')"
+                  style="padding:5px 12px; border:none; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; background:transparent; color:#777;">Zalo</button>
+              </div>
+              <select id="groupCategoryFilter" onchange="setGroupCategoryFilter(this.value)"
+                style="padding:5px 10px; border-radius:6px; border:1px solid #ddd; font-size:12px; background:#fff; color:#555; min-width:130px;">
+                <option value="">Tất cả phân loại</option>
+              </select>
+            </div>
+            <div id="groupsTableWrap" style="overflow-x:hidden;">
+              <table id="groupsTable" style="width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0 4px; font-size:13px;">
+                <colgroup>
+                  <col style="width:80px;">
+                  <col style="width:120px;">
+                  <col style="width:auto;">
+                  <col style="width:120px;">
+                  <col style="width:80px;">
+                </colgroup>
+                <thead>
+                  <tr style="text-align:left; color:#888; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">
+                    <th style="padding:6px 10px; font-weight:600;">Loại</th>
+                    <th style="padding:6px 10px; font-weight:600;">Key</th>
+                    <th style="padding:6px 10px; font-weight:600;">Tên / ID</th>
+                    <th style="padding:6px 10px; font-weight:600;">Phân loại</th>
+                    <th style="padding:6px 10px; font-weight:600; text-align:right;">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody id="groupsTableBody"></tbody>
+              </table>
+              <p id="noGroupsMsg" style="font-size:13px; color:#999; margin:16px 0 0; text-align:center;">Chưa có group nào. Bấm "+ Thêm group" để bắt đầu.</p>
+            </div>
+          </div>
+        </div>
+      </div><!-- end panelChannels -->
+
+      <!-- Group picker popup -->
+      <div id="groupPickerPopup" style="display:none; position:fixed; z-index:9999; width:300px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 8px 32px rgba(0,0,0,0.12); padding:12px;">
+        <div style="display:flex; gap:2px; background:#f1f5f9; border-radius:8px; padding:3px; margin-bottom:10px;">
+          <button id="pickerTabAll" onclick="setPickerTab('all')"
+            style="flex:1; padding:5px 8px; border:none; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; background:#3B82F6; color:#fff;">Tất cả</button>
+          <button id="pickerTabFb" onclick="setPickerTab('fb')"
+            style="flex:1; padding:5px 8px; border:none; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; background:transparent; color:#64748b;">Facebook</button>
+          <button id="pickerTabZalo" onclick="setPickerTab('zalo')"
+            style="flex:1; padding:5px 8px; border:none; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; background:transparent; color:#64748b;">Zalo</button>
+        </div>
+        <input id="pickerSearch" type="text" placeholder="Tìm group..."
+          oninput="renderPickerList()"
+          style="width:100%; padding:6px 10px; border:1px solid #ddd; border-radius:7px; font-size:12px; box-sizing:border-box; margin-bottom:8px; outline:none;">
+        <div id="pickerList" style="max-height:240px; overflow-y:auto; display:flex; flex-direction:column; gap:2px;"></div>
+        <div style="margin-top:8px; text-align:right;">
+          <button onclick="closeGroupPicker()" style="padding:4px 12px; border:1px solid #ddd; border-radius:6px; font-size:12px; cursor:pointer; background:#f8fafc; color:#555;">Đóng</button>
         </div>
       </div>
 
@@ -5867,7 +5879,7 @@
 
     // === Quan ly tai khoan ===
     function switchAccountTab(tab) {
-      ['profiles','proxies','logs'].forEach(t => {
+      ['profiles','channels','logs'].forEach(t => {
         const p = document.getElementById('panel' + t.charAt(0).toUpperCase() + t.slice(1));
         const b = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
         if (p) p.style.display = 'none';
@@ -5882,11 +5894,11 @@
       if (panel) panel.style.display = '';
       if (btn) btn.classList.add('active');
       if (tab === 'logs') loadLogs();
-      if (tab === 'proxies') renderProxiesTable();
+      if (tab === 'channels') loadChannels();
     }
 
     function switchProfileSubTab(sub) {
-      ['accounts','assign','groups'].forEach(s => {
+      ['accounts','proxies'].forEach(s => {
         const p = document.getElementById('accPanel' + s.charAt(0).toUpperCase() + s.slice(1));
         const b = document.getElementById('accSubTab' + s.charAt(0).toUpperCase() + s.slice(1));
         if (p) p.style.display = 'none';
@@ -5896,7 +5908,20 @@
       const btn = document.getElementById('accSubTab' + sub.charAt(0).toUpperCase() + sub.slice(1));
       if (panel) panel.style.display = '';
       if (btn) { btn.style.background = '#fff'; btn.style.color = '#1E3A8A'; btn.style.boxShadow = '0 1px 4px rgba(37,99,235,0.15)'; }
-      if (sub === 'assign' || sub === 'groups') loadChannels();
+      if (sub === 'proxies') renderProxiesTable();
+    }
+
+    function switchChannelSubTab(sub) {
+      ['assign','groups'].forEach(s => {
+        const p = document.getElementById('chPanel' + s.charAt(0).toUpperCase() + s.slice(1));
+        const b = document.getElementById('chSubTab' + s.charAt(0).toUpperCase() + s.slice(1));
+        if (p) p.style.display = 'none';
+        if (b) { b.style.background = 'transparent'; b.style.color = '#64748b'; b.style.boxShadow = 'none'; }
+      });
+      const panel = document.getElementById('chPanel' + sub.charAt(0).toUpperCase() + sub.slice(1));
+      const btn = document.getElementById('chSubTab' + sub.charAt(0).toUpperCase() + sub.slice(1));
+      if (panel) panel.style.display = '';
+      if (btn) { btn.style.background = '#fff'; btn.style.color = '#1E3A8A'; btn.style.boxShadow = '0 1px 4px rgba(37,99,235,0.15)'; }
     }
 
     // ===== IP Proxy management =====
