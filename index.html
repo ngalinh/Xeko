@@ -2961,59 +2961,62 @@
       <!-- Tab: Cai dat kenh -->
       <div id="panelChannels" style="display:none;">
 
-        <!-- Gán kênh cho từng Profile -->
-        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px; margin-bottom:16px;">
-          <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:4px; display:flex; align-items:center; gap:8px;"><svg class="xi xi-md" style="color:#1E3A8A;"><use href="#ic-user"/></svg> Gán kênh cho từng Profile</h3>
-          <p style="font-size:12px; color:#999; margin-bottom:14px;">Chọn profile bên trái rồi tick các kênh muốn tự động đăng bài.</p>
-          <div id="profileChannelError" style="color:#e53e3e; font-size:13px; display:none; margin-bottom:10px;">Lỗi tải danh sách profile</div>
-          <div id="profileChannelMaster" style="display:grid; grid-template-columns:minmax(180px, 240px) 1fr; gap:14px; min-height:320px;">
-            <!-- Sidebar -->
-            <div id="profileSidebar" class="profile-sidebar" style="background:#fafafa; border:1px solid #eef0f4; border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:4px; overflow-y:auto; max-height:560px;"></div>
-            <!-- Detail panel -->
-            <div id="profileDetail" style="background:#fafafa; border:1px solid #eef0f4; border-radius:10px; padding:16px; min-height:320px;">
-              <p style="color:#999; font-size:13px; margin:0;">Chưa có profile nào.</p>
-            </div>
-          </div>
-        </div>
+        <div style="display:grid; grid-template-columns:minmax(320px,420px) 1fr; gap:16px; align-items:start;">
 
-        <!-- Danh sách group (FB + Zalo gộp) -->
-        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:18px;">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
-            <h3 style="font-size:15px; color:#1e1e2e; margin:0; display:flex; align-items:center; gap:8px;">
-              <svg class="xi xi-md" style="color:#1E3A8A;"><use href="#ic-chat"/></svg> Danh sách group
-            </h3>
-            <button onclick="openGroupModal('add')"
-              style="padding:8px 14px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;">+ Thêm group</button>
-          </div>
-          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
-            <div class="group-filter-tabs" style="display:flex; gap:4px; background:#f0f9ff; padding:3px; border-radius:10px; flex:1; min-width:0;">
-              <button onclick="setGroupFilter('all')" data-filter="all" class="group-filter-tab active"
-                style="flex:1; padding:6px 10px; border:none; background:#fff; color:#3B82F6; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer; box-shadow:0 1px 3px rgba(37, 99, 235,0.15);">Tất cả</button>
-              <button onclick="setGroupFilter('fb')" data-filter="fb" class="group-filter-tab"
-                style="flex:1; padding:6px 10px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Facebook</button>
-              <button onclick="setGroupFilter('zalo')" data-filter="zalo" class="group-filter-tab"
-                style="flex:1; padding:6px 10px; border:none; background:transparent; color:#777; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer;">Zalo</button>
+          <!-- Danh sách group (FB + Zalo gộp) -->
+          <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:18px; position:sticky; top:16px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
+              <h3 style="font-size:15px; color:#1e1e2e; margin:0; display:flex; align-items:center; gap:8px;">
+                <svg class="xi xi-md" style="color:#1E3A8A;"><use href="#ic-chat"/></svg> Danh sách group
+              </h3>
+              <button onclick="openGroupModal('add')"
+                style="padding:6px 12px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;">+ Thêm group</button>
             </div>
-            <select id="groupCategoryFilter" onchange="setGroupCategoryFilter(this.value)"
-              style="flex:1; min-width:140px; padding:7px 10px; border:1px solid #DBEAFE; border-radius:8px; background:#fff; color:#3B82F6; font-size:12px; font-weight:600; cursor:pointer;">
-              <option value="">Tất cả phân loại</option>
-            </select>
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
+              <div class="group-filter-tabs" style="display:flex; gap:3px; background:#f0f9ff; padding:3px; border-radius:10px; flex:1; min-width:0;">
+                <button onclick="setGroupFilter('all')" data-filter="all" class="group-filter-tab active"
+                  style="flex:1; padding:5px 8px; border:none; background:#fff; color:#3B82F6; font-size:11px; font-weight:600; border-radius:7px; cursor:pointer; box-shadow:0 1px 3px rgba(37, 99, 235,0.15);">Tất cả</button>
+                <button onclick="setGroupFilter('fb')" data-filter="fb" class="group-filter-tab"
+                  style="flex:1; padding:5px 8px; border:none; background:transparent; color:#777; font-size:11px; font-weight:600; border-radius:7px; cursor:pointer;">Facebook</button>
+                <button onclick="setGroupFilter('zalo')" data-filter="zalo" class="group-filter-tab"
+                  style="flex:1; padding:5px 8px; border:none; background:transparent; color:#777; font-size:11px; font-weight:600; border-radius:7px; cursor:pointer;">Zalo</button>
+              </div>
+              <select id="groupCategoryFilter" onchange="setGroupCategoryFilter(this.value)"
+                style="flex:1; min-width:120px; padding:6px 8px; border:1px solid #DBEAFE; border-radius:8px; background:#fff; color:#3B82F6; font-size:11px; font-weight:600; cursor:pointer;">
+                <option value="">Tất cả phân loại</option>
+              </select>
+            </div>
+            <div id="groupsTableWrap" style="overflow-x:auto; max-height:560px; overflow-y:auto;">
+              <table id="groupsTable" style="width:100%; border-collapse:separate; border-spacing:0 3px; font-size:12px;">
+                <thead>
+                  <tr style="text-align:left; color:#888; font-size:10px; text-transform:uppercase; letter-spacing:0.3px;">
+                    <th style="padding:5px 8px; font-weight:600; width:54px;">Loại</th>
+                    <th style="padding:5px 8px; font-weight:600; width:110px;">Key</th>
+                    <th style="padding:5px 8px; font-weight:600;">Tên hiển thị</th>
+                    <th style="padding:5px 8px; font-weight:600; width:80px; text-align:right;">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody id="groupsTableBody"></tbody>
+              </table>
+              <p id="noGroupsMsg" style="font-size:13px; color:#999; margin:16px 0 0; text-align:center; display:none;">Chưa có group nào. Bấm "+ Thêm group" để bắt đầu.</p>
+            </div>
           </div>
-          <div id="groupsTableWrap" style="overflow-x:auto;">
-            <table id="groupsTable" style="width:100%; border-collapse:separate; border-spacing:0 4px; font-size:13px;">
-              <thead>
-                <tr style="text-align:left; color:#888; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">
-                  <th style="padding:6px 10px; font-weight:600; width:70px;">Loại</th>
-                  <th style="padding:6px 10px; font-weight:600; width:140px;">Key</th>
-                  <th style="padding:6px 10px; font-weight:600;">Tên hiển thị</th>
-                  <th style="padding:6px 10px; font-weight:600; width:160px;">Phân loại</th>
-                  <th style="padding:6px 10px; font-weight:600; width:96px; text-align:right;">Hành động</th>
-                </tr>
-              </thead>
-              <tbody id="groupsTableBody"></tbody>
-            </table>
-            <p id="noGroupsMsg" style="font-size:13px; color:#999; margin:16px 0 0; text-align:center; display:none;">Chưa có group nào. Bấm "+ Thêm group" để bắt đầu.</p>
+
+          <!-- Gán kênh cho từng Profile -->
+          <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px;">
+            <h3 style="font-size:15px; color:#1e1e2e; margin-bottom:4px; display:flex; align-items:center; gap:8px;"><svg class="xi xi-md" style="color:#1E3A8A;"><use href="#ic-user"/></svg> Gán kênh cho từng Profile</h3>
+            <p style="font-size:12px; color:#999; margin-bottom:14px;">Chọn profile bên trái rồi tick các kênh muốn tự động đăng bài.</p>
+            <div id="profileChannelError" style="color:#e53e3e; font-size:13px; display:none; margin-bottom:10px;">Lỗi tải danh sách profile</div>
+            <div id="profileChannelMaster" style="display:grid; grid-template-columns:minmax(160px, 200px) 1fr; gap:12px; min-height:320px;">
+              <!-- Sidebar -->
+              <div id="profileSidebar" class="profile-sidebar" style="background:#fafafa; border:1px solid #eef0f4; border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:4px; overflow-y:auto; max-height:560px;"></div>
+              <!-- Detail panel -->
+              <div id="profileDetail" style="background:#fafafa; border:1px solid #eef0f4; border-radius:10px; padding:16px; min-height:320px;">
+                <p style="color:#999; font-size:13px; margin:0;">Chưa có profile nào.</p>
+              </div>
+            </div>
           </div>
+
         </div>
 
       </div>
@@ -6576,21 +6579,21 @@
           : `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e6f2ff; color:#1E3A8A; border-radius:20px; font-size:11px; font-weight:600;"><svg class="xi" style="width:12px;height:12px;"><use href="#ic-zalo"/></svg>Zalo</span>`;
         const sub = isFb ? `ID: ${escapeHtml(g.id)}` : `Salework: ${escapeHtml(g.oid)}`;
         const keyColor = isFb ? '#3B82F6' : '#2563EB';
-        const category = g.category ? escapeHtml(g.category) : '<span style="color:#bbb; font-style:italic;">—</span>';
+        const category = g.category ? escapeHtml(g.category) : '';
+        const nameTitle = category ? `${escapeHtml(g.name)} · ${category}` : escapeHtml(g.name);
         return `
           <tr style="background:#fafafa;">
-            <td style="padding:10px; border-top-left-radius:8px; border-bottom-left-radius:8px;">${typeBadge}</td>
-            <td style="padding:10px; font-weight:700; color:${keyColor}; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px;" title="${escapeHtml(g.key)}">${escapeHtml(g.key)}</td>
-            <td style="padding:10px; min-width:0;">
-              <div style="font-size:13px; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(g.name)}</div>
-              <div style="font-size:11px; color:#999; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${sub}</div>
+            <td style="padding:7px 8px; border-top-left-radius:8px; border-bottom-left-radius:8px;">${typeBadge}</td>
+            <td style="padding:7px 8px; font-weight:700; color:${keyColor}; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:110px;" title="${escapeHtml(g.key)}">${escapeHtml(g.key)}</td>
+            <td style="padding:7px 8px; min-width:0;">
+              <div style="font-size:12px; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${nameTitle}">${escapeHtml(g.name)}</div>
+              <div style="font-size:10px; color:#999; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${category ? `<span style="color:#6B7280;">${category}</span>` : sub}</div>
             </td>
-            <td style="padding:10px; font-size:12px; color:#555;">${category}</td>
-            <td style="padding:10px; text-align:right; border-top-right-radius:8px; border-bottom-right-radius:8px; white-space:nowrap;">
+            <td style="padding:7px 8px; text-align:right; border-top-right-radius:8px; border-bottom-right-radius:8px; white-space:nowrap;">
               <button onclick="openGroupModal('edit','${g._type}','${escapeHtml(g.key)}')" title="Chỉnh sửa"
-                style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#DBEAFE;color:#1E3A8A;cursor:pointer;margin-right:4px;flex-shrink:0;"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-edit"/></svg></button>
+                style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;border-radius:999px;background:#DBEAFE;color:#1E3A8A;cursor:pointer;margin-right:3px;flex-shrink:0;"><svg class="xi" style="width:12px;height:12px;"><use href="#ic-edit"/></svg></button>
               <button onclick="deleteGroup('${g._type}','${escapeHtml(g.key)}')" title="Xoá"
-                style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-trash"/></svg></button>
+                style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;"><svg class="xi" style="width:12px;height:12px;"><use href="#ic-trash"/></svg></button>
             </td>
           </tr>
         `;
