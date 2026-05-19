@@ -2933,57 +2933,55 @@
       <!-- Tab navigation -->
       <div class="acc-tab-bar" style="display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid #eee; padding-bottom:12px; flex-wrap:wrap;">
         <button onclick="switchAccountTab('profiles')" class="acc-tab active" id="tabProfiles"><svg class="xi"><use href="#ic-clipboard"/></svg> Tài khoản</button>
-        <button onclick="switchAccountTab('channels')" class="acc-tab" id="tabChannels"><svg class="xi"><use href="#ic-settings"/></svg> Cài đặt kênh</button>
         <button onclick="switchAccountTab('proxies')" class="acc-tab" id="tabProxies"><svg class="xi"><use href="#ic-globe"/></svg> IP Proxy</button>
         <button onclick="switchAccountTab('logs')" class="acc-tab" id="tabLogs"><svg class="xi"><use href="#ic-scroll"/></svg> Logs</button>
       </div>
 
-      <!-- Tab: Danh sach tai khoan -->
+      <!-- Tab: Tài khoản (gộp accounts + kênh) -->
       <div id="panelProfiles">
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
-          <h3 style="font-size:15px; color:#1e1e2e; flex:1;">Profile Chromium đã đăng nhập</h3>
-          <button onclick="openAddAccountModal()"
-            style="padding:8px 14px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">+ Thêm tài khoản</button>
-        </div>
-
-        <!-- Facebook profiles -->
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; padding-bottom:8px; border-bottom:1.5px solid #EFF6FF;">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:16px;height:16px;">
-          <span style="font-size:12px; font-weight:700; color:#1877f2; text-transform:uppercase; letter-spacing:0.5px;">Facebook</span>
-        </div>
-        <div id="fbProfileList" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(440px,1fr)); gap:8px; margin-bottom:20px;"></div>
-
-        <!-- Session check results -->
-        <div id="sessionResults" style="display:flex; flex-direction:column; gap:10px; margin-top:16px;"></div>
-      </div>
-
-      <!-- panelAdd removed — form moved to addAccountModal below -->
-
-      <!-- Tab: Cai dat kenh -->
-      <div id="panelChannels" style="display:none;">
 
         <!-- Sub-tab bar -->
-        <div style="display:flex; gap:2px; background:#EFF6FF; border-radius:12px; padding:4px; margin-bottom:14px; width:fit-content;">
-          <button id="chTabAssign" onclick="switchChannelTab('assign')"
-            style="padding:8px 20px; border:none; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; background:#fff; color:#1E3A8A; box-shadow:0 1px 4px rgba(37,99,235,0.15);">
-            Gán kênh cho Profile
+        <div style="display:flex; gap:2px; background:#EFF6FF; border-radius:12px; padding:4px; margin-bottom:16px; width:fit-content;">
+          <button id="accSubTabAccounts" onclick="switchProfileSubTab('accounts')"
+            style="padding:7px 18px; border:none; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; background:#fff; color:#1E3A8A; box-shadow:0 1px 4px rgba(37,99,235,0.15);">
+            <svg class="xi" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="#ic-user"/></svg>Tài khoản
           </button>
-          <button id="chTabGroups" onclick="switchChannelTab('groups')"
-            style="padding:8px 20px; border:none; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; background:transparent; color:#64748b;">
-            Danh sách group
+          <button id="accSubTabAssign" onclick="switchProfileSubTab('assign')"
+            style="padding:7px 18px; border:none; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; background:transparent; color:#64748b;">
+            <svg class="xi" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="#ic-user"/></svg>Gán kênh
+          </button>
+          <button id="accSubTabGroups" onclick="switchProfileSubTab('groups')"
+            style="padding:7px 18px; border:none; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; background:transparent; color:#64748b;">
+            <svg class="xi" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="#ic-chat"/></svg>Danh sách group
           </button>
         </div>
 
-        <!-- Tab: Gán kênh -->
-        <div id="chPanelAssign">
+        <!-- Sub: Tài khoản -->
+        <div id="accPanelAccounts">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+            <h3 style="font-size:15px; color:#1e1e2e; flex:1;">Profile Chromium đã đăng nhập</h3>
+            <button onclick="openAddAccountModal()"
+              style="padding:8px 14px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">+ Thêm tài khoản</button>
+          </div>
+          <!-- Facebook profiles -->
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; padding-bottom:8px; border-bottom:1.5px solid #EFF6FF;">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:16px;height:16px;">
+            <span style="font-size:12px; font-weight:700; color:#1877f2; text-transform:uppercase; letter-spacing:0.5px;">Facebook</span>
+          </div>
+          <div id="fbProfileList" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(440px,1fr)); gap:8px; margin-bottom:20px;"></div>
+          <div id="sessionResults" style="display:flex; flex-direction:column; gap:10px; margin-top:16px;"></div>
+        </div>
+
+        <!-- Sub: Gán kênh -->
+        <div id="accPanelAssign" style="display:none;">
           <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:20px;">
             <div id="profileChannelError" style="color:#e53e3e; font-size:13px; display:none; margin-bottom:10px;">Lỗi tải danh sách profile</div>
             <div id="profileChannelGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(380px,1fr)); gap:12px;"></div>
           </div>
         </div>
 
-        <!-- Tab: Danh sách group -->
-        <div id="chPanelGroups" style="display:none;">
+        <!-- Sub: Danh sách group -->
+        <div id="accPanelGroups" style="display:none;">
           <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:18px;">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
               <h3 style="font-size:15px; color:#1e1e2e; margin:0; display:flex; align-items:center; gap:8px;">
@@ -3031,7 +3029,7 @@
           </div>
         </div>
 
-        <!-- Group picker popup (shared, positioned by JS) -->
+        <!-- Group picker popup -->
         <div id="groupPickerPopup" style="display:none; position:fixed; z-index:9999; background:#fff; border:1.5px solid #BFDBFE; border-radius:12px; box-shadow:0 8px 32px rgba(37,99,235,0.15); width:300px; padding:12px;">
           <div style="display:flex; gap:4px; background:#f0f9ff; padding:3px; border-radius:8px; margin-bottom:8px;">
             <button onclick="setPickerTab('all')" id="pickerTabAll" style="flex:1; padding:4px 6px; border:none; background:#3B82F6; color:#fff; font-size:11px; font-weight:600; border-radius:6px; cursor:pointer;">Tất cả</button>
@@ -3044,6 +3042,8 @@
         </div>
 
       </div>
+
+      <!-- panelAdd removed — form moved to addAccountModal below -->
 
       <!-- Tab: IP Proxy -->
       <div id="panelProxies" style="display:none;">
@@ -5865,13 +5865,12 @@
 
     // === Quan ly tai khoan ===
     function switchAccountTab(tab) {
-      ['profiles','channels','proxies','logs'].forEach(t => {
+      ['profiles','proxies','logs'].forEach(t => {
         const p = document.getElementById('panel' + t.charAt(0).toUpperCase() + t.slice(1));
         const b = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
         if (p) p.style.display = 'none';
         if (b) b.classList.remove('active');
       });
-      // Khi rời tab Logs thì dừng auto-refresh để không tốn request
       if (tab !== 'logs' && window._logsAutoRefreshTimer) {
         clearInterval(window._logsAutoRefreshTimer);
         window._logsAutoRefreshTimer = null;
@@ -5881,8 +5880,21 @@
       if (panel) panel.style.display = '';
       if (btn) btn.classList.add('active');
       if (tab === 'logs') loadLogs();
-      if (tab === 'channels') loadChannels();
       if (tab === 'proxies') renderProxiesTable();
+    }
+
+    function switchProfileSubTab(sub) {
+      ['accounts','assign','groups'].forEach(s => {
+        const p = document.getElementById('accPanel' + s.charAt(0).toUpperCase() + s.slice(1));
+        const b = document.getElementById('accSubTab' + s.charAt(0).toUpperCase() + s.slice(1));
+        if (p) p.style.display = 'none';
+        if (b) { b.style.background = 'transparent'; b.style.color = '#64748b'; b.style.boxShadow = 'none'; }
+      });
+      const panel = document.getElementById('accPanel' + sub.charAt(0).toUpperCase() + sub.slice(1));
+      const btn = document.getElementById('accSubTab' + sub.charAt(0).toUpperCase() + sub.slice(1));
+      if (panel) panel.style.display = '';
+      if (btn) { btn.style.background = '#fff'; btn.style.color = '#1E3A8A'; btn.style.boxShadow = '0 1px 4px rgba(37,99,235,0.15)'; }
+      if (sub === 'assign' || sub === 'groups') loadChannels();
     }
 
     // ===== IP Proxy management =====
@@ -6507,20 +6519,6 @@
       if (!groupId) return '';
       const found = (channelsData.fbGroups || []).find(g => g && g.id === groupId);
       return (found && found.name) ? found.name : `#${groupId}`;
-    }
-
-    function switchChannelTab(tab) {
-      const isAssign = tab === 'assign';
-      document.getElementById('chPanelAssign').style.display = isAssign ? '' : 'none';
-      document.getElementById('chPanelGroups').style.display = isAssign ? 'none' : '';
-      const btnAssign = document.getElementById('chTabAssign');
-      const btnGroups = document.getElementById('chTabGroups');
-      btnAssign.style.background = isAssign ? '#fff' : 'transparent';
-      btnAssign.style.color = isAssign ? '#1E3A8A' : '#64748b';
-      btnAssign.style.boxShadow = isAssign ? '0 1px 4px rgba(37,99,235,0.15)' : 'none';
-      btnGroups.style.background = isAssign ? 'transparent' : '#fff';
-      btnGroups.style.color = isAssign ? '#64748b' : '#1E3A8A';
-      btnGroups.style.boxShadow = isAssign ? 'none' : '0 1px 4px rgba(37,99,235,0.15)';
     }
 
     async function loadChannels() {
