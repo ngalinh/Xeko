@@ -4845,11 +4845,16 @@
       };
       _refreshDashIfActive();
 
-      // ===== QUICKFB MODE: gộp tất cả FB groups thành 1 POST share-to-groups =====
-      // Thay vì N+1 separate posts (path cũ), dùng FB native share dialog:
-      // 1 post lên FB cá nhân + share lên tối đa 9 nhóm cùng lúc.
-      let _quickfbGroupKeywords = null;
-      if (postMode === 'quickfb') {
+      // ===== AUTO-SHARE: detect "Đăng ngay" có thể chuyển sang share-to-groups =====
+      // Điều kiện: target có personal + 1-9 FB groups + mode ≠ schedule.
+      // Cả "Đăng ngay" (now) và "⚡ Đăng nhanh FB" (quickfb) đều dùng share-to-groups.
+      // Quickfb force always. "Đăng ngay" auto-detect khi eligible.
+      let _shareGroupKeywords = null;
+      const _hasPersonalTarget = (target === 'personal' || target === 'all');
+      const _isAutoShareEligible = _hasPersonalTarget
+                                 && postMode !== 'schedule'
+                                 && (window._customGroupIds || []).length > 0;
+      if (postMode === 'quickfb' || _isAutoShareEligible) {
         const _activeSel = (window._channelSelection || {})[currentProfile] || { fb: [] };
         const _names = [];
         for (const c of (_activeSel.fb || [])) {
@@ -4863,15 +4868,22 @@
             if (g && g.name) _names.push(g.name);
           }
         }
-        // Dedupe theo tên
-        _quickfbGroupKeywords = [...new Set(_names)];
-        if (_quickfbGroupKeywords.length > 9) {
-          addBot(`⚠️ FB share dialog chỉ tối đa 9 group/lần. Bạn chọn ${_quickfbGroupKeywords.length}, Xeko sẽ chỉ lấy 9 group đầu nha.`);
-          _quickfbGroupKeywords = _quickfbGroupKeywords.slice(0, 9);
+        const _unique = [...new Set(_names)];
+
+        if (_unique.length === 0) {
+          // Không có FB group (chỉ pick personal) → giữ flow personal bình thường
+        } else if (_unique.length > 9 && postMode !== 'quickfb') {
+          // "Đăng ngay" mode + > 9 groups → fallback per-group (FB share tối đa 9)
+          addBot(`💡 Bạn pick ${_unique.length} FB group, vượt giới hạn FB share dialog (9). Xeko sẽ đăng từng nhóm như cũ (~30s/nhóm).`);
+        } else {
+          // Dùng share-to-groups
+          _shareGroupKeywords = _unique.slice(0, 9);
+          if (_unique.length > 9) {
+            addBot(`⚠️ FB share dialog chỉ tối đa 9 group/lần. Bạn chọn ${_unique.length}, Xeko sẽ chỉ lấy 9 group đầu nha.`);
+          }
+          target = 'personal-share-groups';
+          groupId = null;
         }
-        // Override target để dùng flow share-to-groups (server side đã swap sang quickPostToPersonalAndGroups)
-        target = 'personal-share-groups';
-        groupId = null;
       }
 
       try {
@@ -4880,7 +4892,7 @@
           formData.append('message', message);
           formData.append('target', target);
           if (groupId) formData.append('groupId', groupId);
-          if (_quickfbGroupKeywords) formData.append('groupKeywords', JSON.stringify(_quickfbGroupKeywords));
+          if (_shareGroupKeywords) formData.append('groupKeywords', JSON.stringify(_shareGroupKeywords));
           formData.append('batchId', sessionBatchId);
           if (currentProfile) formData.append('profile', currentProfile);
           if (currentProfileName && currentProfileName !== currentProfile) formData.append('profileDisplayName', currentProfileName);
@@ -4943,7 +4955,7 @@
             });
           } else if (data.success) {
             let msg;
-            const isShareFlow = (target === 'personal-share-groups');
+            const isShareFlow = !!_shareGroupKeywords;
             if (isShareFlow && data.partialSuccess && data.missedGroups && data.missedGroups.length > 0) {
               // Đăng cá nhân OK nhưng share group fail
               msg = `⚠️ Đăng FB cá nhân <strong>${currentProfileName}</strong> OK, nhưng share lên ${data.missedGroups.length} nhóm <strong>${data.missedGroups.join(', ')}</strong> fail (không tick được). Bạn share thủ công hoặc retry nha.`;
@@ -4973,7 +4985,8 @@
         }
 
         // Post to custom groups if any — SKIP cho quickfb mode (đã share qua 1 post duy nhất)
-        const customIds = (postMode === 'quickfb') ? [] : (window._customGroupIds || []);
+        // Skip per-group loop khi đã share-to-groups (cả auto-share lẫn quickfb mode)
+        const customIds = _shareGroupKeywords ? [] : (window._customGroupIds || []);
         for (const gid of customIds) {
           addTyping();
           let groupProgressRow = null;
