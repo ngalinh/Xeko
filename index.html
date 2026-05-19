@@ -4899,7 +4899,7 @@
           await appendImages(formData, filesToUpload);
 
           const targetLabel = (() => {
-            if (!target || target === 'personal') return `trang cá nhân (<strong>${currentProfileName}</strong>)`;
+            if (!target || target === 'personal') return `FB cá nhân (<strong>${currentProfileName}</strong>)`;
             if (target === 'group') return `Group <strong>#${groupId}</strong> (profile <strong>${currentProfileName}</strong>)`;
             if (target === 'shortcut') {
               const scMap = { asale: 'Asale', tongkho: 'Tổng Kho' };
