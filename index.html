@@ -289,7 +289,7 @@
     .channel-platform-toggle input[type="checkbox"] { display: none; }
     .channel-platform-toggle.checked { background: #3B82F6; color: #fff; border-color: #3B82F6; }
     .channel-profile-section {
-      margin-bottom: 10px; border: 1px solid #EFF6FF; border-radius: 10px;
+      margin-bottom: 6px; border: 1px solid #EFF6FF; border-radius: 10px;
       overflow: hidden; background: #fff;
     }
     .channel-profile-header {
@@ -297,33 +297,45 @@
       background: #fafafa; color: #1E3A8A; border-bottom: 1px solid #eef0f4;
       display: flex; align-items: center; gap: 6px;
     }
+    .channel-chip-wrap {
+      padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
+    }
+    .chip-section-label {
+      width: 100%; font-size: 11px; font-weight: 600; color: #9ca3af;
+      text-transform: uppercase; letter-spacing: 0.4px; margin-top: 4px;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .chip-section-label:first-child { margin-top: 0; }
     .channel-item {
-      display: flex; align-items: center; gap: 8px;
-      padding: 8px 14px; font-size: 13px; color: #333;
-      border-bottom: 1px solid #f0ecf9; cursor: pointer;
-      transition: background 0.1s; user-select: none;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;
+      border: 1.5px solid #e5e7eb; background: #f9fafb; color: #6b7280;
+      cursor: pointer; transition: all 0.15s; user-select: none;
     }
-    .channel-item:last-child { border-bottom: none; }
-    .channel-item:hover { background: #f0f9ff; }
-    .channel-item input[type="checkbox"] {
-      accent-color: #3B82F6; width: 16px; height: 16px; cursor: pointer;
+    .channel-item input[type="checkbox"] { display: none; }
+    .channel-item .ch-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #d1d5db; transition: background 0.15s; flex-shrink: 0;
     }
+    .channel-item:has(input:checked) { border-color: #3B82F6; background: #EFF6FF; color: #1d4ed8; }
+    .channel-item:has(input:checked) .ch-dot { background: #3B82F6; }
+    .channel-item.ch-zalo:has(input:checked) { border-color: #1E3A8A; background: #e6f0ff; color: #1E3A8A; }
+    .channel-item.ch-zalo:has(input:checked) .ch-dot { background: #1E3A8A; }
+    .channel-item:hover:not(.disabled) { filter: brightness(0.96); }
     .channel-item.disabled { opacity: 0.35; pointer-events: none; }
-    .channel-item .ch-tag {
-      font-size: 10px; padding: 1px 6px; border-radius: 4px; font-weight: 600;
-      margin-left: auto; flex-shrink: 0;
-    }
-    .channel-item .ch-tag.fb { background: #e8f0fe; color: #1877f2; }
+    .channel-item .ch-tag { display: none; }
 
     /* Dark mode for channel panel */
     [data-theme="dark"] .channel-platform-toggle { background: #1e1e3a; border-color: #3a3a5a; color: #BFDBFE; }
     [data-theme="dark"] .channel-platform-toggle.checked { background: #3B82F6; color: #fff; border-color: #3B82F6; }
     [data-theme="dark"] .channel-profile-section { background: #1e1e3a; border-color: #2a2a4a; }
     [data-theme="dark"] .channel-profile-header { background: #252547; color: #BFDBFE; border-color: #2a2a4a; }
-    [data-theme="dark"] .channel-item { color: #ccc; border-color: #2a2a4a; }
-    [data-theme="dark"] .channel-item:hover { background: #252547; }
+    [data-theme="dark"] .channel-item { border-color: #3a3a5a; background: #252547; color: #9ca3af; }
+    [data-theme="dark"] .channel-item:has(input:checked) { border-color: #3B82F6; background: #1a2a4a; color: #93c5fd; }
+    [data-theme="dark"] .channel-item:has(input:checked) .ch-dot { background: #60a5fa; }
+    [data-theme="dark"] .channel-item.ch-zalo:has(input:checked) { border-color: #60a5fa; background: #1a2a4a; color: #93c5fd; }
+    [data-theme="dark"] .chip-section-label { color: #6b7280; }
     [data-theme="dark"] [id^="customGroupInput_"] input { background: #1e1e3a; border-color: #3a3a5a; color: #e0e0e0; }
-    [data-theme="dark"] .channel-item .ch-tag.fb { background: #1a2a4a; color: #5b9cf6; }
 
     /* === Multi-select filter component === */
     .msel { position:relative; display:inline-block; }
@@ -4291,16 +4303,19 @@
       }
       panelHtml += `</div>`;
 
-      // Channels for current profile
+      // Channels for current profile — chip/toggle layout
       panelHtml += `<div class="channel-profile-section">`;
       panelHtml += `<div class="channel-profile-header">${xekoIcon('user')} ${p.label}</div>`;
+      panelHtml += `<div class="channel-chip-wrap">`;
+
+      // FB section label
+      panelHtml += `<div class="chip-section-label">${xekoIcon('fb')} Facebook</div>`;
 
       // "FB Cá nhân" — kênh đơn, đăng riêng
       const personalCh = (p.fb || []).find(c => c.id === 'personal');
       if (personalCh) {
         panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="personal">
-          <input type="checkbox" checked onchange="onChannelChange(${pid})"> ${personalCh.icon} ${personalCh.name}
-          <span class="ch-tag fb">FB</span>
+          <span class="ch-dot"></span><input type="checkbox" checked onchange="onChannelChange(${pid})"> ${personalCh.icon} ${personalCh.name}
         </label>`;
       }
 
@@ -4311,29 +4326,33 @@
         const keys = bundle.groups.map(g => g.id);
         const tooltip = bundle.groups.map(g => g.rawName).join(', ');
         panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="cat" data-category="${escapeHtml(bundle.category)}" data-keys="${escapeHtml(JSON.stringify(keys))}" title="${escapeHtml(tooltip)}">
-          <input type="checkbox" onchange="onChannelChange(${pid})"> ${xekoIcon('users')} ${escapeHtml(bundle.category)} <span style="color:#888; font-size:12px;">(${bundle.groups.length} nhóm)</span>
-          <span class="ch-tag fb">FB</span>
+          <span class="ch-dot"></span><input type="checkbox" onchange="onChannelChange(${pid})"> ${xekoIcon('users')} ${escapeHtml(bundle.category)} <span style="font-size:11px; opacity:0.65;">(${bundle.groups.length})</span>
         </label>`;
       }
 
       // Custom group option
       panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="custom">
-        <input type="checkbox" onchange="onChannelChange(${pid}); toggleCustomGroupInput(${pid}, this.checked)"> ${xekoIcon('link')} Group khác...
-        <span class="ch-tag fb">FB</span>
+        <span class="ch-dot"></span><input type="checkbox" onchange="onChannelChange(${pid}); toggleCustomGroupInput(${pid}, this.checked)"> ${xekoIcon('link')} Group khác...
       </label>`;
-      panelHtml += `<div id="customGroupInput_${pid}" style="display:none; padding:4px 14px 10px 38px;">
+
+      // Zalo chips
+      if (p.zalo.length > 0) {
+        panelHtml += `<div class="chip-section-label">${xekoIcon('chat')} Zalo</div>`;
+        for (const ch of p.zalo) {
+          panelHtml += `<label class="channel-item ch-zalo" data-panel="${pid}" data-platform="zalo" data-profile="${currentProfile}" data-chid="${ch.id}" data-zalo-account="${p.zaloAccount}">
+            <span class="ch-dot"></span><input type="checkbox" checked onchange="onChannelChange(${pid})"> ${ch.icon} ${ch.name}
+          </label>`;
+        }
+      }
+
+      panelHtml += `</div>`; // close chip-wrap
+
+      // Custom group input sits outside the chip flow
+      panelHtml += `<div id="customGroupInput_${pid}" style="display:none; padding:4px 12px 10px;">
         <input type="text" id="customGroupId_${pid}" placeholder="Nhập Group ID, cách nhau bởi dấu phẩy..." autocomplete="off" style="width:100%; padding:7px 12px; border-radius:8px; border:1px solid #DBEAFE; font-size:13px; background:#f0f9ff; color:#333;">
       </div>`;
 
-      // Zalo channels
-      for (const ch of p.zalo) {
-        panelHtml += `<label class="channel-item ch-zalo" data-panel="${pid}" data-platform="zalo" data-profile="${currentProfile}" data-chid="${ch.id}" data-zalo-account="${p.zaloAccount}">
-          <input type="checkbox" checked onchange="onChannelChange(${pid})"> ${ch.icon} ${ch.name}
-          <span class="ch-tag zalo" style="background:#e6f0ff; color:#1E3A8A;">Zalo</span>
-        </label>`;
-      }
-
-      panelHtml += `</div>`;
+      panelHtml += `</div>`; // close profile-section
 
       // Inline error slot — hiển thị validation fail trong panel thay vì
       // spawn thêm bot bubble (tránh spam khi user bấm "Tiếp tục" liên tục)
@@ -4357,7 +4376,7 @@
           <div class="msg-header">Xeko <span class="time">${now()}</span></div>
           <div class="msg bot">
             ${modeEmoji} <strong>Đăng bài</strong> — Chế độ: ${modeLabel}<br>
-            Bạn tick kênh để Xeko đăng nha:
+            Chọn kênh muốn đăng:
             ${panelHtml}
           </div>
         </div>`;
