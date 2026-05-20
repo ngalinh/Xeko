@@ -2028,6 +2028,12 @@ async function scrapePost(postUrl) {
   const tag = `[scrapePost ${profileSnap.name}]`;
   logger.info(`${tag} bắt đầu — url=${postUrl}`);
 
+  // Trích post ID từ URL để tìm đúng article sau khi load
+  // pfbid... hoặc numeric ID (/posts/123456789)
+  const postIdMatch = postUrl.match(/pfbid[\w]+/) || postUrl.match(/\/(\d{10,})(?:[/?#]|$)/);
+  const postId = postIdMatch ? postIdMatch[0].replace(/^\//, '') : null;
+  logger.info(`${tag} postId=${postId || '(không tìm được)'}`);
+
   const browser = await getBrowser();
   const page = await browser.newPage();
 
@@ -2038,41 +2044,59 @@ async function scrapePost(postUrl) {
     await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
     await randomDelay(500, 1000);
 
-    // Expand "Xem thêm" / "See more" để lấy full text
-    await page.evaluate(() => {
-      const LABELS = ['Xem thêm', 'See more', 'See More'];
-      for (const el of document.querySelectorAll('div[role="button"], span[role="button"]')) {
-        if (LABELS.includes((el.textContent || '').trim())) {
-          el.click();
-          return;
+    // Tìm index của article đúng (top-level, chứa link có post ID)
+    const articleIndex = await page.evaluate((pid) => {
+      const all = Array.from(document.querySelectorAll('div[role="article"]'));
+      // Chỉ giữ top-level article (không nằm trong article khác)
+      const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
+      if (!pid || !topLevel.length) return 0;
+      for (let i = 0; i < topLevel.length; i++) {
+        for (const link of topLevel[i].querySelectorAll('a[href]')) {
+          if (link.href && link.href.includes(pid)) return i;
         }
       }
-    }).catch(() => {});
-    await randomDelay(500, 800);
+      return 0;
+    }, postId).catch(() => 0);
+    logger.info(`${tag} articleIndex=${articleIndex}`);
 
-    // Lấy text từ bài viết chính (không lấy comment/reply)
-    const text = await page.evaluate(() => {
-      const adMsg = document.querySelector('[data-ad-preview="message"]');
+    // Click "Xem thêm" / "See more" CHỈ trong article mục tiêu
+    await page.evaluate((idx) => {
+      const all = Array.from(document.querySelectorAll('div[role="article"]'));
+      const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
+      const article = topLevel[idx] || topLevel[0];
+      if (!article) return;
+      const LABELS = ['Xem thêm', 'See more', 'See More'];
+      for (const el of article.querySelectorAll('div[role="button"], span[role="button"]')) {
+        if (LABELS.includes((el.textContent || '').trim())) { el.click(); return; }
+      }
+    }, articleIndex).catch(() => {});
+    await randomDelay(1500, 2000);
+
+    // Lấy text từ article mục tiêu
+    const text = await page.evaluate((idx) => {
+      const SEE_MORE = new Set(['Xem thêm', 'See more', 'See More']);
+      const all = Array.from(document.querySelectorAll('div[role="article"]'));
+      const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
+      const article = topLevel[idx] || topLevel[0];
+      if (!article) return '';
+
+      const adMsg = article.querySelector('[data-ad-preview="message"]');
       if (adMsg) return (adMsg.innerText || '').trim();
 
-      const articles = document.querySelectorAll('div[role="article"]');
-      for (const article of articles) {
-        const dirs = article.querySelectorAll('div[dir="auto"]');
-        for (const dir of dirs) {
-          if (dir.closest('div[role="article"]') !== article) continue;
-          const t = (dir.innerText || '').trim();
-          if (t.length > 5) return t;
+      for (const dir of article.querySelectorAll('div[dir="auto"]')) {
+        // Bỏ qua nếu nằm trong article lồng (comment)
+        if (dir.closest('div[role="article"]') !== article) continue;
+        const clone = dir.cloneNode(true);
+        for (const btn of clone.querySelectorAll('[role="button"]')) {
+          if (SEE_MORE.has((btn.textContent || '').trim())) btn.remove();
         }
-      }
-
-      for (const el of document.querySelectorAll('div[dir="auto"]')) {
-        const t = (el.innerText || '').trim();
+        const t = (clone.innerText || '').trim();
         if (t.length > 5) return t;
       }
       return '';
-    }).catch(() => '');
+    }, articleIndex).catch(() => '');
 
-    // Scroll để trigger lazy-load ảnh (album nhiều ảnh, ảnh nằm ngoài viewport)
+    // Scroll để trigger lazy-load ảnh
     for (let i = 0; i < 3; i++) {
       await page.evaluate(() => window.scrollBy(0, 800));
       await randomDelay(800, 1200);
@@ -2080,27 +2104,24 @@ async function scrapePost(postUrl) {
     await page.evaluate(() => window.scrollTo(0, 0));
     await randomDelay(500, 800);
 
-    // Lấy URL ảnh trực tiếp từ DOM — chỉ trong article chính, bỏ qua comment
-    const imageUrls = await page.evaluate(() => {
-      const articles = document.querySelectorAll('div[role="article"]');
-      if (!articles.length) return [];
-      const mainArticle = articles[0];
+    // Lấy URL ảnh từ article mục tiêu, bỏ qua comment và profile pic
+    const imageUrls = await page.evaluate((idx) => {
+      const all = Array.from(document.querySelectorAll('div[role="article"]'));
+      const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
+      const article = topLevel[idx] || topLevel[0];
+      if (!article) return [];
       const urls = [];
       const seen = new Set();
-      for (const img of mainArticle.querySelectorAll('img')) {
-        // Bỏ ảnh nằm trong comment (article lồng)
-        if (img.closest('div[role="article"]') !== mainArticle) continue;
+      for (const img of article.querySelectorAll('img')) {
+        if (img.closest('div[role="article"]') !== article) continue; // skip comment images
         const src = img.src || img.currentSrc || '';
         if (!src || !src.includes('fbcdn.net') || !src.includes('scontent')) continue;
         if (/\/v\/t1\./.test(src)) continue; // profile pic
-        if (img.naturalWidth < 100 || img.naturalHeight < 100) continue; // icon/thumbnail
-        if (!seen.has(src)) {
-          seen.add(src);
-          urls.push(src);
-        }
+        if (img.offsetWidth < 80 || img.offsetHeight < 80) continue;
+        if (!seen.has(src)) { seen.add(src); urls.push(src); }
       }
       return urls;
-    }).catch(() => []);
+    }, articleIndex).catch(() => []);
 
     logger.info(`${tag} xong (+${Date.now() - t0}ms) — text=${text.length} ký tự, ảnh=${imageUrls.length}`);
     return { success: true, text, imageUrls };
