@@ -2040,15 +2040,17 @@ async function scrapePost(postUrl) {
     try {
       const url = res.url();
       if (seenUrls.has(url)) return;
-      // Chỉ lấy ảnh từ scontent*.fbcdn.net — đây là domain CDN cho ảnh bài viết.
-      // static.xx.fbcdn.net là sticker/emoji/icon UI → bỏ qua.
-      if (!/scontent[^.]*\.fbcdn\.net/.test(url)) return;
+      // fbcdn.net + có "scontent" trong URL = ảnh nội dung bài viết.
+      // static.xx.fbcdn.net (sticker/icon) không chứa "scontent" → bị loại.
+      // Dùng string check thay vì regex để khớp mọi dạng CDN subdomain
+      // vd: scontent.fhan5-1.fna.fbcdn.net, scontent-sin6-1.xx.fbcdn.net
+      if (!url.includes('fbcdn.net') || !url.includes('scontent')) return;
       const ct = res.headers()['content-type'] || '';
       if (!ct.startsWith('image/')) return;
       seenUrls.add(url);
       const buffer = await res.body().catch(() => null);
-      // < 20KB → likely thumbnail/icon/avatar → bỏ qua
-      if (!buffer || buffer.length < 20000) return;
+      // < 10KB → likely thumbnail/icon/avatar → bỏ qua
+      if (!buffer || buffer.length < 10000) return;
       const ext = ct.includes('png') ? 'png' : 'jpg';
       capturedImages.push({ url, buffer, ext });
     } catch {}
@@ -2075,21 +2077,31 @@ async function scrapePost(postUrl) {
     }).catch(() => {});
     await randomDelay(500, 800);
 
-    // Lấy text từ bài viết đầu tiên trên trang (post chính, không phải comment)
+    // Lấy text từ bài viết chính (không lấy comment/reply)
     const text = await page.evaluate(() => {
-      // article đầu tiên chứa post chính; các article sau là comment/reply
+      // Thử selector đặc thù của FB trước
+      const adMsg = document.querySelector('[data-ad-preview="message"]');
+      if (adMsg) return (adMsg.innerText || '').trim();
+
+      // div[role="article"] đầu tiên = bài viết chính.
+      // Comment/reply nằm trong các article LỒNG bên trong → dùng nearest-article check
+      // để loại trừ: nếu dir[auto] gần với một article khác (không phải article gốc)
+      // thì đó là text của comment, bỏ qua.
       const articles = document.querySelectorAll('div[role="article"]');
       for (const article of articles) {
-        // Tìm div[dir="auto"] có nội dung text thực sự (> 10 ký tự)
-        for (const dir of article.querySelectorAll('div[dir="auto"]')) {
+        const dirs = article.querySelectorAll('div[dir="auto"]');
+        for (const dir of dirs) {
+          // Bỏ qua nếu element này nằm trong một article lồng khác (comment)
+          if (dir.closest('div[role="article"]') !== article) continue;
           const t = (dir.innerText || '').trim();
-          if (t.length > 10) return t;
+          if (t.length > 5) return t;
         }
       }
+
       // Fallback: lấy div[dir="auto"] đầu tiên có content
       for (const el of document.querySelectorAll('div[dir="auto"]')) {
         const t = (el.innerText || '').trim();
-        if (t.length > 10) return t;
+        if (t.length > 5) return t;
       }
       return '';
     }).catch(() => '');
