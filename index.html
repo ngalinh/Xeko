@@ -559,21 +559,23 @@
 
     /* Profile card action buttons (Sửa / Login / Trash) */
     .pc-actions {
-      display: inline-flex; align-items: center; gap: 6px;
-      flex-wrap: wrap;
+      display: inline-flex; align-items: center; gap: 5px;
+      flex-wrap: nowrap;
       margin-left: auto;
+      flex-shrink: 0;
     }
     .pc-btn {
       display: inline-flex; align-items: center; justify-content: center;
-      gap: 6px;
-      padding: 7px 12px;
+      width: 32px; height: 32px;
+      padding: 0;
       font-size: 12px; font-weight: 500;
       border-radius: 8px;
       border: 1px solid;
       cursor: pointer;
       transition: background 0.12s, box-shadow 0.12s;
-      white-space: nowrap;
+      flex-shrink: 0;
     }
+    .pc-btn-label { display: none; }
     .pc-btn:hover { box-shadow: 0 3px 10px rgba(37, 99, 235,0.14); }
     .pc-btn-edit  { background: #f0f9ff; border-color: #DBEAFE; color: #1E3A8A; }
     .pc-btn-login { background: #EFF6FF; border-color: #DBEAFE; color: #3B82F6; }
@@ -920,13 +922,7 @@
       .profile-card .info .detail {
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       }
-      .pc-actions { gap: 6px; flex-wrap: nowrap; }
-      .pc-btn {
-        padding: 0 !important;
-        width: 38px; height: 38px;
-        border-radius: 10px;
-      }
-      .pc-btn-label { display: none; }
+      .pc-btn { width: 38px; height: 38px; border-radius: 10px; }
       .pc-btn .xi { width: 17px; height: 17px; }
 
       /* Cài đặt kênh: Group list toolbar — wrap compactly */
