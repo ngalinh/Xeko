@@ -2016,4 +2016,117 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
   }
 }
 
-module.exports = { setProfile, profileExists, getActiveProfile, postToPersonal, postToGroup, postPersonalAndShareToGroups, quickPostToPersonalAndGroups, closeBrowser };
+// =============================================================================
+// SCRAPE POST — lấy nội dung text + tất cả ảnh từ link bài viết FB
+// Dùng browser đã login của profile đang active để bypass auth / private group.
+// Ảnh được download về server (buffer từ response interception) → trả imagePaths.
+// =============================================================================
+
+async function scrapePost(postUrl) {
+  const t0 = Date.now();
+  const profileSnap = getActiveProfile();
+  const tag = `[scrapePost ${profileSnap.name}]`;
+  logger.info(`${tag} bắt đầu — url=${postUrl}`);
+
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+
+  // Capture ảnh thực tế từ fbcdn.net khi browser load — cách duy nhất
+  // đảm bảo lấy được ảnh private group mà không cần cookies riêng.
+  const capturedImages = [];
+  const seenUrls = new Set();
+
+  const responseHandler = async (res) => {
+    try {
+      const url = res.url();
+      if (seenUrls.has(url)) return;
+      // Chỉ lấy ảnh từ scontent*.fbcdn.net — đây là domain CDN cho ảnh bài viết.
+      // static.xx.fbcdn.net là sticker/emoji/icon UI → bỏ qua.
+      if (!/scontent[^.]*\.fbcdn\.net/.test(url)) return;
+      const ct = res.headers()['content-type'] || '';
+      if (!ct.startsWith('image/')) return;
+      seenUrls.add(url);
+      const buffer = await res.body().catch(() => null);
+      // < 20KB → likely thumbnail/icon/avatar → bỏ qua
+      if (!buffer || buffer.length < 20000) return;
+      const ext = ct.includes('png') ? 'png' : 'jpg';
+      capturedImages.push({ url, buffer, ext });
+    } catch {}
+  };
+
+  page.on('response', responseHandler);
+
+  try {
+    await page.goto(postUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await randomDelay(2000, 3000);
+    await ensureLoggedIn(page);
+    await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
+    await randomDelay(500, 1000);
+
+    // Expand "Xem thêm" / "See more" để lấy full text
+    await page.evaluate(() => {
+      const LABELS = ['Xem thêm', 'See more', 'See More'];
+      for (const el of document.querySelectorAll('div[role="button"], span[role="button"]')) {
+        if (LABELS.includes((el.textContent || '').trim())) {
+          el.click();
+          return;
+        }
+      }
+    }).catch(() => {});
+    await randomDelay(500, 800);
+
+    // Lấy text từ bài viết đầu tiên trên trang (post chính, không phải comment)
+    const text = await page.evaluate(() => {
+      // article đầu tiên chứa post chính; các article sau là comment/reply
+      const articles = document.querySelectorAll('div[role="article"]');
+      for (const article of articles) {
+        // Tìm div[dir="auto"] có nội dung text thực sự (> 10 ký tự)
+        for (const dir of article.querySelectorAll('div[dir="auto"]')) {
+          const t = (dir.innerText || '').trim();
+          if (t.length > 10) return t;
+        }
+      }
+      // Fallback: lấy div[dir="auto"] đầu tiên có content
+      for (const el of document.querySelectorAll('div[dir="auto"]')) {
+        const t = (el.innerText || '').trim();
+        if (t.length > 10) return t;
+      }
+      return '';
+    }).catch(() => '');
+
+    // Scroll để trigger lazy-load ảnh (album nhiều ảnh, ảnh nằm ngoài viewport)
+    for (let i = 0; i < 3; i++) {
+      await page.evaluate(() => window.scrollBy(0, 800));
+      await randomDelay(800, 1200);
+    }
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await randomDelay(500, 800);
+
+    // Save buffer về temp/
+    const tempDir = path.resolve(__dirname, '../../temp');
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+    const imagePaths = [];
+    for (const img of capturedImages) {
+      const fname = `scrape_${Date.now()}_${Math.random().toString(36).slice(2)}.${img.ext}`;
+      const fpath = path.join(tempDir, fname);
+      try {
+        fs.writeFileSync(fpath, img.buffer);
+        imagePaths.push(fpath);
+      } catch (e) {
+        logger.warn(`${tag} lỗi lưu ảnh: ${e.message}`);
+      }
+    }
+
+    logger.info(`${tag} xong (+${Date.now() - t0}ms) — text=${text.length} ký tự, ảnh=${imagePaths.length}`);
+    return { success: true, text, imagePaths };
+  } catch (e) {
+    logger.error(`${tag} FAIL: ${e.message}`);
+    return { success: false, error: e.message, text: '', imagePaths: [] };
+  } finally {
+    page.off('response', responseHandler);
+    await page.close().catch(() => {});
+  }
+}
+
+module.exports = { setProfile, profileExists, getActiveProfile, postToPersonal, postToGroup, postPersonalAndShareToGroups, quickPostToPersonalAndGroups, scrapePost, closeBrowser };

@@ -491,6 +491,67 @@ app.get('/api/job/:id', (req, res) => {
   res.json(job);
 });
 
+// ===== SCRAPE: Lấy nội dung + ảnh từ link bài viết FB — ASYNC JOB =====
+// POST body: { url, profile? }
+// Trả {jobId} ngay; poll /api/job/:id để lấy { text, imageUrls }
+app.post('/api/fb-scrape', async (req, res) => {
+  const { url, profile } = req.body;
+  if (!url) return res.status(400).json({ error: 'Thiếu url bài viết' });
+
+  // Tunnel mode: forward về local server (Playwright chạy ở local)
+  if (getLocalUrl()) {
+    try {
+      const LOCAL_URL = getLocalUrl();
+      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const fetchFn = await getFetch();
+      const response = await fetchFn(`${LOCAL_URL}/api/fb-scrape`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+        body: JSON.stringify({ url, profile }),
+      });
+      const data = await safeJsonResponse(response);
+      return res.status(response.status).json(data);
+    } catch (e) {
+      return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
+    }
+  }
+
+  if (profile) {
+    if (!playwright.profileExists(profile)) {
+      return res.status(400).json({ error: `Profile "${profile}" không tồn tại` });
+    }
+  } else {
+    try { playwright.getActiveProfile(); } catch {
+      return res.status(400).json({ error: 'Chưa chọn profile!' });
+    }
+  }
+
+  const jobId = createJob();
+  res.json({ jobId, status: 'pending' });
+  logger.info(`[fb-scrape] job ${jobId} — profile=${profile || '(active)'}, url=${url}`);
+
+  (async () => {
+    try {
+      if (profile) await playwright.setProfile(profile);
+      const result = await playwright.scrapePost(url);
+      let imageUrls = [];
+      if (result.imagePaths && result.imagePaths.length > 0) {
+        imageUrls = await persistImages(result.imagePaths);
+        cleanupFiles(result.imagePaths);
+      }
+      setJobResult(jobId, {
+        success: result.success,
+        text: result.text || '',
+        imageUrls,
+        error: result.error,
+      });
+    } catch (e) {
+      logger.error(`[fb-scrape] job ${jobId} FAILED: ${e.message}`);
+      setJobError(jobId, e.message);
+    }
+  })();
+});
+
 // ===== TEST: FB Quick Post v2 (dev only) — ASYNC JOB pattern =====
 // Test có thể chạy > 2 phút → cloud proxy nginx 502 nếu sync.
 // Trả jobId ngay, chạy background, UI poll /api/job/:id.
