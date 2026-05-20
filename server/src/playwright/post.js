@@ -2044,8 +2044,27 @@ async function scrapePost(postUrl) {
     await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
     await randomDelay(500, 1000);
 
+    // Sau khi JS routing xong, FB có thể redirect pfbid → numeric ID
+    // Đọc lại URL thực tế + trích thêm story_fbid / numeric từ query string
+    const resolvedUrl = page.url();
+    logger.info(`${tag} resolvedUrl=${resolvedUrl}`);
+    const allIds = new Set();
+    if (postId) allIds.add(postId);
+    for (const m of [
+      resolvedUrl.match(/pfbid[\w]+/),
+      resolvedUrl.match(/story_fbid=(\d+)/),
+      resolvedUrl.match(/\/posts\/(\d{10,})/),
+      resolvedUrl.match(/permalink\/(\d{10,})/),
+    ]) {
+      if (m) allIds.add(m[1] || m[0]);
+    }
+    logger.info(`${tag} allIds=${[...allIds].join(',')}`);
+
+    // Đợi ít nhất 1 article xuất hiện
+    await page.waitForSelector('div[role="article"]', { timeout: 10000 }).catch(() => {});
+
     // Tìm index của article đúng (top-level, chứa link có post ID)
-    const articleIndex = await page.evaluate((pid) => {
+    const articleIndex = await page.evaluate((ids) => {
       const all = Array.from(document.querySelectorAll('div[role="article"]'));
       const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
       if (!topLevel.length) return 0;
@@ -2062,11 +2081,12 @@ async function scrapePost(postUrl) {
         }
       }
 
-      // Chiến lược 2: tìm article chứa link có post ID
-      if (pid) {
-        for (let i = 0; i < topLevel.length; i++) {
-          for (const link of topLevel[i].querySelectorAll('a[href]')) {
-            if (link.href && link.href.includes(pid)) return i;
+      // Chiến lược 2: tìm article chứa link khớp BẤT KỲ post ID nào
+      for (let i = 0; i < topLevel.length; i++) {
+        for (const link of topLevel[i].querySelectorAll('a[href]')) {
+          if (!link.href) continue;
+          for (const id of ids) {
+            if (link.href.includes(id)) return i;
           }
         }
       }
@@ -2079,8 +2099,14 @@ async function scrapePost(postUrl) {
         }
       }
 
-      return 0;
-    }, postId).catch(() => 0);
+      // Chiến lược 4: article gần đầu trang nhất (nhỏ hơn 1 viewport từ trên)
+      let best = { idx: 0, top: Infinity };
+      for (let i = 0; i < topLevel.length; i++) {
+        const top = topLevel[i].getBoundingClientRect().top;
+        if (top >= 0 && top < best.top) best = { idx: i, top };
+      }
+      return best.idx;
+    }, [...allIds]).catch(() => 0);
     logger.info(`${tag} articleIndex=${articleIndex}`);
 
     // Click "Xem thêm" / "See more" CHỈ trong article mục tiêu
