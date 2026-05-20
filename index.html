@@ -6881,13 +6881,19 @@
             <button onclick="openGroupPicker('${escapeHtml(p.key)}', this)"
               style="padding:5px 10px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap; flex-shrink:0;">+ Thêm</button>
           </div>
-          ${(fbChips || zaloChips) ? `
-          <div style="display:flex; flex-wrap:wrap; gap:5px; align-items:center; min-height:28px;">
-            ${fbChips}${zaloChips}
-            ${isEmpty ? `<span style="font-size:12px; color:#d97706; font-style:italic;">Bấm "+ Thêm" để gán group</span>` : ''}
-          </div>` : `
-          <div style="display:flex; flex-wrap:wrap; gap:5px; align-items:center; min-height:28px;">
-            <span style="font-size:12px; color:#d97706; font-style:italic;">Bấm "+ Thêm" để gán group</span>
+          ${isEmpty ? `
+          <div style="padding:6px 0 2px; font-size:12px; color:#d97706; font-style:italic;">Bấm "+ Thêm" để gán group</div>` : `
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            ${fbChips ? `
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:5px;">
+              <span style="display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; color:#1877f2; text-transform:uppercase; letter-spacing:0.4px; flex-shrink:0; margin-right:2px;"><img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:11px;height:11px;">FB</span>
+              ${fbChips}
+            </div>` : ''}
+            ${zaloChips ? `
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:5px;">
+              <span style="display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; color:#0369a1; text-transform:uppercase; letter-spacing:0.4px; flex-shrink:0; margin-right:2px;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-zalo"/></svg>Zalo</span>
+              ${zaloChips}
+            </div>` : ''}
           </div>`}
         </div>`;
     }
