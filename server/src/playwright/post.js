@@ -2096,15 +2096,16 @@ async function scrapePost(postUrl) {
       return '';
     }, articleIndex).catch(() => '');
 
-    // Scroll để trigger lazy-load ảnh
+    // Scroll để trigger lazy-load ảnh, đọc src sau mỗi lần scroll
+    // (không scroll về top trước khi đọc — tránh mất lazy-load src)
     for (let i = 0; i < 3; i++) {
       await page.evaluate(() => window.scrollBy(0, 800));
       await randomDelay(800, 1200);
     }
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await randomDelay(500, 800);
+    await randomDelay(300, 500);
 
     // Lấy URL ảnh từ article mục tiêu, bỏ qua comment và profile pic
+    // Đọc ngay sau scroll (ảnh đã lazy-load), trước khi scroll về top
     const imageUrls = await page.evaluate((idx) => {
       const all = Array.from(document.querySelectorAll('div[role="article"]'));
       const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
@@ -2115,9 +2116,10 @@ async function scrapePost(postUrl) {
       for (const img of article.querySelectorAll('img')) {
         if (img.closest('div[role="article"]') !== article) continue; // skip comment images
         const src = img.src || img.currentSrc || '';
-        if (!src || !src.includes('fbcdn.net') || !src.includes('scontent')) continue;
-        if (/\/v\/t1\./.test(src)) continue; // profile pic
-        if (img.offsetWidth < 80 || img.offsetHeight < 80) continue;
+        // Chỉ lấy ảnh từ FB CDN — bỏ static.xx (icon/emoji) và t1 (profile pic)
+        if (!src || !src.includes('fbcdn.net')) continue;
+        if (src.includes('static.xx.fbcdn.net')) continue;
+        if (/\/v\/t1\./.test(src)) continue;
         if (!seen.has(src)) { seen.add(src); urls.push(src); }
       }
       return urls;
