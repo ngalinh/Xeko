@@ -2867,10 +2867,10 @@
       <span>Xeko</span>
     </div>
     <div class="sidebar-nav">
-      <button class="sidebar-item" onclick="switchPage('dashboard')" id="navDashboard">
+      <button class="sidebar-item active" onclick="switchPage('dashboard')" id="navDashboard">
         <span class="icon"><svg class="xi"><use href="#ic-dash"/></svg></span> Dashboard
       </button>
-      <button class="sidebar-item active" onclick="switchPage('post')" id="navPost">
+      <button class="sidebar-item" onclick="switchPage('post')" id="navPost">
         <span class="icon"><svg class="xi"><use href="#ic-post"/></svg></span> Đăng bài
       </button>
       <button class="sidebar-item" onclick="switchPage('session')" id="navSession">
@@ -2946,7 +2946,7 @@
   </div>
 
   <!-- PAGE: Đăng bài -->
-  <div class="page active" id="pageDangBai">
+  <div class="page" id="pageDangBai">
   <div class="header">
     <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
     <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#1E3A8A;"><svg class="xi xi-md"><use href="#ic-post"/></svg></div>
@@ -3400,7 +3400,7 @@
   </div>
 
   <!-- PAGE: Dashboard (gộp Lịch đăng bài + Thống kê) -->
-  <div class="page" id="pageDashboard">
+  <div class="page active" id="pageDashboard">
     <div class="header">
       <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
       <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#1E3A8A;"><svg class="xi xi-md"><use href="#ic-dash"/></svg></div>
@@ -9022,10 +9022,10 @@
 
   <!-- Mobile bottom navigation -->
   <nav class="mobile-bottom-nav" id="mobileBottomNav">
-    <button class="mobile-nav-item active" id="mobileNavPost" onclick="switchPage('post')">
+    <button class="mobile-nav-item" id="mobileNavPost" onclick="switchPage('post')">
       <span class="mn-icon">📝</span>Đăng bài
     </button>
-    <button class="mobile-nav-item" id="mobileNavDashboard" onclick="switchPage('dashboard')">
+    <button class="mobile-nav-item active" id="mobileNavDashboard" onclick="switchPage('dashboard')">
       <span class="mn-icon">📊</span>Dashboard
     </button>
     <button class="mobile-nav-item" id="mobileNavSession" onclick="switchPage('session')">
@@ -9345,9 +9345,8 @@
             switchPage(p);
             return;
           }
-          // Default page on mobile = Đăng bài (mhome đã bỏ)
-          if (window.innerWidth <= 768 && typeof switchPage === 'function') {
-            switchPage('post');
+          if (typeof switchPage === 'function') {
+            switchPage('dashboard');
           }
         } catch (_) {}
       };
