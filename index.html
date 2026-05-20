@@ -3026,15 +3026,12 @@
 
         <!-- Sub: IP Proxy -->
         <div id="accPanelProxies" style="display:none;">
-        <div style="background:rgba(255,255,255,0.55); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,0.55); border-radius:12px; padding:18px;">
+        <div style="border-radius:12px; padding:18px;">
           <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
-            <h3 style="font-size:15px; color:#1e1e2e; margin:0; flex:1; display:flex; align-items:center; gap:8px;">
-              <svg class="xi xi-md" style="color:#1E3A8A;"><use href="#ic-globe"/></svg> Danh sách IP Proxy
-            </h3>
+            <h3 style="font-size:15px; color:#1e1e2e; margin:0; flex:1;">Danh sách IP Proxy</h3>
             <button onclick="openProxyModal('add')"
               style="padding:8px 14px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">+ Thêm proxy</button>
           </div>
-          <p style="font-size:12px; color:#999; margin:-4px 0 12px;">Quản lý IP proxy và gán cho tài khoản trong modal "Thêm/Sửa tài khoản".</p>
           <div id="proxiesTableWrap" style="overflow-x:auto;">
             <table id="proxiesTable" style="width:100%; border-collapse:separate; border-spacing:0 4px; font-size:13px;">
               <thead>
