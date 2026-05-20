@@ -2040,17 +2040,17 @@ async function scrapePost(postUrl) {
     try {
       const url = res.url();
       if (seenUrls.has(url)) return;
-      // fbcdn.net + có "scontent" trong URL = ảnh nội dung bài viết.
-      // static.xx.fbcdn.net (sticker/icon) không chứa "scontent" → bị loại.
-      // Dùng string check thay vì regex để khớp mọi dạng CDN subdomain
-      // vd: scontent.fhan5-1.fna.fbcdn.net, scontent-sin6-1.xx.fbcdn.net
+      // fbcdn.net + "scontent" = ảnh nội dung. static.xx = sticker/icon → loại.
       if (!url.includes('fbcdn.net') || !url.includes('scontent')) return;
+      // /v/t1. = profile pic / avatar (type 1) → loại, chỉ giữ ảnh bài viết
+      // Ảnh bài viết dùng t39, t31, t45, t50... còn profile pic dùng t1.xxx
+      if (/\/v\/t1\./.test(url)) return;
       const ct = res.headers()['content-type'] || '';
       if (!ct.startsWith('image/')) return;
       seenUrls.add(url);
       const buffer = await res.body().catch(() => null);
-      // < 10KB → likely thumbnail/icon/avatar → bỏ qua
-      if (!buffer || buffer.length < 10000) return;
+      // < 30KB → likely thumbnail/icon → bỏ qua
+      if (!buffer || buffer.length < 30000) return;
       const ext = ct.includes('png') ? 'png' : 'jpg';
       capturedImages.push({ url, buffer, ext });
     } catch {}
