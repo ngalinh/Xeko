@@ -6158,9 +6158,10 @@
           return `
           <div class="profile-card">
             <div style="width:40px; height:40px; background:${avatarColor}; border-radius:99px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; font-weight:700; flex-shrink:0;">${initial}</div>
-            <div class="info">
+            <div class="info" style="min-width:0;">
               <div class="name">${escapeHtml(p.name)}</div>
-              <div class="detail">${escapeHtml(p.email || p.key)} · Chromium profile: ${escapeHtml(p.key)}${proxyHtml ? ' · ' + proxyHtml : ''}</div>
+              <div class="detail" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(p.email || p.key)} · Chrome: ${escapeHtml(p.key)}">${escapeHtml(p.email || p.key)} · Chrome: ${escapeHtml(p.key)}</div>
+              ${proxyStr ? `<div style="display:flex; align-items:center; gap:4px; margin-top:2px; font-size:11px; color:#1E3A8A; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${xekoIcon('globe')} ${escapeHtml(proxyDisplay(proxyStr))}</div>` : ''}
             </div>
             <div class="pc-actions">
               ${proxyStr ? `<button class="pc-btn pc-btn-edit" onclick="testProxyIp('${p.key}', this)" aria-label="Test IP" title="Test IP qua proxy">${xekoIcon('globe')}<span class="pc-btn-label">Test IP</span></button>` : ''}
@@ -6195,9 +6196,10 @@
                 return `
                 <div class="profile-card">
                   <div style="width:40px; height:40px; background:${zavatarColor}; border-radius:99px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; font-weight:700; flex-shrink:0;">${zinitial}</div>
-                  <div class="info">
+                  <div class="info" style="min-width:0;">
                     <div class="name">${escapeHtml(z.name)}</div>
-                    <div class="detail">Key: ${escapeHtml(z.key)} · Salework: ${escapeHtml(z.saleworkName)}${zproxyHtml ? ' · ' + zproxyHtml : ''}</div>
+                    <div class="detail" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="Key: ${escapeHtml(z.key)} · Salework: ${escapeHtml(z.saleworkName)}">Key: ${escapeHtml(z.key)} · Salework: ${escapeHtml(z.saleworkName)}</div>
+                    ${zproxyStr ? `<div style="display:flex; align-items:center; gap:4px; margin-top:2px; font-size:11px; color:#1E3A8A; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${xekoIcon('globe')} ${escapeHtml(proxyDisplay(zproxyStr))}</div>` : ''}
                   </div>
                   <div class="pc-actions">
                     ${zproxyStr ? `<button class="pc-btn pc-btn-edit" onclick="testProxyIp('${z.key}', this)" aria-label="Test IP" title="Test IP qua proxy">${xekoIcon('globe')}<span class="pc-btn-label">Test IP</span></button>` : ''}
