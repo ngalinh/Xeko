@@ -2017,9 +2017,9 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
 }
 
 // =============================================================================
-// SCRAPE POST — lấy nội dung text + tất cả ảnh từ link bài viết FB
+// SCRAPE POST — lấy nội dung text + URL ảnh từ link bài viết FB
 // Dùng browser đã login của profile đang active để bypass auth / private group.
-// Ảnh được download về server (buffer từ response interception) → trả imagePaths.
+// Ảnh lấy URL trực tiếp từ DOM (không download file) → trả imageUrls.
 // =============================================================================
 
 async function scrapePost(postUrl) {
@@ -2030,33 +2030,6 @@ async function scrapePost(postUrl) {
 
   const browser = await getBrowser();
   const page = await browser.newPage();
-
-  // Capture ảnh thực tế từ fbcdn.net khi browser load — cách duy nhất
-  // đảm bảo lấy được ảnh private group mà không cần cookies riêng.
-  const capturedImages = [];
-  const seenUrls = new Set();
-
-  const responseHandler = async (res) => {
-    try {
-      const url = res.url();
-      if (seenUrls.has(url)) return;
-      // fbcdn.net + "scontent" = ảnh nội dung. static.xx = sticker/icon → loại.
-      if (!url.includes('fbcdn.net') || !url.includes('scontent')) return;
-      // /v/t1. = profile pic / avatar (type 1) → loại, chỉ giữ ảnh bài viết
-      // Ảnh bài viết dùng t39, t31, t45, t50... còn profile pic dùng t1.xxx
-      if (/\/v\/t1\./.test(url)) return;
-      const ct = res.headers()['content-type'] || '';
-      if (!ct.startsWith('image/')) return;
-      seenUrls.add(url);
-      const buffer = await res.body().catch(() => null);
-      // < 30KB → likely thumbnail/icon → bỏ qua
-      if (!buffer || buffer.length < 30000) return;
-      const ext = ct.includes('png') ? 'png' : 'jpg';
-      capturedImages.push({ url, buffer, ext });
-    } catch {}
-  };
-
-  page.on('response', responseHandler);
 
   try {
     await page.goto(postUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -2079,26 +2052,19 @@ async function scrapePost(postUrl) {
 
     // Lấy text từ bài viết chính (không lấy comment/reply)
     const text = await page.evaluate(() => {
-      // Thử selector đặc thù của FB trước
       const adMsg = document.querySelector('[data-ad-preview="message"]');
       if (adMsg) return (adMsg.innerText || '').trim();
 
-      // div[role="article"] đầu tiên = bài viết chính.
-      // Comment/reply nằm trong các article LỒNG bên trong → dùng nearest-article check
-      // để loại trừ: nếu dir[auto] gần với một article khác (không phải article gốc)
-      // thì đó là text của comment, bỏ qua.
       const articles = document.querySelectorAll('div[role="article"]');
       for (const article of articles) {
         const dirs = article.querySelectorAll('div[dir="auto"]');
         for (const dir of dirs) {
-          // Bỏ qua nếu element này nằm trong một article lồng khác (comment)
           if (dir.closest('div[role="article"]') !== article) continue;
           const t = (dir.innerText || '').trim();
           if (t.length > 5) return t;
         }
       }
 
-      // Fallback: lấy div[dir="auto"] đầu tiên có content
       for (const el of document.querySelectorAll('div[dir="auto"]')) {
         const t = (el.innerText || '').trim();
         if (t.length > 5) return t;
@@ -2114,29 +2080,34 @@ async function scrapePost(postUrl) {
     await page.evaluate(() => window.scrollTo(0, 0));
     await randomDelay(500, 800);
 
-    // Save buffer về temp/
-    const tempDir = path.resolve(__dirname, '../../temp');
-    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-
-    const imagePaths = [];
-    for (const img of capturedImages) {
-      const fname = `scrape_${Date.now()}_${Math.random().toString(36).slice(2)}.${img.ext}`;
-      const fpath = path.join(tempDir, fname);
-      try {
-        fs.writeFileSync(fpath, img.buffer);
-        imagePaths.push(fpath);
-      } catch (e) {
-        logger.warn(`${tag} lỗi lưu ảnh: ${e.message}`);
+    // Lấy URL ảnh trực tiếp từ DOM — chỉ trong article chính, bỏ qua comment
+    const imageUrls = await page.evaluate(() => {
+      const articles = document.querySelectorAll('div[role="article"]');
+      if (!articles.length) return [];
+      const mainArticle = articles[0];
+      const urls = [];
+      const seen = new Set();
+      for (const img of mainArticle.querySelectorAll('img')) {
+        // Bỏ ảnh nằm trong comment (article lồng)
+        if (img.closest('div[role="article"]') !== mainArticle) continue;
+        const src = img.src || img.currentSrc || '';
+        if (!src || !src.includes('fbcdn.net') || !src.includes('scontent')) continue;
+        if (/\/v\/t1\./.test(src)) continue; // profile pic
+        if (img.naturalWidth < 100 || img.naturalHeight < 100) continue; // icon/thumbnail
+        if (!seen.has(src)) {
+          seen.add(src);
+          urls.push(src);
+        }
       }
-    }
+      return urls;
+    }).catch(() => []);
 
-    logger.info(`${tag} xong (+${Date.now() - t0}ms) — text=${text.length} ký tự, ảnh=${imagePaths.length}`);
-    return { success: true, text, imagePaths };
+    logger.info(`${tag} xong (+${Date.now() - t0}ms) — text=${text.length} ký tự, ảnh=${imageUrls.length}`);
+    return { success: true, text, imageUrls };
   } catch (e) {
     logger.error(`${tag} FAIL: ${e.message}`);
-    return { success: false, error: e.message, text: '', imagePaths: [] };
+    return { success: false, error: e.message, text: '', imageUrls: [] };
   } finally {
-    page.off('response', responseHandler);
     await page.close().catch(() => {});
   }
 }
