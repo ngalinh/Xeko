@@ -762,6 +762,44 @@ app.put('/api/channels/profile-channels', (req, res) => {
   res.json({ success: true });
 });
 
+// ===== SCRAPE: Lấy nội dung + ảnh từ link FB post =====
+app.post('/api/fb-scrape', async (req, res) => {
+  const { url, profile } = req.body;
+  if (!url) return res.status(400).json({ error: 'Thiếu url bài viết' });
+
+  if (profile) {
+    try { playwright.setProfile(profile); } catch (e) {
+      return res.status(400).json({ error: e.message });
+    }
+  }
+
+  try { playwright.getActiveProfile(); } catch {
+    return res.status(400).json({ error: 'Chưa chọn profile!' });
+  }
+
+  const jobId = createJob();
+  res.json({ jobId, status: 'pending' });
+
+  (async () => {
+    try {
+      const result = await playwright.scrapePost(url);
+      // Ảnh được lưu local — encode base64 để cloud server tái tạo
+      const images = [];
+      for (const p of (result.imagePaths || [])) {
+        try {
+          const buf = fs.readFileSync(p);
+          images.push({ base64: buf.toString('base64'), ext: path.extname(p).slice(1) || 'jpg' });
+        } catch {}
+      }
+      cleanupFiles(result.imagePaths || []);
+      setJobResult(jobId, { success: result.success, text: result.text || '', images, error: result.error });
+    } catch (e) {
+      logger.error(`[fb-scrape] job ${jobId} FAILED: ${e.message}`);
+      setJobError(jobId, e.message);
+    }
+  })();
+});
+
 // ===== SCREENSHOT =====
 app.get('/api/screenshot', (req, res) => {
   const screenshotPath = path.resolve(__dirname, 'logs/latest-post.png');
