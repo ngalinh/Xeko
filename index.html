@@ -3026,7 +3026,7 @@
 
         <!-- Sub: IP Proxy -->
         <div id="accPanelProxies" style="display:none;">
-        <div style="background:#fff; border:1px solid #eee; border-radius:12px; padding:18px;">
+        <div style="background:rgba(255,255,255,0.55); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,0.55); border-radius:12px; padding:18px;">
           <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
             <h3 style="font-size:15px; color:#1e1e2e; margin:0; flex:1; display:flex; align-items:center; gap:8px;">
               <svg class="xi xi-md" style="color:#1E3A8A;"><use href="#ic-globe"/></svg> Danh sách IP Proxy
@@ -6318,7 +6318,7 @@
           ? `<div style="font-size:11px; color:#94a3b8; margin-bottom:2px;">Mua: ${formatPurchaseDate(p.purchaseDate)}</div><div>${formatExpirationDate(p.expirationDate)}</div>`
           : formatExpirationDate(p.expirationDate);
         return `
-        <tr style="background:#fafafe;">
+        <tr style="background:rgba(255,255,255,0.5); border-radius:8px;">
           <td style="padding:10px 12px; vertical-align:middle;">
             ${label ? `<div style="font-weight:600; color:#1e1e2e; font-size:13px;">${label}</div>` : ''}
             <div style="font-family:ui-monospace,Menlo,monospace; font-size:12px; color:#555;">${hostPort}</div>
