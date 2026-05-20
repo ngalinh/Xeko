@@ -194,6 +194,14 @@ async function closeBrowser() {
   return Promise.resolve();
 }
 
+// scrapePost — local server tạo job, proxy poll cho đến khi xong
+async function scrapePost(postUrl) {
+  if (!_activeProfile) throw new Error('Chưa chọn profile!');
+  const res = await callLocal('POST', '/api/fb-scrape', { url: postUrl, profile: _activeProfile });
+  if (res.jobId) return pollLocalJob(res.jobId);
+  return res;
+}
+
 module.exports = {
   setProfile,
   profileExists,
@@ -202,6 +210,7 @@ module.exports = {
   postToGroup,
   postPersonalAndShareToGroups,
   quickPostToPersonalAndGroups,
+  scrapePost,
   postToZaloGroup,
   closeBrowser,
 };
