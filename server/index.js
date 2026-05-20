@@ -494,27 +494,10 @@ app.get('/api/job/:id', (req, res) => {
 // ===== SCRAPE: Lấy nội dung + ảnh từ link bài viết FB — ASYNC JOB =====
 // POST body: { url, profile? }
 // Trả {jobId} ngay; poll /api/job/:id để lấy { text, imageUrls }
+// Tunnel mode: playwright module là playwright-proxy.js → scrapePost() tự gọi local + poll
 app.post('/api/fb-scrape', async (req, res) => {
   const { url, profile } = req.body;
   if (!url) return res.status(400).json({ error: 'Thiếu url bài viết' });
-
-  // Tunnel mode: forward về local server (Playwright chạy ở local)
-  if (getLocalUrl()) {
-    try {
-      const LOCAL_URL = getLocalUrl();
-      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
-      const fetchFn = await getFetch();
-      const response = await fetchFn(`${LOCAL_URL}/api/fb-scrape`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
-        body: JSON.stringify({ url, profile }),
-      });
-      const data = await safeJsonResponse(response);
-      return res.status(response.status).json(data);
-    } catch (e) {
-      return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
-    }
-  }
 
   if (profile) {
     if (!playwright.profileExists(profile)) {
