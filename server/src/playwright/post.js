@@ -2048,19 +2048,26 @@ async function scrapePost(postUrl) {
         }
       }
     }).catch(() => {});
-    await randomDelay(500, 800);
+    await randomDelay(1500, 2000); // đợi animation expand xong
 
     // Lấy text từ bài viết chính (không lấy comment/reply)
     const text = await page.evaluate(() => {
       const adMsg = document.querySelector('[data-ad-preview="message"]');
       if (adMsg) return (adMsg.innerText || '').trim();
 
+      const SEE_MORE = new Set(['Xem thêm', 'See more', 'See More']);
+
       const articles = document.querySelectorAll('div[role="article"]');
       for (const article of articles) {
         const dirs = article.querySelectorAll('div[dir="auto"]');
         for (const dir of dirs) {
           if (dir.closest('div[role="article"]') !== article) continue;
-          const t = (dir.innerText || '').trim();
+          // Clone để loại bỏ nút "Xem thêm" khỏi innerText
+          const clone = dir.cloneNode(true);
+          for (const btn of clone.querySelectorAll('[role="button"]')) {
+            if (SEE_MORE.has((btn.textContent || '').trim())) btn.remove();
+          }
+          const t = (clone.innerText || '').trim();
           if (t.length > 5) return t;
         }
       }
@@ -2093,7 +2100,8 @@ async function scrapePost(postUrl) {
         const src = img.src || img.currentSrc || '';
         if (!src || !src.includes('fbcdn.net') || !src.includes('scontent')) continue;
         if (/\/v\/t1\./.test(src)) continue; // profile pic
-        if (img.naturalWidth < 100 || img.naturalHeight < 100) continue; // icon/thumbnail
+        // Dùng offsetWidth/Height (rendered size) thay naturalWidth vì ảnh lazy-load chưa decode
+        if (img.offsetWidth < 80 || img.offsetHeight < 80) continue;
         if (!seen.has(src)) {
           seen.add(src);
           urls.push(src);
