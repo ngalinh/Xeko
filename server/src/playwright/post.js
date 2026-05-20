@@ -2063,11 +2063,14 @@ async function scrapePost(postUrl) {
     // Đợi ít nhất 1 article xuất hiện
     await page.waitForSelector('div[role="article"]', { timeout: 10000 }).catch(() => {});
 
-    // Tìm index của article đúng (top-level, chứa link có post ID)
-    const articleIndex = await page.evaluate((ids) => {
+    // Tìm article đúng và đánh dấu bằng data-scrape-target để dùng lại sau scroll
+    // (DOM thay đổi khi scroll → index trở nên không ổn định)
+    const found = await page.evaluate((ids) => {
       const all = Array.from(document.querySelectorAll('div[role="article"]'));
       const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
-      if (!topLevel.length) return 0;
+      if (!topLevel.length) return false;
+
+      let target = null;
 
       // Chiến lược 1: FB pagelet đặc thù cho permalink post
       const pagelet = document.querySelector(
@@ -2075,66 +2078,66 @@ async function scrapePost(postUrl) {
       );
       if (pagelet) {
         const art = pagelet.querySelector('div[role="article"]');
-        if (art) {
-          const idx = topLevel.indexOf(art);
-          if (idx >= 0) return idx;
-        }
+        if (art && topLevel.includes(art)) target = art;
       }
 
-      // Chiến lược 2: tìm article chứa link khớp BẤT KỲ post ID nào
-      for (let i = 0; i < topLevel.length; i++) {
-        for (const link of topLevel[i].querySelectorAll('a[href]')) {
-          if (!link.href) continue;
-          for (const id of ids) {
-            if (link.href.includes(id)) return i;
+      // Chiến lược 2: article chứa link khớp BẤT KỲ post ID nào
+      if (!target && ids.length) {
+        outer: for (const art of topLevel) {
+          for (const link of art.querySelectorAll('a[href]')) {
+            if (!link.href) continue;
+            for (const id of ids) {
+              if (link.href.includes(id)) { target = art; break outer; }
+            }
           }
         }
       }
 
-      // Chiến lược 3: article đầu tiên nằm trong [role="main"]
-      const main = document.querySelector('[role="main"]');
-      if (main) {
-        for (let i = 0; i < topLevel.length; i++) {
-          if (main.contains(topLevel[i])) return i;
-        }
+      // Chiến lược 3: article đầu tiên trong [role="main"]
+      if (!target) {
+        const main = document.querySelector('[role="main"]');
+        if (main) target = topLevel.find(a => main.contains(a)) || null;
       }
 
-      // Chiến lược 4: article gần đầu trang nhất (nhỏ hơn 1 viewport từ trên)
-      let best = { idx: 0, top: Infinity };
-      for (let i = 0; i < topLevel.length; i++) {
-        const top = topLevel[i].getBoundingClientRect().top;
-        if (top >= 0 && top < best.top) best = { idx: i, top };
+      // Chiến lược 4: article gần đầu viewport nhất
+      if (!target) {
+        let best = { art: topLevel[0], top: Infinity };
+        for (const art of topLevel) {
+          const top = art.getBoundingClientRect().top;
+          if (top >= 0 && top < best.top) best = { art, top };
+        }
+        target = best.art;
       }
-      return best.idx;
-    }, [...allIds]).catch(() => 0);
-    logger.info(`${tag} articleIndex=${articleIndex}`);
+
+      if (target) {
+        target.dataset.scrapeTarget = '1';
+        return true;
+      }
+      return false;
+    }, [...allIds]).catch(() => false);
+    logger.info(`${tag} target article found=${found}`);
 
     // Click "Xem thêm" / "See more" CHỈ trong article mục tiêu
-    await page.evaluate((idx) => {
-      const all = Array.from(document.querySelectorAll('div[role="article"]'));
-      const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
-      const article = topLevel[idx] || topLevel[0];
+    await page.evaluate(() => {
+      const article = document.querySelector('div[role="article"][data-scrape-target="1"]');
       if (!article) return;
       const LABELS = ['Xem thêm', 'See more', 'See More'];
       for (const el of article.querySelectorAll('div[role="button"], span[role="button"]')) {
         if (LABELS.includes((el.textContent || '').trim())) { el.click(); return; }
       }
-    }, articleIndex).catch(() => {});
+    }).catch(() => {});
     await randomDelay(1500, 2000);
 
     // Lấy text từ article mục tiêu
-    const text = await page.evaluate((idx) => {
+    const text = await page.evaluate(() => {
       const SEE_MORE = new Set(['Xem thêm', 'See more', 'See More']);
-      const all = Array.from(document.querySelectorAll('div[role="article"]'));
-      const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
-      const article = topLevel[idx] || topLevel[0];
+      const article = document.querySelector('div[role="article"][data-scrape-target="1"]');
       if (!article) return '';
 
       const adMsg = article.querySelector('[data-ad-preview="message"]');
       if (adMsg) return (adMsg.innerText || '').trim();
 
       for (const dir of article.querySelectorAll('div[dir="auto"]')) {
-        // Bỏ qua nếu nằm trong article lồng (comment)
         if (dir.closest('div[role="article"]') !== article) continue;
         const clone = dir.cloneNode(true);
         for (const btn of clone.querySelectorAll('[role="button"]')) {
@@ -2144,36 +2147,32 @@ async function scrapePost(postUrl) {
         if (t.length > 5) return t;
       }
       return '';
-    }, articleIndex).catch(() => '');
+    }).catch(() => '');
 
-    // Scroll để trigger lazy-load ảnh, đọc src sau mỗi lần scroll
-    // (không scroll về top trước khi đọc — tránh mất lazy-load src)
+    // Scroll để trigger lazy-load ảnh
     for (let i = 0; i < 3; i++) {
       await page.evaluate(() => window.scrollBy(0, 800));
       await randomDelay(800, 1200);
     }
     await randomDelay(300, 500);
 
-    // Lấy URL ảnh từ article mục tiêu, bỏ qua comment và profile pic
-    // Đọc ngay sau scroll (ảnh đã lazy-load), trước khi scroll về top
-    const imageUrls = await page.evaluate((idx) => {
-      const all = Array.from(document.querySelectorAll('div[role="article"]'));
-      const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
-      const article = topLevel[idx] || topLevel[0];
+    // Lấy URL ảnh từ article mục tiêu — dùng data-scrape-target (ổn định sau scroll)
+    // Kiểm tra cả src, currentSrc, data-src cho lazy-load
+    const imageUrls = await page.evaluate(() => {
+      const article = document.querySelector('div[role="article"][data-scrape-target="1"]');
       if (!article) return [];
       const urls = [];
       const seen = new Set();
       for (const img of article.querySelectorAll('img')) {
-        if (img.closest('div[role="article"]') !== article) continue; // skip comment images
-        const src = img.src || img.currentSrc || '';
-        // Chỉ lấy ảnh từ FB CDN — bỏ static.xx (icon/emoji) và t1 (profile pic)
+        if (img.closest('div[role="article"]') !== article) continue;
+        const src = img.src || img.currentSrc || img.dataset.src || img.getAttribute('data-src') || '';
         if (!src || !src.includes('fbcdn.net')) continue;
         if (src.includes('static.xx.fbcdn.net')) continue;
         if (/\/v\/t1\./.test(src)) continue;
         if (!seen.has(src)) { seen.add(src); urls.push(src); }
       }
       return urls;
-    }, articleIndex).catch(() => []);
+    }).catch(() => []);
 
     logger.info(`${tag} xong (+${Date.now() - t0}ms) — text=${text.length} ký tự, ảnh=${imageUrls.length}`);
     return { success: true, text, imageUrls };
