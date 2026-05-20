@@ -6795,6 +6795,13 @@
     let zaloAccountsCache = [];
     let pickerProfileKey = null;
     let pickerTab = 'all';
+    const expandedProfiles = new Set();
+
+    function toggleProfileExpand(key) {
+      if (expandedProfiles.has(key)) expandedProfiles.delete(key);
+      else expandedProfiles.add(key);
+      renderProfileGrid();
+    }
 
     async function renderProfileChannels() {
       const grid = document.getElementById('profileChannelGrid');
@@ -6860,9 +6867,16 @@
             style="width:14px;height:14px;border-radius:99px;border:none;background:rgba(3,105,161,0.15);color:#0369a1;cursor:pointer;font-size:11px;display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1;flex-shrink:0;">×</button>
         </span>`).join('');
 
+      const isExpanded = expandedProfiles.has(p.key);
       const borderStyle = isEmpty
         ? 'border:1.5px dashed #FCD34D; background:#FFFBEB;'
         : 'border:1px solid #e2e8f0; background:#fff;';
+
+      const fbCount = assignedFbKeys.length;
+      const zaloCount = assignedZaloKeys.length;
+      const summaryBadges = [];
+      if (fbCount > 0) summaryBadges.push(`<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; background:#EFF6FF; color:#1877f2; border:1px solid #BFDBFE; border-radius:99px; font-size:11px; font-weight:600;"><img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:11px;height:11px;">${fbCount} group</span>`);
+      if (zaloCount > 0) summaryBadges.push(`<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; background:#e0f2fe; color:#0369a1; border:1px solid #BAE6FD; border-radius:99px; font-size:11px; font-weight:600;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-zalo"/></svg>${zaloCount} group</span>`);
 
       return `
         <div style="${borderStyle} border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:10px;">
@@ -6882,17 +6896,27 @@
               style="padding:5px 10px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap; flex-shrink:0;">+ Thêm</button>
           </div>
           ${isEmpty ? `
-          <div style="padding:6px 0 2px; font-size:12px; color:#d97706; font-style:italic;">Bấm "+ Thêm" để gán group</div>` : `
-          <div style="display:flex; flex-direction:column; gap:6px;">
-            ${fbChips ? `
-            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:5px;">
-              <span style="display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; color:#1877f2; text-transform:uppercase; letter-spacing:0.4px; flex-shrink:0; margin-right:2px;"><img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:11px;height:11px;">FB</span>
-              ${fbChips}
-            </div>` : ''}
-            ${zaloChips ? `
-            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:5px;">
-              <span style="display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; color:#0369a1; text-transform:uppercase; letter-spacing:0.4px; flex-shrink:0; margin-right:2px;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-zalo"/></svg>Zalo</span>
-              ${zaloChips}
+          <div style="font-size:12px; color:#d97706; font-style:italic;">Bấm "+ Thêm" để gán group</div>` : `
+          <div>
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              ${summaryBadges.join('')}
+              <button onclick="toggleProfileExpand('${escapeHtml(p.key)}')"
+                style="margin-left:auto; padding:2px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; font-size:11px; color:#64748b; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                ${isExpanded ? '▲ Thu gọn' : '▼ Chi tiết'}
+              </button>
+            </div>
+            ${isExpanded ? `
+            <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px; padding-top:8px; border-top:1px solid #f1f5f9;">
+              ${fbChips ? `
+              <div style="display:flex; flex-wrap:wrap; align-items:center; gap:5px;">
+                <span style="display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; color:#1877f2; flex-shrink:0; min-width:28px;"><img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:11px;height:11px;">FB</span>
+                ${fbChips}
+              </div>` : ''}
+              ${zaloChips ? `
+              <div style="display:flex; flex-wrap:wrap; align-items:center; gap:5px;">
+                <span style="display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; color:#0369a1; flex-shrink:0; min-width:28px;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-zalo"/></svg>Zalo</span>
+                ${zaloChips}
+              </div>` : ''}
             </div>` : ''}
           </div>`}
         </div>`;
