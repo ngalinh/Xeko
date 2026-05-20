@@ -2818,8 +2818,7 @@
         <span class="icon"><svg class="xi"><use href="#ic-key"/></svg></span> Phân quyền
       </button>
       <button class="sidebar-item" onclick="switchPage('spy')" id="navSpy">
-        <span class="icon"><svg class="xi"><use href="#ic-search"/></svg></span> Spy bài viết
-        <span class="badge">Soon</span>
+        <span class="icon"><svg class="xi"><use href="#ic-search"/></svg></span> Lấy nội dung
       </button>
       <button class="sidebar-item" onclick="switchPage('fbquicktest')" id="navFbQuickTest">
         <span class="icon" style="background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;">🧪</span> Test FB
@@ -3118,17 +3117,73 @@
       <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
       <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#1E3A8A;"><svg class="xi xi-md"><use href="#ic-search"/></svg></div>
       <div class="header-info">
-        <h1>Spy bài viết</h1>
-        <span>Tính năng đang phát triển</span>
+        <h1>Lấy nội dung bài viết</h1>
+        <span>Dán link FB → lấy text + tất cả ảnh</span>
       </div>
     </div>
-    <div style="flex:1; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px; color:#999;">
-      <div style="font-size:64px;">🔍</div>
-      <h2 style="color:#1E3A8A;">Spy bài viết</h2>
-      <p style="max-width:400px; text-align:center; line-height:1.6;">
-        Tính năng theo dõi và phân tích bài viết từ các đối thủ, group, fanpage.<br>
-        Sắp ra mắt trong phiên bản tiếp theo!
-      </p>
+
+    <div style="padding:20px; max-width:700px; margin:0 auto; width:100%; box-sizing:border-box;">
+
+      <!-- URL input card -->
+      <div style="background:#fff; border-radius:12px; padding:20px; box-shadow:0 1px 6px rgba(0,0,0,.08); margin-bottom:16px;">
+        <label style="font-weight:600; font-size:14px; color:#1E3A8A; display:block; margin-bottom:10px;">Link bài viết Facebook</label>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <input id="spyUrlInput" type="url"
+                 placeholder="https://www.facebook.com/groups/.../permalink/..."
+                 style="flex:1; min-width:0; padding:10px 14px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:14px; outline:none; transition:border-color .15s;"
+                 onfocus="this.style.borderColor='#3B82F6'" onblur="this.style.borderColor='#e0e0e0'"
+                 onkeydown="if(event.key==='Enter') runScrape()">
+          <button id="spyBtn" onclick="runScrape()"
+                  style="padding:10px 20px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-weight:600; font-size:14px; cursor:pointer; white-space:nowrap; transition:background .15s;"
+                  onmouseover="this.style.background='#1D4ED8'" onmouseout="this.style.background='#3B82F6'">
+            Lấy nội dung
+          </button>
+        </div>
+        <div id="spyProfileHint" style="margin-top:8px; font-size:12px; color:#888;"></div>
+      </div>
+
+      <!-- Loading -->
+      <div id="spyStatus" style="display:none; text-align:center; padding:28px 20px; background:#fff; border-radius:12px; box-shadow:0 1px 6px rgba(0,0,0,.08); margin-bottom:16px;">
+        <div style="font-size:32px; display:inline-block; animation:spin 1.2s linear infinite;">⏳</div>
+        <div id="spyStatusText" style="margin-top:10px; color:#3B82F6; font-size:14px; font-weight:500;">Đang mở bài viết...</div>
+        <div style="margin-top:6px; color:#999; font-size:12px;">Có thể mất 30–60 giây</div>
+      </div>
+
+      <!-- Error -->
+      <div id="spyError" style="display:none; background:#FEF2F2; border:1px solid #FECACA; border-radius:12px; padding:16px; color:#DC2626; font-size:14px; margin-bottom:16px;"></div>
+
+      <!-- Results -->
+      <div id="spyResult" style="display:none;">
+
+        <!-- Text content -->
+        <div style="background:#fff; border-radius:12px; padding:20px; box-shadow:0 1px 6px rgba(0,0,0,.08); margin-bottom:16px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+            <div style="font-weight:600; font-size:14px; color:#1E3A8A;">Nội dung bài viết</div>
+            <div style="display:flex; gap:8px;">
+              <button id="spyCopyBtn" onclick="copySpyText()"
+                      style="padding:6px 14px; background:#EFF6FF; color:#3B82F6; border:none; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">
+                Sao chép
+              </button>
+              <button onclick="fillPostForm()"
+                      style="padding:6px 14px; background:#D1FAE5; color:#065F46; border:none; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">
+                Dùng để đăng bài
+              </button>
+            </div>
+          </div>
+          <textarea id="spyTextResult" readonly rows="6"
+                    style="width:100%; border:1.5px solid #e0e0e0; border-radius:8px; padding:10px 12px; font-size:13px; line-height:1.7; resize:vertical; box-sizing:border-box; color:#333; background:#fafafa; font-family:inherit;"></textarea>
+        </div>
+
+        <!-- Images -->
+        <div id="spyImagesSection" style="display:none; background:#fff; border-radius:12px; padding:20px; box-shadow:0 1px 6px rgba(0,0,0,.08);">
+          <div style="font-weight:600; font-size:14px; color:#1E3A8A; margin-bottom:14px;">
+            Ảnh trong bài — <span id="spyImageCount">0</span> ảnh
+          </div>
+          <div id="spyImagesGrid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px;"></div>
+          <div style="margin-top:14px; font-size:12px; color:#999;">Nhấn vào ảnh để xem to · Nhấn "Tải" để lưu về máy</div>
+        </div>
+
+      </div>
     </div>
   </div><!-- end pageSpyBaiViet -->
 
@@ -5489,6 +5544,9 @@
       if (pg === 'fbquicktest') {
         loadFbQuickTestProfiles();
       }
+      if (pg === 'spy') {
+        updateSpyProfileHint();
+      }
 
       // Sync mobile bottom nav
       document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
@@ -5501,6 +5559,101 @@
 
     function switchDashTab() {
       loadDashboard();
+    }
+
+    // === Spy / Lấy nội dung bài viết ===
+
+    function updateSpyProfileHint() {
+      const hint = document.getElementById('spyProfileHint');
+      if (!hint) return;
+      if (currentProfile) {
+        hint.innerHTML = `Dùng profile: <strong>${escapeHtml(currentProfileName || currentProfile)}</strong>`;
+      } else {
+        hint.innerHTML = '<span style="color:#EF4444;">Chọn profile trong tab Đăng bài trước nha!</span>';
+      }
+    }
+
+    async function runScrape() {
+      const url = (document.getElementById('spyUrlInput').value || '').trim();
+      if (!url) { alert('Nhập link bài viết vào nha!'); return; }
+      if (!currentProfile) { alert('Chọn profile FB trước nha! (vào tab Đăng bài → chọn tài khoản)'); return; }
+
+      const btn = document.getElementById('spyBtn');
+      btn.disabled = true;
+      document.getElementById('spyStatus').style.display = '';
+      document.getElementById('spyResult').style.display = 'none';
+      document.getElementById('spyError').style.display = 'none';
+      document.getElementById('spyStatusText').textContent = 'Đang mở bài viết...';
+
+      try {
+        const res = await fetch(BASE_URL + '/api/fb-scrape', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, profile: currentProfile }),
+        });
+        const initial = await parseJson(res);
+        if (!res.ok) throw new Error(initial.error || 'Lỗi server');
+        if (!initial.jobId) throw new Error(initial.error || 'Không nhận được jobId');
+
+        document.getElementById('spyStatusText').textContent = 'Đang tải ảnh và nội dung (30–60 giây)...';
+        const data = await pollJob(initial.jobId, 3 * 60 * 1000);
+
+        document.getElementById('spyStatus').style.display = 'none';
+        document.getElementById('spyResult').style.display = '';
+
+        document.getElementById('spyTextResult').value = data.text || '(Không tìm thấy nội dung văn bản)';
+
+        const imgs = Array.isArray(data.imageUrls) ? data.imageUrls : [];
+        document.getElementById('spyImageCount').textContent = imgs.length;
+        if (imgs.length > 0) {
+          document.getElementById('spyImagesSection').style.display = '';
+          document.getElementById('spyImagesGrid').innerHTML = imgs.map((imgUrl, i) => `
+            <div style="position:relative; aspect-ratio:1; border-radius:8px; overflow:hidden; background:#f0f0f0; border:1px solid #e8e8e8;">
+              <a href="${escapeHtml(imgUrl)}" target="_blank" style="display:block; width:100%; height:100%;">
+                <img src="${escapeHtml(imgUrl)}" alt="Ảnh ${i + 1}" loading="lazy"
+                     style="width:100%; height:100%; object-fit:cover; display:block;">
+              </a>
+              <a href="${escapeHtml(imgUrl)}" download="anh-${i + 1}.jpg" target="_blank"
+                 style="position:absolute; bottom:5px; right:5px; background:rgba(0,0,0,.6); color:#fff; border-radius:5px; padding:2px 8px; font-size:11px; font-weight:600; text-decoration:none;">
+                Tải
+              </a>
+            </div>
+          `).join('');
+        } else {
+          document.getElementById('spyImagesSection').style.display = 'none';
+        }
+      } catch (e) {
+        document.getElementById('spyStatus').style.display = 'none';
+        document.getElementById('spyError').style.display = '';
+        document.getElementById('spyError').textContent = 'Lỗi: ' + e.message;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function copySpyText() {
+      const text = document.getElementById('spyTextResult').value;
+      const btn = document.getElementById('spyCopyBtn');
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = 'Đã sao chép!';
+        setTimeout(() => { btn.textContent = 'Sao chép'; }, 2000);
+      } catch {
+        document.getElementById('spyTextResult').select();
+        document.execCommand('copy');
+        btn.textContent = 'Đã sao chép!';
+        setTimeout(() => { btn.textContent = 'Sao chép'; }, 2000);
+      }
+    }
+
+    function fillPostForm() {
+      const text = document.getElementById('spyTextResult').value;
+      const msgInput = document.getElementById('msgInput');
+      if (msgInput && text) {
+        msgInput.value = text;
+        msgInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      switchPage('post');
     }
 
     // === FB Quick Test (dev) ===
@@ -8752,7 +8905,7 @@
     <button class="mobile-nav-item" id="mobileNavSession" onclick="switchPage('session')">
       <span class="mn-icon">👥</span>Tài khoản
     </button>
-    <button class="mobile-nav-item" id="mobileNavSpy" onclick="switchPage('spy')" disabled>
+    <button class="mobile-nav-item" id="mobileNavSpy" onclick="switchPage('spy')">
       <span class="mn-icon">🔍</span>Spy
     </button>
   </nav>
