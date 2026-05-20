@@ -783,16 +783,7 @@ app.post('/api/fb-scrape', async (req, res) => {
   (async () => {
     try {
       const result = await playwright.scrapePost(url);
-      // Ảnh được lưu local — encode base64 để cloud server tái tạo
-      const images = [];
-      for (const p of (result.imagePaths || [])) {
-        try {
-          const buf = fs.readFileSync(p);
-          images.push({ base64: buf.toString('base64'), ext: path.extname(p).slice(1) || 'jpg' });
-        } catch {}
-      }
-      cleanupFiles(result.imagePaths || []);
-      setJobResult(jobId, { success: result.success, text: result.text || '', images, error: result.error });
+      setJobResult(jobId, { success: result.success, text: result.text || '', imageUrls: result.imageUrls || [], error: result.error });
     } catch (e) {
       logger.error(`[fb-scrape] job ${jobId} FAILED: ${e.message}`);
       setJobError(jobId, e.message);

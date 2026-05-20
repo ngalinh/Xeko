@@ -517,15 +517,10 @@ app.post('/api/fb-scrape', async (req, res) => {
     try {
       if (profile) await playwright.setProfile(profile);
       const result = await playwright.scrapePost(url);
-      let imageUrls = [];
-      if (result.imagePaths && result.imagePaths.length > 0) {
-        imageUrls = await persistImages(result.imagePaths);
-        cleanupFiles(result.imagePaths);
-      }
       setJobResult(jobId, {
         success: result.success,
         text: result.text || '',
-        imageUrls,
+        imageUrls: result.imageUrls || [],
         error: result.error,
       });
     } catch (e) {

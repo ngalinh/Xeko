@@ -194,30 +194,14 @@ async function closeBrowser() {
   return Promise.resolve();
 }
 
-// scrapePost — local server tạo job, proxy poll rồi decode base64 ảnh về cloud temp
+// scrapePost — local server tạo job, proxy poll rồi trả imageUrls trực tiếp
 async function scrapePost(postUrl) {
   if (!_activeProfile) throw new Error('Chưa chọn profile!');
   const res = await callLocal('POST', '/api/fb-scrape', { url: postUrl, profile: _activeProfile });
   if (!res.jobId) return res;
 
   const result = await pollLocalJob(res.jobId);
-
-  // Ảnh từ local được gửi dạng base64 → lưu vào cloud temp/ để cloud handler gọi persistImages
-  const imagePaths = [];
-  if (Array.isArray(result.images)) {
-    const tmpDir = path.resolve(__dirname, '../temp');
-    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
-    for (const img of result.images) {
-      try {
-        const buf = Buffer.from(img.base64, 'base64');
-        const fname = `scrape_${Date.now()}_${Math.random().toString(36).slice(2)}.${img.ext || 'jpg'}`;
-        const fpath = path.join(tmpDir, fname);
-        fs.writeFileSync(fpath, buf);
-        imagePaths.push(fpath);
-      } catch {}
-    }
-  }
-  return { success: result.success, text: result.text || '', imagePaths, error: result.error };
+  return { success: result.success, text: result.text || '', imageUrls: result.imageUrls || [], error: result.error };
 }
 
 module.exports = {
