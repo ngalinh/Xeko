@@ -2047,14 +2047,38 @@ async function scrapePost(postUrl) {
     // Tìm index của article đúng (top-level, chứa link có post ID)
     const articleIndex = await page.evaluate((pid) => {
       const all = Array.from(document.querySelectorAll('div[role="article"]'));
-      // Chỉ giữ top-level article (không nằm trong article khác)
       const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
-      if (!pid || !topLevel.length) return 0;
-      for (let i = 0; i < topLevel.length; i++) {
-        for (const link of topLevel[i].querySelectorAll('a[href]')) {
-          if (link.href && link.href.includes(pid)) return i;
+      if (!topLevel.length) return 0;
+
+      // Chiến lược 1: FB pagelet đặc thù cho permalink post
+      const pagelet = document.querySelector(
+        '[data-pagelet="PermalinkPost"], [data-pagelet*="permalink"], [data-pagelet="FeedUnit_0"]'
+      );
+      if (pagelet) {
+        const art = pagelet.querySelector('div[role="article"]');
+        if (art) {
+          const idx = topLevel.indexOf(art);
+          if (idx >= 0) return idx;
         }
       }
+
+      // Chiến lược 2: tìm article chứa link có post ID
+      if (pid) {
+        for (let i = 0; i < topLevel.length; i++) {
+          for (const link of topLevel[i].querySelectorAll('a[href]')) {
+            if (link.href && link.href.includes(pid)) return i;
+          }
+        }
+      }
+
+      // Chiến lược 3: article đầu tiên nằm trong [role="main"]
+      const main = document.querySelector('[role="main"]');
+      if (main) {
+        for (let i = 0; i < topLevel.length; i++) {
+          if (main.contains(topLevel[i])) return i;
+        }
+      }
+
       return 0;
     }, postId).catch(() => 0);
     logger.info(`${tag} articleIndex=${articleIndex}`);
