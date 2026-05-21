@@ -1058,6 +1058,52 @@ async function postToGroup(groupId, message, imagePaths = []) {
   }
 }
 
+async function postToPage(pageId, message, imagePaths = []) {
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+
+  try {
+    const profile = getActiveProfile();
+    logger.info(`Đăng bài lên page ${pageId} (${profile.name})...`);
+    await page.goto(`https://www.facebook.com/${pageId}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await randomDelay(3000, 5000);
+    await ensureLoggedIn(page);
+
+    if (!(await openCreatePost(page, false))) {
+      await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-page-open.png') });
+      throw new Error(`Không mở được popup tạo bài cho page ${pageId}. Chắc chắn đã switch sang page trong session chưa?`);
+    }
+    await randomDelay(2000, 3000);
+
+    if (imagePaths.length > 0) {
+      const imgOk = await attachImages(page, imagePaths);
+      if (!imgOk) throw new Error(funMsg.errUpload() + ' (xem logs/debug-upload.png)');
+    }
+    await randomDelay(1500, 2500);
+
+    if (message) {
+      if (!(await typeMessage(page, message))) throw new Error(funMsg.errTypeContent());
+    }
+    await randomDelay(1000, 2000);
+
+    const result = await submitPost(page);
+    if (!result.success) {
+      const hint = (!message && imagePaths.length > 0)
+        ? 'FB không cho đăng bài chỉ có ảnh không text. Bạn thêm caption (vài dòng nội dung) rồi đăng lại nha!'
+        : funMsg.errPost();
+      throw new Error(`${hint} (xem logs/debug-failed.png)`);
+    }
+
+    logger.info(`Đã đăng bài page ${pageId} thành công!${result.postUrl ? ` postUrl=${result.postUrl}` : ''}`);
+    return { success: true, target: `page:${pageId}`, postUrl: result.postUrl || null };
+  } catch (error) {
+    logger.error(`Lỗi postToPage(${pageId}): ${error.message}`);
+    return { success: false, error: error.message };
+  } finally {
+    await page.close();
+  }
+}
+
 async function closeBrowser() {
   for (const key of Object.keys(browsers)) {
     if (browsers[key]) {
@@ -2212,4 +2258,4 @@ async function scrapePost(postUrl) {
   }
 }
 
-module.exports = { setProfile, profileExists, getActiveProfile, postToPersonal, postToGroup, postPersonalAndShareToGroups, quickPostToPersonalAndGroups, scrapePost, closeBrowser };
+module.exports = { setProfile, profileExists, getActiveProfile, postToPersonal, postToGroup, postToPage, postPersonalAndShareToGroups, quickPostToPersonalAndGroups, scrapePost, closeBrowser };

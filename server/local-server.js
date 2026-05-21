@@ -227,6 +227,13 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
         return;
       }
 
+      if (target === 'page') {
+        if (!groupId) { setJobError(jobId, 'Thiếu pageId'); return; }
+        const result = await playwright.postToPage(groupId, message, imagePaths);
+        setJobResult(jobId, { success: result.success, error: result.error, postUrl: result.postUrl });
+        return;
+      }
+
       if (target === 'personal-share-groups') {
         if (groupKeywords.length === 0) {
           const r = await playwright.postToPersonal(message, imagePaths);
@@ -683,7 +690,7 @@ function loadChannels() {
   try {
     if (fs.existsSync(CHANNELS_FILE)) return JSON.parse(fs.readFileSync(CHANNELS_FILE, 'utf8'));
   } catch {}
-  return { fbGroups: [], zaloGroups: [], profileChannels: {} };
+  return { fbGroups: [], fbPages: [], zaloGroups: [], profileChannels: {} };
 }
 
 function saveChannels(data) {
@@ -720,6 +727,37 @@ app.patch('/api/channels/fb-groups/:key', (req, res) => {
 app.delete('/api/channels/fb-groups/:key', (req, res) => {
   const data = loadChannels();
   data.fbGroups = data.fbGroups.filter(g => g.key !== req.params.key);
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.post('/api/channels/fb-pages', (req, res) => {
+  const { key, id, name, category } = req.body;
+  if (!key || !id || !name) return res.status(400).json({ error: 'Thiếu key, id hoặc name' });
+  const data = loadChannels();
+  if (!data.fbPages) data.fbPages = [];
+  if (data.fbPages.find(g => g.key === key)) return res.status(400).json({ error: 'Key đã tồn tại' });
+  data.fbPages.push({ key, id, name, category: (category || '').trim() });
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.patch('/api/channels/fb-pages/:key', (req, res) => {
+  const data = loadChannels();
+  if (!data.fbPages) data.fbPages = [];
+  const pg = data.fbPages.find(g => g.key === req.params.key);
+  if (!pg) return res.status(404).json({ error: 'Không tìm thấy page' });
+  if (typeof req.body.category === 'string') pg.category = req.body.category.trim();
+  if (typeof req.body.name === 'string' && req.body.name.trim()) pg.name = req.body.name.trim();
+  if (typeof req.body.id === 'string' && req.body.id.trim()) pg.id = req.body.id.trim();
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.delete('/api/channels/fb-pages/:key', (req, res) => {
+  const data = loadChannels();
+  if (!data.fbPages) data.fbPages = [];
+  data.fbPages = data.fbPages.filter(g => g.key !== req.params.key);
   saveChannels(data);
   res.json({ success: true });
 });
