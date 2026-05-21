@@ -2666,12 +2666,37 @@
     }
 
     .dash-card {
+      position: relative;
+      overflow: hidden;
       transition: transform 0.22s ease, box-shadow 0.22s ease;
     }
     .dash-card:hover {
       transform: translateY(-5px);
       box-shadow: 0 12px 28px rgba(0,0,0,0.11);
     }
+    /* Concrete shape decorations — two rotated squares per card */
+    .dash-card::before,
+    .dash-card::after {
+      content: '';
+      position: absolute;
+      border-radius: 8px;
+      transform: rotate(45deg);
+      pointer-events: none;
+      right: -14px;
+      top: -14px;
+    }
+    .dash-card::after {
+      right: 20px;
+      top: 8px;
+    }
+    .dash-card-today::before  { width:58px; height:58px; background:rgba(74,159,229,0.28); }
+    .dash-card-today::after   { width:40px; height:40px; background:rgba(74,159,229,0.18); }
+    .dash-card-success::before{ width:58px; height:58px; background:rgba(91,171,110,0.28); }
+    .dash-card-success::after { width:40px; height:40px; background:rgba(91,171,110,0.18); }
+    .dash-card-fail::before   { width:58px; height:58px; background:rgba(231,111,81,0.28); }
+    .dash-card-fail::after    { width:40px; height:40px; background:rgba(231,111,81,0.18); }
+    .dash-card-total::before  { width:58px; height:58px; background:rgba(245,158,11,0.28); }
+    .dash-card-total::after   { width:40px; height:40px; background:rgba(245,158,11,0.18); }
     .dash-card-pro {
       transition: transform 0.22s ease, box-shadow 0.22s ease;
     }
@@ -3344,28 +3369,28 @@
     <div id="dashPanelStats" style="flex:1; overflow-y:auto; padding:20px;">
       <!-- Summary Cards (Schedulkan-style: icon-circle + number + label) -->
       <div id="dashSummary" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:14px; margin-bottom:24px;">
-        <div class="dash-card" style="background:#d8ebf7; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
+        <div class="dash-card dash-card-today" style="background:#d8ebf7; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
           <div style="width:44px; height:44px; border-radius:12px; background:#4a9fe5; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0;"><svg class="xi xi-md"><use href="#ic-calendar"/></svg></div>
           <div style="min-width:0;">
             <div id="statToday" style="font-size:24px; font-weight:700; color:#1f5f7a; line-height:1.1;">0</div>
             <div style="font-size:12px; color:#4a9fe5; font-weight:600; margin-top:2px;">Hôm nay</div>
           </div>
         </div>
-        <div class="dash-card" style="background:#d5ebd8; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
+        <div class="dash-card dash-card-success" style="background:#d5ebd8; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
           <div style="width:44px; height:44px; border-radius:12px; background:#5bab6e; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0;"><svg class="xi xi-md"><use href="#ic-check"/></svg></div>
           <div style="min-width:0;">
             <div id="statSuccess" style="font-size:24px; font-weight:700; color:#2e6b3f; line-height:1.1;">0</div>
             <div style="font-size:12px; color:#5bab6e; font-weight:600; margin-top:2px;">Thành công</div>
           </div>
         </div>
-        <div class="dash-card" style="background:#fbe2d5; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
+        <div class="dash-card dash-card-fail" style="background:#fbe2d5; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
           <div style="width:44px; height:44px; border-radius:12px; background:#e76f51; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0;"><svg class="xi xi-md"><use href="#ic-x"/></svg></div>
           <div style="min-width:0;">
             <div id="statFail" style="font-size:24px; font-weight:700; color:#c4452a; line-height:1.1;">0</div>
             <div style="font-size:12px; color:#e76f51; font-weight:600; margin-top:2px;">Thất bại</div>
           </div>
         </div>
-        <div class="dash-card" style="background:#FEF3C7; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
+        <div class="dash-card dash-card-total" style="background:#FEF3C7; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
           <div style="width:44px; height:44px; border-radius:12px; background:#F59E0B; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0;"><svg class="xi xi-md"><use href="#ic-dash"/></svg></div>
           <div style="min-width:0;">
             <div id="statTotal" style="font-size:24px; font-weight:700; color:#92400E; line-height:1.1;">0</div>
