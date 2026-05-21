@@ -846,20 +846,13 @@
       #chartFilterInner #chartDays { grid-column: 1 / 3; grid-row: 2; width: 100% !important; min-width: 0 !important; }
       #chartFilterInner > div:last-child { grid-column: 3; grid-row: 2; justify-self: end; }
 
-      /* ---- Post history table: hide Nội dung & Ảnh cols on mobile ---- */
-      #pageDashboard table {
-        min-width: 0 !important;
-        width: 100% !important;
-        table-layout: auto !important;
-      }
-      #pageDashboard table thead th:nth-child(2),
-      #pageDashboard table thead th:nth-child(3),
-      #pageDashboard table tbody td:nth-child(2),
-      #pageDashboard table tbody td:nth-child(3) {
-        display: none !important;
-      }
+      /* ---- Post history table: compact padding on mobile ---- */
       #pageDashboard table thead th,
       #pageDashboard table tbody td { padding: 8px 8px !important; }
+      #pageDashboard table thead th:nth-child(6),
+      #pageDashboard table tbody td:nth-child(6) { white-space: nowrap; }
+      #pageDashboard table thead th:nth-child(7),
+      #pageDashboard table tbody td:nth-child(7) { white-space: nowrap; }
 
       /* Dashboard filter bar: tiết kiệm chiều ngang, không để select nào
          tự dãn full width. Chia 2 cột đều cho các select/date. */
