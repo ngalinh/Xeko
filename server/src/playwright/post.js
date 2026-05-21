@@ -2063,78 +2063,86 @@ async function scrapePost(postUrl) {
     // Đợi ít nhất 1 article xuất hiện
     await page.waitForSelector('div[role="article"]', { timeout: 10000 }).catch(() => {});
 
-    // Tìm index của article đúng (top-level, chứa link có post ID)
-    const articleIndex = await page.evaluate((ids) => {
+    // Tìm article chính và lưu vào window.__fbArt (dùng reference thay index để tránh
+    // drift sau khi scroll load thêm article vào DOM)
+    const articleFound = await page.evaluate((ids) => {
       const all = Array.from(document.querySelectorAll('div[role="article"]'));
       const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
-      if (!topLevel.length) return 0;
+      if (!topLevel.length) return false;
 
-      // Chiến lược 1: FB pagelet đặc thù cho permalink post
-      const pagelet = document.querySelector(
-        '[data-pagelet="PermalinkPost"], [data-pagelet*="permalink"], [data-pagelet="FeedUnit_0"]'
-      );
-      if (pagelet) {
-        const art = pagelet.querySelector('div[role="article"]');
-        if (art) {
-          const idx = topLevel.indexOf(art);
-          if (idx >= 0) return idx;
-        }
-      }
-
-      // Chiến lược 2: tìm article chứa link khớp BẤT KỲ post ID nào
-      for (let i = 0; i < topLevel.length; i++) {
-        for (const link of topLevel[i].querySelectorAll('a[href]')) {
-          if (!link.href) continue;
-          for (const id of ids) {
-            if (link.href.includes(id)) return i;
-          }
-        }
-      }
-
-      // Chiến lược 3: article đầu tiên nằm trong [role="main"]
+      // Scoring: chọn article có tổng điểm cao nhất
       const main = document.querySelector('[role="main"]');
-      if (main) {
-        for (let i = 0; i < topLevel.length; i++) {
-          if (main.contains(topLevel[i])) return i;
+      let best = { art: topLevel[0], score: -1 };
+
+      for (const art of topLevel) {
+        let score = 0;
+
+        // Nằm trong pagelet permalink → rất tin cậy
+        if (art.closest('[data-pagelet="PermalinkPost"],[data-pagelet*="permalink"],[data-pagelet="FeedUnit_0"]')) {
+          score += 100;
         }
+
+        // Chứa link tới bài viết (bất kỳ post ID nào)
+        for (const a of art.querySelectorAll('a[href]')) {
+          for (const id of ids) {
+            if (a.href && a.href.includes(id)) { score += 80; break; }
+          }
+          if (score >= 80) break;
+        }
+
+        // Nằm trong [role="main"]
+        if (main && main.contains(art)) score += 20;
+
+        // Có nội dung văn bản đáng kể (bài viết thực, không phải nav/ads rỗng)
+        const txtLen = (art.innerText || '').replace(/\s+/g, ' ').trim().length;
+        if (txtLen > 100) score += 15;
+        if (txtLen > 300) score += 10;
+
+        // Gần đầu trang (bài viết thường xuất hiện trước comments)
+        const rect = art.getBoundingClientRect();
+        if (rect.top >= 0 && rect.top < window.innerHeight * 1.5) score += 10;
+        if (rect.top >= 0 && rect.top < 400) score += 10;
+
+        if (score > best.score) best = { art, score };
       }
 
-      // Chiến lược 4: article gần đầu trang nhất (nhỏ hơn 1 viewport từ trên)
-      let best = { idx: 0, top: Infinity };
-      for (let i = 0; i < topLevel.length; i++) {
-        const top = topLevel[i].getBoundingClientRect().top;
-        if (top >= 0 && top < best.top) best = { idx: i, top };
-      }
-      return best.idx;
-    }, [...allIds]).catch(() => 0);
-    logger.info(`${tag} articleIndex=${articleIndex}`);
+      window.__fbArt = best.art;
+      return true;
+    }, [...allIds]).catch(() => false);
+    logger.info(`${tag} articleFound=${articleFound}`);
 
     // Click "Xem thêm" / "See more" CHỈ trong article mục tiêu
-    await page.evaluate((idx) => {
-      const all = Array.from(document.querySelectorAll('div[role="article"]'));
-      const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
-      const article = topLevel[idx] || topLevel[0];
+    await page.evaluate(() => {
+      const article = window.__fbArt;
       if (!article) return;
       const LABELS = ['Xem thêm', 'See more', 'See More'];
       for (const el of article.querySelectorAll('div[role="button"], span[role="button"]')) {
         if (LABELS.includes((el.textContent || '').trim())) { el.click(); return; }
       }
-    }, articleIndex).catch(() => {});
+    }).catch(() => {});
     await randomDelay(1500, 2000);
 
     // Lấy text từ article mục tiêu
-    const text = await page.evaluate((idx) => {
+    const text = await page.evaluate(() => {
       const SEE_MORE = new Set(['Xem thêm', 'See more', 'See More']);
-      const all = Array.from(document.querySelectorAll('div[role="article"]'));
-      const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
-      const article = topLevel[idx] || topLevel[0];
+      const article = window.__fbArt;
       if (!article) return '';
 
-      const adMsg = article.querySelector('[data-ad-preview="message"]');
-      if (adMsg) return (adMsg.innerText || '').trim();
+      // Thử các selector đặc thù của FB trước
+      for (const sel of [
+        '[data-ad-comet-preview="message"]',
+        '[data-ad-preview="message"]',
+        '[data-testid="post_message"]',
+      ]) {
+        const el = article.querySelector(sel);
+        if (el) {
+          const t = (el.innerText || '').trim();
+          if (t.length > 5) return t;
+        }
+      }
 
+      // Fallback: div[dir="auto"] đầu tiên trong article (bỏ qua comment lồng)
       for (const dir of article.querySelectorAll('div[dir="auto"]')) {
-        // Bỏ qua nếu nằm trong article lồng (comment)
         if (dir.closest('div[role="article"]') !== article) continue;
         const clone = dir.cloneNode(true);
         for (const btn of clone.querySelectorAll('[role="button"]')) {
@@ -2144,23 +2152,18 @@ async function scrapePost(postUrl) {
         if (t.length > 5) return t;
       }
       return '';
-    }, articleIndex).catch(() => '');
+    }).catch(() => '');
 
-    // Scroll để trigger lazy-load ảnh, đọc src sau mỗi lần scroll
-    // (không scroll về top trước khi đọc — tránh mất lazy-load src)
+    // Scroll để trigger lazy-load ảnh
     for (let i = 0; i < 5; i++) {
-      await page.evaluate(() => window.scrollBy(0, 600));
-      await randomDelay(600, 1000);
+      await page.evaluate(() => window.scrollBy(0, 500));
+      await randomDelay(700, 1100);
     }
-    await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
-    await randomDelay(300, 500);
+    await randomDelay(500, 800);
 
-    // Lấy URL ảnh từ article mục tiêu, bỏ qua comment và profile pic
-    // Đọc ngay sau scroll (ảnh đã lazy-load), trước khi scroll về top
-    const imageUrls = await page.evaluate((idx) => {
-      const all = Array.from(document.querySelectorAll('div[role="article"]'));
-      const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
-      const article = topLevel[idx] || topLevel[0];
+    // Lấy URL ảnh — dùng window.__fbArt (reference cố định, tránh drift sau scroll)
+    const imageUrls = await page.evaluate(() => {
+      const article = window.__fbArt;
       if (!article) return [];
 
       const seen = new Set();
@@ -2170,37 +2173,53 @@ async function scrapePost(postUrl) {
         if (!src || !src.startsWith('http')) return;
         if (!src.includes('fbcdn.net')) return;
         if (src.includes('static.xx.fbcdn.net')) return;
-        // Bỏ thumbnail profile pic kiểu _pNxN_ hoặc CDN variant -1 (rất nhỏ)
+        // Bỏ thumbnail resize kiểu _pNxN_ (profile pic đã scale)
         if (/_p\d+x\d+_/.test(src)) return;
+        // Bỏ CDN variant -1 (profile pic thumbnail nhỏ nhất)
         if (/\/v\/t1\.\d+-1\//.test(src)) return;
         if (!seen.has(src)) { seen.add(src); urls.push(src); }
       };
 
+      // Lấy ảnh từ tất cả <img> trong article, bỏ qua comment lồng
       for (const img of article.querySelectorAll('img')) {
-        // Bỏ qua ảnh nằm trong article lồng (comment)
-        if (img.closest('div[role="article"]') !== article) continue;
+        // Bỏ qua nếu nằm trong nested article (comment/share preview)
+        const nearestArt = img.closest('div[role="article"]');
+        if (nearestArt && nearestArt !== article) continue;
 
-        // Bỏ qua ảnh quá nhỏ (avatar/icon ≤ 64px)
+        // Bỏ qua ảnh quá nhỏ (avatar ≤ 64px)
         const w = img.naturalWidth || img.width || 0;
         const h = img.naturalHeight || img.height || 0;
         if (w > 0 && h > 0 && w <= 64 && h <= 64) continue;
 
-        // Ưu tiên srcset (chọn ảnh resolution cao nhất)
+        // Ưu tiên srcset (resolution cao nhất)
         if (img.srcset) {
-          const candidates = img.srcset.split(',')
+          const parts = img.srcset.split(',')
             .map(s => s.trim().split(/\s+/))
             .filter(p => p[0] && p[0].startsWith('http'));
-          if (candidates.length) {
-            add(candidates[candidates.length - 1][0]);
-            continue;
-          }
+          if (parts.length) { add(parts[parts.length - 1][0]); continue; }
         }
 
         // Fallback: currentSrc → src → data-src
         add(img.currentSrc || img.src || img.getAttribute('data-src') || '');
       }
+
+      // Bổ sung: tìm ảnh trong các link /photo/ (FB photo grid)
+      for (const a of article.querySelectorAll('a[href*="/photo/"],a[href*="/photos/"]')) {
+        const nearestArt = a.closest('div[role="article"]');
+        if (nearestArt && nearestArt !== article) continue;
+        const img = a.querySelector('img');
+        if (!img) continue;
+        if (img.srcset) {
+          const parts = img.srcset.split(',')
+            .map(s => s.trim().split(/\s+/))
+            .filter(p => p[0] && p[0].startsWith('http'));
+          if (parts.length) { add(parts[parts.length - 1][0]); continue; }
+        }
+        add(img.currentSrc || img.src || '');
+      }
+
       return urls;
-    }, articleIndex).catch(() => []);
+    }).catch(() => []);
 
     logger.info(`${tag} xong (+${Date.now() - t0}ms) — text=${text.length} ký tự, ảnh=${imageUrls.length}`);
     return { success: true, text, imageUrls };
