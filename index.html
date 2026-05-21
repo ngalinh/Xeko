@@ -4233,7 +4233,6 @@
           `Xeko chào bạn 👋 Profile <strong>${currentProfileName}</strong> đã sẵn sàng rồi nha!\nBạn muốn Xeko đăng liền hay lên lịch?`,
           [
             { label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') },
-            { label: '⚡ Đăng nhanh FB', handler: () => selectMode('quickfb') },
             { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
           ]
         );
@@ -4283,7 +4282,6 @@
           `Xeko chốt profile <strong>${currentProfileName}</strong> rồi nha!\nGiờ bạn muốn Xeko đăng liền hay lên lịch giúp nè?`,
           [
             { label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') },
-            { label: '⚡ Đăng nhanh FB', handler: () => selectMode('quickfb') },
             { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
           ]
         );
@@ -4665,7 +4663,6 @@
         'Xeko đăng liền hay lên lịch giúp bạn nè?',
         [
           { label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') },
-          { label: '⚡ Đăng nhanh FB', handler: () => selectMode('quickfb') },
           { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
         ]
       );
@@ -7260,7 +7257,6 @@
         buttons.push({ label: `${xekoIcon('user')} Đổi profile`, handler: () => showProfileSelect() });
       } else if (step === 'mode') {
         buttons.push({ label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') });
-        buttons.push({ label: '⚡ Đăng nhanh FB', handler: () => selectMode('quickfb') });
         buttons.push({ label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') });
       } else if (step === 'target') {
         buttons.push({ label: `${xekoIcon('pin')} Chọn nơi đăng`, handler: () => showTargetSelect() });
