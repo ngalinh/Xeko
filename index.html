@@ -97,15 +97,39 @@
       cursor: pointer;
       font-size: 14px;
       color: #666;
-      transition: all 0.15s;
+      transition: background 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
       border: none;
       background: none;
       width: 100%;
       text-align: left;
     }
-    .sidebar-item:hover { background: #f0f9ff; color: #3B82F6; }
-    .sidebar-item.active { background: #EFF6FF; color: #3B82F6; font-weight: 600; }
-    .sidebar-item .icon { font-size: 16px; width: 22px; text-align: center; }
+    .sidebar-item:hover {
+      background: #f0f9ff;
+      color: #3B82F6;
+      transform: translateX(4px);
+    }
+    .sidebar-item:hover .icon { transform: scale(1.15); }
+    .sidebar-item.active {
+      background: #EFF6FF;
+      color: #3B82F6;
+      font-weight: 600;
+      box-shadow: inset 3px 0 0 #3B82F6;
+    }
+    .sidebar-item .icon {
+      font-size: 16px;
+      width: 22px;
+      text-align: center;
+      transition: transform 0.2s;
+    }
+    /* Stagger entrance animation */
+    @keyframes sidebarItemIn {
+      from { opacity: 0; transform: translateX(-14px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    .sidebar-item-enter {
+      opacity: 0;
+      animation: sidebarItemIn 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
     .sidebar-item .badge {
       margin-left: auto;
       background: #EFF6FF;
@@ -591,7 +615,7 @@
     [data-theme="dark"] .sidebar-section { color: #666; }
     [data-theme="dark"] .sidebar-item { color: #999; }
     [data-theme="dark"] .sidebar-item:hover { background: #1e1e3a; color: #BFDBFE; }
-    [data-theme="dark"] .sidebar-item.active { background: #1E3A8A; color: #BFDBFE; }
+    [data-theme="dark"] .sidebar-item.active { background: #1E3A8A; color: #BFDBFE; box-shadow: inset 3px 0 0 #60A5FA; }
     [data-theme="dark"] .sidebar-item .badge { background: #1E3A8A; color: #BFDBFE; }
     [data-theme="dark"] .sidebar-footer { border-color: #2a2a4a; }
     [data-theme="dark"] .main-content, [data-theme="dark"] .chat-area { background: #1a1a2e; }
@@ -9167,6 +9191,10 @@
           const ok = await bootstrapAuth();
           if (!ok) return;
           xekoInjectHomeButtons();
+          document.querySelectorAll('.sidebar-item').forEach(function(el, i) {
+            el.style.animationDelay = (i * 60) + 'ms';
+            el.classList.add('sidebar-item-enter');
+          });
           const p = new URLSearchParams(location.search).get('page');
           if (p && typeof switchPage === 'function') {
             switchPage(p);
