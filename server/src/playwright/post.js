@@ -2148,10 +2148,11 @@ async function scrapePost(postUrl) {
 
     // Scroll để trigger lazy-load ảnh, đọc src sau mỗi lần scroll
     // (không scroll về top trước khi đọc — tránh mất lazy-load src)
-    for (let i = 0; i < 3; i++) {
-      await page.evaluate(() => window.scrollBy(0, 800));
-      await randomDelay(800, 1200);
+    for (let i = 0; i < 5; i++) {
+      await page.evaluate(() => window.scrollBy(0, 600));
+      await randomDelay(600, 1000);
     }
+    await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
     await randomDelay(300, 500);
 
     // Lấy URL ảnh từ article mục tiêu, bỏ qua comment và profile pic
@@ -2161,16 +2162,42 @@ async function scrapePost(postUrl) {
       const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
       const article = topLevel[idx] || topLevel[0];
       if (!article) return [];
-      const urls = [];
+
       const seen = new Set();
-      for (const img of article.querySelectorAll('img')) {
-        if (img.closest('div[role="article"]') !== article) continue; // skip comment images
-        const src = img.src || img.currentSrc || '';
-        // Chỉ lấy ảnh từ FB CDN — bỏ static.xx (icon/emoji) và t1 (profile pic)
-        if (!src || !src.includes('fbcdn.net')) continue;
-        if (src.includes('static.xx.fbcdn.net')) continue;
-        if (/\/v\/t1\./.test(src)) continue;
+      const urls = [];
+
+      const add = (src) => {
+        if (!src || !src.startsWith('http')) return;
+        if (!src.includes('fbcdn.net')) return;
+        if (src.includes('static.xx.fbcdn.net')) return;
+        // Bỏ thumbnail profile pic kiểu _pNxN_ hoặc CDN variant -1 (rất nhỏ)
+        if (/_p\d+x\d+_/.test(src)) return;
+        if (/\/v\/t1\.\d+-1\//.test(src)) return;
         if (!seen.has(src)) { seen.add(src); urls.push(src); }
+      };
+
+      for (const img of article.querySelectorAll('img')) {
+        // Bỏ qua ảnh nằm trong article lồng (comment)
+        if (img.closest('div[role="article"]') !== article) continue;
+
+        // Bỏ qua ảnh quá nhỏ (avatar/icon ≤ 64px)
+        const w = img.naturalWidth || img.width || 0;
+        const h = img.naturalHeight || img.height || 0;
+        if (w > 0 && h > 0 && w <= 64 && h <= 64) continue;
+
+        // Ưu tiên srcset (chọn ảnh resolution cao nhất)
+        if (img.srcset) {
+          const candidates = img.srcset.split(',')
+            .map(s => s.trim().split(/\s+/))
+            .filter(p => p[0] && p[0].startsWith('http'));
+          if (candidates.length) {
+            add(candidates[candidates.length - 1][0]);
+            continue;
+          }
+        }
+
+        // Fallback: currentSrc → src → data-src
+        add(img.currentSrc || img.src || img.getAttribute('data-src') || '');
       }
       return urls;
     }, articleIndex).catch(() => []);
