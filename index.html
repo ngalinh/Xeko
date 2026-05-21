@@ -6124,15 +6124,15 @@
           ? `<div style="font-size:11px; color:#94a3b8; margin-bottom:2px;">Mua: ${formatPurchaseDate(p.purchaseDate)}</div><div>${formatExpirationDate(p.expirationDate)}</div>`
           : formatExpirationDate(p.expirationDate);
         return `
-        <tr style="background:rgba(255,255,255,0.5); border-radius:8px;">
-          <td style="padding:10px 12px; vertical-align:middle;">
+        <tr style="background:#fff;">
+          <td style="padding:11px 14px; vertical-align:middle; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; border-left:1px solid #e2e8f0; border-radius:12px 0 0 12px;">
             ${label ? `<div style="font-weight:600; color:#1e1e2e; font-size:13px;">${label}</div>` : ''}
             <div style="font-family:ui-monospace,Menlo,monospace; font-size:12px; color:#555;">${hostPort}</div>
             ${p.user ? `<div style="font-size:11px; color:#94a3b8; margin-top:1px;">user: ${escapeHtml(p.user)}</div>` : ''}
           </td>
-          <td style="padding:10px 12px; vertical-align:middle; white-space:nowrap; font-size:12px; color:#555;">${dateHtml}</td>
-          <td style="padding:10px 12px; vertical-align:middle;">${proxyUsageChipsHtml(p.id)}</td>
-          <td style="padding:10px 12px; text-align:right; white-space:nowrap; vertical-align:middle;">
+          <td style="padding:11px 14px; vertical-align:middle; white-space:nowrap; font-size:12px; color:#555; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">${dateHtml}</td>
+          <td style="padding:11px 14px; vertical-align:middle; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">${proxyUsageChipsHtml(p.id)}</td>
+          <td style="padding:11px 14px; text-align:right; white-space:nowrap; vertical-align:middle; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-radius:0 12px 12px 0;">
             <button class="pc-btn pc-btn-edit" onclick="openProxyModal('edit','${p.id}')" title="Sửa" aria-label="Sửa">${xekoIcon('edit')}</button>
             <button class="pc-btn pc-btn-del" onclick="deleteProxy('${p.id}')" title="Xoá" aria-label="Xoá">${xekoIcon('trash')}</button>
           </td>
