@@ -157,6 +157,12 @@ async function postToGroup(groupId, message, imagePaths = []) {
   return res;
 }
 
+async function postToPage(pageId, message, imagePaths = []) {
+  const res = await callLocal('POST', '/api/post', { message, target: 'page', groupId: pageId }, imagePaths);
+  if (res.jobId) return pollLocalJob(res.jobId);
+  return res;
+}
+
 async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywords = []) {
   // groupKeywords là array → serialize qua JSON khi đi multipart
   const res = await callLocal(
@@ -210,6 +216,7 @@ module.exports = {
   getActiveProfile,
   postToPersonal,
   postToGroup,
+  postToPage,
   postPersonalAndShareToGroups,
   quickPostToPersonalAndGroups,
   scrapePost,

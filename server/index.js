@@ -389,6 +389,13 @@ async function executePost({ profile, profileDisplayName, message, target, group
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
   }
 
+  if (target === 'page') {
+    const r = await playwright.postToPage(groupId, message, imagePaths);
+    postCount++;
+    postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'page', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+    return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
+  }
+
   // personal + chia sẻ lên nhóm trong 1 bài đăng
   if (target === 'personal-share-groups') {
     const keywords = Array.isArray(groupKeywords) ? groupKeywords : [];
@@ -1236,6 +1243,9 @@ app.get('/api/channels', (req, res) => proxyToLocal(req, res, 'GET', '/api/chann
 app.post('/api/channels/fb-groups', (req, res) => proxyToLocal(req, res, 'POST', '/api/channels/fb-groups', req.body));
 app.patch('/api/channels/fb-groups/:key', (req, res) => proxyToLocal(req, res, 'PATCH', `/api/channels/fb-groups/${req.params.key}`, req.body));
 app.delete('/api/channels/fb-groups/:key', (req, res) => proxyToLocal(req, res, 'DELETE', `/api/channels/fb-groups/${req.params.key}`));
+app.post('/api/channels/fb-pages', (req, res) => proxyToLocal(req, res, 'POST', '/api/channels/fb-pages', req.body));
+app.patch('/api/channels/fb-pages/:key', (req, res) => proxyToLocal(req, res, 'PATCH', `/api/channels/fb-pages/${req.params.key}`, req.body));
+app.delete('/api/channels/fb-pages/:key', (req, res) => proxyToLocal(req, res, 'DELETE', `/api/channels/fb-pages/${req.params.key}`));
 app.post('/api/channels/zalo-groups', (req, res) => proxyToLocal(req, res, 'POST', '/api/channels/zalo-groups', req.body));
 app.patch('/api/channels/zalo-groups/:key', (req, res) => proxyToLocal(req, res, 'PATCH', `/api/channels/zalo-groups/${req.params.key}`, req.body));
 app.delete('/api/channels/zalo-groups/:key', (req, res) => proxyToLocal(req, res, 'DELETE', `/api/channels/zalo-groups/${req.params.key}`));

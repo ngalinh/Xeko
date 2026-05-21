@@ -202,6 +202,9 @@ async function executeSchedule(job) {
       } else {
         result = { success: false, error: 'Group không tồn tại' };
       }
+    } else if (job.target === 'page') {
+      result = await playwright.postToPage(job.groupId, job.message, job.imagePaths);
+      postLogger.logPost({ profile: job.profile, profileName: job.profile, platform: 'facebook', target: 'page', groupId: job.groupId, message: job.message, imageCount: imgCount, images: imageUrls, success: result.success, error: result.error, postUrl: result.postUrl, source: 'schedule' });
     } else if (job.target === 'all') {
       const config = require('../../config/default');
       const results = [];

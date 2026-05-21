@@ -3764,7 +3764,11 @@
         <div style="display:flex; gap:8px;">
           <button type="button" onclick="setGroupModalType('fb')" id="groupModalTypeFb"
             style="flex:1; padding:10px; border:1px solid #DBEAFE; border-radius:8px; background:#f0f9ff; color:#3B82F6; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:16px;height:16px;"> Facebook
+            <img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:16px;height:16px;"> FB Group
+          </button>
+          <button type="button" onclick="setGroupModalType('page')" id="groupModalTypePage"
+            style="flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff; color:#777; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+            📄 FB Page
           </button>
           <button type="button" onclick="setGroupModalType('zalo')" id="groupModalTypeZalo"
             style="flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff; color:#777; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
@@ -4397,9 +4401,11 @@
     function buildTargetChannels(profileKey, profileName) {
       const cfg = (channelsData.profileChannels || {})[profileKey] || {};
       const fbGroupKeys = cfg.fbGroups || [];
+      const fbPageKeys = cfg.fbPages || [];
       const zaloGroupKeys = cfg.zaloGroups || [];
       const zaloAccount = cfg.zaloAccount || '';
       const allFbGroups = channelsData.fbGroups || [];
+      const allFbPages = channelsData.fbPages || [];
       const allZaloGroups = channelsData.zaloGroups || [];
 
       return {
@@ -4410,6 +4416,9 @@
             .filter(g => fbGroupKeys.includes(g.key))
             .map(g => ({ id: g.key, name: `Group ${g.name}`, icon: xekoIcon('users'), rawName: g.name, category: (g.category || '').trim() })),
         ],
+        fbPages: allFbPages
+          .filter(g => fbPageKeys.includes(g.key))
+          .map(g => ({ id: `page:${g.key}`, name: g.name, pageId: g.id, key: g.key })),
         zalo: allZaloGroups
           .filter(g => zaloGroupKeys.includes(g.key))
           .map(g => ({ id: g.key, name: g.name, icon: xekoIcon('chat') })),
@@ -4489,6 +4498,17 @@
         panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="cat" data-category="${escapeHtml(bundle.category)}" data-keys="${escapeHtml(JSON.stringify(keys))}" title="${escapeHtml(tooltip)}">
           <span class="ch-dot"></span><input type="checkbox" onchange="onChannelChange(${pid})"> ${xekoIcon('users')} ${escapeHtml(bundle.category)} <span style="font-size:11px; opacity:0.65;">(${bundle.groups.length})</span>
         </label>`;
+      }
+
+      // FB Pages section
+      const fbPageChannels = p.fbPages || [];
+      if (fbPageChannels.length > 0) {
+        panelHtml += `<div class="chip-section-label">📄 FB Page</div>`;
+        for (const ch of fbPageChannels) {
+          panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="${escapeHtml(ch.id)}" data-page-id="${escapeHtml(ch.pageId)}">
+            <span class="ch-dot"></span><input type="checkbox" onchange="onChannelChange(${pid})"> 📄 ${escapeHtml(ch.name)}
+          </label>`;
+        }
       }
 
       // Custom group option
@@ -4604,12 +4624,17 @@
           const ch = (p.fb || []).find(f => f.id === c.id);
           return ch ? ch.name : c.id;
         });
+        const pageNames = (selection[pKey].fbPages || []).map(c => {
+          const g = (channelsData.fbPages || []).find(x => x.key === c.key);
+          return g ? `📄 ${g.name}` : c.id;
+        });
         const zaloNames = (selection[pKey].zalo || []).map(c => {
           const ch = (p.zalo || []).find(f => f.id === c.id);
           return ch ? `${xekoIcon('chat')} ${ch.name}` : c.id;
         });
         const parts = [];
         if (fbNames.length > 0) parts.push(`📘 ${fbNames.join(', ')}`);
+        if (pageNames.length > 0) parts.push(pageNames.join(', '));
         if (zaloNames.length > 0) parts.push(zaloNames.join(', '));
         if (parts.length > 0) {
           const pLabel = _profileDisplayNames[pKey] || pKey;
@@ -4646,11 +4671,13 @@
         const item = cb.closest('.channel-item');
         const profile = item.dataset.profile;
         const platform = item.dataset.platform;
-        if (!selected[profile]) selected[profile] = { fb: [], zalo: [], zaloAccount: '' };
+        if (!selected[profile]) selected[profile] = { fb: [], fbPages: [], zalo: [], zaloAccount: '' };
         let chid = item.dataset.chid;
         if (platform === 'zalo') {
           selected[profile].zaloAccount = item.dataset.zaloAccount || '';
           selected[profile].zalo.push({ id: chid });
+        } else if (chid && chid.startsWith('page:')) {
+          selected[profile].fbPages.push({ id: chid, pageId: item.dataset.pageId || '', key: chid.slice(5) });
         } else if (chid === 'custom' && customGroupInput) {
           const ids = customGroupInput.value.split(',').map(s => s.trim()).filter(Boolean);
           ids.forEach(gid => {
@@ -4681,7 +4708,7 @@
       // Determine which profiles need posting
       const profilesToPost = [];
       for (const pKey of Object.keys(selected)) {
-        if ((selected[pKey].fb || []).length > 0) {
+        if ((selected[pKey].fb || []).length > 0 || (selected[pKey].fbPages || []).length > 0) {
           profilesToPost.push(pKey);
         }
       }
@@ -5221,6 +5248,63 @@
           }
         }
 
+        // Post to FB pages if any
+        const pageSel = (window._channelSelection || {})[currentProfile] || {};
+        const pageItems = pageSel.fbPages || [];
+        for (const pageItem of pageItems) {
+          addTyping();
+          let pageProgressRow = null;
+          try {
+            const pf = new FormData();
+            pf.append('message', message);
+            pf.append('target', 'page');
+            pf.append('groupId', pageItem.pageId);
+            pf.append('batchId', sessionBatchId);
+            if (currentProfile) pf.append('profile', currentProfile);
+            if (currentProfileName && currentProfileName !== currentProfile) pf.append('profileDisplayName', currentProfileName);
+            await appendImages(pf, filesToUpload);
+            const pr = await fetch(BASE_URL + '/api/post', { method: 'POST', body: pf });
+            const initial = await parseJson(pr);
+            const pName = (channelsData.fbPages || []).find(x => x.key === pageItem.key)?.name || pageItem.id;
+            if (initial.jobId) {
+              removeTyping();
+              pageProgressRow = addBot(`⏳ Xeko đang đăng FB Page <strong>${pName}</strong>...`);
+              pageProgressRow?.querySelector('.msg.bot')?.classList.add('status-progress');
+              pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `FB Page <strong>${pName}</strong>` });
+              let pd;
+              try { pd = await pollJob(initial.jobId); }
+              finally { removePendingJob(initial.jobId); }
+              if (pd.success) {
+                successCount += 1;
+                let msg = `✅ FB Page <strong>${pName}</strong> (profile <strong>${currentProfileName}</strong>) xong rồi nha!`;
+                if (pd.postUrl) msg += `\n<a class="post-link" href="${pd.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
+                morphBot(pageProgressRow, msg, 'success');
+              } else {
+                morphBot(pageProgressRow, `❌ FB Page <strong>${pName}</strong> đăng lỗi: ${pd.error}`, 'error');
+              }
+            } else {
+              removeTyping();
+              if (initial.success) {
+                successCount += 1;
+                const pName2 = (channelsData.fbPages || []).find(x => x.key === pageItem.key)?.name || pageItem.id;
+                let msg = `✅ FB Page <strong>${pName2}</strong> xong rồi nha!`;
+                if (initial.postUrl) msg += `\n<a class="post-link" href="${initial.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
+                addBot(msg);
+              } else {
+                addBot(`❌ FB Page <strong>${(channelsData.fbPages || []).find(x => x.key === pageItem.key)?.name || pageItem.id}</strong> lỗi: ${initial.error}`);
+              }
+            }
+          } catch (pe) {
+            removeTyping();
+            const pName = (channelsData.fbPages || []).find(x => x.key === pageItem.key)?.name || pageItem.id;
+            const errMsg = isProxyTimeout(pe)
+              ? `⚠️ FB Page <strong>${pName}</strong>: mạng/proxy timeout, chưa xác nhận được. Check FB sau 1-2 phút nha!`
+              : botSystemError(`đăng FB Page ${pName}`, pe);
+            if (pageProgressRow) morphBot(pageProgressRow, errMsg, 'error');
+            else addBot(errMsg);
+          }
+        }
+
         // Post to Zalo groups if any
         const zaloSel = (window._channelSelection || {})[currentProfile] || { zalo: [], zaloAccount: '' };
         const zaloGroups = zaloSel.zalo || [];
@@ -5431,6 +5515,20 @@
             else errors.push(`${gLabel}: ${data.error}`);
           } catch (e) {
             errors.push(`${gLabel}: ${e.message}`);
+          }
+        }
+
+        // Schedule FB pages
+        const schedPageSel = (window._channelSelection || {})[currentProfile] || {};
+        const schedPageItems = schedPageSel.fbPages || [];
+        for (const pageItem of schedPageItems) {
+          const pgName = (channelsData.fbPages || []).find(x => x.key === pageItem.key)?.name || pageItem.id;
+          try {
+            const data = await postSchedule({ target: 'page', groupId: pageItem.pageId });
+            if (data.success) scheduled.push(`FB Page ${pgName}`);
+            else errors.push(`FB Page ${pgName}: ${data.error}`);
+          } catch (e) {
+            errors.push(`FB Page ${pgName}: ${e.message}`);
           }
         }
 
@@ -6651,7 +6749,7 @@
     }
 
     // ===== CHANNEL SETTINGS =====
-    let channelsData = { fbGroups: [], profileChannels: {} };
+    let channelsData = { fbGroups: [], fbPages: [], zaloGroups: [], profileChannels: {} };
 
     function getFbGroupDisplayName(groupId) {
       if (!groupId) return '';
@@ -6675,9 +6773,11 @@
 
     function populateDashGroupFilter() {
       const fb = (channelsData.fbGroups || []);
+      const pages = (channelsData.fbPages || []);
       const zalo = (channelsData.zaloGroups || []);
       const opts = [{ value: '', label: 'Tất cả nhóm' }];
       fb.forEach(g => opts.push({ value: g.id || g.key, label: g.name || g.key }));
+      pages.forEach(g => opts.push({ value: g.id || g.key, label: `📄 ${g.name || g.key}` }));
       zalo.forEach(g => opts.push({ value: g.name || g.key, label: g.name || g.key }));
       setMselOptions('msel-group', opts, 'Tất cả nhóm');
     }
@@ -6692,7 +6792,7 @@
     function populateCategoryFilterOptions() {
       const select = document.getElementById('groupCategoryFilter');
       if (!select) return;
-      const all = [...(channelsData.fbGroups || []), ...(channelsData.zaloGroups || [])];
+      const all = [...(channelsData.fbGroups || []), ...(channelsData.fbPages || []), ...(channelsData.zaloGroups || [])];
       const cats = [...new Set(all.map(g => (g.category || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
       const hasUncategorized = all.some(g => !(g.category || '').trim());
       const prev = currentCategoryFilter;
@@ -6720,9 +6820,10 @@
       populateCategoryFilterOptions();
 
       const fb = (channelsData.fbGroups || []).map(g => ({ ...g, _type: 'fb' }));
+      const fbPages = (channelsData.fbPages || []).map(g => ({ ...g, _type: 'page' }));
       const zalo = (channelsData.zaloGroups || []).map(g => ({ ...g, _type: 'zalo' }));
-      let rows = [...fb, ...zalo];
-      if (currentGroupFilter === 'fb') rows = fb;
+      let rows = [...fb, ...fbPages, ...zalo];
+      if (currentGroupFilter === 'fb') rows = [...fb, ...fbPages];
       else if (currentGroupFilter === 'zalo') rows = zalo;
 
       if (currentCategoryFilter === '__none__') {
@@ -6746,10 +6847,13 @@
 
       tbody.innerHTML = rows.map(g => {
         const isFb = g._type === 'fb';
+        const isPage = g._type === 'page';
         const typeBadge = isFb
           ? `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e8f1ff; color:#1877f2; border-radius:20px; font-size:11px; font-weight:600;"><img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:12px;height:12px;">FB</span>`
-          : `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e6f2ff; color:#1E3A8A; border-radius:20px; font-size:11px; font-weight:600;"><svg class="xi" style="width:12px;height:12px;"><use href="#ic-zalo"/></svg>Zalo</span>`;
-        const sub = isFb ? `ID: ${escapeHtml(g.id)}` : `Salework: ${escapeHtml(g.oid)}`;
+          : isPage
+            ? `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#f3e8ff; color:#7c3aed; border-radius:20px; font-size:11px; font-weight:600;">📄 Page</span>`
+            : `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e6f2ff; color:#1E3A8A; border-radius:20px; font-size:11px; font-weight:600;"><svg class="xi" style="width:12px;height:12px;"><use href="#ic-zalo"/></svg>Zalo</span>`;
+        const sub = isFb ? `ID: ${escapeHtml(g.id)}` : isPage ? `Page ID: ${escapeHtml(g.id)}` : `Salework: ${escapeHtml(g.oid)}`;
         const keyColor = isFb ? '#3B82F6' : '#2563EB';
         const category = g.category ? escapeHtml(g.category) : '';
         const nameTitle = category ? `${escapeHtml(g.name)} · ${category}` : escapeHtml(g.name);
@@ -6787,9 +6891,9 @@
     }
 
     async function deleteGroup(type, key) {
-      const label = type === 'fb' ? 'Facebook group' : 'Zalo group';
+      const label = type === 'fb' ? 'Facebook group' : type === 'page' ? 'Facebook page' : 'Zalo group';
       if (!confirm(`Xoá ${label} "${key}"?`)) return;
-      const endpoint = type === 'fb' ? 'fb-groups' : 'zalo-groups';
+      const endpoint = type === 'fb' ? 'fb-groups' : type === 'page' ? 'fb-pages' : 'zalo-groups';
       try {
         await fetch(`${BASE_URL}/api/channels/${endpoint}/${encodeURIComponent(key)}`, { method: 'DELETE' });
         await loadChannels();
@@ -6816,15 +6920,15 @@
         title.innerHTML = `<svg style="width:18px;height:18px;vertical-align:-3px;margin-right:6px;color:#3B82F6;" aria-hidden="true"><use href="#ic-edit"/></svg>Chỉnh sửa group`;
         typeRow.style.display = 'none';
         saveBtn.innerHTML = `<svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;" aria-hidden="true"><use href="#ic-check"/></svg>Lưu thay đổi`;
-        const list = type === 'fb' ? (channelsData.fbGroups || []) : (channelsData.zaloGroups || []);
+        const list = type === 'fb' ? (channelsData.fbGroups || []) : type === 'page' ? (channelsData.fbPages || []) : (channelsData.zaloGroups || []);
         const g = list.find(x => x.key === key);
-        if (!g) { alert('Không tìm thấy group'); return; }
+        if (!g) { alert('Không tìm thấy'); return; }
         setGroupModalType(type);
         keyInput.value = g.key;
         keyInput.readOnly = true;
         keyInput.style.background = '#f5f5f7';
         document.getElementById('groupModalOriginalKey').value = g.key;
-        document.getElementById('groupModalId').value = type === 'fb' ? (g.id || '') : (g.oid || '');
+        document.getElementById('groupModalId').value = (type === 'fb' || type === 'page') ? (g.id || '') : (g.oid || '');
         document.getElementById('groupModalName').value = g.name || '';
         document.getElementById('groupModalCategory').value = g.category || '';
       } else {
@@ -6844,17 +6948,24 @@
     function setGroupModalType(type) {
       document.getElementById('groupModalType').value = type;
       const fbBtn = document.getElementById('groupModalTypeFb');
+      const pageBtn = document.getElementById('groupModalTypePage');
       const zaloBtn = document.getElementById('groupModalTypeZalo');
       const idLabel = document.getElementById('groupModalIdLabel');
       const idInput = document.getElementById('groupModalId');
+      // Reset all
+      fbBtn.style.background = '#fff'; fbBtn.style.color = '#777'; fbBtn.style.borderColor = '#ddd';
+      pageBtn.style.background = '#fff'; pageBtn.style.color = '#777'; pageBtn.style.borderColor = '#ddd';
+      zaloBtn.style.background = '#fff'; zaloBtn.style.color = '#777'; zaloBtn.style.borderColor = '#ddd';
       if (type === 'fb') {
         fbBtn.style.background = '#f0f9ff'; fbBtn.style.color = '#3B82F6'; fbBtn.style.borderColor = '#DBEAFE';
-        zaloBtn.style.background = '#fff'; zaloBtn.style.color = '#777'; zaloBtn.style.borderColor = '#ddd';
         idLabel.textContent = 'Group ID (từ URL Facebook)';
         idInput.placeholder = 'vd: 350987965423767';
+      } else if (type === 'page') {
+        pageBtn.style.background = '#faf5ff'; pageBtn.style.color = '#7c3aed'; pageBtn.style.borderColor = '#e9d5ff';
+        idLabel.textContent = 'Page ID hoặc username (từ URL Facebook)';
+        idInput.placeholder = 'vd: 123456789 hoặc mypage';
       } else {
         zaloBtn.style.background = '#e6f2ff'; zaloBtn.style.color = '#2563EB'; zaloBtn.style.borderColor = '#b3d0ff';
-        fbBtn.style.background = '#fff'; fbBtn.style.color = '#777'; fbBtn.style.borderColor = '#ddd';
         idLabel.textContent = 'Tên nhóm trong Salework';
         idInput.placeholder = 'vd: TỔNG KHO HÀNG SẴN US - LINH THẢO';
       }
@@ -6869,12 +6980,13 @@
       const category = document.getElementById('groupModalCategory').value.trim();
 
       if (!key || !idOrOid || !name) {
-        alert('Vui lòng nhập đầy đủ Key, ' + (type === 'fb' ? 'Group ID' : 'Tên Salework') + ' và Tên hiển thị');
+        const idFieldLabel = type === 'fb' ? 'Group ID' : type === 'page' ? 'Page ID' : 'Tên Salework';
+        alert('Vui lòng nhập đầy đủ Key, ' + idFieldLabel + ' và Tên hiển thị');
         return;
       }
 
-      const endpoint = type === 'fb' ? 'fb-groups' : 'zalo-groups';
-      const payload = type === 'fb'
+      const endpoint = type === 'fb' ? 'fb-groups' : type === 'page' ? 'fb-pages' : 'zalo-groups';
+      const payload = (type === 'fb' || type === 'page')
         ? { key, id: idOrOid, name, category }
         : { key, oid: idOrOid, name, category };
 
@@ -6941,10 +7053,11 @@
     }
 
     function renderProfileCard(p) {
-      const pCh = (channelsData.profileChannels || {})[p.key] || { fbGroups: [], zaloGroups: [], zaloAccount: '' };
+      const pCh = (channelsData.profileChannels || {})[p.key] || { fbGroups: [], fbPages: [], zaloGroups: [], zaloAccount: '' };
       const assignedFbKeys = pCh.fbGroups || [];
+      const assignedPageKeys = pCh.fbPages || [];
       const assignedZaloKeys = pCh.zaloGroups || [];
-      const totalCount = assignedFbKeys.length + assignedZaloKeys.length;
+      const totalCount = assignedFbKeys.length + assignedPageKeys.length + assignedZaloKeys.length;
       const isEmpty = totalCount === 0;
 
       const avatarColors = ['#3B82F6','#8B5CF6','#10B981','#F59E0B','#EF4444','#EC4899','#06B6D4'];
@@ -6957,7 +7070,15 @@
       ).join('');
 
       const fbGroups = (channelsData.fbGroups || []).filter(g => assignedFbKeys.includes(g.key));
+      const fbPages = (channelsData.fbPages || []).filter(g => assignedPageKeys.includes(g.key));
       const zaloGroups = (channelsData.zaloGroups || []).filter(g => assignedZaloKeys.includes(g.key));
+
+      const pageChips = fbPages.map(g => `
+        <span style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:#faf5ff; color:#7c3aed; border:1px solid #e9d5ff; border-radius:99px; font-size:11px; font-weight:600; white-space:nowrap;">
+          📄 ${escapeHtml(g.name)}
+          <button onclick="removeProfileGroup('${escapeHtml(p.key)}','page','${escapeHtml(g.key)}')"
+            style="width:14px;height:14px;border-radius:99px;border:none;background:rgba(124,58,237,0.15);color:#7c3aed;cursor:pointer;font-size:11px;display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1;flex-shrink:0;">×</button>
+        </span>`).join('');
 
       const fbChips = fbGroups.map(g => `
         <span style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:#EFF6FF; color:#1877f2; border:1px solid #BFDBFE; border-radius:99px; font-size:11px; font-weight:600; white-space:nowrap;">
@@ -6981,9 +7102,11 @@
         : 'border:1px solid #e2e8f0; background:#fff;';
 
       const fbCount = assignedFbKeys.length;
+      const pageCount = assignedPageKeys.length;
       const zaloCount = assignedZaloKeys.length;
       const summaryBadges = [];
       if (fbCount > 0) summaryBadges.push(`<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; background:#EFF6FF; color:#1877f2; border:1px solid #BFDBFE; border-radius:99px; font-size:11px; font-weight:600;"><img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:11px;height:11px;">${fbCount} group</span>`);
+      if (pageCount > 0) summaryBadges.push(`<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; background:#faf5ff; color:#7c3aed; border:1px solid #e9d5ff; border-radius:99px; font-size:11px; font-weight:600;">📄 ${pageCount} page</span>`);
       if (zaloCount > 0) summaryBadges.push(`<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; background:#e0f2fe; color:#0369a1; border:1px solid #BAE6FD; border-radius:99px; font-size:11px; font-weight:600;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-zalo"/></svg>${zaloCount} group</span>`);
 
       return `
@@ -7019,6 +7142,11 @@
               <div style="display:flex; flex-wrap:wrap; align-items:center; gap:5px;">
                 <span style="display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; color:#1877f2; flex-shrink:0; min-width:28px;"><img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:11px;height:11px;">FB</span>
                 ${fbChips}
+              </div>` : ''}
+              ${pageChips ? `
+              <div style="display:flex; flex-wrap:wrap; align-items:center; gap:5px;">
+                <span style="display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; color:#7c3aed; flex-shrink:0; min-width:28px;">📄 Page</span>
+                ${pageChips}
               </div>` : ''}
               ${zaloChips ? `
               <div style="display:flex; flex-wrap:wrap; align-items:center; gap:5px;">
@@ -7072,27 +7200,32 @@
       const container = document.getElementById('pickerList');
       if (!container || !pickerProfileKey) return;
       const q = (document.getElementById('pickerSearch').value || '').toLowerCase().trim();
-      const pCh = (channelsData.profileChannels || {})[pickerProfileKey] || { fbGroups: [], zaloGroups: [] };
+      const pCh = (channelsData.profileChannels || {})[pickerProfileKey] || { fbGroups: [], fbPages: [], zaloGroups: [] };
       const assignedFb = new Set(pCh.fbGroups || []);
+      const assignedPages = new Set(pCh.fbPages || []);
       const assignedZalo = new Set(pCh.zaloGroups || []);
 
       let fbGroups = pickerTab !== 'zalo' ? (channelsData.fbGroups || []).map(g => ({ ...g, _type: 'fb' })) : [];
+      let fbPages = pickerTab !== 'zalo' ? (channelsData.fbPages || []).map(g => ({ ...g, _type: 'page' })) : [];
       let zaloGroups = pickerTab !== 'fb' ? (channelsData.zaloGroups || []).map(g => ({ ...g, _type: 'zalo' })) : [];
-      let items = [...fbGroups, ...zaloGroups];
+      let items = [...fbGroups, ...fbPages, ...zaloGroups];
       if (q) items = items.filter(g => (g.name || '').toLowerCase().includes(q) || (g.key || '').toLowerCase().includes(q));
 
       if (items.length === 0) {
-        container.innerHTML = '<p style="color:#aaa; font-size:12px; text-align:center; padding:12px;">Không tìm thấy group nào.</p>';
+        container.innerHTML = '<p style="color:#aaa; font-size:12px; text-align:center; padding:12px;">Không tìm thấy kênh nào.</p>';
         return;
       }
       container.innerHTML = items.map(g => {
         const isFb = g._type === 'fb';
-        const checked = isFb ? assignedFb.has(g.key) : assignedZalo.has(g.key);
-        const accent = isFb ? '#1877f2' : '#0369a1';
-        const bg = checked ? (isFb ? '#EFF6FF' : '#e0f2fe') : '#fff';
+        const isPage = g._type === 'page';
+        const checked = isFb ? assignedFb.has(g.key) : isPage ? assignedPages.has(g.key) : assignedZalo.has(g.key);
+        const accent = isFb ? '#1877f2' : isPage ? '#7c3aed' : '#0369a1';
+        const bg = checked ? (isFb ? '#EFF6FF' : isPage ? '#faf5ff' : '#e0f2fe') : '#fff';
         const badge = isFb
           ? `<span style="background:#e8f1ff;color:#1877f2;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;">FB</span>`
-          : `<span style="background:#e0f2fe;color:#0369a1;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;">Zalo</span>`;
+          : isPage
+            ? `<span style="background:#f3e8ff;color:#7c3aed;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;">Page</span>`
+            : `<span style="background:#e0f2fe;color:#0369a1;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;">Zalo</span>`;
         return `
           <label style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:7px; cursor:pointer; background:${bg}; user-select:none;">
             <input type="checkbox" ${checked ? 'checked' : ''} accent-color="${accent}"
@@ -7113,12 +7246,17 @@
     }
 
     async function toggleProfileChannel(profileKey, platform, channelKey, checked) {
-      const pCh = (channelsData.profileChannels || {})[profileKey] || { fbGroups: [], zaloGroups: [], zaloAccount: '' };
+      const pCh = (channelsData.profileChannels || {})[profileKey] || { fbGroups: [], fbPages: [], zaloGroups: [], zaloAccount: '' };
       if (!pCh.fbGroups) pCh.fbGroups = [];
+      if (!pCh.fbPages) pCh.fbPages = [];
       if (!pCh.zaloGroups) pCh.zaloGroups = [];
       if (platform === 'fb') {
         if (checked && !pCh.fbGroups.includes(channelKey)) pCh.fbGroups.push(channelKey);
         if (!checked) pCh.fbGroups = pCh.fbGroups.filter(k => k !== channelKey);
+      }
+      if (platform === 'page') {
+        if (checked && !pCh.fbPages.includes(channelKey)) pCh.fbPages.push(channelKey);
+        if (!checked) pCh.fbPages = pCh.fbPages.filter(k => k !== channelKey);
       }
       if (platform === 'zalo') {
         if (checked && !pCh.zaloGroups.includes(channelKey)) pCh.zaloGroups.push(channelKey);
@@ -7980,9 +8118,10 @@
         if (groupIds.length) schedToShow = schedToShow.filter(s => groupIds.includes(s.groupId) || groupIds.includes(s.groupName));
         if (!showSchedules) schedToShow = [];
 
-        // Lookup: FB group ID → tên group (từ danh sách kênh đã lưu)
+        // Lookup: FB group/page ID → tên (từ danh sách kênh đã lưu)
         const fbGroupIdToName = {};
         (channelsData.fbGroups || []).forEach(g => { if (g.id) fbGroupIdToName[g.id] = g.name; });
+        (channelsData.fbPages || []).forEach(g => { if (g.id) fbGroupIdToName[g.id] = `📄 ${g.name}`; });
         function resolveGroupLabel(platform, groupId, groupName) {
           if (platform === 'zalo') return groupName || groupId || '-';
           if (groupId && fbGroupIdToName[groupId]) return fbGroupIdToName[groupId];
