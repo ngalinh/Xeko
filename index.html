@@ -2882,10 +2882,6 @@
       <button class="sidebar-item" onclick="switchPage('spy')" id="navSpy">
         <span class="icon"><svg class="xi"><use href="#ic-search"/></svg></span> Lấy nội dung
       </button>
-      <button class="sidebar-item" onclick="switchPage('fbquicktest')" id="navFbQuickTest">
-        <span class="icon" style="background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;">🧪</span> Test FB
-        <span class="badge" style="background:#fbbf24;color:#78350f;">Dev</span>
-      </button>
     </div>
     <div class="sidebar-footer">
       <div id="currentUserBox" style="display:none; padding:10px 12px; background:#f0f9ff; border-radius:10px; font-size:12px;">
@@ -3286,67 +3282,6 @@
      </div>
     </div>
   </div><!-- end pagePermissions -->
-
-  <!-- PAGE: Test FB Quick Post (Dev) -->
-  <div class="page" id="pageFbQuickTest">
-    <div class="header">
-      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
-      <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;">🧪</div>
-      <div class="header-info">
-        <h1>Test FB Quick Post</h1>
-        <span>Khu test riêng — build flow đăng nhanh Facebook từng bước</span>
-      </div>
-    </div>
-
-    <div style="flex:1; overflow-y:auto; padding:20px;">
-      <div style="max-width:720px;">
-        <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:12px 14px; margin-bottom:16px; font-size:13px; color:#78350f;">
-          ⚠️ Trang dev nội bộ. Test function <code>quickPostToPersonalAndGroups</code> đang build. Không dùng cho production.
-        </div>
-
-        <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:18px;">
-          <div style="margin-bottom:14px;">
-            <label style="display:block; font-size:13px; font-weight:600; color:#555; margin-bottom:4px;">Profile FB</label>
-            <select id="fbqtProfile" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; background:#fff;">
-              <option value="">— Đang tải profile —</option>
-            </select>
-          </div>
-
-          <div style="margin-bottom:14px;">
-            <label style="display:block; font-size:13px; font-weight:600; color:#555; margin-bottom:4px;">Nội dung bài viết</label>
-            <textarea id="fbqtMessage" rows="4" placeholder="Nhập nội dung..." style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; resize:vertical; font-family:inherit;"></textarea>
-          </div>
-
-          <div style="margin-bottom:14px;">
-            <label style="display:block; font-size:13px; font-weight:600; color:#555; margin-bottom:4px;">Ảnh (chọn nhiều)</label>
-            <input type="file" id="fbqtImages" accept="image/*" multiple style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px; font-size:13px; background:#f9fafb;">
-          </div>
-
-          <div style="margin-bottom:14px;">
-            <label style="display:block; font-size:13px; font-weight:600; color:#555; margin-bottom:4px;">
-              Group keywords (tách bằng dấu phẩy, tối đa 9)
-            </label>
-            <input type="text" id="fbqtGroups" placeholder="vd: Test, Test 1" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
-            <div style="margin-top:4px; font-size:11px; color:#888;">Để trống = chỉ đăng cá nhân, không share group.</div>
-          </div>
-
-          <div style="display:flex; gap:10px; margin-top:18px;">
-            <button onclick="runFbQuickTest()" id="fbqtRunBtn" style="flex:1; padding:12px 18px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-weight:600;">
-              ▶ Chạy test
-            </button>
-            <button onclick="document.getElementById('fbqtLog').textContent=''" style="padding:12px 18px; background:#f3f4f6; color:#555; border:1px solid #ddd; border-radius:8px; font-size:14px; cursor:pointer;">
-              Xoá log
-            </button>
-          </div>
-        </div>
-
-        <div style="margin-top:18px;">
-          <div style="font-size:13px; font-weight:600; color:#555; margin-bottom:6px;">Log</div>
-          <pre id="fbqtLog" style="background:#0f172a; color:#e2e8f0; padding:14px; border-radius:8px; font-size:12px; line-height:1.6; min-height:140px; max-height:480px; overflow-y:auto; white-space:pre-wrap; word-break:break-word; margin:0;"></pre>
-        </div>
-      </div>
-    </div>
-  </div><!-- end pageFbQuickTest -->
 
   <!-- Modal: Thêm/Sửa phân quyền -->
   <div id="permissionModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; padding:20px;">
@@ -5578,7 +5513,6 @@
         session: { page: 'pageSession', nav: 'navSession' },
         permissions: { page: 'pagePermissions', nav: 'navPermissions' },
         spy: { page: 'pageSpyBaiViet', nav: 'navSpy' },
-        fbquicktest: { page: 'pageFbQuickTest', nav: 'navFbQuickTest' },
       };
 
       const target = pageMap[pg];
@@ -5596,9 +5530,6 @@
       }
       if (pg === 'permissions') {
         loadPermissions();
-      }
-      if (pg === 'fbquicktest') {
-        loadFbQuickTestProfiles();
       }
       if (pg === 'spy') {
         updateSpyProfileHint();
@@ -5710,126 +5641,6 @@
         msgInput.dispatchEvent(new Event('input', { bubbles: true }));
       }
       switchPage('post');
-    }
-
-    // === FB Quick Test (dev) ===
-    async function loadFbQuickTestProfiles() {
-      const sel = document.getElementById('fbqtProfile');
-      if (!sel) return;
-      try {
-        const allParam = (window.CURRENT_USER && CURRENT_USER.isXekoAdmin) ? '?all=1' : '';
-        const res = await fetch(BASE_URL + '/api/accounts' + allParam);
-        const data = await parseJson(res);
-        const fbs = data.facebook || [];
-        if (fbs.length === 0) {
-          sel.innerHTML = '<option value="">(Chưa có profile FB)</option>';
-          return;
-        }
-        const current = sel.value;
-        sel.innerHTML = fbs.map(p =>
-          `<option value="${p.key}">${p.name} (${p.key})</option>`
-        ).join('');
-        if (current && fbs.find(p => p.key === current)) sel.value = current;
-      } catch (e) {
-        sel.innerHTML = `<option value="">Lỗi tải: ${e.message}</option>`;
-      }
-    }
-
-    function _fbqtLog(line, color) {
-      const pre = document.getElementById('fbqtLog');
-      if (!pre) return;
-      const ts = new Date().toLocaleTimeString('vi-VN');
-      const span = document.createElement('span');
-      if (color) span.style.color = color;
-      span.textContent = `[${ts}] ${line}\n`;
-      pre.appendChild(span);
-      pre.scrollTop = pre.scrollHeight;
-    }
-
-    async function runFbQuickTest() {
-      const profile = document.getElementById('fbqtProfile').value;
-      const message = document.getElementById('fbqtMessage').value;
-      const imagesInput = document.getElementById('fbqtImages');
-      const groupsRaw = document.getElementById('fbqtGroups').value;
-      const btn = document.getElementById('fbqtRunBtn');
-
-      if (!profile) { _fbqtLog('✗ Chưa chọn profile', '#f87171'); return; }
-
-      const groupKeywords = groupsRaw.split(',').map(s => s.trim()).filter(Boolean);
-      if (groupKeywords.length > 9) {
-        _fbqtLog(`⚠ ${groupKeywords.length} keywords > 9 (max FB cho phép) — chỉ lấy 9 đầu`, '#fbbf24');
-      }
-
-      const fd = new FormData();
-      fd.append('profile', profile);
-      fd.append('message', message);
-      fd.append('groupKeywords', JSON.stringify(groupKeywords.slice(0, 9)));
-      for (const f of imagesInput.files) fd.append('images', f);
-
-      btn.disabled = true;
-      btn.textContent = '⏳ Đang chạy...';
-      _fbqtLog(`▶ Bắt đầu: profile=${profile}, msg=${message.length} ký tự, ảnh=${imagesInput.files.length}, groups=[${groupKeywords.join(', ')}]`, '#60a5fa');
-
-      try {
-        // 1. Submit job → nhận jobId ngay
-        const res = await fetch(BASE_URL + '/api/fb-quick-post-test', { method: 'POST', body: fd });
-        const submitData = await parseJson(res);
-        if (!res.ok) {
-          _fbqtLog(`✗ HTTP ${res.status}: ${submitData.error || 'lỗi không xác định'}`, '#f87171');
-          return;
-        }
-        if (!submitData.jobId) {
-          // Backward compat: nếu server trả sync result (chưa update)
-          _renderFbqtResult(submitData);
-          return;
-        }
-        _fbqtLog(`⏳ Job ${submitData.jobId.slice(0, 8)} đã queue, đang chạy...`, '#94a3b8');
-
-        // 2. Poll job result (10 phút max)
-        const start = Date.now();
-        while (Date.now() - start < 10 * 60 * 1000) {
-          await new Promise(r => setTimeout(r, 3000));
-          const jr = await fetch(BASE_URL + '/api/job/' + submitData.jobId);
-          const job = await parseJson(jr);
-          if (job.status === 'done') {
-            _renderFbqtResult(job.result || {});
-            return;
-          }
-          if (job.status === 'failed') {
-            _fbqtLog(`✗ Job failed: ${job.error || 'không rõ'}`, '#f87171');
-            return;
-          }
-          // pending → continue polling
-        }
-        _fbqtLog(`✗ Job timeout sau 10 phút`, '#f87171');
-      } catch (e) {
-        _fbqtLog(`✗ Exception: ${e.message}`, '#f87171');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = '▶ Chạy test';
-      }
-    }
-
-    function _renderFbqtResult(data) {
-      // Edge case: data có jobId nhưng KHÔNG có success/error → cloud không poll (OLD code)
-      // Vẫn render những gì có để user biết
-      if (data == null || (data.success === undefined && !data.error && !data.steps && data.jobId)) {
-        _fbqtLog(`⚠ Response chưa hoàn tất: ${JSON.stringify(data).slice(0, 200)}`, '#fbbf24');
-        _fbqtLog(`  (Cloud server có thể chưa update — nhưng local server đã chạy xong, check FB profile để xác nhận)`, '#94a3b8');
-        return;
-      }
-      if (data.success) {
-        _fbqtLog(`✓ THÀNH CÔNG`, '#4ade80');
-        if (data.postUrl) _fbqtLog(`  postUrl: ${data.postUrl}`, '#a5b4fc');
-        if (data.sharedGroups != null) _fbqtLog(`  sharedGroups: ${data.sharedGroups}`, '#a5b4fc');
-        if (data.missedGroups && data.missedGroups.length) _fbqtLog(`  missedGroups: ${data.missedGroups.join(', ')}`, '#fbbf24');
-      } else {
-        const errMsg = data.error || (data == null ? 'response null' : `raw=${JSON.stringify(data).slice(0, 200)}`);
-        _fbqtLog(`✗ THẤT BẠI: ${errMsg}`, '#f87171');
-      }
-      if (data.steps && Array.isArray(data.steps)) {
-        for (const s of data.steps) _fbqtLog(`  · ${s}`, '#94a3b8');
-      }
     }
 
     // === Dashboard Calendar ===
