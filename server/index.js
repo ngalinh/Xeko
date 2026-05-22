@@ -89,7 +89,9 @@ if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 // (nằm trong namespace /api nên chắc chắn được reverse proxy forward).
 // Đặt trong data/ để dùng chung persistent volume với posts.db —
 // tránh mất ảnh mỗi lần server redeploy (filesystem ephemeral).
-const UPLOADS_DIR = path.resolve(__dirname, '../data/uploads');
+const UPLOADS_DIR = process.env.XEKO_DATA_DIR
+  ? path.join(path.resolve(process.env.XEKO_DATA_DIR), 'data/uploads')
+  : path.resolve(__dirname, '../data/uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 app.get('/api/image/:date/:filename', async (req, res) => {
