@@ -1220,7 +1220,126 @@ app.get('/api/statistics/daily-by-profile', (req, res) => {
   }
 });
 
-// ===== CHANNELS PROXY =====
+// ===== CHANNELS (stored on remote server — no local server dependency) =====
+const CHANNELS_FILE = process.env.XEKO_DATA_DIR
+  ? path.join(path.resolve(process.env.XEKO_DATA_DIR), 'data/channels.json')
+  : path.resolve(__dirname, '../data/channels.json');
+
+function loadChannels() {
+  try {
+    if (fs.existsSync(CHANNELS_FILE)) return JSON.parse(fs.readFileSync(CHANNELS_FILE, 'utf8'));
+  } catch {}
+  return { fbGroups: [], fbPages: [], zaloGroups: [], profileChannels: {} };
+}
+
+function saveChannels(data) {
+  const dir = path.dirname(CHANNELS_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(CHANNELS_FILE, JSON.stringify(data, null, 2));
+}
+
+app.get('/api/channels', (req, res) => {
+  res.json(loadChannels());
+});
+
+app.post('/api/channels/fb-groups', (req, res) => {
+  const { key, id, name, category } = req.body;
+  if (!key || !id || !name) return res.status(400).json({ error: 'Thiếu key, id hoặc name' });
+  const data = loadChannels();
+  if (data.fbGroups.find(g => g.key === key)) return res.status(400).json({ error: 'Key đã tồn tại' });
+  data.fbGroups.push({ key, id, name, category: (category || '').trim() });
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.patch('/api/channels/fb-groups/:key', (req, res) => {
+  const data = loadChannels();
+  const group = (data.fbGroups || []).find(g => g.key === req.params.key);
+  if (!group) return res.status(404).json({ error: 'Không tìm thấy group' });
+  if (typeof req.body.category === 'string') group.category = req.body.category.trim();
+  if (typeof req.body.name === 'string' && req.body.name.trim()) group.name = req.body.name.trim();
+  if (typeof req.body.id === 'string' && req.body.id.trim()) group.id = req.body.id.trim();
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.delete('/api/channels/fb-groups/:key', (req, res) => {
+  const data = loadChannels();
+  data.fbGroups = data.fbGroups.filter(g => g.key !== req.params.key);
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.post('/api/channels/fb-pages', (req, res) => {
+  const { key, id, name, category } = req.body;
+  if (!key || !id || !name) return res.status(400).json({ error: 'Thiếu key, id hoặc name' });
+  const data = loadChannels();
+  if (!data.fbPages) data.fbPages = [];
+  if (data.fbPages.find(g => g.key === key)) return res.status(400).json({ error: 'Key đã tồn tại' });
+  data.fbPages.push({ key, id, name, category: (category || '').trim() });
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.patch('/api/channels/fb-pages/:key', (req, res) => {
+  const data = loadChannels();
+  if (!data.fbPages) data.fbPages = [];
+  const pg = data.fbPages.find(g => g.key === req.params.key);
+  if (!pg) return res.status(404).json({ error: 'Không tìm thấy page' });
+  if (typeof req.body.category === 'string') pg.category = req.body.category.trim();
+  if (typeof req.body.name === 'string' && req.body.name.trim()) pg.name = req.body.name.trim();
+  if (typeof req.body.id === 'string' && req.body.id.trim()) pg.id = req.body.id.trim();
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.delete('/api/channels/fb-pages/:key', (req, res) => {
+  const data = loadChannels();
+  if (!data.fbPages) data.fbPages = [];
+  data.fbPages = data.fbPages.filter(g => g.key !== req.params.key);
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.post('/api/channels/zalo-groups', (req, res) => {
+  const { key, oid, name, category } = req.body;
+  if (!key || !oid || !name) return res.status(400).json({ error: 'Thiếu key, oid hoặc name' });
+  const data = loadChannels();
+  if (!data.zaloGroups) data.zaloGroups = [];
+  if (data.zaloGroups.find(g => g.key === key)) return res.status(400).json({ error: 'Key đã tồn tại' });
+  data.zaloGroups.push({ key, oid, name, category: (category || '').trim() });
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.patch('/api/channels/zalo-groups/:key', (req, res) => {
+  const data = loadChannels();
+  const group = (data.zaloGroups || []).find(g => g.key === req.params.key);
+  if (!group) return res.status(404).json({ error: 'Không tìm thấy group' });
+  if (typeof req.body.category === 'string') group.category = req.body.category.trim();
+  if (typeof req.body.name === 'string' && req.body.name.trim()) group.name = req.body.name.trim();
+  if (typeof req.body.oid === 'string' && req.body.oid.trim()) group.oid = req.body.oid.trim();
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.delete('/api/channels/zalo-groups/:key', (req, res) => {
+  const data = loadChannels();
+  data.zaloGroups = (data.zaloGroups || []).filter(g => g.key !== req.params.key);
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+app.put('/api/channels/profile-channels', (req, res) => {
+  const { profileChannels } = req.body;
+  if (!profileChannels) return res.status(400).json({ error: 'Thiếu profileChannels' });
+  const data = loadChannels();
+  data.profileChannels = profileChannels;
+  saveChannels(data);
+  res.json({ success: true });
+});
+
+// ===== RESTART LOCAL SERVER =====
 async function proxyToLocal(req, res, method, path, body = null) {
   const LOCAL_URL = getLocalUrl();
   if (!LOCAL_URL) return res.status(503).json({ error: 'Local server chưa kết nối' });
@@ -1232,26 +1351,17 @@ async function proxyToLocal(req, res, method, path, body = null) {
     };
     if (body) opts.body = JSON.stringify(body);
     const response = await fetchFn(`${LOCAL_URL}${path}`, opts);
-    const data = await response.json();
+    const text = await response.text();
+    let data;
+    try { data = JSON.parse(text); } catch {
+      return res.status(502).json({ error: `Local server trả về response không hợp lệ (HTTP ${response.status})` });
+    }
     return res.status(response.status).json(data);
   } catch (e) {
     return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
   }
 }
 
-app.get('/api/channels', (req, res) => proxyToLocal(req, res, 'GET', '/api/channels'));
-app.post('/api/channels/fb-groups', (req, res) => proxyToLocal(req, res, 'POST', '/api/channels/fb-groups', req.body));
-app.patch('/api/channels/fb-groups/:key', (req, res) => proxyToLocal(req, res, 'PATCH', `/api/channels/fb-groups/${req.params.key}`, req.body));
-app.delete('/api/channels/fb-groups/:key', (req, res) => proxyToLocal(req, res, 'DELETE', `/api/channels/fb-groups/${req.params.key}`));
-app.post('/api/channels/fb-pages', (req, res) => proxyToLocal(req, res, 'POST', '/api/channels/fb-pages', req.body));
-app.patch('/api/channels/fb-pages/:key', (req, res) => proxyToLocal(req, res, 'PATCH', `/api/channels/fb-pages/${req.params.key}`, req.body));
-app.delete('/api/channels/fb-pages/:key', (req, res) => proxyToLocal(req, res, 'DELETE', `/api/channels/fb-pages/${req.params.key}`));
-app.post('/api/channels/zalo-groups', (req, res) => proxyToLocal(req, res, 'POST', '/api/channels/zalo-groups', req.body));
-app.patch('/api/channels/zalo-groups/:key', (req, res) => proxyToLocal(req, res, 'PATCH', `/api/channels/zalo-groups/${req.params.key}`, req.body));
-app.delete('/api/channels/zalo-groups/:key', (req, res) => proxyToLocal(req, res, 'DELETE', `/api/channels/zalo-groups/${req.params.key}`));
-app.put('/api/channels/profile-channels', (req, res) => proxyToLocal(req, res, 'PUT', '/api/channels/profile-channels', req.body));
-
-// ===== RESTART LOCAL SERVER =====
 app.post('/api/restart', (req, res) => proxyToLocal(req, res, 'POST', '/api/restart'));
 
 // ===== ZALO POST =====
@@ -1406,6 +1516,20 @@ app.delete('/api/admin/users/:email', auth.requireAdmin(), (req, res) => {
     res.json({ success: true });
   } catch (e) {
     res.status(400).json({ error: e.message });
+  }
+});
+
+// Force-sync permissions từ local server (dùng khi remote mất data sau deploy)
+app.post('/api/admin/sync-permissions', auth.requireAdmin(), async (req, res) => {
+  try {
+    const restored = await permissions.restoreFromLocal();
+    if (restored) {
+      const data = permissions.load();
+      return res.json({ success: true, restored: true, count: Object.keys(data.users).length });
+    }
+    return res.status(503).json({ error: 'Local server chưa kết nối hoặc chưa có file permissions. Hãy chạy local server trước.' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 

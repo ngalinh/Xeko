@@ -4,14 +4,26 @@ const logger = require('./logger');
 
 const DATA_DIR = process.env.XEKO_DATA_DIR
   ? path.resolve(process.env.XEKO_DATA_DIR)
-  : path.resolve(__dirname, '../..');
-const PERMISSIONS_FILE = path.join(DATA_DIR, 'config/user-permissions.json');
+  : path.resolve(__dirname, '../../..');
+const PERMISSIONS_FILE = path.join(DATA_DIR, 'data/user-permissions.json');
+// Legacy path used before migration (was server/config/user-permissions.json)
+const PERMISSIONS_FILE_LEGACY = path.join(path.resolve(__dirname, '../..'), 'config/user-permissions.json');
 const SUPER_ADMIN_EMAIL = (process.env.XEKO_SUPER_ADMIN || 'tram@gmail.com').toLowerCase().trim();
 
 function ensureFile() {
   const dir = path.dirname(PERMISSIONS_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   if (!fs.existsSync(PERMISSIONS_FILE)) {
+    // Migrate from legacy path (server/config/) if it exists
+    if (fs.existsSync(PERMISSIONS_FILE_LEGACY)) {
+      try {
+        fs.copyFileSync(PERMISSIONS_FILE_LEGACY, PERMISSIONS_FILE);
+        logger.info(`permissions migrated from legacy path to ${PERMISSIONS_FILE}`);
+        return;
+      } catch (e) {
+        logger.warn(`permissions migration failed: ${e.message}`);
+      }
+    }
     const initial = {
       users: {
         [SUPER_ADMIN_EMAIL]: {
