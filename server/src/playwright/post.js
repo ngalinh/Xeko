@@ -171,8 +171,10 @@ async function tryClick(page, selectors, description, timeout = 5000) {
 }
 
 async function openCreatePost(page, isGroup = false) {
-  // Đợi feed render xong trước khi tìm nút tạo bài
-  await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
+  // Đợi feed render xong: domcontentloaded đã done ở page.goto, chờ thêm 1s để
+  // React render nút tạo bài. networkidle không dùng — FB liên tục có background
+  // requests nên thường block đến hết 30s timeout.
+  await randomDelay(800, 1200);
 
   const selectors = isGroup
     ? [
@@ -362,10 +364,18 @@ async function attachImages(page, imagePaths) {
     return false;
   }
 
-  // Verify: chờ FB render preview rồi đếm thumbnail trong dialog. Nếu thiếu
-  // (vd FB nuốt mất ảnh do input không support multiple), log warning + chụp
-  // ảnh debug — không throw, vì có thể vẫn đăng được phần ảnh đã nhận.
-  await randomDelay(3000, 6000);
+  // Verify: chờ FB render preview. Smart wait: resolve ngay khi thumbnail xuất hiện,
+  // tối đa 4s — nhanh hơn flat delay 3-6s khi FB render sớm.
+  await page.waitForFunction((n) => {
+    const dialog = document.querySelector('div[role="dialog"]');
+    if (!dialog) return true; // dialog đóng rồi thì khỏi chờ
+    let count = 0;
+    for (const img of dialog.querySelectorAll('img')) {
+      const src = img.getAttribute('src') || '';
+      if (src.startsWith('blob:') || src.startsWith('data:')) count++;
+    }
+    return count >= n;
+  }, Math.max(1, imagePaths.length), { timeout: 4000 }).catch(() => {});
   if (imagePaths.length > 1) {
     try {
       const thumbCount = await page.evaluate(() => {
@@ -686,7 +696,7 @@ async function submitPostAndShareGroups(page, keywords) {
     }
     await page.keyboard.press('Enter');
   }
-  await randomDelay(2000, 4000);
+  await randomDelay(1000, 2000);
 
   // Bước 2: trong "Cài đặt bài viết", click "Chia sẻ lên nhóm" → tick group → Xong
   const shareResult = await shareToGroupsInSettings(page, keywords);
@@ -723,7 +733,16 @@ async function submitPostAndShareGroups(page, keywords) {
     });
   }
 
-  await randomDelay(5000, 8000);
+  // Smart wait: resolve ngay khi dialog đóng, tối đa 8s
+  await page.waitForFunction(() => {
+    const dialogs = document.querySelectorAll('div[role="dialog"]');
+    for (const d of dialogs) {
+      const t = d.textContent || '';
+      if (t.includes('Tạo bài viết') || t.includes('Create post') ||
+          t.includes('Cài đặt bài viết') || t.includes('Post settings')) return false;
+    }
+    return true;
+  }, { timeout: 8000 }).catch(() => {});
 
   const stillOpen = await page.$('div[role="dialog"] span:has-text("Tạo bài viết"), div[role="dialog"] span:has-text("Cài đặt bài viết")');
   if (stillOpen) {
@@ -808,12 +827,12 @@ async function submitPost(page) {
     await page.keyboard.press('Enter');
   }
 
-  await randomDelay(2000, 4000);
+  await randomDelay(800, 1500);
 
   await page.evaluate(() => {
     document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
   });
-  await randomDelay(1000, 1500);
+  await randomDelay(500, 900);
 
   const step2 = await tryClick(page, [
     'div[aria-label="Đăng"]',
@@ -839,7 +858,16 @@ async function submitPost(page) {
     });
   }
 
-  await randomDelay(5000, 8000);
+  // Smart wait: resolve ngay khi dialog "Tạo bài viết" đóng, tối đa 8s
+  await page.waitForFunction(() => {
+    const dialogs = document.querySelectorAll('div[role="dialog"]');
+    for (const d of dialogs) {
+      for (const s of d.querySelectorAll('span')) {
+        if ((s.textContent || '').trim() === 'Tạo bài viết' || (s.textContent || '').trim() === 'Create post') return false;
+      }
+    }
+    return true;
+  }, { timeout: 8000 }).catch(() => {});
 
   const stillOpen = await page.$('div[role="dialog"] span:has-text("Tạo bài viết")');
   if (stillOpen) {
@@ -869,7 +897,7 @@ async function postToPersonal(message, imagePaths = []) {
   try {
     await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
     logger.info(`${tag} loaded fb home (+${Date.now() - t0}ms, url=${page.url()})`);
-    await randomDelay(3000, 5000);
+    await randomDelay(1500, 2500);
     await ensureLoggedIn(page);
 
     const tOpen = Date.now();
@@ -889,7 +917,7 @@ async function postToPersonal(message, imagePaths = []) {
       throw new Error(`${funMsg.errPopupPersonal()} [url=${pageUrl}${visibleHint ? `, hint="${visibleHint}"` : ''}, screenshot=${path.basename(debugPath)}]`);
     }
     logger.info(`${tag} mở popup OK (+${Date.now() - t0}ms)`);
-    await randomDelay(2000, 3000);
+    await randomDelay(800, 1500);
 
     if (imagePaths.length > 0) {
       const tImg = Date.now();
@@ -897,14 +925,14 @@ async function postToPersonal(message, imagePaths = []) {
       if (!imgOk) throw new Error(funMsg.errUpload() + ' (xem logs/debug-upload.png)');
       logger.info(`${tag} attach ${imagePaths.length} ảnh xong (${Date.now() - tImg}ms)`);
     }
-    await randomDelay(1500, 2500);
+    await randomDelay(800, 1200);
 
     if (message) {
       const tType = Date.now();
       if (!(await typeMessage(page, message))) throw new Error(funMsg.errTypeContent());
       logger.info(`${tag} nhập text xong (${Date.now() - tType}ms)`);
     }
-    await randomDelay(1000, 2000);
+    await randomDelay(600, 1200);
 
     const tSubmit = Date.now();
     const result = await submitPost(page);
@@ -922,6 +950,7 @@ async function postToPersonal(message, imagePaths = []) {
     logger.error(`${tag} FAIL sau ${Date.now() - t0}ms: ${error.message}`);
     return { success: false, error: error.message };
   } finally {
+    await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
     await page.close();
   }
 }
@@ -945,7 +974,7 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
 
   try {
     await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await randomDelay(3000, 5000);
+    await randomDelay(1500, 2500);
     await ensureLoggedIn(page);
 
     if (!(await openCreatePost(page, false))) {
@@ -953,18 +982,18 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
       await page.screenshot({ path: debugPath }).catch(() => {});
       throw new Error(`${funMsg.errPopupPersonal()} [screenshot=${path.basename(debugPath)}]`);
     }
-    await randomDelay(2000, 3000);
+    await randomDelay(800, 1500);
 
     if (imagePaths.length > 0) {
       const imgOk = await attachImages(page, imagePaths);
       if (!imgOk) throw new Error(funMsg.errUpload() + ' (xem logs/debug-upload.png)');
     }
-    await randomDelay(1500, 2500);
+    await randomDelay(800, 1200);
 
     if (message) {
       if (!(await typeMessage(page, message))) throw new Error(funMsg.errTypeContent());
     }
-    await randomDelay(1000, 2000);
+    await randomDelay(600, 1200);
 
     const result = await submitPostAndShareGroups(page, kwList);
     if (!result.success) {
@@ -979,6 +1008,7 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
     logger.error(`${tag} FAIL sau ${Date.now() - t0}ms: ${error.message}`);
     return { success: false, error: error.message };
   } finally {
+    await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
     await page.close();
   }
 }
@@ -2111,6 +2141,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
     const shot = await _qpScreenshot(page, 'exception');
     return { success: false, error: `${e.message} (screenshot=${shot})`, steps };
   } finally {
+    await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
     await page.close().catch(() => {});
   }
 }
