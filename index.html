@@ -6202,12 +6202,15 @@
       }
       wrap.innerHTML = _contentProfilesCache.map(p => {
         const checked = selectedKeys.includes(p.key) ? 'checked' : '';
-        const badge = p.type === 'facebook' ? '🔵' : '🟢';
+        const badgeColor = p.type === 'facebook' ? '#1877F2' : '#0068FF';
+        const badgeIcon = p.type === 'facebook'
+          ? `<svg class="xi" style="width:13px;height:13px;color:${badgeColor};flex-shrink:0;"><use href="#ic-fb"/></svg>`
+          : `<svg class="xi" style="width:13px;height:13px;color:${badgeColor};flex-shrink:0;"><use href="#ic-zalo"/></svg>`;
         return `<label style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:${checked ? '#EFF6FF' : '#f9fafb'};border:1px solid ${checked ? '#BFDBFE' : '#e5e7eb'};border-radius:99px;cursor:pointer;font-size:12px;user-select:none;">
           <input type="checkbox" name="contentProfiles" value="${escapeHtml(p.key)}" ${checked}
             style="margin:0;width:13px;height:13px;cursor:pointer;"
             onchange="this.closest('label').style.background=this.checked?'#EFF6FF':'#f9fafb';this.closest('label').style.borderColor=this.checked?'#BFDBFE':'#e5e7eb'">
-          ${badge} ${escapeHtml(p.name || p.key)}
+          ${badgeIcon} ${escapeHtml(p.name || p.key)}
         </label>`;
       }).join('');
     }
