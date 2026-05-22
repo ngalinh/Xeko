@@ -1376,7 +1376,7 @@ app.get('/api/contents', (req, res) => {
 
 app.post('/api/contents', upload.array('images', 20), async (req, res) => {
   const { title, body, tags, platform, category, profiles } = req.body;
-  if (!title || !body) return res.status(400).json({ error: 'Thiếu tiêu đề hoặc nội dung' });
+  if (!body) return res.status(400).json({ error: 'Thiếu nội dung bài viết' });
   const imagePaths = (req.files || []).map(f => f.path);
   const newUrls = imagePaths.length ? await persistImages(imagePaths) : [];
   const tagsArr = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
@@ -1391,7 +1391,7 @@ app.post('/api/contents', upload.array('images', 20), async (req, res) => {
 app.put('/api/contents/:id', upload.array('images', 20), async (req, res) => {
   const id = Number(req.params.id);
   const { title, body, tags, platform, category, profiles } = req.body;
-  if (!title || !body) return res.status(400).json({ error: 'Thiếu tiêu đề hoặc nội dung' });
+  if (!body) return res.status(400).json({ error: 'Thiếu nội dung bài viết' });
   const existing = contentStore.getById(id);
   if (!existing) return res.status(404).json({ error: 'Không tìm thấy content' });
   const imagePaths = (req.files || []).map(f => f.path);
