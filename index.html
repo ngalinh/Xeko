@@ -3377,13 +3377,15 @@
 
       <!-- Table -->
       <div id="contentTableWrap" style="display:none; overflow-x:auto; background:#fff; border-radius:12px; box-shadow:0 1px 6px rgba(0,0,0,.07);">
-        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <table style="width:100%; border-collapse:collapse; font-size:13px; min-width:760px;">
           <colgroup>
-            <col style="width:48px;">
+            <col style="width:44px;">
             <col style="width:auto;">
-            <col style="width:130px;">
             <col style="width:110px;">
-            <col style="width:100px;">
+            <col style="width:120px;">
+            <col style="width:130px;">
+            <col style="width:95px;">
+            <col style="width:90px;">
             <col style="width:140px;">
           </colgroup>
           <thead>
@@ -3391,6 +3393,8 @@
               <th style="padding:10px 14px; text-align:center; font-weight:600; color:#374151; white-space:nowrap;">STT</th>
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Nội dung</th>
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Hình ảnh</th>
+              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Phân loại</th>
+              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Profile</th>
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Kênh đăng</th>
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151; white-space:nowrap;">Ngày tháng</th>
               <th style="padding:10px 14px; text-align:center; font-weight:600; color:#374151;">Thao tác</th>
@@ -3440,7 +3444,7 @@
         <span style="font-size:12px; color:#aaa; margin-left:8px;" id="contentImgCount"></span>
       </div>
 
-      <div style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
+      <div style="display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
         <div style="flex:1; min-width:140px;">
           <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Kênh đăng</label>
           <select id="contentPlatformInput"
@@ -3451,11 +3455,26 @@
           </select>
         </div>
         <div style="flex:2; min-width:200px;">
-          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Tags (cách nhau bằng dấu phẩy)</label>
-          <input type="text" id="contentTagsInput" placeholder="vd: sale, tháng 5, flash sale"
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Phân loại content</label>
+          <input type="text" id="contentCategoryInput" placeholder="vd: Sale, Giới thiệu, Sự kiện..."
             style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none;"
             onfocus="this.style.borderColor='#3B82F6'" onblur="this.style.borderColor='#ddd'">
         </div>
+      </div>
+
+      <!-- Profile checkboxes -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:8px;">Profile sử dụng (tuỳ chọn)</label>
+        <div id="contentProfileCheckboxes" style="display:flex; flex-wrap:wrap; gap:8px; padding:10px 12px; border:1px solid #ddd; border-radius:8px; min-height:42px; background:#fafafa;">
+          <span style="font-size:12px; color:#aaa;">Đang tải profiles...</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom:18px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Tags (cách nhau bằng dấu phẩy)</label>
+        <input type="text" id="contentTagsInput" placeholder="vd: sale, tháng 5, flash sale"
+          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none;"
+          onfocus="this.style.borderColor='#3B82F6'" onblur="this.style.borderColor='#ddd'">
       </div>
 
       <div id="contentModalError" style="display:none; background:#FEF2F2; border:1px solid #FECACA; border-radius:8px; padding:10px 14px; color:#DC2626; font-size:13px; margin-bottom:12px;"></div>
@@ -5981,6 +6000,7 @@
 
     let _contentItems = [];
     let _contentNewImages = []; // File[] chờ upload khi save
+    let _contentProfilesCache = []; // cache profiles từ /api/accounts
 
     async function loadContents() {
       const search = (document.getElementById('contentSearch') || {}).value || '';
@@ -6020,34 +6040,57 @@
       const platformLabel = { all: 'Chung', facebook: 'Facebook', zalo: 'Zalo' }[item.platform] || item.platform;
       const platformColor = { all: '#6B7280', facebook: '#1877F2', zalo: '#0068FF' }[item.platform] || '#6B7280';
       const platformBg   = { all: '#F3F4F6', facebook: '#EFF6FF', zalo: '#EFF6FF' }[item.platform] || '#F3F4F6';
-      const preview = item.body.length > 120 ? item.body.slice(0, 120) + '…' : item.body;
+      const preview = item.body.length > 100 ? item.body.slice(0, 100) + '…' : item.body;
       const tagsHtml = (item.tags || []).map(t =>
-        `<span style="display:inline-block;padding:2px 7px;background:#F3F4F6;border-radius:99px;font-size:11px;color:#555;">${escapeHtml(t)}</span>`
+        `<span style="display:inline-block;padding:2px 6px;background:#F3F4F6;border-radius:99px;font-size:11px;color:#555;">${escapeHtml(t)}</span>`
       ).join(' ');
       const dt = new Date(item.updatedAt).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' });
+
+      // Hình ảnh — lightbox + onerror như dashboard
       const images = item.images || [];
       let imgHtml = '';
       if (images.length) {
-        imgHtml = images.slice(0, 3).map(url =>
-          `<img src="${escapeHtml(url)}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid #eee;" loading="lazy">`
+        const shown = images.slice(0, 3);
+        imgHtml = shown.map(u =>
+          `<a href="${escapeHtml(u)}" onclick="openLightbox('${escapeHtml(u)}');return false;">` +
+          `<img src="${escapeHtml(u)}" style="width:38px;height:38px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;display:block;" loading="lazy" ` +
+          `onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:38px;height:38px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;align-items:center;justify-content:center;font-size:16px;'}))">` +
+          `</a>`
         ).join('');
         if (images.length > 3) imgHtml += `<span style="font-size:11px;color:#888;align-self:center;">+${images.length - 3}</span>`;
         imgHtml = `<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">${imgHtml}</div>`;
       } else {
         imgHtml = `<span style="color:#ccc;font-size:12px;">—</span>`;
       }
+
+      // Profile chips
+      const profiles = item.profiles || [];
+      const profileHtml = profiles.length
+        ? profiles.map(k => {
+            const name = (_contentProfilesCache.find(p => p.key === k) || {}).name || k;
+            return `<span style="display:inline-block;padding:2px 7px;background:#EFF6FF;border-radius:99px;font-size:11px;color:#1D4ED8;white-space:nowrap;">${escapeHtml(name)}</span>`;
+          }).join(' ')
+        : `<span style="color:#ccc;font-size:11px;">—</span>`;
+
+      // Phân loại
+      const catHtml = item.category
+        ? `<span style="display:inline-block;padding:2px 8px;background:#FEF3C7;border-radius:99px;font-size:11px;color:#92400E;">${escapeHtml(item.category)}</span>`
+        : `<span style="color:#ccc;font-size:11px;">—</span>`;
+
       const odd = stt % 2 === 0 ? 'background:#fafafa;' : '';
 
       return `<tr style="${odd}border-bottom:1px solid #f0f0f0;">
         <td style="padding:10px 14px; text-align:center; color:#aaa; font-size:12px;">${stt}</td>
         <td style="padding:10px 14px;">
           <div style="font-weight:600;font-size:13px;color:#1e1e2e;margin-bottom:3px;">${escapeHtml(item.title)}</div>
-          <div style="font-size:12px;color:#777;line-height:1.55;white-space:pre-wrap;">${escapeHtml(preview)}</div>
-          ${tagsHtml ? `<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:4px;">${tagsHtml}</div>` : ''}
+          <div style="font-size:12px;color:#777;line-height:1.5;">${escapeHtml(preview)}</div>
+          ${tagsHtml ? `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;">${tagsHtml}</div>` : ''}
         </td>
         <td style="padding:10px 14px;">${imgHtml}</td>
+        <td style="padding:10px 14px;">${catHtml}</td>
+        <td style="padding:10px 14px;">${profileHtml}</td>
         <td style="padding:10px 14px;">
-          <span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;background:${platformBg};color:${platformColor};">${platformLabel}</span>
+          <span style="font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;background:${platformBg};color:${platformColor};">${platformLabel}</span>
         </td>
         <td style="padding:10px 14px; font-size:12px; color:#888; white-space:nowrap;">${dt}</td>
         <td style="padding:10px 14px; text-align:center; white-space:nowrap;">
@@ -6078,7 +6121,37 @@
       switchPage('post');
     }
 
-    function openContentModal(id) {
+    async function _loadContentProfiles() {
+      if (_contentProfilesCache.length) return;
+      try {
+        const res = await fetch(`${BASE_URL}/api/accounts`);
+        const data = await res.json();
+        _contentProfilesCache = [
+          ...(data.facebook || []).map(p => ({ ...p, type: 'facebook' })),
+          ...(data.zalo || []).map(p => ({ ...p, type: 'zalo' })),
+        ];
+      } catch (e) { _contentProfilesCache = []; }
+    }
+
+    function _renderProfileCheckboxes(selectedKeys) {
+      const wrap = document.getElementById('contentProfileCheckboxes');
+      if (!_contentProfilesCache.length) {
+        wrap.innerHTML = '<span style="font-size:12px;color:#aaa;">Chưa có profile nào</span>';
+        return;
+      }
+      wrap.innerHTML = _contentProfilesCache.map(p => {
+        const checked = selectedKeys.includes(p.key) ? 'checked' : '';
+        const badge = p.type === 'facebook' ? '🔵' : '🟢';
+        return `<label style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:${checked ? '#EFF6FF' : '#f9fafb'};border:1px solid ${checked ? '#BFDBFE' : '#e5e7eb'};border-radius:99px;cursor:pointer;font-size:12px;user-select:none;">
+          <input type="checkbox" name="contentProfiles" value="${escapeHtml(p.key)}" ${checked}
+            style="margin:0;width:13px;height:13px;cursor:pointer;"
+            onchange="this.closest('label').style.background=this.checked?'#EFF6FF':'#f9fafb';this.closest('label').style.borderColor=this.checked?'#BFDBFE':'#e5e7eb'">
+          ${badge} ${escapeHtml(p.name || p.key)}
+        </label>`;
+      }).join('');
+    }
+
+    async function openContentModal(id) {
       const modal = document.getElementById('contentModal');
       const titleEl = document.getElementById('contentModalTitle');
       const editId = document.getElementById('contentEditId');
@@ -6086,11 +6159,14 @@
       const bodyInput = document.getElementById('contentBodyInput');
       const platformInput = document.getElementById('contentPlatformInput');
       const tagsInput = document.getElementById('contentTagsInput');
+      const categoryInput = document.getElementById('contentCategoryInput');
       const errEl = document.getElementById('contentModalError');
 
       errEl.style.display = 'none';
       _contentNewImages = [];
       document.getElementById('contentImgInput').value = '';
+
+      await _loadContentProfiles();
 
       if (id) {
         const item = _contentItems.find(c => c.id === id);
@@ -6101,6 +6177,8 @@
         bodyInput.value = item.body;
         platformInput.value = item.platform || 'all';
         tagsInput.value = (item.tags || []).join(', ');
+        categoryInput.value = item.category || '';
+        _renderProfileCheckboxes(item.profiles || []);
         renderContentImgPreview(item.images || []);
       } else {
         titleEl.innerHTML = `<svg class="xi xi-md" style="color:#3B82F6;"><use href="#ic-book"/></svg> Thêm content`;
@@ -6109,6 +6187,8 @@
         bodyInput.value = '';
         platformInput.value = 'all';
         tagsInput.value = '';
+        categoryInput.value = '';
+        _renderProfileCheckboxes([]);
         renderContentImgPreview([]);
       }
 
@@ -6121,7 +6201,9 @@
       const countEl = document.getElementById('contentImgCount');
       let html = existingUrls.map((url, i) =>
         `<div style="position:relative;display:inline-block;">
-          <img src="${escapeHtml(url)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #ddd;">
+          <img src="${escapeHtml(url)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #ddd;"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <span style="display:none;width:60px;height:60px;background:#f3f4f6;border-radius:8px;border:1px solid #ddd;align-items:center;justify-content:center;font-size:20px;">🖼️</span>
           <button type="button" onclick="removeContentExistingImg(${i})"
             style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;">×</button>
         </div>`
@@ -6172,10 +6254,14 @@
       const body = document.getElementById('contentBodyInput').value.trim();
       const platform = document.getElementById('contentPlatformInput').value;
       const tagsRaw = document.getElementById('contentTagsInput').value;
+      const category = document.getElementById('contentCategoryInput').value.trim();
       const errEl = document.getElementById('contentModalError');
       const saveBtn = document.getElementById('contentSaveBtn');
       const preview = document.getElementById('contentImgPreview');
       const existingUrls = preview._existingUrls || [];
+      const selectedProfiles = Array.from(
+        document.querySelectorAll('#contentProfileCheckboxes input[name="contentProfiles"]:checked')
+      ).map(cb => cb.value);
 
       if (!title) { errEl.textContent = 'Vui lòng nhập tiêu đề.'; errEl.style.display = 'block'; return; }
       if (!body)  { errEl.textContent = 'Vui lòng nhập nội dung bài viết.'; errEl.style.display = 'block'; return; }
@@ -6189,7 +6275,8 @@
         fd.append('body', body);
         fd.append('platform', platform);
         fd.append('tags', tagsRaw);
-        // Gửi danh sách URL ảnh cũ còn giữ lại qua field riêng
+        fd.append('category', category);
+        selectedProfiles.forEach(k => fd.append('profiles', k));
         existingUrls.forEach(u => fd.append('keepUrl', u));
         _contentNewImages.forEach(f => fd.append('images', f));
 
