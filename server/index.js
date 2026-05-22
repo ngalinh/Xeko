@@ -1533,6 +1533,45 @@ app.post('/api/admin/sync-permissions', auth.requireAdmin(), async (req, res) =>
   }
 });
 
+// Kéo channels từ local server về remote (dùng khi remote mất data sau deploy)
+async function syncChannelsFromLocal() {
+  const LOCAL_URL = getLocalUrl();
+  if (!LOCAL_URL) return false;
+  try {
+    const fetchFn = await getFetch();
+    const res = await fetchFn(`${LOCAL_URL}/api/channels`, {
+      headers: { 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+    });
+    if (!res.ok) return false;
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { return false; }
+    if (!data || typeof data !== 'object') return false;
+    // Chỉ sync nếu local có data thực (tránh ghi đè remote bằng object rỗng)
+    const hasData = (data.fbGroups?.length > 0) || (data.fbPages?.length > 0) || (data.zaloGroups?.length > 0);
+    if (!hasData) return false;
+    saveChannels(data);
+    logger.info(`channels synced from LOCAL (fbGroups=${data.fbGroups?.length || 0}, fbPages=${data.fbPages?.length || 0}, zalo=${data.zaloGroups?.length || 0})`);
+    return true;
+  } catch (e) {
+    logger.info(`syncChannelsFromLocal: ${e.message}`);
+    return false;
+  }
+}
+
+app.post('/api/channels/sync-from-local', auth.requireAdmin(), async (req, res) => {
+  try {
+    const ok = await syncChannelsFromLocal();
+    if (ok) {
+      const data = loadChannels();
+      return res.json({ success: true, fbGroups: data.fbGroups?.length || 0, fbPages: data.fbPages?.length || 0, zaloGroups: data.zaloGroups?.length || 0 });
+    }
+    return res.status(503).json({ error: 'Local server chưa kết nối hoặc chưa có data channels. Hãy chạy local server trước.' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Local server tự đăng ký URL tunnel mới khi khởi động
 let dynamicLocalUrl = process.env.PLAYWRIGHT_LOCAL_URL || null;
 
@@ -1548,8 +1587,12 @@ app.post('/api/register-local', (req, res) => {
   logger.info(`Local server đã đăng ký URL mới: ${url}`);
   res.json({ success: true, message: `Đã cập nhật URL: ${url}` });
 
-  // Sync user-permissions với LOCAL (LOCAL là source of truth, sống sót khi container Basso restart).
+  // Sync user-permissions với LOCAL (LOCAL là source of truth).
   permissions.syncOnRegister().catch(e => logger.warn(`syncOnRegister: ${e.message}`));
+  // Sync channels từ LOCAL nếu remote chưa có data (chỉ sync khi channels.json trống).
+  const existing = loadChannels();
+  const remoteEmpty = !existing.fbGroups?.length && !existing.fbPages?.length && !existing.zaloGroups?.length;
+  if (remoteEmpty) syncChannelsFromLocal().catch(e => logger.info(`autoSyncChannels: ${e.message}`));
 });
 
 // Override PLAYWRIGHT_LOCAL_URL bằng dynamicLocalUrl nếu có
