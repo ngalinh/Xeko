@@ -1364,6 +1364,37 @@ async function proxyToLocal(req, res, method, path, body = null) {
 
 app.post('/api/restart', (req, res) => proxyToLocal(req, res, 'POST', '/api/restart'));
 
+// ===== KHO CONTENT =====
+const contentStore = require('./src/database/content-store');
+
+app.get('/api/contents', (req, res) => {
+  const { search = '', platform = '' } = req.query;
+  res.json(contentStore.list({ search, platform }));
+});
+
+app.post('/api/contents', (req, res) => {
+  const { title, body, tags, platform } = req.body;
+  if (!title || !body) return res.status(400).json({ error: 'Thiếu tiêu đề hoặc nội dung' });
+  const item = contentStore.create({ title: title.trim(), body, tags: tags || [], platform: platform || 'all' });
+  res.json(item);
+});
+
+app.put('/api/contents/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const { title, body, tags, platform } = req.body;
+  if (!title || !body) return res.status(400).json({ error: 'Thiếu tiêu đề hoặc nội dung' });
+  const item = contentStore.update(id, { title: title.trim(), body, tags, platform });
+  if (!item) return res.status(404).json({ error: 'Không tìm thấy content' });
+  res.json(item);
+});
+
+app.delete('/api/contents/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const ok = contentStore.remove(id);
+  if (!ok) return res.status(404).json({ error: 'Không tìm thấy content' });
+  res.json({ success: true });
+});
+
 // ===== ZALO POST =====
 app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   const LOCAL_URL = getLocalUrl();

@@ -2931,6 +2931,10 @@
         <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>
         <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
       </symbol>
+      <symbol id="ic-book" viewBox="0 0 24 24">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
     </defs>
   </svg>
 
@@ -2966,6 +2970,9 @@
       </button>
       <button class="sidebar-item" onclick="switchPage('spy')" id="navSpy">
         <span class="icon"><svg class="xi"><use href="#ic-search"/></svg></span> Lấy nội dung
+      </button>
+      <button class="sidebar-item" onclick="switchPage('content')" id="navContent">
+        <span class="icon"><svg class="xi"><use href="#ic-book"/></svg></span> Kho content
       </button>
     </div>
     <div class="sidebar-footer">
@@ -3325,6 +3332,106 @@
       </div>
     </div>
   </div><!-- end pageSpyBaiViet -->
+
+  <!-- PAGE: Kho content -->
+  <div class="page" id="pageContent">
+    <div class="header">
+      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
+      <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#1E3A8A;"><svg class="xi xi-md"><use href="#ic-book"/></svg></div>
+      <div class="header-info">
+        <h1>Kho content</h1>
+        <span>Lưu trữ và quản lý nội dung bài viết</span>
+      </div>
+    </div>
+
+    <div style="padding:20px; max-width:860px; margin:0 auto; width:100%; box-sizing:border-box;">
+
+      <!-- Toolbar -->
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
+        <input id="contentSearch" type="text" placeholder="Tìm kiếm tiêu đề, nội dung, tag..."
+          style="flex:1; min-width:180px; padding:9px 14px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:13px; outline:none; transition:border-color .15s;"
+          onfocus="this.style.borderColor='#3B82F6'" onblur="this.style.borderColor='#e0e0e0'"
+          oninput="loadContents()">
+        <select id="contentFilterPlatform" onchange="loadContents()"
+          style="padding:9px 12px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:13px; color:#555; outline:none; cursor:pointer; background:#fff;">
+          <option value="">Tất cả nền tảng</option>
+          <option value="all">Chung</option>
+          <option value="facebook">Facebook</option>
+          <option value="zalo">Zalo</option>
+        </select>
+        <button onclick="openContentModal()"
+          style="padding:9px 18px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap;">
+          <svg class="xi" style="width:15px;height:15px;"><use href="#ic-plus"/></svg> Thêm content
+        </button>
+      </div>
+
+      <!-- Content list -->
+      <div id="contentList" style="display:flex; flex-direction:column; gap:10px;"></div>
+
+      <!-- Empty state -->
+      <div id="contentEmpty" style="display:none; text-align:center; padding:60px 20px; color:#aaa;">
+        <svg class="xi" style="width:48px;height:48px;opacity:0.35;display:block;margin:0 auto 12px;"><use href="#ic-book"/></svg>
+        <div style="font-size:15px; font-weight:600; color:#bbb; margin-bottom:6px;">Chưa có content nào</div>
+        <div style="font-size:13px;">Nhấn <strong>Thêm content</strong> để lưu bài mẫu đầu tiên</div>
+      </div>
+
+      <!-- Loading -->
+      <div id="contentLoading" style="display:none; text-align:center; padding:40px; color:#888; font-size:13px;">Đang tải...</div>
+
+    </div>
+  </div><!-- end pageContent -->
+
+  <!-- Modal thêm/sửa content -->
+  <div id="contentModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:16px; padding:24px; width:560px; max-width:95%; box-shadow:0 8px 32px rgba(0,0,0,0.2); max-height:90vh; overflow-y:auto; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;">
+        <h3 id="contentModalTitle" style="font-size:16px; color:#1e1e2e; margin:0; display:flex; align-items:center; gap:8px;">
+          <svg class="xi xi-md" style="color:#3B82F6;"><use href="#ic-book"/></svg> Thêm content
+        </h3>
+        <button onclick="closeContentModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999; line-height:1; padding:0 4px;">×</button>
+      </div>
+      <input type="hidden" id="contentEditId">
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Tiêu đề <span style="color:#EF4444;">*</span></label>
+        <input type="text" id="contentTitleInput" placeholder="vd: Bài giới thiệu sản phẩm tháng 5..."
+          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none;"
+          onfocus="this.style.borderColor='#3B82F6'" onblur="this.style.borderColor='#ddd'">
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Nội dung bài viết <span style="color:#EF4444;">*</span></label>
+        <textarea id="contentBodyInput" rows="7" placeholder="Nhập nội dung bài viết..."
+          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; resize:vertical; line-height:1.6; outline:none; font-family:inherit;"
+          onfocus="this.style.borderColor='#3B82F6'" onblur="this.style.borderColor='#ddd'"></textarea>
+      </div>
+
+      <div style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:160px;">
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Nền tảng</label>
+          <select id="contentPlatformInput"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none; background:#fff; cursor:pointer;">
+            <option value="all">Chung (tất cả)</option>
+            <option value="facebook">Facebook</option>
+            <option value="zalo">Zalo</option>
+          </select>
+        </div>
+        <div style="flex:2; min-width:200px;">
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Tags (cách nhau bằng dấu phẩy)</label>
+          <input type="text" id="contentTagsInput" placeholder="vd: sale, tháng 5, flash sale"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none;"
+            onfocus="this.style.borderColor='#3B82F6'" onblur="this.style.borderColor='#ddd'">
+        </div>
+      </div>
+
+      <div id="contentModalError" style="display:none; background:#FEF2F2; border:1px solid #FECACA; border-radius:8px; padding:10px 14px; color:#DC2626; font-size:13px; margin-bottom:12px;"></div>
+
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button onclick="closeContentModal()" style="padding:9px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
+        <button onclick="saveContent()" id="contentSaveBtn" style="padding:9px 20px; border:none; border-radius:8px; background:#3B82F6; color:#fff; font-size:13px; cursor:pointer; font-weight:600;">Lưu</button>
+      </div>
+    </div>
+  </div>
 
   <!-- PAGE: Phân quyền (chỉ admin Xeko) -->
   <div class="page" id="pagePermissions">
@@ -5702,6 +5809,7 @@
         session: { page: 'pageSession', nav: 'navSession' },
         permissions: { page: 'pagePermissions', nav: 'navPermissions' },
         spy: { page: 'pageSpyBaiViet', nav: 'navSpy' },
+        content: { page: 'pageContent', nav: 'navContent' },
       };
 
       const target = pageMap[pg];
@@ -5723,10 +5831,13 @@
       if (pg === 'spy') {
         updateSpyProfileHint();
       }
+      if (pg === 'content') {
+        loadContents();
+      }
 
       // Sync mobile bottom nav
       document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
-      const mobileMap = { post: 'Post', calendar: 'Dashboard', dashboard: 'Dashboard', session: 'Session', spy: 'Spy' };
+      const mobileMap = { post: 'Post', calendar: 'Dashboard', dashboard: 'Dashboard', session: 'Session', spy: 'Spy', content: 'Content' };
       const mobileBtn = document.getElementById('mobileNav' + (mobileMap[pg] || ''));
       if (mobileBtn) mobileBtn.classList.add('active');
       // Close sidebar if open
@@ -5830,6 +5941,179 @@
         msgInput.dispatchEvent(new Event('input', { bubbles: true }));
       }
       switchPage('post');
+    }
+
+    // === Kho content ===
+
+    let _contentItems = [];
+
+    async function loadContents() {
+      const search = (document.getElementById('contentSearch') || {}).value || '';
+      const platform = (document.getElementById('contentFilterPlatform') || {}).value || '';
+      const listEl = document.getElementById('contentList');
+      const emptyEl = document.getElementById('contentEmpty');
+      const loadingEl = document.getElementById('contentLoading');
+      if (!listEl) return;
+
+      listEl.style.display = 'none';
+      emptyEl.style.display = 'none';
+      loadingEl.style.display = 'block';
+
+      try {
+        const params = new URLSearchParams();
+        if (search) params.set('search', search);
+        if (platform) params.set('platform', platform);
+        const res = await fetch(`${BASE_URL}/api/contents?${params}`);
+        _contentItems = await res.json();
+      } catch (e) {
+        _contentItems = [];
+      }
+
+      loadingEl.style.display = 'none';
+
+      if (!_contentItems.length) {
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      listEl.style.display = 'flex';
+      listEl.innerHTML = _contentItems.map(item => renderContentCard(item)).join('');
+    }
+
+    function renderContentCard(item) {
+      const platformLabel = { all: 'Chung', facebook: 'Facebook', zalo: 'Zalo' }[item.platform] || item.platform;
+      const platformColor = { all: '#6B7280', facebook: '#1877F2', zalo: '#0068FF' }[item.platform] || '#6B7280';
+      const platformBg   = { all: '#F3F4F6', facebook: '#EFF6FF', zalo: '#EFF6FF' }[item.platform] || '#F3F4F6';
+      const preview = item.body.length > 180 ? item.body.slice(0, 180) + '…' : item.body;
+      const tagsHtml = (item.tags || []).map(t =>
+        `<span style="display:inline-block;padding:2px 8px;background:#F3F4F6;border-radius:99px;font-size:11px;color:#555;margin-right:4px;">${escapeHtml(t)}</span>`
+      ).join('');
+      const dt = new Date(item.updatedAt).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' });
+
+      return `<div style="background:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 1px 6px rgba(0,0,0,.07);border:1px solid #f0f0f0;display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <div style="font-weight:700;font-size:14px;color:#1e1e2e;flex:1;min-width:0;word-break:break-word;">${escapeHtml(item.title)}</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+            <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:${platformBg};color:${platformColor};">${platformLabel}</span>
+            <span style="font-size:11px;color:#bbb;">${dt}</span>
+          </div>
+        </div>
+        <div style="font-size:13px;color:#555;line-height:1.65;white-space:pre-wrap;word-break:break-word;">${escapeHtml(preview)}</div>
+        ${tagsHtml ? `<div style="display:flex;flex-wrap:wrap;gap:4px;">${tagsHtml}</div>` : ''}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;">
+          <button onclick="useContent(${item.id})"
+            style="padding:6px 14px;background:#D1FAE5;color:#065F46;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
+            Dùng để đăng bài
+          </button>
+          <button onclick="openContentModal(${item.id})"
+            style="padding:6px 14px;background:#EFF6FF;color:#1D4ED8;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
+            Sửa
+          </button>
+          <button onclick="deleteContent(${item.id})"
+            style="padding:6px 14px;background:#FEF2F2;color:#DC2626;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
+            Xoá
+          </button>
+        </div>
+      </div>`;
+    }
+
+    function useContent(id) {
+      const item = _contentItems.find(c => c.id === id);
+      if (!item) return;
+      const msgInput = document.getElementById('msgInput');
+      if (msgInput) {
+        msgInput.value = item.body;
+        msgInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      switchPage('post');
+    }
+
+    function openContentModal(id) {
+      const modal = document.getElementById('contentModal');
+      const titleEl = document.getElementById('contentModalTitle');
+      const editId = document.getElementById('contentEditId');
+      const titleInput = document.getElementById('contentTitleInput');
+      const bodyInput = document.getElementById('contentBodyInput');
+      const platformInput = document.getElementById('contentPlatformInput');
+      const tagsInput = document.getElementById('contentTagsInput');
+      const errEl = document.getElementById('contentModalError');
+
+      errEl.style.display = 'none';
+
+      if (id) {
+        const item = _contentItems.find(c => c.id === id);
+        if (!item) return;
+        titleEl.innerHTML = `<svg class="xi xi-md" style="color:#3B82F6;"><use href="#ic-book"/></svg> Sửa content`;
+        editId.value = id;
+        titleInput.value = item.title;
+        bodyInput.value = item.body;
+        platformInput.value = item.platform || 'all';
+        tagsInput.value = (item.tags || []).join(', ');
+      } else {
+        titleEl.innerHTML = `<svg class="xi xi-md" style="color:#3B82F6;"><use href="#ic-book"/></svg> Thêm content`;
+        editId.value = '';
+        titleInput.value = '';
+        bodyInput.value = '';
+        platformInput.value = 'all';
+        tagsInput.value = '';
+      }
+
+      modal.style.display = 'flex';
+      setTimeout(() => titleInput.focus(), 50);
+    }
+
+    function closeContentModal() {
+      document.getElementById('contentModal').style.display = 'none';
+    }
+
+    async function saveContent() {
+      const id = document.getElementById('contentEditId').value;
+      const title = document.getElementById('contentTitleInput').value.trim();
+      const body = document.getElementById('contentBodyInput').value.trim();
+      const platform = document.getElementById('contentPlatformInput').value;
+      const tagsRaw = document.getElementById('contentTagsInput').value;
+      const tags = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
+      const errEl = document.getElementById('contentModalError');
+      const saveBtn = document.getElementById('contentSaveBtn');
+
+      if (!title) { errEl.textContent = 'Vui lòng nhập tiêu đề.'; errEl.style.display = 'block'; return; }
+      if (!body)  { errEl.textContent = 'Vui lòng nhập nội dung bài viết.'; errEl.style.display = 'block'; return; }
+      errEl.style.display = 'none';
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Đang lưu...';
+
+      try {
+        const url = id ? `${BASE_URL}/api/contents/${id}` : `${BASE_URL}/api/contents`;
+        const method = id ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, body, tags, platform }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Lỗi lưu content');
+        closeContentModal();
+        loadContents();
+      } catch (e) {
+        errEl.textContent = e.message;
+        errEl.style.display = 'block';
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Lưu';
+      }
+    }
+
+    async function deleteContent(id) {
+      if (!confirm('Xoá content này?')) return;
+      try {
+        const res = await fetch(`${BASE_URL}/api/contents/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Lỗi xoá');
+        loadContents();
+      } catch (e) {
+        alert('Lỗi: ' + e.message);
+      }
     }
 
     // === Dashboard Calendar ===
@@ -9086,6 +9370,9 @@
     </button>
     <button class="mobile-nav-item" id="mobileNavSpy" onclick="switchPage('spy')">
       <span class="mn-icon">🔍</span>Spy
+    </button>
+    <button class="mobile-nav-item" id="mobileNavContent" onclick="switchPage('content')">
+      <span class="mn-icon">📚</span>Content
     </button>
   </nav>
 
