@@ -2793,6 +2793,47 @@
     .badge-pulse {
       animation: badgePulse 1.6s ease-in-out infinite;
     }
+
+    /* Content table — white card tooltip */
+    #content-tip {
+      position: fixed;
+      z-index: 99999;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.13);
+      padding: 12px 14px;
+      max-width: 300px;
+      min-width: 160px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      display: none;
+    }
+    #content-tip.tip-show {
+      display: block;
+      opacity: 1;
+      transform: translateY(0);
+    }
+    #content-tip .tip-title {
+      font-weight: 700;
+      font-size: 13px;
+      color: #1e1e2e;
+      line-height: 1.4;
+      margin-bottom: 7px;
+      padding-bottom: 7px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    #content-tip .tip-body {
+      font-size: 12px;
+      color: #555;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 180px;
+      overflow-y: auto;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
@@ -6081,9 +6122,10 @@
 
       const odd = stt % 2 === 0 ? 'background:#fafafa;' : '';
 
+      const ctipData = escapeHtml(JSON.stringify({title: item.title, body: item.body}));
       return `<tr style="${odd}border-bottom:1px solid #f0f0f0;">
         <td style="padding:10px 14px; text-align:center; color:#aaa; font-size:12px;">${stt}</td>
-        <td style="padding:10px 14px;">
+        <td style="padding:10px 14px; cursor:default;" data-ctip="${ctipData}">
           <div style="font-weight:600;font-size:13px;color:#1e1e2e;margin-bottom:3px;">${escapeHtml(item.title)}</div>
           <div style="font-size:12px;color:#777;line-height:1.5;">${escapeHtml(preview)}</div>
           ${tagsHtml ? `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;">${tagsHtml}</div>` : ''}
@@ -9915,6 +9957,54 @@
       } else {
         run();
       }
+    })();
+  </script>
+
+  <!-- White card tooltip for content table -->
+  <div id="content-tip"></div>
+  <script>
+    (function(){
+      const tip = document.getElementById('content-tip');
+      let hideTimer;
+
+      function escT(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+      function showTip(td, e){
+        clearTimeout(hideTimer);
+        let d;
+        try { d = JSON.parse(td.dataset.ctip); } catch(err){ return; }
+        tip.innerHTML =
+          (d.title ? `<div class="tip-title">${escT(d.title)}</div>` : '') +
+          (d.body  ? `<div class="tip-body">${escT(d.body)}</div>`   : '');
+        tip.classList.add('tip-show');
+        moveTip(e);
+      }
+
+      function moveTip(e){
+        const pad = 16;
+        const tw = tip.offsetWidth, th = tip.offsetHeight;
+        let x = e.clientX + pad, y = e.clientY + pad;
+        if (x + tw > window.innerWidth)  x = e.clientX - tw - pad;
+        if (y + th > window.innerHeight) y = e.clientY - th - pad;
+        tip.style.left = x + 'px';
+        tip.style.top  = y + 'px';
+      }
+
+      document.addEventListener('mouseover', function(e){
+        const td = e.target.closest('[data-ctip]');
+        if (td) showTip(td, e);
+      });
+
+      document.addEventListener('mousemove', function(e){
+        if (tip.classList.contains('tip-show')) moveTip(e);
+      });
+
+      document.addEventListener('mouseout', function(e){
+        const td = e.target.closest('[data-ctip]');
+        if (!td) return;
+        if (e.relatedTarget && e.relatedTarget.closest('[data-ctip]')) return;
+        hideTimer = setTimeout(function(){ tip.classList.remove('tip-show'); }, 80);
+      });
     })();
   </script>
 </body>
