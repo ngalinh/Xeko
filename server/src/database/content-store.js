@@ -7,6 +7,7 @@ db.exec(`
     body TEXT NOT NULL,
     tags TEXT DEFAULT '[]',
     platform TEXT DEFAULT 'all',
+    images TEXT DEFAULT '[]',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -14,18 +15,25 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_contents_created_at ON contents(created_at);
 `);
 
+// Migration: thêm cột images nếu chưa có
+const contentCols = db.prepare("PRAGMA table_info(contents)").all().map(c => c.name);
+if (!contentCols.includes('images')) {
+  db.exec(`ALTER TABLE contents ADD COLUMN images TEXT DEFAULT '[]'`);
+}
+
 const insertStmt = db.prepare(`
-  INSERT INTO contents (title, body, tags, platform, created_at, updated_at)
-  VALUES (@title, @body, @tags, @platform, @createdAt, @updatedAt)
+  INSERT INTO contents (title, body, tags, platform, images, created_at, updated_at)
+  VALUES (@title, @body, @tags, @platform, @images, @createdAt, @updatedAt)
 `);
 
-function create({ title, body, tags = [], platform = 'all' }) {
+function create({ title, body, tags = [], platform = 'all', images = [] }) {
   const now = new Date().toISOString();
   const info = insertStmt.run({
     title,
     body,
     tags: JSON.stringify(tags),
     platform,
+    images: JSON.stringify(images),
     createdAt: now,
     updatedAt: now,
   });
@@ -33,11 +41,11 @@ function create({ title, body, tags = [], platform = 'all' }) {
 }
 
 const updateStmt = db.prepare(`
-  UPDATE contents SET title=@title, body=@body, tags=@tags, platform=@platform, updated_at=@updatedAt
+  UPDATE contents SET title=@title, body=@body, tags=@tags, platform=@platform, images=@images, updated_at=@updatedAt
   WHERE id=@id
 `);
 
-function update(id, { title, body, tags, platform }) {
+function update(id, { title, body, tags, platform, images }) {
   const existing = getById(id);
   if (!existing) return null;
   updateStmt.run({
@@ -46,6 +54,7 @@ function update(id, { title, body, tags, platform }) {
     body: body ?? existing.body,
     tags: JSON.stringify(tags ?? existing.tags),
     platform: platform ?? existing.platform,
+    images: JSON.stringify(images ?? existing.images),
     updatedAt: new Date().toISOString(),
   });
   return getById(id);
@@ -87,9 +96,11 @@ function deserialize(row) {
     body: row.body,
     tags: JSON.parse(row.tags || '[]'),
     platform: row.platform,
+    images: JSON.parse(row.images || '[]'),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
 module.exports = { create, update, remove, getById, list };
+
