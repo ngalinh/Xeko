@@ -102,11 +102,11 @@ app.get('/api/image/:date/:filename', async (req, res) => {
   if (!filePath.startsWith(UPLOADS_DIR)) return res.status(400).send('Bad request');
   if (fs.existsSync(filePath)) return res.sendFile(filePath);
 
-  // Proxy fallback: khi bật IMAGE_SERVER_PROXY_MODE, ảnh được lưu ở VPS phụ
-  // (qua SSH tunnel hoặc internal network) và URL trong history vẫn là
-  // /api/image/... — VPS chính proxy ngầm tới image server.
+  // Proxy fallback: file không có local → thử fetch từ image server (nếu có cấu hình).
+  // Không yêu cầu IMAGE_SERVER_PROXY_MODE vì khi file không tồn tại local thì
+  // proxy là fallback hợp lý duy nhất.
   const IMAGE_SERVER_URL = (process.env.IMAGE_SERVER_URL || '').replace(/\/+$/, '');
-  if (process.env.IMAGE_SERVER_PROXY_MODE === 'true' && IMAGE_SERVER_URL) {
+  if (IMAGE_SERVER_URL) {
     try {
       const fetchFn = await getFetch();
       const upstream = await fetchFn(`${IMAGE_SERVER_URL}/img/${date}/${filename}`);
@@ -198,15 +198,13 @@ async function persistImages(imagePaths) {
       _remoteImgState.downUntil = 0;
     }
 
-    // Proxy mode: image server bind nội bộ (SSH tunnel...), browser không reach
-    // được trực tiếp → đảo URL về /api/image/... để route trên VPS chính proxy.
-    if (process.env.IMAGE_SERVER_PROXY_MODE === 'true') {
-      return data.urls.map((u) => {
-        const m = String(u).match(/\/img\/(\d{4}-\d{2}-\d{2})\/([^/?#]+)/);
-        return m ? `/api/image/${m[1]}/${m[2]}` : u;
-      });
-    }
-    return data.urls;
+    // Luôn đổi relative URL (/img/...) sang /api/image/... để browser load qua
+    // route của VPS chính. Absolute URL (khi PUBLIC_URL được set trên image server)
+    // truyền qua nguyên vẹn — browser load thẳng từ image server public.
+    return data.urls.map((u) => {
+      const m = String(u).match(/\/img\/(\d{4}-\d{2}-\d{2})\/([^/?#]+)/);
+      return m ? `/api/image/${m[1]}/${m[2]}` : u;
+    });
   } catch (e) {
     // Mở circuit breaker — skip remote 5 phút tới, chỉ warn 1 lần
     _remoteImgState.downUntil = now + REMOTE_COOLDOWN_MS;
