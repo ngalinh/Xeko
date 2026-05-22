@@ -3156,6 +3156,10 @@
               <h3 style="font-size:15px; color:#1e1e2e; margin:0; flex:1; display:flex; align-items:center; gap:8px;">
                 <svg class="xi xi-md" style="color:#1E3A8A;"><use href="#ic-globe"/></svg> Danh sách Group
               </h3>
+              <button id="syncChannelsBtn" onclick="syncChannelsFromLocal()"
+                style="padding:8px 14px; background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                <svg class="xi" style="width:13px;height:13px;"><use href="#ic-refresh"/></svg> Đồng bộ từ máy local
+              </button>
               <button onclick="openGroupModal('add','fb',null)"
                 style="padding:8px 14px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">+ Thêm group</button>
             </div>
@@ -6761,6 +6765,22 @@
       if (!groupId) return '';
       const found = (channelsData.fbGroups || []).find(g => g && g.id === groupId);
       return (found && found.name) ? found.name : `#${groupId}`;
+    }
+
+    async function syncChannelsFromLocal() {
+      const btn = document.getElementById('syncChannelsBtn');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<svg class="xi" style="width:13px;height:13px;animation:spin 1s linear infinite"><use href="#ic-refresh"/></svg> Đang đồng bộ...'; }
+      try {
+        const res = await fetch(`${BASE_URL}/api/channels/sync-from-local`, { method: 'POST', credentials: 'include' });
+        const data = await parseJson(res);
+        if (!res.ok) return alert('Lỗi: ' + (data.error || res.status));
+        alert(`Đồng bộ thành công!\nFB Group: ${data.fbGroups}, FB Page: ${data.fbPages}, Zalo: ${data.zaloGroups}`);
+        await loadChannels();
+      } catch (e) {
+        alert('Lỗi: ' + e.message);
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<svg class="xi" style="width:13px;height:13px;"><use href="#ic-refresh"/></svg> Đồng bộ từ máy local'; }
+      }
     }
 
     async function loadChannels() {
