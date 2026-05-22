@@ -91,7 +91,9 @@ if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 // (nằm trong namespace /api nên chắc chắn được reverse proxy forward).
 // Đặt trong data/ để dùng chung persistent volume với posts.db —
 // tránh mất ảnh mỗi lần server redeploy (filesystem ephemeral).
-const UPLOADS_DIR = path.resolve(__dirname, '../data/uploads');
+const UPLOADS_DIR = process.env.XEKO_DATA_DIR
+  ? path.join(path.resolve(process.env.XEKO_DATA_DIR), 'data/uploads')
+  : path.resolve(__dirname, '../data/uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 app.get('/api/image/:date/:filename', async (req, res) => {
@@ -1373,30 +1375,37 @@ app.get('/api/contents', (req, res) => {
 });
 
 app.post('/api/contents', upload.array('images', 20), async (req, res) => {
-  const { title, body, tags, platform } = req.body;
+  const { title, body, tags, platform, category, profiles } = req.body;
   if (!title || !body) return res.status(400).json({ error: 'Thiếu tiêu đề hoặc nội dung' });
   const imagePaths = (req.files || []).map(f => f.path);
   const newUrls = imagePaths.length ? await persistImages(imagePaths) : [];
   const tagsArr = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
-  const item = contentStore.create({ title: title.trim(), body, tags: tagsArr, platform: platform || 'all', images: newUrls });
+  const profilesArr = profiles ? (Array.isArray(profiles) ? profiles : [profiles]).filter(Boolean) : [];
+  const item = contentStore.create({
+    title: title.trim(), body, tags: tagsArr, platform: platform || 'all',
+    images: newUrls, category: (category || '').trim(), profiles: profilesArr,
+  });
   res.json(item);
 });
 
 app.put('/api/contents/:id', upload.array('images', 20), async (req, res) => {
   const id = Number(req.params.id);
-  const { title, body, tags, platform } = req.body;
+  const { title, body, tags, platform, category, profiles } = req.body;
   if (!title || !body) return res.status(400).json({ error: 'Thiếu tiêu đề hoặc nội dung' });
   const existing = contentStore.getById(id);
   if (!existing) return res.status(404).json({ error: 'Không tìm thấy content' });
   const imagePaths = (req.files || []).map(f => f.path);
   const newUrls = imagePaths.length ? await persistImages(imagePaths) : [];
-  // keepUrl[] = danh sách URL ảnh cũ người dùng còn giữ lại
   const keepUrls = req.body.keepUrl
     ? (Array.isArray(req.body.keepUrl) ? req.body.keepUrl : [req.body.keepUrl])
     : [];
   const images = [...keepUrls, ...newUrls];
   const tagsArr = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
-  const item = contentStore.update(id, { title: title.trim(), body, tags: tagsArr, platform, images });
+  const profilesArr = profiles ? (Array.isArray(profiles) ? profiles : [profiles]).filter(Boolean) : [];
+  const item = contentStore.update(id, {
+    title: title.trim(), body, tags: tagsArr, platform, images,
+    category: (category || '').trim(), profiles: profilesArr,
+  });
   res.json(item);
 });
 
