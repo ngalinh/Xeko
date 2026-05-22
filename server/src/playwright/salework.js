@@ -181,8 +181,12 @@ async function sendMessage(page, message, imagePaths = []) {
       await randomDelay(200, 500);
       await msgInput.click();
       await randomDelay(250, 600);
-      // Gõ với delay random thay vì fill() instant
-      await humanType(msgInput, message);
+      // Gõ từng dòng, giữa các dòng dùng Shift+Enter để xuống dòng (không gửi)
+      const lines = message.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i]) await humanType(msgInput, lines[i]);
+        if (i < lines.length - 1) await page.keyboard.press('Shift+Enter');
+      }
       logger.info('[salework] Đã nhập tin nhắn');
       await randomDelay(400, 900);
     }
