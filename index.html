@@ -6027,11 +6027,11 @@
         `<span style="display:inline-block;padding:2px 7px;background:#F3F4F6;border-radius:99px;font-size:11px;color:#555;">${escapeHtml(t)}</span>`
       ).join(' ');
       const dt = new Date(item.updatedAt).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' });
-      const images = item.images || [];
+      const images = (item.images || []).map(u => u.startsWith('/') ? BASE_URL + u : u);
       let imgHtml = '';
       if (images.length) {
         imgHtml = images.slice(0, 3).map(url =>
-          `<img src="${escapeHtml(url)}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid #eee;" loading="lazy">`
+          `<a href="${escapeHtml(url)}" onclick="openLightbox('${escapeHtml(url)}');return false;"><img src="${escapeHtml(url)}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid #eee;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'font-size:20px;cursor:default;'}))"></a>`
         ).join('');
         if (images.length > 3) imgHtml += `<span style="font-size:11px;color:#888;align-self:center;">+${images.length - 3}</span>`;
         imgHtml = `<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">${imgHtml}</div>`;
@@ -6121,13 +6121,14 @@
     function renderContentImgPreview(existingUrls) {
       const preview = document.getElementById('contentImgPreview');
       const countEl = document.getElementById('contentImgCount');
-      let html = existingUrls.map((url, i) =>
-        `<div style="position:relative;display:inline-block;">
-          <img src="${escapeHtml(url)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #ddd;">
+      let html = existingUrls.map((url, i) => {
+        const resolvedUrl = url.startsWith('/') ? BASE_URL + url : url;
+        return `<div style="position:relative;display:inline-block;">
+          <img src="${escapeHtml(resolvedUrl)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #ddd;">
           <button type="button" onclick="removeContentExistingImg(${i})"
             style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;">×</button>
-        </div>`
-      ).join('');
+        </div>`;
+      }).join('');
       html += _contentNewImages.map((f, i) => {
         const url = URL.createObjectURL(f);
         return `<div style="position:relative;display:inline-block;">
