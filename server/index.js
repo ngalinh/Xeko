@@ -1519,6 +1519,20 @@ app.delete('/api/admin/users/:email', auth.requireAdmin(), (req, res) => {
   }
 });
 
+// Force-sync permissions từ local server (dùng khi remote mất data sau deploy)
+app.post('/api/admin/sync-permissions', auth.requireAdmin(), async (req, res) => {
+  try {
+    const restored = await permissions.restoreFromLocal();
+    if (restored) {
+      const data = permissions.load();
+      return res.json({ success: true, restored: true, count: Object.keys(data.users).length });
+    }
+    return res.status(503).json({ error: 'Local server chưa kết nối hoặc chưa có file permissions. Hãy chạy local server trước.' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Local server tự đăng ký URL tunnel mới khi khởi động
 let dynamicLocalUrl = process.env.PLAYWRIGHT_LOCAL_URL || null;
 
