@@ -3924,6 +3924,7 @@
     let currentProfile = null;
     let currentProfileName = null;
     let _profileDisplayNames = {}; // key → display name map for chatbot
+    let _totalProfiles = 0;
     let currentTarget = null;
     let selectedFiles = [];
     let step = 'welcome'; // welcome -> profile -> target -> compose
@@ -4239,7 +4240,7 @@
       // chỉ làm rối. Dùng icon 👤 nhỏ để gợi ý đây là tên profile.
       el.innerHTML = `<svg class="xi xi-sm" aria-hidden="true" style="vertical-align:-2px;margin-right:4px;opacity:.7;"><use href="#ic-user"/></svg>${escapeHtml(name)}`;
       const btn = document.getElementById('btnChangeProfile');
-      if (btn) btn.style.display = 'block';
+      if (btn) btn.style.display = _totalProfiles > 1 ? 'block' : 'none';
     }
 
     // Tone neutral cho lỗi hệ thống: nói rõ action user nên làm, raw error
@@ -4287,6 +4288,7 @@
         const res = await fetch(BASE_URL + '/api/accounts');
         const data = await parseJson(res);
         const profiles = (data && data.facebook) || [];
+        _totalProfiles = profiles.length;
         profiles.forEach(p => { _profileDisplayNames[p.key] = p.name || p.key; });
 
         if (profiles.length === 0) {
