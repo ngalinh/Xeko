@@ -3363,6 +3363,9 @@
           style="padding:9px 18px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; flex-shrink:0;">
           <svg class="xi" style="width:15px;height:15px;"><use href="#ic-plus"/></svg> Thêm content
         </button>
+        <button id="contentBatchDeleteBtn" onclick="deleteSelectedContents()" style="display:none; padding:9px 18px; background:#fee2e2; color:#b91c1c; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; align-items:center; gap:6px; white-space:nowrap; flex-shrink:0;">
+          <svg class="xi" style="width:15px;height:15px;"><use href="#ic-trash"/></svg> Xoá đã chọn (<span id="contentSelectedCount">0</span>)
+        </button>
       </div>
 
       <!-- Loading -->
@@ -3379,6 +3382,7 @@
       <div id="contentTableWrap" style="display:none; overflow-x:auto; background:#fff; border-radius:12px; box-shadow:0 1px 6px rgba(0,0,0,.07);">
         <table style="width:100%; border-collapse:collapse; font-size:13px; min-width:760px;">
           <colgroup>
+            <col style="width:40px;">
             <col style="width:44px;">
             <col style="width:auto;">
             <col style="width:110px;">
@@ -3390,6 +3394,7 @@
           </colgroup>
           <thead>
             <tr style="background:#f9fafb; border-bottom:2px solid #e5e7eb;">
+              <th style="padding:10px 14px; text-align:center; font-weight:600; color:#374151;"><input type="checkbox" id="contentSelectAll" onchange="contentToggleAll(this.checked)" style="cursor:pointer; width:14px; height:14px;"></th>
               <th style="padding:10px 14px; text-align:center; font-weight:600; color:#374151; white-space:nowrap;">STT</th>
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Nội dung</th>
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Hình ảnh</th>
@@ -6052,15 +6057,15 @@
       const images = (item.images || []).map(u => u.startsWith('/') ? BASE_URL + u : u);
       let imgHtml = '';
       if (images.length) {
-        const shown = images.slice(0, 3);
+        const shown = images.slice(0, 4);
         imgHtml = shown.map(u =>
-          `<a href="${escapeHtml(u)}" onclick="openLightbox('${escapeHtml(u)}');return false;">` +
-          `<img src="${escapeHtml(u)}" style="width:38px;height:38px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;display:block;" loading="lazy" ` +
-          `onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:38px;height:38px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;align-items:center;justify-content:center;font-size:16px;'}))">` +
+          `<a href="${escapeHtml(u)}" onclick="openLightbox('${escapeHtml(u)}');return false;" style="display:block;">` +
+          `<img src="${escapeHtml(u)}" style="width:44px;height:44px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;display:block;" loading="lazy" ` +
+          `onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:44px;height:44px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;align-items:center;justify-content:center;font-size:16px;'}))">` +
           `</a>`
         ).join('');
-        if (images.length > 3) imgHtml += `<span style="font-size:11px;color:#888;align-self:center;">+${images.length - 3}</span>`;
-        imgHtml = `<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">${imgHtml}</div>`;
+        const more = images.length > 4 ? `<span style="font-size:11px;color:#888;align-self:center;">+${images.length - 4}</span>` : '';
+        imgHtml = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;width:fit-content;">${imgHtml}</div>${more}`;
       } else {
         imgHtml = `<span style="color:#ccc;font-size:12px;">—</span>`;
       }
@@ -6082,6 +6087,7 @@
       const odd = stt % 2 === 0 ? 'background:#fafafa;' : '';
 
       return `<tr style="${odd}border-bottom:1px solid #f0f0f0;">
+        <td style="padding:10px 14px; text-align:center;"><input type="checkbox" class="content-row-cb" data-id="${item.id}" onchange="updateContentBatchBtn()" style="cursor:pointer; width:14px; height:14px;"></td>
         <td style="padding:10px 14px; text-align:center; color:#aaa; font-size:12px;">${stt}</td>
         <td style="padding:10px 14px;">
           <div style="font-weight:600;font-size:13px;color:#1e1e2e;margin-bottom:3px;">${escapeHtml(item.title)}</div>
@@ -6112,13 +6118,24 @@
       </tr>`;
     }
 
-    function useContent(id) {
+    async function useContent(id) {
       const item = _contentItems.find(c => c.id === id);
       if (!item) return;
       const msgInput = document.getElementById('msgInput');
       if (msgInput) {
         msgInput.value = item.body;
         msgInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      const images = (item.images || []).map(u => u.startsWith('/') ? BASE_URL + u : u);
+      if (images.length > 0) {
+        clearImages();
+        for (const url of images) {
+          try {
+            const blob = await (await fetch(url)).blob();
+            selectedFiles.push(new File([blob], url.split('/').pop() || 'image.jpg', { type: blob.type || 'image/jpeg' }));
+          } catch {}
+        }
+        updatePreview();
       }
       switchPage('post');
     }
@@ -6308,6 +6325,34 @@
         loadContents();
       } catch (e) {
         alert('Lỗi: ' + e.message);
+      }
+    }
+
+    function updateContentBatchBtn() {
+      const checked = document.querySelectorAll('.content-row-cb:checked');
+      const btn = document.getElementById('contentBatchDeleteBtn');
+      const countEl = document.getElementById('contentSelectedCount');
+      if (btn) {
+        btn.style.display = checked.length > 0 ? 'inline-flex' : 'none';
+        if (countEl) countEl.textContent = checked.length;
+      }
+    }
+
+    function contentToggleAll(checked) {
+      document.querySelectorAll('.content-row-cb').forEach(cb => { cb.checked = checked; });
+      updateContentBatchBtn();
+    }
+
+    async function deleteSelectedContents() {
+      const checked = [...document.querySelectorAll('.content-row-cb:checked')];
+      if (checked.length === 0) return;
+      if (!confirm(`Xoá ${checked.length} content đã chọn?`)) return;
+      const ids = checked.map(cb => parseInt(cb.dataset.id));
+      try {
+        await Promise.all(ids.map(id => fetch(`${BASE_URL}/api/contents/${id}`, { method: 'DELETE' })));
+        loadContents();
+      } catch (e) {
+        alert('Xoá thất bại: ' + e.message);
       }
     }
 
