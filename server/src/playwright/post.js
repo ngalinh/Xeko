@@ -1852,6 +1852,42 @@ async function qpStep6Submit(page, steps) {
     if (ok) clickedVia = 'walk-up text→role=button';
   }
 
+  // D. Broad fallback: tìm "Đăng" trong BẤT KỲ dialog nào (không ép scope "Cài đặt bài viết")
+  // — dùng khi FB re-render dialog sau step 5 "Xong" làm mất text title tạm thời.
+  if (!clickedVia) {
+    await randomDelay(800, 1500);
+    const ok = await page.evaluate(() => {
+      for (const lbl of ['Đăng', 'Post']) {
+        // Phase 1: aria-label trong bất kỳ div visible nào
+        const byLabel = document.querySelector(`[aria-label="${lbl}"][role="button"], button[aria-label="${lbl}"]`);
+        if (byLabel) {
+          const r = byLabel.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) { byLabel.scrollIntoView({ block: 'center' }); byLabel.click(); return lbl; }
+        }
+        // Phase 2: span text exact → walk-up role=button trong bất kỳ dialog
+        const dialogs = document.querySelectorAll('div[role="dialog"], [aria-modal="true"]');
+        for (const d of dialogs) {
+          for (const s of d.querySelectorAll('span')) {
+            if ((s.textContent || '').trim() !== lbl) continue;
+            let el = s;
+            for (let i = 0; i < 8 && el.parentElement; i++) {
+              el = el.parentElement;
+              if (el.getAttribute('role') === 'button') {
+                const r = el.getBoundingClientRect();
+                if (r.width === 0 || r.height === 0) continue;
+                el.scrollIntoView({ block: 'center' });
+                el.click();
+                return lbl;
+              }
+            }
+          }
+        }
+      }
+      return null;
+    });
+    if (ok) clickedVia = `broad-fallback(${ok})`;
+  }
+
   if (!clickedVia) {
     const shot = await _qpScreenshot(page, 'step6-no-button');
     await _qpLog(steps, `Step 6: KHÔNG tìm thấy nút "Đăng" (screenshot=${shot})`);
