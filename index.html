@@ -6014,6 +6014,8 @@
       emptyEl.style.display = 'none';
       loadingEl.style.display = 'block';
 
+      await _loadContentProfiles();
+
       try {
         const params = new URLSearchParams();
         if (search) params.set('search', search);
