@@ -1,5 +1,5 @@
 /* Xeko PWA service worker */
-const VERSION = 'xeko-pwa-v17';
+const VERSION = 'xeko-pwa-v18';
 const SHELL_CACHE = `shell-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
@@ -8,6 +8,7 @@ const SHELL_ASSETS = [
   '/index.html',
   '/manifest.webmanifest',
   '/xeko-avatar.png',
+  '/favicon.svg',
 ];
 
 self.addEventListener('install', (event) => {
