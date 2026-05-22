@@ -181,13 +181,11 @@ async function sendMessage(page, message, imagePaths = []) {
       await randomDelay(200, 500);
       await msgInput.click();
       await randomDelay(250, 600);
-      // Gõ từng dòng, giữa các dòng dùng Shift+Enter để xuống dòng (không gửi)
-      const lines = message.split('\n');
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i]) await humanType(msgInput, lines[i]);
-        if (i < lines.length - 1) await page.keyboard.press('Shift+Enter');
-      }
-      logger.info('[salework] Đã nhập tin nhắn');
+      // Copy-paste để giữ nguyên xuống dòng (paste event không trigger gửi như Enter)
+      await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+      await page.evaluate(text => navigator.clipboard.writeText(text), message);
+      await page.keyboard.press('Control+v');
+      logger.info('[salework] Đã nhập tin nhắn (paste)');
       await randomDelay(400, 900);
     }
   }
