@@ -6048,8 +6048,8 @@
       ).join(' ');
       const dt = new Date(item.updatedAt).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' });
 
-      // Hình ảnh — lightbox + onerror như dashboard
-      const images = item.images || [];
+      // Hình ảnh — prepend BASE_URL cho relative path, lightbox + onerror như dashboard
+      const images = (item.images || []).map(u => u.startsWith('/') ? BASE_URL + u : u);
       let imgHtml = '';
       if (images.length) {
         const shown = images.slice(0, 3);
@@ -6201,15 +6201,16 @@
     function renderContentImgPreview(existingUrls) {
       const preview = document.getElementById('contentImgPreview');
       const countEl = document.getElementById('contentImgCount');
-      let html = existingUrls.map((url, i) =>
-        `<div style="position:relative;display:inline-block;">
-          <img src="${escapeHtml(url)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #ddd;"
+      let html = existingUrls.map((url, i) => {
+        const resolvedUrl = url.startsWith('/') ? BASE_URL + url : url;
+        return `<div style="position:relative;display:inline-block;">
+          <img src="${escapeHtml(resolvedUrl)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #ddd;"
             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
           <span style="display:none;width:60px;height:60px;background:#f3f4f6;border-radius:8px;border:1px solid #ddd;align-items:center;justify-content:center;font-size:20px;">🖼️</span>
           <button type="button" onclick="removeContentExistingImg(${i})"
             style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;">×</button>
-        </div>`
-      ).join('');
+        </div>`;
+      }).join('');
       html += _contentNewImages.map((f, i) => {
         const url = URL.createObjectURL(f);
         return `<div style="position:relative;display:inline-block;">
