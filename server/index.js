@@ -26,6 +26,8 @@ const PUBLIC_PATHS = ['/health', '/api/me', '/api/register-local'];
 app.use(async (req, res, next) => {
   if (req.method === 'OPTIONS') return next();
   if (PUBLIC_PATHS.includes(req.path)) return next();
+  // Ảnh thumbnail không cần auth riêng — user đã login mới vào được app
+  if (req.path.startsWith('/api/image/')) return next();
 
   // API endpoints: trả JSON 401/403
   if (req.path.startsWith('/api/')) {
