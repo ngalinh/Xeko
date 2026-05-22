@@ -3465,13 +3465,6 @@
       <input type="hidden" id="contentEditId">
 
       <div style="margin-bottom:14px;">
-        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Tiêu đề <span style="color:#EF4444;">*</span></label>
-        <input type="text" id="contentTitleInput" placeholder="vd: Bài giới thiệu sản phẩm tháng 5..."
-          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none;"
-          onfocus="this.style.borderColor='#3B82F6'" onblur="this.style.borderColor='#ddd'">
-      </div>
-
-      <div style="margin-bottom:14px;">
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Nội dung bài viết <span style="color:#EF4444;">*</span></label>
         <textarea id="contentBodyInput" rows="6" placeholder="Nhập nội dung bài viết..."
           style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; resize:vertical; line-height:1.6; outline:none; font-family:inherit;"
@@ -3502,9 +3495,23 @@
         </div>
         <div style="flex:2; min-width:200px;">
           <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Phân loại content</label>
-          <input type="text" id="contentCategoryInput" placeholder="vd: Sale, Giới thiệu, Sự kiện..."
-            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none;"
-            onfocus="this.style.borderColor='#3B82F6'" onblur="this.style.borderColor='#ddd'">
+          <select id="contentCategorySelect"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none; background:white; cursor:pointer;"
+            onfocus="this.style.borderColor='#3B82F6'" onblur="this.style.borderColor='#ddd'"
+            onchange="onContentCategoryChange(this)">
+            <option value="">-- Chọn phân loại --</option>
+            <option value="__add_new__">+ Thêm mới...</option>
+          </select>
+          <div id="contentCategoryNewRow" style="display:none; margin-top:6px; gap:6px; align-items:center;">
+            <input type="text" id="contentCategoryNewInput" placeholder="Nhập phân loại mới..."
+              style="flex:1; padding:8px 12px; border:1px solid #3B82F6; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none;"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();onContentCategoryConfirmNew();}if(event.key==='Escape'){onContentCategoryCancelNew();}">
+            <button type="button" onclick="onContentCategoryConfirmNew()"
+              style="padding:8px 12px; background:#3B82F6; color:white; border:none; border-radius:8px; font-size:13px; cursor:pointer; white-space:nowrap; flex-shrink:0;">OK</button>
+            <button type="button" onclick="onContentCategoryCancelNew()"
+              style="padding:8px 10px; background:#f3f4f6; color:#555; border:none; border-radius:8px; font-size:13px; cursor:pointer; flex-shrink:0;">✕</button>
+          </div>
+          <input type="hidden" id="contentCategoryInput">
         </div>
       </div>
 
@@ -6132,7 +6139,6 @@
         <td style="padding:10px 14px; text-align:center;"><input type="checkbox" class="content-row-cb" data-id="${item.id}" onchange="updateContentBatchBtn()" style="cursor:pointer; width:14px; height:14px;"></td>
         <td style="padding:10px 14px; text-align:center; color:#aaa; font-size:12px;">${stt}</td>
         <td style="padding:10px 14px; cursor:default;" data-ctip="${ctipData}">
-          <div style="font-weight:600;font-size:13px;color:#1e1e2e;margin-bottom:3px;">${escapeHtml(item.title)}</div>
           <div style="font-size:12px;color:#777;line-height:1.5;">${escapeHtml(preview)}</div>
           ${tagsHtml ? `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;">${tagsHtml}</div>` : ''}
         </td>
@@ -6202,12 +6208,15 @@
       }
       wrap.innerHTML = _contentProfilesCache.map(p => {
         const checked = selectedKeys.includes(p.key) ? 'checked' : '';
-        const badge = p.type === 'facebook' ? '🔵' : '🟢';
+        const badgeColor = p.type === 'facebook' ? '#1877F2' : '#0068FF';
+        const badgeIcon = p.type === 'facebook'
+          ? `<svg class="xi" style="width:13px;height:13px;color:${badgeColor};flex-shrink:0;"><use href="#ic-fb"/></svg>`
+          : `<svg class="xi" style="width:13px;height:13px;color:${badgeColor};flex-shrink:0;"><use href="#ic-zalo"/></svg>`;
         return `<label style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:${checked ? '#EFF6FF' : '#f9fafb'};border:1px solid ${checked ? '#BFDBFE' : '#e5e7eb'};border-radius:99px;cursor:pointer;font-size:12px;user-select:none;">
           <input type="checkbox" name="contentProfiles" value="${escapeHtml(p.key)}" ${checked}
             style="margin:0;width:13px;height:13px;cursor:pointer;"
             onchange="this.closest('label').style.background=this.checked?'#EFF6FF':'#f9fafb';this.closest('label').style.borderColor=this.checked?'#BFDBFE':'#e5e7eb'">
-          ${badge} ${escapeHtml(p.name || p.key)}
+          ${badgeIcon} ${escapeHtml(p.name || p.key)}
         </label>`;
       }).join('');
     }
@@ -6216,11 +6225,9 @@
       const modal = document.getElementById('contentModal');
       const titleEl = document.getElementById('contentModalTitle');
       const editId = document.getElementById('contentEditId');
-      const titleInput = document.getElementById('contentTitleInput');
       const bodyInput = document.getElementById('contentBodyInput');
       const platformInput = document.getElementById('contentPlatformInput');
       const tagsInput = document.getElementById('contentTagsInput');
-      const categoryInput = document.getElementById('contentCategoryInput');
       const errEl = document.getElementById('contentModalError');
 
       errEl.style.display = 'none';
@@ -6234,21 +6241,19 @@
         if (!item) return;
         titleEl.innerHTML = `<svg class="xi xi-md" style="color:#3B82F6;"><use href="#ic-book"/></svg> Sửa content`;
         editId.value = id;
-        titleInput.value = item.title;
         bodyInput.value = item.body;
         platformInput.value = item.platform || 'all';
         tagsInput.value = (item.tags || []).join(', ');
-        categoryInput.value = item.category || '';
+        _populateCategoryDropdown(item.category || '');
         _renderProfileCheckboxes(item.profiles || []);
         renderContentImgPreview(item.images || []);
       } else {
         titleEl.innerHTML = `<svg class="xi xi-md" style="color:#3B82F6;"><use href="#ic-book"/></svg> Thêm content`;
         editId.value = '';
-        titleInput.value = '';
         bodyInput.value = '';
         platformInput.value = 'all';
         tagsInput.value = '';
-        categoryInput.value = '';
+        _populateCategoryDropdown('');
         _renderProfileCheckboxes([]);
         renderContentImgPreview([]);
       }
@@ -6310,9 +6315,71 @@
       document.getElementById('contentModal').style.display = 'none';
     }
 
+    function _populateCategoryDropdown(currentVal) {
+      const sel = document.getElementById('contentCategorySelect');
+      const hidden = document.getElementById('contentCategoryInput');
+      const cats = [...new Set((_contentItems || []).map(c => (c.category || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
+      sel.innerHTML = '<option value="">-- Chọn phân loại --</option>';
+      cats.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat; opt.textContent = cat;
+        sel.appendChild(opt);
+      });
+      const addOpt = document.createElement('option');
+      addOpt.value = '__add_new__'; addOpt.textContent = '+ Thêm mới...';
+      sel.appendChild(addOpt);
+      if (currentVal) {
+        if (!cats.includes(currentVal)) {
+          const opt = document.createElement('option');
+          opt.value = currentVal; opt.textContent = currentVal;
+          sel.insertBefore(opt, addOpt);
+        }
+        sel.value = currentVal;
+      }
+      hidden.value = sel.value === '__add_new__' ? '' : (sel.value || '');
+      document.getElementById('contentCategoryNewRow').style.display = 'none';
+    }
+
+    function onContentCategoryChange(sel) {
+      const hidden = document.getElementById('contentCategoryInput');
+      if (sel.value === '__add_new__') {
+        sel.value = '';
+        hidden.value = '';
+        const row = document.getElementById('contentCategoryNewRow');
+        row.style.display = 'flex';
+        document.getElementById('contentCategoryNewInput').focus();
+      } else {
+        hidden.value = sel.value;
+      }
+    }
+
+    function onContentCategoryConfirmNew() {
+      const input = document.getElementById('contentCategoryNewInput');
+      const val = input.value.trim();
+      const sel = document.getElementById('contentCategorySelect');
+      const hidden = document.getElementById('contentCategoryInput');
+      if (val) {
+        const addNewOpt = sel.querySelector('option[value="__add_new__"]');
+        const existing = Array.from(sel.options).find(o => o.value === val);
+        if (!existing) {
+          const newOpt = document.createElement('option');
+          newOpt.value = val; newOpt.textContent = val;
+          sel.insertBefore(newOpt, addNewOpt);
+        }
+        sel.value = val;
+        hidden.value = val;
+      }
+      document.getElementById('contentCategoryNewRow').style.display = 'none';
+      input.value = '';
+    }
+
+    function onContentCategoryCancelNew() {
+      document.getElementById('contentCategoryNewInput').value = '';
+      document.getElementById('contentCategoryNewRow').style.display = 'none';
+    }
+
     async function saveContent() {
       const id = document.getElementById('contentEditId').value;
-      const title = document.getElementById('contentTitleInput').value.trim();
       const body = document.getElementById('contentBodyInput').value.trim();
       const platform = document.getElementById('contentPlatformInput').value;
       const tagsRaw = document.getElementById('contentTagsInput').value;
@@ -6325,7 +6392,6 @@
         document.querySelectorAll('#contentProfileCheckboxes input[name="contentProfiles"]:checked')
       ).map(cb => cb.value);
 
-      if (!title) { errEl.textContent = 'Vui lòng nhập tiêu đề.'; errEl.style.display = 'block'; return; }
       if (!body)  { errEl.textContent = 'Vui lòng nhập nội dung bài viết.'; errEl.style.display = 'block'; return; }
       errEl.style.display = 'none';
       saveBtn.disabled = true;
@@ -6333,7 +6399,7 @@
 
       try {
         const fd = new FormData();
-        fd.append('title', title);
+        fd.append('title', body.slice(0, 60).replace(/\s+/g, ' ').trim() || 'content');
         fd.append('body', body);
         fd.append('platform', platform);
         fd.append('tags', tagsRaw);
