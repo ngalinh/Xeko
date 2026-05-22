@@ -1658,6 +1658,123 @@ permissions.configureSync({
   apiKey: process.env.LOCAL_API_KEY || 'change-this-secret-key',
 });
 
+// ===== KHO BÀI (saved post templates) =====
+const SAVED_POSTS_FILE = process.env.XEKO_DATA_DIR
+  ? path.join(path.resolve(process.env.XEKO_DATA_DIR), 'data/saved-posts.json')
+  : path.resolve(__dirname, '../data/saved-posts.json');
+const SAVED_POSTS_IMG_DIR = process.env.XEKO_DATA_DIR
+  ? path.join(path.resolve(process.env.XEKO_DATA_DIR), 'data/saved-posts-images')
+  : path.resolve(__dirname, '../data/saved-posts-images');
+if (!fs.existsSync(SAVED_POSTS_IMG_DIR)) fs.mkdirSync(SAVED_POSTS_IMG_DIR, { recursive: true });
+
+function loadSavedPosts() {
+  try { if (fs.existsSync(SAVED_POSTS_FILE)) return JSON.parse(fs.readFileSync(SAVED_POSTS_FILE, 'utf8')); } catch {}
+  return [];
+}
+function writeSavedPosts(posts) {
+  const dir = path.dirname(SAVED_POSTS_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(SAVED_POSTS_FILE, JSON.stringify(posts, null, 2));
+}
+
+app.get('/api/saved-posts', (req, res) => {
+  res.json({ posts: loadSavedPosts() });
+});
+
+app.post('/api/saved-posts', upload.array('images', 20), (req, res) => {
+  const { message, category, profile, channel } = req.body;
+  const id = Date.now();
+  const posts = loadSavedPosts();
+  const imagePaths = [];
+  if (req.files && req.files.length > 0) {
+    const dir = path.join(SAVED_POSTS_IMG_DIR, String(id));
+    fs.mkdirSync(dir, { recursive: true });
+    req.files.forEach((f, i) => {
+      const dest = path.join(dir, `${i}${path.extname(f.path) || '.jpg'}`);
+      fs.renameSync(f.path, dest);
+      imagePaths.push(dest);
+    });
+  }
+  const post = { id, message: message || '', category: category || '', profile: profile || '', channel: channel || '', imagePaths, createdAt: new Date().toISOString() };
+  posts.push(post);
+  writeSavedPosts(posts);
+  res.json({ success: true, post });
+});
+
+app.put('/api/saved-posts/:id', upload.array('images', 20), (req, res) => {
+  const id = parseInt(req.params.id);
+  const posts = loadSavedPosts();
+  const idx = posts.findIndex(p => p.id === id);
+  if (idx === -1) {
+    (req.files || []).forEach(f => { try { fs.unlinkSync(f.path); } catch {} });
+    return res.status(404).json({ error: 'Không tìm thấy' });
+  }
+  const post = posts[idx];
+  const { message, category, profile, channel } = req.body;
+  if (message !== undefined) post.message = message;
+  if (category !== undefined) post.category = category;
+  if (profile !== undefined) post.profile = profile;
+  if (channel !== undefined) post.channel = channel;
+  if (req.files && req.files.length > 0) {
+    (post.imagePaths || []).forEach(p => { try { fs.unlinkSync(p); } catch {} });
+    try { fs.rmSync(path.join(SAVED_POSTS_IMG_DIR, String(id)), { recursive: true, force: true }); } catch {}
+    const dir = path.join(SAVED_POSTS_IMG_DIR, String(id));
+    fs.mkdirSync(dir, { recursive: true });
+    post.imagePaths = req.files.map((f, i) => {
+      const dest = path.join(dir, `${i}${path.extname(f.path) || '.jpg'}`);
+      fs.renameSync(f.path, dest);
+      return dest;
+    });
+  }
+  writeSavedPosts(posts);
+  res.json({ success: true, post });
+});
+
+app.delete('/api/saved-posts/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const posts = loadSavedPosts();
+  const idx = posts.findIndex(p => p.id === id);
+  if (idx === -1) return res.status(404).json({ error: 'Không tìm thấy' });
+  const post = posts[idx];
+  (post.imagePaths || []).forEach(p => { try { fs.unlinkSync(p); } catch {} });
+  try { fs.rmSync(path.join(SAVED_POSTS_IMG_DIR, String(id)), { recursive: true, force: true }); } catch {}
+  posts.splice(idx, 1);
+  writeSavedPosts(posts);
+  res.json({ success: true });
+});
+
+app.post('/api/saved-posts/batch-delete', (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids)) return res.status(400).json({ error: 'ids phải là mảng' });
+  let posts = loadSavedPosts();
+  let deleted = 0;
+  for (const rawId of ids) {
+    const id = parseInt(rawId);
+    const idx = posts.findIndex(p => p.id === id);
+    if (idx !== -1) {
+      const post = posts[idx];
+      (post.imagePaths || []).forEach(p => { try { fs.unlinkSync(p); } catch {} });
+      try { fs.rmSync(path.join(SAVED_POSTS_IMG_DIR, String(id)), { recursive: true, force: true }); } catch {}
+      posts.splice(idx, 1);
+      deleted++;
+    }
+  }
+  writeSavedPosts(posts);
+  res.json({ success: true, deleted });
+});
+
+app.get('/api/saved-post-image/:id/:index', (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = parseInt(req.params.index);
+  if (isNaN(id) || isNaN(index)) return res.status(400).send('Bad request');
+  const post = loadSavedPosts().find(p => p.id === id);
+  if (!post || !(post.imagePaths || [])[index]) return res.status(404).send('Not found');
+  const filePath = post.imagePaths[index];
+  if (!path.resolve(filePath).startsWith(SAVED_POSTS_IMG_DIR)) return res.status(400).send('Bad request');
+  if (fs.existsSync(filePath)) return res.sendFile(path.resolve(filePath));
+  res.status(404).send('Not found');
+});
+
 // Global error middleware: tra JSON ro rang thay vi plain text "Internal Server"
 // (rat huu ich khi multer/playwright/db throw uncaught -> client se thay nguyen nhan that)
 app.use((err, req, res, next) => {
