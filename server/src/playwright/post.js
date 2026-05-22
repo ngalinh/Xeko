@@ -1788,6 +1788,23 @@ async function qpStep6Submit(page, steps) {
   // Listener phải attach TRƯỚC khi click — response GraphQL về sau vài trăm ms
   const urlPromise = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
 
+  // Early-exit: nếu dialog đã đóng hết (FB submit nhanh / Tab+Enter ở step trước đã post)
+  // → bài đã đăng thành công, không cần tìm nút "Đăng" nữa.
+  const alreadyDone = await page.evaluate(() => {
+    const dialogs = document.querySelectorAll('div[role="dialog"]');
+    for (const d of dialogs) {
+      const t = d.textContent || '';
+      if (t.includes('Cài đặt bài viết') || t.includes('Post settings') ||
+          t.includes('Tạo bài viết') || t.includes('Create post') || t.includes('Create Post')) return false;
+    }
+    return true;
+  });
+  if (alreadyDone) {
+    await _qpLog(steps, 'Step 6: dialog đã đóng trước khi click "Đăng" — bài đã được gửi ở bước trước');
+    const postUrl = await urlPromise;
+    return { success: true, postUrl: postUrl || null };
+  }
+
   // Scroll tất cả dialog xuống BOTTOM (theo flow cũ submitPost) — submit button ở cuối
   await page.evaluate(() => {
     document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
