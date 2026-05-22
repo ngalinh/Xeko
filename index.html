@@ -3344,29 +3344,29 @@
       </div>
     </div>
 
-    <div style="padding:20px; max-width:860px; margin:0 auto; width:100%; box-sizing:border-box;">
+    <div style="padding:20px; width:100%; box-sizing:border-box;">
 
       <!-- Toolbar -->
       <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
         <input id="contentSearch" type="text" placeholder="Tìm kiếm tiêu đề, nội dung, tag..."
-          style="flex:1; min-width:180px; padding:9px 14px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:13px; outline:none; transition:border-color .15s;"
+          style="flex:1; min-width:180px; padding:9px 14px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:13px; outline:none; transition:border-color .15s; background:#fff;"
           onfocus="this.style.borderColor='#3B82F6'" onblur="this.style.borderColor='#e0e0e0'"
           oninput="loadContents()">
         <select id="contentFilterPlatform" onchange="loadContents()"
           style="padding:9px 12px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:13px; color:#555; outline:none; cursor:pointer; background:#fff;">
-          <option value="">Tất cả nền tảng</option>
+          <option value="">Tất cả kênh</option>
           <option value="all">Chung</option>
           <option value="facebook">Facebook</option>
           <option value="zalo">Zalo</option>
         </select>
         <button onclick="openContentModal()"
-          style="padding:9px 18px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap;">
+          style="padding:9px 18px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; flex-shrink:0;">
           <svg class="xi" style="width:15px;height:15px;"><use href="#ic-plus"/></svg> Thêm content
         </button>
       </div>
 
-      <!-- Content list -->
-      <div id="contentList" style="display:flex; flex-direction:column; gap:10px;"></div>
+      <!-- Loading -->
+      <div id="contentLoading" style="display:none; text-align:center; padding:40px; color:#888; font-size:13px;">Đang tải...</div>
 
       <!-- Empty state -->
       <div id="contentEmpty" style="display:none; text-align:center; padding:60px 20px; color:#aaa;">
@@ -3375,15 +3375,37 @@
         <div style="font-size:13px;">Nhấn <strong>Thêm content</strong> để lưu bài mẫu đầu tiên</div>
       </div>
 
-      <!-- Loading -->
-      <div id="contentLoading" style="display:none; text-align:center; padding:40px; color:#888; font-size:13px;">Đang tải...</div>
+      <!-- Table -->
+      <div id="contentTableWrap" style="display:none; overflow-x:auto; background:#fff; border-radius:12px; box-shadow:0 1px 6px rgba(0,0,0,.07);">
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <colgroup>
+            <col style="width:48px;">
+            <col style="width:auto;">
+            <col style="width:130px;">
+            <col style="width:110px;">
+            <col style="width:100px;">
+            <col style="width:140px;">
+          </colgroup>
+          <thead>
+            <tr style="background:#f9fafb; border-bottom:2px solid #e5e7eb;">
+              <th style="padding:10px 14px; text-align:center; font-weight:600; color:#374151; white-space:nowrap;">STT</th>
+              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Nội dung</th>
+              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Hình ảnh</th>
+              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Kênh đăng</th>
+              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151; white-space:nowrap;">Ngày tháng</th>
+              <th style="padding:10px 14px; text-align:center; font-weight:600; color:#374151;">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="contentTableBody"></tbody>
+        </table>
+      </div>
 
     </div>
   </div><!-- end pageContent -->
 
   <!-- Modal thêm/sửa content -->
   <div id="contentModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
-    <div style="background:#fff; border-radius:16px; padding:24px; width:560px; max-width:95%; box-shadow:0 8px 32px rgba(0,0,0,0.2); max-height:90vh; overflow-y:auto; box-sizing:border-box;">
+    <div style="background:#fff; border-radius:16px; padding:24px; width:600px; max-width:96%; box-shadow:0 8px 32px rgba(0,0,0,0.2); max-height:92vh; overflow-y:auto; box-sizing:border-box;">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;">
         <h3 id="contentModalTitle" style="font-size:16px; color:#1e1e2e; margin:0; display:flex; align-items:center; gap:8px;">
           <svg class="xi xi-md" style="color:#3B82F6;"><use href="#ic-book"/></svg> Thêm content
@@ -3401,14 +3423,26 @@
 
       <div style="margin-bottom:14px;">
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Nội dung bài viết <span style="color:#EF4444;">*</span></label>
-        <textarea id="contentBodyInput" rows="7" placeholder="Nhập nội dung bài viết..."
+        <textarea id="contentBodyInput" rows="6" placeholder="Nhập nội dung bài viết..."
           style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; resize:vertical; line-height:1.6; outline:none; font-family:inherit;"
           onfocus="this.style.borderColor='#3B82F6'" onblur="this.style.borderColor='#ddd'"></textarea>
       </div>
 
+      <!-- Hình ảnh -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:8px;">Hình ảnh (tuỳ chọn)</label>
+        <div id="contentImgPreview" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;"></div>
+        <button type="button" onclick="document.getElementById('contentImgInput').click()"
+          style="padding:7px 14px; background:#EFF6FF; color:#3B82F6; border:1px solid #BFDBFE; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">
+          <svg class="xi" style="width:14px;height:14px;vertical-align:-2px;"><use href="#ic-camera"/></svg> Chọn ảnh
+        </button>
+        <input type="file" id="contentImgInput" accept="image/*" multiple style="display:none;" onchange="handleContentImages(this)">
+        <span style="font-size:12px; color:#aaa; margin-left:8px;" id="contentImgCount"></span>
+      </div>
+
       <div style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
-        <div style="flex:1; min-width:160px;">
-          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Nền tảng</label>
+        <div style="flex:1; min-width:140px;">
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Kênh đăng</label>
           <select id="contentPlatformInput"
             style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none; background:#fff; cursor:pointer;">
             <option value="all">Chung (tất cả)</option>
@@ -5946,16 +5980,17 @@
     // === Kho content ===
 
     let _contentItems = [];
+    let _contentNewImages = []; // File[] chờ upload khi save
 
     async function loadContents() {
       const search = (document.getElementById('contentSearch') || {}).value || '';
       const platform = (document.getElementById('contentFilterPlatform') || {}).value || '';
-      const listEl = document.getElementById('contentList');
+      const tableWrap = document.getElementById('contentTableWrap');
       const emptyEl = document.getElementById('contentEmpty');
       const loadingEl = document.getElementById('contentLoading');
-      if (!listEl) return;
+      if (!tableWrap) return;
 
-      listEl.style.display = 'none';
+      tableWrap.style.display = 'none';
       emptyEl.style.display = 'none';
       loadingEl.style.display = 'block';
 
@@ -5976,45 +6011,60 @@
         return;
       }
 
-      listEl.style.display = 'flex';
-      listEl.innerHTML = _contentItems.map(item => renderContentCard(item)).join('');
+      tableWrap.style.display = 'block';
+      document.getElementById('contentTableBody').innerHTML =
+        _contentItems.map((item, idx) => renderContentRow(item, idx + 1)).join('');
     }
 
-    function renderContentCard(item) {
+    function renderContentRow(item, stt) {
       const platformLabel = { all: 'Chung', facebook: 'Facebook', zalo: 'Zalo' }[item.platform] || item.platform;
       const platformColor = { all: '#6B7280', facebook: '#1877F2', zalo: '#0068FF' }[item.platform] || '#6B7280';
       const platformBg   = { all: '#F3F4F6', facebook: '#EFF6FF', zalo: '#EFF6FF' }[item.platform] || '#F3F4F6';
-      const preview = item.body.length > 180 ? item.body.slice(0, 180) + '…' : item.body;
+      const preview = item.body.length > 120 ? item.body.slice(0, 120) + '…' : item.body;
       const tagsHtml = (item.tags || []).map(t =>
-        `<span style="display:inline-block;padding:2px 8px;background:#F3F4F6;border-radius:99px;font-size:11px;color:#555;margin-right:4px;">${escapeHtml(t)}</span>`
-      ).join('');
+        `<span style="display:inline-block;padding:2px 7px;background:#F3F4F6;border-radius:99px;font-size:11px;color:#555;">${escapeHtml(t)}</span>`
+      ).join(' ');
       const dt = new Date(item.updatedAt).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' });
+      const images = item.images || [];
+      let imgHtml = '';
+      if (images.length) {
+        imgHtml = images.slice(0, 3).map(url =>
+          `<img src="${escapeHtml(url)}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid #eee;" loading="lazy">`
+        ).join('');
+        if (images.length > 3) imgHtml += `<span style="font-size:11px;color:#888;align-self:center;">+${images.length - 3}</span>`;
+        imgHtml = `<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">${imgHtml}</div>`;
+      } else {
+        imgHtml = `<span style="color:#ccc;font-size:12px;">—</span>`;
+      }
+      const odd = stt % 2 === 0 ? 'background:#fafafa;' : '';
 
-      return `<div style="background:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 1px 6px rgba(0,0,0,.07);border:1px solid #f0f0f0;display:flex;flex-direction:column;gap:10px;">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-          <div style="font-weight:700;font-size:14px;color:#1e1e2e;flex:1;min-width:0;word-break:break-word;">${escapeHtml(item.title)}</div>
-          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-            <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:${platformBg};color:${platformColor};">${platformLabel}</span>
-            <span style="font-size:11px;color:#bbb;">${dt}</span>
-          </div>
-        </div>
-        <div style="font-size:13px;color:#555;line-height:1.65;white-space:pre-wrap;word-break:break-word;">${escapeHtml(preview)}</div>
-        ${tagsHtml ? `<div style="display:flex;flex-wrap:wrap;gap:4px;">${tagsHtml}</div>` : ''}
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;">
-          <button onclick="useContent(${item.id})"
-            style="padding:6px 14px;background:#D1FAE5;color:#065F46;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
-            Dùng để đăng bài
+      return `<tr style="${odd}border-bottom:1px solid #f0f0f0;">
+        <td style="padding:10px 14px; text-align:center; color:#aaa; font-size:12px;">${stt}</td>
+        <td style="padding:10px 14px;">
+          <div style="font-weight:600;font-size:13px;color:#1e1e2e;margin-bottom:3px;">${escapeHtml(item.title)}</div>
+          <div style="font-size:12px;color:#777;line-height:1.55;white-space:pre-wrap;">${escapeHtml(preview)}</div>
+          ${tagsHtml ? `<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:4px;">${tagsHtml}</div>` : ''}
+        </td>
+        <td style="padding:10px 14px;">${imgHtml}</td>
+        <td style="padding:10px 14px;">
+          <span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;background:${platformBg};color:${platformColor};">${platformLabel}</span>
+        </td>
+        <td style="padding:10px 14px; font-size:12px; color:#888; white-space:nowrap;">${dt}</td>
+        <td style="padding:10px 14px; text-align:center; white-space:nowrap;">
+          <button onclick="useContent(${item.id})" title="Dùng để đăng bài"
+            style="padding:5px 10px;background:#D1FAE5;color:#065F46;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin:2px;">
+            Dùng
           </button>
-          <button onclick="openContentModal(${item.id})"
-            style="padding:6px 14px;background:#EFF6FF;color:#1D4ED8;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
+          <button onclick="openContentModal(${item.id})" title="Sửa"
+            style="padding:5px 10px;background:#EFF6FF;color:#1D4ED8;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin:2px;">
             Sửa
           </button>
-          <button onclick="deleteContent(${item.id})"
-            style="padding:6px 14px;background:#FEF2F2;color:#DC2626;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
+          <button onclick="deleteContent(${item.id})" title="Xoá"
+            style="padding:5px 10px;background:#FEF2F2;color:#DC2626;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin:2px;">
             Xoá
           </button>
-        </div>
-      </div>`;
+        </td>
+      </tr>`;
     }
 
     function useContent(id) {
@@ -6039,6 +6089,8 @@
       const errEl = document.getElementById('contentModalError');
 
       errEl.style.display = 'none';
+      _contentNewImages = [];
+      document.getElementById('contentImgInput').value = '';
 
       if (id) {
         const item = _contentItems.find(c => c.id === id);
@@ -6049,6 +6101,7 @@
         bodyInput.value = item.body;
         platformInput.value = item.platform || 'all';
         tagsInput.value = (item.tags || []).join(', ');
+        renderContentImgPreview(item.images || []);
       } else {
         titleEl.innerHTML = `<svg class="xi xi-md" style="color:#3B82F6;"><use href="#ic-book"/></svg> Thêm content`;
         editId.value = '';
@@ -6056,10 +6109,57 @@
         bodyInput.value = '';
         platformInput.value = 'all';
         tagsInput.value = '';
+        renderContentImgPreview([]);
       }
 
       modal.style.display = 'flex';
       setTimeout(() => titleInput.focus(), 50);
+    }
+
+    function renderContentImgPreview(existingUrls) {
+      const preview = document.getElementById('contentImgPreview');
+      const countEl = document.getElementById('contentImgCount');
+      let html = existingUrls.map((url, i) =>
+        `<div style="position:relative;display:inline-block;">
+          <img src="${escapeHtml(url)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #ddd;">
+          <button type="button" onclick="removeContentExistingImg(${i})"
+            style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;">×</button>
+        </div>`
+      ).join('');
+      html += _contentNewImages.map((f, i) => {
+        const url = URL.createObjectURL(f);
+        return `<div style="position:relative;display:inline-block;">
+          <img src="${url}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:2px solid #3B82F6;">
+          <button type="button" onclick="removeContentNewImg(${i})"
+            style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;">×</button>
+        </div>`;
+      }).join('');
+      preview.innerHTML = html;
+      const total = existingUrls.length + _contentNewImages.length;
+      countEl.textContent = total ? `${total} ảnh` : '';
+      preview._existingUrls = existingUrls;
+    }
+
+    function removeContentExistingImg(idx) {
+      const preview = document.getElementById('contentImgPreview');
+      const urls = [...(preview._existingUrls || [])];
+      urls.splice(idx, 1);
+      renderContentImgPreview(urls);
+    }
+
+    function removeContentNewImg(idx) {
+      _contentNewImages.splice(idx, 1);
+      const preview = document.getElementById('contentImgPreview');
+      renderContentImgPreview(preview._existingUrls || []);
+    }
+
+    async function handleContentImages(input) {
+      const files = Array.from(input.files || []);
+      const compressed = await Promise.all(files.map(compressImage));
+      _contentNewImages.push(...compressed);
+      const preview = document.getElementById('contentImgPreview');
+      renderContentImgPreview(preview._existingUrls || []);
+      input.value = '';
     }
 
     function closeContentModal() {
@@ -6072,25 +6172,30 @@
       const body = document.getElementById('contentBodyInput').value.trim();
       const platform = document.getElementById('contentPlatformInput').value;
       const tagsRaw = document.getElementById('contentTagsInput').value;
-      const tags = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
       const errEl = document.getElementById('contentModalError');
       const saveBtn = document.getElementById('contentSaveBtn');
+      const preview = document.getElementById('contentImgPreview');
+      const existingUrls = preview._existingUrls || [];
 
       if (!title) { errEl.textContent = 'Vui lòng nhập tiêu đề.'; errEl.style.display = 'block'; return; }
       if (!body)  { errEl.textContent = 'Vui lòng nhập nội dung bài viết.'; errEl.style.display = 'block'; return; }
       errEl.style.display = 'none';
-
       saveBtn.disabled = true;
       saveBtn.textContent = 'Đang lưu...';
 
       try {
+        const fd = new FormData();
+        fd.append('title', title);
+        fd.append('body', body);
+        fd.append('platform', platform);
+        fd.append('tags', tagsRaw);
+        // Gửi danh sách URL ảnh cũ còn giữ lại qua field riêng
+        existingUrls.forEach(u => fd.append('keepUrl', u));
+        _contentNewImages.forEach(f => fd.append('images', f));
+
         const url = id ? `${BASE_URL}/api/contents/${id}` : `${BASE_URL}/api/contents`;
         const method = id ? 'PUT' : 'POST';
-        const res = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, body, tags, platform }),
-        });
+        const res = await fetch(url, { method, body: fd });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Lỗi lưu content');
         closeContentModal();
