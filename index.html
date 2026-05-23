@@ -2793,6 +2793,47 @@
     .badge-pulse {
       animation: badgePulse 1.6s ease-in-out infinite;
     }
+
+    /* Content table — white card tooltip */
+    #content-tip {
+      position: fixed;
+      z-index: 99999;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.13);
+      padding: 12px 14px;
+      max-width: 300px;
+      min-width: 160px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      display: none;
+    }
+    #content-tip.tip-show {
+      display: block;
+      opacity: 1;
+      transform: translateY(0);
+    }
+    #content-tip .tip-title {
+      font-weight: 700;
+      font-size: 13px;
+      color: #1e1e2e;
+      line-height: 1.4;
+      margin-bottom: 7px;
+      padding-bottom: 7px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    #content-tip .tip-body {
+      font-size: 12px;
+      color: #555;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 180px;
+      overflow-y: auto;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
@@ -3363,6 +3404,9 @@
           style="padding:9px 18px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; flex-shrink:0;">
           <svg class="xi" style="width:15px;height:15px;"><use href="#ic-plus"/></svg> Thêm content
         </button>
+        <button id="contentBatchDeleteBtn" onclick="deleteSelectedContents()" style="display:none; padding:9px 18px; background:#fee2e2; color:#b91c1c; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; align-items:center; gap:6px; white-space:nowrap; flex-shrink:0;">
+          <svg class="xi" style="width:15px;height:15px;"><use href="#ic-trash"/></svg> Xoá đã chọn (<span id="contentSelectedCount">0</span>)
+        </button>
       </div>
 
       <!-- Loading -->
@@ -3379,6 +3423,7 @@
       <div id="contentTableWrap" style="display:none; overflow-x:auto; background:#fff; border-radius:12px; box-shadow:0 1px 6px rgba(0,0,0,.07);">
         <table style="width:100%; border-collapse:collapse; font-size:13px; min-width:760px;">
           <colgroup>
+            <col style="width:40px;">
             <col style="width:44px;">
             <col style="width:auto;">
             <col style="width:110px;">
@@ -3390,6 +3435,7 @@
           </colgroup>
           <thead>
             <tr style="background:#f9fafb; border-bottom:2px solid #e5e7eb;">
+              <th style="padding:10px 14px; text-align:center; font-weight:600; color:#374151;"><input type="checkbox" id="contentSelectAll" onchange="contentToggleAll(this.checked)" style="cursor:pointer; width:14px; height:14px;"></th>
               <th style="padding:10px 14px; text-align:center; font-weight:600; color:#374151; white-space:nowrap;">STT</th>
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Nội dung</th>
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Hình ảnh</th>
@@ -3417,13 +3463,6 @@
         <button onclick="closeContentModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999; line-height:1; padding:0 4px;">×</button>
       </div>
       <input type="hidden" id="contentEditId">
-
-      <div style="margin-bottom:14px;">
-        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Tiêu đề <span style="color:#EF4444;">*</span></label>
-        <input type="text" id="contentTitleInput" placeholder="vd: Bài giới thiệu sản phẩm tháng 5..."
-          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none;"
-          onfocus="this.style.borderColor='#3B82F6'" onblur="this.style.borderColor='#ddd'">
-      </div>
 
       <div style="margin-bottom:14px;">
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Nội dung bài viết <span style="color:#EF4444;">*</span></label>
@@ -3463,9 +3502,23 @@
         </div>
         <div style="flex:2; min-width:200px;">
           <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Phân loại content</label>
-          <input type="text" id="contentCategoryInput" placeholder="vd: Sale, Giới thiệu, Sự kiện..."
-            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none;"
-            onfocus="this.style.borderColor='#3B82F6'" onblur="this.style.borderColor='#ddd'">
+          <select id="contentCategorySelect"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none; background:white; cursor:pointer;"
+            onfocus="this.style.borderColor='#3B82F6'" onblur="this.style.borderColor='#ddd'"
+            onchange="onContentCategoryChange(this)">
+            <option value="">-- Chọn phân loại --</option>
+            <option value="__add_new__">+ Thêm mới...</option>
+          </select>
+          <div id="contentCategoryNewRow" style="display:none; margin-top:6px; gap:6px; align-items:center;">
+            <input type="text" id="contentCategoryNewInput" placeholder="Nhập phân loại mới..."
+              style="flex:1; padding:8px 12px; border:1px solid #3B82F6; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none;"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();onContentCategoryConfirmNew();}if(event.key==='Escape'){onContentCategoryCancelNew();}">
+            <button type="button" onclick="onContentCategoryConfirmNew()"
+              style="padding:8px 12px; background:#3B82F6; color:white; border:none; border-radius:8px; font-size:13px; cursor:pointer; white-space:nowrap; flex-shrink:0;">OK</button>
+            <button type="button" onclick="onContentCategoryCancelNew()"
+              style="padding:8px 10px; background:#f3f4f6; color:#555; border:none; border-radius:8px; font-size:13px; cursor:pointer; flex-shrink:0;">✕</button>
+          </div>
+          <input type="hidden" id="contentCategoryInput">
         </div>
       </div>
 
@@ -6054,15 +6107,15 @@
       const images = (item.images || []).map(u => u.startsWith('/') ? BASE_URL + u : u);
       let imgHtml = '';
       if (images.length) {
-        const shown = images.slice(0, 3);
+        const shown = images.slice(0, 4);
         imgHtml = shown.map(u =>
-          `<a href="${escapeHtml(u)}" onclick="openLightbox('${escapeHtml(u)}');return false;">` +
-          `<img src="${escapeHtml(u)}" style="width:38px;height:38px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;display:block;" loading="lazy" ` +
-          `onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:38px;height:38px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;align-items:center;justify-content:center;font-size:16px;'}))">` +
+          `<a href="${escapeHtml(u)}" onclick="openLightbox('${escapeHtml(u)}');return false;" style="display:block;">` +
+          `<img src="${escapeHtml(u)}" style="width:44px;height:44px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;display:block;" loading="lazy" ` +
+          `onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:44px;height:44px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;align-items:center;justify-content:center;font-size:16px;'}))">` +
           `</a>`
         ).join('');
-        if (images.length > 3) imgHtml += `<span style="font-size:11px;color:#888;align-self:center;white-space:nowrap;">+${images.length - 3}</span>`;
-        imgHtml = `<div style="display:flex;gap:3px;align-items:center;">${imgHtml}</div>`;
+        const more = images.length > 4 ? `<span style="font-size:11px;color:#888;align-self:center;white-space:nowrap;">+${images.length - 4}</span>` : '';
+        imgHtml = `<div style="display:flex;gap:4px;align-items:center;"><div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">${imgHtml}</div>${more}</div>`;
       } else {
         imgHtml = `<span style="color:#ccc;font-size:12px;">—</span>`;
       }
@@ -6083,10 +6136,11 @@
 
       const odd = stt % 2 === 0 ? 'background:#fafafa;' : '';
 
+      const ctipData = escapeHtml(JSON.stringify({title: item.title, body: item.body}));
       return `<tr style="${odd}border-bottom:1px solid #f0f0f0;">
+        <td style="padding:10px 14px; text-align:center;"><input type="checkbox" class="content-row-cb" data-id="${item.id}" onchange="updateContentBatchBtn()" style="cursor:pointer; width:14px; height:14px;"></td>
         <td style="padding:10px 14px; text-align:center; color:#aaa; font-size:12px;">${stt}</td>
-        <td style="padding:10px 14px;">
-          <div style="font-weight:600;font-size:13px;color:#1e1e2e;margin-bottom:3px;">${escapeHtml(item.title)}</div>
+        <td style="padding:10px 14px; cursor:default;" data-ctip="${ctipData}">
           <div style="font-size:12px;color:#777;line-height:1.5;">${escapeHtml(preview)}</div>
           ${tagsHtml ? `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;">${tagsHtml}</div>` : ''}
         </td>
@@ -6114,13 +6168,24 @@
       </tr>`;
     }
 
-    function useContent(id) {
+    async function useContent(id) {
       const item = _contentItems.find(c => c.id === id);
       if (!item) return;
       const msgInput = document.getElementById('msgInput');
       if (msgInput) {
         msgInput.value = item.body;
         msgInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      const images = (item.images || []).map(u => u.startsWith('/') ? BASE_URL + u : u);
+      if (images.length > 0) {
+        clearImages();
+        for (const url of images) {
+          try {
+            const blob = await (await fetch(url)).blob();
+            selectedFiles.push(new File([blob], url.split('/').pop() || 'image.jpg', { type: blob.type || 'image/jpeg' }));
+          } catch {}
+        }
+        updatePreview();
       }
       switchPage('post');
     }
@@ -6145,12 +6210,15 @@
       }
       wrap.innerHTML = _contentProfilesCache.map(p => {
         const checked = selectedKeys.includes(p.key) ? 'checked' : '';
-        const badge = p.type === 'facebook' ? '🔵' : '🟢';
+        const badgeColor = p.type === 'facebook' ? '#1877F2' : '#0068FF';
+        const badgeIcon = p.type === 'facebook'
+          ? `<svg class="xi" style="width:13px;height:13px;color:${badgeColor};flex-shrink:0;"><use href="#ic-fb"/></svg>`
+          : `<svg class="xi" style="width:13px;height:13px;color:${badgeColor};flex-shrink:0;"><use href="#ic-zalo"/></svg>`;
         return `<label style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:${checked ? '#EFF6FF' : '#f9fafb'};border:1px solid ${checked ? '#BFDBFE' : '#e5e7eb'};border-radius:99px;cursor:pointer;font-size:12px;user-select:none;">
           <input type="checkbox" name="contentProfiles" value="${escapeHtml(p.key)}" ${checked}
             style="margin:0;width:13px;height:13px;cursor:pointer;"
             onchange="this.closest('label').style.background=this.checked?'#EFF6FF':'#f9fafb';this.closest('label').style.borderColor=this.checked?'#BFDBFE':'#e5e7eb'">
-          ${badge} ${escapeHtml(p.name || p.key)}
+          ${badgeIcon} ${escapeHtml(p.name || p.key)}
         </label>`;
       }).join('');
     }
@@ -6159,11 +6227,9 @@
       const modal = document.getElementById('contentModal');
       const titleEl = document.getElementById('contentModalTitle');
       const editId = document.getElementById('contentEditId');
-      const titleInput = document.getElementById('contentTitleInput');
       const bodyInput = document.getElementById('contentBodyInput');
       const platformInput = document.getElementById('contentPlatformInput');
       const tagsInput = document.getElementById('contentTagsInput');
-      const categoryInput = document.getElementById('contentCategoryInput');
       const errEl = document.getElementById('contentModalError');
 
       errEl.style.display = 'none';
@@ -6177,21 +6243,19 @@
         if (!item) return;
         titleEl.innerHTML = `<svg class="xi xi-md" style="color:#3B82F6;"><use href="#ic-book"/></svg> Sửa content`;
         editId.value = id;
-        titleInput.value = item.title;
         bodyInput.value = item.body;
         platformInput.value = item.platform || 'all';
         tagsInput.value = (item.tags || []).join(', ');
-        categoryInput.value = item.category || '';
+        _populateCategoryDropdown(item.category || '');
         _renderProfileCheckboxes(item.profiles || []);
         renderContentImgPreview(item.images || []);
       } else {
         titleEl.innerHTML = `<svg class="xi xi-md" style="color:#3B82F6;"><use href="#ic-book"/></svg> Thêm content`;
         editId.value = '';
-        titleInput.value = '';
         bodyInput.value = '';
         platformInput.value = 'all';
         tagsInput.value = '';
-        categoryInput.value = '';
+        _populateCategoryDropdown('');
         _renderProfileCheckboxes([]);
         renderContentImgPreview([]);
       }
@@ -6279,9 +6343,71 @@
       document.removeEventListener('paste', _contentPasteHandler);
     }
 
+    function _populateCategoryDropdown(currentVal) {
+      const sel = document.getElementById('contentCategorySelect');
+      const hidden = document.getElementById('contentCategoryInput');
+      const cats = [...new Set((_contentItems || []).map(c => (c.category || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
+      sel.innerHTML = '<option value="">-- Chọn phân loại --</option>';
+      cats.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat; opt.textContent = cat;
+        sel.appendChild(opt);
+      });
+      const addOpt = document.createElement('option');
+      addOpt.value = '__add_new__'; addOpt.textContent = '+ Thêm mới...';
+      sel.appendChild(addOpt);
+      if (currentVal) {
+        if (!cats.includes(currentVal)) {
+          const opt = document.createElement('option');
+          opt.value = currentVal; opt.textContent = currentVal;
+          sel.insertBefore(opt, addOpt);
+        }
+        sel.value = currentVal;
+      }
+      hidden.value = sel.value === '__add_new__' ? '' : (sel.value || '');
+      document.getElementById('contentCategoryNewRow').style.display = 'none';
+    }
+
+    function onContentCategoryChange(sel) {
+      const hidden = document.getElementById('contentCategoryInput');
+      if (sel.value === '__add_new__') {
+        sel.value = '';
+        hidden.value = '';
+        const row = document.getElementById('contentCategoryNewRow');
+        row.style.display = 'flex';
+        document.getElementById('contentCategoryNewInput').focus();
+      } else {
+        hidden.value = sel.value;
+      }
+    }
+
+    function onContentCategoryConfirmNew() {
+      const input = document.getElementById('contentCategoryNewInput');
+      const val = input.value.trim();
+      const sel = document.getElementById('contentCategorySelect');
+      const hidden = document.getElementById('contentCategoryInput');
+      if (val) {
+        const addNewOpt = sel.querySelector('option[value="__add_new__"]');
+        const existing = Array.from(sel.options).find(o => o.value === val);
+        if (!existing) {
+          const newOpt = document.createElement('option');
+          newOpt.value = val; newOpt.textContent = val;
+          sel.insertBefore(newOpt, addNewOpt);
+        }
+        sel.value = val;
+        hidden.value = val;
+      }
+      document.getElementById('contentCategoryNewRow').style.display = 'none';
+      input.value = '';
+    }
+
+    function onContentCategoryCancelNew() {
+      document.getElementById('contentCategoryNewInput').value = '';
+      document.getElementById('contentCategoryNewRow').style.display = 'none';
+    }
+
     async function saveContent() {
       const id = document.getElementById('contentEditId').value;
-      const title = document.getElementById('contentTitleInput').value.trim();
       const body = document.getElementById('contentBodyInput').value.trim();
       const platform = document.getElementById('contentPlatformInput').value;
       const tagsRaw = document.getElementById('contentTagsInput').value;
@@ -6294,7 +6420,6 @@
         document.querySelectorAll('#contentProfileCheckboxes input[name="contentProfiles"]:checked')
       ).map(cb => cb.value);
 
-      if (!title) { errEl.textContent = 'Vui lòng nhập tiêu đề.'; errEl.style.display = 'block'; return; }
       if (!body)  { errEl.textContent = 'Vui lòng nhập nội dung bài viết.'; errEl.style.display = 'block'; return; }
       errEl.style.display = 'none';
       saveBtn.disabled = true;
@@ -6302,7 +6427,7 @@
 
       try {
         const fd = new FormData();
-        fd.append('title', title);
+        fd.append('title', body.slice(0, 60).replace(/\s+/g, ' ').trim() || 'content');
         fd.append('body', body);
         fd.append('platform', platform);
         fd.append('tags', tagsRaw);
@@ -6336,6 +6461,34 @@
         loadContents();
       } catch (e) {
         alert('Lỗi: ' + e.message);
+      }
+    }
+
+    function updateContentBatchBtn() {
+      const checked = document.querySelectorAll('.content-row-cb:checked');
+      const btn = document.getElementById('contentBatchDeleteBtn');
+      const countEl = document.getElementById('contentSelectedCount');
+      if (btn) {
+        btn.style.display = checked.length > 0 ? 'inline-flex' : 'none';
+        if (countEl) countEl.textContent = checked.length;
+      }
+    }
+
+    function contentToggleAll(checked) {
+      document.querySelectorAll('.content-row-cb').forEach(cb => { cb.checked = checked; });
+      updateContentBatchBtn();
+    }
+
+    async function deleteSelectedContents() {
+      const checked = [...document.querySelectorAll('.content-row-cb:checked')];
+      if (checked.length === 0) return;
+      if (!confirm(`Xoá ${checked.length} content đã chọn?`)) return;
+      const ids = checked.map(cb => parseInt(cb.dataset.id));
+      try {
+        await Promise.all(ids.map(id => fetch(`${BASE_URL}/api/contents/${id}`, { method: 'DELETE' })));
+        loadContents();
+      } catch (e) {
+        alert('Xoá thất bại: ' + e.message);
       }
     }
 
@@ -8673,12 +8826,13 @@
           const groupId = ch.id || ch.key || '-';
           const msgShort = job.message ? (job.message.length > 60 ? job.message.substring(0, 60) + '…' : job.message) : '-';
           const fullMsg = (job.message || '').replace(/"/g, '&quot;');
+          const ctipMsg = escapeHtml(JSON.stringify({body: job.message || ''}));
           const isPersonal = ch.type !== 'group';
           const [tPart = '-', dPart = ''] = (job.timeLabel || '').split(' ');
           const timeStacked = `<div style="line-height:1.3;"><div style="font-size:12px;">${tPart}</div><div style="font-size:11px; color:#6b7280;">${dPart}</div></div>`;
           return `<tr id="${job.tempId}" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
             <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
-            <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msgShort}</td>
+            <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msgShort}</td>
             <td style="padding:8px 12px; color:#bbb;">—</td>
             <td style="padding:8px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${job.profileName}</td>
             <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">FB - ${targetLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${String(groupId).replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
@@ -8699,6 +8853,7 @@
           const groupId = resolveGroupLabel(sched.type, sched.groupId, sched.groupName);
           const groupIdRaw = sched.groupId || sched.groupName || '';
           const fullMsg = (sched.message || '').replace(/"/g,'&quot;');
+          const ctipMsg = escapeHtml(JSON.stringify({body: sched.message || ''}));
           const msg = sched.message ? (sched.message.length > 60 ? sched.message.substring(0, 60) + '…' : sched.message) : '-';
           const imgCount = sched.imageCount || 0;
           let thumbs;
@@ -8717,7 +8872,7 @@
           const schedIsPersonal = sched.target === 'personal';
           return `<tr id="schedRow-${sched.id}" style="border-bottom:1px solid #EFF6FF; background:${rowBg}; border-left:3px solid #BFDBFE;">
             <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
-            <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${fullMsg}">${msg}</td>
+            <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msg}</td>
             <td style="padding:8px 12px;">${thumbs}</td>
             <td style="padding:8px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sched.profile || '-'}</td>
             <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">FB - ${targetLabel}</div>${schedIsPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupIdRaw.replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
@@ -8811,12 +8966,13 @@
             const time = fmtTime(row.timestamp);
             const groupId = resolveGroupLabel(row.platform, row.group_id, row.group_name);
             const fullMsg = (row.message || '').replace(/"/g,'&quot;');
+            const ctipMsg = escapeHtml(JSON.stringify({body: row.message || ''}));
             const msg = row.message ? (row.message.length > 160 ? row.message.substring(0, 160) + '…' : row.message) : '-';
             const profileName = row.profile_name || row.profile || '-';
             const thumbs = buildThumbs(row);
             return `<tr id="dashRow-${row.id}" style="border-bottom:1px solid #f3f4f6; background:#fff;">
               <td style="padding:8px 10px;"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><span style="display:inline-block; width:10px; flex-shrink:0;"></span><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
-              <td style="padding:8px 12px; vertical-align:middle;" title="${fullMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div></td>
+              <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div></td>
               <td style="padding:8px 12px;">${thumbs}</td>
               <td style="padding:8px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${profileName.replace(/"/g,'&quot;')}">${profileName}</td>
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px; display:inline-flex; align-items:center; gap:4px;"><span style="white-space:nowrap;">${noiDangLabel(row)}</span>${postLinkIcon(row.post_url)}</div>${(row.target === 'personal' || groupId === '-') ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
@@ -8837,6 +8993,7 @@
             const total = group.rows.length;
             const time = fmtTime(firstRow.timestamp);
             const fullMsg = (firstRow.message || '').replace(/"/g,'&quot;');
+            const ctipMsg = escapeHtml(JSON.stringify({body: firstRow.message || ''}));
             const msg = firstRow.message ? (firstRow.message.length > 160 ? firstRow.message.substring(0, 160) + '…' : firstRow.message) : '-';
             const thumbs = buildThumbs(firstRow);
             const okCount = group.rows.filter(r => r.success).length;
@@ -8873,7 +9030,7 @@
 
             const headerHtml = `<tr id="dashGroup-${groupKey}" data-group-key="${groupKey}" onclick="toggleBatchGroup('${groupKey}', event)" style="border-bottom:1px solid #f3f4f6; cursor:pointer; background:#fff;">
               <td style="padding:8px 10px;" onclick="event.stopPropagation()"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-batch-ids="${idsAttr}" onchange="onBatchCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><svg class="caret" style="width:10px;height:10px;color:#6b7280;transition:transform .15s; cursor:pointer;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" onclick="event.stopPropagation(); toggleBatchGroup('${groupKey}')"><polyline points="9 6 15 12 9 18"/></svg><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
-              <td style="padding:8px 12px; vertical-align:middle;" title="${fullMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div></td>
+              <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div></td>
               <td style="padding:8px 12px;">${thumbs}</td>
               <td style="padding:8px 12px; font-size:12px;" title="${accTitle}">${repAccountCell}</td>
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">Đa kênh</div><div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${platBreakdown}</div></div></td>
@@ -9943,6 +10100,54 @@
       } else {
         run();
       }
+    })();
+  </script>
+
+  <!-- White card tooltip for content table -->
+  <div id="content-tip"></div>
+  <script>
+    (function(){
+      const tip = document.getElementById('content-tip');
+      let hideTimer;
+
+      function escT(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+      function showTip(td, e){
+        clearTimeout(hideTimer);
+        let d;
+        try { d = JSON.parse(td.dataset.ctip); } catch(err){ return; }
+        tip.innerHTML =
+          (d.title ? `<div class="tip-title">${escT(d.title)}</div>` : '') +
+          (d.body  ? `<div class="tip-body">${escT(d.body)}</div>`   : '');
+        tip.classList.add('tip-show');
+        moveTip(e);
+      }
+
+      function moveTip(e){
+        const pad = 16;
+        const tw = tip.offsetWidth, th = tip.offsetHeight;
+        let x = e.clientX + pad, y = e.clientY + pad;
+        if (x + tw > window.innerWidth)  x = e.clientX - tw - pad;
+        if (y + th > window.innerHeight) y = e.clientY - th - pad;
+        tip.style.left = x + 'px';
+        tip.style.top  = y + 'px';
+      }
+
+      document.addEventListener('mouseover', function(e){
+        const td = e.target.closest('[data-ctip]');
+        if (td) showTip(td, e);
+      });
+
+      document.addEventListener('mousemove', function(e){
+        if (tip.classList.contains('tip-show')) moveTip(e);
+      });
+
+      document.addEventListener('mouseout', function(e){
+        const td = e.target.closest('[data-ctip]');
+        if (!td) return;
+        if (e.relatedTarget && e.relatedTarget.closest('[data-ctip]')) return;
+        hideTimer = setTimeout(function(){ tip.classList.remove('tip-show'); }, 80);
+      });
     })();
   </script>
 </body>
