@@ -10,7 +10,7 @@ function fileToInlinePart(filePath) {
   return { inline_data: { mime_type: mimeMap[ext] || 'image/jpeg', data: data.toString('base64') } };
 }
 
-async function suggestContent(imagePaths, contentGuide, exampleImagePaths = [], style = 'short') {
+async function suggestContent(imagePaths, contentGuide, exampleImagePaths = [], style = 'short', category = '') {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY chưa được cấu hình');
 
@@ -30,6 +30,17 @@ async function suggestContent(imagePaths, contentGuide, exampleImagePaths = [], 
     parts.push(fileToInlinePart(p));
   }
 
+  const categoryContext = {
+    fashion:     'Sản phẩm thuộc ngành THỜI TRANG. Dùng từ ngữ thời trang (chất liệu, kiểu dáng, phối đồ, phong cách), gợi cảm giác tự tin và thẩm mỹ.',
+    beauty:      'Sản phẩm thuộc ngành MỸ PHẨM / LÀM ĐẸP. Nhấn mạnh thành phần, công dụng, kết quả thấy rõ, cảm giác trên da.',
+    food:        'Sản phẩm là ĐỒ ĂN / ĐỒ UỐNG. Mô tả hương vị, nguyên liệu, cảm giác khi thưởng thức, tạo cảm giác thèm ăn.',
+    electronics: 'Sản phẩm thuộc ngành ĐIỆN TỬ / CÔNG NGHỆ. Nêu thông số kỹ thuật nổi bật, tính năng thực tế, lợi ích người dùng.',
+    furniture:   'Sản phẩm là NỘI THẤT / GIA DỤNG. Nhấn mạnh thiết kế, chất liệu, sự tiện dụng, không gian sử dụng.',
+    accessories: 'Sản phẩm là PHỤ KIỆN (túi, giày, trang sức...). Tập trung vào thiết kế, chất liệu, sự phối hợp với outfit.',
+    health:      'Sản phẩm thuộc ngành SỨC KHOẺ / DINH DƯỠNG. Nhấn mạnh lợi ích sức khoẻ, thành phần tự nhiên, độ an toàn.',
+  };
+  const catInstruction = categoryContext[category] ? `\nDanh mục sản phẩm: ${categoryContext[category]}` : '';
+
   const styleGuides = {
     short:    'Viết 1 bài viết NGẮN GỌN, súc tích 2-3 dòng + 3-5 hashtag. Đi thẳng vào điểm nổi bật nhất.',
     detailed: 'Viết 1 bài viết CHI TIẾT 5-8 dòng, nêu đầy đủ tính năng, chất liệu, lợi ích + hashtag.',
@@ -40,7 +51,7 @@ async function suggestContent(imagePaths, contentGuide, exampleImagePaths = [], 
   const styleInstruction = styleGuides[style] || styleGuides.short;
 
   parts.push({
-    text: `Bạn là chuyên gia viết content mạng xã hội.${guideSection}
+    text: `Bạn là chuyên gia viết content mạng xã hội.${guideSection}${catInstruction}
 Hãy viết content để đăng Facebook/Zalo cho sản phẩm trong ảnh.
 
 Phong cách yêu cầu: ${styleInstruction}
