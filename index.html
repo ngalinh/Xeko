@@ -454,59 +454,109 @@
       background: #ef4444; border: none; color: #fff;
       padding: 4px 12px; border-radius: 12px; cursor: pointer; font-size: 12px;
     }
-    .btn-ai-suggest {
+    /* AI badge button on textarea */
+    .ai-badge-btn {
+      position: absolute; top: 6px; right: 6px;
       background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      border: none; color: #fff;
-      padding: 4px 12px; border-radius: 12px; cursor: pointer; font-size: 12px;
-      display: flex; align-items: center; gap: 4px; font-weight: 600;
-      transition: opacity 0.15s;
+      color: #fff; border: none; border-radius: 10px;
+      padding: 3px 9px; font-size: 11px; font-weight: 700;
+      cursor: pointer; line-height: 1.4; letter-spacing: 0.01em;
+      box-shadow: 0 1px 6px rgba(99,102,241,0.35);
+      transition: opacity 0.15s, transform 0.1s;
+      z-index: 2;
     }
-    .btn-ai-suggest:hover { opacity: 0.88; }
-    .btn-ai-suggest:disabled { opacity: 0.5; cursor: not-allowed; }
-    .ai-suggest-panel {
-      background: #f0f0ff;
-      border-top: 2px solid #a5b4fc;
-      padding: 10px 16px;
-      display: none;
-      flex-direction: column;
-      gap: 8px;
-      max-height: 320px;
-      overflow-y: auto;
+    .ai-badge-btn:hover { opacity: 0.9; transform: scale(1.04); }
+    .ai-badge-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    /* Bottom sheet */
+    .ai-sheet-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.25);
+      z-index: 200; display: none; align-items: flex-end;
     }
-    .ai-suggest-panel.show { display: flex; }
-    .ai-suggest-panel .ai-panel-header {
+    .ai-sheet-backdrop.show { display: flex; }
+    .ai-sheet {
+      background: #fff; border-radius: 20px 20px 0 0;
+      width: 100%; max-height: 70vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 -4px 32px rgba(0,0,0,0.18);
+      animation: slideUp 0.22s ease-out;
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .ai-sheet-handle {
+      width: 36px; height: 4px; background: #d1d5db;
+      border-radius: 2px; margin: 10px auto 0; flex-shrink: 0;
+    }
+    .ai-sheet-header {
       display: flex; align-items: center; justify-content: space-between;
-      font-size: 12px; font-weight: 700; color: #6366f1;
+      padding: 12px 18px 8px; flex-shrink: 0;
     }
-    .ai-suggest-panel .ai-panel-header button {
-      background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 16px; padding: 0 4px;
+    .ai-sheet-title { font-size: 15px; font-weight: 700; color: #1e293b; }
+    .ai-sheet-close {
+      width: 28px; height: 28px; border-radius: 50%; background: #f1f5f9;
+      border: none; cursor: pointer; font-size: 14px; color: #64748b;
+      display: flex; align-items: center; justify-content: center;
     }
-    .ai-suggest-item {
-      background: #fff; border: 1.5px solid #c7d2fe;
-      border-radius: 10px; padding: 10px 12px;
-      display: flex; flex-direction: column; gap: 6px;
+    .ai-sheet-close:hover { background: #e2e8f0; }
+    /* Style chips */
+    .ai-style-row {
+      display: flex; gap: 8px; padding: 4px 18px 12px;
+      overflow-x: auto; flex-shrink: 0;
+      scrollbar-width: none;
     }
-    .ai-suggest-item pre {
-      margin: 0; white-space: pre-wrap; word-break: break-word;
-      font-family: inherit; font-size: 13px; color: #1e293b; line-height: 1.5;
+    .ai-style-row::-webkit-scrollbar { display: none; }
+    .ai-style-chip {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 8px 14px; border-radius: 14px; border: 1.5px solid #e2e8f0;
+      background: #f8fafc; cursor: pointer; flex-shrink: 0;
+      transition: all 0.15s; min-width: 64px;
     }
-    .ai-suggest-item .ai-use-btn {
-      align-self: flex-end;
-      background: #6366f1; color: #fff; border: none;
-      padding: 4px 14px; border-radius: 8px; font-size: 12px; cursor: pointer; font-weight: 600;
+    .ai-style-chip:hover { border-color: #a5b4fc; background: #f0f0ff; }
+    .ai-style-chip.active { border-color: #6366f1; background: #eef2ff; }
+    .ai-style-chip .chip-icon { font-size: 20px; line-height: 1; }
+    .ai-style-chip .chip-label { font-size: 11px; font-weight: 600; color: #475569; white-space: nowrap; }
+    .ai-style-chip.active .chip-label { color: #4f46e5; }
+    /* Result area */
+    .ai-result-area {
+      flex: 1; overflow-y: auto; padding: 0 18px 8px;
+      min-height: 80px;
     }
-    .ai-suggest-item .ai-use-btn:hover { background: #4f46e5; }
-    .ai-loading {
-      display: flex; align-items: center; gap: 8px; color: #6366f1; font-size: 13px; padding: 4px 0;
+    .ai-result-text {
+      background: #f8fafc; border: 1.5px solid #e2e8f0;
+      border-radius: 12px; padding: 12px 14px;
+      font-size: 14px; line-height: 1.6; color: #1e293b;
+      white-space: pre-wrap; word-break: break-word;
+      min-height: 64px;
     }
-    .ai-loading .spinner {
-      width: 16px; height: 16px; border: 2px solid #c7d2fe; border-top-color: #6366f1;
-      border-radius: 50%; animation: spin 0.7s linear infinite;
+    .ai-result-text.loading { color: #94a3b8; font-style: italic; }
+    .ai-sheet-footer {
+      padding: 10px 18px 18px; display: flex; gap: 8px; flex-shrink: 0;
+      border-top: 1px solid #f1f5f9;
+    }
+    .ai-apply-btn {
+      flex: 1; background: #6366f1; color: #fff; border: none;
+      border-radius: 14px; padding: 13px; font-size: 15px; font-weight: 700;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .ai-apply-btn:hover { background: #4f46e5; }
+    .ai-apply-btn:disabled { background: #a5b4fc; cursor: not-allowed; }
+    .ai-retry-btn {
+      width: 46px; background: #f1f5f9; color: #6366f1; border: none;
+      border-radius: 14px; font-size: 18px; cursor: pointer; flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .ai-retry-btn:hover { background: #e0e7ff; }
+    .ai-retry-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .ai-spinner {
+      width: 18px; height: 18px; border: 2px solid #c7d2fe; border-top-color: #6366f1;
+      border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; vertical-align: middle;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    [data-theme="dark"] .ai-suggest-panel { background: #1e1b40; border-color: #4c4a80; }
-    [data-theme="dark"] .ai-suggest-item { background: #16172b; border-color: #3a3a6a; }
-    [data-theme="dark"] .ai-suggest-item pre { color: #e0e0f0; }
+    [data-theme="dark"] .ai-sheet { background: #1e1b40; }
+    [data-theme="dark"] .ai-sheet-title { color: #e0e0f0; }
+    [data-theme="dark"] .ai-sheet-close { background: #2a2a4a; color: #a0a0c0; }
+    [data-theme="dark"] .ai-style-chip { background: #252545; border-color: #3a3a5a; }
+    [data-theme="dark"] .ai-style-chip.active { background: #2d2b60; border-color: #6366f1; }
+    [data-theme="dark"] .ai-result-text { background: #16172b; border-color: #3a3a5a; color: #e0e0f0; }
+    [data-theme="dark"] .ai-sheet-footer { border-color: #2a2a4a; }
 
     /* Input area */
     .input-area {
@@ -3144,24 +3194,53 @@
 
   <div class="image-preview" id="imagePreview">
     <div id="previewImages" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-    <button id="btnAiSuggest" class="btn-ai-suggest" onclick="aiSuggestContent()" style="display:none;">✨ Gợi ý AI</button>
     <button class="clear-btn" onclick="clearImages()">Xoá ảnh</button>
-  </div>
-
-  <div class="ai-suggest-panel" id="aiSuggestPanel">
-    <div class="ai-panel-header">
-      <span>✨ Gợi ý content từ AI</span>
-      <button onclick="closeAiPanel()" aria-label="Đóng">✕</button>
-    </div>
-    <div id="aiSuggestContent"></div>
   </div>
 
   <div class="input-area" id="inputArea">
     <button class="btn-icon btn-attach" onclick="document.getElementById('fileInput').click()" aria-label="Đính kèm ảnh"><svg class="xi xi-md"><use href="#ic-camera"/></svg></button>
     <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this)">
-    <textarea id="msgInput" rows="1" placeholder="Nhập nội dung bài viết" autocomplete="off" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();sendMessage();}" oninput="autoGrowMsgInput(this)"></textarea>
+    <div style="position:relative; flex:1; display:flex;">
+      <textarea id="msgInput" rows="1" placeholder="Nhập nội dung bài viết" autocomplete="off" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();sendMessage();}" oninput="autoGrowMsgInput(this)" style="flex:1;"></textarea>
+      <button id="btnAiSuggest" class="ai-badge-btn" onclick="openAiSheet()" style="display:none;" aria-label="Gợi ý AI">✦ AI</button>
+    </div>
     <input type="text" id="groupIdInput" placeholder="Nhập Group ID..." autocomplete="off" style="display:none; width:140px;">
     <button class="btn-icon btn-send" id="sendBtn" onclick="sendMessage()" aria-label="Gửi"><svg class="xi xi-md"><use href="#ic-send"/></svg></button>
+  </div>
+
+  <!-- AI Editor bottom sheet -->
+  <div class="ai-sheet-backdrop" id="aiSheetBackdrop" onclick="handleAiBackdropClick(event)">
+    <div class="ai-sheet" id="aiSheet">
+      <div class="ai-sheet-handle"></div>
+      <div class="ai-sheet-header">
+        <span class="ai-sheet-title">✦ AI Editor</span>
+        <button class="ai-sheet-close" onclick="closeAiSheet()" aria-label="Đóng">✕</button>
+      </div>
+      <div class="ai-style-row" id="aiStyleRow">
+        <button class="ai-style-chip active" data-style="short" onclick="selectAiStyle(this)">
+          <span class="chip-icon">⚡</span><span class="chip-label">Ngắn gọn</span>
+        </button>
+        <button class="ai-style-chip" data-style="detailed" onclick="selectAiStyle(this)">
+          <span class="chip-icon">📖</span><span class="chip-label">Chi tiết</span>
+        </button>
+        <button class="ai-style-chip" data-style="story" onclick="selectAiStyle(this)">
+          <span class="chip-icon">✨</span><span class="chip-label">Kể chuyện</span>
+        </button>
+        <button class="ai-style-chip" data-style="promo" onclick="selectAiStyle(this)">
+          <span class="chip-icon">🔥</span><span class="chip-label">Quảng cáo</span>
+        </button>
+        <button class="ai-style-chip" data-style="viral" onclick="selectAiStyle(this)">
+          <span class="chip-icon">🚀</span><span class="chip-label">Viral</span>
+        </button>
+      </div>
+      <div class="ai-result-area">
+        <div class="ai-result-text loading" id="aiResultText">Chọn phong cách và nhấn tạo content...</div>
+      </div>
+      <div class="ai-sheet-footer">
+        <button class="ai-retry-btn" id="aiRetryBtn" onclick="runAiGenerate()" title="Tạo lại">↻</button>
+        <button class="ai-apply-btn" id="aiApplyBtn" onclick="applyAiResult()" disabled>Dùng nội dung này</button>
+      </div>
+    </div>
   </div>
 
   </div><!-- end pageDangBai -->
@@ -3481,14 +3560,31 @@
 
       <!-- AI Guide Panel -->
       <div id="aiGuidePanel" style="display:none; background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:12px; padding:16px; margin-bottom:16px;">
-        <div style="font-size:13px; font-weight:700; color:#6d28d9; margin-bottom:8px;">✨ Bộ hướng dẫn giọng văn cho AI</div>
-        <div style="font-size:12px; color:#7c3aed; margin-bottom:10px;">AI sẽ dùng hướng dẫn này để viết content phù hợp với phong cách thương hiệu của bạn khi phân tích ảnh sản phẩm.</div>
-        <textarea id="aiGuideTextarea" rows="6" placeholder="Ví dụ: Viết theo phong cách trẻ trung, vui vẻ. Dùng emoji phù hợp. Tông màu tích cực. Nhấn mạnh vào giá trị thực tế của sản phẩm..."
+        <div style="font-size:13px; font-weight:700; color:#6d28d9; margin-bottom:4px;">✨ Bộ hướng dẫn giọng văn cho AI</div>
+        <div style="font-size:12px; color:#7c3aed; margin-bottom:12px;">AI sẽ học phong cách từ hướng dẫn và các bài viết mẫu dưới đây để tạo content phù hợp thương hiệu của bạn.</div>
+
+        <!-- Phần 1: Text guide -->
+        <div style="font-size:12px; font-weight:600; color:#6d28d9; margin-bottom:6px;">📝 Mô tả phong cách viết</div>
+        <textarea id="aiGuideTextarea" rows="4" placeholder="Ví dụ: Viết theo phong cách trẻ trung, vui vẻ. Dùng emoji phù hợp. Tông màu tích cực. Nhấn mạnh vào giá trị thực tế của sản phẩm..."
           style="width:100%; box-sizing:border-box; padding:10px 12px; border:1.5px solid #c4b5fd; border-radius:8px; font-size:13px; font-family:inherit; resize:vertical; outline:none; background:#fff; color:#1e293b;"
           onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#c4b5fd'"></textarea>
-        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
+
+        <!-- Phần 2: Ảnh ví dụ bài viết mẫu -->
+        <div style="margin-top:14px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <div style="font-size:12px; font-weight:600; color:#6d28d9;">🖼️ Ảnh chụp bài viết mẫu <span style="font-weight:400; color:#9f82d9;">(AI sẽ học phong cách từ các ví dụ này)</span></div>
+            <label style="padding:5px 12px; background:#7c3aed; color:#fff; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:4px; flex-shrink:0;">
+              + Thêm ảnh mẫu
+              <input type="file" id="aiExampleFileInput" accept="image/*" multiple onchange="uploadAiExamples(this)" style="display:none;">
+            </label>
+          </div>
+          <div id="aiExamplesGrid" style="display:flex; flex-wrap:wrap; gap:8px; min-height:0;"></div>
+          <div id="aiExamplesEmpty" style="font-size:12px; color:#a78bfa; padding:8px 0; display:none;">Chưa có ảnh mẫu nào. Thêm ảnh chụp màn hình bài viết để AI học phong cách.</div>
+        </div>
+
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
           <button onclick="toggleAiGuidePanel()" style="padding:7px 16px; background:#e9e9f5; color:#555; border:none; border-radius:8px; font-size:13px; cursor:pointer;">Đóng</button>
-          <button onclick="saveAiGuide()" style="padding:7px 16px; background:#7c3aed; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">Lưu hướng dẫn</button>
+          <button onclick="saveAiGuide()" id="btnSaveAiGuide" style="padding:7px 16px; background:#7c3aed; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">Lưu hướng dẫn</button>
         </div>
       </div>
 
@@ -5150,7 +5246,7 @@
       document.getElementById('fileInput').value = '';
       document.getElementById('imagePreview').classList.remove('show');
       document.getElementById('previewImages').innerHTML = '';
-      closeAiPanel();
+      closeAiSheet();
     }
 
     function updatePreview() {
@@ -5177,7 +5273,7 @@
       } else {
         preview.classList.remove('show');
         if (btnAi) btnAi.style.display = 'none';
-        closeAiPanel();
+        closeAiSheet();
       }
     }
 
@@ -5186,56 +5282,93 @@
       updatePreview();
     }
 
-    function closeAiPanel() {
-      const panel = document.getElementById('aiSuggestPanel');
-      if (panel) panel.classList.remove('show');
+    // ===== AI Editor (Telegram-style bottom sheet) =====
+    let _aiStyleCache = {};   // { style: result_text }
+    let _aiCurrentStyle = 'short';
+    let _aiGenerating = false;
+
+    function openAiSheet() {
+      if (selectedFiles.length === 0) return;
+      _aiStyleCache = {};
+      const backdrop = document.getElementById('aiSheetBackdrop');
+      backdrop.classList.add('show');
+      document.body.style.overflow = 'hidden';
+      // reset to first chip
+      document.querySelectorAll('.ai-style-chip').forEach(c => c.classList.toggle('active', c.dataset.style === 'short'));
+      _aiCurrentStyle = 'short';
+      runAiGenerate();
     }
 
-    async function aiSuggestContent() {
-      if (selectedFiles.length === 0) return;
-      const btn = document.getElementById('btnAiSuggest');
-      const panel = document.getElementById('aiSuggestPanel');
-      const contentEl = document.getElementById('aiSuggestContent');
+    function closeAiSheet() {
+      const backdrop = document.getElementById('aiSheetBackdrop');
+      if (backdrop) backdrop.classList.remove('show');
+      document.body.style.overflow = '';
+      _aiGenerating = false;
+    }
 
-      btn.disabled = true;
-      btn.textContent = '⏳ Đang phân tích...';
-      contentEl.innerHTML = '<div class="ai-loading"><div class="spinner"></div><span>AI đang phân tích ảnh sản phẩm...</span></div>';
-      panel.classList.add('show');
+    function handleAiBackdropClick(e) {
+      if (e.target === document.getElementById('aiSheetBackdrop')) closeAiSheet();
+    }
 
-      try {
-        const form = new FormData();
-        selectedFiles.slice(0, 5).forEach(f => form.append('images', f));
-        const res = await fetch(BASE_URL + '/api/ai/suggest', { method: 'POST', body: form });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Lỗi không xác định');
-
-        const { suggestions = [] } = data;
-        if (suggestions.length === 0) {
-          contentEl.innerHTML = '<span style="color:#ef4444;font-size:13px;">AI không tạo được gợi ý, thử lại nhé!</span>';
-          return;
-        }
-        contentEl.innerHTML = suggestions.map((s, i) => `
-          <div class="ai-suggest-item">
-            <pre>${escHtml(s)}</pre>
-            <button class="ai-use-btn" onclick="useAiSuggestion(${i})">Dùng nội dung này</button>
-          </div>`).join('');
-        window._aiSuggestions = suggestions;
-      } catch (err) {
-        contentEl.innerHTML = `<span style="color:#ef4444;font-size:13px;">❌ ${escHtml(err.message)}</span>`;
-      } finally {
-        btn.disabled = false;
-        btn.textContent = '✨ Gợi ý AI';
+    function selectAiStyle(chip) {
+      const style = chip.dataset.style;
+      if (style === _aiCurrentStyle && !_aiGenerating) return;
+      document.querySelectorAll('.ai-style-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      _aiCurrentStyle = style;
+      if (_aiStyleCache[style]) {
+        showAiResult(_aiStyleCache[style]);
+      } else {
+        runAiGenerate();
       }
     }
 
-    function useAiSuggestion(index) {
-      const s = (window._aiSuggestions || [])[index];
-      if (!s) return;
+    async function runAiGenerate() {
+      if (_aiGenerating) return;
+      _aiGenerating = true;
+      const resultEl = document.getElementById('aiResultText');
+      const applyBtn = document.getElementById('aiApplyBtn');
+      const retryBtn = document.getElementById('aiRetryBtn');
+      resultEl.className = 'ai-result-text loading';
+      resultEl.innerHTML = '<span class="ai-spinner"></span> AI đang phân tích ảnh sản phẩm...';
+      applyBtn.disabled = true;
+      retryBtn.disabled = true;
+      try {
+        const form = new FormData();
+        selectedFiles.slice(0, 5).forEach(f => form.append('images', f));
+        form.append('style', _aiCurrentStyle);
+        const res = await fetch(BASE_URL + '/api/ai/suggest', { method: 'POST', body: form });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Lỗi không xác định');
+        const text = (data.suggestions || [])[0] || '';
+        _aiStyleCache[_aiCurrentStyle] = text;
+        showAiResult(text);
+      } catch (err) {
+        resultEl.className = 'ai-result-text';
+        resultEl.textContent = '❌ ' + err.message;
+        applyBtn.disabled = true;
+      } finally {
+        _aiGenerating = false;
+        retryBtn.disabled = false;
+      }
+    }
+
+    function showAiResult(text) {
+      const resultEl = document.getElementById('aiResultText');
+      const applyBtn = document.getElementById('aiApplyBtn');
+      resultEl.className = 'ai-result-text';
+      resultEl.textContent = text || '(Không có kết quả)';
+      applyBtn.disabled = !text;
+    }
+
+    function applyAiResult() {
+      const text = _aiStyleCache[_aiCurrentStyle];
+      if (!text) return;
       const input = document.getElementById('msgInput');
-      input.value = s;
+      input.value = text;
       autoGrowMsgInput(input);
+      closeAiSheet();
       input.focus();
-      closeAiPanel();
     }
 
     function escHtml(str) {
@@ -6231,9 +6364,57 @@
         const res = await fetch(BASE_URL + '/api/ai/guide');
         const data = await res.json();
         document.getElementById('aiGuideTextarea').value = data.guide || '';
+        renderAiExamples(data.examples || []);
       } else {
         panel.style.display = 'none';
       }
+    }
+
+    function renderAiExamples(examples) {
+      const grid = document.getElementById('aiExamplesGrid');
+      const empty = document.getElementById('aiExamplesEmpty');
+      if (!grid) return;
+      if (examples.length === 0) {
+        grid.innerHTML = '';
+        if (empty) empty.style.display = 'block';
+        return;
+      }
+      if (empty) empty.style.display = 'none';
+      grid.innerHTML = examples.map((ex, i) => `
+        <div style="position:relative; display:inline-block;">
+          <img src="${BASE_URL}${ex.imageUrl}" alt="Ví dụ ${i+1}"
+            style="width:80px; height:80px; object-fit:cover; border-radius:8px; border:2px solid #c4b5fd; cursor:pointer;"
+            onclick="window.open('${BASE_URL}${ex.imageUrl}','_blank')">
+          <button onclick="deleteAiExample(${i})" title="Xóa ví dụ này"
+            style="position:absolute; top:-6px; right:-6px; width:20px; height:20px; background:#ef4444; color:#fff; border:2px solid #fff; border-radius:50%; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; line-height:1;">✕</button>
+        </div>`).join('');
+    }
+
+    async function uploadAiExamples(input) {
+      const files = Array.from(input.files);
+      if (!files.length) return;
+      const label = input.closest('label');
+      const origText = label ? label.childNodes[0].textContent : '';
+      if (label) label.childNodes[0].textContent = '⏳ Đang tải...';
+      try {
+        const form = new FormData();
+        files.forEach(f => form.append('images', f));
+        const res = await fetch(BASE_URL + '/api/ai/guide/examples', { method: 'POST', body: form });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Lỗi upload');
+        renderAiExamples(data.examples || []);
+      } catch (err) {
+        alert('Lỗi upload ảnh mẫu: ' + err.message);
+      } finally {
+        if (label) label.childNodes[0].textContent = origText;
+        input.value = '';
+      }
+    }
+
+    async function deleteAiExample(index) {
+      const res = await fetch(BASE_URL + '/api/ai/guide/examples/' + index, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) renderAiExamples(data.examples || []);
     }
 
     async function saveAiGuide() {
@@ -6244,7 +6425,7 @@
         body: JSON.stringify({ guide }),
       });
       if (res.ok) {
-        const btn = document.querySelector('#aiGuidePanel button[onclick="saveAiGuide()"]');
+        const btn = document.getElementById('btnSaveAiGuide');
         if (btn) { const orig = btn.textContent; btn.textContent = '✅ Đã lưu!'; setTimeout(() => btn.textContent = orig, 1500); }
       }
     }

@@ -1423,9 +1423,17 @@ app.delete('/api/contents/:id', (req, res) => {
 const settingsStore = require('./src/database/settings-store');
 const { suggestContent } = require('./src/ai/gemini');
 
+function localUrlToPath(url) {
+  // /api/image/YYYY-MM-DD/filename → UPLOADS_DIR/YYYY-MM-DD/filename
+  const m = url.match(/^\/api\/image\/([^/]+)\/([^/]+)$/);
+  if (m) return path.join(UPLOADS_DIR, m[1], m[2]);
+  return null;
+}
+
 app.get('/api/ai/guide', (req, res) => {
   const guide = settingsStore.get('ai_content_guide', '');
-  res.json({ guide });
+  const examples = JSON.parse(settingsStore.get('ai_guide_examples', '[]'));
+  res.json({ guide, examples });
 });
 
 app.put('/api/ai/guide', express.json(), (req, res) => {
@@ -1435,14 +1443,45 @@ app.put('/api/ai/guide', express.json(), (req, res) => {
   res.json({ success: true });
 });
 
+app.post('/api/ai/guide/examples', upload.array('images', 10), async (req, res) => {
+  const files = req.files || [];
+  if (files.length === 0) return res.status(400).json({ error: 'Cần ít nhất 1 ảnh' });
+  try {
+    const urls = await persistImages(files.map(f => f.path));
+    const existing = JSON.parse(settingsStore.get('ai_guide_examples', '[]'));
+    const updated = [...existing, ...urls.map(imageUrl => ({ imageUrl }))];
+    settingsStore.set('ai_guide_examples', JSON.stringify(updated));
+    res.json({ examples: updated });
+  } catch (err) {
+    logger.error('AI guide examples upload error:', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    for (const f of files) fs.unlink(f.path, () => {});
+  }
+});
+
+app.delete('/api/ai/guide/examples/:index', (req, res) => {
+  const idx = Number(req.params.index);
+  const existing = JSON.parse(settingsStore.get('ai_guide_examples', '[]'));
+  if (idx < 0 || idx >= existing.length) return res.status(404).json({ error: 'Không tìm thấy' });
+  existing.splice(idx, 1);
+  settingsStore.set('ai_guide_examples', JSON.stringify(existing));
+  res.json({ examples: existing });
+});
+
 app.post('/api/ai/suggest', upload.array('images', 5), async (req, res) => {
   const files = req.files || [];
   if (files.length === 0) return res.status(400).json({ error: 'Cần ít nhất 1 ảnh' });
   if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: 'Tính năng AI chưa được cấu hình (thiếu GEMINI_API_KEY)' });
   try {
     const guide = settingsStore.get('ai_content_guide', '');
+    const examples = JSON.parse(settingsStore.get('ai_guide_examples', '[]'));
+    const examplePaths = examples
+      .map(e => localUrlToPath(e.imageUrl))
+      .filter(p => p && require('fs').existsSync(p));
     const imagePaths = files.map(f => f.path);
-    const suggestions = await suggestContent(imagePaths, guide);
+    const style = req.body.style || 'short';
+    const suggestions = await suggestContent(imagePaths, guide, examplePaths, style);
     res.json({ suggestions });
   } catch (err) {
     logger.error('AI suggest error:', err.message);
