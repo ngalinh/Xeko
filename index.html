@@ -3235,9 +3235,17 @@
       </div>
 
       <!-- Settings panel (hidden by default) -->
-      <div id="aiSheetSettings" style="display:none; flex-direction:column; gap:10px; padding:0 18px 14px; border-bottom:1px solid #f1f5f9; flex-shrink:0; overflow-y:auto; max-height:60vh;">
+      <div id="aiSheetSettings" style="display:none; flex-direction:column; gap:8px; padding:0 18px 14px; border-bottom:1px solid #f1f5f9; flex-shrink:0; overflow-y:auto; max-height:60vh;">
+        <!-- Style tabs in settings -->
+        <div class="ai-style-row" id="aiSettingsStyleRow" style="padding:10px 0 2px;">
+          <button class="ai-style-chip active" data-sstyle="short" onclick="selectSettingsStyle(this)"><span class="chip-icon">⚡</span><span class="chip-label">Ngắn gọn</span></button>
+          <button class="ai-style-chip" data-sstyle="detailed" onclick="selectSettingsStyle(this)"><span class="chip-icon">📖</span><span class="chip-label">Chi tiết</span></button>
+          <button class="ai-style-chip" data-sstyle="story" onclick="selectSettingsStyle(this)"><span class="chip-icon">✨</span><span class="chip-label">Kể chuyện</span></button>
+          <button class="ai-style-chip" data-sstyle="promo" onclick="selectSettingsStyle(this)"><span class="chip-icon">🔥</span><span class="chip-label">Quảng cáo</span></button>
+          <button class="ai-style-chip" data-sstyle="viral" onclick="selectSettingsStyle(this)"><span class="chip-icon">🚀</span><span class="chip-label">Viral</span></button>
+        </div>
         <!-- Category tabs in settings -->
-        <div class="ai-style-row" id="aiSettingsCatRow" style="padding:10px 0 4px; margin:0 -18px; padding-left:18px; padding-right:18px;">
+        <div class="ai-style-row" id="aiSettingsCatRow" style="padding:0 0 4px;">
           <button class="ai-cat-chip active" data-scat="" onclick="selectSettingsCat(this)"><span class="chip-label">🌐 Chung</span></button>
           <button class="ai-cat-chip" data-scat="fashion" onclick="selectSettingsCat(this)"><span class="chip-label">👗 Thời trang</span></button>
           <button class="ai-cat-chip" data-scat="beauty" onclick="selectSettingsCat(this)"><span class="chip-label">💄 Mỹ phẩm</span></button>
@@ -3250,7 +3258,7 @@
           style="width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid #c4b5fd; border-radius:8px; font-size:13px; font-family:inherit; resize:none; outline:none; background:#faf5ff; color:#1e293b;"
           onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#c4b5fd'"></textarea>
         <div style="display:flex; align-items:center; justify-content:space-between;">
-          <div style="font-size:12px; font-weight:600; color:#6d28d9;">🖼️ Ảnh bài viết mẫu <span style="font-weight:400;color:#a78bfa;font-size:11px;">(dùng chung cho mọi danh mục)</span></div>
+          <div style="font-size:12px; font-weight:600; color:#6d28d9;">🖼️ Ảnh bài viết mẫu</div>
           <label style="padding:4px 10px; background:#7c3aed; color:#fff; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer;">
             + Thêm
             <input type="file" accept="image/*" multiple onchange="uploadAiExamplesFromSheet(this)" style="display:none;">
@@ -5350,8 +5358,12 @@
       _aiGenerating = false;
     }
 
-    let _aiGuidesCache = {};   // { cat: guideText }
-    let _aiSettingsCat = '';   // current cat in settings panel
+    let _aiGuidesCache = {};          // { 'style|cat': guideText }
+    let _aiExamplesByCat = {};        // { cat: [{imageUrl},...] }
+    let _aiSettingsCat = '';
+    let _aiSettingsStyle = 'short';
+
+    function _settingsKey() { return `${_aiSettingsStyle}|${_aiSettingsCat}`; }
 
     async function toggleAiSettings() {
       const panel = document.getElementById('aiSheetSettings');
@@ -5366,31 +5378,42 @@
         panel.style.display = 'flex';
         main.style.display = 'none';
         btn.style.background = '#ede9fe';
-        // Reset to "Chung" tab
+        document.querySelectorAll('#aiSettingsStyleRow .ai-style-chip').forEach(c => c.classList.toggle('active', c.dataset.sstyle === 'short'));
         document.querySelectorAll('#aiSettingsCatRow .ai-cat-chip').forEach(c => c.classList.toggle('active', c.dataset.scat === ''));
+        _aiSettingsStyle = 'short';
         _aiSettingsCat = '';
         _aiGuidesCache = {};
+        _aiExamplesByCat = {};
         const res = await fetch(BASE_URL + '/api/ai/guide');
         const data = await res.json();
-        _aiGuidesCache = data.guides || { '': data.guide || '' };
-        document.getElementById('aiSheetGuideTextarea').value = _aiGuidesCache[''] || '';
-        renderAiSheetExamples(data.examples || []);
+        _aiGuidesCache = data.guides || {};
+        _aiExamplesByCat = data.examplesByCategory || {};
+        document.getElementById('aiSheetGuideTextarea').value = _aiGuidesCache[_settingsKey()] || '';
+        renderAiSheetExamples(_aiExamplesByCat[''] || []);
       }
     }
 
-    async function selectSettingsCat(chip) {
+    function selectSettingsStyle(chip) {
+      const style = chip.dataset.sstyle;
+      _aiGuidesCache[_settingsKey()] = document.getElementById('aiSheetGuideTextarea').value;
+      document.querySelectorAll('#aiSettingsStyleRow .ai-style-chip').forEach(c => c.classList.toggle('active', c.dataset.sstyle === style));
+      _aiSettingsStyle = style;
+      document.getElementById('aiSheetGuideTextarea').value = _aiGuidesCache[_settingsKey()] || '';
+    }
+
+    function selectSettingsCat(chip) {
       const cat = chip.dataset.scat;
-      // Save current textarea value before switching
-      _aiGuidesCache[_aiSettingsCat] = document.getElementById('aiSheetGuideTextarea').value;
+      _aiGuidesCache[_settingsKey()] = document.getElementById('aiSheetGuideTextarea').value;
       document.querySelectorAll('#aiSettingsCatRow .ai-cat-chip').forEach(c => c.classList.toggle('active', c.dataset.scat === cat));
       _aiSettingsCat = cat;
-      document.getElementById('aiSheetGuideTextarea').value = _aiGuidesCache[cat] || '';
+      document.getElementById('aiSheetGuideTextarea').value = _aiGuidesCache[_settingsKey()] || '';
+      renderAiSheetExamples(_aiExamplesByCat[cat] || []);
     }
 
     function renderAiSheetExamples(examples) {
       const grid = document.getElementById('aiSheetExamplesGrid');
       if (!grid) return;
-      if (examples.length === 0) { grid.innerHTML = '<span style="font-size:11px;color:#a78bfa;">Chưa có ảnh mẫu</span>'; return; }
+      if (!examples.length) { grid.innerHTML = '<span style="font-size:11px;color:#a78bfa;">Chưa có ảnh mẫu</span>'; return; }
       grid.innerHTML = examples.map((ex, i) => `
         <div style="position:relative;">
           <img src="${BASE_URL}${ex.imageUrl}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:2px solid #c4b5fd;cursor:pointer;" onclick="window.open('${BASE_URL}${ex.imageUrl}','_blank')">
@@ -5403,21 +5426,28 @@
       if (!files.length) return;
       const form = new FormData();
       files.forEach(f => form.append('images', f));
+      form.append('category', _aiSettingsCat);
       const res = await fetch(BASE_URL + '/api/ai/guide/examples', { method: 'POST', body: form });
       const data = await res.json();
-      if (res.ok) renderAiSheetExamples(data.examples || []);
+      if (res.ok) {
+        _aiExamplesByCat[_aiSettingsCat] = data.examples || [];
+        renderAiSheetExamples(data.examples || []);
+      }
       input.value = '';
     }
 
     async function deleteAiExampleFromSheet(index) {
-      const res = await fetch(BASE_URL + '/api/ai/guide/examples/' + index, { method: 'DELETE' });
+      const catParam = _aiSettingsCat === '' ? '_' : _aiSettingsCat;
+      const res = await fetch(`${BASE_URL}/api/ai/guide/examples/${catParam}/${index}`, { method: 'DELETE' });
       const data = await res.json();
-      if (res.ok) renderAiSheetExamples(data.examples || []);
+      if (res.ok) {
+        _aiExamplesByCat[_aiSettingsCat] = data.examples || [];
+        renderAiSheetExamples(data.examples || []);
+      }
     }
 
     async function saveAiGuideFromSheet() {
-      // Save current textarea into cache first
-      _aiGuidesCache[_aiSettingsCat] = document.getElementById('aiSheetGuideTextarea').value;
+      _aiGuidesCache[_settingsKey()] = document.getElementById('aiSheetGuideTextarea').value;
       const res = await fetch(BASE_URL + '/api/ai/guide', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ guides: _aiGuidesCache }),
