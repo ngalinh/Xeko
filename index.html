@@ -3216,7 +3216,7 @@
     <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this)">
     <div style="position:relative; flex:1; display:flex;">
       <textarea id="msgInput" rows="1" placeholder="Nhập nội dung bài viết" autocomplete="off" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();sendMessage();}" oninput="autoGrowMsgInput(this)" style="flex:1;"></textarea>
-      <button id="btnAiSuggest" class="ai-badge-btn" onclick="openAiSheet()" style="display:none;" aria-label="Gợi ý AI">✦ AI</button>
+      <button id="btnAiSuggest" class="ai-badge-btn" onclick="openAiSheet()" style="display:none;" aria-label="Gợi ý AI"><svg width="13" height="13" viewBox="0 0 14 13" fill="none" style="vertical-align:-2px;margin-right:3px;"><path d="M5.5 0C5.5 3.04 7.96 5.5 11 5.5C7.96 5.5 5.5 7.96 5.5 11C5.5 7.96 3.04 5.5 0 5.5C3.04 5.5 5.5 3.04 5.5 0Z" fill="white"/><path d="M11.5 0C11.5 1.38 12.62 2.5 14 2.5C12.62 2.5 11.5 3.62 11.5 5C11.5 3.62 10.38 2.5 9 2.5C10.38 2.5 11.5 1.38 11.5 0Z" fill="white" opacity="0.85"/></svg>AI</button>
     </div>
     <input type="text" id="groupIdInput" placeholder="Nhập Group ID..." autocomplete="off" style="display:none; width:140px;">
     <button class="btn-icon btn-send" id="sendBtn" onclick="sendMessage()" aria-label="Gửi"><svg class="xi xi-md"><use href="#ic-send"/></svg></button>
@@ -3227,7 +3227,7 @@
     <div class="ai-sheet" id="aiSheet">
       <div class="ai-sheet-handle"></div>
       <div class="ai-sheet-header">
-        <span class="ai-sheet-title">✦ AI Editor</span>
+        <span class="ai-sheet-title"><svg width="14" height="14" viewBox="0 0 14 13" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M5.5 0C5.5 3.04 7.96 5.5 11 5.5C7.96 5.5 5.5 7.96 5.5 11C5.5 7.96 3.04 5.5 0 5.5C3.04 5.5 5.5 3.04 5.5 0Z" fill="#6366f1"/><path d="M11.5 0C11.5 1.38 12.62 2.5 14 2.5C12.62 2.5 11.5 3.62 11.5 5C11.5 3.62 10.38 2.5 9 2.5C10.38 2.5 11.5 1.38 11.5 0Z" fill="#8b5cf6" opacity="0.85"/></svg>AI Editor</span>
         <div style="display:flex;gap:6px;align-items:center;">
           <button class="ai-sheet-close" id="aiSettingsBtn" onclick="toggleAiSettings()" title="Hướng dẫn giọng văn" style="font-size:15px;">⚙</button>
           <button class="ai-sheet-close" onclick="closeAiSheet()" aria-label="Đóng">✕</button>
