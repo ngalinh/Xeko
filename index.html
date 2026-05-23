@@ -3632,6 +3632,9 @@
           <option value="all">Chung</option>
           <option value="facebook">Facebook</option>
           <option value="zalo">Zalo</option>
+          <option value="tiktok">TikTok</option>
+          <option value="instagram">Instagram</option>
+          <option value="threads">Threads</option>
         </select>
         <button onclick="openContentModal()"
           style="padding:9px 18px; background:#3B82F6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; flex-shrink:0;">
@@ -3723,17 +3726,20 @@
         <span style="font-size:12px; color:#aaa; display:block; margin-top:4px;" id="contentImgCount"></span>
       </div>
 
-      <div style="display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
-        <div style="flex:1; min-width:140px;">
+      <div style="display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap; align-items:flex-start;">
+        <div style="flex:1; min-width:120px;">
           <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Kênh đăng</label>
           <select id="contentPlatformInput"
             style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none; background:#fff; cursor:pointer;">
             <option value="all">Chung (tất cả)</option>
             <option value="facebook">Facebook</option>
             <option value="zalo">Zalo</option>
+            <option value="tiktok">TikTok</option>
+            <option value="instagram">Instagram</option>
+            <option value="threads">Threads</option>
           </select>
         </div>
-        <div style="flex:2; min-width:200px;">
+        <div style="flex:1.5; min-width:150px;">
           <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Phân loại content</label>
           <select id="contentCategorySelect"
             style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none; background:white; cursor:pointer;"
@@ -3753,13 +3759,18 @@
           </div>
           <input type="hidden" id="contentCategoryInput">
         </div>
-      </div>
-
-      <!-- Profile checkboxes -->
-      <div style="margin-bottom:14px;">
-        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:8px;">Profile sử dụng (tuỳ chọn)</label>
-        <div id="contentProfileCheckboxes" style="display:flex; flex-wrap:wrap; gap:8px; padding:10px 12px; border:1px solid #ddd; border-radius:8px; min-height:42px; background:#fafafa;">
-          <span style="font-size:12px; color:#aaa;">Đang tải profiles...</span>
+        <div style="flex:1.5; min-width:150px; position:relative;" id="contentProfileDropWrap">
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Profile (tuỳ chọn)</label>
+          <button type="button" id="contentProfileDropBtn" onclick="toggleContentProfileDrop()"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none; background:#fff; cursor:pointer; text-align:left; display:flex; justify-content:space-between; align-items:center; color:#555;">
+            <span id="contentProfileDropLabel" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; color:#aaa;">Tất cả</span>
+            <span style="opacity:0.5; font-size:10px; flex-shrink:0; margin-left:4px;">▾</span>
+          </button>
+          <div id="contentProfileDropPanel" style="display:none; position:absolute; top:calc(100% + 2px); left:0; right:0; background:#fff; border:1px solid #ddd; border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,0.12); z-index:200; max-height:200px; overflow-y:auto; padding:4px 0;">
+            <div id="contentProfileCheckboxes" style="display:flex; flex-direction:column; padding:4px 6px; gap:1px;">
+              <span style="font-size:12px; color:#aaa; padding:4px 6px;">Đang tải profiles...</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -6574,9 +6585,9 @@
     }
 
     function renderContentRow(item, stt) {
-      const platformLabel = { all: 'Chung', facebook: 'Facebook', zalo: 'Zalo' }[item.platform] || item.platform;
-      const platformColor = { all: '#6B7280', facebook: '#1877F2', zalo: '#0068FF' }[item.platform] || '#6B7280';
-      const platformBg   = { all: '#F3F4F6', facebook: '#EFF6FF', zalo: '#EFF6FF' }[item.platform] || '#F3F4F6';
+      const platformLabel = { all: 'Chung', facebook: 'Facebook', zalo: 'Zalo', tiktok: 'TikTok', instagram: 'Instagram', threads: 'Threads' }[item.platform] || item.platform;
+      const platformColor = { all: '#6B7280', facebook: '#1877F2', zalo: '#0068FF', tiktok: '#010101', instagram: '#E1306C', threads: '#1C1C1C' }[item.platform] || '#6B7280';
+      const platformBg   = { all: '#F3F4F6', facebook: '#EFF6FF', zalo: '#EFF6FF', tiktok: '#F3F4F6', instagram: '#FDF2F8', threads: '#F3F4F6' }[item.platform] || '#F3F4F6';
       const preview = item.body.length > 100 ? item.body.slice(0, 100) + '…' : item.body;
       const tagsHtml = (item.tags || []).map(t =>
         `<span style="display:inline-block;padding:2px 6px;background:#F3F4F6;border-radius:99px;font-size:11px;color:#555;">${escapeHtml(t)}</span>`
@@ -6616,7 +6627,7 @@
 
       const odd = stt % 2 === 0 ? 'background:#fafafa;' : '';
 
-      const ctipData = escapeHtml(JSON.stringify({title: item.title, body: item.body}));
+      const ctipData = escapeHtml(JSON.stringify({body: item.body}));
       return `<tr style="${odd}border-bottom:1px solid #f0f0f0;">
         <td style="padding:10px 14px; text-align:center;"><input type="checkbox" class="content-row-cb" data-id="${item.id}" onchange="updateContentBatchBtn()" style="cursor:pointer; width:14px; height:14px;"></td>
         <td style="padding:10px 14px; text-align:center; color:#aaa; font-size:12px;">${stt}</td>
@@ -6685,7 +6696,8 @@
     function _renderProfileCheckboxes(selectedKeys) {
       const wrap = document.getElementById('contentProfileCheckboxes');
       if (!_contentProfilesCache.length) {
-        wrap.innerHTML = '<span style="font-size:12px;color:#aaa;">Chưa có profile nào</span>';
+        wrap.innerHTML = '<span style="font-size:12px;color:#aaa;padding:4px 6px;">Chưa có profile nào</span>';
+        _updateContentProfileLabel();
         return;
       }
       wrap.innerHTML = _contentProfilesCache.map(p => {
@@ -6694,13 +6706,38 @@
         const badgeIcon = p.type === 'facebook'
           ? `<svg class="xi" style="width:13px;height:13px;color:${badgeColor};flex-shrink:0;"><use href="#ic-fb"/></svg>`
           : `<svg class="xi" style="width:13px;height:13px;color:${badgeColor};flex-shrink:0;"><use href="#ic-zalo"/></svg>`;
-        return `<label style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:${checked ? '#EFF6FF' : '#f9fafb'};border:1px solid ${checked ? '#BFDBFE' : '#e5e7eb'};border-radius:99px;cursor:pointer;font-size:12px;user-select:none;">
-          <input type="checkbox" name="contentProfiles" value="${escapeHtml(p.key)}" ${checked}
-            style="margin:0;width:13px;height:13px;cursor:pointer;"
-            onchange="this.closest('label').style.background=this.checked?'#EFF6FF':'#f9fafb';this.closest('label').style.borderColor=this.checked?'#BFDBFE':'#e5e7eb'">
+        return `<label style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:6px;cursor:pointer;font-size:13px;user-select:none;${checked ? 'background:#EFF6FF;' : ''}"
+            onmouseover="if(!this.querySelector('input').checked)this.style.background='#f9fafb'"
+            onmouseout="if(!this.querySelector('input').checked)this.style.background=''">
+          <input type="checkbox" name="contentProfiles" value="${escapeHtml(p.key)}" data-name="${escapeHtml(p.name || p.key)}" ${checked}
+            style="margin:0;width:14px;height:14px;cursor:pointer;flex-shrink:0;"
+            onchange="_updateContentProfileLabel();this.closest('label').style.background=this.checked?'#EFF6FF':''">
           ${badgeIcon} ${escapeHtml(p.name || p.key)}
         </label>`;
       }).join('');
+      _updateContentProfileLabel();
+    }
+
+    function _updateContentProfileLabel() {
+      const checked = document.querySelectorAll('#contentProfileCheckboxes input[name="contentProfiles"]:checked');
+      const label = document.getElementById('contentProfileDropLabel');
+      if (!label) return;
+      if (checked.length === 0) {
+        label.textContent = 'Tất cả';
+        label.style.color = '#aaa';
+      } else {
+        label.textContent = Array.from(checked).map(cb => cb.dataset.name || cb.value).join(', ');
+        label.style.color = '#1e1e2e';
+      }
+    }
+
+    function toggleContentProfileDrop() {
+      const panel = document.getElementById('contentProfileDropPanel');
+      const btn = document.getElementById('contentProfileDropBtn');
+      if (!panel) return;
+      const isOpen = panel.style.display === 'block';
+      panel.style.display = isOpen ? 'none' : 'block';
+      if (btn) btn.style.borderColor = isOpen ? '#ddd' : '#3B82F6';
     }
 
     async function openContentModal(id) {
@@ -6742,7 +6779,7 @@
 
       modal.style.display = 'flex';
       document.addEventListener('paste', _contentPasteHandler);
-      setTimeout(() => titleInput.focus(), 50);
+      setTimeout(() => bodyInput.focus(), 50);
     }
 
     function renderContentImgPreview(existingUrls) {
@@ -8926,6 +8963,14 @@
     document.addEventListener('click', function(e) {
       if (!e.target.closest('.msel')) {
         document.querySelectorAll('.msel-panel').forEach(p => p.classList.remove('open'));
+      }
+      if (!e.target.closest('#contentProfileDropWrap')) {
+        const panel = document.getElementById('contentProfileDropPanel');
+        const btn = document.getElementById('contentProfileDropBtn');
+        if (panel && panel.style.display === 'block') {
+          panel.style.display = 'none';
+          if (btn) btn.style.borderColor = '#ddd';
+        }
       }
       const popup = document.getElementById('groupPickerPopup');
       if (popup && popup.style.display !== 'none') {
