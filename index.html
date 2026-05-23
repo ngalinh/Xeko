@@ -3214,28 +3214,56 @@
       <div class="ai-sheet-handle"></div>
       <div class="ai-sheet-header">
         <span class="ai-sheet-title">✦ AI Editor</span>
-        <button class="ai-sheet-close" onclick="closeAiSheet()" aria-label="Đóng">✕</button>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="ai-sheet-close" id="aiSettingsBtn" onclick="toggleAiSettings()" title="Hướng dẫn giọng văn" style="font-size:15px;">⚙</button>
+          <button class="ai-sheet-close" onclick="closeAiSheet()" aria-label="Đóng">✕</button>
+        </div>
       </div>
-      <div class="ai-style-row" id="aiStyleRow">
-        <button class="ai-style-chip active" data-style="short" onclick="selectAiStyle(this)">
-          <span class="chip-icon">⚡</span><span class="chip-label">Ngắn gọn</span>
-        </button>
-        <button class="ai-style-chip" data-style="detailed" onclick="selectAiStyle(this)">
-          <span class="chip-icon">📖</span><span class="chip-label">Chi tiết</span>
-        </button>
-        <button class="ai-style-chip" data-style="story" onclick="selectAiStyle(this)">
-          <span class="chip-icon">✨</span><span class="chip-label">Kể chuyện</span>
-        </button>
-        <button class="ai-style-chip" data-style="promo" onclick="selectAiStyle(this)">
-          <span class="chip-icon">🔥</span><span class="chip-label">Quảng cáo</span>
-        </button>
-        <button class="ai-style-chip" data-style="viral" onclick="selectAiStyle(this)">
-          <span class="chip-icon">🚀</span><span class="chip-label">Viral</span>
-        </button>
+
+      <!-- Settings panel (hidden by default) -->
+      <div id="aiSheetSettings" style="display:none; flex-direction:column; gap:10px; padding:0 18px 14px; border-bottom:1px solid #f1f5f9; flex-shrink:0;">
+        <div style="font-size:12px; font-weight:600; color:#6d28d9;">📝 Mô tả phong cách viết</div>
+        <textarea id="aiSheetGuideTextarea" rows="3" placeholder="Ví dụ: Viết trẻ trung, vui vẻ, dùng emoji. Nhấn mạnh giá trị thực tế..."
+          style="width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid #c4b5fd; border-radius:8px; font-size:13px; font-family:inherit; resize:none; outline:none; background:#faf5ff; color:#1e293b;"
+          onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#c4b5fd'"></textarea>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="font-size:12px; font-weight:600; color:#6d28d9;">🖼️ Ảnh bài viết mẫu</div>
+          <label style="padding:4px 10px; background:#7c3aed; color:#fff; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer;">
+            + Thêm
+            <input type="file" accept="image/*" multiple onchange="uploadAiExamplesFromSheet(this)" style="display:none;">
+          </label>
+        </div>
+        <div id="aiSheetExamplesGrid" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button onclick="toggleAiSettings()" style="padding:6px 14px; background:#f1f5f9; color:#555; border:none; border-radius:8px; font-size:12px; cursor:pointer;">Đóng</button>
+          <button onclick="saveAiGuideFromSheet()" id="btnSaveSheetGuide" style="padding:6px 14px; background:#7c3aed; color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer;">Lưu</button>
+        </div>
       </div>
-      <div class="ai-result-area">
-        <div class="ai-result-text loading" id="aiResultText">Chọn phong cách và nhấn tạo content...</div>
+
+      <!-- Main content -->
+      <div id="aiSheetMain" style="display:flex; flex-direction:column; flex:1; min-height:0; overflow:hidden;">
+        <div class="ai-style-row" id="aiStyleRow">
+          <button class="ai-style-chip active" data-style="short" onclick="selectAiStyle(this)">
+            <span class="chip-icon">⚡</span><span class="chip-label">Ngắn gọn</span>
+          </button>
+          <button class="ai-style-chip" data-style="detailed" onclick="selectAiStyle(this)">
+            <span class="chip-icon">📖</span><span class="chip-label">Chi tiết</span>
+          </button>
+          <button class="ai-style-chip" data-style="story" onclick="selectAiStyle(this)">
+            <span class="chip-icon">✨</span><span class="chip-label">Kể chuyện</span>
+          </button>
+          <button class="ai-style-chip" data-style="promo" onclick="selectAiStyle(this)">
+            <span class="chip-icon">🔥</span><span class="chip-label">Quảng cáo</span>
+          </button>
+          <button class="ai-style-chip" data-style="viral" onclick="selectAiStyle(this)">
+            <span class="chip-icon">🚀</span><span class="chip-label">Viral</span>
+          </button>
+        </div>
+        <div class="ai-result-area">
+          <div class="ai-result-text loading" id="aiResultText">Chọn phong cách và nhấn tạo content...</div>
+        </div>
       </div>
+
       <div class="ai-sheet-footer">
         <button class="ai-retry-btn" id="aiRetryBtn" onclick="runAiGenerate()" title="Tạo lại">↻</button>
         <button class="ai-apply-btn" id="aiApplyBtn" onclick="applyAiResult()" disabled>Dùng nội dung này</button>
@@ -5293,7 +5321,9 @@
       const backdrop = document.getElementById('aiSheetBackdrop');
       backdrop.classList.add('show');
       document.body.style.overflow = 'hidden';
-      // reset to first chip
+      document.getElementById('aiSheetSettings').style.display = 'none';
+      document.getElementById('aiSheetMain').style.display = 'flex';
+      document.getElementById('aiSettingsBtn').style.background = '';
       document.querySelectorAll('.ai-style-chip').forEach(c => c.classList.toggle('active', c.dataset.style === 'short'));
       _aiCurrentStyle = 'short';
       runAiGenerate();
@@ -5304,6 +5334,68 @@
       if (backdrop) backdrop.classList.remove('show');
       document.body.style.overflow = '';
       _aiGenerating = false;
+    }
+
+    async function toggleAiSettings() {
+      const panel = document.getElementById('aiSheetSettings');
+      const main = document.getElementById('aiSheetMain');
+      const btn = document.getElementById('aiSettingsBtn');
+      const isOpen = panel.style.display !== 'none';
+      if (isOpen) {
+        panel.style.display = 'none';
+        main.style.display = 'flex';
+        btn.style.background = '';
+      } else {
+        panel.style.display = 'flex';
+        main.style.display = 'none';
+        btn.style.background = '#ede9fe';
+        // Load current guide
+        const res = await fetch(BASE_URL + '/api/ai/guide');
+        const data = await res.json();
+        document.getElementById('aiSheetGuideTextarea').value = data.guide || '';
+        renderAiSheetExamples(data.examples || []);
+      }
+    }
+
+    function renderAiSheetExamples(examples) {
+      const grid = document.getElementById('aiSheetExamplesGrid');
+      if (!grid) return;
+      if (examples.length === 0) { grid.innerHTML = '<span style="font-size:11px;color:#a78bfa;">Chưa có ảnh mẫu</span>'; return; }
+      grid.innerHTML = examples.map((ex, i) => `
+        <div style="position:relative;">
+          <img src="${BASE_URL}${ex.imageUrl}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:2px solid #c4b5fd;cursor:pointer;" onclick="window.open('${BASE_URL}${ex.imageUrl}','_blank')">
+          <button onclick="deleteAiExampleFromSheet(${i})" style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;background:#ef4444;color:#fff;border:2px solid #fff;border-radius:50%;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;">✕</button>
+        </div>`).join('');
+    }
+
+    async function uploadAiExamplesFromSheet(input) {
+      const files = Array.from(input.files);
+      if (!files.length) return;
+      const form = new FormData();
+      files.forEach(f => form.append('images', f));
+      const res = await fetch(BASE_URL + '/api/ai/guide/examples', { method: 'POST', body: form });
+      const data = await res.json();
+      if (res.ok) { renderAiSheetExamples(data.examples || []); renderAiExamples(data.examples || []); }
+      input.value = '';
+    }
+
+    async function deleteAiExampleFromSheet(index) {
+      const res = await fetch(BASE_URL + '/api/ai/guide/examples/' + index, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) { renderAiSheetExamples(data.examples || []); renderAiExamples(data.examples || []); }
+    }
+
+    async function saveAiGuideFromSheet() {
+      const guide = document.getElementById('aiSheetGuideTextarea').value;
+      const res = await fetch(BASE_URL + '/api/ai/guide', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guide }),
+      });
+      if (res.ok) {
+        const btn = document.getElementById('btnSaveSheetGuide');
+        const orig = btn.textContent; btn.textContent = '✅ Đã lưu!';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+        _aiStyleCache = {};
+      }
     }
 
     function handleAiBackdropClick(e) {
