@@ -469,7 +469,7 @@
     .ai-badge-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: translateY(-50%); }
     /* Bottom sheet */
     .ai-sheet-backdrop {
-      position: absolute; inset: 0; background: rgba(0,0,0,0.25);
+      position: fixed; inset: 0; background: rgba(0,0,0,0.25);
       z-index: 200; display: none; align-items: flex-end;
     }
     .ai-sheet-backdrop.show { display: flex; }
@@ -1043,7 +1043,7 @@
       #panelChannels > div > div:last-child { gap: 6px !important; }
 
       /* Group table: header row hơi nhỏ, cột phân loại/hành động gọn lại */
-      #groupsTable thead th { font-size: 10px !important; padding: 4px 6px !important; }
+      #groupsTable thead th { font-size: 11px !important; padding: 4px 6px !important; }
       #groupsTable tbody td { padding: 8px 6px !important; }
       .group-filter-tabs button { padding: 5px 10px !important; font-size: 11px !important; }
 
@@ -1102,21 +1102,48 @@
       .profile-card .info .detail {
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       }
-      .pc-btn { width: 38px; height: 38px; border-radius: 10px; }
-      .pc-btn .xi { width: 17px; height: 17px; }
+      .pc-btn { width: 44px; height: 44px; border-radius: 10px; }
+      .pc-btn .xi { width: 18px; height: 18px; }
 
       /* Cài đặt kênh: Group list toolbar — wrap compactly */
       #pageSession .group-filter-tabs button { padding: 5px 10px !important; font-size: 11px !important; }
-      #groupCategoryFilter { min-width: 0 !important; font-size: 12px !important; padding: 5px 8px !important; }
+      /* Keep font-size ≥16px on select to prevent iOS auto-zoom */
+      #groupCategoryFilter { min-width: 0 !important; font-size: 16px !important; padding: 5px 8px !important; }
 
       /* Page header card: don't let rounded radius bleed past viewport */
       .header { margin: 0; border-radius: 0 0 18px 18px; }
+
+      /* Header title: truncate long titles so action buttons aren't pushed off-screen */
+      .header-info { min-width: 0; flex: 1; }
+      .header-info h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
       /* Form rows inside session panel: wrap tight */
       #panelChannels input[type="text"] { min-width: 0 !important; font-size: 16px; }
 
       /* AI Editor product input: keep 16px value text (iOS no-zoom) but shrink placeholder */
       #aiProductName::placeholder { font-size: 12px; }
+
+      /* Prevent iOS auto-zoom on <select> focus (same rule as inputs — font-size must be ≥16px) */
+      select { font-size: 16px !important; }
+      /* chartDays mobile override already sets height/padding — add font-size to match */
+      #chartFilterInner #chartDays { font-size: 16px !important; }
+
+      /* Zalo profile grid: single column on mobile (same fix as #fbProfileList) */
+      #zaloProfileList { grid-template-columns: 1fr !important; }
+
+      /* Group picker popup: constrain to viewport width */
+      #groupPickerPopup { max-width: calc(100vw - 16px) !important; }
+
+      /* pagePermissions: reduce padding like other pages */
+      #pagePermissions > div[style*="flex:1"] { padding: 12px !important; overflow-x: hidden !important; }
+
+      /* Sub-tab bars (Tài khoản/IP Proxy, Gán kênh/Nhóm): prevent horizontal overflow */
+      #panelProfiles > div[style*="width:fit-content"],
+      #panelChannels > div > div[style*="width:fit-content"] {
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
     }
 
     /* ================================================================
@@ -7587,7 +7614,7 @@
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; margin-top:8px; padding-bottom:8px; border-bottom:1.5px solid #e0f2fe;">
               ${xekoIcon('chat')} <span style="font-size:12px; font-weight:700; color:#0369a1; text-transform:uppercase; letter-spacing:0.5px;">Zalo</span>
             </div>
-            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(440px,1fr)); gap:8px;">
+            <div id="zaloProfileList" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(440px,1fr)); gap:8px;">
               ${data.zalo.map(z => {
                 const zproxyStr = z.proxy || '';
                 const zproxyHtml = zproxyStr
@@ -8496,6 +8523,7 @@
       let top = rect.bottom + scrollY + 4;
       let left = rect.right + scrollX - popW;
       if (left < 8) left = 8;
+      if (left + popW > scrollX + window.innerWidth - 8) left = scrollX + window.innerWidth - 8 - popW;
       if (top + popH > scrollY + window.innerHeight - 8) top = rect.top + scrollY - popH - 4;
       popup.style.top = top + 'px';
       popup.style.left = left + 'px';
