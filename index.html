@@ -158,7 +158,7 @@
     }
 
     /* Page containers */
-    .page { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+    .page { display: none; flex-direction: column; flex: 1; overflow: hidden; position: relative; }
     .page.active { display: flex; }
 
     /* Header */
@@ -469,7 +469,7 @@
     .ai-badge-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
     /* Bottom sheet */
     .ai-sheet-backdrop {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.25);
+      position: absolute; inset: 0; background: rgba(0,0,0,0.25);
       z-index: 200; display: none; align-items: flex-end;
     }
     .ai-sheet-backdrop.show { display: flex; }
@@ -3235,13 +3235,22 @@
       </div>
 
       <!-- Settings panel (hidden by default) -->
-      <div id="aiSheetSettings" style="display:none; flex-direction:column; gap:10px; padding:0 18px 14px; border-bottom:1px solid #f1f5f9; flex-shrink:0;">
+      <div id="aiSheetSettings" style="display:none; flex-direction:column; gap:10px; padding:0 18px 14px; border-bottom:1px solid #f1f5f9; flex-shrink:0; overflow-y:auto; max-height:60vh;">
+        <!-- Category tabs in settings -->
+        <div class="ai-style-row" id="aiSettingsCatRow" style="padding:10px 0 4px; margin:0 -18px; padding-left:18px; padding-right:18px;">
+          <button class="ai-cat-chip active" data-scat="" onclick="selectSettingsCat(this)"><span class="chip-label">🌐 Chung</span></button>
+          <button class="ai-cat-chip" data-scat="fashion" onclick="selectSettingsCat(this)"><span class="chip-label">👗 Thời trang</span></button>
+          <button class="ai-cat-chip" data-scat="beauty" onclick="selectSettingsCat(this)"><span class="chip-label">💄 Mỹ phẩm</span></button>
+          <button class="ai-cat-chip" data-scat="electronics" onclick="selectSettingsCat(this)"><span class="chip-label">📱 Điện tử</span></button>
+          <button class="ai-cat-chip" data-scat="accessories" onclick="selectSettingsCat(this)"><span class="chip-label">💍 Phụ kiện</span></button>
+          <button class="ai-cat-chip" data-scat="health" onclick="selectSettingsCat(this)"><span class="chip-label">💊 Sức khoẻ</span></button>
+        </div>
         <div style="font-size:12px; font-weight:600; color:#6d28d9;">📝 Mô tả phong cách viết</div>
         <textarea id="aiSheetGuideTextarea" rows="3" placeholder="Ví dụ: Viết trẻ trung, vui vẻ, dùng emoji. Nhấn mạnh giá trị thực tế..."
           style="width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid #c4b5fd; border-radius:8px; font-size:13px; font-family:inherit; resize:none; outline:none; background:#faf5ff; color:#1e293b;"
           onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#c4b5fd'"></textarea>
         <div style="display:flex; align-items:center; justify-content:space-between;">
-          <div style="font-size:12px; font-weight:600; color:#6d28d9;">🖼️ Ảnh bài viết mẫu</div>
+          <div style="font-size:12px; font-weight:600; color:#6d28d9;">🖼️ Ảnh bài viết mẫu <span style="font-weight:400;color:#a78bfa;font-size:11px;">(dùng chung cho mọi danh mục)</span></div>
           <label style="padding:4px 10px; background:#7c3aed; color:#fff; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer;">
             + Thêm
             <input type="file" accept="image/*" multiple onchange="uploadAiExamplesFromSheet(this)" style="display:none;">
@@ -5341,6 +5350,9 @@
       _aiGenerating = false;
     }
 
+    let _aiGuidesCache = {};   // { cat: guideText }
+    let _aiSettingsCat = '';   // current cat in settings panel
+
     async function toggleAiSettings() {
       const panel = document.getElementById('aiSheetSettings');
       const main = document.getElementById('aiSheetMain');
@@ -5354,12 +5366,25 @@
         panel.style.display = 'flex';
         main.style.display = 'none';
         btn.style.background = '#ede9fe';
-        // Load current guide
+        // Reset to "Chung" tab
+        document.querySelectorAll('#aiSettingsCatRow .ai-cat-chip').forEach(c => c.classList.toggle('active', c.dataset.scat === ''));
+        _aiSettingsCat = '';
+        _aiGuidesCache = {};
         const res = await fetch(BASE_URL + '/api/ai/guide');
         const data = await res.json();
-        document.getElementById('aiSheetGuideTextarea').value = data.guide || '';
+        _aiGuidesCache = data.guides || { '': data.guide || '' };
+        document.getElementById('aiSheetGuideTextarea').value = _aiGuidesCache[''] || '';
         renderAiSheetExamples(data.examples || []);
       }
+    }
+
+    async function selectSettingsCat(chip) {
+      const cat = chip.dataset.scat;
+      // Save current textarea value before switching
+      _aiGuidesCache[_aiSettingsCat] = document.getElementById('aiSheetGuideTextarea').value;
+      document.querySelectorAll('#aiSettingsCatRow .ai-cat-chip').forEach(c => c.classList.toggle('active', c.dataset.scat === cat));
+      _aiSettingsCat = cat;
+      document.getElementById('aiSheetGuideTextarea').value = _aiGuidesCache[cat] || '';
     }
 
     function renderAiSheetExamples(examples) {
@@ -5391,9 +5416,11 @@
     }
 
     async function saveAiGuideFromSheet() {
-      const guide = document.getElementById('aiSheetGuideTextarea').value;
+      // Save current textarea into cache first
+      _aiGuidesCache[_aiSettingsCat] = document.getElementById('aiSheetGuideTextarea').value;
       const res = await fetch(BASE_URL + '/api/ai/guide', {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guide }),
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guides: _aiGuidesCache }),
       });
       if (res.ok) {
         const btn = document.getElementById('btnSaveSheetGuide');
