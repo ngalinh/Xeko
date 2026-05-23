@@ -1076,7 +1076,7 @@
       body { max-width: 100vw; }
 
       /* Tighter gutter for Session content wrapper (the flex:1 scrollable) */
-      #pageSession > div[style*="flex:1"] { padding: 12px !important; }
+      #pageSession > div[style*="flex:1"] { padding: 12px !important; overflow-x: hidden !important; }
 
       /* Shrink inline panel padding (inline 20px/18px) so cards don't crowd viewport */
       #pageSession > div[style*="flex:1"] > div > div[style*="padding:20px"],
@@ -1085,6 +1085,10 @@
       #pageSession > div[style*="flex:1"] > div > div[style*="padding: 18px"] {
         padding: 14px !important;
       }
+
+      /* Account/channel grids: single column on mobile (minmax min was 440px/380px > viewport) */
+      #fbProfileList { grid-template-columns: 1fr !important; }
+      #profileChannelGrid { grid-template-columns: 1fr !important; }
 
       /* Profile card: stack status+actions nicely, compact icon-only buttons */
       .profile-card {
