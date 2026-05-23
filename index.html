@@ -158,7 +158,7 @@
     }
 
     /* Page containers */
-    .page { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+    .page { display: none; flex-direction: column; flex: 1; overflow: hidden; position: relative; }
     .page.active { display: flex; }
 
     /* Header */
@@ -469,7 +469,7 @@
     .ai-badge-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
     /* Bottom sheet */
     .ai-sheet-backdrop {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.25);
+      position: absolute; inset: 0; background: rgba(0,0,0,0.25);
       z-index: 200; display: none; align-items: flex-end;
     }
     .ai-sheet-backdrop.show { display: flex; }
