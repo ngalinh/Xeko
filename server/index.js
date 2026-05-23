@@ -1488,9 +1488,13 @@ app.post('/api/ai/suggest', upload.array('images', 5), async (req, res) => {
   try {
     const style = req.body.style || 'short';
     const category = req.body.category || '';
-    const guides = JSON.parse(settingsStore.get('ai_content_guides', 'null'))
-      || { '': settingsStore.get('ai_content_guide', '') };
-    const guide = guides[category] || guides[''] || '';
+    const guides = JSON.parse(settingsStore.get('ai_content_guides', 'null')) || {};
+    // Lookup priority: style|category → style|'' → ''|category → ''|''
+    const guide = guides[`${style}|${category}`]
+      || guides[`${style}|`]
+      || guides[`short|${category}`]
+      || guides[`short|`]
+      || settingsStore.get('ai_content_guide', '');
     const store = getExamplesStore();
     const examples = store[category]?.length ? store[category] : (store[''] || []);
     const examplePaths = examples
