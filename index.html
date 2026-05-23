@@ -6791,7 +6791,7 @@
           <img src="${escapeHtml(resolvedUrl)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #ddd;"
             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
           <span style="display:none;width:60px;height:60px;background:#f3f4f6;border-radius:8px;border:1px solid #ddd;align-items:center;justify-content:center;font-size:20px;">🖼️</span>
-          <button type="button" onclick="removeContentExistingImg(${i})"
+          <button type="button" onclick="event.stopPropagation();removeContentExistingImg(${i})"
             style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;">×</button>
         </div>`;
       }).join('');
@@ -6799,7 +6799,7 @@
         const url = URL.createObjectURL(f);
         return `<div style="position:relative;display:inline-block;">
           <img src="${url}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:2px solid #3B82F6;">
-          <button type="button" onclick="removeContentNewImg(${i})"
+          <button type="button" onclick="event.stopPropagation();removeContentNewImg(${i})"
             style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;">×</button>
         </div>`;
       }).join('');
