@@ -9118,9 +9118,17 @@
           };
           const postLinkIcon = (url) => url ? `<a href="${String(url).replace(/"/g,'&quot;')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Mở bài đăng" style="color:#3B82F6; text-decoration:none; flex-shrink:0; display:inline-flex; align-items:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : '';
 
+          const parseSharedGroups = (groupName) => {
+            if (!groupName) return null;
+            try { const a = JSON.parse(groupName); return Array.isArray(a) && a.length ? a : null; } catch { return null; }
+          };
+
           const renderSingleRow = (row, idx, stt) => {
             const time = fmtTime(row.timestamp);
             const groupId = resolveGroupLabel(row.platform, row.group_id, row.group_name);
+            const sharedGroups = (row.target === 'personal+groups' || row.target === 'personal-share-groups') ? parseSharedGroups(row.group_name) : null;
+            const noiDangSub = sharedGroups ? sharedGroups.join(', ') : (groupId !== '-' ? groupId : null);
+            const noiDangTitle = sharedGroups ? sharedGroups.join('\n') : (row.group_id || row.group_name || '');
             const fullMsg = (row.message || '').replace(/"/g,'&quot;');
             const ctipMsg = escapeHtml(JSON.stringify({body: row.message || ''}));
             const msg = row.message ? (row.message.length > 160 ? row.message.substring(0, 160) + '…' : row.message) : '-';
@@ -9131,7 +9139,7 @@
               <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div></td>
               <td style="padding:8px 12px;">${thumbs}</td>
               <td style="padding:8px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${profileName.replace(/"/g,'&quot;')}">${profileName}</td>
-              <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px; display:inline-flex; align-items:center; gap:4px;"><span style="white-space:nowrap;">${noiDangLabel(row)}</span>${postLinkIcon(row.post_url)}</div>${(row.target === 'personal' || groupId === '-') ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
+              <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px; display:inline-flex; align-items:center; gap:4px;"><span style="white-space:nowrap;">${noiDangLabel(row)}</span>${postLinkIcon(row.post_url)}</div>${(row.target === 'personal' || !noiDangSub) ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${noiDangTitle.replace(/"/g,'&quot;')}">${noiDangSub}</div>`}</div></td>
               <td style="padding:8px 12px; vertical-align:middle;">${fmtTimeStacked(row.timestamp)}</td>
               <td style="padding:8px 12px; text-align:center;">${statusBadgeFor(row)}</td>
               <td style="padding:8px 10px; text-align:center;">
@@ -9204,13 +9212,16 @@
               const idx = group.indices[k];
               const profileName = row.profile_name || row.profile || '-';
               const gid = resolveGroupLabel(row.platform, row.group_id, row.group_name);
+              const childSharedGroups = (row.target === 'personal+groups' || row.target === 'personal-share-groups') ? parseSharedGroups(row.group_name) : null;
+              const childNoisub = childSharedGroups ? childSharedGroups.join(', ') : (gid !== '-' ? gid : null);
+              const childNoiTitle = childSharedGroups ? childSharedGroups.join('\n') : (row.group_id || row.group_name || '');
               const childTime = fmtTime(row.timestamp);
               return `<tr id="dashRow-${row.id}" data-batch-child="${groupKey}" style="display:none; border-bottom:1px solid #f3f4f6; background:#fafbfc;">
                 <td style="padding:8px 10px;"><div style="display:flex; align-items:center; gap:6px; padding-left:18px;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><span style="font-size:11px; color:#6b7280;">${stt}.${k + 1}</span></div></td>
                 <td style="background:#eef2f6;"></td>
                 <td style="background:#eef2f6;"></td>
                 <td style="padding:8px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${profileName.replace(/"/g,'&quot;')}">${profileName}</td>
-                <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px; display:inline-flex; align-items:center; gap:4px;"><span style="white-space:nowrap;">${noiDangLabel(row)}</span>${postLinkIcon(row.post_url)}</div>${(row.target === 'personal' || gid === '-') ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(row.group_id || row.group_name || '').replace(/"/g,'&quot;')}">${gid}</div>`}</div></td>
+                <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px; display:inline-flex; align-items:center; gap:4px;"><span style="white-space:nowrap;">${noiDangLabel(row)}</span>${postLinkIcon(row.post_url)}</div>${(row.target === 'personal' || !childNoisub) ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${childNoiTitle.replace(/"/g,'&quot;')}">${childNoisub}</div>`}</div></td>
                 <td style="padding:8px 12px; vertical-align:middle;">${fmtTimeStacked(row.timestamp, true)}</td>
                 <td style="padding:8px 12px; text-align:center;">${statusBadgeFor(row)}</td>
                 <td style="padding:6px 10px; text-align:center;">

@@ -654,8 +654,8 @@ async function shareToGroupsInSettings(page, keywords) {
   const selected = [];
   const missed = [];
   for (const kw of targets) {
-    const ok = await selectGroupCheckbox(page, kw);
-    if (ok) selected.push(kw); else missed.push(kw);
+    const groupName = await selectGroupCheckbox(page, kw);
+    if (groupName !== null) selected.push(groupName); else missed.push(kw);
   }
 
   await randomDelay(500, 1000);
@@ -667,7 +667,7 @@ async function shareToGroupsInSettings(page, keywords) {
   }
   await randomDelay(1500, 2500);
 
-  return { selected: selected.length, missed };
+  return { selected, missed };
 }
 
 // Submit flow RIÊNG cho path share-to-group — tách hẳn submitPost của postToPersonal
@@ -700,7 +700,7 @@ async function submitPostAndShareGroups(page, keywords) {
 
   // Bước 2: trong "Cài đặt bài viết", click "Chia sẻ lên nhóm" → tick group → Xong
   const shareResult = await shareToGroupsInSettings(page, keywords);
-  logger.info(`submitPostAndShareGroups: shared ${shareResult.selected}/${keywords.length}${shareResult.missed.length ? ` (miss: ${shareResult.missed.join(', ')})` : ''}`);
+  logger.info(`submitPostAndShareGroups: shared ${shareResult.selected.length}/${keywords.length}${shareResult.missed.length ? ` (miss: ${shareResult.missed.join(', ')})` : ''}`);
 
   // Bước 3: click "Đăng" để post
   await page.evaluate(() => {
@@ -747,7 +747,7 @@ async function submitPostAndShareGroups(page, keywords) {
   const stillOpen = await page.$('div[role="dialog"] span:has-text("Tạo bài viết"), div[role="dialog"] span:has-text("Cài đặt bài viết")');
   if (stillOpen) {
     await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-share-submit-failed.png') }).catch(() => {});
-    return { success: false, sharedGroups: shareResult.selected };
+    return { success: false, sharedGroups: shareResult.selected, missedGroups: shareResult.missed };
   }
 
   const postUrl = await urlPromise;
@@ -775,7 +775,8 @@ async function selectGroupCheckbox(page, keyword) {
             if (rect.width === 0 || rect.height === 0) return { status: 'hidden' };
             const already = cb.getAttribute('aria-checked') === 'true';
             if (!already) cb.click();
-            return { status: 'ok', alreadyChecked: already };
+            const groupName = row.textContent.trim().replace(/\s+/g, ' ').substring(0, 80);
+            return { status: 'ok', alreadyChecked: already, groupName };
           }
         }
       }
@@ -790,17 +791,17 @@ async function selectGroupCheckbox(page, keyword) {
     }, kwLower);
 
     if (result.status === 'ok') {
-      logger.info(`shareToGroups: nhóm "${keyword}" ${result.alreadyChecked ? '(đã chọn trước)' : 'check OK'}`);
-      return true;
+      logger.info(`shareToGroups: nhóm "${keyword}" (${result.groupName}) ${result.alreadyChecked ? '(đã chọn trước)' : 'check OK'}`);
+      return result.groupName || keyword;
     }
     if (result.status === 'no-dialog') {
       logger.warn(`shareToGroups: nhóm "${keyword}" — không thấy dialog`);
-      return false;
+      return null;
     }
     await randomDelay(300, 500);
   }
   logger.warn(`shareToGroups: nhóm "${keyword}" — không tìm thấy sau ${30} lần scroll`);
-  return false;
+  return null;
 }
 
 async function submitPost(page) {
@@ -1002,7 +1003,7 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
         : funMsg.errPost();
       throw new Error(`${hint} (xem logs/debug-share-submit-failed.png)`);
     }
-    logger.info(`${tag} xong (${Date.now() - t0}ms) ✅ shared=${result.sharedGroups}/${kwList.length}${result.postUrl ? ` postUrl=${result.postUrl}` : ''}`);
+    logger.info(`${tag} xong (${Date.now() - t0}ms) ✅ shared=${Array.isArray(result.sharedGroups) ? result.sharedGroups.length : 0}/${kwList.length}${result.postUrl ? ` postUrl=${result.postUrl}` : ''}`);
     return { success: true, target: 'personal+groups', postUrl: result.postUrl || null, groups: kwList, sharedGroups: result.sharedGroups, missedGroups: result.missedGroups };
   } catch (error) {
     logger.error(`${tag} FAIL sau ${Date.now() - t0}ms: ${error.message}`);
