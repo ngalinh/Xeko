@@ -65,7 +65,7 @@ Yêu cầu chung:
 
   const body = {
     contents: [{ parts }],
-    generationConfig: { temperature: 0.8, maxOutputTokens: 1024 },
+    generationConfig: { temperature: 0.8, maxOutputTokens: 2048 },
   };
 
   const res = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
