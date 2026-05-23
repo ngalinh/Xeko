@@ -1488,8 +1488,8 @@ app.post('/api/ai/suggest', upload.array('images', 5), async (req, res) => {
   try {
     const style = req.body.style || 'short';
     const category = req.body.category || '';
+    const productName = (req.body.productName || '').trim();
     const guides = JSON.parse(settingsStore.get('ai_content_guides', 'null')) || {};
-    // Lookup priority: style|category → style|'' → ''|category → ''|''
     const guide = guides[`${style}|${category}`]
       || guides[`${style}|`]
       || guides[`short|${category}`]
@@ -1501,7 +1501,7 @@ app.post('/api/ai/suggest', upload.array('images', 5), async (req, res) => {
       .map(e => localUrlToPath(e.imageUrl))
       .filter(p => p && require('fs').existsSync(p));
     const imagePaths = files.map(f => f.path);
-    const suggestions = await suggestContent(imagePaths, guide, examplePaths, style, category);
+    const suggestions = await suggestContent(imagePaths, guide, examplePaths, style, category, productName);
     res.json({ suggestions });
   } catch (err) {
     logger.error('AI suggest error:', err.message);

@@ -3312,6 +3312,13 @@
             <span class="chip-label">💊 Sức khoẻ</span>
           </button>
         </div>
+        <!-- Product focus input -->
+        <div style="padding:8px 18px 10px; border-bottom:1px solid #f1f5f9; flex-shrink:0;">
+          <input id="aiProductName" type="text" placeholder="🎯 Tên / mô tả sản phẩm cần focus  (vd: áo sơ mi trắng Ralph Lauren)"
+            style="width:100%; box-sizing:border-box; padding:8px 12px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:13px; outline:none; color:#1e293b; background:#f8fafc; font-family:inherit;"
+            onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'"
+            oninput="_aiStyleCache={}" onkeydown="if(event.key==='Enter'){event.preventDefault();runAiGenerate();}">
+        </div>
         <div class="ai-result-area">
           <div class="ai-result-text loading" id="aiResultText">Chọn phong cách và nhấn tạo content...</div>
         </div>
@@ -5346,6 +5353,7 @@
       document.getElementById('aiSettingsBtn').style.background = '';
       document.querySelectorAll('.ai-style-chip').forEach(c => c.classList.toggle('active', c.dataset.style === 'short'));
       document.querySelectorAll('.ai-cat-chip').forEach(c => c.classList.toggle('active', c.dataset.cat === ''));
+      document.getElementById('aiProductName').value = '';
       _aiCurrentStyle = 'short';
       _aiCurrentCategory = '';
       runAiGenerate();
@@ -5464,18 +5472,19 @@
       if (e.target === document.getElementById('aiSheetBackdrop')) closeAiSheet();
     }
 
+    function _aiCacheKey() {
+      const p = (document.getElementById('aiProductName')?.value || '').trim();
+      return `${_aiCurrentStyle}|${_aiCurrentCategory}|${p}`;
+    }
+
     function selectAiStyle(chip) {
       const style = chip.dataset.style;
       if (style === _aiCurrentStyle && !_aiGenerating) return;
       document.querySelectorAll('.ai-style-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       _aiCurrentStyle = style;
-      const cacheKey = `${style}|${_aiCurrentCategory}`;
-      if (_aiStyleCache[cacheKey]) {
-        showAiResult(_aiStyleCache[cacheKey]);
-      } else {
-        runAiGenerate();
-      }
+      const cached = _aiStyleCache[_aiCacheKey()];
+      if (cached) showAiResult(cached); else runAiGenerate();
     }
 
     function selectAiCategory(chip) {
@@ -5484,12 +5493,8 @@
       document.querySelectorAll('.ai-cat-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       _aiCurrentCategory = cat;
-      const cacheKey = `${_aiCurrentStyle}|${cat}`;
-      if (_aiStyleCache[cacheKey]) {
-        showAiResult(_aiStyleCache[cacheKey]);
-      } else {
-        runAiGenerate();
-      }
+      const cached = _aiStyleCache[_aiCacheKey()];
+      if (cached) showAiResult(cached); else runAiGenerate();
     }
 
     async function runAiGenerate() {
@@ -5503,15 +5508,18 @@
       applyBtn.disabled = true;
       retryBtn.disabled = true;
       try {
+        const productName = (document.getElementById('aiProductName')?.value || '').trim();
+        const cacheKey = `${_aiCurrentStyle}|${_aiCurrentCategory}|${productName}`;
         const form = new FormData();
         selectedFiles.slice(0, 5).forEach(f => form.append('images', f));
         form.append('style', _aiCurrentStyle);
         form.append('category', _aiCurrentCategory);
+        if (productName) form.append('productName', productName);
         const res = await fetch(BASE_URL + '/api/ai/suggest', { method: 'POST', body: form });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Lỗi không xác định');
         const text = (data.suggestions || [])[0] || '';
-        _aiStyleCache[`${_aiCurrentStyle}|${_aiCurrentCategory}`] = text;
+        _aiStyleCache[cacheKey] = text;
         showAiResult(text);
       } catch (err) {
         resultEl.className = 'ai-result-text';

@@ -10,7 +10,7 @@ function fileToInlinePart(filePath) {
   return { inline_data: { mime_type: mimeMap[ext] || 'image/jpeg', data: data.toString('base64') } };
 }
 
-async function suggestContent(imagePaths, contentGuide, exampleImagePaths = [], style = 'short', category = '') {
+async function suggestContent(imagePaths, contentGuide, exampleImagePaths = [], style = 'short', category = '', productName = '') {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY chưa được cấu hình');
 
@@ -48,8 +48,12 @@ async function suggestContent(imagePaths, contentGuide, exampleImagePaths = [], 
   };
   const styleInstruction = styleGuides[style] || styleGuides.short;
 
+  const productFocus = productName
+    ? `\nSản phẩm cần tập trung: "${productName}" — hãy viết content xoay quanh sản phẩm này, bỏ qua các yếu tố khác trong ảnh.`
+    : '';
+
   parts.push({
-    text: `Bạn là chuyên gia viết content mạng xã hội.${guideSection}${catInstruction}
+    text: `Bạn là chuyên gia viết content mạng xã hội.${guideSection}${catInstruction}${productFocus}
 Hãy viết content để đăng Facebook/Zalo cho sản phẩm trong ảnh.
 
 Phong cách yêu cầu: ${styleInstruction}
