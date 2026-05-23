@@ -456,17 +456,17 @@
     }
     /* AI badge button on textarea */
     .ai-badge-btn {
-      position: absolute; top: 6px; right: 6px;
+      position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
       background: linear-gradient(135deg, #6366f1, #8b5cf6);
       color: #fff; border: none; border-radius: 10px;
-      padding: 3px 9px; font-size: 11px; font-weight: 700;
+      padding: 4px 10px; font-size: 11px; font-weight: 700;
       cursor: pointer; line-height: 1.4; letter-spacing: 0.01em;
       box-shadow: 0 1px 6px rgba(99,102,241,0.35);
       transition: opacity 0.15s, transform 0.1s;
       z-index: 2;
     }
-    .ai-badge-btn:hover { opacity: 0.9; transform: scale(1.04); }
-    .ai-badge-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .ai-badge-btn:hover { opacity: 0.9; transform: translateY(-50%) scale(1.04); }
+    .ai-badge-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: translateY(-50%); }
     /* Bottom sheet */
     .ai-sheet-backdrop {
       position: absolute; inset: 0; background: rgba(0,0,0,0.25);
