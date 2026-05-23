@@ -3616,40 +3616,6 @@
         <button id="contentBatchDeleteBtn" onclick="deleteSelectedContents()" style="display:none; padding:9px 18px; background:#fee2e2; color:#b91c1c; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; align-items:center; gap:6px; white-space:nowrap; flex-shrink:0;">
           <svg class="xi" style="width:15px;height:15px;"><use href="#ic-trash"/></svg> Xoá đã chọn (<span id="contentSelectedCount">0</span>)
         </button>
-        <button onclick="toggleAiGuidePanel()" title="Cấu hình hướng dẫn giọng văn cho AI"
-          style="padding:9px 14px; background:#ede9fe; color:#6d28d9; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:5px; flex-shrink:0;">
-          ✨ Hướng dẫn AI
-        </button>
-      </div>
-
-      <!-- AI Guide Panel -->
-      <div id="aiGuidePanel" style="display:none; background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:12px; padding:16px; margin-bottom:16px;">
-        <div style="font-size:13px; font-weight:700; color:#6d28d9; margin-bottom:4px;">✨ Bộ hướng dẫn giọng văn cho AI</div>
-        <div style="font-size:12px; color:#7c3aed; margin-bottom:12px;">AI sẽ học phong cách từ hướng dẫn và các bài viết mẫu dưới đây để tạo content phù hợp thương hiệu của bạn.</div>
-
-        <!-- Phần 1: Text guide -->
-        <div style="font-size:12px; font-weight:600; color:#6d28d9; margin-bottom:6px;">📝 Mô tả phong cách viết</div>
-        <textarea id="aiGuideTextarea" rows="4" placeholder="Ví dụ: Viết theo phong cách trẻ trung, vui vẻ. Dùng emoji phù hợp. Tông màu tích cực. Nhấn mạnh vào giá trị thực tế của sản phẩm..."
-          style="width:100%; box-sizing:border-box; padding:10px 12px; border:1.5px solid #c4b5fd; border-radius:8px; font-size:13px; font-family:inherit; resize:vertical; outline:none; background:#fff; color:#1e293b;"
-          onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#c4b5fd'"></textarea>
-
-        <!-- Phần 2: Ảnh ví dụ bài viết mẫu -->
-        <div style="margin-top:14px;">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-            <div style="font-size:12px; font-weight:600; color:#6d28d9;">🖼️ Ảnh chụp bài viết mẫu <span style="font-weight:400; color:#9f82d9;">(AI sẽ học phong cách từ các ví dụ này)</span></div>
-            <label style="padding:5px 12px; background:#7c3aed; color:#fff; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:4px; flex-shrink:0;">
-              + Thêm ảnh mẫu
-              <input type="file" id="aiExampleFileInput" accept="image/*" multiple onchange="uploadAiExamples(this)" style="display:none;">
-            </label>
-          </div>
-          <div id="aiExamplesGrid" style="display:flex; flex-wrap:wrap; gap:8px; min-height:0;"></div>
-          <div id="aiExamplesEmpty" style="font-size:12px; color:#a78bfa; padding:8px 0; display:none;">Chưa có ảnh mẫu nào. Thêm ảnh chụp màn hình bài viết để AI học phong cách.</div>
-        </div>
-
-        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
-          <button onclick="toggleAiGuidePanel()" style="padding:7px 16px; background:#e9e9f5; color:#555; border:none; border-radius:8px; font-size:13px; cursor:pointer;">Đóng</button>
-          <button onclick="saveAiGuide()" id="btnSaveAiGuide" style="padding:7px 16px; background:#7c3aed; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">Lưu hướng dẫn</button>
-        </div>
       </div>
 
       <!-- Loading -->
@@ -5414,14 +5380,14 @@
       files.forEach(f => form.append('images', f));
       const res = await fetch(BASE_URL + '/api/ai/guide/examples', { method: 'POST', body: form });
       const data = await res.json();
-      if (res.ok) { renderAiSheetExamples(data.examples || []); renderAiExamples(data.examples || []); }
+      if (res.ok) renderAiSheetExamples(data.examples || []);
       input.value = '';
     }
 
     async function deleteAiExampleFromSheet(index) {
       const res = await fetch(BASE_URL + '/api/ai/guide/examples/' + index, { method: 'DELETE' });
       const data = await res.json();
-      if (res.ok) { renderAiSheetExamples(data.examples || []); renderAiExamples(data.examples || []); }
+      if (res.ok) renderAiSheetExamples(data.examples || []);
     }
 
     async function saveAiGuideFromSheet() {
@@ -6502,80 +6468,6 @@
     let _contentItems = [];
     let _contentNewImages = []; // File[] chờ upload khi save
     let _contentProfilesCache = []; // cache profiles từ /api/accounts
-
-    async function toggleAiGuidePanel() {
-      const panel = document.getElementById('aiGuidePanel');
-      const isHidden = panel.style.display === 'none';
-      if (isHidden) {
-        panel.style.display = 'block';
-        const res = await fetch(BASE_URL + '/api/ai/guide');
-        const data = await res.json();
-        document.getElementById('aiGuideTextarea').value = data.guide || '';
-        renderAiExamples(data.examples || []);
-      } else {
-        panel.style.display = 'none';
-      }
-    }
-
-    function renderAiExamples(examples) {
-      const grid = document.getElementById('aiExamplesGrid');
-      const empty = document.getElementById('aiExamplesEmpty');
-      if (!grid) return;
-      if (examples.length === 0) {
-        grid.innerHTML = '';
-        if (empty) empty.style.display = 'block';
-        return;
-      }
-      if (empty) empty.style.display = 'none';
-      grid.innerHTML = examples.map((ex, i) => `
-        <div style="position:relative; display:inline-block;">
-          <img src="${BASE_URL}${ex.imageUrl}" alt="Ví dụ ${i+1}"
-            style="width:80px; height:80px; object-fit:cover; border-radius:8px; border:2px solid #c4b5fd; cursor:pointer;"
-            onclick="window.open('${BASE_URL}${ex.imageUrl}','_blank')">
-          <button onclick="deleteAiExample(${i})" title="Xóa ví dụ này"
-            style="position:absolute; top:-6px; right:-6px; width:20px; height:20px; background:#ef4444; color:#fff; border:2px solid #fff; border-radius:50%; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; line-height:1;">✕</button>
-        </div>`).join('');
-    }
-
-    async function uploadAiExamples(input) {
-      const files = Array.from(input.files);
-      if (!files.length) return;
-      const label = input.closest('label');
-      const origText = label ? label.childNodes[0].textContent : '';
-      if (label) label.childNodes[0].textContent = '⏳ Đang tải...';
-      try {
-        const form = new FormData();
-        files.forEach(f => form.append('images', f));
-        const res = await fetch(BASE_URL + '/api/ai/guide/examples', { method: 'POST', body: form });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Lỗi upload');
-        renderAiExamples(data.examples || []);
-      } catch (err) {
-        alert('Lỗi upload ảnh mẫu: ' + err.message);
-      } finally {
-        if (label) label.childNodes[0].textContent = origText;
-        input.value = '';
-      }
-    }
-
-    async function deleteAiExample(index) {
-      const res = await fetch(BASE_URL + '/api/ai/guide/examples/' + index, { method: 'DELETE' });
-      const data = await res.json();
-      if (res.ok) renderAiExamples(data.examples || []);
-    }
-
-    async function saveAiGuide() {
-      const guide = document.getElementById('aiGuideTextarea').value;
-      const res = await fetch(BASE_URL + '/api/ai/guide', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ guide }),
-      });
-      if (res.ok) {
-        const btn = document.getElementById('btnSaveAiGuide');
-        if (btn) { const orig = btn.textContent; btn.textContent = '✅ Đã lưu!'; setTimeout(() => btn.textContent = orig, 1500); }
-      }
-    }
 
     async function loadContents() {
       const search = (document.getElementById('contentSearch') || {}).value || '';
