@@ -3250,7 +3250,7 @@
           style="width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid #c4b5fd; border-radius:8px; font-size:13px; font-family:inherit; resize:none; outline:none; background:#faf5ff; color:#1e293b;"
           onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#c4b5fd'"></textarea>
         <div style="display:flex; align-items:center; justify-content:space-between;">
-          <div style="font-size:12px; font-weight:600; color:#6d28d9;">🖼️ Ảnh bài viết mẫu <span style="font-weight:400;color:#a78bfa;font-size:11px;">(dùng chung cho mọi danh mục)</span></div>
+          <div style="font-size:12px; font-weight:600; color:#6d28d9;">🖼️ Ảnh bài viết mẫu</div>
           <label style="padding:4px 10px; background:#7c3aed; color:#fff; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer;">
             + Thêm
             <input type="file" accept="image/*" multiple onchange="uploadAiExamplesFromSheet(this)" style="display:none;">
@@ -5350,8 +5350,9 @@
       _aiGenerating = false;
     }
 
-    let _aiGuidesCache = {};   // { cat: guideText }
-    let _aiSettingsCat = '';   // current cat in settings panel
+    let _aiGuidesCache = {};          // { cat: guideText }
+    let _aiExamplesByCat = {};        // { cat: [{imageUrl},...] }
+    let _aiSettingsCat = '';
 
     async function toggleAiSettings() {
       const panel = document.getElementById('aiSheetSettings');
@@ -5366,31 +5367,32 @@
         panel.style.display = 'flex';
         main.style.display = 'none';
         btn.style.background = '#ede9fe';
-        // Reset to "Chung" tab
         document.querySelectorAll('#aiSettingsCatRow .ai-cat-chip').forEach(c => c.classList.toggle('active', c.dataset.scat === ''));
         _aiSettingsCat = '';
         _aiGuidesCache = {};
+        _aiExamplesByCat = {};
         const res = await fetch(BASE_URL + '/api/ai/guide');
         const data = await res.json();
-        _aiGuidesCache = data.guides || { '': data.guide || '' };
+        _aiGuidesCache = data.guides || { '': '' };
+        _aiExamplesByCat = data.examplesByCategory || {};
         document.getElementById('aiSheetGuideTextarea').value = _aiGuidesCache[''] || '';
-        renderAiSheetExamples(data.examples || []);
+        renderAiSheetExamples(_aiExamplesByCat[''] || []);
       }
     }
 
     async function selectSettingsCat(chip) {
       const cat = chip.dataset.scat;
-      // Save current textarea value before switching
       _aiGuidesCache[_aiSettingsCat] = document.getElementById('aiSheetGuideTextarea').value;
       document.querySelectorAll('#aiSettingsCatRow .ai-cat-chip').forEach(c => c.classList.toggle('active', c.dataset.scat === cat));
       _aiSettingsCat = cat;
       document.getElementById('aiSheetGuideTextarea').value = _aiGuidesCache[cat] || '';
+      renderAiSheetExamples(_aiExamplesByCat[cat] || []);
     }
 
     function renderAiSheetExamples(examples) {
       const grid = document.getElementById('aiSheetExamplesGrid');
       if (!grid) return;
-      if (examples.length === 0) { grid.innerHTML = '<span style="font-size:11px;color:#a78bfa;">Chưa có ảnh mẫu</span>'; return; }
+      if (!examples.length) { grid.innerHTML = '<span style="font-size:11px;color:#a78bfa;">Chưa có ảnh mẫu</span>'; return; }
       grid.innerHTML = examples.map((ex, i) => `
         <div style="position:relative;">
           <img src="${BASE_URL}${ex.imageUrl}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:2px solid #c4b5fd;cursor:pointer;" onclick="window.open('${BASE_URL}${ex.imageUrl}','_blank')">
@@ -5403,16 +5405,24 @@
       if (!files.length) return;
       const form = new FormData();
       files.forEach(f => form.append('images', f));
+      form.append('category', _aiSettingsCat);
       const res = await fetch(BASE_URL + '/api/ai/guide/examples', { method: 'POST', body: form });
       const data = await res.json();
-      if (res.ok) renderAiSheetExamples(data.examples || []);
+      if (res.ok) {
+        _aiExamplesByCat[_aiSettingsCat] = data.examples || [];
+        renderAiSheetExamples(data.examples || []);
+      }
       input.value = '';
     }
 
     async function deleteAiExampleFromSheet(index) {
-      const res = await fetch(BASE_URL + '/api/ai/guide/examples/' + index, { method: 'DELETE' });
+      const catParam = _aiSettingsCat === '' ? '_' : _aiSettingsCat;
+      const res = await fetch(`${BASE_URL}/api/ai/guide/examples/${catParam}/${index}`, { method: 'DELETE' });
       const data = await res.json();
-      if (res.ok) renderAiSheetExamples(data.examples || []);
+      if (res.ok) {
+        _aiExamplesByCat[_aiSettingsCat] = data.examples || [];
+        renderAiSheetExamples(data.examples || []);
+      }
     }
 
     async function saveAiGuideFromSheet() {
