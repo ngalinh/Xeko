@@ -4031,9 +4031,9 @@
         </div>
         <input type="hidden" id="groupModalCategory" value="">
         <div id="groupModalCategoryDropdown"
-          style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1px solid #ddd; border-radius:8px; z-index:10000; max-height:220px; overflow-y:auto; box-shadow:0 4px 16px rgba(0,0,0,0.12);">
-          <div id="groupModalCategoryOptions"></div>
-          <div style="padding:6px 8px; border-top:1px solid #f0f0f0; position:sticky; bottom:0; background:#fff;">
+          style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1px solid #ddd; border-radius:8px; z-index:10000; box-shadow:0 4px 16px rgba(0,0,0,0.12); overflow:hidden;">
+          <div id="groupModalCategoryOptions" style="max-height:200px; overflow-y:auto;"></div>
+          <div style="padding:6px 8px; border-top:1px solid #f0f0f0; background:#fff;">
             <div id="groupModalCategoryAddBtn" onclick="showAddCategoryInput(event)"
               style="display:flex; align-items:center; gap:8px; padding:7px 8px; border-radius:6px; cursor:pointer; color:#3B82F6; font-size:13px; font-weight:500;"
               onmouseover="this.style.background='#f0f7ff'" onmouseout="this.style.background='transparent'">
