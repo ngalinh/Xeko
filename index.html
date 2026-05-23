@@ -4031,7 +4031,7 @@
         </div>
         <input type="hidden" id="groupModalCategory" value="">
         <div id="groupModalCategoryDropdown"
-          style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1px solid #ddd; border-radius:8px; z-index:10000; box-shadow:0 4px 16px rgba(0,0,0,0.12); overflow:hidden;">
+          style="display:none; position:fixed; background:#fff; border:1px solid #ddd; border-radius:8px; z-index:10000; box-shadow:0 4px 16px rgba(0,0,0,0.12); overflow:hidden;">
           <div id="groupModalCategoryOptions" style="max-height:200px; overflow-y:auto;"></div>
           <div style="padding:6px 8px; border-top:1px solid #f0f0f0; background:#fff;">
             <div id="groupModalCategoryAddBtn" onclick="showAddCategoryInput(event)"
@@ -7687,6 +7687,13 @@
       const dd = document.getElementById('groupModalCategoryDropdown');
       if (!dd) return;
       if (dd.style.display === 'none' || !dd.style.display) {
+        const trigger = document.getElementById('groupModalCategoryTrigger');
+        const rect = trigger.getBoundingClientRect();
+        dd.style.position = 'fixed';
+        dd.style.top = (rect.bottom + 4) + 'px';
+        dd.style.left = rect.left + 'px';
+        dd.style.width = rect.width + 'px';
+        dd.style.right = '';
         renderCategoryDropdownOptions();
         dd.style.display = 'block';
         cancelAddCategory();
