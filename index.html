@@ -3261,6 +3261,10 @@
           <button id="pickerTabZalo" onclick="setPickerTab('zalo')"
             style="flex:1; padding:5px 8px; border:none; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; background:transparent; color:#64748b;">Zalo</button>
         </div>
+        <select id="pickerCategoryFilter" onchange="setPickerCategory(this.value)"
+          style="width:100%; padding:5px 8px; border:1px solid #ddd; border-radius:7px; font-size:12px; background:#fff; color:#555; margin-bottom:6px; box-sizing:border-box; outline:none;">
+          <option value="">Tất cả phân loại</option>
+        </select>
         <input id="pickerSearch" type="text" placeholder="Tìm group..."
           oninput="renderPickerList()"
           style="width:100%; padding:6px 10px; border:1px solid #ddd; border-radius:7px; font-size:12px; box-sizing:border-box; margin-bottom:8px; outline:none;">
@@ -7675,6 +7679,7 @@
     let zaloAccountsCache = [];
     let pickerProfileKey = null;
     let pickerTab = 'all';
+    let pickerCategoryFilter = '';
     const expandedProfiles = new Set();
 
     function toggleProfileExpand(key) {
@@ -7821,6 +7826,7 @@
     function openGroupPicker(profileKey, btnEl) {
       pickerProfileKey = profileKey;
       pickerTab = 'all';
+      pickerCategoryFilter = '';
       const popup = document.getElementById('groupPickerPopup');
       if (!popup) return;
       document.getElementById('pickerSearch').value = '';
@@ -7847,6 +7853,7 @@
 
     function setPickerTab(tab) {
       pickerTab = tab;
+      pickerCategoryFilter = '';
       ['all','fb','zalo'].forEach(t => {
         const btn = document.getElementById('pickerTab' + t.charAt(0).toUpperCase() + t.slice(1));
         if (!btn) return;
@@ -7854,6 +7861,28 @@
         btn.style.color = t === tab ? '#fff' : '#64748b';
       });
       renderPickerList();
+    }
+
+    function setPickerCategory(value) {
+      pickerCategoryFilter = value || '';
+      renderPickerList();
+    }
+
+    function populatePickerCategoryOptions() {
+      const select = document.getElementById('pickerCategoryFilter');
+      if (!select) return;
+      let all = [];
+      if (pickerTab !== 'zalo') all.push(...(channelsData.fbGroups || []), ...(channelsData.fbPages || []));
+      if (pickerTab !== 'fb') all.push(...(channelsData.zaloGroups || []));
+      const cats = [...new Set(all.map(g => (g.category || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
+      const hasUncategorized = all.some(g => !(g.category || '').trim());
+      const opts = ['<option value="">Tất cả phân loại</option>'];
+      cats.forEach(c => opts.push(`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`));
+      if (hasUncategorized) opts.push('<option value="__none__">— Chưa phân loại —</option>');
+      select.innerHTML = opts.join('');
+      const valid = pickerCategoryFilter === '' || pickerCategoryFilter === '__none__' || cats.includes(pickerCategoryFilter);
+      select.value = valid ? pickerCategoryFilter : '';
+      if (!valid) pickerCategoryFilter = '';
     }
 
     function renderPickerList() {
@@ -7865,10 +7894,17 @@
       const assignedPages = new Set(pCh.fbPages || []);
       const assignedZalo = new Set(pCh.zaloGroups || []);
 
+      populatePickerCategoryOptions();
+
       let fbGroups = pickerTab !== 'zalo' ? (channelsData.fbGroups || []).map(g => ({ ...g, _type: 'fb' })) : [];
       let fbPages = pickerTab !== 'zalo' ? (channelsData.fbPages || []).map(g => ({ ...g, _type: 'page' })) : [];
       let zaloGroups = pickerTab !== 'fb' ? (channelsData.zaloGroups || []).map(g => ({ ...g, _type: 'zalo' })) : [];
       let items = [...fbGroups, ...fbPages, ...zaloGroups];
+      if (pickerCategoryFilter === '__none__') {
+        items = items.filter(g => !(g.category || '').trim());
+      } else if (pickerCategoryFilter) {
+        items = items.filter(g => (g.category || '').trim() === pickerCategoryFilter);
+      }
       if (q) items = items.filter(g => (g.name || '').toLowerCase().includes(q) || (g.key || '').toLowerCase().includes(q));
 
       if (items.length === 0) {
