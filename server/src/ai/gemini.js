@@ -10,7 +10,7 @@ function fileToInlinePart(filePath) {
   return { inline_data: { mime_type: mimeMap[ext] || 'image/jpeg', data: data.toString('base64') } };
 }
 
-async function suggestContent(imagePaths, contentGuide, exampleImagePaths = []) {
+async function suggestContent(imagePaths, contentGuide, exampleImagePaths = [], style = 'short') {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY chưa được cấu hình');
 
@@ -30,17 +30,24 @@ async function suggestContent(imagePaths, contentGuide, exampleImagePaths = []) 
     parts.push(fileToInlinePart(p));
   }
 
+  const styleGuides = {
+    short:    'Viết 1 bài viết NGẮN GỌN, súc tích 2-3 dòng + 3-5 hashtag. Đi thẳng vào điểm nổi bật nhất.',
+    detailed: 'Viết 1 bài viết CHI TIẾT 5-8 dòng, nêu đầy đủ tính năng, chất liệu, lợi ích + hashtag.',
+    story:    'Viết 1 bài viết theo phong cách KỂ CHUYỆN cảm xúc 5-7 dòng, tạo kết nối với người đọc + hashtag.',
+    promo:    'Viết 1 bài viết QUẢNG CÁO mạnh, có call-to-action rõ ràng, tạo urgency (giảm giá/limited), 4-6 dòng + hashtag.',
+    viral:    'Viết 1 bài viết theo phong cách VIRAL, độc đáo gây tò mò, dùng hook mạnh đầu tiên, 4-6 dòng + hashtag.',
+  };
+  const styleInstruction = styleGuides[style] || styleGuides.short;
+
   parts.push({
     text: `Bạn là chuyên gia viết content mạng xã hội.${guideSection}
-Hãy viết 2 đề xuất content để đăng Facebook/Zalo cho sản phẩm trong ảnh.
+Hãy viết content để đăng Facebook/Zalo cho sản phẩm trong ảnh.
 
-Yêu cầu:
-- Mỗi đề xuất là 1 bài viết hoàn chỉnh, bao gồm hashtag liên quan
-- Đề xuất 1: ngắn gọn, súc tích (2-4 dòng)
-- Đề xuất 2: chi tiết hơn, kể câu chuyện hoặc nêu lợi ích sản phẩm (4-8 dòng)
+Phong cách yêu cầu: ${styleInstruction}
+
+Yêu cầu chung:
 - Viết tự nhiên, phù hợp mạng xã hội Việt Nam
-- Chỉ trả về nội dung 2 đề xuất, phân cách bằng dòng "---" (3 dấu gạch ngang)
-- Không đánh số, không tiêu đề`,
+- Chỉ trả về 1 bài viết hoàn chỉnh duy nhất, không tiêu đề, không đánh số`,
   });
 
   const body = {

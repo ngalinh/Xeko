@@ -1480,7 +1480,8 @@ app.post('/api/ai/suggest', upload.array('images', 5), async (req, res) => {
       .map(e => localUrlToPath(e.imageUrl))
       .filter(p => p && require('fs').existsSync(p));
     const imagePaths = files.map(f => f.path);
-    const suggestions = await suggestContent(imagePaths, guide, examplePaths);
+    const style = req.body.style || 'short';
+    const suggestions = await suggestContent(imagePaths, guide, examplePaths, style);
     res.json({ suggestions });
   } catch (err) {
     logger.error('AI suggest error:', err.message);
