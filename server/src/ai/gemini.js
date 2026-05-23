@@ -33,9 +33,7 @@ async function suggestContent(imagePaths, contentGuide, exampleImagePaths = [], 
   const categoryContext = {
     fashion:     'Sản phẩm thuộc ngành THỜI TRANG. Dùng từ ngữ thời trang (chất liệu, kiểu dáng, phối đồ, phong cách), gợi cảm giác tự tin và thẩm mỹ.',
     beauty:      'Sản phẩm thuộc ngành MỸ PHẨM / LÀM ĐẸP. Nhấn mạnh thành phần, công dụng, kết quả thấy rõ, cảm giác trên da.',
-    food:        'Sản phẩm là ĐỒ ĂN / ĐỒ UỐNG. Mô tả hương vị, nguyên liệu, cảm giác khi thưởng thức, tạo cảm giác thèm ăn.',
     electronics: 'Sản phẩm thuộc ngành ĐIỆN TỬ / CÔNG NGHỆ. Nêu thông số kỹ thuật nổi bật, tính năng thực tế, lợi ích người dùng.',
-    furniture:   'Sản phẩm là NỘI THẤT / GIA DỤNG. Nhấn mạnh thiết kế, chất liệu, sự tiện dụng, không gian sử dụng.',
     accessories: 'Sản phẩm là PHỤ KIỆN (túi, giày, trang sức...). Tập trung vào thiết kế, chất liệu, sự phối hợp với outfit.',
     health:      'Sản phẩm thuộc ngành SỨC KHOẺ / DINH DƯỠNG. Nhấn mạnh lợi ích sức khoẻ, thành phần tự nhiên, độ an toàn.',
   };
