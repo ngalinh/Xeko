@@ -5341,10 +5341,12 @@
     let _aiCurrentStyle = 'short';
     let _aiCurrentCategory = '';
     let _aiGenerating = false;
+    let _aiCurrentResult = '';
 
     function openAiSheet() {
       if (selectedFiles.length === 0) return;
       _aiStyleCache = {};
+      _aiCurrentResult = '';
       const backdrop = document.getElementById('aiSheetBackdrop');
       backdrop.classList.add('show');
       document.body.style.overflow = 'hidden';
@@ -5503,6 +5505,7 @@
       const resultEl = document.getElementById('aiResultText');
       const applyBtn = document.getElementById('aiApplyBtn');
       const retryBtn = document.getElementById('aiRetryBtn');
+      _aiCurrentResult = '';
       resultEl.className = 'ai-result-text loading';
       resultEl.innerHTML = '<span class="ai-spinner"></span> AI đang phân tích ảnh sản phẩm...';
       applyBtn.disabled = true;
@@ -5532,6 +5535,7 @@
     }
 
     function showAiResult(text) {
+      _aiCurrentResult = text;
       const resultEl = document.getElementById('aiResultText');
       const applyBtn = document.getElementById('aiApplyBtn');
       resultEl.className = 'ai-result-text';
@@ -5540,10 +5544,9 @@
     }
 
     function applyAiResult() {
-      const text = _aiStyleCache[_aiCurrentStyle];
-      if (!text) return;
+      if (!_aiCurrentResult) return;
       const input = document.getElementById('msgInput');
-      input.value = text;
+      input.value = _aiCurrentResult;
       autoGrowMsgInput(input);
       closeAiSheet();
       input.focus();
