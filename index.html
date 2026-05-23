@@ -3228,17 +3228,17 @@
             <div id="groupsTableWrap" style="overflow-x:hidden;">
               <table id="groupsTable" style="width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0 4px; font-size:13px;">
                 <colgroup>
-                  <col style="width:80px;">
-                  <col style="width:180px;">
+                  <col style="width:70px;">
                   <col style="width:auto;">
-                  <col style="width:120px;">
+                  <col style="width:160px;">
+                  <col style="width:110px;">
                   <col style="width:80px;">
                 </colgroup>
                 <thead>
                   <tr style="text-align:left; color:#888; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">
                     <th style="padding:6px 10px; font-weight:600;">Loại</th>
-                    <th style="padding:6px 10px; font-weight:600;">Key</th>
-                    <th style="padding:6px 10px; font-weight:600;">Tên / ID</th>
+                    <th style="padding:6px 10px; font-weight:600;">Tên hiển thị</th>
+                    <th style="padding:6px 10px; font-weight:600;">ID</th>
                     <th style="padding:6px 10px; font-weight:600;">Phân loại</th>
                     <th style="padding:6px 10px; font-weight:600; text-align:right;">Hành động</th>
                   </tr>
@@ -7535,18 +7535,18 @@
           : isPage
             ? `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#f3e8ff; color:#7c3aed; border-radius:20px; font-size:11px; font-weight:600;">📄 Page</span>`
             : `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e6f2ff; color:#1E3A8A; border-radius:20px; font-size:11px; font-weight:600;"><svg class="xi" style="width:12px;height:12px;"><use href="#ic-zalo"/></svg>Zalo</span>`;
-        const sub = isFb ? `ID: ${escapeHtml(g.id)}` : isPage ? `Page ID: ${escapeHtml(g.id)}` : `Salework: ${escapeHtml(g.oid)}`;
-        const keyColor = isFb ? '#3B82F6' : '#2563EB';
+        const idVal = isFb || isPage ? escapeHtml(g.id || '') : escapeHtml(g.oid || '');
+        const idLabel = isFb ? 'Group ID' : isPage ? 'Page ID' : 'Salework';
         const category = g.category ? escapeHtml(g.category) : '';
-        const nameTitle = category ? `${escapeHtml(g.name)} · ${category}` : escapeHtml(g.name);
         const categoryCell = category ? escapeHtml(g.category) : '<span style="color:#bbb; font-style:italic;">—</span>';
         return `
           <tr style="background:#fafafa;">
             <td style="padding:9px 10px; border-top-left-radius:8px; border-bottom-left-radius:8px;">${typeBadge}</td>
-            <td style="padding:9px 10px; font-weight:700; color:${keyColor}; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(g.key)}</td>
             <td style="padding:9px 10px; min-width:0;">
-              <div style="font-size:13px; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${nameTitle}">${escapeHtml(g.name)}</div>
-              <div style="font-size:11px; color:#999; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${sub}</div>
+              <div style="font-size:13px; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(g.name)}</div>
+            </td>
+            <td style="padding:9px 10px; min-width:0;">
+              <div style="font-size:12px; color:#555; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${idLabel}: ${idVal}">${idVal}</div>
             </td>
             <td style="padding:9px 10px; font-size:12px; color:#555;">${categoryCell}</td>
             <td style="padding:9px 10px; text-align:right; border-top-right-radius:8px; border-bottom-right-radius:8px; white-space:nowrap;">
