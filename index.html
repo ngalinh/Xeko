@@ -8210,6 +8210,10 @@
       const dd = document.getElementById('groupModalCategoryDropdown');
       if (!dd) return;
       if (dd.style.display === 'none' || !dd.style.display) {
+        // Portal ra body để thoát hoàn toàn khỏi stacking context của modal
+        if (dd.parentElement !== document.body) {
+          document.body.appendChild(dd);
+        }
         const trigger = document.getElementById('groupModalCategoryTrigger');
         const rect = trigger.getBoundingClientRect();
         dd.style.position = 'fixed';
