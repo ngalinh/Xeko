@@ -1431,15 +1431,16 @@ function localUrlToPath(url) {
 }
 
 app.get('/api/ai/guide', (req, res) => {
-  const guide = settingsStore.get('ai_content_guide', '');
+  const guides = JSON.parse(settingsStore.get('ai_content_guides', 'null'))
+    || { '': settingsStore.get('ai_content_guide', '') };
   const examples = JSON.parse(settingsStore.get('ai_guide_examples', '[]'));
-  res.json({ guide, examples });
+  res.json({ guides, examples });
 });
 
 app.put('/api/ai/guide', express.json(), (req, res) => {
-  const { guide } = req.body;
-  if (typeof guide !== 'string') return res.status(400).json({ error: 'guide phải là string' });
-  settingsStore.set('ai_content_guide', guide);
+  const { guides } = req.body;
+  if (!guides || typeof guides !== 'object') return res.status(400).json({ error: 'guides phải là object' });
+  settingsStore.set('ai_content_guides', JSON.stringify(guides));
   res.json({ success: true });
 });
 
@@ -1474,7 +1475,9 @@ app.post('/api/ai/suggest', upload.array('images', 5), async (req, res) => {
   if (files.length === 0) return res.status(400).json({ error: 'Cần ít nhất 1 ảnh' });
   if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: 'Tính năng AI chưa được cấu hình (thiếu GEMINI_API_KEY)' });
   try {
-    const guide = settingsStore.get('ai_content_guide', '');
+    const guides = JSON.parse(settingsStore.get('ai_content_guides', 'null'))
+      || { '': settingsStore.get('ai_content_guide', '') };
+    const guide = guides[category] || guides[''] || '';
     const examples = JSON.parse(settingsStore.get('ai_guide_examples', '[]'));
     const examplePaths = examples
       .map(e => localUrlToPath(e.imageUrl))
