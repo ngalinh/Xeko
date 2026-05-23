@@ -3435,13 +3435,20 @@
       <!-- Hình ảnh -->
       <div style="margin-bottom:14px;">
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:8px;">Hình ảnh (tuỳ chọn)</label>
-        <div id="contentImgPreview" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;"></div>
-        <button type="button" onclick="document.getElementById('contentImgInput').click()"
-          style="padding:7px 14px; background:#EFF6FF; color:#3B82F6; border:1px solid #BFDBFE; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">
-          <svg class="xi" style="width:14px;height:14px;vertical-align:-2px;"><use href="#ic-camera"/></svg> Chọn ảnh
-        </button>
+        <div id="contentDropZone"
+          style="border:2px dashed #D1D5DB; border-radius:10px; padding:12px; cursor:pointer; transition:border-color 0.15s,background 0.15s; min-height:72px; display:flex; flex-direction:column; align-items:center; gap:8px;"
+          onclick="document.getElementById('contentImgInput').click()"
+          ondragover="event.preventDefault();this.style.borderColor='#3B82F6';this.style.background='#EFF6FF';"
+          ondragleave="this.style.borderColor='#D1D5DB';this.style.background='';"
+          ondrop="_onContentImgDrop(event)">
+          <div id="contentImgPreview" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"></div>
+          <div id="contentDropHint" style="color:#9CA3AF; font-size:12px; text-align:center; pointer-events:none; user-select:none;">
+            <div style="font-size:22px; font-weight:300; line-height:1; margin-bottom:2px;">+</div>
+            Kéo thả, dán (Ctrl+V) hoặc click để chọn ảnh
+          </div>
+        </div>
         <input type="file" id="contentImgInput" accept="image/*" multiple style="display:none;" onchange="handleContentImages(this)">
-        <span style="font-size:12px; color:#aaa; margin-left:8px;" id="contentImgCount"></span>
+        <span style="font-size:12px; color:#aaa; display:block; margin-top:4px;" id="contentImgCount"></span>
       </div>
 
       <div style="display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
@@ -6190,6 +6197,7 @@
       }
 
       modal.style.display = 'flex';
+      document.addEventListener('paste', _contentPasteHandler);
       setTimeout(() => titleInput.focus(), 50);
     }
 
@@ -6218,6 +6226,8 @@
       const total = existingUrls.length + _contentNewImages.length;
       countEl.textContent = total ? `${total} ảnh` : '';
       preview._existingUrls = existingUrls;
+      const hint = document.getElementById('contentDropHint');
+      if (hint) hint.style.display = total ? 'none' : 'block';
     }
 
     function removeContentExistingImg(idx) {
@@ -6233,17 +6243,40 @@
       renderContentImgPreview(preview._existingUrls || []);
     }
 
-    async function handleContentImages(input) {
-      const files = Array.from(input.files || []);
+    async function _addContentImageFiles(files) {
+      if (!files.length) return;
       const compressed = await Promise.all(files.map(compressImage));
       _contentNewImages.push(...compressed);
       const preview = document.getElementById('contentImgPreview');
       renderContentImgPreview(preview._existingUrls || []);
+    }
+
+    function _onContentImgDrop(e) {
+      e.preventDefault();
+      const zone = document.getElementById('contentDropZone');
+      zone.style.borderColor = '#D1D5DB';
+      zone.style.background = '';
+      const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.startsWith('image/'));
+      _addContentImageFiles(files);
+    }
+
+    function _contentPasteHandler(e) {
+      const modal = document.getElementById('contentModal');
+      if (!modal || modal.style.display === 'none') return;
+      const files = Array.from(e.clipboardData?.items || [])
+        .filter(it => it.kind === 'file' && it.type.startsWith('image/'))
+        .map(it => it.getAsFile()).filter(Boolean);
+      if (files.length) { e.preventDefault(); _addContentImageFiles(files); }
+    }
+
+    async function handleContentImages(input) {
+      await _addContentImageFiles(Array.from(input.files || []));
       input.value = '';
     }
 
     function closeContentModal() {
       document.getElementById('contentModal').style.display = 'none';
+      document.removeEventListener('paste', _contentPasteHandler);
     }
 
     async function saveContent() {
