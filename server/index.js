@@ -1419,6 +1419,41 @@ app.delete('/api/contents/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// ===== AI CONTENT SUGGEST =====
+const settingsStore = require('./src/database/settings-store');
+const { suggestContent } = require('./src/ai/gemini');
+
+app.get('/api/ai/guide', (req, res) => {
+  const guide = settingsStore.get('ai_content_guide', '');
+  res.json({ guide });
+});
+
+app.put('/api/ai/guide', express.json(), (req, res) => {
+  const { guide } = req.body;
+  if (typeof guide !== 'string') return res.status(400).json({ error: 'guide phải là string' });
+  settingsStore.set('ai_content_guide', guide);
+  res.json({ success: true });
+});
+
+app.post('/api/ai/suggest', upload.array('images', 5), async (req, res) => {
+  const files = req.files || [];
+  if (files.length === 0) return res.status(400).json({ error: 'Cần ít nhất 1 ảnh' });
+  if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: 'Tính năng AI chưa được cấu hình (thiếu GEMINI_API_KEY)' });
+  try {
+    const guide = settingsStore.get('ai_content_guide', '');
+    const imagePaths = files.map(f => f.path);
+    const suggestions = await suggestContent(imagePaths, guide);
+    res.json({ suggestions });
+  } catch (err) {
+    logger.error('AI suggest error:', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    for (const f of files) {
+      fs.unlink(f.path, () => {});
+    }
+  }
+});
+
 // ===== ZALO POST =====
 app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   const LOCAL_URL = getLocalUrl();

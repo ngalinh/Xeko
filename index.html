@@ -454,6 +454,59 @@
       background: #ef4444; border: none; color: #fff;
       padding: 4px 12px; border-radius: 12px; cursor: pointer; font-size: 12px;
     }
+    .btn-ai-suggest {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none; color: #fff;
+      padding: 4px 12px; border-radius: 12px; cursor: pointer; font-size: 12px;
+      display: flex; align-items: center; gap: 4px; font-weight: 600;
+      transition: opacity 0.15s;
+    }
+    .btn-ai-suggest:hover { opacity: 0.88; }
+    .btn-ai-suggest:disabled { opacity: 0.5; cursor: not-allowed; }
+    .ai-suggest-panel {
+      background: #f0f0ff;
+      border-top: 2px solid #a5b4fc;
+      padding: 10px 16px;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    .ai-suggest-panel.show { display: flex; }
+    .ai-suggest-panel .ai-panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px; font-weight: 700; color: #6366f1;
+    }
+    .ai-suggest-panel .ai-panel-header button {
+      background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 16px; padding: 0 4px;
+    }
+    .ai-suggest-item {
+      background: #fff; border: 1.5px solid #c7d2fe;
+      border-radius: 10px; padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .ai-suggest-item pre {
+      margin: 0; white-space: pre-wrap; word-break: break-word;
+      font-family: inherit; font-size: 13px; color: #1e293b; line-height: 1.5;
+    }
+    .ai-suggest-item .ai-use-btn {
+      align-self: flex-end;
+      background: #6366f1; color: #fff; border: none;
+      padding: 4px 14px; border-radius: 8px; font-size: 12px; cursor: pointer; font-weight: 600;
+    }
+    .ai-suggest-item .ai-use-btn:hover { background: #4f46e5; }
+    .ai-loading {
+      display: flex; align-items: center; gap: 8px; color: #6366f1; font-size: 13px; padding: 4px 0;
+    }
+    .ai-loading .spinner {
+      width: 16px; height: 16px; border: 2px solid #c7d2fe; border-top-color: #6366f1;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    [data-theme="dark"] .ai-suggest-panel { background: #1e1b40; border-color: #4c4a80; }
+    [data-theme="dark"] .ai-suggest-item { background: #16172b; border-color: #3a3a6a; }
+    [data-theme="dark"] .ai-suggest-item pre { color: #e0e0f0; }
 
     /* Input area */
     .input-area {
@@ -3091,7 +3144,16 @@
 
   <div class="image-preview" id="imagePreview">
     <div id="previewImages" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+    <button id="btnAiSuggest" class="btn-ai-suggest" onclick="aiSuggestContent()" style="display:none;">✨ Gợi ý AI</button>
     <button class="clear-btn" onclick="clearImages()">Xoá ảnh</button>
+  </div>
+
+  <div class="ai-suggest-panel" id="aiSuggestPanel">
+    <div class="ai-panel-header">
+      <span>✨ Gợi ý content từ AI</span>
+      <button onclick="closeAiPanel()" aria-label="Đóng">✕</button>
+    </div>
+    <div id="aiSuggestContent"></div>
   </div>
 
   <div class="input-area" id="inputArea">
@@ -3411,6 +3473,23 @@
         <button id="contentBatchDeleteBtn" onclick="deleteSelectedContents()" style="display:none; padding:9px 18px; background:#fee2e2; color:#b91c1c; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; align-items:center; gap:6px; white-space:nowrap; flex-shrink:0;">
           <svg class="xi" style="width:15px;height:15px;"><use href="#ic-trash"/></svg> Xoá đã chọn (<span id="contentSelectedCount">0</span>)
         </button>
+        <button onclick="toggleAiGuidePanel()" title="Cấu hình hướng dẫn giọng văn cho AI"
+          style="padding:9px 14px; background:#ede9fe; color:#6d28d9; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:5px; flex-shrink:0;">
+          ✨ Hướng dẫn AI
+        </button>
+      </div>
+
+      <!-- AI Guide Panel -->
+      <div id="aiGuidePanel" style="display:none; background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:12px; padding:16px; margin-bottom:16px;">
+        <div style="font-size:13px; font-weight:700; color:#6d28d9; margin-bottom:8px;">✨ Bộ hướng dẫn giọng văn cho AI</div>
+        <div style="font-size:12px; color:#7c3aed; margin-bottom:10px;">AI sẽ dùng hướng dẫn này để viết content phù hợp với phong cách thương hiệu của bạn khi phân tích ảnh sản phẩm.</div>
+        <textarea id="aiGuideTextarea" rows="6" placeholder="Ví dụ: Viết theo phong cách trẻ trung, vui vẻ. Dùng emoji phù hợp. Tông màu tích cực. Nhấn mạnh vào giá trị thực tế của sản phẩm..."
+          style="width:100%; box-sizing:border-box; padding:10px 12px; border:1.5px solid #c4b5fd; border-radius:8px; font-size:13px; font-family:inherit; resize:vertical; outline:none; background:#fff; color:#1e293b;"
+          onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#c4b5fd'"></textarea>
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
+          <button onclick="toggleAiGuidePanel()" style="padding:7px 16px; background:#e9e9f5; color:#555; border:none; border-radius:8px; font-size:13px; cursor:pointer;">Đóng</button>
+          <button onclick="saveAiGuide()" style="padding:7px 16px; background:#7c3aed; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">Lưu hướng dẫn</button>
+        </div>
       </div>
 
       <!-- Loading -->
@@ -5071,14 +5150,17 @@
       document.getElementById('fileInput').value = '';
       document.getElementById('imagePreview').classList.remove('show');
       document.getElementById('previewImages').innerHTML = '';
+      closeAiPanel();
     }
 
     function updatePreview() {
       const preview = document.getElementById('imagePreview');
       const previewDiv = document.getElementById('previewImages');
+      const btnAi = document.getElementById('btnAiSuggest');
       previewDiv.innerHTML = '';
       if (selectedFiles.length > 0) {
         preview.classList.add('show');
+        if (btnAi) btnAi.style.display = '';
         selectedFiles.forEach((file, index) => {
           const item = document.createElement('div');
           item.className = 'preview-item';
@@ -5094,12 +5176,70 @@
         });
       } else {
         preview.classList.remove('show');
+        if (btnAi) btnAi.style.display = 'none';
+        closeAiPanel();
       }
     }
 
     function removeImage(index) {
       selectedFiles.splice(index, 1);
       updatePreview();
+    }
+
+    function closeAiPanel() {
+      const panel = document.getElementById('aiSuggestPanel');
+      if (panel) panel.classList.remove('show');
+    }
+
+    async function aiSuggestContent() {
+      if (selectedFiles.length === 0) return;
+      const btn = document.getElementById('btnAiSuggest');
+      const panel = document.getElementById('aiSuggestPanel');
+      const contentEl = document.getElementById('aiSuggestContent');
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Đang phân tích...';
+      contentEl.innerHTML = '<div class="ai-loading"><div class="spinner"></div><span>AI đang phân tích ảnh sản phẩm...</span></div>';
+      panel.classList.add('show');
+
+      try {
+        const form = new FormData();
+        selectedFiles.slice(0, 5).forEach(f => form.append('images', f));
+        const res = await fetch(BASE_URL + '/api/ai/suggest', { method: 'POST', body: form });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Lỗi không xác định');
+
+        const { suggestions = [] } = data;
+        if (suggestions.length === 0) {
+          contentEl.innerHTML = '<span style="color:#ef4444;font-size:13px;">AI không tạo được gợi ý, thử lại nhé!</span>';
+          return;
+        }
+        contentEl.innerHTML = suggestions.map((s, i) => `
+          <div class="ai-suggest-item">
+            <pre>${escHtml(s)}</pre>
+            <button class="ai-use-btn" onclick="useAiSuggestion(${i})">Dùng nội dung này</button>
+          </div>`).join('');
+        window._aiSuggestions = suggestions;
+      } catch (err) {
+        contentEl.innerHTML = `<span style="color:#ef4444;font-size:13px;">❌ ${escHtml(err.message)}</span>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '✨ Gợi ý AI';
+      }
+    }
+
+    function useAiSuggestion(index) {
+      const s = (window._aiSuggestions || [])[index];
+      if (!s) return;
+      const input = document.getElementById('msgInput');
+      input.value = s;
+      autoGrowMsgInput(input);
+      input.focus();
+      closeAiPanel();
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
     // Paste ảnh từ clipboard (Ctrl+V)
@@ -6082,6 +6222,32 @@
     let _contentItems = [];
     let _contentNewImages = []; // File[] chờ upload khi save
     let _contentProfilesCache = []; // cache profiles từ /api/accounts
+
+    async function toggleAiGuidePanel() {
+      const panel = document.getElementById('aiGuidePanel');
+      const isHidden = panel.style.display === 'none';
+      if (isHidden) {
+        panel.style.display = 'block';
+        const res = await fetch(BASE_URL + '/api/ai/guide');
+        const data = await res.json();
+        document.getElementById('aiGuideTextarea').value = data.guide || '';
+      } else {
+        panel.style.display = 'none';
+      }
+    }
+
+    async function saveAiGuide() {
+      const guide = document.getElementById('aiGuideTextarea').value;
+      const res = await fetch(BASE_URL + '/api/ai/guide', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guide }),
+      });
+      if (res.ok) {
+        const btn = document.querySelector('#aiGuidePanel button[onclick="saveAiGuide()"]');
+        if (btn) { const orig = btn.textContent; btn.textContent = '✅ Đã lưu!'; setTimeout(() => btn.textContent = orig, 1500); }
+      }
+    }
 
     async function loadContents() {
       const search = (document.getElementById('contentSearch') || {}).value || '';
