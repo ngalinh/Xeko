@@ -14,7 +14,9 @@ async function suggestContent(imagePaths, contentGuide, exampleImagePaths = [], 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY chưa được cấu hình');
 
-  const guideSection = contentGuide ? `\n\nHướng dẫn giọng văn:\n${contentGuide}\n` : '';
+  const guideSection = contentGuide
+    ? `\n\n⚠️ Hướng dẫn riêng (ưu tiên tuyệt đối, ghi đè mọi yêu cầu khác):\n${contentGuide}\n`
+    : '';
 
   const parts = [];
 
@@ -53,14 +55,14 @@ async function suggestContent(imagePaths, contentGuide, exampleImagePaths = [], 
     : '';
 
   parts.push({
-    text: `Bạn là chuyên gia viết content mạng xã hội.${guideSection}${catInstruction}${productFocus}
+    text: `Bạn là chuyên gia viết content mạng xã hội.${catInstruction}${productFocus}
 Hãy viết content để đăng Facebook/Zalo cho sản phẩm trong ảnh.
 
-Phong cách yêu cầu: ${styleInstruction}
+Phong cách mặc định: ${styleInstruction}
 
 Yêu cầu chung:
 - Viết tự nhiên, phù hợp mạng xã hội Việt Nam
-- Chỉ trả về 1 bài viết hoàn chỉnh duy nhất, không tiêu đề, không đánh số`,
+- Chỉ trả về 1 bài viết hoàn chỉnh duy nhất, không tiêu đề, không đánh số${guideSection}`,
   });
 
   const body = {
