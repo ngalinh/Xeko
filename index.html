@@ -9120,15 +9120,31 @@
 
           const parseSharedGroups = (groupName) => {
             if (!groupName) return null;
-            try { const a = JSON.parse(groupName); return Array.isArray(a) && a.length ? a : null; } catch { return null; }
+            try {
+              const a = JSON.parse(groupName);
+              if (Array.isArray(a) && a.length) return { ok: a, miss: [] };
+              if (a && typeof a === 'object' && (a.ok || a.miss)) return { ok: a.ok || [], miss: a.miss || [] };
+              return null;
+            } catch { return null; }
           };
 
           const renderSingleRow = (row, idx, stt) => {
             const time = fmtTime(row.timestamp);
             const groupId = resolveGroupLabel(row.platform, row.group_id, row.group_name);
             const sharedGroups = (row.target === 'personal+groups' || row.target === 'personal-share-groups') ? parseSharedGroups(row.group_name) : null;
-            const noiDangSub = sharedGroups ? sharedGroups.join(', ') : (groupId !== '-' ? groupId : null);
-            const noiDangTitle = sharedGroups ? sharedGroups.join('\n') : (row.group_id || row.group_name || '');
+            let noiDangSub = null, noiDangTitle = '';
+            if (sharedGroups) {
+              const okText = sharedGroups.ok.length ? sharedGroups.ok.join(', ') : '';
+              const missText = sharedGroups.miss.length ? `⚠ ${sharedGroups.miss.join(', ')}` : '';
+              noiDangSub = [okText, missText].filter(Boolean).join(' · ');
+              noiDangTitle = [
+                sharedGroups.ok.length ? `Đã chia sẻ:\n${sharedGroups.ok.join('\n')}` : '',
+                sharedGroups.miss.length ? `Không tìm thấy:\n${sharedGroups.miss.join('\n')}` : ''
+              ].filter(Boolean).join('\n\n');
+            } else if (groupId !== '-') {
+              noiDangSub = groupId;
+              noiDangTitle = row.group_id || row.group_name || '';
+            }
             const fullMsg = (row.message || '').replace(/"/g,'&quot;');
             const ctipMsg = escapeHtml(JSON.stringify({body: row.message || ''}));
             const msg = row.message ? (row.message.length > 160 ? row.message.substring(0, 160) + '…' : row.message) : '-';
@@ -9213,8 +9229,19 @@
               const profileName = row.profile_name || row.profile || '-';
               const gid = resolveGroupLabel(row.platform, row.group_id, row.group_name);
               const childSharedGroups = (row.target === 'personal+groups' || row.target === 'personal-share-groups') ? parseSharedGroups(row.group_name) : null;
-              const childNoisub = childSharedGroups ? childSharedGroups.join(', ') : (gid !== '-' ? gid : null);
-              const childNoiTitle = childSharedGroups ? childSharedGroups.join('\n') : (row.group_id || row.group_name || '');
+              let childNoisub = null, childNoiTitle = '';
+              if (childSharedGroups) {
+                const okT = childSharedGroups.ok.length ? childSharedGroups.ok.join(', ') : '';
+                const missT = childSharedGroups.miss.length ? `⚠ ${childSharedGroups.miss.join(', ')}` : '';
+                childNoisub = [okT, missT].filter(Boolean).join(' · ');
+                childNoiTitle = [
+                  childSharedGroups.ok.length ? `Đã chia sẻ:\n${childSharedGroups.ok.join('\n')}` : '',
+                  childSharedGroups.miss.length ? `Không tìm thấy:\n${childSharedGroups.miss.join('\n')}` : ''
+                ].filter(Boolean).join('\n\n');
+              } else if (gid !== '-') {
+                childNoisub = gid;
+                childNoiTitle = row.group_id || row.group_name || '';
+              }
               const childTime = fmtTime(row.timestamp);
               return `<tr id="dashRow-${row.id}" data-batch-child="${groupKey}" style="display:none; border-bottom:1px solid #f3f4f6; background:#fafbfc;">
                 <td style="padding:8px 10px;"><div style="display:flex; align-items:center; gap:6px; padding-left:18px;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><span style="font-size:11px; color:#6b7280;">${stt}.${k + 1}</span></div></td>

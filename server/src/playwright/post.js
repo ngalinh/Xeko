@@ -635,19 +635,19 @@ async function shareToGroupsInSettings(page, keywords) {
   } catch {
     await page.screenshot({ path: path.resolve(__dirname, `../../logs/debug-no-share-row-${Date.now()}.png`) }).catch(() => {});
     logger.warn('shareToGroups: không thấy row "Chia sẻ lên nhóm" trong "Cài đặt bài viết"');
-    return { selected: 0, missed: targets };
+    return { selected: [], missed: targets };
   }
   await randomDelay(800, 1500);
 
   if (!(await clickShareToGroupsRow(page))) {
     await page.screenshot({ path: path.resolve(__dirname, `../../logs/debug-share-click-${Date.now()}.png`) }).catch(() => {});
-    return { selected: 0, missed: targets };
+    return { selected: [], missed: targets };
   }
 
   if (!(await waitForShareDialog(page))) {
     await page.screenshot({ path: path.resolve(__dirname, `../../logs/debug-share-dialog-${Date.now()}.png`) }).catch(() => {});
     logger.warn('shareToGroups: dialog "Chọn nhóm" không mở sau khi click — bỏ qua');
-    return { selected: 0, missed: targets };
+    return { selected: [], missed: targets };
   }
   await randomDelay(500, 1000);
 
@@ -1503,7 +1503,7 @@ async function qpStep5PickGroups(page, steps, keywords) {
 
   if (selected.length === 0) {
     await _qpLog(steps, 'Step 5: không tick được group nào → skip "Xong"');
-    return { selected: 0, missed };
+    return { selected: [], missed };
   }
 
   // Click "Xong" — scope vào dialog chứa "Chọn nhóm" (không phải last dialog)
@@ -1566,7 +1566,7 @@ async function qpStep5PickGroups(page, steps, keywords) {
   if (!xongVia) {
     const shot = await _qpScreenshot(page, 'step5-xong-fail');
     await _qpLog(steps, `Step 5: KHÔNG click được "Xong" (screenshot=${shot})`);
-    return { selected: selected.length, missed };
+    return { selected, missed };
   }
   await _qpLog(steps, `Step 5: click "Xong" OK (${xongVia})`);
 
@@ -1585,7 +1585,7 @@ async function qpStep5PickGroups(page, steps, keywords) {
     await _qpLog(steps, 'Step 5: clicked "Xong" nhưng dialog "Chọn nhóm" vẫn mở — tiếp tục thử step 6');
   }
 
-  return { selected: selected.length, missed };
+  return { selected, missed };
 }
 
 // Tick 1 group theo keyword với exact-match priority + substring fallback + scroll lazy-load.
@@ -2072,7 +2072,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
         return {
           success: submit.success,
           postUrl: submit.postUrl,
-          sharedGroups: 0,
+          sharedGroups: [],
           missedGroups: keywords,
           partialSuccess: submit.success,
           steps,
@@ -2098,7 +2098,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
         return {
           success: submit.success,
           postUrl: submit.postUrl,
-          sharedGroups: 0,
+          sharedGroups: [],
           missedGroups: pick.missed,
           partialSuccess: submit.success,
           steps,

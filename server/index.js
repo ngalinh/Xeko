@@ -410,9 +410,11 @@ async function executePost({ profile, profileDisplayName, message, target, group
     }
     const r = await playwright.postPersonalAndShareToGroups(message, imagePaths, keywords);
     postCount++;
-    const sharedGroupNames = Array.isArray(r.sharedGroups) && r.sharedGroups.length ? r.sharedGroups : [];
-    postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'personal+groups', groupName: sharedGroupNames.length ? JSON.stringify(sharedGroupNames) : null, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
-    return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, sharedGroups: sharedGroupNames };
+    const sharedGroupNames = Array.isArray(r.sharedGroups) ? r.sharedGroups : [];
+    const missedGroupNames = Array.isArray(r.missedGroups) ? r.missedGroups : [];
+    const groupNameVal = (sharedGroupNames.length || missedGroupNames.length) ? JSON.stringify({ ok: sharedGroupNames, miss: missedGroupNames }) : null;
+    postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'personal+groups', groupName: groupNameVal, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+    return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, sharedGroups: sharedGroupNames, missedGroups: missedGroupNames };
   }
 
   // personal (default)
