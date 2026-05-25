@@ -5018,8 +5018,8 @@
           <input type="checkbox" checked>${xekoIcon('fb')} Facebook
         </label>`;
       if (p.zalo.length > 0) {
-        panelHtml += `<label class="channel-platform-toggle checked" id="zaloToggle_${pid}" onclick="togglePlatform(${pid},'zalo')" style="margin-left:8px;">
-          <input type="checkbox" checked>${xekoIcon('chat')} Zalo
+        panelHtml += `<label class="channel-platform-toggle" id="zaloToggle_${pid}" onclick="togglePlatform(${pid},'zalo')" style="margin-left:8px;">
+          <input type="checkbox">${xekoIcon('chat')} Zalo
         </label>`;
       }
       panelHtml += `</div>`;
@@ -5075,7 +5075,7 @@
         panelHtml += `<div class="chip-section-label">${xekoIcon('chat')} Zalo</div>`;
         for (const ch of p.zalo) {
           panelHtml += `<label class="channel-item ch-zalo" data-panel="${pid}" data-platform="zalo" data-profile="${currentProfile}" data-chid="${ch.id}" data-zalo-account="${p.zaloAccount}">
-            <span class="ch-dot"></span><input type="checkbox" checked onchange="onChannelChange(${pid})"> ${ch.icon} ${ch.name}
+            <span class="ch-dot"></span><input type="checkbox" onchange="onChannelChange(${pid})"> ${ch.icon} ${ch.name}
           </label>`;
         }
       }
