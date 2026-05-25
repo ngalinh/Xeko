@@ -9488,8 +9488,9 @@
         // --- Render repost-in-progress rows (giữ lại khi reload) ---
         const repostHtml = _activeRepostJobs.map(job => {
           const ch = job.ch;
+          const platformLabel = ch.platform === 'zalo' ? 'Zalo' : 'FB';
           const targetLabel = ch.type === 'group' ? 'Group' : 'Profile';
-          const groupId = ch.id || ch.key || '-';
+          const groupId = ch.platform === 'zalo' ? (ch.name || '-') : (ch.id || ch.key || '-');
           const msgShort = job.message ? (job.message.length > 60 ? job.message.substring(0, 60) + '…' : job.message) : '-';
           const fullMsg = (job.message || '').replace(/"/g, '&quot;');
           const ctipMsg = escapeHtml(JSON.stringify({body: job.message || ''}));
@@ -9501,7 +9502,7 @@
             <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msgShort}</td>
             <td style="padding:8px 12px; color:#bbb;">—</td>
             <td style="padding:8px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${job.profileName}</td>
-            <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">FB - ${targetLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${String(groupId).replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
+            <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${targetLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${String(groupId).replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
             <td style="padding:8px 12px; vertical-align:middle;">${timeStacked}</td>
             <td style="padding:8px 12px; text-align:center;"><span class="badge-pulse" style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span></td>
             <td></td>
@@ -10332,7 +10333,8 @@
             fd.append('groupName', ch.name || '');
             const res = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: fd });
             const d = await parseJson(res);
-            jobs.push({ ch, done: true, ok: !!(d.success || d.jobId || d.processing) });
+            const isAsync = !!(d.jobId && d.processing);
+            jobs.push({ ch, zaloJobId: isAsync ? d.jobId : null, done: !isAsync, ok: isAsync ? undefined : !!d.success });
           } else {
             fd.append('target', ch.type === 'group' ? 'group' : 'personal');
             if (ch.type === 'group') fd.append('groupId', ch.id || ch.key || '');
@@ -10392,7 +10394,19 @@
         for (const job of jobs) {
           if (job.done) continue;
           try {
-            const d = job.jobId ? await pollJob(job.jobId) : job.initial;
+            let d;
+            if (job.zaloJobId) {
+              const deadline = Date.now() + 10 * 60 * 1000;
+              while (Date.now() < deadline) {
+                await new Promise(r => setTimeout(r, 5000));
+                const sr = await fetch(`${BASE_URL}/api/zalo/status/${job.zaloJobId}`);
+                const sd = await parseJson(sr);
+                if (sd.status === 'done') { d = sd; break; }
+              }
+              d = d || { success: false, error: 'Timeout' };
+            } else {
+              d = job.jobId ? await pollJob(job.jobId) : job.initial;
+            }
             job.ok = !!(d.success || (d.results && d.results.some(r => r.success)));
           } catch (e) {
             job.ok = false;
