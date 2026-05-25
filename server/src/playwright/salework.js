@@ -106,15 +106,24 @@ async function searchAndClickGroup(page, groupName) {
 
   await screenshot(page, '03-search-filled');
 
-  const results = await page.$$('div, span, li, a');
-  for (const el of results) {
-    const text = await el.textContent().catch(() => '');
-    if (text.includes(groupName) && text.length < groupName.length + 50) {
-      await el.click();
-      logger.info(`[salework] Click vào nhóm: ${groupName}`);
-      await delay(2500);
-      return true;
+  // Dùng page.evaluate để tìm + click trong browser context (1 round-trip thay vì N)
+  // page.$$() + el.textContent() riêng lẻ = N async CDP calls → hang khi DOM lớn
+  const clicked = await page.evaluate((name) => {
+    const els = document.querySelectorAll('div, span, li, a');
+    for (const el of els) {
+      const text = el.textContent?.trim() || '';
+      if (text.includes(name) && text.length < name.length + 50) {
+        el.click();
+        return true;
+      }
     }
+    return false;
+  }, groupName);
+
+  if (clicked) {
+    logger.info(`[salework] Click vào nhóm: ${groupName}`);
+    await delay(2500);
+    return true;
   }
 
   logger.error(`[salework] Không tìm thấy nhóm: ${groupName}`);
