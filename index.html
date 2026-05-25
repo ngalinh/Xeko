@@ -189,7 +189,10 @@
       display: flex;
       gap: 8px;
       align-items: flex-end;
-      max-width: min(82%, 500px);
+      max-width: min(88%, 560px);
+    }
+    .msg-row.has-grid {
+      max-width: min(92%, 640px);
     }
     .msg-row.bot { align-self: flex-start; }
     .msg-row.user { align-self: flex-end; flex-direction: row-reverse; }
@@ -209,9 +212,9 @@
     .msg-row.bot.grouped .msg.bot { border-radius: 4px 16px 16px 4px; }
     .msg-row.user.grouped .msg.user { border-radius: 16px 4px 4px 16px; }
     .msg {
-      padding: 9px 13px;
+      padding: 10px 13px;
       font-size: 14px;
-      line-height: 1.55;
+      line-height: 1.6;
       word-wrap: break-word;
       position: relative;
     }
@@ -220,7 +223,11 @@
       border: none;
       border-radius: 4px 16px 16px 16px;
       color: #1e1e2e;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .msg.bot:has(.photo-grid) {
+      padding-bottom: 4px;
+      overflow: hidden;
     }
     /* Status accents — viền trái màu giúp scan nhanh tiến trình/kết quả */
     .msg.bot.status-progress {
@@ -642,8 +649,10 @@
 
     /* Photo grid */
     .photo-grid {
-      display: grid; gap: 3px; border-radius: 8px;
-      overflow: hidden; margin-top: 8px; max-width: min(280px, 100%);
+      display: grid; gap: 2px; border-radius: 12px;
+      overflow: hidden; margin: 8px -2px 0;
+      max-width: calc(100% + 4px);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.13);
     }
     .photo-grid.count-1 { grid-template-columns: 1fr; }
     .photo-grid.count-2 { grid-template-columns: 1fr 1fr; }
@@ -654,13 +663,21 @@
     .photo-grid.count-5 .photo-item:nth-child(1) { grid-column: 1 / 2; }
     .photo-grid.count-5 .photo-item:nth-child(2) { grid-column: 2 / 4; }
     .photo-grid.count-more { grid-template-columns: 1fr 1fr; }
-    .photo-item { position: relative; aspect-ratio: 1; overflow: hidden; }
-    .photo-item img { width: 100%; height: 100%; object-fit: cover; margin: 0; border-radius: 0; }
+    .photo-item {
+      position: relative; aspect-ratio: 1; overflow: hidden; cursor: pointer;
+      background: #f0f0f0;
+    }
+    .photo-item img {
+      width: 100%; height: 100%; object-fit: cover; margin: 0; border-radius: 0;
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    }
+    .photo-item:hover img { transform: scale(1.06); }
     .photo-more {
       position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.55);
+      background: rgba(0,0,0,0.52);
+      backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
       display: flex; align-items: center; justify-content: center;
-      color: #fff; font-size: 24px; font-weight: bold;
+      color: #fff; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;
     }
 
 
@@ -911,9 +928,11 @@
       .chat-area { padding: 8px 10px 6px; gap: 3px; }
 
       /* Messages wider on mobile */
-      .msg-row { max-width: 88%; }
+      .msg-row { max-width: 90%; }
+      .msg-row.has-grid { max-width: 96%; }
       .msg { font-size: 14px; padding: 8px 12px; }
       .msg img { max-height: 155px; }
+      .photo-grid { margin: 6px -2px 0; border-radius: 10px; }
 
       /* Input area */
       .input-area { padding: 6px 8px; gap: 5px; }
@@ -1048,8 +1067,8 @@
       /* Image preview */
       .image-preview { padding: 6px 10px; }
 
-      /* Photo grid max width */
-      .photo-grid { max-width: 100%; }
+      /* Photo grid — let it fill the bubble width */
+      .photo-grid { max-width: calc(100% + 4px); }
 
       /* Channel form inputs wrap nicely */
       #panelChannels > div > div:last-child { gap: 6px !important; }
@@ -4628,8 +4647,9 @@
         last.classList.contains('msg-row') &&
         last.classList.contains('bot') &&
         last.id !== 'typingMsg';
+      const hasGrid = text && text.includes('photo-grid');
       const row = document.createElement('div');
-      row.className = 'msg-row bot' + (extraClass ? ' ' + extraClass : '') + (isGrouped ? ' grouped' : '');
+      row.className = 'msg-row bot' + (extraClass ? ' ' + extraClass : '') + (isGrouped ? ' grouped' : '') + (hasGrid ? ' has-grid' : '');
 
       // Auto status by leading emoji — giúp scan nhanh thành công / lỗi / đang chạy
       const trimmed = (text || '').trimStart();
@@ -6360,7 +6380,7 @@
           if (photoUrls.length > 0) {
             const maxShow = Math.min(photoUrls.length, 5);
             let gridClass = 'photo-grid count-' + (maxShow > 5 ? '5' : maxShow);
-            photoHtml = `<div class="${gridClass}" style="max-width:200px;margin-top:8px;">`;
+            photoHtml = `<div class="${gridClass}">`;
             for (let i = 0; i < maxShow; i++) {
               photoHtml += `<div class="photo-item"><img src="${photoUrls[i]}">`;
               if (i === maxShow - 1 && photoUrls.length > 5) {
@@ -6373,7 +6393,7 @@
 
           const chat = document.getElementById('chatArea');
           const row = document.createElement('div');
-          row.className = 'msg-row bot';
+          row.className = 'msg-row bot' + (photoHtml ? ' has-grid' : '');
           let btnHtml = '<div class="msg-buttons">';
           btnHtml += `<button class="msg-btn" onclick="showScheduleList()">${xekoIcon('clipboard')} Xem lịch đã đặt</button>`;
           btnHtml += `<button class="msg-btn" onclick="showScheduleForm()">${xekoIcon('clock')} Lên lịch thêm</button>`;
