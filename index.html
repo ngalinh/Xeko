@@ -5014,12 +5014,12 @@
 
       // Platform toggles
       panelHtml += `<div class="channel-platform-row">
-        <label class="channel-platform-toggle checked" id="fbToggle_${pid}" onclick="togglePlatform(${pid},'fb')">
-          <input type="checkbox" checked>${xekoIcon('fb')} Facebook
+        <label class="channel-platform-toggle checked" id="fbToggle_${pid}">
+          <input type="checkbox" checked onchange="togglePlatform(${pid},'fb',this.checked)">${xekoIcon('fb')} Facebook
         </label>`;
       if (p.zalo.length > 0) {
-        panelHtml += `<label class="channel-platform-toggle checked" id="zaloToggle_${pid}" onclick="togglePlatform(${pid},'zalo')" style="margin-left:8px;">
-          <input type="checkbox" checked>${xekoIcon('chat')} Zalo
+        panelHtml += `<label class="channel-platform-toggle" id="zaloToggle_${pid}" style="margin-left:8px;">
+          <input type="checkbox" onchange="togglePlatform(${pid},'zalo',this.checked)">${xekoIcon('chat')} Zalo
         </label>`;
       }
       panelHtml += `</div>`;
@@ -5075,7 +5075,7 @@
         panelHtml += `<div class="chip-section-label">${xekoIcon('chat')} Zalo</div>`;
         for (const ch of p.zalo) {
           panelHtml += `<label class="channel-item ch-zalo" data-panel="${pid}" data-platform="zalo" data-profile="${currentProfile}" data-chid="${ch.id}" data-zalo-account="${p.zaloAccount}">
-            <span class="ch-dot"></span><input type="checkbox" checked onchange="onChannelChange(${pid})"> ${ch.icon} ${ch.name}
+            <span class="ch-dot"></span><input type="checkbox" onchange="onChannelChange(${pid})"> ${ch.icon} ${ch.name}
           </label>`;
         }
       }
@@ -5116,10 +5116,9 @@
       step = 'target';
     }
 
-    function togglePlatform(pid, platform) {
+    function togglePlatform(pid, platform, isChecked) {
       const toggle = document.getElementById(`${platform}Toggle_${pid}`);
-      const cb = toggle.querySelector('input');
-      const isChecked = cb.checked;
+      if (!toggle) return;
       toggle.classList.toggle('checked', isChecked);
 
       // Toggle all channels of this platform
@@ -5129,6 +5128,7 @@
         itemCb.checked = isChecked;
         item.classList.toggle('disabled', !isChecked);
       });
+      onChannelChange(pid);
     }
 
     function onChannelChange(pid) {
