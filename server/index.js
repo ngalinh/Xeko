@@ -1564,7 +1564,7 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
     catch { data = { error: `Local trả non-JSON (${response.status}): ${text.slice(0, 200)}` }; }
 
     // Ghi log vào thống kê
-    postLogger.logPost({
+    const _logBase = {
       profile: accountName || 'zalo',
       profileName: accountName || 'Zalo',
       platform: 'zalo',
@@ -1572,13 +1572,38 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
       groupName: groupName || '',
       message: message || '',
       imageCount: imagePaths.length,
-      success: !!(data.success || data.processing),
-      error: data.error || null,
-      postUrl: data.postUrl || null,
       source: 'web',
       images: zaloImageUrls,
       batchId: batchId || null,
-    });
+    };
+    if (data.jobId && data.processing) {
+      // Local machine đang xử lý bất đồng bộ — poll kết quả thực tế rồi mới ghi log
+      // để tránh hiển thị "Done" sai khi bài đăng thực sự thất bại.
+      const _pollUrl = LOCAL_URL;
+      const _jobId = data.jobId;
+      (async () => {
+        try {
+          const fetchPoll = await getFetch();
+          const deadline = Date.now() + 10 * 60 * 1000;
+          while (Date.now() < deadline) {
+            await new Promise(r => setTimeout(r, 5000));
+            const sr = await fetchPoll(`${_pollUrl}/api/zalo/status/${_jobId}`, {
+              headers: { 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+            });
+            const sd = await sr.json().catch(() => null);
+            if (sd && sd.status === 'done') {
+              postLogger.logPost({ ..._logBase, success: !!sd.success, error: sd.error || null });
+              return;
+            }
+          }
+          postLogger.logPost({ ..._logBase, success: false, error: 'Timeout chờ kết quả Zalo' });
+        } catch (e) {
+          postLogger.logPost({ ..._logBase, success: false, error: e.message });
+        }
+      })();
+    } else {
+      postLogger.logPost({ ..._logBase, success: !!data.success, error: data.error || null, postUrl: data.postUrl || null });
+    }
 
     return res.status(response.status).json(data);
   } catch (e) {
