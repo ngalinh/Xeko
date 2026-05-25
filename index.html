@@ -8780,7 +8780,17 @@
     function reloadFresh() {
       try { clearChatState(); } catch {}
       try { localStorage.removeItem('xeko_pending_jobs_v1'); } catch {}
-      location.reload();
+      // Xác định trang đang active để reload về đúng trang, không về dashboard mặc định
+      const activePage = document.querySelector('.page.active');
+      const pageIdMap = { pageDangBai: 'post', pageDashboard: 'dashboard', pageSession: 'session', pageSpyBaiViet: 'spy', pageContent: 'content', pagePermissions: 'permissions' };
+      const currentPg = activePage ? (pageIdMap[activePage.id] || null) : null;
+      if (currentPg && currentPg !== 'dashboard') {
+        const url = new URL(location.href);
+        url.searchParams.set('page', currentPg);
+        location.href = url.toString();
+      } else {
+        location.reload();
+      }
     }
 
     function focusInput() {
