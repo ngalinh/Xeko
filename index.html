@@ -6284,6 +6284,7 @@
         fd.append('time', isoTime);
         fd.append('message', message);
         fd.append('profile', currentProfile);
+        if (currentProfileName && currentProfileName !== currentProfile) fd.append('profileDisplayName', currentProfileName);
         for (const [k, v] of Object.entries(extra)) {
           if (v != null) fd.append(k, v);
         }
@@ -9617,7 +9618,7 @@
             <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
             <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msg}</td>
             <td style="padding:8px 12px;">${thumbs}</td>
-            <td style="padding:8px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sched.profile || '-'}</td>
+            <td style="padding:8px 12px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sched.profile_name || sched.profile || '-'}</td>
             <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">FB - ${targetLabel}</div>${schedIsPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupIdRaw.replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
             <td style="padding:8px 12px; vertical-align:middle;">${time}</td>
             <td style="padding:8px 12px; text-align:center;">${statusBadge}</td>
