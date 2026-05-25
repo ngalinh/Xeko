@@ -357,7 +357,7 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   // Respond immediately so cloud proxy never hits 504 timeout
   res.json({ success: true, processing: true, jobId });
 
-  salework.postToZaloGroup({ zaloAccountName: accountName, accountKey, groupName, message: message || '', imagePaths })
+  salework.postToZaloGroup({ zaloAccountName: acct?.saleworkName || accountName, accountKey, groupName, message: message || '', imagePaths })
     .then(result => {
       cleanupFiles(imagePaths);
       zaloJobs.set(jobId, { status: 'done', success: result.success, error: result.error || null });
