@@ -5687,7 +5687,7 @@
 
     // Poll kết quả Zalo post async — cập nhật chatbot khi Playwright hoàn thành
     async function pollZaloJob(jobId, groupName, account, progressRow = null) {
-      const maxTries = 24; // tối đa 2 phút (24 × 5s)
+      const maxTries = 60; // tối đa 5 phút (60 × 5s)
       for (let i = 0; i < maxTries; i++) {
         await new Promise(r => setTimeout(r, 5000));
         try {
