@@ -1083,7 +1083,7 @@ const scheduler = require('./src/utils/scheduler');
 
 // Lên lịch đăng bài
 app.post('/api/schedule', upload.array('images', 20), (req, res) => {
-  const { time, target, groupId, message, profile, type, groupName, zaloAccount, groupKeywords } = req.body;
+  const { time, target, groupId, message, profile, profileDisplayName, type, groupName, zaloAccount, groupKeywords } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
 
   if (!profile) {
@@ -1092,7 +1092,7 @@ app.post('/api/schedule', upload.array('images', 20), (req, res) => {
   }
 
   try {
-    const job = scheduler.addSchedule({ time, target, groupId, message, imagePaths, profile, type, groupName, zaloAccount, groupKeywords });
+    const job = scheduler.addSchedule({ time, target, groupId, message, imagePaths, profile, profileDisplayName, type, groupName, zaloAccount, groupKeywords });
     res.json({
       success: true,
       message: `Đã lên lịch đăng bài lúc ${job.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`,
