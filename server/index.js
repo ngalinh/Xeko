@@ -1514,6 +1514,15 @@ app.post('/api/ai/suggest', upload.array('images', 5), async (req, res) => {
 });
 
 // ===== ZALO POST =====
+// Metadata lưu tạm khi job Zalo đang xử lý (processing: true) để ghi log khi done
+const _pendingZaloLogs = new Map(); // jobId → metadata
+setInterval(() => {
+  const cutoff = Date.now() - 2 * 60 * 60 * 1000; // 2h TTL
+  for (const [id, m] of _pendingZaloLogs) {
+    if (m.ts < cutoff) _pendingZaloLogs.delete(id);
+  }
+}, 60 * 60 * 1000);
+
 app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   const LOCAL_URL = getLocalUrl();
   if (!LOCAL_URL) return res.status(503).json({ error: 'Local server chưa kết nối' });
@@ -1563,22 +1572,37 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
     try { data = JSON.parse(text); }
     catch { data = { error: `Local trả non-JSON (${response.status}): ${text.slice(0, 200)}` }; }
 
-    // Ghi log vào thống kê
-    postLogger.logPost({
-      profile: accountName || 'zalo',
-      profileName: accountName || 'Zalo',
-      platform: 'zalo',
-      target: 'group',
-      groupName: groupName || '',
-      message: message || '',
-      imageCount: imagePaths.length,
-      success: !!(data.success || data.processing),
-      error: data.error || null,
-      postUrl: data.postUrl || null,
-      source: 'web',
-      images: zaloImageUrls,
-      batchId: batchId || null,
-    });
+    // Nếu local server đang xử lý async (processing: true), lưu metadata để ghi log
+    // khi /api/zalo/status trả kết quả thật sự — tránh ghi "Done" sai thời điểm.
+    if (data.processing && data.jobId) {
+      _pendingZaloLogs.set(data.jobId, {
+        profile: accountName || 'zalo',
+        profileName: accountName || 'Zalo',
+        groupName: groupName || '',
+        message: message || '',
+        imageCount: imagePaths.length,
+        images: zaloImageUrls,
+        batchId: batchId || null,
+        ts: Date.now(),
+      });
+    } else {
+      // Kết quả đồng bộ (hiếm) — ghi log ngay
+      postLogger.logPost({
+        profile: accountName || 'zalo',
+        profileName: accountName || 'Zalo',
+        platform: 'zalo',
+        target: 'group',
+        groupName: groupName || '',
+        message: message || '',
+        imageCount: imagePaths.length,
+        success: !!data.success,
+        error: data.error || null,
+        postUrl: data.postUrl || null,
+        source: 'web',
+        images: zaloImageUrls,
+        batchId: batchId || null,
+      });
+    }
 
     return res.status(response.status).json(data);
   } catch (e) {
@@ -1599,6 +1623,30 @@ app.get('/api/zalo/status/:jobId', async (req, res) => {
     const text = await response.text();
     let data;
     try { data = JSON.parse(text); } catch { data = { error: text.slice(0, 200) }; }
+
+    // Khi job xong: ghi log kết quả thật sự (metadata đã lưu lúc POST /api/zalo/post)
+    if (data && data.status === 'done') {
+      const meta = _pendingZaloLogs.get(req.params.jobId);
+      if (meta) {
+        _pendingZaloLogs.delete(req.params.jobId);
+        postLogger.logPost({
+          profile: meta.profile,
+          profileName: meta.profileName,
+          platform: 'zalo',
+          target: 'group',
+          groupName: meta.groupName,
+          message: meta.message,
+          imageCount: meta.imageCount,
+          success: !!data.success,
+          error: data.error || null,
+          postUrl: null,
+          source: 'web',
+          images: meta.images,
+          batchId: meta.batchId,
+        });
+      }
+    }
+
     return res.status(response.status).json(data);
   } catch (e) {
     return res.status(500).json({ error: e.message });

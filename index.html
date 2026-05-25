@@ -5630,7 +5630,7 @@
           }
         } catch {}
       }
-      const timeoutMsg = `⚠️ Group Zalo <strong>${groupName}</strong>: Xeko chờ 2 phút mà chưa thấy phản hồi, bạn check giúp mình nha!`;
+      const timeoutMsg = `⚠️ Group Zalo <strong>${groupName}</strong>: Xeko chờ 5 phút mà chưa thấy phản hồi, bạn check giúp mình nha!`;
       if (progressRow) morphBot(progressRow, timeoutMsg, 'error');
       else addBot(timeoutMsg);
       removePendingJob(jobId);
