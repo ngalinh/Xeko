@@ -5107,6 +5107,7 @@
             ${modeEmoji} <strong>Đăng bài</strong> — Chế độ: ${modeLabel}<br>
             Chọn kênh muốn đăng:
             ${panelHtml}
+            ${postMode === 'schedule' ? `<div style="margin-top:8px;font-size:0.88em;color:#555;">Sau khi chọn kênh, bấm <strong>Tiếp tục</strong> để cài đặt thời gian lên lịch nhé!</div>` : ''}
             <span class="msg-time">${now()}</span>
           </div>
         </div>`;
