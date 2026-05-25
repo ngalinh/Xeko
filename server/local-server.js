@@ -138,6 +138,9 @@ setInterval(() => {
   for (const [id, job] of postJobs) {
     if (now - job.createdAt > 3600_000) postJobs.delete(id);
   }
+  for (const [id, job] of zaloJobs) {
+    if (job.createdAt && now - job.createdAt > 3600_000) zaloJobs.delete(id);
+  }
 }, 3600_000);
 
 app.get('/api/job/:id', (req, res) => {
@@ -352,7 +355,7 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   const accountKey = acct ? acct.key : accountName;
 
   const jobId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  zaloJobs.set(jobId, { status: 'processing' });
+  zaloJobs.set(jobId, { status: 'processing', createdAt: Date.now() });
 
   // Respond immediately so cloud proxy never hits 504 timeout
   res.json({ success: true, processing: true, jobId });

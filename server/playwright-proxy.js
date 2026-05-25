@@ -133,6 +133,31 @@ function profileExists(_profileName) {
   return true;
 }
 
+// Poll /api/zalo/status/:id trên máy local cho đến khi job Zalo xong
+async function pollZaloLocalJob(jobId, maxWaitMs = 10 * 60 * 1000) {
+  const start = Date.now();
+  while (Date.now() - start < maxWaitMs) {
+    await new Promise(r => setTimeout(r, 5000));
+    try {
+      const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL;
+      if (!LOCAL_URL) throw new Error('Local server chưa kết nối');
+      const fetch = await getFetch();
+      const response = await fetch(`${LOCAL_URL}/api/zalo/status/${jobId}`, {
+        headers: { 'x-api-key': API_KEY },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) continue; // 404 / network glitch → thử lại
+      const data = await safeJson(response);
+      if (data.status === 'done') return { success: !!data.success, error: data.error || null };
+      // status 'processing' → tiếp tục poll
+    } catch (e) {
+      if (e.name === 'TimeoutError' || e.name === 'AbortError') continue;
+      throw e;
+    }
+  }
+  throw new Error('Quá 10 phút chưa xong — kiểm tra Zalo tay.');
+}
+
 // Poll /api/job/:id trên máy local cho đến khi xong
 async function pollLocalJob(jobId, maxWaitMs = 10 * 60 * 1000) {
   const start = Date.now();
@@ -206,7 +231,7 @@ async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths
     { profile: zaloAccountName, groupName, message },
     imagePaths
   );
-  if (res.jobId) return pollLocalJob(res.jobId);
+  if (res.jobId) return pollZaloLocalJob(res.jobId);
   return res;
 }
 
