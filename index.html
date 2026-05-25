@@ -313,6 +313,11 @@
       text-align: center;
     }
     .msg-btn:hover { background: #3B82F6; color: #fff; border-color: #3B82F6; }
+    .msg-btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+    .msg-btn.primary { background: #3B82F6; color: #fff; border-color: #3B82F6; }
+    .msg-btn.primary:hover { background: #2563EB; border-color: #2563EB; }
+    .msg-btn.secondary { color: #9CA3AF; border-color: #E5E7EB; font-size: 12px; }
+    .msg-btn.secondary:hover { background: #F3F4F6; color: #6B7280; border-color: #D1D5DB; }
 
     /* Channel selector panel */
     .channel-panel { margin-top: 10px; max-width: 460px; }
@@ -4657,7 +4662,10 @@
       if (imgSrc) msgHtml += `<img src="${imgSrc}" alt="screenshot">`;
       if (buttons) {
         msgHtml += '<div class="msg-buttons">';
-        buttons.forEach((b, i) => { msgHtml += `<button class="msg-btn" data-btn="${i}">${b.label}</button>`; });
+        buttons.forEach((b, i) => {
+          const cls = b.primary ? 'msg-btn primary' : (b.secondary ? 'msg-btn secondary' : 'msg-btn');
+          msgHtml += `<button class="${cls}" data-btn="${i}">${b.label}</button>`;
+        });
         msgHtml += '</div>';
       }
 
@@ -4689,6 +4697,12 @@
       chat.scrollTop = chat.scrollHeight;
       saveChatState();
       return row;
+    }
+
+    function disablePrevButtons() {
+      document.querySelectorAll('#chatArea .msg-buttons button.msg-btn').forEach(btn => {
+        btn.disabled = true;
+      });
     }
 
     // Replace the content of an existing bot bubble (used to morph
@@ -4869,10 +4883,10 @@
         currentProfileName = _profileDisplayNames[profile.key] || profile.name || data.name || profile.key;
         updateHeaderProfile(currentProfileName);
         addBot(
-          `Xeko chào bạn 👋 Profile <strong>${currentProfileName}</strong> đã sẵn sàng rồi nha!\nBạn muốn Xeko đăng liền hay lên lịch?`,
+          `Profile <strong>${currentProfileName}</strong> sẵn sàng rồi! Bạn muốn đăng kiểu nào?`,
           [
-            { label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') },
-            { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
+            { label: `⚡ Đăng ngay`, handler: () => selectMode('now') },
+            { label: `🕐 Lên lịch`, handler: () => selectMode('schedule') },
           ]
         );
         step = 'mode';
@@ -4893,7 +4907,7 @@
           label: `${xekoIcon('user')} ${p.name}`,
           handler: () => selectProfile(p.key),
         }));
-        addBot('Bạn chọn profile trình duyệt cho Xeko với nha:', buttons);
+        addBot('Bạn muốn đăng từ profile nào?', buttons);
       } catch (e) {
         addBot(botSystemError('tải danh sách profile', e));
       }
@@ -4918,10 +4932,10 @@
         updateHeaderProfile(currentProfileName);
         // STEP 3: Chon che do
         addBot(
-          `Xeko chốt profile <strong>${currentProfileName}</strong> rồi nha!\nGiờ bạn muốn Xeko đăng liền hay lên lịch giúp nè?`,
+          `Profile <strong>${currentProfileName}</strong> sẵn sàng rồi! Bạn muốn đăng kiểu nào?`,
           [
-            { label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') },
-            { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
+            { label: `⚡ Đăng ngay`, handler: () => selectMode('now') },
+            { label: `🕐 Lên lịch`, handler: () => selectMode('schedule') },
           ]
         );
         step = 'mode';
@@ -4931,16 +4945,10 @@
 
     // ===== STEP 3: Chọn chế độ =====
     function selectMode(mode) {
+      disablePrevButtons();
       postMode = mode;
       const modeLabel = mode === 'now' ? 'Đăng ngay' : (mode === 'quickfb' ? 'Đăng nhanh FB' : 'Lên lịch');
       addUser(modeLabel);
-      // Ack ngắn trước khi render panel kênh (panel hơi nặng, ack giúp user
-      // thấy click được ghi nhận liền thay vì chờ panel build xong)
-      const ack = mode === 'now' ? 'Ok, đăng liền nha 👌'
-                : mode === 'quickfb' ? 'Ok, đăng nhanh lên FB Profile + share group cùng lúc nha ⚡ (FB only, tối đa 9 group)'
-                : 'Ok, mình hẹn giờ nha 🕐';
-      addBot(ack);
-      // STEP 4: Chon noi dang
       showTargetSelect();
     }
 
@@ -4999,6 +5007,7 @@
         showProfileSelect();
         return;
       }
+      disablePrevButtons();
       await loadChannels();
       channelPanelId++;
       const pid = channelPanelId;
@@ -5090,8 +5099,8 @@
 
       // Action buttons
       panelHtml += `<div class="msg-buttons" style="margin-top:12px;">
-        <button class="msg-btn" onclick="confirmChannelSelection(${pid})">${xekoIcon('check')} Tiếp tục</button>
-        <button class="msg-btn" onclick="showModeSelect()">${xekoIcon('refresh')} Đổi chế độ</button>
+        <button class="msg-btn primary" onclick="confirmChannelSelection(${pid})">✓ Tiếp tục</button>
+        <button class="msg-btn secondary" onclick="showModeSelect()">↩ Đổi chế độ</button>
       </div>`;
 
       panelHtml += `</div>`;
@@ -5104,10 +5113,9 @@
         <img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko">
         <div class="msg-wrapper">
           <div class="msg bot">
-            ${modeEmoji} <strong>Đăng bài</strong> — Chế độ: ${modeLabel}<br>
             Chọn kênh muốn đăng:
             ${panelHtml}
-            ${postMode === 'schedule' ? `<div style="margin-top:8px;font-size:0.88em;color:#555;">Sau khi chọn kênh, bấm <strong>Tiếp tục</strong> để cài đặt thời gian lên lịch nhé!</div>` : ''}
+            ${postMode === 'schedule' ? `<div style="margin-top:8px;font-size:0.88em;color:#6B7280;">Chọn xong bấm <strong>Tiếp tục</strong> để đặt giờ đăng nhé!</div>` : ''}
             <span class="msg-time">${now()}</span>
           </div>
         </div>`;
@@ -5343,26 +5351,27 @@
 
       step = 'compose';
 
+      disablePrevButtons();
       if (postMode === 'schedule') {
         showScheduleForm();
       } else {
         addBot(
-          `Xeko sẽ đăng lên:\n${summaryText}\n\nBạn soạn content xuống dưới nha, bấm 📷 để kèm ảnh rồi nhấn ➤ là mình đăng liền 🚀`,
+          `Sẽ đăng lên: ${summaryText} ✅\nSoạn nội dung bên dưới, thêm ảnh bằng 📷 rồi nhấn gửi là xong!`,
           [
-            { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
-            { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
+            { label: `↩ Làm lại`, handler: () => showTargetSelect(), secondary: true },
           ]
         );
       }
     }
 
     function showModeSelect() {
+      disablePrevButtons();
       addUser('Đổi chế độ');
       addBot(
-        'Xeko đăng liền hay lên lịch giúp bạn nè?',
+        'Bạn muốn đăng kiểu nào?',
         [
-          { label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') },
-          { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
+          { label: `⚡ Đăng ngay`, handler: () => selectMode('now') },
+          { label: `🕐 Lên lịch`, handler: () => selectMode('schedule') },
         ]
       );
     }
@@ -5385,10 +5394,9 @@
         showScheduleForm();
       } else {
         addBot(
-          `Xeko sẽ đăng lên: <strong>${targetText}</strong>\n\nBạn soạn content xuống dưới, kèm ảnh qua 📷 rồi nhấn ➤ là mình đăng ngay 🚀`,
+          `Sẽ đăng lên: <strong>${targetText}</strong> ✅\nSoạn nội dung bên dưới, thêm ảnh bằng 📷 rồi nhấn gửi là xong!`,
           [
-            { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
-            { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
+            { label: `↩ Làm lại`, handler: () => showTargetSelect(), secondary: true },
           ]
         );
       }
@@ -6168,17 +6176,15 @@
 
         // Hien nut tiep tuc — câu chốt theo số bài thật sự đăng được
         addBot(pickEncouragement(successCount), [
-          { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
-          { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
-          { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
+          { label: `✍️ Đăng bài tiếp`, handler: () => focusInput(), primary: true },
+          { label: `↩ Làm lại`, handler: () => showTargetSelect(), secondary: true },
         ]);
       } catch (e) {
         removeTyping();
         if (isProxyTimeout(e)) {
-          addBot('⚠️ Mạng/proxy timeout — Xeko chưa xác nhận được bài đã đăng hay chưa. Bạn check Facebook + tab Dashboard sau 1-2 phút giúp nha, đừng bấm đăng lại liền vì có thể đã đăng thành công rồi đó!', [
-            { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
-            { label: `${xekoIcon('pin')} Đổi nơi đăng`, handler: () => showTargetSelect() },
-            { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
+          addBot('⚠️ Mạng/proxy timeout — chưa xác nhận được bài đã đăng hay chưa. Bạn check Facebook + tab Dashboard sau 1-2 phút, đừng bấm đăng lại liền vì có thể đã thành công rồi!', [
+            { label: `✍️ Đăng bài tiếp`, handler: () => focusInput(), primary: true },
+            { label: `↩ Làm lại`, handler: () => showTargetSelect(), secondary: true },
           ]);
         } else {
           addBot(botSystemError('đăng bài', e));
@@ -6198,6 +6204,7 @@
     let scheduleFormId = 0;
 
     function showScheduleForm() {
+      disablePrevButtons();
       scheduleFormId++;
       const formId = scheduleFormId;
       const nowDate = new Date();
@@ -6219,17 +6226,15 @@
       row.innerHTML = `
         <img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko">
         <div class="msg bot">
-          <strong style="display:inline-flex; align-items:center; gap:6px;">${xekoIcon('clock','xi xi-md')} Lên lịch đăng bài</strong><br>
-          Nơi đăng: <strong>${targetText}</strong><br><br>
-          Chọn thời gian đăng:<br>
+          Đặt lịch cho: <strong>${targetText}</strong><br><br>
+          Chọn giờ đăng:<br>
           <input type="datetime-local" id="scheduleTime_${formId}" value="${localISO}" min="${localISO}"
             style="padding:8px 12px; border-radius:8px; border:1px solid #ddd; background:#f8f8f8; color:#1a1a1a; font-size:14px; margin:8px 0; max-width:100%;">
           <br>
-          Bạn soạn content xuống dưới, kèm ảnh nếu có, rồi bấm <strong>Đặt lịch</strong> là Xeko canh giờ đăng giúp nha ✨
+          Soạn nội dung bên dưới, thêm ảnh nếu có rồi bấm <strong>Đặt lịch</strong> nhé!
           <div class="msg-buttons">
-            <button class="msg-btn" onclick="submitSchedule(${formId})">${xekoIcon('clock')} Đặt lịch</button>
-            <button class="msg-btn" onclick="showTargetSelect()">${xekoIcon('pin')} Đổi nơi đăng</button>
-            <button class="msg-btn" onclick="showModeSelect()">${xekoIcon('refresh')} Đổi chế độ</button>
+            <button class="msg-btn primary" onclick="submitSchedule(${formId})">🕐 Đặt lịch</button>
+            <button class="msg-btn secondary" onclick="showTargetSelect()">↩ Đổi kênh</button>
           </div>
           <div class="msg-time">${now()}</div>
         </div>`;
@@ -6391,9 +6396,9 @@
           const row = document.createElement('div');
           row.className = 'msg-row bot';
           let btnHtml = '<div class="msg-buttons">';
-          btnHtml += `<button class="msg-btn" onclick="showScheduleList()">${xekoIcon('clipboard')} Xem lịch đã đặt</button>`;
-          btnHtml += `<button class="msg-btn" onclick="showScheduleForm()">${xekoIcon('clock')} Lên lịch thêm</button>`;
-          btnHtml += `<button class="msg-btn" onclick="selectMode('now')">${xekoIcon('post')} Đăng bài ngay</button>`;
+          btnHtml += `<button class="msg-btn primary" onclick="showScheduleForm()">🕐 Lên lịch thêm</button>`;
+          btnHtml += `<button class="msg-btn secondary" onclick="showScheduleList()">📋 Xem lịch đã đặt</button>`;
+          btnHtml += `<button class="msg-btn secondary" onclick="selectMode('now')">⚡ Đăng ngay</button>`;
           btnHtml += '</div>';
           row.innerHTML = `<img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko"><div class="msg bot">${confirmMsg.replace(/\n/g,'<br>')}${photoHtml}${btnHtml}<div class="msg-time">${now()}</div></div>`;
           chat.appendChild(row);
