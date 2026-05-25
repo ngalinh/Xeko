@@ -10,6 +10,7 @@ db.exec(`
     group_name TEXT,
     message TEXT,
     profile TEXT NOT NULL,
+    profile_name TEXT,
     image_paths TEXT,
     status TEXT NOT NULL DEFAULT 'pending',
     result TEXT,
@@ -19,9 +20,14 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_scheduled_posts_time ON scheduled_posts(time);
 `);
 
+// Migration: thêm cột profile_name nếu chưa có (cho DB cũ)
+try {
+  db.exec(`ALTER TABLE scheduled_posts ADD COLUMN profile_name TEXT`);
+} catch { /* cột đã tồn tại */ }
+
 const insertStmt = db.prepare(`
-  INSERT INTO scheduled_posts (id, time, type, target, group_id, group_name, message, profile, image_paths, status, created_at)
-  VALUES (@id, @time, @type, @target, @groupId, @groupName, @message, @profile, @imagePaths, @status, @createdAt)
+  INSERT INTO scheduled_posts (id, time, type, target, group_id, group_name, message, profile, profile_name, image_paths, status, created_at)
+  VALUES (@id, @time, @type, @target, @groupId, @groupName, @message, @profile, @profileName, @imagePaths, @status, @createdAt)
 `);
 
 function insert(job) {
@@ -34,6 +40,7 @@ function insert(job) {
     groupName: job.groupName || null,
     message: job.message || null,
     profile: job.profile,
+    profileName: job.profileName || job.profile,
     imagePaths: JSON.stringify(job.imagePaths || []),
     status: job.status || 'pending',
     createdAt: new Date().toISOString(),
@@ -68,6 +75,7 @@ function getPending() {
     groupName: r.group_name,
     message: r.message,
     profile: r.profile,
+    profileName: r.profile_name || r.profile,
     imagePaths: JSON.parse(r.image_paths || '[]'),
     status: r.status,
   }));
