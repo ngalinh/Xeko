@@ -189,10 +189,12 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
 }
 
 async function postToZaloGroup({ zaloAccountName, groupName, message, imagePaths = [] }) {
-  return callLocal('POST', '/api/zalo/post',
+  const res = await callLocal('POST', '/api/zalo/post',
     { profile: zaloAccountName, groupName, message },
     imagePaths
   );
+  if (res.jobId) return pollLocalJob(res.jobId);
+  return res;
 }
 
 async function closeBrowser() {
