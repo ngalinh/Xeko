@@ -189,10 +189,7 @@
       display: flex;
       gap: 8px;
       align-items: flex-end;
-      max-width: min(88%, 560px);
-    }
-    .msg-row.has-grid {
-      max-width: min(92%, 640px);
+      max-width: min(82%, 500px);
     }
     .msg-row.bot { align-self: flex-start; }
     .msg-row.user { align-self: flex-end; flex-direction: row-reverse; }
@@ -928,8 +925,7 @@
       .chat-area { padding: 8px 10px 6px; gap: 3px; }
 
       /* Messages wider on mobile */
-      .msg-row { max-width: 90%; }
-      .msg-row.has-grid { max-width: 96%; }
+      .msg-row { max-width: 88%; }
       .msg { font-size: 14px; padding: 8px 12px; }
       .msg img { max-height: 155px; }
       .photo-grid { margin: 6px -2px 0; border-radius: 10px; }
@@ -4647,9 +4643,8 @@
         last.classList.contains('msg-row') &&
         last.classList.contains('bot') &&
         last.id !== 'typingMsg';
-      const hasGrid = text && text.includes('photo-grid');
       const row = document.createElement('div');
-      row.className = 'msg-row bot' + (extraClass ? ' ' + extraClass : '') + (isGrouped ? ' grouped' : '') + (hasGrid ? ' has-grid' : '');
+      row.className = 'msg-row bot' + (extraClass ? ' ' + extraClass : '') + (isGrouped ? ' grouped' : '');
 
       // Auto status by leading emoji — giúp scan nhanh thành công / lỗi / đang chạy
       const trimmed = (text || '').trimStart();
@@ -6393,7 +6388,7 @@
 
           const chat = document.getElementById('chatArea');
           const row = document.createElement('div');
-          row.className = 'msg-row bot' + (photoHtml ? ' has-grid' : '');
+          row.className = 'msg-row bot';
           let btnHtml = '<div class="msg-buttons">';
           btnHtml += `<button class="msg-btn" onclick="showScheduleList()">${xekoIcon('clipboard')} Xem lịch đã đặt</button>`;
           btnHtml += `<button class="msg-btn" onclick="showScheduleForm()">${xekoIcon('clock')} Lên lịch thêm</button>`;
