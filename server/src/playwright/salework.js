@@ -71,28 +71,9 @@ async function selectZaloAccount(page, accountName) {
 
   // Bước 3: Click đúng tài khoản target bằng evaluate (scan DOM theo text)
   const selected = await page.evaluate((name) => {
-    const normName = name.normalize('NFC');
-    // Ưu tiên selector hẹp (chỉ dropdown đang mở) để tránh click nhầm vào danh sách tin nhắn
-    const specificSels = [
-      '.el-select-dropdown__item',
-      '.el-select-dropdown .el-option',
-      '[class*="dropdown"][style*="display: block"] li',
-      '[class*="dropdown"]:not([style*="display: none"]) li',
-      '[class*="option"]:not([style*="display: none"])',
-    ];
-    for (const sel of specificSels) {
-      const items = document.querySelectorAll(sel);
-      for (const el of items) {
-        if (el.textContent?.trim().normalize('NFC') === normName) {
-          el.click();
-          return true;
-        }
-      }
-    }
-    // Fallback: chỉ quét li/option (không quét div/span toàn trang)
-    const fallbackEls = document.querySelectorAll('[class*="dropdown"] li, [class*="option"], li[class*="item"]');
-    for (const el of fallbackEls) {
-      if (el.textContent?.trim().normalize('NFC') === normName) {
+    const els = document.querySelectorAll('[class*="dropdown"] li, [class*="option"], li, [class*="item"], div, span, a');
+    for (const el of els) {
+      if (el.textContent?.trim() === name) {
         el.click();
         return true;
       }
