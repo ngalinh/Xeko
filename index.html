@@ -5123,6 +5123,42 @@
         toggleCb.indeterminate = someChecked && !allChecked;
         toggle.classList.toggle('checked', someChecked);
       }
+      autoSaveChannelSelection(pid);
+    }
+
+    function autoSaveChannelSelection(pid) {
+      const panel = document.getElementById(`channelPanel_${pid}`);
+      if (!panel) return;
+      const checkedItems = panel.querySelectorAll('.channel-item input:checked');
+      if (checkedItems.length === 0) return;
+      const customGroupInput = document.getElementById(`customGroupId_${pid}`);
+      const selected = {};
+      checkedItems.forEach(cb => {
+        const item = cb.closest('.channel-item');
+        if (!item) return;
+        const profile = item.dataset.profile;
+        const platform = item.dataset.platform;
+        if (!profile || !platform) return;
+        if (!selected[profile]) selected[profile] = { fb: [], fbPages: [], zalo: [], zaloAccount: '' };
+        const chid = item.dataset.chid;
+        if (platform === 'zalo') {
+          selected[profile].zaloAccount = item.dataset.zaloAccount || '';
+          selected[profile].zalo.push({ id: chid });
+        } else if (chid && chid.startsWith('page:')) {
+          selected[profile].fbPages.push({ id: chid, pageId: item.dataset.pageId || '', key: chid.slice(5) });
+        } else if (chid === 'custom' && customGroupInput && customGroupInput.value.trim()) {
+          const ids = customGroupInput.value.split(',').map(s => s.trim()).filter(Boolean);
+          ids.forEach(gid => selected[profile].fb.push({ id: 'custom', groupId: gid }));
+        } else if (chid === 'cat') {
+          let groupKeys = [];
+          try { groupKeys = JSON.parse(item.dataset.keys || '[]'); } catch (e) {}
+          selected[profile].fb.push({ id: 'cat', category: item.dataset.category || '', groupKeys });
+        } else if (chid) {
+          selected[profile].fb.push({ id: chid });
+        }
+      });
+      window._channelSelection = selected;
+      saveChatState();
     }
 
     function toggleCustomGroupInput(pid, show) {
