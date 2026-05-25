@@ -292,8 +292,10 @@ async function executeSchedule(job) {
         fs.rmdirSync(dir);
       } catch {}
     }
-    // Xoá khỏi DB — bài đã chạy xong, thông tin sẽ nằm trong post_logs
+    // Xoá khỏi DB + khỏi in-memory array để dashboard không còn hiện "Đang đăng"
     scheduleStore.remove(job.id);
+    const idx = scheduledPosts.findIndex(j => j.id === job.id);
+    if (idx !== -1) scheduledPosts.splice(idx, 1);
   }
 }
 

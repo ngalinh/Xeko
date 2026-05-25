@@ -138,9 +138,22 @@ async function pollLocalJob(jobId, maxWaitMs = 10 * 60 * 1000) {
   const start = Date.now();
   while (Date.now() - start < maxWaitMs) {
     await new Promise(r => setTimeout(r, 5000));
-    const data = await callLocal('GET', `/api/job/${jobId}`);
-    if (data.status === 'done') return data.result;
-    if (data.status === 'failed') throw new Error(data.error || 'Job thất bại');
+    try {
+      const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL;
+      if (!LOCAL_URL) throw new Error('Local server chưa kết nối');
+      const fetch = await getFetch();
+      const response = await fetch(`${LOCAL_URL}/api/job/${jobId}`, {
+        headers: { 'x-api-key': API_KEY },
+        signal: AbortSignal.timeout(15000), // 15s timeout per poll — tránh treo vô hạn
+      });
+      const data = await safeJson(response);
+      if (data.status === 'done') return data.result;
+      if (data.status === 'failed') throw new Error(data.error || 'Job thất bại');
+      // status 'pending'/'running' → tiếp tục poll
+    } catch (e) {
+      if (e.name === 'TimeoutError' || e.name === 'AbortError') continue; // timeout → thử lại lần sau
+      throw e;
+    }
   }
   throw new Error('Quá 10 phút chưa xong — kiểm tra FB/Zalo tay.');
 }
