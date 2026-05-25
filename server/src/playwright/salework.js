@@ -56,9 +56,9 @@ async function selectZaloAccount(page, accountName) {
 
   // Bước 2: Mở dropdown
   const openSelectors = [
+    '.el-select',
     '.el-select .el-input__inner',
     '.el-select__caret',
-    '.el-select',
   ];
   for (const sel of openSelectors) {
     try {
@@ -69,64 +69,24 @@ async function selectZaloAccount(page, accountName) {
   }
   await delay(1500);
 
-  // Bước 3: Dùng search input trong dropdown (page.fill dispatches keyboard events → Vue reactive)
-  const normName = accountName.normalize('NFC');
-  let searchInputSel = null;
-  for (const sel of [
-    '.el-select-dropdown input',
-    '.el-select-dropdown .el-input__inner',
-    'input[placeholder*="Tìm kiếm tài khoản"]',
-    'input[placeholder*="tìm kiếm tài khoản"]',
-  ]) {
-    try {
-      const el = await page.$(sel);
-      if (el && await el.isVisible()) {
-        searchInputSel = sel;
-        break;
-      }
-    } catch {}
-  }
-  if (searchInputSel) {
-    try {
-      await page.fill(searchInputSel, accountName);
-      logger.info(`[salework] Đã search: "${accountName}"`);
-      await delay(800);
-    } catch (e) {
-      logger.warn(`[salework] Không fill search được: ${e.message}`);
-    }
-  }
-
-  // Bước 4: Click item khớp (ưu tiên selector hẹp → dropdown đang mở)
+  // Bước 3: Click đúng tài khoản target bằng evaluate (scan DOM theo text)
   const selected = await page.evaluate((name) => {
-    const normName = name.normalize('NFC');
-    const specificSels = [
-      '.el-select-dropdown__item',
-      '.el-select-dropdown .el-option',
-      '[class*="dropdown"]:not([style*="display: none"]) li',
-      '[class*="option"]:not([style*="display: none"])',
-    ];
-    for (const sel of specificSels) {
-      for (const el of document.querySelectorAll(sel)) {
-        const t = el.textContent?.trim().normalize('NFC');
-        if (t === normName) { el.click(); return true; }
+    const els = document.querySelectorAll('[class*="dropdown"] li, [class*="option"], li, [class*="item"], div, span, a');
+    for (const el of els) {
+      if (el.textContent?.trim() === name) {
+        el.click();
+        return true;
       }
-    }
-    // Fallback: chỉ quét li/option (không quét div/span toàn trang)
-    for (const el of document.querySelectorAll('[class*="dropdown"] li, [class*="option"], li[class*="item"]')) {
-      if (el.textContent?.trim().normalize('NFC') === normName) { el.click(); return true; }
     }
     return false;
   }, accountName);
 
-  // Luôn đóng dropdown sau khi xử lý (tránh searchAndClickGroup nhầm ô search của dropdown)
-  try {
-    await page.click('body', { position: { x: 700, y: 400 }, force: true });
-    await delay(500);
-  } catch {}
-
   if (selected) {
     logger.info(`[salework] Đã chọn tài khoản: ${accountName}`);
-    await delay(500);
+    await delay(1000);
+    // Click ra ngoài để đóng dropdown
+    await page.click('body', { position: { x: 700, y: 400 }, force: true });
+    await delay(1000);
     return true;
   }
 
@@ -299,11 +259,8 @@ async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message
     await delay(3000);
     await screenshot(page, '01-loaded');
 
-    const accountSelected = await selectZaloAccount(page, zaloAccountName);
+    await selectZaloAccount(page, zaloAccountName);
     await screenshot(page, '02-account-selected');
-    if (!accountSelected) {
-      throw new Error(`Không tìm thấy tài khoản "${zaloAccountName}" trong dropdown Salework. Kiểm tra lại saleworkName.`);
-    }
 
     if (!(await searchAndClickGroup(page, groupName))) {
       throw new Error(`Không tìm thấy nhóm: ${groupName}`);
