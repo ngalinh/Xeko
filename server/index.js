@@ -188,6 +188,7 @@ async function persistImages(imagePaths) {
       method: 'POST',
       headers: { ...form.getHeaders(), 'x-api-key': apiKey },
       body: form,
+      signal: AbortSignal.timeout(60000), // 1 phút
     });
     if (!response.ok) {
       const text = await response.text().catch(() => '');

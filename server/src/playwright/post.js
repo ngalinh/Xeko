@@ -57,8 +57,11 @@ async function getBrowser() {
   // nếu fail thì invalidate cache và tạo lại.
   if (browsers[key]) {
     try {
-      const probe = await browsers[key].newPage();
-      await probe.close();
+      const probe = await Promise.race([
+        browsers[key].newPage(),
+        new Promise((_, r) => setTimeout(() => r(new Error('probe timeout')), 8000)),
+      ]);
+      await Promise.race([probe.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {});
       return browsers[key];
     } catch {
       try { await browsers[key].close(); } catch {}
@@ -952,7 +955,9 @@ async function postToPersonal(message, imagePaths = []) {
     return { success: false, error: error.message };
   } finally {
     await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
-    await page.close();
+    const _ctx = browsers[activeProfile];
+    browsers[activeProfile] = null; // xóa cache ngay để lần sau launch browser mới
+    await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
   }
 }
 
@@ -1010,7 +1015,9 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
     return { success: false, error: error.message };
   } finally {
     await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
-    await page.close();
+    const _ctx = browsers[activeProfile];
+    browsers[activeProfile] = null;
+    await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
   }
 }
 
@@ -1085,7 +1092,9 @@ async function postToGroup(groupId, message, imagePaths = []) {
     logger.error(`Lỗi: ${error.message}`);
     return { success: false, error: error.message };
   } finally {
-    await page.close();
+    const _ctx = browsers[activeProfile];
+    browsers[activeProfile] = null;
+    await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
   }
 }
 
@@ -1131,7 +1140,9 @@ async function postToPage(pageId, message, imagePaths = []) {
     logger.error(`Lỗi postToPage(${pageId}): ${error.message}`);
     return { success: false, error: error.message };
   } finally {
-    await page.close();
+    const _ctx = browsers[activeProfile];
+    browsers[activeProfile] = null;
+    await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
   }
 }
 
