@@ -4885,8 +4885,8 @@
         addBot(
           `Profile <strong>${currentProfileName}</strong> sẵn sàng rồi! Bạn muốn đăng kiểu nào?`,
           [
-            { label: `⚡ Đăng ngay`, handler: () => selectMode('now') },
-            { label: `🕐 Lên lịch`, handler: () => selectMode('schedule') },
+            { label: `${xekoIcon('send')} Đăng ngay`, handler: () => selectMode('now') },
+            { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
           ]
         );
         step = 'mode';
@@ -4934,8 +4934,8 @@
         addBot(
           `Profile <strong>${currentProfileName}</strong> sẵn sàng rồi! Bạn muốn đăng kiểu nào?`,
           [
-            { label: `⚡ Đăng ngay`, handler: () => selectMode('now') },
-            { label: `🕐 Lên lịch`, handler: () => selectMode('schedule') },
+            { label: `${xekoIcon('send')} Đăng ngay`, handler: () => selectMode('now') },
+            { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
           ]
         );
         step = 'mode';
@@ -5370,8 +5370,8 @@
       addBot(
         'Bạn muốn đăng kiểu nào?',
         [
-          { label: `⚡ Đăng ngay`, handler: () => selectMode('now') },
-          { label: `🕐 Lên lịch`, handler: () => selectMode('schedule') },
+          { label: `${xekoIcon('send')} Đăng ngay`, handler: () => selectMode('now') },
+          { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
         ]
       );
     }
