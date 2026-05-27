@@ -9838,7 +9838,9 @@
             const repAccount = accEntries[0][0];
             const otherCount = accEntries.length - 1;
             const accTitle = accEntries.map(([n, c]) => c > 1 ? `${n} (${c})` : n).join(', ').replace(/"/g, '&quot;');
-            const repAccountCell = `<div style="display:flex; align-items:center; gap:4px; min-width:0;"><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;">${repAccount}</span>${otherCount > 0 ? `<span style="flex-shrink:0; color:#6b7280; font-weight:400; font-size:11px;">+${otherCount}</span>` : ''}</div>`;
+            const dominantPlat = Object.entries(platCount).sort((a, b) => b[1] - a[1])[0][0];
+            const repPlatRaw = dominantPlat === 'Zalo' ? 'zalo' : 'facebook';
+            const repAccountCell = `<div style="display:flex; align-items:center; gap:4px; min-width:0;">${platBadge(repPlatRaw)}<span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;">${repAccount}</span>${otherCount > 0 ? `<span style="flex-shrink:0; color:#6b7280; font-weight:400; font-size:11px;">+${otherCount}</span>` : ''}</div>`;
 
             const idsAttr = group.rows.map(r => r.id).join(',');
             const groupKey = (group.anchor.batch_id ? String(group.anchor.batch_id) : 'msg').replace(/[^a-zA-Z0-9_-]/g, '_') + '-' + firstIdx;
