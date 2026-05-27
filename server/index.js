@@ -797,7 +797,7 @@ app.delete('/api/accounts/:type/:key', async (req, res) => {
       const LOCAL_URL = getLocalUrl();
       const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
       const fetchFn = await getFetch();
-      const response = await fetchFn(`${LOCAL_URL}/api/accounts/${type}/${key}`, {
+      const response = await fetchFn(`${LOCAL_URL}/api/accounts/${encodeURIComponent(type)}/${encodeURIComponent(key)}`, {
         method: 'DELETE',
         headers: { 'x-api-key': API_KEY },
       });
@@ -922,7 +922,7 @@ app.put('/api/accounts/:key', async (req, res) => {
       const LOCAL_URL = getLocalUrl();
       const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
       const fetchFn = await getFetch();
-      const response = await fetchFn(`${LOCAL_URL}/api/accounts/${key}`, {
+      const response = await fetchFn(`${LOCAL_URL}/api/accounts/${encodeURIComponent(key)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
         body: JSON.stringify({ name, email, password, type, saleworkName, proxy }),
