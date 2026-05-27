@@ -5097,6 +5097,11 @@
       // spawn thêm bot bubble (tránh spam khi user bấm "Tiếp tục" liên tục)
       panelHtml += `<div class="channel-error" id="channelError_${pid}" style="display:none; color:#dc2626; font-size:13px; margin-top:10px; padding:8px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px;"></div>`;
 
+      // Schedule hint
+      if (postMode === 'schedule') {
+        panelHtml += `<div style="margin-top:8px;font-size:0.88em;color:#6B7280;">Chọn xong bấm <strong>Tiếp tục</strong> để đặt giờ đăng nhé!</div>`;
+      }
+
       // Action buttons
       panelHtml += `<div class="msg-buttons" style="margin-top:12px;">
         <button class="msg-btn primary" onclick="confirmChannelSelection(${pid})">✓ Tiếp tục</button>
@@ -5115,7 +5120,6 @@
           <div class="msg bot">
             Chọn kênh muốn đăng:
             ${panelHtml}
-            ${postMode === 'schedule' ? `<div style="margin-top:8px;font-size:0.88em;color:#6B7280;">Chọn xong bấm <strong>Tiếp tục</strong> để đặt giờ đăng nhé!</div>` : ''}
             <span class="msg-time">${now()}</span>
           </div>
         </div>`;
@@ -6233,8 +6237,8 @@
           <br>
           Soạn nội dung bên dưới, thêm ảnh nếu có rồi nhấn gửi nhé!
           <div class="msg-buttons">
-            <button class="msg-btn primary" onclick="submitSchedule(${formId})">🕐 Đặt lịch</button>
-            <button class="msg-btn secondary" onclick="showTargetSelect()">↩ Đổi kênh</button>
+            <button class="msg-btn primary" onclick="submitSchedule(${formId})">${xekoIcon('clock')} Đặt lịch</button>
+            <button class="msg-btn secondary" onclick="showTargetSelect()">${xekoIcon('back')} Đổi kênh</button>
           </div>
           <div class="msg-time">${now()}</div>
         </div>`;
@@ -6374,18 +6378,21 @@
         if (scheduled.length > 0) {
           let confirmMsg = `⏰ Đã lên lịch đăng bài lúc ${new Date(time).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}\n\n`;
           confirmMsg += `📍 Nơi đăng: <strong>${scheduled.join(', ')}</strong>\n`;
-          if (savedMessage) confirmMsg += `📝 Nội dung: ${savedMessage}\n`;
+          if (savedMessage) {
+            const preview = savedMessage.length > 100 ? savedMessage.slice(0, 100) + '…' : savedMessage;
+            confirmMsg += `📝 Nội dung: ${preview}\n`;
+          }
           if (photoUrls.length > 0) confirmMsg += `📷 ${photoUrls.length} ảnh đính kèm`;
 
           let photoHtml = '';
           if (photoUrls.length > 0) {
-            const maxShow = Math.min(photoUrls.length, 5);
-            let gridClass = 'photo-grid count-' + (maxShow > 5 ? '5' : maxShow);
+            const maxShow = Math.min(photoUrls.length, 3);
+            let gridClass = 'photo-grid count-' + maxShow;
             photoHtml = `<div class="${gridClass}">`;
             for (let i = 0; i < maxShow; i++) {
               photoHtml += `<div class="photo-item"><img src="${photoUrls[i]}">`;
-              if (i === maxShow - 1 && photoUrls.length > 5) {
-                photoHtml += `<div class="photo-more">+${photoUrls.length - 5}</div>`;
+              if (i === maxShow - 1 && photoUrls.length > 3) {
+                photoHtml += `<div class="photo-more">+${photoUrls.length - 3}</div>`;
               }
               photoHtml += '</div>';
             }
@@ -6396,9 +6403,9 @@
           const row = document.createElement('div');
           row.className = 'msg-row bot';
           let btnHtml = '<div class="msg-buttons">';
-          btnHtml += `<button class="msg-btn primary" onclick="showScheduleForm()">🕐 Lên lịch thêm</button>`;
-          btnHtml += `<button class="msg-btn secondary" onclick="showScheduleList()">📋 Xem lịch đã đặt</button>`;
-          btnHtml += `<button class="msg-btn secondary" onclick="selectMode('now')">⚡ Đăng ngay</button>`;
+          btnHtml += `<button class="msg-btn primary" onclick="showScheduleForm()">${xekoIcon('clock')} Lên lịch thêm</button>`;
+          btnHtml += `<button class="msg-btn secondary" onclick="showScheduleList()">${xekoIcon('calendar')} Xem lịch đã đặt</button>`;
+          btnHtml += `<button class="msg-btn secondary" onclick="selectMode('now')">${xekoIcon('send')} Đăng ngay</button>`;
           btnHtml += '</div>';
           row.innerHTML = `<img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko"><div class="msg bot">${confirmMsg.replace(/\n/g,'<br>')}${photoHtml}${btnHtml}<div class="msg-time">${now()}</div></div>`;
           chat.appendChild(row);
