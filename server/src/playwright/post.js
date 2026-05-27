@@ -2184,10 +2184,22 @@ async function scrapePost(postUrl) {
   });
 
   try {
+    // bringToFront: tab mới tạo bởi newPage() là background tab —
+    // Intersection Observer của FB không fire cho background tab
+    // → ảnh lazy-load không render vào DOM nếu không bring to front
+    await page.bringToFront();
     await page.goto(postUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await randomDelay(2000, 3000);
     await ensureLoggedIn(page);
-    await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
+
+    // Đóng overlay/dialog nếu có (login gate, cookie consent)
+    await page.keyboard.press('Escape').catch(() => {});
+    await randomDelay(300, 500);
+
+    // Không dùng networkidle — FB liên tục có background requests nên networkidle
+    // gần như KHÔNG BAO GIỜ resolve, luôn timeout 20s lãng phí. Thay bằng wait
+    // thẳng cho article element xuất hiện (React SPA render xong).
+    await page.waitForSelector('div[role="article"]', { timeout: 15000 }).catch(() => {});
     await randomDelay(500, 1000);
 
     // Sau khi JS routing xong, FB có thể redirect pfbid → numeric ID
@@ -2205,9 +2217,6 @@ async function scrapePost(postUrl) {
       if (m) allIds.add(m[1] || m[0]);
     }
     logger.info(`${tag} allIds=${[...allIds].join(',')}`);
-
-    // Đợi ít nhất 1 article xuất hiện
-    await page.waitForSelector('div[role="article"]', { timeout: 10000 }).catch(() => {});
 
     // Tìm index của article đúng (top-level, chứa link có post ID)
     const articleIndex = await page.evaluate((ids) => {
@@ -2253,7 +2262,21 @@ async function scrapePost(postUrl) {
       }
       return best.idx;
     }, [...allIds]).catch(() => 0);
-    logger.info(`${tag} articleIndex=${articleIndex}`);
+
+    // Log số lượng article tìm được để debug khi kết quả rỗng
+    const articleCount = await page.evaluate(() =>
+      document.querySelectorAll('div[role="article"]').length
+    ).catch(() => 0);
+    logger.info(`${tag} articleCount=${articleCount}, articleIndex=${articleIndex}`);
+
+    // Cuộn article vào viewport trước (để Intersection Observer của FB fire)
+    await page.evaluate((idx) => {
+      const all = Array.from(document.querySelectorAll('div[role="article"]'));
+      const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
+      const article = topLevel[idx] || topLevel[0];
+      if (article) article.scrollIntoView({ block: 'start', behavior: 'instant' });
+    }, articleIndex).catch(() => {});
+    await randomDelay(800, 1200);
 
     // Click "Xem thêm" / "See more" CHỈ trong article mục tiêu
     await page.evaluate((idx) => {
@@ -2297,12 +2320,12 @@ async function scrapePost(postUrl) {
       return bestText;
     }, articleIndex).catch(() => '');
 
-    // Scroll để trigger lazy-load ảnh (tăng lên 8 lần để bắt đủ ảnh)
+    // Scroll qua nội dung article để trigger lazy-load ảnh
+    // (article đã ở đầu viewport từ scrollIntoView ở trên)
     for (let i = 0; i < 8; i++) {
-      await page.evaluate(() => window.scrollBy(0, 600));
-      await randomDelay(600, 1000);
+      await page.evaluate(() => window.scrollBy(0, 400));
+      await randomDelay(500, 800);
     }
-    await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
     await randomDelay(500, 800);
 
     // Lấy URL ảnh từ article mục tiêu qua DOM (bao gồm cả picture > source)
@@ -2372,6 +2395,14 @@ async function scrapePost(postUrl) {
     }
 
     logger.info(`${tag} xong (+${Date.now() - t0}ms) — text=${text.length} ký tự, ảnh=${imageUrls.length} (dom=${domImages.length}, net=${netImages.size})`);
+
+    // Chụp screenshot để debug khi không lấy được nội dung
+    if (!text && imageUrls.length === 0) {
+      const screenshotPath = path.resolve(__dirname, '../../logs', `scrape-empty-${Date.now()}.png`);
+      await page.screenshot({ path: screenshotPath, fullPage: false }).catch(() => {});
+      logger.warn(`${tag} WARN: kết quả rỗng (articleCount=${articleCount}) — screenshot: ${screenshotPath}`);
+    }
+
     return { success: true, text, imageUrls };
   } catch (e) {
     logger.error(`${tag} FAIL: ${e.message}`);
