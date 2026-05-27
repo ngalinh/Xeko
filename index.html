@@ -4470,6 +4470,15 @@
       document.body.appendChild(toast);
     }
 
+    function showXekoToast(msg, type) {
+      const bg = type === 'error' ? '#dc2626' : '#10B981';
+      const el = document.createElement('div');
+      el.style.cssText = `position:fixed;top:20px;right:20px;background:${bg};color:#fff;padding:10px 18px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:99999;font-size:13px;font-weight:600;max-width:320px;`;
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3000);
+    }
+
     let currentProfile = null;
     let currentProfileName = null;
     let _profileDisplayNames = {}; // key → display name map for chatbot
@@ -7797,14 +7806,14 @@
         const data = await parseJson(res);
         if (data.success) {
           _proxyAccountCache = null;
-          await renderProfileList();
-          alert('✅ Đã cập nhật thông tin tài khoản!');
           closeEditModal();
+          renderProfileList();
+          showXekoToast('✅ Đã cập nhật thông tin tài khoản!', 'success');
         } else {
-          alert(`❌ Lỗi: ${data.error}`);
+          showXekoToast(`❌ Lỗi: ${data.error}`, 'error');
         }
       } catch (e) {
-        alert(`❌ Lỗi: ${e.message}`);
+        showXekoToast(`❌ Lỗi: ${e.message}`, 'error');
       }
     }
 
@@ -7821,13 +7830,13 @@
         const data = await parseJson(res);
         if (data.success) {
           _proxyAccountCache = null;
-          await renderProfileList();
-          alert(`✅ ${data.message}`);
+          renderProfileList();
+          showXekoToast(`✅ ${data.message}`, 'success');
         } else {
-          alert(`❌ Lỗi: ${data.error}`);
+          showXekoToast(`❌ Lỗi: ${data.error}`, 'error');
         }
       } catch (e) {
-        alert(`❌ Lỗi: ${e.message}`);
+        showXekoToast(`❌ Lỗi: ${e.message}`, 'error');
       }
     }
 
@@ -7871,19 +7880,19 @@
 
         if (data.success) {
           _proxyAccountCache = null;
-          await renderProfileList();
-          alert(data.message);
           document.getElementById('newAccKey').value = '';
           document.getElementById('newAccName').value = '';
           if (document.getElementById('newAccEmail')) document.getElementById('newAccEmail').value = '';
           if (document.getElementById('newAccPass')) document.getElementById('newAccPass').value = '';
           if (document.getElementById('newZaloSaleworkName')) document.getElementById('newZaloSaleworkName').value = '';
           closeAddAccountModal();
+          renderProfileList();
+          showXekoToast(data.message || '✅ Đã thêm tài khoản!', 'success');
         } else {
-          alert('Lỗi: ' + data.error);
+          showXekoToast('❌ Lỗi: ' + data.error, 'error');
         }
       } catch (e) {
-        alert('Lỗi: ' + e.message);
+        showXekoToast('❌ Lỗi: ' + e.message, 'error');
       }
     }
 
