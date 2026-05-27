@@ -86,6 +86,7 @@ async function callLocal(method, endpoint, data = null, files = []) {
         'Content-Length': String(body.length),
       },
       body,
+      signal: AbortSignal.timeout(120000), // 2 phút cho upload ảnh
     });
     return safeJson(response);
   }
@@ -96,6 +97,7 @@ async function callLocal(method, endpoint, data = null, files = []) {
     method,
     headers: { ...headers, 'Content-Type': 'application/json' },
     body: data ? JSON.stringify(data) : undefined,
+    signal: AbortSignal.timeout(30000), // 30s cho text request
   });
   return safeJson(response);
 }
@@ -171,6 +173,7 @@ async function pollLocalJob(jobId, maxWaitMs = 10 * 60 * 1000) {
         headers: { 'x-api-key': API_KEY },
         signal: AbortSignal.timeout(15000), // 15s timeout per poll — tránh treo vô hạn
       });
+      if (response.status === 404) throw new Error('Job không còn tồn tại trên local server — có thể server đã restart');
       const data = await safeJson(response);
       if (data.status === 'done') return data.result;
       if (data.status === 'failed') throw new Error(data.error || 'Job thất bại');
