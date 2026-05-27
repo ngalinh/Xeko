@@ -1,5 +1,5 @@
 /* Xeko PWA service worker */
-const VERSION = 'xeko-pwa-v19';
+const VERSION = 'xeko-pwa-v20';
 const SHELL_CACHE = `shell-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
@@ -16,7 +16,9 @@ const SHELL_ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_ASSETS)).then(() => self.skipWaiting())
+    caches.open(SHELL_CACHE).then((cache) =>
+      Promise.allSettled(SHELL_ASSETS.map((url) => cache.add(url)))
+    ).then(() => self.skipWaiting())
   );
 });
 
