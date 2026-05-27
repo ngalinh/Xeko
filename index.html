@@ -6594,6 +6594,8 @@
         document.getElementById('spyStatusText').textContent = 'Đang tải ảnh và nội dung (30–60 giây)...';
         const data = await pollJob(initial.jobId, 3 * 60 * 1000);
 
+        if (!data.success && data.error) throw new Error(data.error);
+
         document.getElementById('spyStatus').style.display = 'none';
         document.getElementById('spyResult').style.display = '';
 
