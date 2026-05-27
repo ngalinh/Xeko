@@ -955,7 +955,9 @@ async function postToPersonal(message, imagePaths = []) {
     return { success: false, error: error.message };
   } finally {
     await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
-    await Promise.race([page.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
+    const _ctx = browsers[activeProfile];
+    browsers[activeProfile] = null; // xóa cache ngay để lần sau launch browser mới
+    await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
   }
 }
 
@@ -1013,7 +1015,9 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
     return { success: false, error: error.message };
   } finally {
     await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
-    await Promise.race([page.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
+    const _ctx = browsers[activeProfile];
+    browsers[activeProfile] = null;
+    await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
   }
 }
 
@@ -1088,7 +1092,9 @@ async function postToGroup(groupId, message, imagePaths = []) {
     logger.error(`Lỗi: ${error.message}`);
     return { success: false, error: error.message };
   } finally {
-    await Promise.race([page.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
+    const _ctx = browsers[activeProfile];
+    browsers[activeProfile] = null;
+    await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
   }
 }
 
@@ -1134,7 +1140,9 @@ async function postToPage(pageId, message, imagePaths = []) {
     logger.error(`Lỗi postToPage(${pageId}): ${error.message}`);
     return { success: false, error: error.message };
   } finally {
-    await Promise.race([page.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
+    const _ctx = browsers[activeProfile];
+    browsers[activeProfile] = null;
+    await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
   }
 }
 
