@@ -2153,8 +2153,10 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
     const shot = await _qpScreenshot(page, 'exception');
     return { success: false, error: `${e.message} (screenshot=${shot})`, steps };
   } finally {
-    await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
-    await page.close().catch(() => {});
+    await randomDelay(2000, 3000);
+    const _ctx = browsers[activeProfile];
+    browsers[activeProfile] = null;
+    await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
   }
 }
 
@@ -2419,7 +2421,9 @@ async function scrapePost(postUrl) {
     logger.error(`${tag} FAIL: ${e.message}`);
     return { success: false, error: e.message, text: '', imageUrls: [] };
   } finally {
-    await page.close().catch(() => {});
+    const _ctx = browsers[activeProfile];
+    browsers[activeProfile] = null;
+    await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
   }
 }
 
