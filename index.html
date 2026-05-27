@@ -4619,6 +4619,7 @@
         await new Promise(r => setTimeout(r, 5000));
         try {
           const r = await fetch(BASE_URL + '/api/job/' + jobId);
+          if (r.status === 404) throw new Error('Job không còn tồn tại — server có thể đã restart. Kiểm tra FB tay.');
           const data = await parseJson(r);
           if (data.status === 'done') return data.result;
           if (data.status === 'failed') throw new Error(data.error || 'Job thất bại');
