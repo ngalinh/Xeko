@@ -5965,6 +5965,15 @@
             pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: targetLabel });
             try {
               data = await pollJob(initial.jobId);
+            } catch (pollErr) {
+              data = null;
+              const isTimeout = isProxyTimeout(pollErr);
+              const errMsg = isTimeout
+                ? '⚠️ Mạng/proxy timeout — chưa xác nhận được bài đã đăng hay chưa. Bạn check Facebook + tab Dashboard sau 1-2 phút, đừng bấm đăng lại liền vì có thể đã thành công rồi!'
+                : botSystemError('đăng bài', pollErr);
+              if (progressRow) morphBot(progressRow, errMsg, isTimeout ? 'warning' : 'error');
+              else addBot(errMsg);
+              progressRow = null;
             } finally {
               removePendingJob(initial.jobId);
             }
@@ -5974,7 +5983,7 @@
           }
           successCount += countSuccess(data);
 
-          if (data.results) {
+          if (data && data.results) {
             data.results.forEach((r, i) => {
               if (r.success) {
                 let msg = `✅ Đăng lên <strong>${r.target}</strong> (profile <strong>${currentProfileName}</strong>) xong rồi nha!`;
@@ -5996,14 +6005,14 @@
                 }
               }
             });
-          } else if (data.success) {
+          } else if (data && data.success) {
             let msg;
             const isShareFlow = !!_shareGroupKeywords;
+            const sharedCount = Array.isArray(data.sharedGroups) ? data.sharedGroups.length : (data.sharedGroups || 0);
             if (isShareFlow && data.partialSuccess && data.missedGroups && data.missedGroups.length > 0) {
-              // Đăng cá nhân OK nhưng share group fail
               msg = `⚠️ Đăng FB Profile <strong>${currentProfileName}</strong> OK, nhưng share lên ${data.missedGroups.length} nhóm <strong>${data.missedGroups.join(', ')}</strong> fail (không tick được). Bạn share thủ công hoặc retry nha.`;
-            } else if (isShareFlow && data.sharedGroups > 0) {
-              msg = `✅ Xeko đã đăng FB Profile <strong>${currentProfileName}</strong> + share lên <strong>${data.sharedGroups} nhóm</strong> rồi nha!`;
+            } else if (isShareFlow && sharedCount > 0) {
+              msg = `✅ Xeko đã đăng FB Profile <strong>${currentProfileName}</strong> + share lên <strong>${sharedCount} nhóm</strong> rồi nha!`;
             } else {
               msg = `✅ Xong ${targetLabel} rồi nha!`;
             }
@@ -6016,7 +6025,7 @@
             } else {
               addBot(msg, null, shot);
             }
-          } else {
+          } else if (data) {
             const errMsg = botSystemError('đăng bài', data.error);
             if (progressRow) {
               morphBot(progressRow, errMsg, 'error');
