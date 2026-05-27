@@ -1,17 +1,17 @@
 /* Xeko PWA service worker */
-const VERSION = 'xeko-pwa-v20';
+const VERSION = 'xeko-pwa-v21';
 const SHELL_CACHE = `shell-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
 const SHELL_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest',
-  '/favicon.svg',
-  '/favicon-32.png',
-  '/xeko-logo-180.png',
-  '/xeko-icon-192.png',
-  '/xeko-icon-512.png',
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './favicon.svg',
+  './favicon-32.png',
+  './xeko-logo-180.png',
+  './xeko-icon-192.png',
+  './xeko-icon-512.png',
 ];
 
 self.addEventListener('install', (event) => {
