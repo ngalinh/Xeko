@@ -5097,6 +5097,11 @@
       // spawn thêm bot bubble (tránh spam khi user bấm "Tiếp tục" liên tục)
       panelHtml += `<div class="channel-error" id="channelError_${pid}" style="display:none; color:#dc2626; font-size:13px; margin-top:10px; padding:8px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px;"></div>`;
 
+      // Schedule hint
+      if (postMode === 'schedule') {
+        panelHtml += `<div style="margin-top:8px;font-size:0.88em;color:#6B7280;">Chọn xong bấm <strong>Tiếp tục</strong> để đặt giờ đăng nhé!</div>`;
+      }
+
       // Action buttons
       panelHtml += `<div class="msg-buttons" style="margin-top:12px;">
         <button class="msg-btn primary" onclick="confirmChannelSelection(${pid})">✓ Tiếp tục</button>
@@ -5115,7 +5120,6 @@
           <div class="msg bot">
             Chọn kênh muốn đăng:
             ${panelHtml}
-            ${postMode === 'schedule' ? `<div style="margin-top:8px;font-size:0.88em;color:#6B7280;">Chọn xong bấm <strong>Tiếp tục</strong> để đặt giờ đăng nhé!</div>` : ''}
             <span class="msg-time">${now()}</span>
           </div>
         </div>`;
