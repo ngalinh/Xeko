@@ -4612,12 +4612,33 @@
       return e && (e.status === 504 || e.status === 502 || e.status === 524);
     }
 
+    // Chờ ms milliseconds HOẶC đến khi tab trở thành visible (browser background
+    // throttling có thể delay setTimeout lên 1 phút — khi user quay lại tab thì
+    // visibilitychange fire ngay, không cần chờ timer hết hạn).
+    function sleepOrVisible(ms) {
+      return new Promise(resolve => {
+        let tid;
+        const onVis = () => {
+          if (document.visibilityState === 'visible') {
+            clearTimeout(tid);
+            document.removeEventListener('visibilitychange', onVis);
+            resolve();
+          }
+        };
+        tid = setTimeout(() => {
+          document.removeEventListener('visibilitychange', onVis);
+          resolve();
+        }, ms);
+        document.addEventListener('visibilitychange', onVis);
+      });
+    }
+
     // Polling job status (backend dùng async job để tránh proxy timeout)
     async function pollJob(jobId, maxWaitMs = 10 * 60 * 1000) {
       const start = Date.now();
       let iteration = 0;
       while (Date.now() - start < maxWaitMs) {
-        await new Promise(r => setTimeout(r, 1500));
+        await sleepOrVisible(1500);
         iteration++;
         try {
           const r = await fetch(BASE_URL + '/api/job/' + jobId);
@@ -5740,7 +5761,7 @@
     async function pollZaloJob(jobId, groupName, account, progressRow = null) {
       const maxTries = 150; // tối đa 5 phút (150 × 2s)
       for (let i = 0; i < maxTries; i++) {
-        await new Promise(r => setTimeout(r, 2000));
+        await sleepOrVisible(2000);
         try {
           const r = await fetch(`${BASE_URL}/api/zalo/status/${jobId}`);
           if (!r.ok) continue;
@@ -10560,7 +10581,7 @@
             if (job.zaloJobId) {
               const deadline = Date.now() + 10 * 60 * 1000;
               while (Date.now() < deadline) {
-                await new Promise(r => setTimeout(r, 2000));
+                await sleepOrVisible(2000);
                 const sr = await fetch(`${BASE_URL}/api/zalo/status/${job.zaloJobId}`);
                 const sd = await parseJson(sr);
                 if (sd.status === 'done') { d = sd; break; }
