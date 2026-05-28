@@ -10,6 +10,7 @@ const playwright = process.env.PLAYWRIGHT_LOCAL_URL
   ? require('./playwright-proxy')
   : require('./src/playwright/post');
 const postLogger = require('./src/database/post-logger');
+const seedStore = require('./src/database/seed-store');
 const { queuePost } = require('./src/utils/post-queue');
 
 const permissions = require('./src/utils/permissions');
@@ -1933,6 +1934,88 @@ app.get('/api/saved-post-image/:id/:index', (req, res) => {
   if (!path.resolve(filePath).startsWith(SAVED_POSTS_IMG_DIR)) return res.status(400).send('Bad request');
   if (fs.existsSync(filePath)) return res.sendFile(path.resolve(filePath));
   res.status(404).send('Not found');
+});
+
+// ===== SEEDING API =====
+
+app.post('/api/seed', upload.array('images', 10), async (req, res) => {
+  const { postLogId, postUrl, profile, message } = req.body;
+  const imagePaths = (req.files || []).map(f => f.path);
+
+  if (!postUrl) {
+    cleanupFiles(imagePaths);
+    return res.status(400).json({ error: 'Thiếu postUrl' });
+  }
+  if (!profile) {
+    cleanupFiles(imagePaths);
+    return res.status(400).json({ error: 'Thiếu profile' });
+  }
+  if (!playwright.profileExists(profile)) {
+    cleanupFiles(imagePaths);
+    return res.status(400).json({ error: `Profile "${profile}" không tồn tại` });
+  }
+
+  const imageUrls = await persistImages(imagePaths);
+  const jobId = createJob();
+  res.json({ jobId, status: 'pending' });
+
+  queuePost(async () => {
+    try {
+      const result = await playwright.postComment({ postUrl, message, imagePaths, profile });
+      const profileData = playwright.getActiveProfile();
+      seedStore.logSeed({
+        postLogId: postLogId ? Number(postLogId) : null,
+        postUrl,
+        profile,
+        profileName: profileData ? profileData.name : profile,
+        platform: 'facebook',
+        message,
+        imageCount: imagePaths.length,
+        images: imageUrls,
+        success: result.success,
+        error: result.error,
+      });
+      setJobResult(jobId, result);
+    } catch (e) {
+      seedStore.logSeed({
+        postLogId: postLogId ? Number(postLogId) : null,
+        postUrl,
+        profile,
+        profileName: profile,
+        platform: 'facebook',
+        message,
+        imageCount: imagePaths.length,
+        images: imageUrls,
+        success: false,
+        error: e.message,
+      });
+      setJobError(jobId, e.message);
+    } finally {
+      cleanupFiles(imagePaths);
+    }
+  });
+});
+
+app.get('/api/seed-logs', (req, res) => {
+  const { postLogId, postUrl } = req.query;
+  try {
+    let rows;
+    if (postLogId) rows = seedStore.getSeedLogs(Number(postLogId));
+    else if (postUrl) rows = seedStore.getSeedLogsByUrl(postUrl);
+    else rows = [];
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/seed-logs/:id', (req, res) => {
+  try {
+    seedStore.deleteSeedLog(Number(req.params.id));
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Global error middleware: tra JSON ro rang thay vi plain text "Internal Server"

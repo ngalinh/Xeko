@@ -4429,6 +4429,64 @@
     </div>
   </div>
 
+  <!-- ===== SEED MODAL ===== -->
+  <div id="seedModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:16px; padding:28px; width:560px; max-width:95%; max-height:90vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.25); position:relative;">
+      <button onclick="closeSeedModal()" style="position:absolute; top:16px; right:16px; background:none; border:none; font-size:22px; line-height:1; cursor:pointer; color:#999; padding:0;">×</button>
+      <h3 style="font-size:16px; font-weight:700; color:#1e1e2e; margin:0 0 18px; display:flex; align-items:center; gap:8px;"><svg class="xi xi-md" style="color:#059669;"><use href="#ic-chat"/></svg> Seeding bài viết</h3>
+
+      <!-- Bài gốc -->
+      <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:12px; color:#374151;">
+        <div style="font-weight:600; color:#065F46; margin-bottom:4px;">Bài gốc</div>
+        <div id="seedPostMsg" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#374151;"></div>
+        <a id="seedPostLink" href="#" target="_blank" rel="noopener" style="color:#059669; font-size:11px; margin-top:4px; display:inline-flex; align-items:center; gap:3px; text-decoration:none;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Mở bài đăng
+        </a>
+      </div>
+
+      <!-- Tài khoản -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Tài khoản comment</label>
+        <select id="seedProfile" style="width:100%; padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#333;"></select>
+      </div>
+
+      <!-- Nội dung seeding -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Nội dung bình luận</label>
+        <textarea id="seedMessage" rows="4" placeholder="Nhập nội dung seeding (để trống nếu chỉ đăng ảnh)..." style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; resize:vertical; box-sizing:border-box; line-height:1.5;"></textarea>
+      </div>
+
+      <!-- Hình ảnh -->
+      <div style="margin-bottom:20px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:8px;">Hình ảnh sản phẩm <span style="font-weight:400; color:#9ca3af;">(tuỳ chọn)</span></label>
+        <div id="seedImagesPreview" style="display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start; margin-bottom:6px;"></div>
+        <button type="button" onclick="document.getElementById('seedImageInput').value=''; document.getElementById('seedImageInput').click()"
+          style="display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border:1px dashed #d1d5db; border-radius:8px; background:#fafafa; color:#6b7280; font-size:13px; cursor:pointer;"
+          onmouseover="this.style.borderColor='#059669'; this.style.color='#059669';"
+          onmouseout="this.style.borderColor='#d1d5db'; this.style.color='#6b7280';">
+          + Thêm ảnh
+        </button>
+        <input type="file" id="seedImageInput" multiple accept="image/*" style="display:none;" onchange="_addSeedImages(this.files)">
+      </div>
+
+      <!-- Status -->
+      <div id="seedStatus" style="display:none; padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:14px;"></div>
+
+      <!-- Buttons -->
+      <div style="display:flex; gap:10px; justify-content:flex-end; border-top:1px solid #f3f4f6; padding-top:16px;">
+        <button onclick="closeSeedModal()" style="padding:10px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:14px; cursor:pointer; color:#555; font-weight:500;">Huỷ</button>
+        <button onclick="submitSeed()" id="seedSubmitBtn" style="padding:10px 24px; border:none; border-radius:8px; background:#059669; color:#fff; font-size:14px; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:6px;"><svg class="xi"><use href="#ic-chat"/></svg> Seeding</button>
+      </div>
+
+      <!-- Lịch sử seeding -->
+      <div id="seedHistorySection" style="margin-top:20px; border-top:1px solid #f3f4f6; padding-top:16px; display:none;">
+        <div style="font-size:13px; font-weight:600; color:#374151; margin-bottom:10px;">Lịch sử seeding bài này</div>
+        <div id="seedHistoryList"></div>
+      </div>
+    </div>
+  </div>
+
   </div><!-- end main-content -->
 
   <script>
@@ -9832,6 +9890,7 @@
               <td style="padding:8px 10px; text-align:center;">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
                   <button onclick="openRepostModal(${idx})" title="Đăng lại" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#DBEAFE;color:#1E3A8A;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#BFDBFE'" onmouseout="this.style.background='#DBEAFE'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
+                  ${row.post_url && row.platform !== 'zalo' ? `<button onclick="openSeedModal(${row.id}, '${String(row.post_url).replace(/'/g,"\\'")}', '${(row.message||'').substring(0,60).replace(/'/g,"\\'").replace(/\n/g,' ')}')" title="Seeding" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#D1FAE5;color:#065F46;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#A7F3D0'" onmouseout="this.style.background='#D1FAE5'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-chat"/></svg></button>` : ''}
                   <button onclick="openSingleDeleteConfirm(${row.id})" title="Xóa" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
                 </div>
               </td>
@@ -9892,6 +9951,7 @@
               <td style="padding:8px 10px; text-align:center;" onclick="event.stopPropagation()">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
                   <button onclick="openRepostModal(${firstIdx})" title="Đăng lại" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#DBEAFE;color:#1E3A8A;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#BFDBFE'" onmouseout="this.style.background='#DBEAFE'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
+                  ${firstRow.post_url && firstRow.platform !== 'zalo' ? `<button onclick="openSeedModal(${firstRow.id}, '${String(firstRow.post_url).replace(/'/g,"\\'")}', '${(firstRow.message||'').substring(0,60).replace(/'/g,"\\'").replace(/\n/g,' ')}')" title="Seeding" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#D1FAE5;color:#065F46;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#A7F3D0'" onmouseout="this.style.background='#D1FAE5'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-chat"/></svg></button>` : ''}
                   <button onclick="openBatchDeleteConfirm('${idsAttr}')" title="Xóa toàn bộ phiên (${total} bài)" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
                 </div>
               </td>
@@ -9926,6 +9986,7 @@
                 <td style="padding:8px 12px; text-align:center;">${statusBadgeFor(row)}</td>
                 <td style="padding:6px 10px; text-align:center;">
                   <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
+                    ${row.post_url && row.platform !== 'zalo' ? `<button onclick="openSeedModal(${row.id}, '${String(row.post_url).replace(/'/g,"\\'")}', '${(row.message||'').substring(0,60).replace(/'/g,"\\'").replace(/\n/g,' ')}')" title="Seeding" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:none;border-radius:999px;background:#D1FAE5;color:#065F46;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#A7F3D0'" onmouseout="this.style.background='#D1FAE5'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-chat"/></svg></button>` : ''}
                     <button onclick="openSingleDeleteConfirm(${row.id})" title="Xóa dòng này" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
                   </div>
                 </td>
@@ -10579,6 +10640,168 @@
         }
         loadDashHistory();
       })();
+    }
+
+    // ===== SEEDING =====
+    let _seedImages = [];
+    let _seedPostLogId = null;
+    let _seedPostUrl = null;
+
+    async function openSeedModal(postLogId, postUrl, postMsgPreview) {
+      _seedPostLogId = postLogId;
+      _seedPostUrl = postUrl;
+      _seedImages = [];
+
+      document.getElementById('seedPostMsg').textContent = postMsgPreview || '(không có nội dung)';
+      document.getElementById('seedPostLink').href = postUrl;
+      document.getElementById('seedMessage').value = '';
+      document.getElementById('seedStatus').style.display = 'none';
+      document.getElementById('seedSubmitBtn').disabled = false;
+      document.getElementById('seedSubmitBtn').innerHTML = `<svg class="xi"><use href="#ic-chat"/></svg> Seeding`;
+      _renderSeedImages();
+
+      // Load danh sách profiles
+      try {
+        const res = await fetch(BASE_URL + '/api/accounts');
+        const data = await parseJson(res);
+        const profiles = data.facebook || [];
+        const sel = document.getElementById('seedProfile');
+        sel.innerHTML = profiles.length
+          ? profiles.map(p => `<option value="${escapeHtml(p.key)}">${escapeHtml(p.name || p.key)}</option>`).join('')
+          : '<option value="">Chưa có tài khoản</option>';
+      } catch {
+        document.getElementById('seedProfile').innerHTML = '<option value="">Lỗi tải tài khoản</option>';
+      }
+
+      document.getElementById('seedModal').style.display = 'flex';
+
+      // Load lịch sử seeding
+      _loadSeedHistory(postLogId);
+    }
+
+    function closeSeedModal() {
+      document.getElementById('seedModal').style.display = 'none';
+      _seedImages = [];
+      _seedPostLogId = null;
+      _seedPostUrl = null;
+    }
+
+    function _renderSeedImages() {
+      const preview = document.getElementById('seedImagesPreview');
+      preview.innerHTML = _seedImages.map((f, i) => {
+        const src = f instanceof File ? URL.createObjectURL(f) : f;
+        return `<div style="position:relative; display:inline-block; flex-shrink:0;">
+          <img src="${src}" style="width:68px; height:68px; object-fit:cover; border-radius:8px; border:1px solid #e5e7eb; display:block;" loading="lazy">
+          <button type="button" onclick="_removeSeedImage(${i})" style="position:absolute; top:-6px; right:-6px; background:#ef4444; color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:13px; cursor:pointer; line-height:1; padding:0; display:flex; align-items:center; justify-content:center;">×</button>
+        </div>`;
+      }).join('');
+    }
+
+    function _addSeedImages(files) {
+      for (const f of files) _seedImages.push(f);
+      _renderSeedImages();
+    }
+
+    function _removeSeedImage(i) {
+      _seedImages.splice(i, 1);
+      _renderSeedImages();
+    }
+
+    async function submitSeed() {
+      const profile = document.getElementById('seedProfile').value;
+      const message = document.getElementById('seedMessage').value.trim();
+
+      if (!profile) { showXekoToast('Vui lòng chọn tài khoản!', 'error'); return; }
+      if (!message && _seedImages.length === 0) { showXekoToast('Nhập nội dung hoặc chọn ảnh!', 'error'); return; }
+
+      const btn = document.getElementById('seedSubmitBtn');
+      btn.disabled = true;
+      btn.innerHTML = `<svg class="xi"><use href="#ic-clock"/></svg> Đang gửi...`;
+
+      const showStatus = (msg, ok) => {
+        const el = document.getElementById('seedStatus');
+        el.style.display = '';
+        el.style.background = ok ? '#d1fae5' : '#fee2e2';
+        el.style.color = ok ? '#065F46' : '#b91c1c';
+        el.style.border = `1px solid ${ok ? '#6ee7b7' : '#fca5a5'}`;
+        el.textContent = msg;
+      };
+
+      try {
+        const fd = new FormData();
+        fd.append('postLogId', String(_seedPostLogId || ''));
+        fd.append('postUrl', _seedPostUrl);
+        fd.append('profile', profile);
+        fd.append('message', message);
+        for (const f of _seedImages) {
+          if (f instanceof File) fd.append('images', f);
+        }
+
+        const res = await fetch(BASE_URL + '/api/seed', { method: 'POST', body: fd });
+        const data = await parseJson(res);
+
+        if (!res.ok || data.error) {
+          showStatus('Lỗi: ' + (data.error || 'Không rõ'), false);
+          btn.disabled = false;
+          btn.innerHTML = `<svg class="xi"><use href="#ic-chat"/></svg> Seeding`;
+          return;
+        }
+
+        // Poll job
+        btn.innerHTML = `<svg class="xi"><use href="#ic-clock"/></svg> Đang comment...`;
+        const result = await pollJob(data.jobId);
+
+        if (result.success) {
+          showStatus('Seeding thành công!', true);
+          showXekoToast('Seeding thành công!', 'success');
+          _seedImages = [];
+          _renderSeedImages();
+          document.getElementById('seedMessage').value = '';
+          _loadSeedHistory(_seedPostLogId);
+        } else {
+          showStatus('Thất bại: ' + (result.error || 'Không rõ'), false);
+          showXekoToast('Seeding thất bại: ' + (result.error || ''), 'error');
+        }
+      } catch (e) {
+        showStatus('Lỗi: ' + e.message, false);
+        showXekoToast('Lỗi gửi seeding', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<svg class="xi"><use href="#ic-chat"/></svg> Seeding`;
+      }
+    }
+
+    async function _loadSeedHistory(postLogId) {
+      if (!postLogId) return;
+      const section = document.getElementById('seedHistorySection');
+      const list = document.getElementById('seedHistoryList');
+      try {
+        const res = await fetch(`${BASE_URL}/api/seed-logs?postLogId=${encodeURIComponent(postLogId)}`);
+        const rows = await parseJson(res);
+        if (!rows.length) { section.style.display = 'none'; return; }
+        section.style.display = '';
+        list.innerHTML = rows.map(r => {
+          const ts = new Date(r.timestamp).toLocaleString('vi-VN', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit', year:'numeric' });
+          const status = r.success
+            ? `<span style="color:#059669; font-size:11px; font-weight:600;">✓ Thành công</span>`
+            : `<span style="color:#dc2626; font-size:11px; font-weight:600;" title="${escapeHtml(r.error||'')}">✗ Thất bại</span>`;
+          return `<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px; padding:8px 0; border-bottom:1px solid #f3f4f6;">
+            <div style="min-width:0; flex:1;">
+              <div style="font-size:12px; color:#374151; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(r.profile_name || r.profile)} · ${ts} · ${status}</div>
+              ${r.message ? `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px;">${escapeHtml(r.message.substring(0,100))}</div>` : ''}
+              ${r.image_count ? `<div style="font-size:11px; color:#9ca3af; margin-top:1px;">${r.image_count} ảnh</div>` : ''}
+            </div>
+            <button onclick="_deleteSeedLog(${r.id})" style="flex-shrink:0; background:none; border:none; color:#d1d5db; cursor:pointer; font-size:16px; line-height:1; padding:0;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#d1d5db'">×</button>
+          </div>`;
+        }).join('');
+      } catch { section.style.display = 'none'; }
+    }
+
+    async function _deleteSeedLog(id) {
+      try {
+        await fetch(`${BASE_URL}/api/seed-logs/${id}`, { method: 'DELETE' });
+        _loadSeedHistory(_seedPostLogId);
+      } catch {}
     }
 
     // ===== Image Lightbox (in-app, có nút back) =====
