@@ -10655,6 +10655,15 @@
       });
     }
 
+    // bfcache: khi browser phục hồi trang từ bộ nhớ (vào lại / back/forward),
+    // JS cũ vẫn chạy dù SW đã cập nhật. Reload để nạp code mới.
+    window.addEventListener('pageshow', (evt) => {
+      if (evt.persisted) {
+        console.info('[SW] bfcache restore — reloading for fresh code');
+        location.reload();
+      }
+    });
+
     // Capture install prompt; surface a small floating button on mobile
     let __xekoInstallPrompt = null;
     window.addEventListener('beforeinstallprompt', (e) => {

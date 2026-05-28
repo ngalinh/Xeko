@@ -1,11 +1,11 @@
 /* Xeko PWA service worker */
-const VERSION = 'xeko-pwa-v21';
+const VERSION = 'xeko-pwa-v22';
 const SHELL_CACHE = `shell-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
+// HTML bị loại khỏi SHELL_ASSETS — không pre-cache, vì sẽ stale sau mỗi lần deploy.
+// index.html luôn được fetch từ network (navigation handler là network-first).
 const SHELL_ASSETS = [
-  './',
-  './index.html',
   './manifest.webmanifest',
   './favicon.svg',
   './favicon-32.png',
@@ -84,14 +84,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static: cache-first, populate runtime cache on miss
+  // Static: cache-first for non-HTML assets, populate runtime cache on miss.
+  // HTML luôn bị bỏ qua cache để tránh serve stale code sau deploy.
+  const isHtmlRequest = url.pathname === '/' || url.pathname.endsWith('.html');
   event.respondWith(
     caches.match(request).then((cached) => {
-      if (cached) return cached;
+      if (cached && !isHtmlRequest) return cached;
       return fetch(request).then((res) => {
         if (!res || res.status !== 200 || res.type === 'opaque') return res;
-        const copy = res.clone();
-        caches.open(RUNTIME_CACHE).then((c) => c.put(request, copy));
+        if (!isHtmlRequest) {
+          const copy = res.clone();
+          caches.open(RUNTIME_CACHE).then((c) => c.put(request, copy));
+        }
         return res;
       }).catch(() => cached);
     })
