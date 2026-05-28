@@ -535,7 +535,8 @@ app.get('/api/job/:id', (req, res) => {
 });
 
 // SSE: browser subscribe để nhận job result ngay khi Playwright xong
-app.get('/api/job-events', auth.requireAuth, (req, res) => {
+// Auth được xử lý bởi global middleware (/api/* → auth.requireAuth(permissions))
+app.get('/api/job-events', (req, res) => {
   res.set({
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache, no-store',

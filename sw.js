@@ -1,5 +1,5 @@
 /* Xeko PWA service worker */
-const VERSION = 'xeko-pwa-v22';
+const VERSION = 'xeko-pwa-v23';
 const SHELL_CACHE = `shell-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
@@ -70,17 +70,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigations: network-first with shell fallback for offline
+  // Navigations: network-only — HTML có Cache-Control: no-store nên không cache.
+  // Không cần offline fallback vì app không dùng được offline (cần server + Playwright).
   if (isNavigation(request)) {
-    event.respondWith(
-      fetch(request)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(SHELL_CACHE).then((c) => c.put('/index.html', copy));
-          return res;
-        })
-        .catch(() => caches.match('/index.html'))
-    );
+    event.respondWith(fetch(request));
     return;
   }
 
