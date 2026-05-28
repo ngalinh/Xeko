@@ -139,7 +139,7 @@ function profileExists(_profileName) {
 async function pollZaloLocalJob(jobId, maxWaitMs = 10 * 60 * 1000) {
   const start = Date.now();
   while (Date.now() - start < maxWaitMs) {
-    await new Promise(r => setTimeout(r, 5000));
+    await new Promise(r => setTimeout(r, 2000));
     try {
       const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL;
       if (!LOCAL_URL) throw new Error('Local server chưa kết nối');
@@ -164,7 +164,7 @@ async function pollZaloLocalJob(jobId, maxWaitMs = 10 * 60 * 1000) {
 async function pollLocalJob(jobId, maxWaitMs = 10 * 60 * 1000) {
   const start = Date.now();
   while (Date.now() - start < maxWaitMs) {
-    await new Promise(r => setTimeout(r, 5000));
+    await new Promise(r => setTimeout(r, 1500));
     try {
       const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL;
       if (!LOCAL_URL) throw new Error('Local server chưa kết nối');

@@ -4617,7 +4617,7 @@
       const start = Date.now();
       let iteration = 0;
       while (Date.now() - start < maxWaitMs) {
-        await new Promise(r => setTimeout(r, 5000));
+        await new Promise(r => setTimeout(r, 1500));
         iteration++;
         try {
           const r = await fetch(BASE_URL + '/api/job/' + jobId);
@@ -5738,9 +5738,9 @@
 
     // Poll kết quả Zalo post async — cập nhật chatbot khi Playwright hoàn thành
     async function pollZaloJob(jobId, groupName, account, progressRow = null) {
-      const maxTries = 60; // tối đa 5 phút (60 × 5s)
+      const maxTries = 150; // tối đa 5 phút (150 × 2s)
       for (let i = 0; i < maxTries; i++) {
-        await new Promise(r => setTimeout(r, 5000));
+        await new Promise(r => setTimeout(r, 2000));
         try {
           const r = await fetch(`${BASE_URL}/api/zalo/status/${jobId}`);
           if (!r.ok) continue;
@@ -10560,7 +10560,7 @@
             if (job.zaloJobId) {
               const deadline = Date.now() + 10 * 60 * 1000;
               while (Date.now() < deadline) {
-                await new Promise(r => setTimeout(r, 5000));
+                await new Promise(r => setTimeout(r, 2000));
                 const sr = await fetch(`${BASE_URL}/api/zalo/status/${job.zaloJobId}`);
                 const sd = await parseJson(sr);
                 if (sd.status === 'done') { d = sd; break; }
