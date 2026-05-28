@@ -4713,11 +4713,15 @@
           const ac = _jobSseBus.get(d.jobId);
           if (ac) ac.abort();                  // wake up pollJob đang sleep
           // Nếu dashboard đang mở → refresh ngay để hiện bài vừa đăng
+          // Dùng setTimeout(0) để chờ _activeRepostJobs.splice() chạy xong trước khi render
           if (d.status === 'done' || d.status === 'failed') {
-            const dashPg = document.getElementById('pageDashboard');
-            if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
-              loadDashHistory();
-            }
+            setTimeout(() => {
+              const dashPg = document.getElementById('pageDashboard');
+              if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
+                if (typeof dashPage !== 'undefined') dashPage = 0;
+                loadDashHistory();
+              }
+            }, 0);
           }
         } catch {}
       });
@@ -6047,9 +6051,10 @@
         return d.success ? 1 : 0;
       };
 
-      const _refreshDashIfActive = () => {
+      const _refreshDashIfActive = (resetPage = false) => {
         const dashPg = document.getElementById('pageDashboard');
         if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
+          if (resetPage && typeof dashPage !== 'undefined') dashPage = 0;
           loadDashHistory();
         }
       };
@@ -6386,7 +6391,7 @@
       // Clear active post tracker
       const _idx = _activeRepostJobs.indexOf(_activePostJob);
       if (_idx !== -1) _activeRepostJobs.splice(_idx, 1);
-      _refreshDashIfActive();
+      _refreshDashIfActive(true); // reset về trang 1 để bài mới nhất hiện ra
 
       broadcastTabPostEnd(currentProfile);
       document.getElementById('sendBtn').disabled = false;
@@ -9266,7 +9271,10 @@
           }
           if (typeof loadDashHistory === 'function') {
             const dashPg = document.getElementById('pageDashboard');
-            if (dashPg && dashPg.classList.contains('active')) loadDashHistory();
+            if (dashPg && dashPg.classList.contains('active')) {
+              dashPage = 0;
+              loadDashHistory();
+            }
           }
         })();
       }
@@ -9284,6 +9292,7 @@
     let dashPage = 0;
     const dashLimit = 20;
     const _activeRepostJobs = []; // jobs đang poll background
+    let _loadDashHistoryVersion = 0; // version guard để cancel concurrent loadDashHistory calls
 
     // === Multi-select filter component ===
     const _mselState = {}; // id -> Set of selected values (empty Set = "all")
@@ -9729,6 +9738,7 @@
     }
 
     async function loadDashHistory() {
+      const myVersion = ++_loadDashHistoryVersion;
       const profiles = getMselValues('msel-profile');
       const platforms = getMselValues('msel-platform');
       const targets = getMselValues('msel-target');
@@ -9778,6 +9788,9 @@
           fetch(BASE_URL + '/api/post-history?' + params.toString(), {cache: 'reload'}),
           fetch(BASE_URL + '/api/statistics/by-profile?' + statsParams.toString(), {cache: 'reload'}),
         ]);
+        // Nếu có call mới hơn đang chờ render, bỏ qua call này
+        if (myVersion !== _loadDashHistoryVersion) return;
+
         const allSchedules = schedRes ? await parseJson(schedRes).catch(() => []) : [];
         const data = await parseJson(histRes);
         const byProfileData = byProfileRes.ok ? await parseJson(byProfileRes).catch(() => []) : [];
@@ -10748,6 +10761,7 @@
           if (idx !== -1) _activeRepostJobs.splice(idx, 1);
           if (job.jobId) removePendingJob(job.jobId);
         }
+        dashPage = 0;
         loadDashHistory();
       })();
     }
