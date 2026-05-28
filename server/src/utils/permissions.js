@@ -123,16 +123,24 @@ async function restoreFromLocal() {
     return true;
   } catch (e) {
     logger.info(`permissions restoreFromLocal: LOCAL chưa sẵn sàng (${e.message})`);
-    return false;
+    return null; // null = network error (có thể retry), false = local up nhưng không có data
   }
 }
 
 // Gọi sau khi LOCAL register tunnel URL: kéo data từ LOCAL về (LOCAL là source of truth).
 // Nếu LOCAL chưa có file (404) thì đẩy state hiện tại của REMOTE lên LOCAL để bootstrap.
-async function syncOnRegister() {
-  const restored = await restoreFromLocal();
-  if (!restored) {
+// maxRetries > 0 dùng cho startup để retry khi local chưa kịp sẵn sàng.
+async function syncOnRegister({ maxRetries = 0, retryDelay = 3000 } = {}) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      logger.info(`permissions startup: thử lại lần ${attempt}/${maxRetries}...`);
+      await new Promise(r => setTimeout(r, retryDelay * attempt));
+    }
+    const result = await restoreFromLocal();
+    if (result === true) return;
+    if (result === null && attempt < maxRetries) continue; // network error, retry
     await syncToLocal(load());
+    return;
   }
 }
 

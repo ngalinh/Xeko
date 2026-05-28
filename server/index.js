@@ -1963,7 +1963,7 @@ app.listen(config.server.port, () => {
   // Direct-IP mode: PLAYWRIGHT_LOCAL_URL set static → sync permissions từ LOCAL ngay khi start.
   // (Tunnel mode dùng /api/register-local handler để trigger sync khi LOCAL phone home.)
   if (getLocalUrl()) {
-    permissions.syncOnRegister().catch(e => logger.warn(`startup syncOnRegister: ${e.message}`));
+    permissions.syncOnRegister({ maxRetries: 3, retryDelay: 3000 }).catch(e => logger.warn(`startup syncOnRegister: ${e.message}`));
   }
 });
 
