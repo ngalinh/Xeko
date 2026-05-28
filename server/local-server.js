@@ -185,6 +185,17 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   const jobId = createJob();
   res.json({ jobId, status: 'pending' });
 
+  // Safety net: nếu Playwright bị kẹt và IIFE không bao giờ gọi setJobResult/setJobError,
+  // job sẽ ở pending mãi mãi. Force-fail sau 9 phút (< 10 phút của pollLocalJob ở cloud)
+  // để cloud thấy "failed" thay vì tự timeout với message chung chung hơn.
+  const _jobTimeoutId = setTimeout(() => {
+    const j = postJobs.get(jobId);
+    if (j && j.status === 'pending') {
+      logger.error(`[job ${jobId}] TIMEOUT sau 9 phút — force setJobError`);
+      setJobError(jobId, 'Timeout: Playwright bị kẹt quá 9 phút. Có thể đã đăng thành công — kiểm tra Facebook trước khi đăng lại.');
+    }
+  }, 9 * 60 * 1000);
+
   (async () => {
     try {
       const cfg = require('./config/default');
@@ -266,6 +277,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
       logger.error(`Lỗi job ${jobId}: ${error.message}`);
       setJobError(jobId, error.message);
     } finally {
+      clearTimeout(_jobTimeoutId);
       cleanupFiles(imagePaths);
     }
   })();
@@ -313,6 +325,14 @@ app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res)
   const jobId = createJob();
   res.json({ jobId, status: 'pending' });
 
+  const _qpTimeoutId = setTimeout(() => {
+    const j = postJobs.get(jobId);
+    if (j && j.status === 'pending') {
+      logger.error(`[fb-quick-post-test job ${jobId}] TIMEOUT sau 9 phút`);
+      setJobError(jobId, 'Timeout: Playwright bị kẹt quá 9 phút. Có thể đã đăng thành công — kiểm tra Facebook trước khi đăng lại.');
+    }
+  }, 9 * 60 * 1000);
+
   (async () => {
     try {
       const result = await playwright.quickPostToPersonalAndGroups(message || '', imagePaths, groupKeywords);
@@ -321,6 +341,7 @@ app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res)
       logger.error(`[fb-quick-post-test] job ${jobId} FAILED: ${e.message}`);
       setJobError(jobId, e.message);
     } finally {
+      clearTimeout(_qpTimeoutId);
       cleanupFiles(imagePaths);
     }
   })();
