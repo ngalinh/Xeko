@@ -4460,19 +4460,6 @@
         <div id="seedCommentsList" style="display:flex; flex-direction:column; gap:8px;"></div>
       </div>
 
-      <!-- Hình ảnh -->
-      <div style="margin-bottom:20px;">
-        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:8px;">Hình ảnh sản phẩm <span style="font-weight:400; color:#9ca3af;">(tuỳ chọn)</span></label>
-        <div id="seedImagesPreview" style="display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start; margin-bottom:6px;"></div>
-        <button type="button" onclick="document.getElementById('seedImageInput').value=''; document.getElementById('seedImageInput').click()"
-          style="display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border:1px dashed #d1d5db; border-radius:8px; background:#fafafa; color:#6b7280; font-size:13px; cursor:pointer;"
-          onmouseover="this.style.borderColor='#059669'; this.style.color='#059669';"
-          onmouseout="this.style.borderColor='#d1d5db'; this.style.color='#6b7280';">
-          + Thêm ảnh
-        </button>
-        <input type="file" id="seedImageInput" multiple accept="image/*" style="display:none;" onchange="_addSeedImages(this.files)">
-      </div>
-
       <!-- Status -->
       <div id="seedStatus" style="display:none; padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:14px;"></div>
 
@@ -10646,8 +10633,7 @@
     }
 
     // ===== SEEDING =====
-    let _seedImages = [];
-    let _seedComments = [''];
+    let _seedComments = [{ text: '', images: [] }];
     let _seedPostLogId = null;
     let _seedPostUrl = null;
 
@@ -10660,8 +10646,7 @@
 
       _seedPostLogId = postLogId;
       _seedPostUrl = postUrl;
-      _seedImages = [];
-      _seedComments = [''];
+      _seedComments = [{ text: '', images: [] }];
 
       document.getElementById('seedPostMsg').textContent = postMsgPreview || '(không có nội dung)';
       document.getElementById('seedPostLink').href = postUrl;
@@ -10669,7 +10654,6 @@
       document.getElementById('seedStatus').style.display = 'none';
       document.getElementById('seedSubmitBtn').disabled = false;
       document.getElementById('seedSubmitBtn').innerHTML = `<svg class="xi"><use href="#ic-chat"/></svg> Seeding`;
-      _renderSeedImages();
 
       // Load danh sách profiles
       try {
@@ -10692,52 +10676,70 @@
 
     function closeSeedModal() {
       document.getElementById('seedModal').style.display = 'none';
-      _seedImages = [];
+      _seedComments = [{ text: '', images: [] }];
       _seedPostLogId = null;
       _seedPostUrl = null;
     }
 
-    function _renderSeedImages() {
-      const preview = document.getElementById('seedImagesPreview');
-      preview.innerHTML = _seedImages.map((f, i) => {
+    function _renderSeedEntryImages(entryIdx) {
+      const preview = document.querySelector(`[data-seed-img-preview="${entryIdx}"]`);
+      if (!preview) return;
+      const imgs = _seedComments[entryIdx]?.images || [];
+      preview.innerHTML = imgs.map((f, i) => {
         const src = f instanceof File ? URL.createObjectURL(f) : f;
         return `<div style="position:relative; display:inline-block; flex-shrink:0;">
-          <img src="${src}" style="width:68px; height:68px; object-fit:cover; border-radius:8px; border:1px solid #e5e7eb; display:block;" loading="lazy">
-          <button type="button" onclick="_removeSeedImage(${i})" style="position:absolute; top:-6px; right:-6px; background:#ef4444; color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:13px; cursor:pointer; line-height:1; padding:0; display:flex; align-items:center; justify-content:center;">×</button>
+          <img src="${src}" style="width:48px; height:48px; object-fit:cover; border-radius:6px; border:1px solid #e5e7eb; display:block;" loading="lazy">
+          <button type="button" onclick="_removeSeedEntryImage(${entryIdx},${i})" style="position:absolute; top:-5px; right:-5px; background:#ef4444; color:#fff; border:none; border-radius:50%; width:16px; height:16px; font-size:11px; cursor:pointer; line-height:1; padding:0; display:flex; align-items:center; justify-content:center;">×</button>
         </div>`;
       }).join('');
     }
 
-    function _addSeedImages(files) {
-      for (const f of files) _seedImages.push(f);
-      _renderSeedImages();
+    function _addSeedEntryImages(entryIdx, files) {
+      if (!_seedComments[entryIdx]) return;
+      for (const f of files) _seedComments[entryIdx].images.push(f);
+      _renderSeedEntryImages(entryIdx);
     }
 
-    function _removeSeedImage(i) {
-      _seedImages.splice(i, 1);
-      _renderSeedImages();
+    function _removeSeedEntryImage(entryIdx, imgIdx) {
+      if (!_seedComments[entryIdx]) return;
+      _seedComments[entryIdx].images.splice(imgIdx, 1);
+      _renderSeedEntryImages(entryIdx);
     }
 
     function _renderSeedComments() {
       const list = document.getElementById('seedCommentsList');
-      list.innerHTML = _seedComments.map((_, i) => `
-        <div style="display:flex; gap:6px; align-items:flex-start;">
-          <div style="flex:1; position:relative;">
-            <span style="position:absolute; top:9px; left:10px; font-size:11px; color:#9ca3af; font-weight:700; pointer-events:none; user-select:none;">${i + 1}</span>
-            <textarea data-seed-idx="${i}" rows="3" oninput="_seedComments[${i}]=this.value"
-              placeholder="Nhập nội dung bình luận ${i + 1}..."
-              style="width:100%; padding:8px 10px 8px 24px; border:1px solid #ddd; border-radius:8px; font-size:13px; resize:vertical; box-sizing:border-box; line-height:1.5;"></textarea>
+      list.innerHTML = _seedComments.map((entry, i) => `
+        <div style="border:1px solid #e5e7eb; border-radius:10px; padding:10px 12px; background:#fafafa;">
+          <div style="display:flex; gap:6px; align-items:flex-start;">
+            <span style="flex-shrink:0; margin-top:9px; font-size:11px; color:#9ca3af; font-weight:700; min-width:14px; text-align:right; user-select:none;">${i + 1}</span>
+            <div style="flex:1;">
+              <textarea data-seed-idx="${i}" rows="2" oninput="_seedComments[${i}].text=this.value"
+                placeholder="Nội dung bình luận ${i + 1}..."
+                style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:7px; font-size:13px; resize:vertical; box-sizing:border-box; line-height:1.5; background:#fff;"></textarea>
+              <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:6px;">
+                <div data-seed-img-preview="${i}" style="display:contents;"></div>
+                <button type="button"
+                  onclick="const inp=document.getElementById('_seedImgInp_${i}'); inp.value=''; inp.click()"
+                  style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border:1px dashed #d1d5db; border-radius:6px; background:#fff; color:#6b7280; font-size:12px; cursor:pointer;"
+                  onmouseover="this.style.borderColor='#059669'; this.style.color='#059669';"
+                  onmouseout="this.style.borderColor='#d1d5db'; this.style.color='#6b7280';">
+                  + Ảnh
+                </button>
+                <input type="file" id="_seedImgInp_${i}" multiple accept="image/*" style="display:none;" onchange="_addSeedEntryImages(${i}, this.files)">
+              </div>
+            </div>
+            ${_seedComments.length > 1 ? `<button type="button" onclick="_removeSeedComment(${i})" title="Xóa dòng này" style="flex-shrink:0; margin-top:4px; background:#fee2e2; border:none; color:#b91c1c; width:26px; height:26px; border-radius:50%; cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center; line-height:1;">×</button>` : ''}
           </div>
-          ${_seedComments.length > 1 ? `<button type="button" onclick="_removeSeedComment(${i})" title="Xóa nội dung này" style="flex-shrink:0; margin-top:6px; background:#fee2e2; border:none; color:#b91c1c; width:28px; height:28px; border-radius:50%; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; line-height:1;">×</button>` : ''}
         </div>
       `).join('');
       list.querySelectorAll('textarea[data-seed-idx]').forEach(ta => {
-        ta.value = _seedComments[+ta.dataset.seedIdx] || '';
+        ta.value = _seedComments[+ta.dataset.seedIdx]?.text || '';
       });
+      _seedComments.forEach((_, i) => _renderSeedEntryImages(i));
     }
 
     function _addSeedComment() {
-      _seedComments.push('');
+      _seedComments.push({ text: '', images: [] });
       _renderSeedComments();
     }
 
@@ -10748,12 +10750,10 @@
 
     async function submitSeed() {
       const profile = document.getElementById('seedProfile').value;
-      const comments = _seedComments.map(c => c.trim()).filter(c => c);
+      const entriesToPost = _seedComments.filter(c => c.text.trim() || c.images.length > 0);
 
       if (!profile) { showXekoToast('Vui lòng chọn tài khoản!', 'error'); return; }
-      if (!comments.length && _seedImages.length === 0) { showXekoToast('Nhập nội dung hoặc chọn ảnh!', 'error'); return; }
-
-      const entriesToPost = comments.length > 0 ? comments : [''];
+      if (!entriesToPost.length) { showXekoToast('Nhập nội dung hoặc chọn ảnh!', 'error'); return; }
 
       const btn = document.getElementById('seedSubmitBtn');
       btn.disabled = true;
@@ -10770,7 +10770,7 @@
       let successCount = 0, failCount = 0;
 
       for (let ci = 0; ci < entriesToPost.length; ci++) {
-        const message = entriesToPost[ci];
+        const entry = entriesToPost[ci];
         btn.innerHTML = `<svg class="xi"><use href="#ic-clock"/></svg> ${ci + 1}/${entriesToPost.length}...`;
 
         try {
@@ -10778,8 +10778,8 @@
           fd.append('postLogId', String(_seedPostLogId || ''));
           fd.append('postUrl', _seedPostUrl);
           fd.append('profile', profile);
-          fd.append('message', message);
-          for (const f of _seedImages) {
+          fd.append('message', entry.text.trim());
+          for (const f of entry.images) {
             if (f instanceof File) fd.append('images', f);
           }
 
@@ -10800,10 +10800,8 @@
         if (failCount === 0) {
           showStatus(`Seeding thành công ${total} bình luận!`, true);
           showXekoToast(`Seeding thành công ${total} bình luận!`, 'success');
-          _seedComments = [''];
-          _seedImages = [];
+          _seedComments = [{ text: '', images: [] }];
           _renderSeedComments();
-          _renderSeedImages();
           _loadSeedHistory(_seedPostLogId);
         } else if (successCount === 0) {
           showStatus('Tất cả thất bại. Vui lòng thử lại.', false);
