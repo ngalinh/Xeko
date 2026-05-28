@@ -4651,6 +4651,13 @@
           _jobSseResults.set(d.jobId, d);      // lưu kết quả
           const ac = _jobSseBus.get(d.jobId);
           if (ac) ac.abort();                  // wake up pollJob đang sleep
+          // Nếu dashboard đang mở → refresh ngay để hiện bài vừa đăng
+          if (d.status === 'done' || d.status === 'failed') {
+            const dashPg = document.getElementById('pageDashboard');
+            if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
+              loadDashHistory();
+            }
+          }
         } catch {}
       });
     } catch {}
@@ -9441,46 +9448,46 @@
     }
 
     async function loadDashboard() {
+      // Luôn reset về trang 1 khi vào dashboard — đảm bảo bài mới nhất hiện ra đầu tiên
+      dashPage = 0;
+
+      // Đảm bảo channelsData đã được tải (cần cho group filter)
+      if (!(channelsData.fbGroups?.length) && !(channelsData.zaloGroups?.length)) {
+        try {
+          const chRes = await fetch(`${BASE_URL}/api/channels`);
+          if (chRes.ok) channelsData = await parseJson(chRes);
+        } catch {}
+        populateDashGroupFilter();
+      }
+
+      // Load profiles meta (để gom thống kê theo Profile name, vd "Linh Thao US")
+      if (profilesCache.length === 0) {
+        try {
+          const allParam = (CURRENT_USER && CURRENT_USER.isXekoAdmin) ? '?all=1' : '';
+          const accRes = await fetch(`${BASE_URL}/api/accounts` + allParam);
+          if (accRes.ok) {
+            const accData = await parseJson(accRes);
+            profilesCache = accData.facebook || [];
+            zaloAccountsCache = (accData.zalo || []).map(z => z.saleworkName).filter(Boolean);
+          }
+        } catch {}
+      }
+
+      // Load statistics — lỗi ở đây không được chặn loadDashHistory
       try {
-        // Đảm bảo channelsData đã được tải (cần cho group filter)
-        if (!(channelsData.fbGroups?.length) && !(channelsData.zaloGroups?.length)) {
-          try {
-            const chRes = await fetch(`${BASE_URL}/api/channels`);
-            if (chRes.ok) channelsData = await parseJson(chRes);
-          } catch {}
-          populateDashGroupFilter();
-        }
-
-        // Load profiles meta (để gom thống kê theo Profile name, vd "Linh Thao US")
-        if (profilesCache.length === 0) {
-          try {
-            const allParam = (CURRENT_USER && CURRENT_USER.isXekoAdmin) ? '?all=1' : '';
-            const accRes = await fetch(`${BASE_URL}/api/accounts` + allParam);
-            if (accRes.ok) {
-              const accData = await parseJson(accRes);
-              profilesCache = accData.facebook || [];
-              zaloAccountsCache = (accData.zalo || []).map(z => z.saleworkName).filter(Boolean);
-            }
-          } catch {}
-        }
-
-        // Load statistics (all-time, for summary cards + populate profile dropdown)
         const statsRes = await fetch(BASE_URL + '/api/statistics');
         const stats = await parseJson(statsRes);
 
-        // Summary cards (always all-time / today)
         animateCountUp(document.getElementById('statToday'),   stats.today?.total         || 0);
         animateCountUp(document.getElementById('statSuccess'), stats.today?.success_count || 0);
         animateCountUp(document.getElementById('statFail'),    stats.today?.fail_count    || 0);
         animateCountUp(document.getElementById('statTotal'),   stats.summary?.total       || 0);
-        // Stagger entrance for stat cards
         document.querySelectorAll('#dashSummary .dash-card').forEach(function(card, i) {
           card.classList.remove('dash-anim-enter');
           void card.offsetWidth;
           card.style.animationDelay = (i * 80) + 'ms';
           card.classList.add('dash-anim-enter');
         });
-        // Entrance for chart + profile panels
         document.querySelectorAll('.dash-2col .dash-card-pro').forEach(function(el, i) {
           el.classList.remove('dash-anim-enter');
           void el.offsetWidth;
@@ -9488,7 +9495,6 @@
           el.classList.add('dash-anim-enter');
         });
 
-        // Populate profile multi-select (deduplicate by profile key)
         if (stats.byProfile) {
           const seen = new Set();
           const profileOpts = [{ value: '', label: 'Tất cả tài khoản' }];
@@ -9500,11 +9506,15 @@
           });
           setMselOptions('msel-profile', profileOpts, 'Tất cả tài khoản');
         }
+      } catch (e) {
+        console.error('Dashboard stats error:', e);
+      }
 
-        // Load history + chart (loadDashHistory also refreshes the profile cards)
+      // Load history + chart — luôn chạy kể cả khi stats lỗi
+      try {
         await Promise.all([loadDashHistory(), loadDashChart()]);
       } catch (e) {
-        console.error('Dashboard error:', e);
+        console.error('Dashboard history error:', e);
       }
     }
 
