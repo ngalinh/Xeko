@@ -314,13 +314,28 @@ function createJob() {
   return id;
 }
 
+// SSE: push job result ngay về browser — không cần chờ poll cycle
+const _sseClients = new Set();
+
+function sseNotify(jobId, status, result, error) {
+  if (_sseClients.size === 0) return;
+  const data = `data: ${JSON.stringify({ jobId, status, result: result || null, error: error || null })}\n\n`;
+  for (const res of _sseClients) {
+    try { res.write(data); } catch { _sseClients.delete(res); }
+  }
+}
+
 function setJobResult(id, result) {
-  logger.info(`[setJobResult] job=${id} success=${result && result.success} postUrl=${(result && result.postUrl) || '(none)'}`);
+  const success = result && result.success;
+  logger.info(`[setJobResult] job=${id} success=${success} postUrl=${(result && result.postUrl) || '(none)'}`);
   postJobs.set(id, { status: 'done', result, createdAt: Date.now() });
+  sseNotify(id, 'done', result, null);
 }
 
 function setJobError(id, message) {
+  logger.info(`[setJobError] job=${id} error=${message}`);
   postJobs.set(id, { status: 'failed', error: message, createdAt: Date.now() });
+  sseNotify(id, 'failed', null, message);
 }
 
 // Dọn job cũ mỗi giờ
@@ -517,6 +532,26 @@ app.get('/api/job/:id', (req, res) => {
     logger.info(`[api/job] ${req.params.id} → ${job.status}`);
   }
   res.json(job);
+});
+
+// SSE: browser subscribe để nhận job result ngay khi Playwright xong
+app.get('/api/job-events', auth.requireAuth, (req, res) => {
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-store',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no', // tắt nginx/proxy buffering
+  });
+  res.flushHeaders();
+  res.write(': connected\n\n');
+
+  const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch {} }, 25000);
+  _sseClients.add(res);
+
+  req.on('close', () => {
+    clearInterval(ping);
+    _sseClients.delete(res);
+  });
 });
 
 // ===== SCRAPE: Lấy nội dung + ảnh từ link bài viết FB — ASYNC JOB =====
