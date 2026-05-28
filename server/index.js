@@ -74,6 +74,13 @@ app.use((req, res, next) => {
   next();
 });
 
+// HTML không được cache — browser và SW phải luôn fetch mới sau mỗi lần deploy.
+app.use((req, res, next) => {
+  if (req.path === '/' || req.path.endsWith('.html')) {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  }
+  next();
+});
 app.use(express.static(path.join(__dirname, '../')));
 
 async function getFetch() {
