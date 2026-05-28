@@ -4615,16 +4615,27 @@
     // Polling job status (backend dùng async job để tránh proxy timeout)
     async function pollJob(jobId, maxWaitMs = 10 * 60 * 1000) {
       const start = Date.now();
+      let iteration = 0;
       while (Date.now() - start < maxWaitMs) {
         await new Promise(r => setTimeout(r, 5000));
+        iteration++;
         try {
           const r = await fetch(BASE_URL + '/api/job/' + jobId);
+          console.log(`[pollJob ${jobId}] poll #${iteration} → HTTP ${r.status} (${Math.round((Date.now()-start)/1000)}s elapsed)`);
           if (r.status === 404) throw new Error('Job không còn tồn tại — server có thể đã restart. Kiểm tra FB tay.');
+          if (r.status === 401) throw new Error('Phiên đăng nhập hết hạn — vui lòng reload trang và đăng nhập lại.');
+          if (r.status === 403) throw new Error('Không có quyền truy cập — vui lòng reload trang.');
           const data = await parseJson(r);
-          if (data.status === 'done') return data.result;
+          console.log(`[pollJob ${jobId}] data.status=${data.status}`);
+          if (data.status === 'done') {
+            if (data.result == null) throw new Error('Job xong nhưng server không trả kết quả — kiểm tra Facebook tay.');
+            return data.result;
+          }
           if (data.status === 'failed') throw new Error(data.error || 'Job thất bại');
+          // offline fallback từ service worker
+          if (data.offline) throw new Error('Mất kết nối mạng — kiểm tra internet rồi thử lại.');
         } catch (e) {
-          if (isProxyTimeout(e)) continue; // proxy lag, thử lại
+          if (isProxyTimeout(e)) { console.log(`[pollJob ${jobId}] proxy timeout, retry`); continue; }
           throw e;
         }
       }

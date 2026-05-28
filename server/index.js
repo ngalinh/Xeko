@@ -307,6 +307,7 @@ function createJob() {
 }
 
 function setJobResult(id, result) {
+  logger.info(`[setJobResult] job=${id} success=${result && result.success} postUrl=${(result && result.postUrl) || '(none)'}`);
   postJobs.set(id, { status: 'done', result, createdAt: Date.now() });
 }
 
@@ -500,7 +501,13 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
 
 app.get('/api/job/:id', (req, res) => {
   const job = postJobs.get(req.params.id);
-  if (!job) return res.status(404).json({ error: 'Job không tồn tại hoặc đã hết hạn' });
+  if (!job) {
+    logger.warn(`[api/job] ${req.params.id} → 404 (not found)`);
+    return res.status(404).json({ error: 'Job không tồn tại hoặc đã hết hạn' });
+  }
+  if (job.status !== 'pending') {
+    logger.info(`[api/job] ${req.params.id} → ${job.status}`);
+  }
   res.json(job);
 });
 
