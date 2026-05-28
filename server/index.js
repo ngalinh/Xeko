@@ -78,6 +78,12 @@ app.use((req, res, next) => {
 app.use((req, res, next) => {
   if (req.path === '/' || req.path.endsWith('.html')) {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  // sw.js: browser tự cache-bust (dùng conditional GET), nhưng proxy/CDN cần no-store
+  } else if (req.path === '/sw.js') {
+    res.set('Cache-Control', 'no-store');
+  // API: dữ liệu động — không cache ở bất kỳ tầng nào (browser, CDN, nginx)
+  } else if (req.path.startsWith('/api/')) {
+    res.set('Cache-Control', 'no-store');
   }
   next();
 });
