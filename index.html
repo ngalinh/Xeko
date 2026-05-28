@@ -9890,7 +9890,7 @@
               <td style="padding:8px 10px; text-align:center;">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
                   <button onclick="openRepostModal(${idx})" title="Đăng lại" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#DBEAFE;color:#1E3A8A;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#BFDBFE'" onmouseout="this.style.background='#DBEAFE'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
-                  ${row.post_url && row.platform !== 'zalo' ? `<button onclick="openSeedModal(${row.id}, '${String(row.post_url).replace(/'/g,"\\'")}', '${(row.message||'').substring(0,60).replace(/'/g,"\\'").replace(/\n/g,' ')}')" title="Seeding" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#D1FAE5;color:#065F46;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#A7F3D0'" onmouseout="this.style.background='#D1FAE5'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-chat"/></svg></button>` : ''}
+                  ${row.post_url && row.platform !== 'zalo' ? `<button onclick="openSeedModal(${row.id})" title="Seeding" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#D1FAE5;color:#065F46;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#A7F3D0'" onmouseout="this.style.background='#D1FAE5'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-chat"/></svg></button>` : ''}
                   <button onclick="openSingleDeleteConfirm(${row.id})" title="Xóa" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
                 </div>
               </td>
@@ -9951,7 +9951,7 @@
               <td style="padding:8px 10px; text-align:center;" onclick="event.stopPropagation()">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
                   <button onclick="openRepostModal(${firstIdx})" title="Đăng lại" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#DBEAFE;color:#1E3A8A;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#BFDBFE'" onmouseout="this.style.background='#DBEAFE'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
-                  ${firstRow.post_url && firstRow.platform !== 'zalo' ? `<button onclick="openSeedModal(${firstRow.id}, '${String(firstRow.post_url).replace(/'/g,"\\'")}', '${(firstRow.message||'').substring(0,60).replace(/'/g,"\\'").replace(/\n/g,' ')}')" title="Seeding" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#D1FAE5;color:#065F46;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#A7F3D0'" onmouseout="this.style.background='#D1FAE5'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-chat"/></svg></button>` : ''}
+                  ${firstRow.post_url && firstRow.platform !== 'zalo' ? `<button onclick="openSeedModal(${firstRow.id})" title="Seeding" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#D1FAE5;color:#065F46;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#A7F3D0'" onmouseout="this.style.background='#D1FAE5'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-chat"/></svg></button>` : ''}
                   <button onclick="openBatchDeleteConfirm('${idsAttr}')" title="Xóa toàn bộ phiên (${total} bài)" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
                 </div>
               </td>
@@ -9986,7 +9986,7 @@
                 <td style="padding:8px 12px; text-align:center;">${statusBadgeFor(row)}</td>
                 <td style="padding:6px 10px; text-align:center;">
                   <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
-                    ${row.post_url && row.platform !== 'zalo' ? `<button onclick="openSeedModal(${row.id}, '${String(row.post_url).replace(/'/g,"\\'")}', '${(row.message||'').substring(0,60).replace(/'/g,"\\'").replace(/\n/g,' ')}')" title="Seeding" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:none;border-radius:999px;background:#D1FAE5;color:#065F46;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#A7F3D0'" onmouseout="this.style.background='#D1FAE5'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-chat"/></svg></button>` : ''}
+                    ${row.post_url && row.platform !== 'zalo' ? `<button onclick="openSeedModal(${row.id})" title="Seeding" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:none;border-radius:999px;background:#D1FAE5;color:#065F46;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#A7F3D0'" onmouseout="this.style.background='#D1FAE5'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-chat"/></svg></button>` : ''}
                     <button onclick="openSingleDeleteConfirm(${row.id})" title="Xóa dòng này" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
                   </div>
                 </td>
@@ -10647,7 +10647,13 @@
     let _seedPostLogId = null;
     let _seedPostUrl = null;
 
-    async function openSeedModal(postLogId, postUrl, postMsgPreview) {
+    async function openSeedModal(rowId) {
+      const _row = (window._dashRows || []).find(r => r.id === rowId);
+      if (!_row) return;
+      const postLogId = _row.id;
+      const postUrl = _row.post_url;
+      const postMsgPreview = (_row.message || '').substring(0, 60);
+
       _seedPostLogId = postLogId;
       _seedPostUrl = postUrl;
       _seedImages = [];
