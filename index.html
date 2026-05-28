@@ -4612,55 +4612,115 @@
       return e && (e.status === 504 || e.status === 502 || e.status === 524);
     }
 
-    // Chờ ms milliseconds HOẶC đến khi tab trở thành visible (browser background
-    // throttling có thể delay setTimeout lên 1 phút — khi user quay lại tab thì
-    // visibilitychange fire ngay, không cần chờ timer hết hạn).
-    function sleepOrVisible(ms) {
+    // Chờ ms milliseconds, HOẶC đến khi tab visible (background throttle fix),
+    // HOẶC đến khi signal.abort() (SSE push wakeup).
+    function sleepOrVisible(ms, signal) {
       return new Promise(resolve => {
-        let tid;
+        let done = false;
+        const finish = () => { if (!done) { done = true; resolve(); } };
         const onVis = () => {
           if (document.visibilityState === 'visible') {
             clearTimeout(tid);
             document.removeEventListener('visibilitychange', onVis);
-            resolve();
+            if (signal) signal.removeEventListener('abort', finish);
+            finish();
           }
         };
-        tid = setTimeout(() => {
+        const tid = setTimeout(() => {
           document.removeEventListener('visibilitychange', onVis);
-          resolve();
+          if (signal) signal.removeEventListener('abort', finish);
+          finish();
         }, ms);
         document.addEventListener('visibilitychange', onVis);
+        if (signal) {
+          if (signal.aborted) { clearTimeout(tid); document.removeEventListener('visibilitychange', onVis); finish(); return; }
+          signal.addEventListener('abort', finish);
+        }
       });
     }
 
-    // Polling job status (backend dùng async job để tránh proxy timeout)
-    async function pollJob(jobId, maxWaitMs = 10 * 60 * 1000) {
-      const start = Date.now();
-      let iteration = 0;
-      while (Date.now() - start < maxWaitMs) {
-        await sleepOrVisible(1500);
-        iteration++;
+    // SSE: nhận job result ngay khi server push — không cần chờ poll cycle
+    const _jobSseResults = new Map(); // jobId → {status, result, error}
+    const _jobSseBus     = new Map(); // jobId → AbortController
+    try {
+      const _es = new EventSource(BASE_URL + '/api/job-events');
+      _es.addEventListener('message', (evt) => {
         try {
-          const r = await fetch(BASE_URL + '/api/job/' + jobId);
-          console.log(`[pollJob ${jobId}] poll #${iteration} → HTTP ${r.status} (${Math.round((Date.now()-start)/1000)}s elapsed)`);
-          if (r.status === 404) throw new Error('Job không còn tồn tại — server có thể đã restart. Kiểm tra FB tay.');
-          if (r.status === 401) throw new Error('Phiên đăng nhập hết hạn — vui lòng reload trang và đăng nhập lại.');
-          if (r.status === 403) throw new Error('Không có quyền truy cập — vui lòng reload trang.');
-          const data = await parseJson(r);
-          console.log(`[pollJob ${jobId}] data.status=${data.status}`);
-          if (data.status === 'done') {
-            if (data.result == null) throw new Error('Job xong nhưng server không trả kết quả — kiểm tra Facebook tay.');
-            return data.result;
-          }
-          if (data.status === 'failed') throw new Error(data.error || 'Job thất bại');
-          // offline fallback từ service worker
-          if (data.offline) throw new Error('Mất kết nối mạng — kiểm tra internet rồi thử lại.');
-        } catch (e) {
-          if (isProxyTimeout(e)) { console.log(`[pollJob ${jobId}] proxy timeout, retry`); continue; }
-          throw e;
+          const d = JSON.parse(evt.data);
+          if (!d.jobId) return;
+          _jobSseResults.set(d.jobId, d);      // lưu kết quả
+          const ac = _jobSseBus.get(d.jobId);
+          if (ac) ac.abort();                  // wake up pollJob đang sleep
+        } catch {}
+      });
+    } catch {}
+
+    // Polling job status (backend dùng async job để tránh proxy timeout).
+    // SSE fast-path: server push kết quả ngay khi Playwright xong → wake up sleep ngay lập tức.
+    // Polling là fallback nếu SSE ngắt.
+    async function pollJob(jobId, maxWaitMs = 10 * 60 * 1000) {
+      // Đăng ký AbortController để SSE có thể wake up sleep ngay
+      const _ac = new AbortController();
+      _jobSseBus.set(jobId, _ac);
+
+      const handleSseData = (d) => {
+        if (d.status === 'done') {
+          if (d.result == null) throw new Error('Job xong nhưng server không trả kết quả — kiểm tra Facebook tay.');
+          return d.result; // caller cần return này
         }
+        if (d.status === 'failed') throw new Error(d.error || 'Job thất bại');
+        return null; // status lạ — tiếp tục poll
+      };
+
+      try {
+        const start = Date.now();
+        let iteration = 0;
+        while (Date.now() - start < maxWaitMs) {
+          // Kiểm tra SSE result trước (có thể đã đến trước khi sleep kết thúc)
+          const sseData = _jobSseResults.get(jobId);
+          if (sseData) {
+            _jobSseResults.delete(jobId);
+            console.log(`[pollJob ${jobId}] SSE push → status=${sseData.status}`);
+            const r = handleSseData(sseData);
+            if (r !== null) return r;
+          }
+
+          await sleepOrVisible(1500, _ac.signal);
+          iteration++;
+
+          // Kiểm tra lại ngay sau khi sleep kết thúc (có thể do SSE wake up)
+          const sseData2 = _jobSseResults.get(jobId);
+          if (sseData2) {
+            _jobSseResults.delete(jobId);
+            console.log(`[pollJob ${jobId}] SSE wakeup → status=${sseData2.status}`);
+            const r = handleSseData(sseData2);
+            if (r !== null) return r;
+          }
+
+          try {
+            const r = await fetch(BASE_URL + '/api/job/' + jobId);
+            console.log(`[pollJob ${jobId}] poll #${iteration} → HTTP ${r.status} (${Math.round((Date.now()-start)/1000)}s elapsed)`);
+            if (r.status === 404) throw new Error('Job không còn tồn tại — server có thể đã restart. Kiểm tra FB tay.');
+            if (r.status === 401) throw new Error('Phiên đăng nhập hết hạn — vui lòng reload trang và đăng nhập lại.');
+            if (r.status === 403) throw new Error('Không có quyền truy cập — vui lòng reload trang.');
+            const data = await parseJson(r);
+            console.log(`[pollJob ${jobId}] data.status=${data.status}`);
+            if (data.status === 'done') {
+              if (data.result == null) throw new Error('Job xong nhưng server không trả kết quả — kiểm tra Facebook tay.');
+              return data.result;
+            }
+            if (data.status === 'failed') throw new Error(data.error || 'Job thất bại');
+            if (data.offline) throw new Error('Mất kết nối mạng — kiểm tra internet rồi thử lại.');
+          } catch (e) {
+            if (isProxyTimeout(e)) { console.log(`[pollJob ${jobId}] proxy timeout, retry`); continue; }
+            throw e;
+          }
+        }
+        throw new Error('Quá 10 phút chưa xong — kiểm tra FB tay.');
+      } finally {
+        _jobSseBus.delete(jobId);
+        _jobSseResults.delete(jobId);
       }
-      throw new Error('Quá 10 phút chưa xong — kiểm tra FB tay.');
     }
 
     const BOT_AVATAR = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5EE5DD"/><stop offset="100%" stop-color="#1E40AF"/></linearGradient></defs><rect width="100" height="100" rx="22" fill="#1F1B7A"/><path d="M28 28 L72 72 M72 28 L28 72" stroke="url(#g)" stroke-width="14" stroke-linecap="round"/></svg>');
