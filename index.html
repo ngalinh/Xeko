@@ -5271,7 +5271,7 @@
 
       // Schedule hint
       if (postMode === 'schedule') {
-        panelHtml += `<div style="margin-top:8px;font-size:0.88em;color:#6B7280;">Chọn xong bấm <strong>Tiếp tục</strong> để đặt giờ đăng nhé!</div>`;
+        panelHtml += `<div style="margin-top:8px;font-size:0.88em;color:#6B7280;">Chọn xong bấm <strong>Tiếp tục</strong>, soạn nội dung rồi nhấn gửi để chọn giờ đăng!</div>`;
       }
 
       // Action buttons
@@ -5528,16 +5528,15 @@
       step = 'compose';
 
       disablePrevButtons();
-      if (postMode === 'schedule') {
-        showScheduleForm();
-      } else {
-        addBot(
-          `Sẽ đăng lên: ${summaryText} ✅\nSoạn nội dung bên dưới, thêm ảnh bằng 📷 rồi nhấn gửi là xong!`,
-          [
-            { label: `↩ Làm lại`, handler: () => showTargetSelect(), secondary: true },
-          ]
-        );
-      }
+      const _schedHint = postMode === 'schedule'
+        ? 'Soạn nội dung, thêm ảnh bằng 📷 rồi nhấn gửi để chọn giờ đăng!'
+        : 'Soạn nội dung bên dưới, thêm ảnh bằng 📷 rồi nhấn gửi là xong!';
+      addBot(
+        `Sẽ đăng lên: ${summaryText} ✅\n${_schedHint}`,
+        [
+          { label: `↩ Làm lại`, handler: () => showTargetSelect(), secondary: true },
+        ]
+      );
     }
 
     function showModeSelect() {
@@ -5566,16 +5565,15 @@
       if (target === 'allgroup') targetText = 'Asale + Tổng Kho';
       if (target === 'all') targetText = 'FB Profile + Asale + Tổng Kho';
 
-      if (postMode === 'schedule') {
-        showScheduleForm();
-      } else {
-        addBot(
-          `Sẽ đăng lên: <strong>${targetText}</strong> ✅\nSoạn nội dung bên dưới, thêm ảnh bằng 📷 rồi nhấn gửi là xong!`,
-          [
-            { label: `↩ Làm lại`, handler: () => showTargetSelect(), secondary: true },
-          ]
-        );
-      }
+      const _hint = postMode === 'schedule'
+        ? 'Soạn nội dung, thêm ảnh bằng 📷 rồi nhấn gửi để chọn giờ đăng!'
+        : 'Soạn nội dung bên dưới, thêm ảnh bằng 📷 rồi nhấn gửi là xong!';
+      addBot(
+        `Sẽ đăng lên: <strong>${targetText}</strong> ✅\n${_hint}`,
+        [
+          { label: `↩ Làm lại`, handler: () => showTargetSelect(), secondary: true },
+        ]
+      );
     }
 
 
@@ -5960,11 +5958,20 @@
 
     // ===== Gửi bài =====
     async function sendMessage() {
-      // Neu dang o che do len lich -> goi submitSchedule
-      if (postMode === 'schedule') {
-        submitSchedule(scheduleFormId);
+      if (postMode === 'schedule' && step === 'compose') {
+        const _input = document.getElementById('msgInput');
+        const _msg = _input.value.trim();
+        if (!_msg && selectedFiles.length === 0) return;
+        window._schedulePendingMessage = _msg;
+        window._schedulePendingFiles = [...selectedFiles];
+        const _photoUrls = selectedFiles.map(f => URL.createObjectURL(f));
+        addUser(_msg, _photoUrls);
+        resetMsgInput();
+        clearImages();
+        showScheduleForm();
         return;
       }
+      if (postMode === 'schedule' && step === 'schedule-time') return;
 
       const input = document.getElementById('msgInput');
       const message = input.value.trim();
@@ -6388,6 +6395,19 @@
     // ===== Lên lịch =====
     let scheduleFormId = 0;
 
+    function startScheduleCompose() {
+      postMode = 'schedule';
+      step = 'compose';
+      disablePrevButtons();
+      const summaryText = buildChannelSummary(window._channelSelection)
+        || (currentTarget ? (TARGET_LABELS[currentTarget] || currentTarget) : null)
+        || 'kênh đã chọn';
+      addBot(
+        `Soạn nội dung, thêm ảnh bằng 📷 rồi nhấn gửi để chọn giờ đăng lên ${summaryText}!`,
+        [{ label: `↩ Đổi kênh`, handler: () => showTargetSelect(), secondary: true }]
+      );
+    }
+
     function showScheduleForm() {
       disablePrevButtons();
       scheduleFormId++;
@@ -6411,12 +6431,9 @@
       row.innerHTML = `
         <img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko">
         <div class="msg bot">
-          Đặt lịch cho: <strong>${targetText}</strong><br><br>
-          Chọn giờ đăng:<br>
+          Đăng lên <strong>${targetText}</strong> — chọn giờ:<br>
           <input type="datetime-local" id="scheduleTime_${formId}" value="${localISO}" min="${localISO}"
             style="padding:8px 12px; border-radius:8px; border:1px solid #ddd; background:#f8f8f8; color:#1a1a1a; font-size:14px; margin:8px 0; max-width:100%;">
-          <br>
-          Soạn nội dung bên dưới, thêm ảnh nếu có rồi nhấn gửi nhé!
           <div class="msg-buttons">
             <button class="msg-btn primary" onclick="submitSchedule(${formId})">${xekoIcon('clock')} Đặt lịch</button>
             <button class="msg-btn secondary" onclick="showTargetSelect()">${xekoIcon('back')} Đổi kênh</button>
@@ -6425,7 +6442,7 @@
         </div>`;
       chat.appendChild(row);
       chat.scrollTop = chat.scrollHeight;
-      // inputArea luon hien
+      step = 'schedule-time';
     }
 
     async function submitSchedule(formId) {
@@ -6441,9 +6458,9 @@
         return;
       }
 
-      const input = document.getElementById('msgInput');
-      const message = input.value.trim();
-      if (!message && selectedFiles.length === 0) {
+      const message = window._schedulePendingMessage || '';
+      const _pendingFiles = window._schedulePendingFiles || [];
+      if (!message && _pendingFiles.length === 0) {
         addBot('Xeko cần nội dung hoặc ảnh thì mới đăng được nha!');
         return;
       }
@@ -6476,14 +6493,11 @@
         target = 'shortcut';
       }
 
-      const photoUrls = selectedFiles.map(f => URL.createObjectURL(f));
+      const filesToUpload = _pendingFiles;
       const savedMessage = message;
-      const filesToUpload = [...selectedFiles];
+      const photoUrls = _pendingFiles.map(f => URL.createObjectURL(f));
       const isoTime = new Date(time).toISOString();
 
-      addUser(savedMessage, photoUrls);
-      resetMsgInput();
-      clearImages();
       addTyping();
 
       const scheduled = [];
@@ -6583,8 +6597,11 @@
           const chat = document.getElementById('chatArea');
           const row = document.createElement('div');
           row.className = 'msg-row bot';
+          window._schedulePendingMessage = '';
+          window._schedulePendingFiles = [];
+
           let btnHtml = '<div class="msg-buttons">';
-          btnHtml += `<button class="msg-btn primary" onclick="showScheduleForm()">${xekoIcon('clock')} Lên lịch thêm</button>`;
+          btnHtml += `<button class="msg-btn primary" onclick="startScheduleCompose()">${xekoIcon('clock')} Lên lịch thêm</button>`;
           btnHtml += `<button class="msg-btn secondary" onclick="showScheduleList()">${xekoIcon('calendar')} Xem lịch đã đặt</button>`;
           btnHtml += `<button class="msg-btn secondary" onclick="selectMode('now')">${xekoIcon('send')} Đăng ngay</button>`;
           btnHtml += '</div>';
@@ -6596,10 +6613,9 @@
         if (errors.length > 0) {
           const errMsg = `Ui có vài chỗ Xeko chưa đặt được lịch nè:\n${errors.map(e => `• ${e}`).join('\n')}`;
           if (scheduled.length === 0) {
-            // Tất cả fail — khôi phục content + ảnh để user retry với giờ khác
-            input.value = savedMessage;
-            selectedFiles = [...filesToUpload];
-            updatePreview();
+            // Tất cả fail — giữ pending content để user retry với giờ khác
+            window._schedulePendingMessage = savedMessage;
+            window._schedulePendingFiles = filesToUpload;
             addBot(errMsg, [
               { label: `${xekoIcon('clock')} Đặt lại lịch`, handler: () => showScheduleForm() },
             ]);
@@ -6624,7 +6640,7 @@
 
         if (schedules.length === 0) {
           addBot('Xeko chưa giữ lịch nào cả, mình lên lịch mới nha?', [
-            { label: `${xekoIcon('clock')} Lên lịch mới`, handler: () => showScheduleForm() },
+            { label: `${xekoIcon('clock')} Lên lịch mới`, handler: () => startScheduleCompose() },
           ]);
           return;
         }
@@ -6644,7 +6660,7 @@
           }
         });
 
-        buttons.push({ label: `${xekoIcon('clock')} Lên lịch mới`, handler: () => showScheduleForm() });
+        buttons.push({ label: `${xekoIcon('clock')} Lên lịch mới`, handler: () => startScheduleCompose() });
         addBot(msg, buttons);
       } catch (e) {
         removeTyping();
@@ -9028,7 +9044,7 @@
             msg += `\n🕐 Đã đăng lúc: ${n.time}`;
             addBot(msg, [
               { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
-              { label: `${xekoIcon('clock')} Lên lịch thêm`, handler: () => { selectMode('schedule'); showScheduleForm(); } },
+              { label: `${xekoIcon('clock')} Lên lịch thêm`, handler: () => startScheduleCompose() },
               { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
             ]);
           } else {
