@@ -899,9 +899,13 @@ async function postToPersonal(message, imagePaths = []) {
 
   const browser = await getBrowser();
   logger.info(`${tag} got browser (+${Date.now() - t0}ms)`);
-  const page = await browser.newPage();
 
+  let page;
   try {
+    page = await Promise.race([
+      browser.newPage(),
+      new Promise((_, r) => setTimeout(() => r(new Error('newPage timeout 30s — browser bị kẹt, thử lại lần sau')), 30000)),
+    ]);
     await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
     logger.info(`${tag} loaded fb home (+${Date.now() - t0}ms, url=${page.url()})`);
     await randomDelay(1500, 2500);
@@ -979,9 +983,13 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
   }
 
   const browser = await getBrowser();
-  const page = await browser.newPage();
 
+  let page;
   try {
+    page = await Promise.race([
+      browser.newPage(),
+      new Promise((_, r) => setTimeout(() => r(new Error('newPage timeout 30s — browser bị kẹt, thử lại lần sau')), 30000)),
+    ]);
     await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
     await randomDelay(1500, 2500);
     await ensureLoggedIn(page);
@@ -1026,9 +1034,13 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
 
 async function postToGroup(groupId, message, imagePaths = []) {
   const browser = await getBrowser();
-  const page = await browser.newPage();
 
+  let page;
   try {
+    page = await Promise.race([
+      browser.newPage(),
+      new Promise((_, r) => setTimeout(() => r(new Error('newPage timeout 30s — browser bị kẹt, thử lại lần sau')), 30000)),
+    ]);
     const profile = getActiveProfile();
     logger.info(`Đăng bài lên group ${groupId} (${profile.name})...`);
     await page.goto(`https://www.facebook.com/groups/${groupId}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -1103,9 +1115,13 @@ async function postToGroup(groupId, message, imagePaths = []) {
 
 async function postToPage(pageId, message, imagePaths = []) {
   const browser = await getBrowser();
-  const page = await browser.newPage();
 
+  let page;
   try {
+    page = await Promise.race([
+      browser.newPage(),
+      new Promise((_, r) => setTimeout(() => r(new Error('newPage timeout 30s — browser bị kẹt, thử lại lần sau')), 30000)),
+    ]);
     const profile = getActiveProfile();
     logger.info(`Đăng bài lên page ${pageId} (${profile.name})...`);
     await page.goto(`https://www.facebook.com/${pageId}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -2046,9 +2062,13 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
   const wantShare = keywords.length > 0;
 
   const browser = await getBrowser();
-  const page = await browser.newPage();
 
+  let page;
   try {
+    page = await Promise.race([
+      browser.newPage(),
+      new Promise((_, r) => setTimeout(() => r(new Error('newPage timeout 30s — browser bị kẹt, thử lại lần sau')), 30000)),
+    ]);
     await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
     await randomDelay(1500, 2500);
     await ensureLoggedIn(page);
@@ -2182,24 +2202,28 @@ async function scrapePost(postUrl) {
   logger.info(`${tag} postId=${postId || '(không tìm được)'}`);
 
   const browser = await getBrowser();
-  const page = await browser.newPage();
 
   // Bắt ảnh từ network response ngay khi load (trước goto) để không bỏ sót
   const netImages = new Set();
-  page.on('response', (response) => {
-    try {
-      const url = response.url();
-      if (!url.includes('fbcdn.net')) return;
-      if (url.includes('static.xx.fbcdn.net')) return;
-      if (/_p\d+x\d+_/.test(url)) return;
-      if (/\/v\/t1\.\d+-1\//.test(url)) return;
-      const urlPath = url.split('?')[0];
-      if (!/\.(jpg|jpeg|png|webp)$/i.test(urlPath)) return;
-      netImages.add(url);
-    } catch {}
-  });
 
+  let page;
   try {
+    page = await Promise.race([
+      browser.newPage(),
+      new Promise((_, r) => setTimeout(() => r(new Error('newPage timeout 30s — browser bị kẹt, thử lại lần sau')), 30000)),
+    ]);
+    page.on('response', (response) => {
+      try {
+        const url = response.url();
+        if (!url.includes('fbcdn.net')) return;
+        if (url.includes('static.xx.fbcdn.net')) return;
+        if (/_p\d+x\d+_/.test(url)) return;
+        if (/\/v\/t1\.\d+-1\//.test(url)) return;
+        const urlPath = url.split('?')[0];
+        if (!/\.(jpg|jpeg|png|webp)$/i.test(urlPath)) return;
+        netImages.add(url);
+      } catch {}
+    });
     // bringToFront: tab mới tạo bởi newPage() là background tab —
     // Intersection Observer của FB không fire cho background tab
     // → ảnh lazy-load không render vào DOM nếu không bring to front
