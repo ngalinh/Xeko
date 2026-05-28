@@ -2454,4 +2454,167 @@ async function scrapePost(postUrl) {
   }
 }
 
-module.exports = { setProfile, profileExists, getActiveProfile, postToPersonal, postToGroup, postToPage, postPersonalAndShareToGroups, quickPostToPersonalAndGroups, scrapePost, closeBrowser };
+// ===== SEEDING: Đăng bình luận xuống bài đã đăng =====
+
+async function attachCommentImages(page, imagePaths) {
+  let uploaded = false;
+
+  const cameraSelectors = [
+    'div[aria-label*="ảnh"]',
+    'div[aria-label*="Ảnh"]',
+    'div[aria-label*="hoto"]',
+    'div[aria-label*="camera"]',
+    'div[aria-label*="Camera"]',
+    'div[aria-label*="Đính kèm ảnh"]',
+    'div[aria-label*="Attach photo"]',
+  ];
+
+  try {
+    const [fileChooser] = await Promise.all([
+      page.waitForEvent('filechooser', { timeout: 8000 }),
+      (async () => {
+        await randomDelay(300, 600);
+        for (const sel of cameraSelectors) {
+          const btns = await page.$$(sel);
+          for (const btn of btns) {
+            const isVisible = await btn.isVisible().catch(() => false);
+            if (isVisible) { await btn.click({ force: true }); return; }
+          }
+        }
+        // Fallback: tìm trong vùng comment
+        const btns = await page.$$('div[role="button"]');
+        for (const btn of btns) {
+          const label = (await btn.getAttribute('aria-label') || '').toLowerCase();
+          if (label.includes('nh') || label.includes('hoto') || label.includes('camera')) {
+            const isVisible = await btn.isVisible().catch(() => false);
+            if (isVisible) { await btn.click({ force: true }); return; }
+          }
+        }
+      })(),
+    ]);
+    await fileChooser.setFiles(imagePaths);
+    uploaded = true;
+    logger.info(`attachCommentImages: filechooser OK (${imagePaths.length} ảnh)`);
+  } catch (e) {
+    logger.warn(`attachCommentImages filechooser fail: ${e.message}`);
+  }
+
+  if (!uploaded) {
+    const inputs = await page.$$('input[type="file"]');
+    for (const input of inputs) {
+      try {
+        await input.setInputFiles(imagePaths);
+        uploaded = true;
+        logger.info('attachCommentImages: direct input OK');
+        break;
+      } catch { continue; }
+    }
+  }
+
+  return uploaded;
+}
+
+async function postComment({ postUrl, message, imagePaths, profile }) {
+  const tag = `[postComment:${profile || activeProfile}]`;
+  logger.info(`${tag} Bắt đầu seeding: ${postUrl}`);
+
+  if (profile) setProfile(profile);
+
+  const ctx = await getBrowser();
+  const page = await ctx.newPage();
+
+  try {
+    await page.goto(postUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await randomDelay(2000, 3500);
+
+    // Tìm ô comment (có thể cần click "Bình luận" trước để mở)
+    const commentBoxSelectors = [
+      'div[contenteditable="true"][aria-label*="bình luận"]',
+      'div[contenteditable="true"][aria-label*="Bình luận"]',
+      'div[contenteditable="true"][aria-label*="comment"]',
+      'div[contenteditable="true"][aria-label*="Comment"]',
+      'div[contenteditable="true"][aria-label*="Write a comment"]',
+      'div[contenteditable="true"][aria-label*="Viết bình luận"]',
+    ];
+
+    let commentBox = null;
+    for (const sel of commentBoxSelectors) {
+      try {
+        const boxes = await page.$$(sel);
+        for (const box of boxes) {
+          const visible = await box.isVisible().catch(() => false);
+          if (visible) { commentBox = box; break; }
+        }
+        if (commentBox) break;
+      } catch { continue; }
+    }
+
+    // Nếu chưa thấy ô comment: thử click nút "Bình luận" để expand
+    if (!commentBox) {
+      const triggerSelectors = [
+        'div[aria-label*="Bình luận"]',
+        'div[aria-label*="Comment"]',
+        'span:has-text("Bình luận")',
+        'span:has-text("Comment")',
+      ];
+      for (const sel of triggerSelectors) {
+        try {
+          const el = await page.$(sel);
+          if (el) { await el.click({ force: true }); await randomDelay(1000, 1500); break; }
+        } catch { continue; }
+      }
+      // Thử lại tìm ô comment sau khi click trigger
+      for (const sel of commentBoxSelectors) {
+        try {
+          const boxes = await page.$$(sel);
+          for (const box of boxes) {
+            const visible = await box.isVisible().catch(() => false);
+            if (visible) { commentBox = box; break; }
+          }
+          if (commentBox) break;
+        } catch { continue; }
+      }
+    }
+
+    if (!commentBox) throw new Error('Không tìm thấy ô bình luận trên trang');
+
+    await commentBox.scrollIntoViewIfNeeded();
+    await randomDelay(400, 800);
+    await commentBox.click({ force: true });
+    await randomDelay(400, 800);
+
+    // Upload ảnh nếu có
+    if (imagePaths && imagePaths.length > 0) {
+      const imgOk = await attachCommentImages(page, imagePaths);
+      if (!imgOk) logger.warn(`${tag} Không upload được ảnh comment`);
+      else await randomDelay(1000, 2000);
+    }
+
+    // Nhập nội dung
+    if (message) {
+      await pasteText(page, message);
+      await randomDelay(400, 800);
+    }
+
+    // Submit: Ctrl+Enter là an toàn nhất trên FB comment
+    await page.keyboard.press('Control+Enter');
+    await randomDelay(2000, 3000);
+
+    // Verify: nếu ô comment vẫn có nội dung → thử Enter thường
+    const remaining = await commentBox.textContent().catch(() => '');
+    if (remaining && remaining.trim()) {
+      await page.keyboard.press('Enter');
+      await randomDelay(1500, 2500);
+    }
+
+    logger.info(`${tag} Seeding thành công`);
+    return { success: true };
+  } catch (e) {
+    logger.error(`${tag} FAIL: ${e.message}`);
+    return { success: false, error: e.message };
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
+module.exports = { setProfile, profileExists, getActiveProfile, postToPersonal, postToGroup, postToPage, postPersonalAndShareToGroups, quickPostToPersonalAndGroups, scrapePost, closeBrowser, postComment };
