@@ -1,10 +1,10 @@
 /**
  * START.JS - Script khởi động tự động
  * 1. Chạy local-server.js
- * 2. Chạy cloudflared tunnel
- * 3. Tự lấy URL mới và đăng ký với remote server
+ * 2. Đăng ký IP trực tiếp với remote server (không dùng Cloudflare tunnel)
  *
  * Cách dùng: node start.js
+ * Yêu cầu: PLAYWRIGHT_LOCAL_URL trong .env hoặc tự detect IP public
  */
 
 const fs = require('fs');
@@ -22,20 +22,31 @@ if (fs.existsSync(envFile)) {
 
 const REMOTE_BOT_URL = process.env.REMOTE_BOT_URL || 'https://ai.basso.vn/b/9cdc3e8d6a564b5e';
 const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
-const CLOUDFLARED = path.resolve(__dirname, 'cloudflared.exe');
+const LOCAL_PORT = process.env.LOCAL_PORT || 3001;
 
-async function registerUrl(tunnelUrl) {
-  const getFetch = async () => {
-    if (typeof fetch !== 'undefined') return fetch;
-    const { default: nodeFetch } = await import('node-fetch');
-    return nodeFetch;
-  };
+async function getFetch() {
+  if (typeof fetch !== 'undefined') return fetch;
+  const { default: nodeFetch } = await import('node-fetch');
+  return nodeFetch;
+}
+
+async function getPublicIp() {
+  try {
+    const fetchFn = await getFetch();
+    const res = await fetchFn('https://api.ipify.org?format=text', { signal: AbortSignal.timeout(5000) });
+    return (await res.text()).trim();
+  } catch {
+    return null;
+  }
+}
+
+async function registerUrl(localUrl) {
   try {
     const fetchFn = await getFetch();
     const res = await fetchFn(`${REMOTE_BOT_URL}/api/register-local`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
-      body: JSON.stringify({ url: tunnelUrl }),
+      body: JSON.stringify({ url: localUrl }),
     });
     const data = await res.json();
     console.log('[✓] Đã đăng ký URL với remote server:', data.message);
@@ -45,33 +56,29 @@ async function registerUrl(tunnelUrl) {
 }
 
 // Khởi động local-server.js
-console.log('[1/2] Khởi động local server...');
+console.log('[1/1] Khởi động local server...');
 const server = spawn('node', ['server/local-server.js'], {
   cwd: __dirname,
   stdio: 'inherit',
 });
 server.on('error', e => console.error('Local server error:', e.message));
 
-// Đợi local server sẵn sàng rồi mới chạy tunnel
-setTimeout(() => {
-  console.log('[2/2] Khởi động Cloudflare Tunnel...');
-  const tunnel = spawn(CLOUDFLARED, ['tunnel', '--url', 'http://localhost:3001'], {
-    cwd: __dirname,
-  });
-
-  tunnel.stderr.on('data', (data) => {
-    const output = data.toString();
-    // Tìm URL tunnel trong output
-    const match = output.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
-    if (match) {
-      const tunnelUrl = match[0];
-      console.log('\n[✓] Tunnel URL:', tunnelUrl);
-      registerUrl(tunnelUrl);
+// Đợi server sẵn sàng rồi đăng ký URL
+setTimeout(async () => {
+  // Ưu tiên URL trong .env, nếu không có thì tự detect IP public
+  let localUrl = process.env.PLAYWRIGHT_LOCAL_URL;
+  if (!localUrl) {
+    const ip = await getPublicIp();
+    if (ip) {
+      localUrl = `http://${ip}:${LOCAL_PORT}`;
+      console.log(`[✓] Detect IP public: ${ip}`);
+    } else {
+      console.error('[✗] Không lấy được IP public. Hãy đặt PLAYWRIGHT_LOCAL_URL trong .env');
+      return;
     }
-  });
-
-  tunnel.on('error', e => console.error('Tunnel error:', e.message));
-  tunnel.on('close', () => console.log('Tunnel đã dừng'));
+  }
+  console.log(`[✓] Local URL: ${localUrl}`);
+  await registerUrl(localUrl);
 }, 2000);
 
 process.on('SIGINT', () => {
