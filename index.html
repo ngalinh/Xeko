@@ -11397,6 +11397,9 @@
           const p = new URLSearchParams(location.search).get('page');
           if (p && typeof switchPage === 'function') {
             switchPage(p);
+            const cleanUrl = new URL(location.href);
+            cleanUrl.searchParams.delete('page');
+            history.replaceState(null, '', cleanUrl.toString());
             return;
           }
           if (typeof switchPage === 'function') {
