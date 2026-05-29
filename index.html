@@ -6052,6 +6052,14 @@
         const dashPg = document.getElementById('pageDashboard');
         if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
           if (resetPage && typeof dashPage !== 'undefined') dashPage = 0;
+          // Reset date filter để bài vừa đăng (hôm nay) luôn hiện dù đang xem ngày cũ
+          if (resetPage) {
+            const fromEl = document.getElementById('dashFilterFrom');
+            const toEl = document.getElementById('dashFilterTo');
+            if (fromEl) fromEl.value = '';
+            if (toEl) toEl.value = '';
+            if (typeof _updateDashFilterBadge === 'function') _updateDashFilterBadge();
+          }
           loadDashHistory({ noSkeleton });
         }
       };
@@ -6392,6 +6400,8 @@
       }
 
       // Clear active post tracker
+      // Đánh dấu để loadDashboard() reset date filter khi user navigate sang dashboard
+      window._dashShouldResetFilter = true;
       if (_activePostJob.pendingLogId) {
         // DB row was pre-inserted and completePendingPost already ran — just reload dashboard
         _refreshDashIfActive(true, true);
@@ -9567,6 +9577,15 @@
     async function loadDashboard() {
       // Luôn reset về trang 1 khi vào dashboard — đảm bảo bài mới nhất hiện ra đầu tiên
       dashPage = 0;
+      // Nếu vừa đăng xong → reset date filter để bài mới nhất hiện (tránh bị filter ngày cũ che)
+      if (window._dashShouldResetFilter) {
+        window._dashShouldResetFilter = false;
+        const fromEl = document.getElementById('dashFilterFrom');
+        const toEl = document.getElementById('dashFilterTo');
+        if (fromEl) fromEl.value = '';
+        if (toEl) toEl.value = '';
+        if (typeof _updateDashFilterBadge === 'function') _updateDashFilterBadge();
+      }
 
       // Đảm bảo channelsData đã được tải (cần cho group filter)
       if (!(channelsData.fbGroups?.length) && !(channelsData.zaloGroups?.length)) {
