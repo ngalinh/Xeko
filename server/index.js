@@ -385,7 +385,9 @@ async function executePost({ profile, profileDisplayName, message, target, group
   const _doLog = (logArgs, result, groupName) => {
     if (pendingLogId) {
       const upd = postLogger.completePendingPost(pendingLogId, { success: result.success, error: result.error, postUrl: result.postUrl, groupName });
+      logger.info(`[executePost] completePendingPost id=${pendingLogId} success=${result.success ? 1 : 0} changes=${upd?.changes}`);
       if (upd && upd.changes > 0) return;
+      logger.warn(`[executePost] completePendingPost changes=0, fallback to logPost`);
     }
     postLogger.logPost(logArgs);
   };

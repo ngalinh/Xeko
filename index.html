@@ -9815,10 +9815,14 @@
           fetch(BASE_URL + '/api/statistics/by-profile?' + statsParams.toString(), {cache: 'reload'}),
         ]);
         // Nếu có call mới hơn đang chờ render, bỏ qua call này
-        if (myVersion !== _loadDashHistoryVersion) return;
+        if (myVersion !== _loadDashHistoryVersion) {
+          console.log('[dash] loadDashHistory v' + myVersion + ' cancelled by newer v' + _loadDashHistoryVersion);
+          return;
+        }
 
         const allSchedules = schedRes ? await parseJson(schedRes).catch(() => []) : [];
         const data = await parseJson(histRes);
+        console.log('[dash] loadDashHistory v' + myVersion + ' rendered — rows:', data.rows?.length, 'pending:', data.pending?.length, 'total:', data.total);
         const byProfileData = byProfileRes.ok ? await parseJson(byProfileRes).catch(() => []) : [];
         renderStatByProfile(byProfileData);
 
