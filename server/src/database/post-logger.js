@@ -3,14 +3,26 @@ const db = require('./db');
 // === Prepared statements ===
 
 const insertStmt = db.prepare(`
-  INSERT INTO post_logs (timestamp, profile, profile_name, platform, target, group_name, group_id, message, image_count, success, error, post_url, source, images, batch_id)
-  VALUES (@timestamp, @profile, @profileName, @platform, @target, @groupName, @groupId, @message, @imageCount, @success, @error, @postUrl, @source, @images, @batchId)
+  INSERT INTO post_logs (timestamp, profile, profile_name, platform, target, group_name, group_id, message, image_count, success, error, post_url, source, images, batch_id, job_id)
+  VALUES (@timestamp, @profile, @profileName, @platform, @target, @groupName, @groupId, @message, @imageCount, @success, @error, @postUrl, @source, @images, @batchId, @jobId)
 `);
+
+const insertPendingStmt = db.prepare(`
+  INSERT INTO post_logs (timestamp, profile, profile_name, platform, target, group_name, group_id, message, image_count, success, error, post_url, source, images, batch_id, job_id)
+  VALUES (@timestamp, @profile, @profileName, @platform, @target, @groupName, @groupId, @message, @imageCount, -1, null, null, @source, @images, @batchId, @jobId)
+`);
+
+const completePendingStmt = db.prepare(
+  `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl WHERE id=@id AND success=-1`
+);
+const completePendingWithGroupStmt = db.prepare(
+  `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl, group_name=@groupName WHERE id=@id AND success=-1`
+);
 
 /**
  * Ghi log 1 bai dang
  */
-function logPost({ profile, profileName, platform, target, groupName, groupId, message, imageCount, success, error, postUrl, source, images, batchId }) {
+function logPost({ profile, profileName, platform, target, groupName, groupId, message, imageCount, success, error, postUrl, source, images, batchId, jobId }) {
   return insertStmt.run({
     timestamp: new Date().toISOString(),
     profile: profile || 'unknown',
@@ -27,14 +39,54 @@ function logPost({ profile, profileName, platform, target, groupName, groupId, m
     source: source || 'web',
     images: images && images.length ? JSON.stringify(images) : null,
     batchId: batchId || null,
+    jobId: jobId || null,
   });
+}
+
+function insertPendingPost({ profile, profileName, platform, target, groupName, groupId, message, imageCount, source, images, batchId, jobId }) {
+  const result = insertPendingStmt.run({
+    timestamp: new Date().toISOString(),
+    profile: profile || 'unknown',
+    profileName: profileName || profile || 'unknown',
+    platform: platform || 'facebook',
+    target: target || 'personal',
+    groupName: groupName || null,
+    groupId: groupId || null,
+    message: message || null,
+    imageCount: imageCount || 0,
+    source: source || 'web',
+    images: images && images.length ? JSON.stringify(images) : null,
+    batchId: batchId || null,
+    jobId: jobId || null,
+  });
+  return result.lastInsertRowid;
+}
+
+function completePendingPost(id, { success, error, postUrl, groupName } = {}) {
+  if (groupName !== undefined) {
+    return completePendingWithGroupStmt.run({ id, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null, groupName: groupName || null });
+  }
+  return completePendingStmt.run({ id, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null });
+}
+
+function getPendingPosts() {
+  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  return db.prepare('SELECT * FROM post_logs WHERE success = -1 AND timestamp >= ? ORDER BY timestamp DESC').all(since).map(r => ({
+    ...r,
+    images: r.images ? safeParseJson(r.images) : [],
+  }));
+}
+
+function cleanupStalePending() {
+  const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  db.prepare('DELETE FROM post_logs WHERE success = -1 AND timestamp < ?').run(cutoff);
 }
 
 /**
  * Lay lich su bai dang voi filter
  */
 function getPostHistory({ profile, platform, target, groupId, success, from, to, limit = 50, offset = 0 } = {}) {
-  let sql = 'SELECT * FROM post_logs WHERE 1=1';
+  let sql = 'SELECT * FROM post_logs WHERE success != -1';
   const params = {};
 
   if (profile) {
@@ -118,7 +170,7 @@ function getStatistics({ from, to } = {}) {
       COUNT(*) as total,
       SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
       SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as fail_count
-    FROM post_logs WHERE 1=1 ${dateFilter}
+    FROM post_logs WHERE success >= 0 ${dateFilter}
   `).get(params);
 
   // Hom nay
@@ -129,7 +181,7 @@ function getStatistics({ from, to } = {}) {
       COUNT(*) as total,
       SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
       SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as fail_count
-    FROM post_logs WHERE timestamp >= @todayStart
+    FROM post_logs WHERE success >= 0 AND timestamp >= @todayStart
   `).get({ todayStart: todayStart.toISOString() });
 
   // Theo ngay (30 ngay gan nhat)
@@ -140,7 +192,7 @@ function getStatistics({ from, to } = {}) {
       SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
       SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as fail_count
     FROM post_logs
-    WHERE timestamp >= DATE('now', '-30 days') ${dateFilter}
+    WHERE success >= 0 AND timestamp >= DATE('now', '-30 days') ${dateFilter}
     GROUP BY DATE(timestamp)
     ORDER BY date DESC
   `).all(params);
@@ -152,7 +204,7 @@ function getStatistics({ from, to } = {}) {
       COUNT(*) as total,
       SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
       SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as fail_count
-    FROM post_logs WHERE 1=1 ${dateFilter}
+    FROM post_logs WHERE success >= 0 ${dateFilter}
     GROUP BY profile, platform
     ORDER BY total DESC
   `).all(params);
@@ -165,7 +217,7 @@ function getStatistics({ from, to } = {}) {
       SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
       SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as fail_count
     FROM post_logs
-    WHERE group_name IS NOT NULL ${dateFilter}
+    WHERE success >= 0 AND group_name IS NOT NULL ${dateFilter}
     GROUP BY group_name, platform
     ORDER BY total DESC
   `).all(params);
@@ -177,7 +229,7 @@ function getStatistics({ from, to } = {}) {
       COUNT(*) as total,
       SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
       SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as fail_count
-    FROM post_logs WHERE 1=1 ${dateFilter}
+    FROM post_logs WHERE success >= 0 ${dateFilter}
     GROUP BY platform
     ORDER BY total DESC
   `).all(params);
@@ -188,7 +240,7 @@ function getStatistics({ from, to } = {}) {
 function getDailyByProfile({ days = 30, from, to } = {}) {
   if (from || to) {
     const params = {};
-    let where = '1=1';
+    let where = 'success >= 0';
     if (from) { where += ' AND timestamp >= @from'; params.from = from; }
     if (to) { where += ' AND timestamp <= @to'; params.to = to; }
     return db.prepare(`
@@ -201,7 +253,7 @@ function getDailyByProfile({ days = 30, from, to } = {}) {
   return db.prepare(`
     SELECT DATE(timestamp) as date, profile,
       COALESCE(profile_name, profile) as profile_name, COUNT(*) as count
-    FROM post_logs WHERE timestamp >= DATE('now', '-' || ? || ' days')
+    FROM post_logs WHERE success >= 0 AND timestamp >= DATE('now', '-' || ? || ' days')
     GROUP BY DATE(timestamp), profile ORDER BY date ASC
   `).all(days);
 }
@@ -233,7 +285,7 @@ function getByProfileStats({ profile, platform, target, groupId, from, to } = {}
     COUNT(*) as total,
     SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
     SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as fail_count
-    FROM post_logs WHERE 1=1`;
+    FROM post_logs WHERE success >= 0`;
   const params = {};
 
   if (profile) {
@@ -268,4 +320,4 @@ function getByProfileStats({ profile, platform, target, groupId, from, to } = {}
   return db.prepare(sql).all(params);
 }
 
-module.exports = { logPost, getPostHistory, getStatistics, getDailyByProfile, getByProfileStats, deleteById, deleteByIds, deleteByFilter };
+module.exports = { logPost, insertPendingPost, completePendingPost, getPendingPosts, cleanupStalePending, getPostHistory, getStatistics, getDailyByProfile, getByProfileStats, deleteById, deleteByIds, deleteByFilter };
