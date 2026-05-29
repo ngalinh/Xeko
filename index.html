@@ -4712,17 +4712,8 @@
           _jobSseResults.set(d.jobId, d);      // lưu kết quả
           const ac = _jobSseBus.get(d.jobId);
           if (ac) ac.abort();                  // wake up pollJob đang sleep
-          // Nếu dashboard đang mở → refresh ngay để hiện bài vừa đăng
-          // Dùng setTimeout(0) để chờ _activeRepostJobs.splice() chạy xong trước khi render
-          if (d.status === 'done' || d.status === 'failed') {
-            setTimeout(() => {
-              const dashPg = document.getElementById('pageDashboard');
-              if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
-                if (typeof dashPage !== 'undefined') dashPage = 0;
-                loadDashHistory();
-              }
-            }, 0);
-          }
+          // Dashboard refresh được xử lý bởi post/repost completion code (có noSkeleton).
+          // Không gọi loadDashHistory() ở đây để tránh race condition với version guard.
         } catch {}
       });
     } catch {}
