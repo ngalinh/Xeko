@@ -4713,11 +4713,15 @@
           const ac = _jobSseBus.get(d.jobId);
           if (ac) ac.abort();                  // wake up pollJob đang sleep
           // Nếu dashboard đang mở → refresh ngay để hiện bài vừa đăng
+          // Dùng setTimeout(0) để chờ _activeRepostJobs.splice() chạy xong trước khi render
           if (d.status === 'done' || d.status === 'failed') {
-            const dashPg = document.getElementById('pageDashboard');
-            if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
-              loadDashHistory();
-            }
+            setTimeout(() => {
+              const dashPg = document.getElementById('pageDashboard');
+              if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
+                if (typeof dashPage !== 'undefined') dashPage = 0;
+                loadDashHistory();
+              }
+            }, 0);
           }
         } catch {}
       });
@@ -6047,10 +6051,11 @@
         return d.success ? 1 : 0;
       };
 
-      const _refreshDashIfActive = () => {
+      const _refreshDashIfActive = (resetPage = false, noSkeleton = false) => {
         const dashPg = document.getElementById('pageDashboard');
         if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
-          loadDashHistory();
+          if (resetPage && typeof dashPage !== 'undefined') dashPage = 0;
+          loadDashHistory({ noSkeleton });
         }
       };
       _refreshDashIfActive();
@@ -6383,10 +6388,13 @@
         }
       }
 
-      // Clear active post tracker
+      // Clear active post tracker — cập nhật badge ngay trước khi splice
+      // để không có khoảng trống UI giữa "Đang đăng" và "Done/Failed"
+      const _domRowUpdated = _updateDashRowDone(_activePostJob.tempId, successCount > 0);
       const _idx = _activeRepostJobs.indexOf(_activePostJob);
       if (_idx !== -1) _activeRepostJobs.splice(_idx, 1);
-      _refreshDashIfActive();
+      // noSkeleton=true nếu đã update DOM → fetch DB ngầm, không flash skeleton
+      _refreshDashIfActive(true, _domRowUpdated);
 
       broadcastTabPostEnd(currentProfile);
       document.getElementById('sendBtn').disabled = false;
@@ -9266,7 +9274,10 @@
           }
           if (typeof loadDashHistory === 'function') {
             const dashPg = document.getElementById('pageDashboard');
-            if (dashPg && dashPg.classList.contains('active')) loadDashHistory();
+            if (dashPg && dashPg.classList.contains('active')) {
+              dashPage = 0;
+              loadDashHistory();
+            }
           }
         })();
       }
@@ -9284,6 +9295,24 @@
     let dashPage = 0;
     const dashLimit = 20;
     const _activeRepostJobs = []; // jobs đang poll background
+    let _loadDashHistoryVersion = 0; // version guard để cancel concurrent loadDashHistory calls
+
+    // Cập nhật badge trực tiếp trên DOM row (không async, không gap UI)
+    function _updateDashRowDone(tempId, success) {
+      const row = document.getElementById(tempId);
+      if (!row) return false;
+      const badge = row.querySelector('.badge-pulse');
+      if (badge) {
+        badge.className = '';
+        badge.style.cssText = `background:${success ? '#d1fae5' : '#fee2e2'};color:${success ? '#047857' : '#b91c1c'};padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap;display:inline-block;`;
+        badge.innerHTML = success
+          ? '<svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-check"/></svg>Done'
+          : '<svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-x"/></svg>Failed';
+      }
+      row.style.background = success ? '#f0fdf4' : '#fef2f2';
+      row.style.borderLeft = `3px solid ${success ? '#10b981' : '#ef4444'}`;
+      return true;
+    }
 
     // === Multi-select filter component ===
     const _mselState = {}; // id -> Set of selected values (empty Set = "all")
@@ -9728,7 +9757,8 @@
       }
     }
 
-    async function loadDashHistory() {
+    async function loadDashHistory({ noSkeleton = false } = {}) {
+      const myVersion = ++_loadDashHistoryVersion;
       const profiles = getMselValues('msel-profile');
       const platforms = getMselValues('msel-platform');
       const targets = getMselValues('msel-target');
@@ -9759,18 +9789,20 @@
       if (from) statsParams.set('from', from + 'T00:00:00.000Z');
       if (to) statsParams.set('to', to + 'T23:59:59.999Z');
 
-      // Skeleton placeholder while fetching
-      document.getElementById('dashHistoryBody').innerHTML = Array(5).fill(
-        '<tr style="border-bottom:1px solid #f3f4f6;">' +
-        '<td style="padding:10px 10px;"><div class="dash-skel" style="width:32px;height:14px;"></div></td>' +
-        '<td style="padding:10px 12px;"><div class="dash-skel" style="width:75%;height:14px;"></div></td>' +
-        '<td style="padding:10px 12px;"><div class="dash-skel" style="width:40px;height:36px;border-radius:4px;"></div></td>' +
-        '<td style="padding:10px 12px;"><div class="dash-skel" style="width:60%;height:14px;"></div></td>' +
-        '<td style="padding:10px 12px;"><div class="dash-skel" style="width:55%;height:14px;"></div></td>' +
-        '<td style="padding:10px 12px;"><div class="dash-skel" style="width:50%;height:14px;"></div></td>' +
-        '<td style="padding:10px 12px; text-align:center;"><div class="dash-skel" style="width:60px;height:20px;border-radius:999px;margin:0 auto;"></div></td>' +
-        '<td></td></tr>'
-      ).join('');
+      // Skeleton placeholder while fetching (bỏ qua nếu đã update DOM trực tiếp)
+      if (!noSkeleton) {
+        document.getElementById('dashHistoryBody').innerHTML = Array(5).fill(
+          '<tr style="border-bottom:1px solid #f3f4f6;">' +
+          '<td style="padding:10px 10px;"><div class="dash-skel" style="width:32px;height:14px;"></div></td>' +
+          '<td style="padding:10px 12px;"><div class="dash-skel" style="width:75%;height:14px;"></div></td>' +
+          '<td style="padding:10px 12px;"><div class="dash-skel" style="width:40px;height:36px;border-radius:4px;"></div></td>' +
+          '<td style="padding:10px 12px;"><div class="dash-skel" style="width:60%;height:14px;"></div></td>' +
+          '<td style="padding:10px 12px;"><div class="dash-skel" style="width:55%;height:14px;"></div></td>' +
+          '<td style="padding:10px 12px;"><div class="dash-skel" style="width:50%;height:14px;"></div></td>' +
+          '<td style="padding:10px 12px; text-align:center;"><div class="dash-skel" style="width:60px;height:20px;border-radius:999px;margin:0 auto;"></div></td>' +
+          '<td></td></tr>'
+        ).join('');
+      }
 
       try {
         const [schedRes, histRes, byProfileRes] = await Promise.all([
@@ -9778,6 +9810,9 @@
           fetch(BASE_URL + '/api/post-history?' + params.toString(), {cache: 'reload'}),
           fetch(BASE_URL + '/api/statistics/by-profile?' + statsParams.toString(), {cache: 'reload'}),
         ]);
+        // Nếu có call mới hơn đang chờ render, bỏ qua call này
+        if (myVersion !== _loadDashHistoryVersion) return;
+
         const allSchedules = schedRes ? await parseJson(schedRes).catch(() => []) : [];
         const data = await parseJson(histRes);
         const byProfileData = byProfileRes.ok ? await parseJson(byProfileRes).catch(() => []) : [];
@@ -10744,11 +10779,14 @@
           } catch (e) {
             job.ok = false;
           }
+          // Cập nhật badge ngay trước khi splice (không gap UI)
+          _updateDashRowDone(job.tempId, job.ok);
           const idx = _activeRepostJobs.indexOf(job);
           if (idx !== -1) _activeRepostJobs.splice(idx, 1);
           if (job.jobId) removePendingJob(job.jobId);
         }
-        loadDashHistory();
+        dashPage = 0;
+        loadDashHistory({ noSkeleton: true });
       })();
     }
 
