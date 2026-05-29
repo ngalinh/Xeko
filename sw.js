@@ -1,5 +1,5 @@
 /* Xeko PWA service worker */
-const VERSION = 'xeko-pwa-v27';
+const VERSION = 'xeko-pwa-v28';
 const SHELL_CACHE = `shell-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
@@ -61,9 +61,11 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // API: network-first, no cache write (auth-sensitive)
+  // API: always bypass HTTP cache — create new Request with cache:'no-store'
+  // so browser HTTP cache layer is never hit regardless of client's cache mode.
   if (isApiRequest(url)) {
-    event.respondWith(fetch(request).catch(() => new Response(
+    const fresh = new Request(request, { cache: 'no-store' });
+    event.respondWith(fetch(fresh).catch(() => new Response(
       JSON.stringify({ offline: true, error: 'offline' }),
       { status: 503, headers: { 'Content-Type': 'application/json' } }
     )));
