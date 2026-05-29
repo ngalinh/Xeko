@@ -5928,6 +5928,12 @@
           if (_otherTabPosting[profile] && _otherTabPosting[profile].tabId === tabId) {
             delete _otherTabPosting[profile];
           }
+          // Refresh dashboard nếu đang mở (tab khác vừa đăng xong)
+          const dashPg = document.getElementById('pageDashboard');
+          if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
+            if (typeof dashPage !== 'undefined') dashPage = 0;
+            loadDashHistory({ noSkeleton: true });
+          }
         }
       };
     }
@@ -6046,6 +6052,14 @@
         const dashPg = document.getElementById('pageDashboard');
         if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
           if (resetPage && typeof dashPage !== 'undefined') dashPage = 0;
+          // Reset date filter để bài vừa đăng (hôm nay) luôn hiện dù đang xem ngày cũ
+          if (resetPage) {
+            const fromEl = document.getElementById('dashFilterFrom');
+            const toEl = document.getElementById('dashFilterTo');
+            if (fromEl) fromEl.value = '';
+            if (toEl) toEl.value = '';
+            if (typeof _updateDashFilterBadge === 'function') _updateDashFilterBadge();
+          }
           loadDashHistory({ noSkeleton });
         }
       };
@@ -6386,6 +6400,8 @@
       }
 
       // Clear active post tracker
+      // Đánh dấu để loadDashboard() reset date filter khi user navigate sang dashboard
+      window._dashShouldResetFilter = true;
       if (_activePostJob.pendingLogId) {
         // DB row was pre-inserted and completePendingPost already ran — just reload dashboard
         _refreshDashIfActive(true, true);
@@ -7347,9 +7363,10 @@
       detail.innerHTML = '';
 
       try {
+        const _ct = Date.now();
         const [schedRes, histRes] = await Promise.all([
-          fetch(BASE_URL + '/api/schedules', {cache: 'reload'}).then(r => parseJson(r)).catch(() => []),
-          fetch(BASE_URL + '/api/post-history?limit=500', {cache: 'reload'}).then(r => parseJson(r)).catch(() => ({ rows: [] })),
+          fetch(BASE_URL + '/api/schedules?_t=' + _ct, {cache: 'no-store'}).then(r => parseJson(r)).catch(() => []),
+          fetch(BASE_URL + '/api/post-history?limit=500&_t=' + _ct, {cache: 'no-store'}).then(r => parseJson(r)).catch(() => ({ rows: [] })),
         ]);
 
         const events = [];
@@ -9560,6 +9577,15 @@
     async function loadDashboard() {
       // Luôn reset về trang 1 khi vào dashboard — đảm bảo bài mới nhất hiện ra đầu tiên
       dashPage = 0;
+      // Nếu vừa đăng xong → reset date filter để bài mới nhất hiện (tránh bị filter ngày cũ che)
+      if (window._dashShouldResetFilter) {
+        window._dashShouldResetFilter = false;
+        const fromEl = document.getElementById('dashFilterFrom');
+        const toEl = document.getElementById('dashFilterTo');
+        if (fromEl) fromEl.value = '';
+        if (toEl) toEl.value = '';
+        if (typeof _updateDashFilterBadge === 'function') _updateDashFilterBadge();
+      }
 
       // Đảm bảo channelsData đã được tải (cần cho group filter)
       if (!(channelsData.fbGroups?.length) && !(channelsData.zaloGroups?.length)) {
@@ -9585,7 +9611,7 @@
 
       // Load statistics — lỗi ở đây không được chặn loadDashHistory
       try {
-        const statsRes = await fetch(BASE_URL + '/api/statistics', {cache: 'reload'});
+        const statsRes = await fetch(BASE_URL + '/api/statistics?_t=' + Date.now(), {cache: 'no-store'});
         const stats = await parseJson(statsRes);
 
         animateCountUp(document.getElementById('statToday'),   stats.today?.total         || 0);
@@ -9680,12 +9706,13 @@
           byProfileParams.set('from', fromDate.toISOString().slice(0,10) + 'T00:00:00.000Z');
           byProfileParams.set('to', new Date().toISOString().slice(0,10) + 'T23:59:59.999Z');
         }
-        fetch(BASE_URL + '/api/statistics/by-profile?' + byProfileParams.toString(), {cache: 'reload'})
+        const _ct2 = Date.now();
+        fetch(BASE_URL + '/api/statistics/by-profile?' + byProfileParams.toString() + '&_t=' + _ct2, {cache: 'no-store'})
           .then(r => r.ok ? r.json() : [])
           .then(byProfileData => renderStatByProfile(byProfileData))
           .catch(() => {});
 
-        const rows = await fetch(BASE_URL + '/api/statistics/daily-by-profile?' + params.toString(), {cache: 'reload'}).then(r => r.json());
+        const rows = await fetch(BASE_URL + '/api/statistics/daily-by-profile?' + params.toString() + '&_t=' + _ct2, {cache: 'no-store'}).then(r => r.json());
 
         // Build labels (dates) and datasets per profile.
         // Fill every day in the selected range so the X axis stays continuous
@@ -9809,10 +9836,11 @@
       }
 
       try {
+        const _t = Date.now();
         const [schedRes, histRes, byProfileRes] = await Promise.all([
-          fetch(BASE_URL + '/api/schedules', {cache: 'reload'}).catch(() => null),
-          fetch(BASE_URL + '/api/post-history?' + params.toString(), {cache: 'reload'}),
-          fetch(BASE_URL + '/api/statistics/by-profile?' + statsParams.toString(), {cache: 'reload'}),
+          fetch(BASE_URL + '/api/schedules?_t=' + _t, {cache: 'no-store'}).catch(() => null),
+          fetch(BASE_URL + '/api/post-history?' + params.toString() + '&_t=' + _t, {cache: 'no-store'}),
+          fetch(BASE_URL + '/api/statistics/by-profile?' + statsParams.toString() + '&_t=' + _t, {cache: 'no-store'}),
         ]);
         // Nếu có call mới hơn đang chờ render, bỏ qua call này
         if (myVersion !== _loadDashHistoryVersion) return;
@@ -11105,6 +11133,19 @@
         navigator.serviceWorker.ready.then(reg => reg.update()).catch(() => {});
       }, 5 * 60 * 1000); // mỗi 5 phút
     }
+
+    // Refresh dashboard khi user quay lại tab (tránh data cũ sau khi tab bị ẩn)
+    let _lastDashRefreshTime = 0;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - _lastDashRefreshTime < 10000) return; // tránh refresh liên tục
+      const dashPg = document.getElementById('pageDashboard');
+      if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
+        _lastDashRefreshTime = now;
+        loadDashHistory({ noSkeleton: true });
+      }
+    });
 
     // bfcache: khi browser phục hồi trang từ bộ nhớ (vào lại / back/forward),
     // JS cũ vẫn chạy dù SW đã cập nhật. Reload để nạp code mới.
