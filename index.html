@@ -9014,9 +9014,10 @@
 
         // Auto-refresh dashboard table khi có schedule completion mới
         if (items.length > 0) {
-          const dashPage = document.getElementById('pageDashboard');
-          if (dashPage && dashPage.classList.contains('active') && typeof loadDashHistory === 'function') {
-            loadDashHistory();
+          const dashPg = document.getElementById('pageDashboard');
+          if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
+            dashPage = 0;
+            loadDashHistory({ noSkeleton: true });
           }
         }
 
@@ -9258,7 +9259,9 @@
         }
         (async () => {
           for (const job of fbRepost) {
-            try { await pollJob(job.jobId); } catch {}
+            let ok = false;
+            try { const d = await pollJob(job.jobId); ok = !!(d && (d.success || (d.results && d.results.some(r => r.success)))); } catch {}
+            _updateDashRowDone(job.tempId, ok);
             const idx = _activeRepostJobs.findIndex(j => j.tempId === job.tempId);
             if (idx !== -1) _activeRepostJobs.splice(idx, 1);
             removePendingJob(job.jobId);
@@ -9267,7 +9270,7 @@
             const dashPg = document.getElementById('pageDashboard');
             if (dashPg && dashPg.classList.contains('active')) {
               dashPage = 0;
-              loadDashHistory();
+              loadDashHistory({ noSkeleton: true });
             }
           }
         })();
