@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { PassThrough } = require('stream');
+const { execFile } = require('child_process');
 const config = require('./config/default');
 const logger = require('./src/utils/logger');
 const playwright = process.env.PLAYWRIGHT_LOCAL_URL
@@ -18,6 +19,31 @@ const auth = require('./src/utils/auth');
 
 const app = express();
 app.use(express.json());
+
+// ===== GIT AUTO-COMMIT (debounce 30s) =====
+// Dùng cho channels.json, saved-posts.json, profiles-meta.json — không dùng cho proxies.json (lưu ở local).
+const REPO_ROOT = path.resolve(__dirname, '..');
+let _dataCommitTimer = null;
+function scheduleDataCommit(message) {
+  if (_dataCommitTimer) clearTimeout(_dataCommitTimer);
+  _dataCommitTimer = setTimeout(() => {
+    _dataCommitTimer = null;
+    const msg = message || 'chore: auto-save data';
+    execFile('git', ['-C', REPO_ROOT, 'add', 'data/channels.json', 'data/saved-posts.json', 'data/profiles-meta.json'], (err) => {
+      if (err) return logger.warn(`git add data: ${err.message}`);
+      execFile('git', ['-C', REPO_ROOT, 'diff', '--cached', '--quiet'], (diffErr) => {
+        if (!diffErr) return; // nothing staged
+        execFile('git', ['-C', REPO_ROOT, 'commit', '-m', msg], (cErr) => {
+          if (cErr) return logger.warn(`git commit data: ${cErr.message}`);
+          execFile('git', ['-C', REPO_ROOT, 'push', 'origin', 'HEAD'], (pErr) => {
+            if (pErr) logger.warn(`git push data: ${pErr.message}`);
+            else logger.info(`data auto-committed & pushed: ${msg}`);
+          });
+        });
+      });
+    });
+  }, 30_000);
+}
 
 // Auth gate: cần login basso.vn + được admin Xeko phân quyền mới được vào trang.
 // /admin, /platform, /api/auth (basso.vn) đi route khác — chỉ chặn frontend Xeko.
@@ -1037,6 +1063,7 @@ function saveProfilesMeta(data) {
   const dir = path.dirname(PROFILES_META_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(PROFILES_META_FILE, JSON.stringify(data, null, 2));
+  scheduleDataCommit('chore: auto-save profiles-meta');
 }
 
 // Cập nhật thông tin profile
@@ -1374,6 +1401,7 @@ function saveChannels(data) {
   const dir = path.dirname(CHANNELS_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(CHANNELS_FILE, JSON.stringify(data, null, 2));
+  scheduleDataCommit('chore: auto-save channels');
 }
 
 app.get('/api/channels', (req, res) => {
@@ -2003,6 +2031,7 @@ function writeSavedPosts(posts) {
   const dir = path.dirname(SAVED_POSTS_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(SAVED_POSTS_FILE, JSON.stringify(posts, null, 2));
+  scheduleDataCommit('chore: auto-save saved-posts');
 }
 
 app.get('/api/saved-posts', (req, res) => {
