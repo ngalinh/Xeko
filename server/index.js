@@ -187,20 +187,35 @@ async function persistImages(imagePaths) {
 
   try {
     const fetchFn = await getFetch();
-    const FormData = (await import('form-data')).default;
-    const form = new FormData();
+    const useNative = typeof fetch !== 'undefined';
+    let form, headers;
     let appended = 0;
-    for (const p of imagePaths) {
-      if (!fs.existsSync(p)) continue;
-      form.append('images', fs.createReadStream(p), { filename: path.basename(p) });
-      appended++;
+
+    if (useNative) {
+      // Node 18+: dùng native FormData + Blob để content-length được set đúng
+      form = new FormData();
+      for (const p of imagePaths) {
+        if (!fs.existsSync(p)) continue;
+        const buf = fs.readFileSync(p);
+        form.append('images', new Blob([buf]), path.basename(p));
+        appended++;
+      }
+      headers = { 'x-api-key': process.env.IMAGE_SERVER_API_KEY || '' };
+    } else {
+      const FD = (await import('form-data')).default;
+      form = new FD();
+      for (const p of imagePaths) {
+        if (!fs.existsSync(p)) continue;
+        form.append('images', fs.createReadStream(p), { filename: path.basename(p) });
+        appended++;
+      }
+      headers = { ...form.getHeaders(), 'x-api-key': process.env.IMAGE_SERVER_API_KEY || '' };
     }
     if (!appended) return [];
 
-    const apiKey = process.env.IMAGE_SERVER_API_KEY || '';
     const response = await fetchFn(`${IMAGE_SERVER_URL}/upload`, {
       method: 'POST',
-      headers: { ...form.getHeaders(), 'x-api-key': apiKey },
+      headers,
       body: form,
       signal: AbortSignal.timeout(60000), // 1 phút
     });
