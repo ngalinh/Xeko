@@ -1113,6 +1113,7 @@ app.post('/api/proxies', (req, res) => {
   const proxy = { id, label: label || '', host, port, user: user || '', pass: pass || '', purchaseDate: purchaseDate || '', expirationDate: expirationDate || '' };
   list.push(proxy);
   saveProxyList(list);
+  pushProxyListToLocal(list).catch(() => {});
   res.status(201).json(proxy);
 });
 
@@ -1125,6 +1126,7 @@ app.put('/api/proxies/:id', (req, res) => {
   if (idx < 0) return res.status(404).json({ error: 'Không tìm thấy proxy' });
   list[idx] = { ...list[idx], label: label || '', host, port, user: user || '', pass: pass || '', purchaseDate: purchaseDate || '', expirationDate: expirationDate || '' };
   saveProxyList(list);
+  pushProxyListToLocal(list).catch(() => {});
   res.json(list[idx]);
 });
 
@@ -1134,6 +1136,7 @@ app.delete('/api/proxies/:id', (req, res) => {
   const filtered = list.filter(p => p.id !== id);
   if (filtered.length === list.length) return res.status(404).json({ error: 'Không tìm thấy proxy' });
   saveProxyList(filtered);
+  pushProxyListToLocal(filtered).catch(() => {});
   res.json({ success: true });
 });
 
@@ -1886,6 +1889,53 @@ async function syncChannelsFromLocal() {
   }
 }
 
+async function syncProxiesFromLocal() {
+  const LOCAL_URL = getLocalUrl();
+  if (!LOCAL_URL) return false;
+  try {
+    const fetchFn = await getFetch();
+    const res = await fetchFn(`${LOCAL_URL}/api/proxies`, {
+      headers: { 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+    });
+    if (!res.ok) return false;
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { return false; }
+    if (!Array.isArray(data) || data.length === 0) return false;
+    saveProxyList(data);
+    logger.info(`proxies synced from LOCAL (count=${data.length})`);
+    return true;
+  } catch (e) {
+    logger.info(`syncProxiesFromLocal: ${e.message}`);
+    return false;
+  }
+}
+
+async function pushProxyListToLocal(list) {
+  const LOCAL_URL = getLocalUrl();
+  if (!LOCAL_URL) return;
+  try {
+    const fetchFn = await getFetch();
+    await fetchFn(`${LOCAL_URL}/api/proxies/bulk`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+      body: JSON.stringify({ proxies: list }),
+    });
+  } catch (e) {
+    logger.info(`pushProxyListToLocal: ${e.message}`);
+  }
+}
+
+app.post('/api/proxies/sync-from-local', auth.requireAdmin(), async (req, res) => {
+  try {
+    const ok = await syncProxiesFromLocal();
+    if (ok) return res.json({ success: true, count: loadProxyList().length });
+    return res.status(503).json({ error: 'Local server chưa kết nối hoặc chưa có data proxies.' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/channels/sync-from-local', auth.requireAdmin(), async (req, res) => {
   try {
     const ok = await syncChannelsFromLocal();
@@ -1920,6 +1970,9 @@ app.post('/api/register-local', (req, res) => {
   const existing = loadChannels();
   const remoteEmpty = !existing.fbGroups?.length && !existing.fbPages?.length && !existing.zaloGroups?.length;
   if (remoteEmpty) syncChannelsFromLocal().catch(e => logger.info(`autoSyncChannels: ${e.message}`));
+  // Sync proxies từ LOCAL nếu remote chưa có data.
+  const remoteProxiesEmpty = !loadProxyList().length;
+  if (remoteProxiesEmpty) syncProxiesFromLocal().catch(e => logger.info(`autoSyncProxies: ${e.message}`));
 });
 
 // Override PLAYWRIGHT_LOCAL_URL bằng dynamicLocalUrl nếu có

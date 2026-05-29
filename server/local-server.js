@@ -707,6 +707,63 @@ app.get('/api/login-history', (req, res) => {
   res.json(loginHistory.getHistory(profile, limit));
 });
 
+// ===== PROXIES =====
+const PROXY_LIST_FILE_LOCAL = path.resolve(__dirname, 'config/proxies.json');
+
+function loadProxyListLocal() {
+  try {
+    if (fs.existsSync(PROXY_LIST_FILE_LOCAL)) return JSON.parse(fs.readFileSync(PROXY_LIST_FILE_LOCAL, 'utf8'));
+  } catch {}
+  return [];
+}
+function saveProxyListLocal(list) {
+  const dir = path.dirname(PROXY_LIST_FILE_LOCAL);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(PROXY_LIST_FILE_LOCAL, JSON.stringify(list, null, 2));
+}
+
+app.get('/api/proxies', (req, res) => {
+  res.json(loadProxyListLocal());
+});
+
+app.put('/api/proxies/bulk', (req, res) => {
+  const { proxies } = req.body;
+  if (!Array.isArray(proxies)) return res.status(400).json({ error: 'Thiếu proxies array' });
+  saveProxyListLocal(proxies);
+  res.json({ success: true, count: proxies.length });
+});
+
+app.post('/api/proxies', (req, res) => {
+  const { id, label, host, port, user, pass, purchaseDate, expirationDate } = req.body;
+  if (!host || !port) return res.status(400).json({ error: 'Thiếu host hoặc port' });
+  const list = loadProxyListLocal();
+  const proxyId = id || ('px_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
+  if (list.find(p => p.id === proxyId)) return res.json(list.find(p => p.id === proxyId));
+  const proxy = { id: proxyId, label: label || '', host, port, user: user || '', pass: pass || '', purchaseDate: purchaseDate || '', expirationDate: expirationDate || '' };
+  list.push(proxy);
+  saveProxyListLocal(list);
+  res.status(201).json(proxy);
+});
+
+app.put('/api/proxies/:id', (req, res) => {
+  const { label, host, port, user, pass, purchaseDate, expirationDate } = req.body;
+  if (!host || !port) return res.status(400).json({ error: 'Thiếu host hoặc port' });
+  const list = loadProxyListLocal();
+  const idx = list.findIndex(p => p.id === req.params.id);
+  if (idx < 0) return res.status(404).json({ error: 'Không tìm thấy proxy' });
+  list[idx] = { ...list[idx], label: label || '', host, port, user: user || '', pass: pass || '', purchaseDate: purchaseDate || '', expirationDate: expirationDate || '' };
+  saveProxyListLocal(list);
+  res.json(list[idx]);
+});
+
+app.delete('/api/proxies/:id', (req, res) => {
+  const list = loadProxyListLocal();
+  const filtered = list.filter(p => p.id !== req.params.id);
+  if (filtered.length === list.length) return res.status(404).json({ error: 'Không tìm thấy proxy' });
+  saveProxyListLocal(filtered);
+  res.json({ success: true });
+});
+
 // ===== CHANNELS =====
 const CHANNELS_FILE = path.resolve(__dirname, 'config/channels.json');
 
