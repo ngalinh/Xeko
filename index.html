@@ -7647,7 +7647,7 @@
     }
     async function fetchProxies() {
       try {
-        const res = await fetch(BASE_URL + '/api/proxies');
+        const res = await fetch(BASE_URL + '/api/proxies?_t=' + Date.now(), {cache: 'no-store'});
         const data = await res.json();
         _proxiesCache = Array.isArray(data) ? data : [];
       } catch {
@@ -7707,8 +7707,8 @@
     let _proxyAccountCache = null;
     async function fetchAccountsForProxy() {
       try {
-        const allParam = (CURRENT_USER && CURRENT_USER.isXekoAdmin) ? '?all=1' : '';
-        const res = await fetch(BASE_URL + '/api/accounts' + allParam);
+        const allParam = (CURRENT_USER && CURRENT_USER.isXekoAdmin) ? '?all=1&' : '?';
+        const res = await fetch(BASE_URL + '/api/accounts' + allParam + '_t=' + Date.now(), {cache: 'no-store'});
         const data = await parseJson(res);
         const list = [];
         (data.facebook || []).forEach(p => list.push({ type: 'facebook', key: p.key, name: p.name, proxy: p.proxy || '' }));
@@ -7868,8 +7868,8 @@
       const fbContainer = document.getElementById('fbProfileList');
 
       try {
-        const allParam = (CURRENT_USER && CURRENT_USER.isXekoAdmin) ? '?all=1' : '';
-        const res = await fetch(BASE_URL + '/api/accounts' + allParam);
+        const allParam = (CURRENT_USER && CURRENT_USER.isXekoAdmin) ? '?all=1&' : '?';
+        const res = await fetch(BASE_URL + '/api/accounts' + allParam + '_t=' + Date.now(), {cache: 'no-store'});
         const data = await parseJson(res);
 
         const avatarColors = ['#3B82F6','#8B5CF6','#10B981','#F59E0B','#EF4444','#EC4899','#06B6D4'];
