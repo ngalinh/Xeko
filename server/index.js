@@ -310,6 +310,9 @@ app.post('/api/profile', async (req, res) => {
   }
 });
 
+// Dọn pending rows cũ còn sót từ lần khởi động trước (server crash / kill)
+postLogger.cleanupStalePending();
+
 // Job queue: post chạy async để tránh reverse proxy timeout ở ~60s.
 // Browser POST /api/post → trả ngay {jobId}, rồi polling /api/job/:id.
 const postJobs = new Map();
@@ -352,7 +355,7 @@ setInterval(() => {
   }
 }, 3600_000);
 
-async function executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId }) {
+async function executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId = null }) {
   if (profile) await playwright.setProfile(profile);
 
   // Snapshot 1 lần ngay đầu — không gọi getActiveProfile() sau await (global có thể bị đổi)
@@ -363,7 +366,16 @@ async function executePost({ profile, profileDisplayName, message, target, group
 
   if (!batchId) batchId = crypto.randomUUID();
 
-  // Đăng lên cá nhân + tất cả group
+  // Helper: dùng completePendingPost nếu có pendingLogId, fallback về logPost
+  const _doLog = (logArgs, result, groupName) => {
+    if (pendingLogId) {
+      const upd = postLogger.completePendingPost(pendingLogId, { success: result.success, error: result.error, postUrl: result.postUrl, groupName });
+      if (upd && upd.changes > 0) return;
+    }
+    postLogger.logPost(logArgs);
+  };
+
+  // Đăng lên cá nhân + tất cả group (multi-target, không dùng pendingLogId)
   if (target === 'all') {
     const results = [];
     if (postCount < config.posting.maxPostsPerDay) {
@@ -411,21 +423,21 @@ async function executePost({ profile, profileDisplayName, message, target, group
     const group = config.groups[groupId];
     const r = await playwright.postToGroup(group.id, message, imagePaths);
     postCount++;
-    postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+    _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
   }
 
   if (target === 'group') {
     const r = await playwright.postToGroup(groupId, message, imagePaths);
     postCount++;
-    postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+    _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
   }
 
   if (target === 'page') {
     const r = await playwright.postToPage(groupId, message, imagePaths);
     postCount++;
-    postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'page', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+    _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'page', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
   }
 
@@ -436,7 +448,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
       // Không có nhóm → fallback đăng cá nhân thường
       const r = await playwright.postToPersonal(message, imagePaths);
       postCount++;
-      postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+      _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
       return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
     }
     const r = await playwright.postPersonalAndShareToGroups(message, imagePaths, keywords);
@@ -444,14 +456,14 @@ async function executePost({ profile, profileDisplayName, message, target, group
     const sharedGroupNames = Array.isArray(r.sharedGroups) ? r.sharedGroups : [];
     const missedGroupNames = Array.isArray(r.missedGroups) ? r.missedGroups : [];
     const groupNameVal = (sharedGroupNames.length || missedGroupNames.length) ? JSON.stringify({ ok: sharedGroupNames, miss: missedGroupNames }) : null;
-    postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'personal+groups', groupName: groupNameVal, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+    _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'personal+groups', groupName: groupNameVal, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r, groupNameVal);
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, sharedGroups: sharedGroupNames, missedGroups: missedGroupNames };
   }
 
   // personal (default)
   const r = await playwright.postToPersonal(message, imagePaths);
   postCount++;
-  postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+  _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
   return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
 }
 
@@ -505,7 +517,52 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   // sau này. File gốc trong temp/ vẫn giữ để Playwright dùng, dọn ở finally.
   const imageUrls = await persistImages(imagePaths);
 
-  // Tạo job, trả jobId ngay
+  // Pre-insert pending row cho single-target jobs để dashboard có thể show "Đang đăng" ngay
+  // và cập nhật trạng thái khi xong — không cần in-memory _activeRepostJobs.
+  const isSingleTarget = target !== 'all' && target !== 'allgroup';
+  let pendingLogId = null;
+  if (isSingleTarget) {
+    const pendingTarget = target === 'personal-share-groups' ? 'personal+groups' : (target || 'personal');
+    const pendingGroupId = (target === 'group' || target === 'page') ? groupId : (target === 'shortcut' ? groupId : null);
+    const pendingGroupName = target === 'shortcut' ? (config.groups[groupId]?.name || null) : null;
+    const jobId = createJob();
+    pendingLogId = postLogger.insertPendingPost({
+      profile: profile || '',
+      profileName: profileDisplayName || profile || '',
+      platform: 'facebook',
+      target: pendingTarget,
+      groupName: pendingGroupName,
+      groupId: pendingGroupId || null,
+      message,
+      imageCount: imagePaths.length,
+      source: 'web',
+      images: imageUrls,
+      batchId,
+      jobId,
+    });
+    res.json({ jobId, status: 'pending', pendingLogId });
+
+    const targetDesc = target === 'group' ? `group:${groupId}` : (target || 'personal');
+    logger.info(`[/api/post] queue job ${jobId} — profile=${profile || '(active)'}, target=${targetDesc}, images=${imagePaths.length}, batch=${batchId || '-'}, pendingLogId=${pendingLogId}`);
+    const tQueued = Date.now();
+
+    queuePost(() => {
+      const tStart = Date.now();
+      logger.info(`[job ${jobId}] start (waited ${tStart - tQueued}ms in queue) — profile=${profile || '(active)'}, target=${targetDesc}`);
+      return executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId })
+        .finally(() => logger.info(`[job ${jobId}] done in ${Date.now() - tStart}ms`));
+    })
+      .then(result => setJobResult(jobId, result))
+      .catch(error => {
+        logger.error(`[job ${jobId}] FAILED: ${error.message}`);
+        postLogger.completePendingPost(pendingLogId, { success: false, error: error.message });
+        setJobError(jobId, error.message);
+      })
+      .finally(() => cleanupFiles(imagePaths));
+    return;
+  }
+
+  // Multi-target jobs (all / allgroup): không pre-insert, dùng in-memory _activeRepostJobs như cũ
   const jobId = createJob();
   res.json({ jobId, status: 'pending' });
 
@@ -1212,7 +1269,7 @@ app.get('/api/post-history', (req, res) => {
       limit: parseInt(limit) || 50,
       offset: parseInt(offset) || 0,
     });
-    res.json(result);
+    res.json({ ...result, pending: postLogger.getPendingPosts() });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
