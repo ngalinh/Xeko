@@ -6,7 +6,9 @@ logs/
 temp/
 .tmp/
 .playwright-browsers/
-data/
+data/uploads/
+data/saved-posts-images/
+data/proxies.json
 cloudflared.exe
 data/cloudflared.exe.exe
 

@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { PassThrough } = require('stream');
+const { execFile } = require('child_process');
 const config = require('./config/default');
 const logger = require('./src/utils/logger');
 const playwright = process.env.PLAYWRIGHT_LOCAL_URL
@@ -18,6 +19,31 @@ const auth = require('./src/utils/auth');
 
 const app = express();
 app.use(express.json());
+
+// ===== GIT AUTO-COMMIT (debounce 30s) =====
+// Dùng cho channels.json, saved-posts.json, profiles-meta.json — không dùng cho proxies.json (lưu ở local).
+const REPO_ROOT = path.resolve(__dirname, '..');
+let _dataCommitTimer = null;
+function scheduleDataCommit(message) {
+  if (_dataCommitTimer) clearTimeout(_dataCommitTimer);
+  _dataCommitTimer = setTimeout(() => {
+    _dataCommitTimer = null;
+    const msg = message || 'chore: auto-save data';
+    execFile('git', ['-C', REPO_ROOT, 'add', 'data/channels.json', 'data/saved-posts.json', 'data/profiles-meta.json'], (err) => {
+      if (err) return logger.warn(`git add data: ${err.message}`);
+      execFile('git', ['-C', REPO_ROOT, 'diff', '--cached', '--quiet'], (diffErr) => {
+        if (!diffErr) return; // nothing staged
+        execFile('git', ['-C', REPO_ROOT, 'commit', '-m', msg], (cErr) => {
+          if (cErr) return logger.warn(`git commit data: ${cErr.message}`);
+          execFile('git', ['-C', REPO_ROOT, 'push', 'origin', 'HEAD'], (pErr) => {
+            if (pErr) logger.warn(`git push data: ${pErr.message}`);
+            else logger.info(`data auto-committed & pushed: ${msg}`);
+          });
+        });
+      });
+    });
+  }, 30_000);
+}
 
 // Auth gate: cần login basso.vn + được admin Xeko phân quyền mới được vào trang.
 // /admin, /platform, /api/auth (basso.vn) đi route khác — chỉ chặn frontend Xeko.
@@ -1037,6 +1063,7 @@ function saveProfilesMeta(data) {
   const dir = path.dirname(PROFILES_META_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(PROFILES_META_FILE, JSON.stringify(data, null, 2));
+  scheduleDataCommit('chore: auto-save profiles-meta');
 }
 
 // Cập nhật thông tin profile
@@ -1113,6 +1140,7 @@ app.post('/api/proxies', (req, res) => {
   const proxy = { id, label: label || '', host, port, user: user || '', pass: pass || '', purchaseDate: purchaseDate || '', expirationDate: expirationDate || '' };
   list.push(proxy);
   saveProxyList(list);
+  pushProxyListToLocal(list).catch(() => {});
   res.status(201).json(proxy);
 });
 
@@ -1125,6 +1153,7 @@ app.put('/api/proxies/:id', (req, res) => {
   if (idx < 0) return res.status(404).json({ error: 'Không tìm thấy proxy' });
   list[idx] = { ...list[idx], label: label || '', host, port, user: user || '', pass: pass || '', purchaseDate: purchaseDate || '', expirationDate: expirationDate || '' };
   saveProxyList(list);
+  pushProxyListToLocal(list).catch(() => {});
   res.json(list[idx]);
 });
 
@@ -1134,6 +1163,7 @@ app.delete('/api/proxies/:id', (req, res) => {
   const filtered = list.filter(p => p.id !== id);
   if (filtered.length === list.length) return res.status(404).json({ error: 'Không tìm thấy proxy' });
   saveProxyList(filtered);
+  pushProxyListToLocal(filtered).catch(() => {});
   res.json({ success: true });
 });
 
@@ -1371,6 +1401,7 @@ function saveChannels(data) {
   const dir = path.dirname(CHANNELS_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(CHANNELS_FILE, JSON.stringify(data, null, 2));
+  scheduleDataCommit('chore: auto-save channels');
 }
 
 app.get('/api/channels', (req, res) => {
@@ -1886,6 +1917,53 @@ async function syncChannelsFromLocal() {
   }
 }
 
+async function syncProxiesFromLocal() {
+  const LOCAL_URL = getLocalUrl();
+  if (!LOCAL_URL) return false;
+  try {
+    const fetchFn = await getFetch();
+    const res = await fetchFn(`${LOCAL_URL}/api/proxies`, {
+      headers: { 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+    });
+    if (!res.ok) return false;
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { return false; }
+    if (!Array.isArray(data) || data.length === 0) return false;
+    saveProxyList(data);
+    logger.info(`proxies synced from LOCAL (count=${data.length})`);
+    return true;
+  } catch (e) {
+    logger.info(`syncProxiesFromLocal: ${e.message}`);
+    return false;
+  }
+}
+
+async function pushProxyListToLocal(list) {
+  const LOCAL_URL = getLocalUrl();
+  if (!LOCAL_URL) return;
+  try {
+    const fetchFn = await getFetch();
+    await fetchFn(`${LOCAL_URL}/api/proxies/bulk`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+      body: JSON.stringify({ proxies: list }),
+    });
+  } catch (e) {
+    logger.info(`pushProxyListToLocal: ${e.message}`);
+  }
+}
+
+app.post('/api/proxies/sync-from-local', auth.requireAdmin(), async (req, res) => {
+  try {
+    const ok = await syncProxiesFromLocal();
+    if (ok) return res.json({ success: true, count: loadProxyList().length });
+    return res.status(503).json({ error: 'Local server chưa kết nối hoặc chưa có data proxies.' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/channels/sync-from-local', auth.requireAdmin(), async (req, res) => {
   try {
     const ok = await syncChannelsFromLocal();
@@ -1920,6 +1998,9 @@ app.post('/api/register-local', (req, res) => {
   const existing = loadChannels();
   const remoteEmpty = !existing.fbGroups?.length && !existing.fbPages?.length && !existing.zaloGroups?.length;
   if (remoteEmpty) syncChannelsFromLocal().catch(e => logger.info(`autoSyncChannels: ${e.message}`));
+  // Sync proxies từ LOCAL nếu remote chưa có data.
+  const remoteProxiesEmpty = !loadProxyList().length;
+  if (remoteProxiesEmpty) syncProxiesFromLocal().catch(e => logger.info(`autoSyncProxies: ${e.message}`));
 });
 
 // Override PLAYWRIGHT_LOCAL_URL bằng dynamicLocalUrl nếu có
@@ -1950,6 +2031,7 @@ function writeSavedPosts(posts) {
   const dir = path.dirname(SAVED_POSTS_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(SAVED_POSTS_FILE, JSON.stringify(posts, null, 2));
+  scheduleDataCommit('chore: auto-save saved-posts');
 }
 
 app.get('/api/saved-posts', (req, res) => {
