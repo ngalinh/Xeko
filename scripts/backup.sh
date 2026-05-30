@@ -13,7 +13,7 @@ SSH_KEY="/home/vmadmin/.ssh/xeko_backup_win"
 SSH_OPTS="-i $SSH_KEY -o StrictHostKeyChecking=no"
 
 DATE=$(date +%Y-%m-%d)
-LOG="/var/log/xeko-backup.log"
+LOG="$HOME/xeko-backup.log"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG"; }
 
