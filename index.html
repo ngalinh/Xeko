@@ -9389,21 +9389,43 @@
 
       // FB repost — repopulate _activeRepostJobs + spawn background poll
       if (fbRepost.length > 0) {
-        for (const job of fbRepost) {
-          _activeRepostJobs.push({
-            tempId: job.tempId,
-            profileName: job.profileName,
-            timeLabel: job.timeLabel,
-            message: job.message,
-            ch: job.ch,
-          });
-        }
-        if (typeof loadDashHistory === 'function') {
-          const dashPg = document.getElementById('pageDashboard');
-          if (dashPg && dashPg.classList.contains('active')) loadDashHistory();
-        }
         (async () => {
           for (const job of fbRepost) {
+            // Kiểm tra job đã hoàn thành trên server chưa trước khi hiện "Đang đăng"
+            let alreadyDone = false;
+            try {
+              const statusRes = await fetch(`${BASE_URL}/api/job/${job.jobId}?_t=` + Date.now(), { cache: 'no-store' });
+              if (statusRes.status === 404) {
+                // Job không còn trên server → đã xong từ phiên cũ
+                alreadyDone = true;
+              } else if (statusRes.ok) {
+                const statusData = await statusRes.json();
+                if (statusData && statusData.status !== 'pending' && statusData.status !== 'processing') {
+                  alreadyDone = true;
+                }
+              }
+            } catch {}
+
+            if (alreadyDone) {
+              removePendingJob(job.jobId);
+              continue;
+            }
+
+            _activeRepostJobs.push({
+              tempId: job.tempId,
+              profileName: job.profileName,
+              timeLabel: job.timeLabel,
+              message: job.message,
+              ch: job.ch,
+            });
+          }
+          if (typeof loadDashHistory === 'function') {
+            const dashPg = document.getElementById('pageDashboard');
+            if (dashPg && dashPg.classList.contains('active')) loadDashHistory();
+          }
+          // Poll kết quả các job còn đang chạy
+          for (const job of fbRepost) {
+            if (!_activeRepostJobs.find(j => j.tempId === job.tempId)) continue; // đã bị skip
             let ok = false;
             try { const d = await pollJob(job.jobId); ok = !!(d && (d.success || (d.results && d.results.some(r => r.success)))); } catch {}
             _updateDashRowDone(job.tempId, ok);
