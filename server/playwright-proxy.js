@@ -253,6 +253,15 @@ async function scrapePost(postUrl) {
   return { success: result.success, text: result.text || '', imageUrls: result.imageUrls || [], error: result.error };
 }
 
+async function postComment({ postUrl, message, imagePaths = [], profile }) {
+  if (profile) await setProfile(profile).catch(() => {});
+  const res = await callLocal('POST', '/api/seed', {
+    postUrl, message, profile: profile || _activeProfile,
+  }, imagePaths);
+  if (res.jobId) return pollLocalJob(res.jobId);
+  return res;
+}
+
 module.exports = {
   setProfile,
   profileExists,
@@ -262,6 +271,7 @@ module.exports = {
   postToPage,
   postPersonalAndShareToGroups,
   quickPostToPersonalAndGroups,
+  postComment,
   scrapePost,
   postToZaloGroup,
   closeBrowser,
