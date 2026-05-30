@@ -5005,7 +5005,7 @@
     async function showWelcome() {
       step = 'welcome';
       try {
-        const res = await fetch(BASE_URL + '/api/accounts');
+        const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), {cache: 'no-store'});
         const data = await parseJson(res);
         const profiles = (data && data.facebook) || [];
         _totalProfiles = profiles.length;
@@ -5067,7 +5067,7 @@
       step = 'profile';
       addUser('Chọn Profile');
       try {
-        const res = await fetch(BASE_URL + '/api/accounts');
+        const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), {cache: 'no-store'});
         const data = await parseJson(res);
         data.facebook.forEach(p => { _profileDisplayNames[p.key] = p.name || p.key; });
         const buttons = data.facebook.map(p => ({
@@ -6659,7 +6659,7 @@
       addTyping();
 
       try {
-        const res = await fetch(BASE_URL + '/api/schedules');
+        const res = await fetch(BASE_URL + '/api/schedules?_t=' + Date.now(), {cache: 'no-store'});
         const schedules = await parseJson(res);
         removeTyping();
 
@@ -8116,7 +8116,7 @@
       container.innerHTML = '<p style="color:#999;">Đang kiểm tra session các profile, vui lòng đợi...</p>';
 
       try {
-        const res = await fetch(BASE_URL + '/api/sessions');
+        const res = await fetch(BASE_URL + '/api/sessions?_t=' + Date.now(), {cache: 'no-store'});
         const results = await parseJson(res);
 
         let html = '';
@@ -8300,7 +8300,7 @@
 
     async function loadChannels() {
       try {
-        const res = await fetch(`${BASE_URL}/api/channels`);
+        const res = await fetch(`${BASE_URL}/api/channels?_t=` + Date.now(), {cache: 'no-store'});
         if (!res.ok) throw new Error('HTTP ' + res.status);
         channelsData = await parseJson(res);
       } catch (e) {
@@ -9036,7 +9036,7 @@
     // Polling: kiem tra lich da chay xong moi 10 giay
     setInterval(async () => {
       try {
-        const res = await fetch(BASE_URL + '/api/notifications');
+        const res = await fetch(BASE_URL + '/api/notifications?_t=' + Date.now(), {cache: 'no-store'});
         const items = await parseJson(res);
 
         // Auto-refresh dashboard table khi có schedule completion mới
@@ -9590,7 +9590,7 @@
       // Đảm bảo channelsData đã được tải (cần cho group filter)
       if (!(channelsData.fbGroups?.length) && !(channelsData.zaloGroups?.length)) {
         try {
-          const chRes = await fetch(`${BASE_URL}/api/channels`);
+          const chRes = await fetch(`${BASE_URL}/api/channels?_t=` + Date.now(), {cache: 'no-store'});
           if (chRes.ok) channelsData = await parseJson(chRes);
         } catch {}
         populateDashGroupFilter();
@@ -10592,7 +10592,7 @@
 
       // Load accounts into dropdown
       try {
-        const res = await fetch(BASE_URL + '/api/accounts');
+        const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), {cache: 'no-store'});
         const data = await parseJson(res);
         const profiles = data.facebook || [];
         const sel = document.getElementById('repostProfile');
@@ -10877,7 +10877,7 @@
 
       // Load danh sách profiles
       try {
-        const res = await fetch(BASE_URL + '/api/accounts');
+        const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), {cache: 'no-store'});
         const data = await parseJson(res);
         const profiles = data.facebook || [];
         const sel = document.getElementById('seedProfile');
