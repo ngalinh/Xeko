@@ -4289,11 +4289,37 @@
 
   <!-- Modal thêm / chỉnh sửa group -->
   <div id="groupModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
-    <div style="background:#fff; border-radius:16px; padding:24px; width:440px; max-width:92%; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <div id="groupModalBox" style="background:#fff; border-radius:16px; padding:24px; width:440px; max-width:92%; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
         <h3 id="groupModalTitle" style="font-size:16px; color:#1e1e2e; margin:0; display:flex; align-items:center; gap:6px;"><svg style="width:18px;height:18px;vertical-align:-3px;margin-right:6px;color:#3B82F6;" aria-hidden="true"><use href="#ic-plus"/></svg>Thêm group</h3>
         <button onclick="closeGroupModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999; line-height:1; padding:0 4px;">×</button>
       </div>
+
+      <!-- Tab đơn / nhiều -->
+      <div id="groupModalTabRow" style="display:flex; gap:0; margin-bottom:16px; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
+        <button id="groupModalTabSingle" onclick="switchGroupModalTab('single')"
+          style="flex:1; padding:8px; font-size:13px; font-weight:600; border:none; cursor:pointer; background:#3B82F6; color:#fff;">
+          Thêm 1 group
+        </button>
+        <button id="groupModalTabBulk" onclick="switchGroupModalTab('bulk')"
+          style="flex:1; padding:8px; font-size:13px; font-weight:600; border:none; cursor:pointer; background:#f5f5f7; color:#666;">
+          Thêm nhiều cùng lúc
+        </button>
+      </div>
+
+      <!-- Bulk mode -->
+      <div id="groupModalBulkSection" style="display:none;">
+        <p style="font-size:12px; color:#666; margin:0 0 8px; line-height:1.6;">
+          Mỗi dòng = 1 group, phân cách bởi <code style="background:#f0f0f0;padding:1px 4px;border-radius:4px;">|</code><br>
+          Định dạng: <code style="background:#f0f0f0;padding:1px 4px;border-radius:4px;">key | ID | Tên hiển thị | Phân loại (tuỳ chọn)</code>
+        </p>
+        <textarea id="groupModalBulkText" rows="8" placeholder="vd:&#10;asale | 350987965423767 | Asale | Group Asale&#10;tongkho | 532093344311571 | Tổng Kho | Group Tổng kho"
+          style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:13px; box-sizing:border-box; resize:vertical; font-family:monospace; line-height:1.6;"></textarea>
+        <div id="groupModalBulkResult" style="margin-top:8px; font-size:12px; display:none;"></div>
+      </div>
+
+      <!-- Single mode form -->
+      <div id="groupModalSingleSection">
 
       <!-- Loại group (chỉ khi thêm mới) -->
       <div id="groupModalTypeRow" style="margin-bottom:14px;">
@@ -4364,7 +4390,9 @@
         </div>
       </div>
 
-      <div style="display:flex; gap:8px; justify-content:flex-end;">
+      </div><!-- end groupModalSingleSection -->
+
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:4px;">
         <button onclick="closeGroupModal()" style="padding:9px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; color:#666;">Huỷ</button>
         <button onclick="saveGroupFromModal()" id="groupModalSaveBtn" style="padding:9px 20px; border:none; border-radius:8px; background:#3B82F6; color:#fff; font-size:13px; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:6px;"><svg style="width:14px;height:14px;" aria-hidden="true"><use href="#ic-check"/></svg>Lưu</button>
       </div>
@@ -8441,6 +8469,24 @@
       } catch (e) { alert('Lỗi: ' + e.message); }
     }
 
+    function switchGroupModalTab(tab) {
+      const isBulk = tab === 'bulk';
+      document.getElementById('groupModalSingleSection').style.display = isBulk ? 'none' : '';
+      document.getElementById('groupModalBulkSection').style.display = isBulk ? '' : 'none';
+      document.getElementById('groupModalTabSingle').style.background = isBulk ? '#f5f5f7' : '#3B82F6';
+      document.getElementById('groupModalTabSingle').style.color = isBulk ? '#666' : '#fff';
+      document.getElementById('groupModalTabBulk').style.background = isBulk ? '#3B82F6' : '#f5f5f7';
+      document.getElementById('groupModalTabBulk').style.color = isBulk ? '#fff' : '#666';
+      const saveBtn = document.getElementById('groupModalSaveBtn');
+      if (isBulk) {
+        saveBtn.innerHTML = `<svg style="width:14px;height:14px;" aria-hidden="true"><use href="#ic-check"/></svg>Lưu tất cả`;
+      } else {
+        saveBtn.innerHTML = `<svg style="width:14px;height:14px;" aria-hidden="true"><use href="#ic-check"/></svg>Lưu`;
+      }
+      document.getElementById('groupModalBox').style.width = isBulk ? '580px' : '440px';
+      document.getElementById('groupModalBulkResult').style.display = 'none';
+    }
+
     function openGroupModal(mode, type, key) {
       const modal = document.getElementById('groupModal');
       const title = document.getElementById('groupModalTitle');
@@ -8457,10 +8503,15 @@
       keyInput.readOnly = false;
       keyInput.style.background = '#fff';
 
+      // Reset to single tab
+      switchGroupModalTab('single');
+
       if (mode === 'edit') {
         title.innerHTML = `<svg style="width:18px;height:18px;vertical-align:-3px;margin-right:6px;color:#3B82F6;" aria-hidden="true"><use href="#ic-edit"/></svg>Chỉnh sửa group`;
         typeRow.style.display = 'none';
         saveBtn.innerHTML = `<svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;" aria-hidden="true"><use href="#ic-check"/></svg>Lưu thay đổi`;
+        // Hide bulk tab in edit mode
+        document.getElementById('groupModalTabRow').style.display = 'none';
         const list = type === 'fb' ? (channelsData.fbGroups || []) : type === 'page' ? (channelsData.fbPages || []) : (channelsData.zaloGroups || []);
         const g = list.find(x => x.key === key);
         if (!g) { alert('Không tìm thấy'); return; }
@@ -8476,6 +8527,7 @@
         title.innerHTML = `<svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;color:#3B82F6;" aria-hidden="true"><use href="#ic-plus"/></svg>Thêm group`;
         typeRow.style.display = '';
         saveBtn.innerHTML = `<svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;" aria-hidden="true"><use href="#ic-check"/></svg>Lưu`;
+        document.getElementById('groupModalTabRow').style.display = '';
         setGroupModalType('fb');
       }
 
@@ -8622,6 +8674,9 @@
     }
 
     async function saveGroupFromModal() {
+      const isBulk = document.getElementById('groupModalBulkSection').style.display !== 'none';
+      if (isBulk) { await saveBulkGroups(); return; }
+
       const mode = document.getElementById('groupModalMode').value;
       const type = document.getElementById('groupModalType').value;
       const key = document.getElementById('groupModalKey').value.trim();
@@ -8659,6 +8714,69 @@
         closeGroupModal();
         await loadChannels();
       } catch (e) { alert('Lỗi: ' + e.message); }
+    }
+
+    async function saveBulkGroups() {
+      const type = document.getElementById('groupModalType').value;
+      const text = document.getElementById('groupModalBulkText').value;
+      const endpoint = type === 'fb' ? 'fb-groups' : type === 'page' ? 'fb-pages' : 'zalo-groups';
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+      if (!lines.length) { alert('Chưa nhập dữ liệu'); return; }
+
+      const rows = [];
+      const parseErrors = [];
+      lines.forEach((line, i) => {
+        const parts = line.split('|').map(p => p.trim());
+        const [key, idOrOid, name, category = ''] = parts;
+        if (!key || !idOrOid || !name) {
+          parseErrors.push(`Dòng ${i + 1}: thiếu key, ID hoặc tên`);
+        } else {
+          rows.push({ key, idOrOid, name, category });
+        }
+      });
+
+      if (parseErrors.length) {
+        alert('Lỗi định dạng:\n' + parseErrors.join('\n'));
+        return;
+      }
+
+      const saveBtn = document.getElementById('groupModalSaveBtn');
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `<svg style="width:14px;height:14px;animation:spin 1s linear infinite;" aria-hidden="true"><use href="#ic-spinner"/></svg> Đang lưu...`;
+
+      let ok = 0, errors = [];
+      for (const row of rows) {
+        const payload = (type === 'fb' || type === 'page')
+          ? { key: row.key, id: row.idOrOid, name: row.name, category: row.category }
+          : { key: row.key, oid: row.idOrOid, name: row.name, category: row.category };
+        try {
+          const res = await fetch(`${BASE_URL}/api/channels/${endpoint}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await parseJson(res);
+          if (data.error) errors.push(`${row.key}: ${data.error}`);
+          else ok++;
+        } catch (e) {
+          errors.push(`${row.key}: ${e.message}`);
+        }
+      }
+
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = `<svg style="width:14px;height:14px;" aria-hidden="true"><use href="#ic-check"/></svg>Lưu tất cả`;
+
+      const resultDiv = document.getElementById('groupModalBulkResult');
+      resultDiv.style.display = '';
+      if (errors.length) {
+        resultDiv.innerHTML = `<span style="color:#16a34a;">✓ Đã thêm ${ok} group.</span> <span style="color:#dc2626;">✗ ${errors.length} lỗi: ${errors.join('; ')}</span>`;
+      } else {
+        resultDiv.innerHTML = `<span style="color:#16a34a;">✓ Đã thêm thành công ${ok} group!</span>`;
+      }
+
+      await loadChannels();
+      if (!errors.length) {
+        setTimeout(() => closeGroupModal(), 1200);
+      }
     }
 
     let profilesCache = [];
