@@ -881,6 +881,21 @@ app.put('/api/channels/profile-channels', (req, res) => {
   res.json({ success: true });
 });
 
+// Ghi đè toàn bộ channels từ remote (push từ Ubuntu về local)
+app.put('/api/channels/bulk', (req, res) => {
+  const { fbGroups, fbPages, zaloGroups, profileChannels } = req.body;
+  if (!fbGroups && !fbPages && !zaloGroups) return res.status(400).json({ error: 'Thiếu data' });
+  const current = loadChannels();
+  const updated = {
+    fbGroups: fbGroups || current.fbGroups || [],
+    fbPages: fbPages || current.fbPages || [],
+    zaloGroups: zaloGroups || current.zaloGroups || [],
+    profileChannels: profileChannels || current.profileChannels || {},
+  };
+  saveChannels(updated);
+  res.json({ success: true });
+});
+
 // ===== SCRAPE: Lấy nội dung + ảnh từ link FB post =====
 app.post('/api/fb-scrape', async (req, res) => {
   const { url, profile } = req.body;

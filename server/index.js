@@ -1402,6 +1402,23 @@ function saveChannels(data) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(CHANNELS_FILE, JSON.stringify(data, null, 2));
   scheduleDataCommit('chore: auto-save channels');
+  pushChannelsToLocal(data).catch(() => {});
+}
+
+async function pushChannelsToLocal(data) {
+  const LOCAL_URL = getLocalUrl();
+  if (!LOCAL_URL) return;
+  try {
+    const fetchFn = await getFetch();
+    await fetchFn(`${LOCAL_URL}/api/channels/bulk`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+      body: JSON.stringify(data),
+    });
+    logger.info('channels pushed to local');
+  } catch (e) {
+    logger.info(`pushChannelsToLocal: ${e.message}`);
+  }
 }
 
 app.get('/api/channels', (req, res) => {
