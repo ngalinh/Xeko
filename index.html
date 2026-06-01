@@ -10767,7 +10767,7 @@
         el.textContent = msg;
       };
 
-      let successCount = 0, failCount = 0;
+      let successCount = 0, failCount = 0, lastError = '';
 
       for (let ci = 0; ci < entriesToPost.length; ci++) {
         const entry = entriesToPost[ci];
@@ -10786,13 +10786,19 @@
           const res = await fetch(BASE_URL + '/api/seed', { method: 'POST', body: fd });
           const data = await parseJson(res);
 
-          if (!res.ok || data.error) { failCount++; continue; }
+          if (!res.ok || data.error) {
+            lastError = data.error || `HTTP ${res.status}`;
+            failCount++; continue;
+          }
 
           // Poll job
           btn.innerHTML = `<svg class="xi"><use href="#ic-clock"/></svg> ${ci + 1}/${entriesToPost.length} đang comment...`;
           const result = await pollJob(data.jobId);
-          if (result.success) { successCount++; } else { failCount++; }
-        } catch { failCount++; }
+          if (result.success) { successCount++; } else {
+            lastError = result.error || 'Không rõ';
+            failCount++;
+          }
+        } catch(e) { lastError = e.message; failCount++; }
       }
 
       if (successCount > 0 || failCount > 0) {
@@ -10804,10 +10810,10 @@
           _renderSeedComments();
           _loadSeedHistory(_seedPostLogId);
         } else if (successCount === 0) {
-          showStatus('Tất cả thất bại. Vui lòng thử lại.', false);
+          showStatus(`Thất bại: ${lastError || 'Không rõ lỗi'}`, false);
           showXekoToast('Seeding thất bại', 'error');
         } else {
-          showStatus(`${successCount} thành công, ${failCount} thất bại.`, false);
+          showStatus(`${successCount} thành công, ${failCount} thất bại. Lỗi: ${lastError || '?'}`, false);
           showXekoToast(`${successCount}/${total} bình luận seeding thành công`, 'success');
           _loadSeedHistory(_seedPostLogId);
         }
