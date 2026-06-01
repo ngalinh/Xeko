@@ -10208,7 +10208,7 @@
             const fullMsg = (row.message || '').replace(/"/g,'&quot;');
             const ctipMsg = escapeHtml(JSON.stringify({body: row.message || ''}));
             const msg = row.message ? (row.message.length > 160 ? row.message.substring(0, 160) + '…' : row.message) : '-';
-            const profileName = row.profile_name || row.profile || '-';
+            const profileName = (row.profile && _profileDisplayNames[row.profile]) || row.profile_name || row.profile || '-';
             const thumbs = buildThumbs(row);
             return `<tr id="dashRow-${row.id}" style="border-bottom:1px solid #f3f4f6; background:#fff;">
               <td style="padding:8px 10px;"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><span style="display:inline-block; width:10px; flex-shrink:0;"></span><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
@@ -10251,7 +10251,7 @@
             const accCount = {};
             const platCount = {};
             group.rows.forEach(r => {
-              const a = r.profile_name || r.profile || '-';
+              const a = (r.profile && _profileDisplayNames[r.profile]) || r.profile_name || r.profile || '-';
               accCount[a] = (accCount[a] || 0) + 1;
               const p = r.platform === 'zalo' ? 'Zalo' : 'FB';
               platCount[p] = (platCount[p] || 0) + 1;
@@ -10290,7 +10290,7 @@
 
             const childrenHtml = group.rows.map((row, k) => {
               const idx = group.indices[k];
-              const profileName = row.profile_name || row.profile || '-';
+              const profileName = (row.profile && _profileDisplayNames[row.profile]) || row.profile_name || row.profile || '-';
               const gid = resolveGroupLabel(row.platform, row.group_id, row.group_name);
               const childSharedGroups = (row.target === 'personal+groups' || row.target === 'personal-share-groups') ? parseSharedGroups(row.group_name) : null;
               let childNoisub = null, childNoiTitle = '';
