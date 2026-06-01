@@ -76,8 +76,15 @@ async function selectZaloAccount(page, accountName) {
     const els = document.querySelectorAll('[class*="dropdown"] li, [class*="option"], li, [class*="item"], div, span, a');
     for (const el of els) {
       const text = norm(el.textContent || '');
-      // Khớp đúng hoặc tên có số điện thoại đi kèm (vd: "Tram Truong 0764521234")
-      if (text === normName || text.startsWith(normName + ' ') || text.startsWith(normName + '\n')) {
+      // 1. Khớp chính xác
+      // 2. DOM có thêm số điện thoại: "Tram Truong" lưu, DOM "Tram Truong 0764523837"
+      // 3. DOM bị cắt bằng JS (ellipsis): lưu "Tram Truong 0764523837", DOM "Tram Truong 076452..."
+      const domStripped = text.replace(/[\s.…]+$/, '');
+      if (
+        text === normName ||
+        text.startsWith(normName + ' ') || text.startsWith(normName + '\n') ||
+        (domStripped.length >= 6 && normName.startsWith(domStripped))
+      ) {
         el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
         return true;
       }
