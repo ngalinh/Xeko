@@ -6058,7 +6058,8 @@
         message: message,
         ch: { type: target === 'personal' ? 'personal' : 'group', id: groupId || '', key: '', name: '' },
       };
-      _activeRepostJobs.push(_activePostJob);
+      // Only show FB tracker when there is an actual FB target to post to
+      if (target) _activeRepostJobs.push(_activePostJob);
 
       // Track number of successful posts in this batch (for encouragement)
       let successCount = 0;
