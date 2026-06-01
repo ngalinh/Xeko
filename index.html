@@ -6078,7 +6078,7 @@
           loadDashHistory({ noSkeleton });
         }
       };
-      _refreshDashIfActive();
+      _refreshDashIfActive(false, true);
 
       // ===== AUTO-SHARE: detect "Đăng ngay" có thể chuyển sang share-to-groups =====
       // Điều kiện: target có personal + 1-9 FB groups + mode ≠ schedule.
@@ -6391,7 +6391,7 @@
                   const zTracker = { tempId: 'zalo-' + zd.jobId, profileName: zaloAccount, timeLabel: _zaloTimeLabel, message, ch: { type: 'group', platform: 'zalo', id: g.key, name: g.name } };
                   _activeRepostJobs.push(zTracker);
                   _zaloTrackers.push(zTracker);
-                  _refreshDashIfActive();
+                  _refreshDashIfActive(false, true);
                   zaloPollPromises.push(
                     pollZaloJob(zd.jobId, g.name, zaloAccount, zRow).finally(() => {
                       const idx = _activeRepostJobs.indexOf(zTracker);
@@ -6401,7 +6401,7 @@
                   );
                 } else {
                   // Có pending DB row → auto-poll 4s sẽ tự cập nhật dashboard
-                  _refreshDashIfActive(); // hiện pending row ngay
+                  _refreshDashIfActive(false, true); // hiện pending row ngay
                   zaloPollPromises.push(
                     pollZaloJob(zd.jobId, g.name, zaloAccount, zRow).finally(() => {
                       _refreshDashIfActive(true, true);
