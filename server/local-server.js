@@ -412,13 +412,13 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   salework.postToZaloGroup({ zaloAccountName: accountName, accountKey, groupName, message: message || '', imagePaths })
     .then(result => {
       cleanupFiles(imagePaths);
-      zaloJobs.set(jobId, { status: 'done', success: result.success, error: result.error || null });
+      zaloJobs.set(jobId, { status: 'done', success: result.success, error: result.error || null, completedAt: Date.now() });
       if (!result.success) logger.error(`[zalo/post] Thất bại "${groupName}": ${result.error}`);
       else logger.info(`[zalo/post] Thành công: ${groupName}`);
     })
     .catch(err => {
       cleanupFiles(imagePaths);
-      zaloJobs.set(jobId, { status: 'done', success: false, error: err.message });
+      zaloJobs.set(jobId, { status: 'done', success: false, error: err.message, completedAt: Date.now() });
       logger.error(`[zalo/post] Exception: ${err.message}`);
     });
 });
@@ -427,7 +427,10 @@ app.get('/api/zalo/status/:jobId', (req, res) => {
   const job = zaloJobs.get(req.params.jobId);
   if (!job) return res.status(404).json({ error: 'Job không tồn tại' });
   res.json(job);
-  if (job.status === 'done') zaloJobs.delete(req.params.jobId);
+  // Giữ done result 5 phút để cloud có thể poll lại nếu request đầu bị lỗi mạng
+  if (job.status === 'done' && job.completedAt && Date.now() - job.completedAt > 5 * 60 * 1000) {
+    zaloJobs.delete(req.params.jobId);
+  }
 });
 
 // ===== ACCOUNTS =====
