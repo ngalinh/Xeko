@@ -286,8 +286,8 @@ async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message
     try { await screenshot(page, '99-error'); } catch {}
     return { success: false, error: e.message };
   } finally {
-    await page.close();
-    await browser.close();
+    await Promise.race([page.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {});
+    await Promise.race([browser.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {});
   }
 }
 
