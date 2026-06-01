@@ -325,17 +325,10 @@ async function attachImages(page, imagePaths) {
       })(),
     ]);
 
-    // Nếu input không hỗ trợ multiple nhưng cần upload nhiều ảnh → bỏ qua,
-    // dùng Cách 2 để tìm input[type=file][multiple] phù hợp hơn.
-    if (imagePaths.length > 1 && !fileChooser.isMultiple()) {
-      logger.warn(`FileChooser không hỗ trợ multiple (${imagePaths.length} ảnh) — chuyển sang Cách 2`);
-      await fileChooser.setFiles([]).catch(() => {}); // dismiss chooser
-    } else {
-      await fileChooser.setFiles(imagePaths);
-      uploaded = true;
-      uploadMethod = 'filechooser';
-      logger.info(`Upload ${imagePaths.length} ảnh thành công (filechooser)`);
-    }
+    await fileChooser.setFiles(imagePaths);
+    uploaded = true;
+    uploadMethod = 'filechooser';
+    logger.info(`Upload ${imagePaths.length} ảnh thành công (filechooser)`);
   } catch (e) {
     logger.error(`Filechooser failed: ${e.message}`);
   }
