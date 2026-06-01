@@ -283,6 +283,34 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   })();
 });
 
+// ===== DO-COMMENT: execute comment only, no DB logging (called by cloud via playwright-proxy) =====
+app.post('/api/do-comment', upload.array('images', 10), async (req, res) => {
+  const { postUrl, profile, message } = req.body;
+  const imagePaths = (req.files || []).map(f => f.path);
+  if (!postUrl) { cleanupFiles(imagePaths); return res.status(400).json({ error: 'Thiếu postUrl' }); }
+  if (!profile) { cleanupFiles(imagePaths); return res.status(400).json({ error: 'Thiếu profile' }); }
+
+  const jobId = createJob();
+  res.json({ jobId, status: 'pending' });
+
+  const _timeoutId = setTimeout(() => {
+    const j = postJobs.get(jobId);
+    if (j && j.status === 'pending') setJobError(jobId, 'Timeout: Playwright bị kẹt quá 9 phút.');
+  }, 9 * 60 * 1000);
+
+  (async () => {
+    try {
+      const result = await playwright.postComment({ postUrl, message: message || '', imagePaths, profile });
+      setJobResult(jobId, result);
+    } catch (e) {
+      setJobError(jobId, e.message);
+    } finally {
+      clearTimeout(_timeoutId);
+      cleanupFiles(imagePaths);
+    }
+  })();
+});
+
 // ===== TEST: FB QUICK POST V2 — ASYNC JOB pattern =====
 // Tránh tunnel/proxy timeout khi test chạy > 1-2 phút.
 // Trả jobId ngay, chạy background, store result vào postJobs.

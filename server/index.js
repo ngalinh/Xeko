@@ -29,7 +29,10 @@ function scheduleDataCommit(message) {
   _dataCommitTimer = setTimeout(() => {
     _dataCommitTimer = null;
     const msg = message || 'chore: auto-save data';
-    execFile('git', ['-C', REPO_ROOT, 'add', 'data/channels.json', 'data/saved-posts.json', 'data/profiles-meta.json'], (err) => {
+    const dataFiles = ['data/channels.json', 'data/saved-posts.json', 'data/profiles-meta.json']
+      .filter(f => fs.existsSync(path.join(REPO_ROOT, f)));
+    if (!dataFiles.length) return;
+    execFile('git', ['-C', REPO_ROOT, 'add', ...dataFiles], (err) => {
       if (err) return logger.warn(`git add data: ${err.message}`);
       execFile('git', ['-C', REPO_ROOT, 'diff', '--cached', '--quiet'], (diffErr) => {
         if (!diffErr) return; // nothing staged
