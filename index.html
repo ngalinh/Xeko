@@ -5918,6 +5918,10 @@
               if (el) el.removeAttribute('id'); // dừng pending poll timer detect row này
             }
             removePendingJob(jobId);
+            // Reload dashboard từ DB để pending row → done (áp dụng mọi caller: chatbot, resume, repost)
+            if (dashRowId && dashRowId.startsWith('pending-log-') && typeof loadDashHistory === 'function') {
+              loadDashHistory({ noSkeleton: true });
+            }
             return !!d.success;
           }
         } catch {}
@@ -10099,7 +10103,12 @@
         if (typeof _dashSelectedIds !== 'undefined') { _dashSelectedIds.clear(); _updateBulkBar(); }
 
         // --- Render repost-in-progress rows (giữ lại khi reload) ---
-        const repostHtml = _activeRepostJobs.map(job => {
+        // Loại bỏ in-memory rows đã có pending DB row (tránh hiển thị 2 dòng cho cùng 1 job)
+        const _pendingDbJobIdSet = new Set((data.pending || []).map(r => r.job_id).filter(Boolean));
+        const repostHtml = _activeRepostJobs.filter(job => {
+          const jid = job.zaloJobId || job.jobId;
+          return !jid || !_pendingDbJobIdSet.has(jid);
+        }).map(job => {
           const ch = job.ch;
           const platformLabel = ch.platform === 'zalo' ? 'Zalo' : 'FB';
           const targetLabel = ch.type === 'group' ? 'Group' : 'Profile';
