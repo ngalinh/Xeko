@@ -325,10 +325,17 @@ async function attachImages(page, imagePaths) {
       })(),
     ]);
 
-    await fileChooser.setFiles(imagePaths);
-    uploaded = true;
-    uploadMethod = 'filechooser';
-    logger.info(`Upload ${imagePaths.length} ảnh thành công (filechooser)`);
+    // Nếu input không hỗ trợ multiple nhưng cần upload nhiều ảnh → bỏ qua,
+    // dùng Cách 2 để tìm input[type=file][multiple] phù hợp hơn.
+    if (imagePaths.length > 1 && !fileChooser.isMultiple()) {
+      logger.warn(`FileChooser không hỗ trợ multiple (${imagePaths.length} ảnh) — chuyển sang Cách 2`);
+      await fileChooser.setFiles([]).catch(() => {}); // dismiss chooser
+    } else {
+      await fileChooser.setFiles(imagePaths);
+      uploaded = true;
+      uploadMethod = 'filechooser';
+      logger.info(`Upload ${imagePaths.length} ảnh thành công (filechooser)`);
+    }
   } catch (e) {
     logger.error(`Filechooser failed: ${e.message}`);
   }
@@ -397,29 +404,8 @@ async function attachImages(page, imagePaths) {
         return count;
       });
       if (thumbCount >= 0 && thumbCount < imagePaths.length) {
-        logger.warn(`Chỉ thấy ${thumbCount}/${imagePaths.length} thumbnail (method=${uploadMethod}) — thử lại bằng direct input`);
+        logger.warn(`Chỉ thấy ${thumbCount}/${imagePaths.length} thumbnail (method=${uploadMethod}) — FB có thể đã nuốt mất ảnh`);
         await page.screenshot({ path: path.resolve(__dirname, `../../logs/debug-upload-mismatch-${Date.now()}.png`) }).catch(() => {});
-        // Filechooser chỉ nhận 1 file (input không hỗ trợ multiple) → tìm input khác
-        const candidates = await page.$$('input[type="file"]');
-        const scored = [];
-        for (const input of candidates) {
-          const accept = (await input.getAttribute('accept')) || '';
-          const multiple = (await input.getAttribute('multiple')) !== null;
-          let score = 0;
-          if (accept.includes('image')) score += 2;
-          if (multiple) score += 1;
-          scored.push({ input, score, accept, multiple });
-        }
-        scored.sort((a, b) => b.score - a.score);
-        for (const { input, score, accept, multiple } of scored) {
-          try {
-            await input.setInputFiles(imagePaths);
-            logger.info(`Retry direct input OK (score=${score} accept="${accept}" multiple=${multiple})`);
-            break;
-          } catch (e2) {
-            logger.warn(`Retry direct input score=${score} fail: ${e2.message}`);
-          }
-        }
       } else if (thumbCount >= imagePaths.length) {
         logger.info(`Verify OK: ${thumbCount} thumbnail trong dialog`);
       }
