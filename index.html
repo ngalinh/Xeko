@@ -5925,6 +5925,12 @@
       const timeoutMsg = `⚠️ Group Zalo <strong>${groupName}</strong>: Xeko chờ 5 phút mà chưa thấy phản hồi, bạn check giúp mình nha!`;
       if (progressRow) morphBot(progressRow, timeoutMsg, 'error');
       else addBot(timeoutMsg);
+      // Mark pending DB row as failed so it stops showing "Đang đăng" in dashboard
+      if (dashRowId && dashRowId.startsWith('pending-log-')) {
+        const pendingId = dashRowId.replace('pending-log-', '');
+        fetch(`${BASE_URL}/api/pending/${pendingId}/timeout`, { method: 'POST' }).catch(() => {});
+        _updateDashRowDone(dashRowId, false);
+      }
       removePendingJob(jobId);
       return false;
     }
