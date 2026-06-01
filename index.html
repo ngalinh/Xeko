@@ -6779,6 +6779,8 @@
 
       if (pg === 'dashboard') {
         loadDashboard();
+      } else {
+        _stopDashPendingPoll();
       }
       if (pg === 'session') {
         fetchProxies();
@@ -9459,6 +9461,27 @@
     const dashLimit = 20;
     const _activeRepostJobs = []; // jobs đang poll background
     let _loadDashHistoryVersion = 0; // version guard để cancel concurrent loadDashHistory calls
+    let _dashPendingPollTimer = null; // auto-refresh khi có pending rows
+
+    function _startDashPendingPoll() {
+      if (_dashPendingPollTimer) return;
+      _dashPendingPollTimer = setInterval(() => {
+        const dashPg = document.getElementById('pageDashboard');
+        if (!dashPg || !dashPg.classList.contains('active')) return;
+        // Chỉ poll nếu còn pending rows hoặc active repost jobs
+        const hasPending = document.querySelector('#dashHistoryBody tr[id^="pending-log-"]');
+        const hasActive = _activeRepostJobs.length > 0;
+        if (hasPending || hasActive) {
+          loadDashHistory({ noSkeleton: true });
+        } else {
+          _stopDashPendingPoll();
+        }
+      }, 4000);
+    }
+
+    function _stopDashPendingPoll() {
+      if (_dashPendingPollTimer) { clearInterval(_dashPendingPollTimer); _dashPendingPollTimer = null; }
+    }
 
     // Cập nhật badge trực tiếp trên DOM row (không async, không gap UI)
     function _updateDashRowDone(tempId, success) {
@@ -10353,6 +10376,11 @@
           tbody.innerHTML = fallbackHtml || '<tr><td colspan="8" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
           _animateTableRows(tbody);
         }
+
+        // Auto-poll khi có pending rows hoặc active jobs đang chạy
+        const hasPendingNow = _pendingDbRows.length > 0 || _activeRepostJobs.length > 0;
+        if (hasPendingNow) _startDashPendingPoll();
+        else _stopDashPendingPoll();
 
         // Pagination (ẩn khi đang filter pending/running)
         const paginationEl = document.getElementById('dashPagination');
