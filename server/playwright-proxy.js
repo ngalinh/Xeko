@@ -255,9 +255,10 @@ async function scrapePost(postUrl) {
 
 async function postComment({ postUrl, message, imagePaths = [], profile }) {
   if (profile) await setProfile(profile).catch(() => {});
-  const res = await callLocal('POST', '/api/seed', {
-    postUrl, message, profile: profile || _activeProfile,
+  const res = await callLocal('POST', '/api/do-comment', {
+    postUrl, message: message || '', profile: profile || _activeProfile,
   }, imagePaths);
+  if (res.error) throw new Error(res.error);
   if (res.jobId) return pollLocalJob(res.jobId);
   return res;
 }

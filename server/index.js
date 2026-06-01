@@ -2222,6 +2222,28 @@ app.get('/api/seed-logs', (req, res) => {
   }
 });
 
+// Endpoint nhẹ cho proxy: chỉ thực thi comment, không log DB, trả jobId
+app.post('/api/do-comment', upload.array('images', 10), async (req, res) => {
+  const { postUrl, profile, message } = req.body;
+  const imagePaths = (req.files || []).map(f => f.path);
+  if (!postUrl) { cleanupFiles(imagePaths); return res.status(400).json({ error: 'Thiếu postUrl' }); }
+  if (!profile) { cleanupFiles(imagePaths); return res.status(400).json({ error: 'Thiếu profile' }); }
+
+  const jobId = createJob();
+  res.json({ jobId });
+
+  queuePost(async () => {
+    try {
+      const result = await playwright.postComment({ postUrl, message: message || '', imagePaths, profile });
+      setJobResult(jobId, result);
+    } catch (e) {
+      setJobError(jobId, e.message);
+    } finally {
+      cleanupFiles(imagePaths);
+    }
+  });
+});
+
 app.delete('/api/seed-logs/:id', (req, res) => {
   try {
     seedStore.deleteSeedLog(Number(req.params.id));
