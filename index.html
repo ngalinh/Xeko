@@ -9305,7 +9305,7 @@
       if (step === 'compose') {
         buttons.push({ label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() });
         buttons.push({ label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() });
-        buttons.push({ label: `${xekoIcon('user')} Đổi profile`, handler: () => showProfileSelect() });
+        if (_totalProfiles > 1) buttons.push({ label: `${xekoIcon('user')} Đổi profile`, handler: () => showProfileSelect() });
       } else if (step === 'mode') {
         buttons.push({ label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') });
         buttons.push({ label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') });
