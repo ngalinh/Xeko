@@ -286,6 +286,8 @@ async function attachImages(page, imagePaths) {
   if (!imagePaths || imagePaths.length === 0) return true;
 
   logger.info(`Đính kèm ${imagePaths.length} ảnh...`);
+  let uploaded = false;
+  let uploadMethod = '';
 
   // Tìm nút Ảnh/Video trong popup
   const photoSelectors = [
@@ -294,35 +296,7 @@ async function attachImages(page, imagePaths) {
     'div[aria-label="Ảnh/Video"]',
   ];
 
-  // Selectors cho nút "Thêm ảnh" / "+" sau khi đã upload ảnh đầu tiên
-  const addMoreSelectors = [
-    'div[aria-label*="Thêm ảnh"]',
-    'div[aria-label*="Add photo"]',
-    'div[aria-label*="Add Photo"]',
-    'div[aria-label*="Add more"]',
-    'div[aria-label*="thêm ảnh"]',
-    'div[aria-label*="Thêm"]',
-  ];
-
-  // Helper: chờ số thumbnail trong dialog đạt n
-  async function waitForThumbnails(n, timeout = 8000) {
-    await page.waitForFunction((count) => {
-      const dialog = document.querySelector('div[role="dialog"]');
-      if (!dialog) return true;
-      let found = 0;
-      for (const img of dialog.querySelectorAll('img')) {
-        const src = img.getAttribute('src') || '';
-        if (src.startsWith('blob:') || src.startsWith('data:')) found++;
-      }
-      return found >= count;
-    }, n, { timeout }).catch(() => {});
-  }
-
-  // --- Bước 1: upload ảnh đầu tiên ---
-  let firstUploaded = false;
-  let uploadMethod = '';
-
-  // Cách 1: Click nút Ảnh/Video + bắt filechooser
+  // Cách 1: Click nút Ảnh/Video + bắt filechooser (không mở dialog)
   try {
     const [fileChooser] = await Promise.all([
       page.waitForEvent('filechooser', { timeout: 20000 }),
@@ -331,7 +305,11 @@ async function attachImages(page, imagePaths) {
         for (const sel of photoSelectors) {
           try {
             const el = await page.$(sel);
-            if (el) { await el.click({ force: true }); logger.info(`Click nút ảnh: ${sel}`); return; }
+            if (el) {
+              await el.click({ force: true });
+              logger.info(`Click nút ảnh: ${sel}`);
+              return;
+            }
           } catch { continue; }
         }
         // Fallback: tìm trong thanh icon
@@ -339,22 +317,27 @@ async function attachImages(page, imagePaths) {
         for (const icon of icons) {
           const label = await icon.getAttribute('aria-label');
           if (label && (label.includes('nh') || label.includes('hoto') || label.includes('ideo'))) {
-            await icon.click({ force: true }); logger.info(`Click icon ảnh: ${label}`); return;
+            await icon.click({ force: true });
+            logger.info(`Click icon ảnh: ${label}`);
+            return;
           }
         }
       })(),
     ]);
-    // Upload chỉ ảnh đầu tiên để giữ thứ tự
-    await fileChooser.setFiles([imagePaths[0]]);
-    firstUploaded = true;
+
+    await fileChooser.setFiles(imagePaths);
+    uploaded = true;
     uploadMethod = 'filechooser';
-    logger.info(`Upload ảnh 1/${imagePaths.length} thành công (filechooser)`);
+    logger.info(`Upload ${imagePaths.length} ảnh thành công (filechooser)`);
   } catch (e) {
     logger.error(`Filechooser failed: ${e.message}`);
   }
 
-  // Cách 2: Fallback - tìm input[type=file] trực tiếp
-  if (!firstUploaded) {
+  // Cách 2: Fallback - tìm input[type=file] trực tiếp.
+  // FB render nhiều input file ẩn (ảnh, video, profile pic) — input đầu tiên
+  // có thể chỉ accept 1 file hoặc không phải input ảnh post → upload thiếu.
+  // Ưu tiên input có accept="image/*" + multiple để khớp post photo input.
+  if (!uploaded) {
     const candidates = await page.$$('input[type="file"]');
     const scored = [];
     for (const input of candidates) {
@@ -362,17 +345,17 @@ async function attachImages(page, imagePaths) {
       const multiple = (await input.getAttribute('multiple')) !== null;
       let score = 0;
       if (accept.includes('image')) score += 2;
-      if (multiple) score += 1;
+      if (multiple || imagePaths.length === 1) score += 1;
       scored.push({ input, score, accept, multiple });
     }
     scored.sort((a, b) => b.score - a.score);
 
     for (const { input, score, accept, multiple } of scored) {
       try {
-        await input.setInputFiles([imagePaths[0]]);
-        firstUploaded = true;
+        await input.setInputFiles(imagePaths);
+        uploaded = true;
         uploadMethod = `direct input score=${score} accept="${accept}" multiple=${multiple}`;
-        logger.info(`Upload ảnh 1/${imagePaths.length} thành công (${uploadMethod})`);
+        logger.info(`Upload ${imagePaths.length} ảnh thành công (${uploadMethod})`);
         break;
       } catch (e) {
         logger.warn(`Direct input score=${score} fail: ${e.message}`);
@@ -381,109 +364,50 @@ async function attachImages(page, imagePaths) {
     }
   }
 
-  if (!firstUploaded) {
+  if (!uploaded) {
     logger.error('KHÔNG UPLOAD ĐƯỢC ẢNH!');
     await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-upload.png') });
     return false;
   }
 
-  // Nếu chỉ có 1 ảnh thì xong
-  if (imagePaths.length === 1) {
-    await waitForThumbnails(1, 4000);
-    return true;
-  }
-
-  // --- Bước 2: upload các ảnh tiếp theo tuần tự để giữ thứ tự ---
-  // Upload tất cả một lần (không qua nút "Thêm ảnh") nếu sequential thất bại
-  let sequentialOk = true;
-
-  for (let i = 1; i < imagePaths.length; i++) {
-    // Chờ ảnh trước render xong trước khi upload ảnh tiếp
-    await waitForThumbnails(i, 8000);
-    await randomDelay(600, 1200);
-
-    let nextUploaded = false;
-
-    // Cách A: click nút "Thêm ảnh" / "+" → bắt filechooser
-    try {
-      const [fileChooser] = await Promise.all([
-        page.waitForEvent('filechooser', { timeout: 7000 }),
-        (async () => {
-          await randomDelay(200, 400);
-          for (const sel of addMoreSelectors) {
-            try {
-              const els = await page.$$(sel);
-              for (const el of els) {
-                const isVisible = await el.isVisible().catch(() => false);
-                if (isVisible) { await el.click({ force: true }); return; }
-              }
-            } catch { continue; }
-          }
-        })(),
-      ]);
-      await fileChooser.setFiles([imagePaths[i]]);
-      nextUploaded = true;
-      logger.info(`Upload ảnh ${i + 1}/${imagePaths.length} thành công (add-more filechooser)`);
-    } catch (e) {
-      logger.warn(`Add-more filechooser fail (ảnh ${i + 1}): ${e.message}`);
+  // Verify: chờ FB render preview. Smart wait: resolve ngay khi thumbnail xuất hiện,
+  // tối đa 4s — nhanh hơn flat delay 3-6s khi FB render sớm.
+  await page.waitForFunction((n) => {
+    const dialog = document.querySelector('div[role="dialog"]');
+    if (!dialog) return true; // dialog đóng rồi thì khỏi chờ
+    let count = 0;
+    for (const img of dialog.querySelectorAll('img')) {
+      const src = img.getAttribute('src') || '';
+      if (src.startsWith('blob:') || src.startsWith('data:')) count++;
     }
-
-    if (!nextUploaded) {
-      sequentialOk = false;
-      logger.warn(`Không tìm được nút "Thêm ảnh" cho ảnh ${i + 1} — fallback upload cùng lúc`);
-      break;
-    }
-  }
-
-  // Fallback: nếu không tìm được nút "Thêm ảnh", upload các ảnh còn lại cùng lúc
-  // (sẽ bị xáo thứ tự nhưng ít nhất không mất ảnh)
-  if (!sequentialOk) {
-    const remaining = imagePaths.slice(1);
-    logger.warn(`Fallback: upload ${remaining.length} ảnh còn lại cùng lúc (thứ tự có thể không đúng)`);
+    return count >= n;
+  }, Math.max(1, imagePaths.length), { timeout: 4000 }).catch(() => {});
+  if (imagePaths.length > 1) {
     try {
-      const candidates = await page.$$('input[type="file"]');
-      const scored = [];
-      for (const input of candidates) {
-        const accept = (await input.getAttribute('accept')) || '';
-        const multiple = (await input.getAttribute('multiple')) !== null;
-        let score = 0;
-        if (accept.includes('image')) score += 2;
-        if (multiple) score += 1;
-        scored.push({ input, score });
-      }
-      scored.sort((a, b) => b.score - a.score);
-      for (const { input } of scored) {
-        try { await input.setInputFiles(remaining); break; } catch { continue; }
+      const thumbCount = await page.evaluate(() => {
+        const dialog = document.querySelector('div[role="dialog"]');
+        if (!dialog) return -1;
+        const imgs = dialog.querySelectorAll('img');
+        let count = 0;
+        for (const img of imgs) {
+          const src = img.getAttribute('src') || '';
+          // FB preview ảnh dạng blob: hoặc data: URL trước khi upload xong.
+          if (src.startsWith('blob:') || src.startsWith('data:')) count++;
+        }
+        return count;
+      });
+      if (thumbCount >= 0 && thumbCount < imagePaths.length) {
+        logger.warn(`Chỉ thấy ${thumbCount}/${imagePaths.length} thumbnail (method=${uploadMethod}) — FB có thể đã nuốt mất ảnh`);
+        await page.screenshot({ path: path.resolve(__dirname, `../../logs/debug-upload-mismatch-${Date.now()}.png`) }).catch(() => {});
+      } else if (thumbCount >= imagePaths.length) {
+        logger.info(`Verify OK: ${thumbCount} thumbnail trong dialog`);
       }
     } catch (e) {
-      logger.error(`Fallback upload thất bại: ${e.message}`);
+      logger.warn(`Không count được thumbnail: ${e.message}`);
     }
   }
 
-  // Verify cuối
-  await waitForThumbnails(imagePaths.length, 6000);
-  try {
-    const thumbCount = await page.evaluate(() => {
-      const dialog = document.querySelector('div[role="dialog"]');
-      if (!dialog) return -1;
-      let count = 0;
-      for (const img of dialog.querySelectorAll('img')) {
-        const src = img.getAttribute('src') || '';
-        if (src.startsWith('blob:') || src.startsWith('data:')) count++;
-      }
-      return count;
-    });
-    if (thumbCount >= 0 && thumbCount < imagePaths.length) {
-      logger.warn(`Chỉ thấy ${thumbCount}/${imagePaths.length} thumbnail (method=${uploadMethod}) — FB có thể đã nuốt mất ảnh`);
-      await page.screenshot({ path: path.resolve(__dirname, `../../logs/debug-upload-mismatch-${Date.now()}.png`) }).catch(() => {});
-    } else if (thumbCount >= imagePaths.length) {
-      logger.info(`Verify OK: ${thumbCount} thumbnail trong dialog`);
-    }
-  } catch (e) {
-    logger.warn(`Không count được thumbnail: ${e.message}`);
-  }
-
-  return true;
+  return uploaded;
 }
 
 // Đệ quy tìm permalink trong payload GraphQL.
