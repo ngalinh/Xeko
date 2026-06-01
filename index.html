@@ -5928,6 +5928,10 @@
             }
             if (pendingLogId) delete _pendingLogProgressRows[pendingLogId];
             removePendingJob(jobId);
+            // Reload dashboard từ DB để pending row → done (áp dụng mọi caller: chatbot, resume, repost)
+            if (dashRowId && dashRowId.startsWith('pending-log-') && typeof loadDashHistory === 'function') {
+              loadDashHistory({ noSkeleton: true });
+            }
             return !!d.success;
           }
         } catch {}
@@ -10119,7 +10123,12 @@
         if (typeof _dashSelectedIds !== 'undefined') { _dashSelectedIds.clear(); _updateBulkBar(); }
 
         // --- Render repost-in-progress rows (giữ lại khi reload) ---
-        const repostHtml = _activeRepostJobs.map(job => {
+        // Loại bỏ in-memory rows đã có pending DB row (tránh hiển thị 2 dòng cho cùng 1 job)
+        const _pendingDbJobIdSet = new Set((data.pending || []).map(r => r.job_id).filter(Boolean));
+        const repostHtml = _activeRepostJobs.filter(job => {
+          const jid = job.zaloJobId || job.jobId;
+          return !jid || !_pendingDbJobIdSet.has(jid);
+        }).map(job => {
           const ch = job.ch;
           const platformLabel = ch.platform === 'zalo' ? 'Zalo' : 'FB';
           const targetLabel = ch.type === 'group' ? 'Group' : 'Profile';
@@ -11034,28 +11043,29 @@
             const res = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: fd });
             const d = await parseJson(res);
             const isAsync = !!(d.jobId && d.processing);
-            jobs.push({ ch, zaloJobId: isAsync ? d.jobId : null, done: !isAsync, ok: isAsync ? undefined : !!d.success });
+            jobs.push({ ch, zaloJobId: isAsync ? d.jobId : null, pendingLogId: d.pendingLogId || null, done: !isAsync, ok: isAsync ? undefined : !!d.success });
           } else {
             fd.append('target', ch.type === 'group' ? 'group' : 'personal');
             if (ch.type === 'group') fd.append('groupId', ch.id || ch.key || '');
             fd.append('profile', profile);
             const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: fd });
             const initial = await parseJson(res);
-            jobs.push({ ch, jobId: initial.jobId, initial, done: !initial.jobId });
+            // Lưu pendingLogId để dùng DB làm source of truth (giống main post flow)
+            jobs.push({ ch, jobId: initial.jobId, pendingLogId: initial.pendingLogId || null, initial, done: !initial.jobId });
           }
         } catch (e) {
           jobs.push({ ch, done: true, ok: false, error: e.message, timeout: isProxyTimeout(e) });
         }
       }
 
-      // Nếu có channel bị proxy timeout, cảnh báo user — trước đây nuốt im lặng
-      // làm user tưởng không có gì chạy.
+      // Nếu có channel bị proxy timeout, cảnh báo user
       const timedOut = jobs.filter(j => j.timeout);
       if (timedOut.length > 0) {
         alert(`⚠️ ${timedOut.length}/${channels.length} kênh: mạng/proxy timeout, server có thể vẫn đang đăng ngầm.\n\nCheck Facebook + tab Dashboard sau 1-2 phút, đừng repost lại liền tránh trùng bài.`);
       }
 
-      // 2. Đăng ký job vào _activeRepostJobs để loadDashHistory() tự render lại khi cần
+      // 2. Đăng ký job — nếu có pendingLogId thì DB là source of truth (giống main post flow),
+      //    không cần in-memory tracker. Nếu không thì dùng _activeRepostJobs như fallback.
       const profileName = document.getElementById('repostProfile').options[document.getElementById('repostProfile').selectedIndex]?.text || profile;
       const now = new Date();
       const pad = n => String(n).padStart(2,'0');
@@ -11067,8 +11077,12 @@
         job.profileName = profileName;
         job.timeLabel = timeLabel;
         job.message = message;
-        _activeRepostJobs.push(job);
-        // Persist de resume neu PWA reload giua chung
+        // Có pendingLogId → DB pending row đã tồn tại, auto-poll 4s xử lý dashboard
+        // Không có pendingLogId → dùng in-memory tracker (fallback)
+        if (!job.pendingLogId) {
+          _activeRepostJobs.push(job);
+        }
+        // Persist để resume nếu PWA reload giữa chừng
         if (job.jobId) {
           pushPendingJob({
             kind: 'fb-repost',
@@ -11079,43 +11093,66 @@
             message,
             ch: job.ch,
           });
+        } else if (job.zaloJobId) {
+          pushPendingJob({
+            kind: 'zalo',
+            jobId: job.zaloJobId,
+            tempId: job.tempId,
+            groupName: job.ch.name || '',
+            account: job.ch.zaloAccount || '',
+            pendingLogId: job.pendingLogId || null,
+          });
         }
       });
 
-      // 3. Đóng modal ngay + render hàng tạm
+      // 3. Đóng modal ngay + render dashboard (pending DB rows + in-memory trackers)
       submitBtn.disabled = false;
       submitBtn.textContent = '🔄 Repost';
       editBtn.disabled = false;
       closeRepostModal();
       loadDashHistory();
 
-      // 4. Poll background – khi từng job xong thì xóa khỏi registry + reload
+      // 4. Poll background – giống main post flow:
+      //    - Có pendingLogId: completePendingPost đã được gọi bởi server khi done
+      //      → chỉ cần _refreshDashIfActive để reload
+      //    - Không có pendingLogId: _updateDashRowDone + splice in-memory tracker
       (async () => {
         for (const job of jobs) {
           if (job.done) continue;
           try {
-            let d;
             if (job.zaloJobId) {
+              // Zalo: poll với proper error handling (giống pollZaloJob)
               const deadline = Date.now() + 10 * 60 * 1000;
+              let d;
               while (Date.now() < deadline) {
                 await sleepOrVisible(2000);
-                const sr = await fetch(`${BASE_URL}/api/zalo/status/${job.zaloJobId}`);
-                const sd = await parseJson(sr);
-                if (sd.status === 'done') { d = sd; break; }
+                try {
+                  const sr = await fetch(`${BASE_URL}/api/zalo/status/${job.zaloJobId}`);
+                  if (!sr.ok) continue;
+                  const sd = await parseJson(sr);
+                  if (sd.status === 'done') { d = sd; break; }
+                } catch {}
               }
               d = d || { success: false, error: 'Timeout' };
+              job.ok = !!d.success;
             } else {
-              d = job.jobId ? await pollJob(job.jobId) : job.initial;
+              // FB: dùng pollJob (SSE + HTTP)
+              const d = job.jobId ? await pollJob(job.jobId) : job.initial;
+              job.ok = !!(d.success || (d.results && d.results.some(r => r.success)));
             }
-            job.ok = !!(d.success || (d.results && d.results.some(r => r.success)));
           } catch (e) {
             job.ok = false;
           }
-          // Cập nhật badge ngay trước khi splice (không gap UI)
-          _updateDashRowDone(job.tempId, job.ok);
-          const idx = _activeRepostJobs.indexOf(job);
-          if (idx !== -1) _activeRepostJobs.splice(idx, 1);
+          // Nếu không có pendingLogId → cập nhật badge trực tiếp trên in-memory row
+          if (!job.pendingLogId) {
+            _updateDashRowDone(job.tempId, job.ok);
+            const idx = _activeRepostJobs.indexOf(job);
+            if (idx !== -1) _activeRepostJobs.splice(idx, 1);
+          }
           if (job.jobId) removePendingJob(job.jobId);
+          if (job.zaloJobId) removePendingJob(job.zaloJobId);
+          // Reload dashboard để cập nhật pending row → done (áp dụng cả 2 path)
+          loadDashHistory({ noSkeleton: true });
         }
         dashPage = 0;
         loadDashHistory({ noSkeleton: true });
