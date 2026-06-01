@@ -71,10 +71,14 @@ async function selectZaloAccount(page, accountName) {
 
   // Bước 3: Click đúng tài khoản target bằng evaluate (scan DOM theo text)
   const selected = await page.evaluate((name) => {
+    const norm = s => s.normalize('NFC').trim();
+    const normName = norm(name);
     const els = document.querySelectorAll('[class*="dropdown"] li, [class*="option"], li, [class*="item"], div, span, a');
     for (const el of els) {
-      if (el.textContent?.trim() === name) {
-        el.click();
+      const text = norm(el.textContent || '');
+      // Khớp đúng hoặc tên có số điện thoại đi kèm (vd: "Tram Truong 0764521234")
+      if (text === normName || text.startsWith(normName + ' ') || text.startsWith(normName + '\n')) {
+        el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
         return true;
       }
     }
@@ -109,11 +113,34 @@ async function searchAndClickGroup(page, groupName) {
   // Dùng page.evaluate để tìm + click trong browser context (1 round-trip thay vì N)
   // page.$$() + el.textContent() riêng lẻ = N async CDP calls → hang khi DOM lớn
   const clicked = await page.evaluate((name) => {
-    const els = document.querySelectorAll('div, span, li, a');
-    for (const el of els) {
-      const text = el.textContent?.trim() || '';
-      if (text.includes(name) && text.length < name.length + 50) {
-        el.click();
+    const norm = s => s.normalize('NFC').trim();
+    const normName = norm(name);
+    // Ưu tiên selector cụ thể của Salework trước, fallback sang li/a
+    const candidates = document.querySelectorAll(
+      '[class*="conversation-item"], [class*="contact-item"], [class*="chat-item"], ' +
+      '[class*="list-item"], [class*="message-item"], li[class], a[class]'
+    );
+    for (const el of candidates) {
+      const text = norm(el.textContent || '');
+      if (text.includes(normName) && text.length < normName.length + 80) {
+        el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+        return true;
+      }
+    }
+    // Fallback: tìm span/div chứa text rồi click phần tử cha gần nhất có cursor pointer
+    const all = document.querySelectorAll('span, div, li, a');
+    for (const el of all) {
+      const text = norm(el.textContent || '');
+      if (text.includes(normName) && text.length < normName.length + 80) {
+        // Leo lên cha để tìm phần tử thực sự clickable
+        let target = el;
+        for (let i = 0; i < 5; i++) {
+          if (!target.parentElement) break;
+          const style = window.getComputedStyle(target);
+          if (style.cursor === 'pointer' || target.tagName === 'LI' || target.tagName === 'A') break;
+          target = target.parentElement;
+        }
+        target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
         return true;
       }
     }
