@@ -119,63 +119,49 @@ async function searchAndClickGroup(page, groupName) {
 
   await screenshot(page, '03-search-filled');
 
-  // Dùng page.evaluate để tìm vị trí element (1 round-trip), sau đó dùng
-  // page.mouse.click() để fire đầy đủ pointer events mà Vue.js yêu cầu.
-  // dispatchEvent() từ trong evaluate không kích hoạt được pointerdown/up → Vue không nhận.
-  const norm = s => s.normalize('NFC').trim();
-  const normName = norm(groupName);
-
+  // Dùng page.evaluate để lấy tọa độ (1 round-trip), rồi page.mouse.click()
+  // để fire đầy đủ pointer events mà Vue.js yêu cầu.
   const rect = await page.evaluate((name) => {
     const norm = s => s.normalize('NFC').trim();
     const normName = norm(name);
 
-    function getRect(el) {
-      // Leo lên cha tìm phần tử có cursor pointer hoặc là LI/A
-      let target = el;
-      for (let i = 0; i < 6; i++) {
-        if (!target.parentElement) break;
-        const style = window.getComputedStyle(target);
-        if (style.cursor === 'pointer' || target.tagName === 'LI' || target.tagName === 'A') break;
-        target = target.parentElement;
-      }
-      const r = target.getBoundingClientRect();
-      if (r.width === 0 || r.height === 0) return null;
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    }
+    // Contact row trong Salework luôn có kích thước hợp lý: rộng >150px, cao 30-200px
+    const isRow = (r) => r.width > 150 && r.height > 30 && r.height < 200
+                      && r.top >= 0 && r.top < window.innerHeight;
 
-    // Ưu tiên selector cụ thể của Salework
-    const candidates = document.querySelectorAll(
-      '[class*="conversation-item"], [class*="contact-item"], [class*="chat-item"], ' +
-      '[class*="list-item"], [class*="message-item"], li[class], a[class]'
+    // Pass 1: selector có class liên quan đến conversation/contact/item
+    const pass1 = document.querySelectorAll(
+      '[class*="conversation"], [class*="contact"], [class*="chat"], ' +
+      '[class*="list-item"], [class*="message-item"], li, a[href]'
     );
-    for (const el of candidates) {
-      const text = norm(el.textContent || '');
-      if (text.includes(normName) && text.length < normName.length + 80) {
-        const r = el.getBoundingClientRect();
-        if (r.width === 0 || r.height === 0) continue;
-        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-      }
+    for (const el of pass1) {
+      if (!norm(el.textContent || '').includes(normName)) continue;
+      const r = el.getBoundingClientRect();
+      if (isRow(r)) return { x: r.left + r.width / 2, y: r.top + r.height / 2, src: 'pass1' };
     }
 
-    // Fallback: tìm span/div chứa text, lấy tọa độ phần tử cha clickable
-    const all = document.querySelectorAll('span, div, li, a');
-    for (const el of all) {
-      const text = norm(el.textContent || '');
-      if (text.includes(normName) && text.length < normName.length + 80) {
-        return getRect(el);
-      }
+    // Pass 2: bất kỳ div/li nào có kích thước trông như một hàng danh sách
+    const pass2 = document.querySelectorAll('div, li');
+    for (const el of pass2) {
+      if (!norm(el.textContent || '').includes(normName)) continue;
+      const r = el.getBoundingClientRect();
+      if (isRow(r)) return { x: r.left + r.width / 2, y: r.top + r.height / 2, src: 'pass2' };
     }
     return null;
   }, groupName);
 
+  await screenshot(page, '03b-before-click');
+
   if (rect) {
-    logger.info(`[salework] Click tọa độ (${Math.round(rect.x)}, ${Math.round(rect.y)}) cho: ${groupName}`);
+    logger.info(`[salework] [${rect.src}] Click (${Math.round(rect.x)}, ${Math.round(rect.y)}) cho: ${groupName}`);
     await page.mouse.click(rect.x, rect.y);
-    await delay(2500);
+    await delay(1000);
+    await screenshot(page, '03c-after-click');
+    await delay(1500);
     return true;
   }
 
-  logger.error(`[salework] Không tìm thấy nhóm: ${groupName}`);
+  logger.error(`[salework] Không tìm thấy element cho: ${groupName}`);
   return false;
 }
 
