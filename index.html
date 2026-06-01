@@ -6160,6 +6160,7 @@
               _activePostJob.pendingLogId = initial.pendingLogId;
               const _pIdx = _activeRepostJobs.indexOf(_activePostJob);
               if (_pIdx !== -1) _activeRepostJobs.splice(_pIdx, 1);
+              _refreshDashIfActive(); // tránh duplicate row (in-memory + pending DB)
             }
             try {
               data = await pollJob(initial.jobId);
