@@ -5894,7 +5894,7 @@
     });
 
     // Poll kết quả Zalo post async — cập nhật chatbot khi Playwright hoàn thành
-    async function pollZaloJob(jobId, groupName, account, progressRow = null) {
+    async function pollZaloJob(jobId, groupName, account, progressRow = null, dashRowId = null) {
       const maxTries = 150; // tối đa 5 phút (150 × 2s)
       for (let i = 0; i < maxTries; i++) {
         await sleepOrVisible(2000);
@@ -5911,6 +5911,11 @@
             } else {
               if (progressRow) morphBot(progressRow, errMsg, 'error');
               else addBot(errMsg);
+            }
+            if (dashRowId) {
+              _updateDashRowDone(dashRowId, d.success);
+              const el = document.getElementById(dashRowId);
+              if (el) el.removeAttribute('id'); // dừng pending poll timer detect row này
             }
             removePendingJob(jobId);
             return !!d.success;
@@ -6393,17 +6398,17 @@
                   _zaloTrackers.push(zTracker);
                   _refreshDashIfActive(false, true);
                   zaloPollPromises.push(
-                    pollZaloJob(zd.jobId, g.name, zaloAccount, zRow).finally(() => {
+                    pollZaloJob(zd.jobId, g.name, zaloAccount, zRow, 'zalo-' + zd.jobId).finally(() => {
                       const idx = _activeRepostJobs.indexOf(zTracker);
                       if (idx !== -1) _activeRepostJobs.splice(idx, 1);
                       _refreshDashIfActive(true, true);
                     })
                   );
                 } else {
-                  // Có pending DB row → auto-poll 4s sẽ tự cập nhật dashboard
+                  // Có pending DB row → update trực tiếp qua dashRowId khi done
                   _refreshDashIfActive(false, true); // hiện pending row ngay
                   zaloPollPromises.push(
-                    pollZaloJob(zd.jobId, g.name, zaloAccount, zRow).finally(() => {
+                    pollZaloJob(zd.jobId, g.name, zaloAccount, zRow, 'pending-log-' + zd.pendingLogId).finally(() => {
                       _refreshDashIfActive(true, true);
                     })
                   );
@@ -9410,7 +9415,7 @@
             ch: { type: 'group', platform: 'zalo', id: '', name: job.groupName || '' },
           };
           _activeRepostJobs.push(zResumeTracker);
-          pollZaloJob(job.jobId, job.groupName, job.account)
+          pollZaloJob(job.jobId, job.groupName, job.account, null, 'zalo-' + job.jobId)
             .finally(() => {
               const idx = _activeRepostJobs.indexOf(zResumeTracker);
               if (idx !== -1) _activeRepostJobs.splice(idx, 1);
@@ -9418,8 +9423,8 @@
               if (typeof loadDashHistory === 'function') loadDashHistory({ noSkeleton: true });
             });
         } else {
-          // Có pending DB row → auto-poll dashboard tự xử lý, chỉ cần poll chatbot
-          pollZaloJob(job.jobId, job.groupName, job.account)
+          // Có pending DB row → update trực tiếp qua dashRowId khi done
+          pollZaloJob(job.jobId, job.groupName, job.account, null, 'pending-log-' + job.pendingLogId)
             .finally(() => removePendingJob(job.jobId));
         }
       }
