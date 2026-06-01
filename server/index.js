@@ -1851,7 +1851,23 @@ app.get('/api/zalo/status/:jobId', async (req, res) => {
     });
 
     // Nếu local trả 404 (job đã bị xóa) nhưng job vẫn đang pending → trả processing
+    // Ngoại trừ: nếu pending row trong DB đã được complete (success != -1), job đã xong
     if (response.status === 404 && _pendingZaloLogs.has(jobId)) {
+      const meta = _pendingZaloLogs.get(jobId);
+      if (meta && meta.pendingLogId) {
+        try {
+          const rows = postLogger.getPendingPosts();
+          const stillPending = rows.some(r => r.id === meta.pendingLogId);
+          if (!stillPending) {
+            // DB row đã complete → job đã xong, xóa khỏi map, trả done từ cache hoặc unknown
+            _pendingZaloLogs.delete(jobId);
+            const cached = _zaloJobDoneCache.get(jobId);
+            if (cached) return res.json(cached);
+            // Không có cache → unknown, báo done/failed dựa theo DB
+            return res.json({ status: 'done', success: false, error: 'Job completed (status unknown after local restart)' });
+          }
+        } catch {}
+      }
       return res.json({ status: 'processing' });
     }
 
