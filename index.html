@@ -6354,6 +6354,10 @@
         const zaloGroups = zaloSel.zalo || [];
         const zaloAccount = zaloSel.zaloAccount;
         const zaloPollPromises = [];
+        const _zaloTrackers = []; // dashboard trackers cho các Zalo job đang chạy
+        const _now2 = new Date();
+        const _pad2 = n => String(n).padStart(2,'0');
+        const _zaloTimeLabel = `${_pad2(_now2.getHours())}:${_pad2(_now2.getMinutes())}:${_pad2(_now2.getSeconds())} ${_pad2(_now2.getDate())}/${_pad2(_now2.getMonth()+1)}/${_now2.getFullYear()}`;
         if (zaloGroups.length > 0 && zaloAccount) {
           const allZalo = channelsData.zaloGroups || [];
           for (const z of zaloGroups) {
@@ -6379,7 +6383,18 @@
                   groupName: g.name,
                   account: zaloAccount,
                 });
-                zaloPollPromises.push(pollZaloJob(zd.jobId, g.name, zaloAccount, zRow));
+                // Thêm tracker vào dashboard để hiện "Đang đăng"
+                const zTracker = { tempId: 'zalo-' + zd.jobId, profileName: zaloAccount, timeLabel: _zaloTimeLabel, message, ch: { type: 'group', platform: 'zalo', id: g.key, name: g.name } };
+                _activeRepostJobs.push(zTracker);
+                _zaloTrackers.push(zTracker);
+                _refreshDashIfActive();
+                zaloPollPromises.push(
+                  pollZaloJob(zd.jobId, g.name, zaloAccount, zRow).finally(() => {
+                    const idx = _activeRepostJobs.indexOf(zTracker);
+                    if (idx !== -1) _activeRepostJobs.splice(idx, 1);
+                    _refreshDashIfActive(true, true);
+                  })
+                );
               } else if (zd.success) {
                 successCount += 1;
                 addBot(`✅ Group Zalo <strong>${g.name}</strong> (${zaloAccount}) xong rồi nha!`);
