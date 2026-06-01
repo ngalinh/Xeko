@@ -69,30 +69,32 @@ async function selectZaloAccount(page, accountName) {
   }
   await delay(1500);
 
-  // Bước 3: Click đúng tài khoản target bằng evaluate (scan DOM theo text)
-  const selected = await page.evaluate((name) => {
+  // Bước 3: Tìm tọa độ option trong dropdown (1 round-trip evaluate),
+  // rồi dùng page.mouse.click() để fire đầy đủ pointer events cho Vue.js.
+  const accountRect = await page.evaluate((name) => {
     const norm = s => s.normalize('NFC').trim();
     const normName = norm(name);
     const els = document.querySelectorAll('[class*="dropdown"] li, [class*="option"], li, [class*="item"], div, span, a');
     for (const el of els) {
       const text = norm(el.textContent || '');
-      // 1. Khớp chính xác
-      // 2. DOM có thêm số điện thoại: "Tram Truong" lưu, DOM "Tram Truong 0764523837"
-      // 3. DOM bị cắt bằng JS (ellipsis): lưu "Tram Truong 0764523837", DOM "Tram Truong 076452..."
+      // Khớp chính xác / tên kèm SĐT / DOM bị cắt ellipsis
       const domStripped = text.replace(/[\s.…]+$/, '');
       if (
         text === normName ||
         text.startsWith(normName + ' ') || text.startsWith(normName + '\n') ||
         (domStripped.length >= 6 && normName.startsWith(domStripped))
       ) {
-        el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-        return true;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) continue;
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
       }
     }
-    return false;
+    return null;
   }, accountName);
 
-  if (selected) {
+  if (accountRect) {
+    logger.info(`[salework] Click tọa độ (${Math.round(accountRect.x)}, ${Math.round(accountRect.y)}) cho tài khoản: ${accountName}`);
+    await page.mouse.click(accountRect.x, accountRect.y);
     logger.info(`[salework] Đã chọn tài khoản: ${accountName}`);
     await delay(1000);
     // Click ra ngoài để đóng dropdown
@@ -117,12 +119,31 @@ async function searchAndClickGroup(page, groupName) {
 
   await screenshot(page, '03-search-filled');
 
-  // Dùng page.evaluate để tìm + click trong browser context (1 round-trip thay vì N)
-  // page.$$() + el.textContent() riêng lẻ = N async CDP calls → hang khi DOM lớn
-  const clicked = await page.evaluate((name) => {
+  // Dùng page.evaluate để tìm vị trí element (1 round-trip), sau đó dùng
+  // page.mouse.click() để fire đầy đủ pointer events mà Vue.js yêu cầu.
+  // dispatchEvent() từ trong evaluate không kích hoạt được pointerdown/up → Vue không nhận.
+  const norm = s => s.normalize('NFC').trim();
+  const normName = norm(groupName);
+
+  const rect = await page.evaluate((name) => {
     const norm = s => s.normalize('NFC').trim();
     const normName = norm(name);
-    // Ưu tiên selector cụ thể của Salework trước, fallback sang li/a
+
+    function getRect(el) {
+      // Leo lên cha tìm phần tử có cursor pointer hoặc là LI/A
+      let target = el;
+      for (let i = 0; i < 6; i++) {
+        if (!target.parentElement) break;
+        const style = window.getComputedStyle(target);
+        if (style.cursor === 'pointer' || target.tagName === 'LI' || target.tagName === 'A') break;
+        target = target.parentElement;
+      }
+      const r = target.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) return null;
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+
+    // Ưu tiên selector cụ thể của Salework
     const candidates = document.querySelectorAll(
       '[class*="conversation-item"], [class*="contact-item"], [class*="chat-item"], ' +
       '[class*="list-item"], [class*="message-item"], li[class], a[class]'
@@ -130,32 +151,26 @@ async function searchAndClickGroup(page, groupName) {
     for (const el of candidates) {
       const text = norm(el.textContent || '');
       if (text.includes(normName) && text.length < normName.length + 80) {
-        el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-        return true;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) continue;
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
       }
     }
-    // Fallback: tìm span/div chứa text rồi click phần tử cha gần nhất có cursor pointer
+
+    // Fallback: tìm span/div chứa text, lấy tọa độ phần tử cha clickable
     const all = document.querySelectorAll('span, div, li, a');
     for (const el of all) {
       const text = norm(el.textContent || '');
       if (text.includes(normName) && text.length < normName.length + 80) {
-        // Leo lên cha để tìm phần tử thực sự clickable
-        let target = el;
-        for (let i = 0; i < 5; i++) {
-          if (!target.parentElement) break;
-          const style = window.getComputedStyle(target);
-          if (style.cursor === 'pointer' || target.tagName === 'LI' || target.tagName === 'A') break;
-          target = target.parentElement;
-        }
-        target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-        return true;
+        return getRect(el);
       }
     }
-    return false;
+    return null;
   }, groupName);
 
-  if (clicked) {
-    logger.info(`[salework] Click vào nhóm: ${groupName}`);
+  if (rect) {
+    logger.info(`[salework] Click tọa độ (${Math.round(rect.x)}, ${Math.round(rect.y)}) cho: ${groupName}`);
+    await page.mouse.click(rect.x, rect.y);
     await delay(2500);
     return true;
   }
