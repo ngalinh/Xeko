@@ -1694,10 +1694,15 @@ app.post('/api/ai/suggest', upload.array('images', 5), async (req, res) => {
 // ===== ZALO POST =====
 // Metadata lưu tạm khi job Zalo đang xử lý (processing: true) để ghi log khi done
 const _pendingZaloLogs = new Map(); // jobId → metadata
+// Cache kết quả done để trả lại nếu poll lại sau khi local đã xóa job
+const _zaloJobDoneCache = new Map(); // jobId → {status, success, error, ts}
 setInterval(() => {
   const cutoff = Date.now() - 2 * 60 * 60 * 1000; // 2h TTL
   for (const [id, m] of _pendingZaloLogs) {
     if (m.ts < cutoff) _pendingZaloLogs.delete(id);
+  }
+  for (const [id, m] of _zaloJobDoneCache) {
+    if (m.ts < cutoff) _zaloJobDoneCache.delete(id);
   }
 }, 60 * 60 * 1000);
 
@@ -1791,37 +1796,54 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
 });
 
 app.get('/api/zalo/status/:jobId', async (req, res) => {
+  const jobId = req.params.jobId;
+
+  // Trả ngay từ cache nếu job đã done (local có thể đã xóa job khỏi memory)
+  const cached = _zaloJobDoneCache.get(jobId);
+  if (cached) return res.json(cached);
+
   const LOCAL_URL = getLocalUrl();
   if (!LOCAL_URL) return res.status(503).json({ error: 'Local server chưa kết nối' });
   try {
     const fetchFn = await getFetch();
-    const response = await fetchFn(`${LOCAL_URL}/api/zalo/status/${req.params.jobId}`, {
+    const response = await fetchFn(`${LOCAL_URL}/api/zalo/status/${jobId}`, {
       headers: { 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
     });
+
+    // Nếu local trả 404 (job đã bị xóa) nhưng job vẫn đang pending → trả processing
+    if (response.status === 404 && _pendingZaloLogs.has(jobId)) {
+      return res.json({ status: 'processing' });
+    }
+
     const text = await response.text();
     let data;
     try { data = JSON.parse(text); } catch { data = { error: text.slice(0, 200) }; }
 
-    // Khi job xong: ghi log kết quả thật sự (metadata đã lưu lúc POST /api/zalo/post)
+    // Khi job xong: cache kết quả trước, ghi log sau (tránh lỗi logger chặn response)
     if (data && data.status === 'done') {
-      const meta = _pendingZaloLogs.get(req.params.jobId);
+      _zaloJobDoneCache.set(jobId, { status: 'done', success: !!data.success, error: data.error || null, ts: Date.now() });
+      const meta = _pendingZaloLogs.get(jobId);
       if (meta) {
-        _pendingZaloLogs.delete(req.params.jobId);
-        postLogger.logPost({
-          profile: meta.profile,
-          profileName: meta.profileName,
-          platform: 'zalo',
-          target: 'group',
-          groupName: meta.groupName,
-          message: meta.message,
-          imageCount: meta.imageCount,
-          success: !!data.success,
-          error: data.error || null,
-          postUrl: null,
-          source: 'web',
-          images: meta.images,
-          batchId: meta.batchId,
-        });
+        _pendingZaloLogs.delete(jobId);
+        try {
+          postLogger.logPost({
+            profile: meta.profile,
+            profileName: meta.profileName,
+            platform: 'zalo',
+            target: 'group',
+            groupName: meta.groupName,
+            message: meta.message,
+            imageCount: meta.imageCount,
+            success: !!data.success,
+            error: data.error || null,
+            postUrl: null,
+            source: 'web',
+            images: meta.images,
+            batchId: meta.batchId,
+          });
+        } catch (logErr) {
+          logger.error(`[zalo/status] logPost error: ${logErr.message}`);
+        }
       }
     }
 
