@@ -72,10 +72,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigations: network-only — HTML có Cache-Control: no-store nên không cache.
-  // Không cần offline fallback vì app không dùng được offline (cần server + Playwright).
+  // Navigations: bypass HTTP cache hoàn toàn — tránh browser serve stale index.html
+  // sau deploy dù server đã gửi no-store (request gốc vẫn có thể dùng memory cache).
   if (isNavigation(request)) {
-    event.respondWith(fetch(request));
+    event.respondWith(fetch(new Request(request, { cache: 'no-store' })));
     return;
   }
 
