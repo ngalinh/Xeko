@@ -9179,7 +9179,7 @@
           const dashPg = document.getElementById('pageDashboard');
           if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
             dashPage = 0;
-            loadDashHistory({ noSkeleton: true });
+            loadDashHistory({ noSkeleton: true, noAnimation: true });
           }
         }
 
@@ -9505,7 +9505,7 @@
         const hasPending = document.querySelector('#dashHistoryBody tr[id^="pending-log-"]');
         const hasActive = _activeRepostJobs.length > 0;
         if (hasPending || hasActive) {
-          loadDashHistory({ noSkeleton: true });
+          loadDashHistory({ noSkeleton: true, noAnimation: true });
         } else {
           _stopDashPendingPoll();
         }
@@ -9986,7 +9986,7 @@
       }
     }
 
-    async function loadDashHistory({ noSkeleton = false } = {}) {
+    async function loadDashHistory({ noSkeleton = false, noAnimation = false } = {}) {
       const myVersion = ++_loadDashHistoryVersion;
       const profiles = getMselValues('msel-profile');
       const platforms = getMselValues('msel-platform');
@@ -10402,12 +10402,12 @@
             const stt = gi + 1;
             return g.rows.length > 1 ? renderGroup(g, stt) : renderSingleRow(g.rows[0], g.indices[0], stt);
           }).join('');
-          _animateTableRows(tbody);
+          if (!noAnimation) _animateTableRows(tbody);
         } else {
           window._dashRows = [];
           const fallbackHtml = activeRepostHtml + schedHtml;
           tbody.innerHTML = fallbackHtml || '<tr><td colspan="8" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
-          _animateTableRows(tbody);
+          if (!noAnimation) _animateTableRows(tbody);
         }
 
         // Auto-poll khi có pending rows hoặc active jobs đang chạy
