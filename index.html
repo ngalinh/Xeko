@@ -6383,19 +6383,31 @@
                   jobId: zd.jobId,
                   groupName: g.name,
                   account: zaloAccount,
+                  pendingLogId: zd.pendingLogId || null,
                 });
-                // Thêm tracker vào dashboard để hiện "Đang đăng"
-                const zTracker = { tempId: 'zalo-' + zd.jobId, profileName: zaloAccount, timeLabel: _zaloTimeLabel, message, ch: { type: 'group', platform: 'zalo', id: g.key, name: g.name } };
-                _activeRepostJobs.push(zTracker);
-                _zaloTrackers.push(zTracker);
-                _refreshDashIfActive();
-                zaloPollPromises.push(
-                  pollZaloJob(zd.jobId, g.name, zaloAccount, zRow).finally(() => {
-                    const idx = _activeRepostJobs.indexOf(zTracker);
-                    if (idx !== -1) _activeRepostJobs.splice(idx, 1);
-                    _refreshDashIfActive(true, true);
-                  })
-                );
+                // Nếu có pendingLogId → DB là source of truth, không cần in-memory tracker
+                // Nếu không → dùng in-memory tracker (fallback)
+                if (!zd.pendingLogId) {
+                  const zTracker = { tempId: 'zalo-' + zd.jobId, profileName: zaloAccount, timeLabel: _zaloTimeLabel, message, ch: { type: 'group', platform: 'zalo', id: g.key, name: g.name } };
+                  _activeRepostJobs.push(zTracker);
+                  _zaloTrackers.push(zTracker);
+                  _refreshDashIfActive();
+                  zaloPollPromises.push(
+                    pollZaloJob(zd.jobId, g.name, zaloAccount, zRow).finally(() => {
+                      const idx = _activeRepostJobs.indexOf(zTracker);
+                      if (idx !== -1) _activeRepostJobs.splice(idx, 1);
+                      _refreshDashIfActive(true, true);
+                    })
+                  );
+                } else {
+                  // Có pending DB row → auto-poll 4s sẽ tự cập nhật dashboard
+                  _refreshDashIfActive(); // hiện pending row ngay
+                  zaloPollPromises.push(
+                    pollZaloJob(zd.jobId, g.name, zaloAccount, zRow).finally(() => {
+                      _refreshDashIfActive(true, true);
+                    })
+                  );
+                }
               } else if (zd.success) {
                 successCount += 1;
                 addBot(`✅ Group Zalo <strong>${g.name}</strong> (${zaloAccount}) xong rồi nha!`);
@@ -9386,10 +9398,30 @@
         }
       }
 
-      // Zalo — dung pollZaloJob (da co addBot built-in)
+      // Zalo — resume polling, push tracker vào dashboard nếu chưa có pending DB row
       for (const job of zalo) {
-        pollZaloJob(job.jobId, job.groupName, job.account)
-          .finally(() => removePendingJob(job.jobId));
+        if (!job.pendingLogId) {
+          // Không có pending DB row → cần in-memory tracker cho dashboard
+          const zResumeTracker = {
+            tempId: 'zalo-' + job.jobId,
+            profileName: job.account || 'Zalo',
+            timeLabel: '',
+            message: '',
+            ch: { type: 'group', platform: 'zalo', id: '', name: job.groupName || '' },
+          };
+          _activeRepostJobs.push(zResumeTracker);
+          pollZaloJob(job.jobId, job.groupName, job.account)
+            .finally(() => {
+              const idx = _activeRepostJobs.indexOf(zResumeTracker);
+              if (idx !== -1) _activeRepostJobs.splice(idx, 1);
+              removePendingJob(job.jobId);
+              if (typeof loadDashHistory === 'function') loadDashHistory({ noSkeleton: true });
+            });
+        } else {
+          // Có pending DB row → auto-poll dashboard tự xử lý, chỉ cần poll chatbot
+          pollZaloJob(job.jobId, job.groupName, job.account)
+            .finally(() => removePendingJob(job.jobId));
+        }
       }
 
       // FB repost — repopulate _activeRepostJobs + spawn background poll

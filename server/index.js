@@ -1758,9 +1758,27 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
     try { data = JSON.parse(text); }
     catch { data = { error: `Local trả non-JSON (${response.status}): ${text.slice(0, 200)}` }; }
 
-    // Nếu local server đang xử lý async (processing: true), lưu metadata để ghi log
-    // khi /api/zalo/status trả kết quả thật sự — tránh ghi "Done" sai thời điểm.
+    // Pre-insert pending DB row để dashboard có source of truth ngay từ đầu
+    // (giống FB flow — completePendingPost sẽ update khi job xong)
+    let zaloPendingLogId = null;
     if (data.processing && data.jobId) {
+      try {
+        zaloPendingLogId = postLogger.insertPendingPost({
+          profile: accountName || 'zalo',
+          profileName: accountName || 'Zalo',
+          platform: 'zalo',
+          target: 'group',
+          groupName: groupName || '',
+          message: message || '',
+          imageCount: imagePaths.length,
+          source: 'web',
+          images: zaloImageUrls,
+          batchId: batchId || null,
+          jobId: data.jobId,
+        });
+      } catch (e) {
+        logger.error(`[zalo/post] insertPendingPost error: ${e.message}`);
+      }
       _pendingZaloLogs.set(data.jobId, {
         profile: accountName || 'zalo',
         profileName: accountName || 'Zalo',
@@ -1769,6 +1787,7 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
         imageCount: imagePaths.length,
         images: zaloImageUrls,
         batchId: batchId || null,
+        pendingLogId: zaloPendingLogId,
         ts: Date.now(),
       });
     } else {
@@ -1790,7 +1809,9 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
       });
     }
 
-    return res.status(response.status).json(data);
+    // Trả pendingLogId về frontend để tracking giống FB
+    const responseData = zaloPendingLogId ? { ...data, pendingLogId: zaloPendingLogId } : data;
+    return res.status(response.status).json(responseData);
   } catch (e) {
     return res.status(500).json({ error: `Lỗi proxy Zalo post: ${e.message}` });
   } finally {
@@ -1822,30 +1843,40 @@ app.get('/api/zalo/status/:jobId', async (req, res) => {
     let data;
     try { data = JSON.parse(text); } catch { data = { error: text.slice(0, 200) }; }
 
-    // Khi job xong: cache kết quả trước, ghi log sau (tránh lỗi logger chặn response)
+    // Khi job xong: cache kết quả trước, complete pending row sau
     if (data && data.status === 'done') {
       _zaloJobDoneCache.set(jobId, { status: 'done', success: !!data.success, error: data.error || null, ts: Date.now() });
       const meta = _pendingZaloLogs.get(jobId);
       if (meta) {
         _pendingZaloLogs.delete(jobId);
         try {
-          postLogger.logPost({
-            profile: meta.profile,
-            profileName: meta.profileName,
-            platform: 'zalo',
-            target: 'group',
-            groupName: meta.groupName,
-            message: meta.message,
-            imageCount: meta.imageCount,
-            success: !!data.success,
-            error: data.error || null,
-            postUrl: null,
-            source: 'web',
-            images: meta.images,
-            batchId: meta.batchId,
-          });
+          if (meta.pendingLogId) {
+            // Có pending row → update thay vì insert mới (giống FB flow)
+            postLogger.completePendingPost(meta.pendingLogId, {
+              success: !!data.success,
+              error: data.error || null,
+              postUrl: null,
+            });
+          } else {
+            // Fallback: không có pendingLogId → insert mới
+            postLogger.logPost({
+              profile: meta.profile,
+              profileName: meta.profileName,
+              platform: 'zalo',
+              target: 'group',
+              groupName: meta.groupName,
+              message: meta.message,
+              imageCount: meta.imageCount,
+              success: !!data.success,
+              error: data.error || null,
+              postUrl: null,
+              source: 'web',
+              images: meta.images,
+              batchId: meta.batchId,
+            });
+          }
         } catch (logErr) {
-          logger.error(`[zalo/status] logPost error: ${logErr.message}`);
+          logger.error(`[zalo/status] complete/logPost error: ${logErr.message}`);
         }
       }
     }
