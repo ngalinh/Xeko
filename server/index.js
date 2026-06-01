@@ -402,7 +402,7 @@ setInterval(() => {
   }
 }, 3600_000);
 
-async function executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId = null }) {
+async function executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId = null, jobId: _jobId = null }) {
   if (profile) await playwright.setProfile(profile);
 
   // Snapshot 1 lần ngay đầu — không gọi getActiveProfile() sau await (global có thể bị đổi)
@@ -413,11 +413,16 @@ async function executePost({ profile, profileDisplayName, message, target, group
 
   if (!batchId) batchId = crypto.randomUUID();
 
-  // Helper: dùng completePendingPost nếu có pendingLogId, fallback về logPost
+  // Helper: dùng completePendingPost nếu có pendingLogId, fallback về job_id, rồi mới logPost
   const _doLog = (logArgs, result, groupName) => {
     if (pendingLogId) {
       const upd = postLogger.completePendingPost(pendingLogId, { success: result.success, error: result.error, postUrl: result.postUrl, groupName });
       if (upd && upd.changes > 0) return;
+      // 0 changes → row bị markTimedOut hoặc id sai → thử bằng job_id
+      if (_jobId) {
+        const upd2 = postLogger.completePendingByJobId(_jobId, { success: result.success, error: result.error, postUrl: result.postUrl });
+        if (upd2 && upd2.changes > 0) return;
+      }
     }
     postLogger.logPost(logArgs);
   };
@@ -596,7 +601,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
     queuePost(() => {
       const tStart = Date.now();
       logger.info(`[job ${jobId}] start (waited ${tStart - tQueued}ms in queue) — profile=${profile || '(active)'}, target=${targetDesc}`);
-      return executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId })
+      return executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId, jobId })
         .finally(() => logger.info(`[job ${jobId}] done in ${Date.now() - tStart}ms`));
     })
       .then(result => setJobResult(jobId, result))
@@ -1879,49 +1884,53 @@ app.get('/api/zalo/status/:jobId', async (req, res) => {
     if (data && data.status === 'done') {
       _zaloJobDoneCache.set(jobId, { status: 'done', success: !!data.success, error: data.error || null, ts: Date.now() });
       const meta = _pendingZaloLogs.get(jobId);
+      const donePayload = { success: !!data.success, error: data.error || null, postUrl: null };
       if (meta) {
         _pendingZaloLogs.delete(jobId);
         try {
           if (meta.pendingLogId) {
             // Có pending row → update thay vì insert mới (giống FB flow)
-            postLogger.completePendingPost(meta.pendingLogId, {
-              success: !!data.success,
-              error: data.error || null,
-              postUrl: null,
-            });
+            const r = postLogger.completePendingPost(meta.pendingLogId, donePayload);
+            if (r.changes === 0) {
+              // Row đã bị markTimedOut hoặc pendingLogId sai → thử bằng job_id
+              logger.warn(`[zalo/status] completePendingPost id=${meta.pendingLogId} → 0 changes, retry bằng job_id=${jobId}`);
+              const r2 = postLogger.completePendingByJobId(jobId, donePayload);
+              if (r2.changes === 0) logger.error(`[zalo/status] completePendingByJobId job_id=${jobId} → 0 changes cũng thất bại`);
+              else logger.info(`[zalo/status] completePendingByJobId job_id=${jobId} → ${r2.changes} row(s) updated`);
+            }
           } else {
-            // Fallback: không có pendingLogId → insert mới
-            postLogger.logPost({
-              profile: meta.profile,
-              profileName: meta.profileName,
-              platform: 'zalo',
-              target: 'group',
-              groupName: meta.groupName,
-              message: meta.message,
-              imageCount: meta.imageCount,
-              success: !!data.success,
-              error: data.error || null,
-              postUrl: null,
-              source: 'web',
-              images: meta.images,
-              batchId: meta.batchId,
-            });
+            // Thử cập nhật pending row bằng job_id trước (tránh duplicate)
+            const r = postLogger.completePendingByJobId(jobId, donePayload);
+            if (r.changes > 0) {
+              logger.info(`[zalo/status] completePendingByJobId (no pendingLogId) job_id=${jobId} → ${r.changes} row(s)`);
+            } else {
+              // Không có pending row → insert mới
+              postLogger.logPost({
+                profile: meta.profile,
+                profileName: meta.profileName,
+                platform: 'zalo',
+                target: 'group',
+                groupName: meta.groupName,
+                message: meta.message,
+                imageCount: meta.imageCount,
+                success: !!data.success,
+                error: data.error || null,
+                postUrl: null,
+                source: 'web',
+                images: meta.images,
+                batchId: meta.batchId,
+              });
+            }
           }
         } catch (logErr) {
           logger.error(`[zalo/status] complete/logPost error: ${logErr.message}`);
         }
       } else {
-        // Server restart cleared _pendingZaloLogs → tìm pending row trong DB theo job_id
+        // Server restart cleared _pendingZaloLogs → dùng job_id trực tiếp
         try {
-          const pendingRows = postLogger.getPendingPosts();
-          const pendingRow = pendingRows.find(r => r.job_id === jobId);
-          if (pendingRow) {
-            postLogger.completePendingPost(pendingRow.id, {
-              success: !!data.success,
-              error: data.error || null,
-              postUrl: null,
-            });
-          }
+          const r = postLogger.completePendingByJobId(jobId, donePayload);
+          if (r.changes === 0) logger.warn(`[zalo/status] completePendingByJobId (restart) job_id=${jobId} → 0 changes`);
+          else logger.info(`[zalo/status] completePendingByJobId (restart) job_id=${jobId} → ${r.changes} row(s)`);
         } catch (logErr) {
           logger.error(`[zalo/status] completePendingPost-by-jobId error: ${logErr.message}`);
         }

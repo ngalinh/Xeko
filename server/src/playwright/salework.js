@@ -23,7 +23,10 @@ async function screenshot(page, label) {
   try {
     ensureDebugDir();
     const filePath = `${DEBUG_SCREENSHOT_DIR}/${Date.now()}-${label}.png`;
-    await page.screenshot({ path: filePath, fullPage: false });
+    await Promise.race([
+      page.screenshot({ path: filePath, fullPage: false }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('screenshot timeout')), 5000)),
+    ]);
     logger.info(`[salework] screenshot: ${filePath}`);
   } catch {}
 }
@@ -312,7 +315,6 @@ async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message
     await screenshot(page, '04-group-selected');
 
     await sendMessage(page, message, imagePaths);
-    await screenshot(page, '07-sent');
 
     logger.info(`[salework] Đã đăng lên "${groupName}" qua "${zaloAccountName}"`);
     return { success: true };

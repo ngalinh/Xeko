@@ -69,6 +69,12 @@ function completePendingPost(id, { success, error, postUrl, groupName } = {}) {
   return completePendingStmt.run({ id, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null });
 }
 
+function completePendingByJobId(jobId, { success, error, postUrl } = {}) {
+  return db.prepare(
+    `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl WHERE job_id=@jobId AND success=-1`
+  ).run({ jobId, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null });
+}
+
 function getPendingPosts() {
   const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   return db.prepare('SELECT * FROM post_logs WHERE success = -1 AND timestamp >= ? ORDER BY timestamp DESC').all(since).map(r => ({
@@ -326,4 +332,4 @@ function getByProfileStats({ profile, platform, target, groupId, from, to } = {}
   return db.prepare(sql).all(params);
 }
 
-module.exports = { logPost, insertPendingPost, completePendingPost, getPendingPosts, cleanupStalePending, markTimedOutPending, getPostHistory, getStatistics, getDailyByProfile, getByProfileStats, deleteById, deleteByIds, deleteByFilter };
+module.exports = { logPost, insertPendingPost, completePendingPost, completePendingByJobId, getPendingPosts, cleanupStalePending, markTimedOutPending, getPostHistory, getStatistics, getDailyByProfile, getByProfileStats, deleteById, deleteByIds, deleteByFilter };

@@ -296,71 +296,79 @@ async function attachImages(page, imagePaths) {
     'div[aria-label="Ảnh/Video"]',
   ];
 
-  // Cách 1: Click nút Ảnh/Video + bắt filechooser (không mở dialog)
-  try {
-    const [fileChooser] = await Promise.all([
-      page.waitForEvent('filechooser', { timeout: 20000 }),
-      (async () => {
-        await randomDelay(500, 1000);
-        for (const sel of photoSelectors) {
-          try {
-            const el = await page.$(sel);
-            if (el) {
-              await el.click({ force: true });
-              logger.info(`Click nút ảnh: ${sel}`);
-              return;
-            }
-          } catch { continue; }
+  // Cách 1: Click nút Ảnh/Video để FB render input[type=file], sau đó dùng setInputFiles.
+  // Filechooser event không đáng tin (timeout 20s) — click để mở UI ảnh rồi tìm input trực tiếp.
+  await (async () => {
+    await randomDelay(300, 700);
+    for (const sel of photoSelectors) {
+      try {
+        const el = await page.$(sel);
+        if (el) {
+          await el.click({ force: true });
+          logger.info(`Click nút ảnh: ${sel}`);
+          return;
         }
-        // Fallback: tìm trong thanh icon
-        const icons = await page.$$('div[role="dialog"] div[role="button"]');
-        for (const icon of icons) {
-          const label = await icon.getAttribute('aria-label');
-          if (label && (label.includes('nh') || label.includes('hoto') || label.includes('ideo'))) {
-            await icon.click({ force: true });
-            logger.info(`Click icon ảnh: ${label}`);
-            return;
-          }
-        }
-      })(),
-    ]);
+      } catch { continue; }
+    }
+    const icons = await page.$$('div[role="dialog"] div[role="button"]');
+    for (const icon of icons) {
+      const label = await icon.getAttribute('aria-label');
+      if (label && (label.includes('nh') || label.includes('hoto') || label.includes('ideo'))) {
+        await icon.click({ force: true });
+        logger.info(`Click icon ảnh: ${label}`);
+        return;
+      }
+    }
+  })();
+  await randomDelay(800, 1500); // chờ FB render input sau khi click
 
-    await fileChooser.setFiles(imagePaths);
-    uploaded = true;
-    uploadMethod = 'filechooser';
-    logger.info(`Upload ${imagePaths.length} ảnh thành công (filechooser)`);
-  } catch (e) {
-    logger.error(`Filechooser failed: ${e.message}`);
+  // Cách 2: Tìm input[type=file] trực tiếp.
+  // FB render nhiều input file ẩn — ưu tiên input có accept="image/*" + multiple.
+  const candidates = await page.$$('input[type="file"]');
+  const scored = [];
+  for (const input of candidates) {
+    const accept = (await input.getAttribute('accept')) || '';
+    const multiple = (await input.getAttribute('multiple')) !== null;
+    let score = 0;
+    if (accept.includes('image')) score += 2;
+    if (multiple || imagePaths.length === 1) score += 1;
+    scored.push({ input, score, accept, multiple });
+  }
+  scored.sort((a, b) => b.score - a.score);
+
+  for (const { input, score, accept, multiple } of scored) {
+    try {
+      await input.setInputFiles(imagePaths);
+      uploaded = true;
+      uploadMethod = `direct input score=${score} accept="${accept}" multiple=${multiple}`;
+      logger.info(`Upload ${imagePaths.length} ảnh thành công (${uploadMethod})`);
+      break;
+    } catch (e) {
+      logger.warn(`Direct input score=${score} fail: ${e.message}`);
+      continue;
+    }
   }
 
-  // Cách 2: Fallback - tìm input[type=file] trực tiếp.
-  // FB render nhiều input file ẩn (ảnh, video, profile pic) — input đầu tiên
-  // có thể chỉ accept 1 file hoặc không phải input ảnh post → upload thiếu.
-  // Ưu tiên input có accept="image/*" + multiple để khớp post photo input.
+  // Cách 3: Fallback filechooser (nếu direct input thất bại)
   if (!uploaded) {
-    const candidates = await page.$$('input[type="file"]');
-    const scored = [];
-    for (const input of candidates) {
-      const accept = (await input.getAttribute('accept')) || '';
-      const multiple = (await input.getAttribute('multiple')) !== null;
-      let score = 0;
-      if (accept.includes('image')) score += 2;
-      if (multiple || imagePaths.length === 1) score += 1;
-      scored.push({ input, score, accept, multiple });
-    }
-    scored.sort((a, b) => b.score - a.score);
-
-    for (const { input, score, accept, multiple } of scored) {
-      try {
-        await input.setInputFiles(imagePaths);
-        uploaded = true;
-        uploadMethod = `direct input score=${score} accept="${accept}" multiple=${multiple}`;
-        logger.info(`Upload ${imagePaths.length} ảnh thành công (${uploadMethod})`);
-        break;
-      } catch (e) {
-        logger.warn(`Direct input score=${score} fail: ${e.message}`);
-        continue;
-      }
+    try {
+      const [fileChooser] = await Promise.all([
+        page.waitForEvent('filechooser', { timeout: 8000 }),
+        (async () => {
+          for (const sel of photoSelectors) {
+            try {
+              const el = await page.$(sel);
+              if (el) { await el.click({ force: true }); return; }
+            } catch { continue; }
+          }
+        })(),
+      ]);
+      await fileChooser.setFiles(imagePaths);
+      uploaded = true;
+      uploadMethod = 'filechooser-fallback';
+      logger.info(`Upload ${imagePaths.length} ảnh thành công (filechooser-fallback)`);
+    } catch (e) {
+      logger.error(`Filechooser fallback failed: ${e.message}`);
     }
   }
 
