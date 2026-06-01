@@ -1894,6 +1894,21 @@ app.get('/api/zalo/status/:jobId', async (req, res) => {
         } catch (logErr) {
           logger.error(`[zalo/status] complete/logPost error: ${logErr.message}`);
         }
+      } else {
+        // Server restart cleared _pendingZaloLogs → tìm pending row trong DB theo job_id
+        try {
+          const pendingRows = postLogger.getPendingPosts();
+          const pendingRow = pendingRows.find(r => r.job_id === jobId);
+          if (pendingRow) {
+            postLogger.completePendingPost(pendingRow.id, {
+              success: !!data.success,
+              error: data.error || null,
+              postUrl: null,
+            });
+          }
+        } catch (logErr) {
+          logger.error(`[zalo/status] completePendingPost-by-jobId error: ${logErr.message}`);
+        }
       }
     }
 
