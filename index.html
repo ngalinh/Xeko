@@ -11014,7 +11014,7 @@
             const res = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: fd });
             const d = await parseJson(res);
             const isAsync = !!(d.jobId && d.processing);
-            jobs.push({ ch, zaloJobId: isAsync ? d.jobId : null, done: !isAsync, ok: isAsync ? undefined : !!d.success });
+            jobs.push({ ch, zaloJobId: isAsync ? d.jobId : null, pendingLogId: d.pendingLogId || null, done: !isAsync, ok: isAsync ? undefined : !!d.success });
           } else {
             fd.append('target', ch.type === 'group' ? 'group' : 'personal');
             if (ch.type === 'group') fd.append('groupId', ch.id || ch.key || '');
@@ -11059,6 +11059,15 @@
             message,
             ch: job.ch,
           });
+        } else if (job.zaloJobId) {
+          pushPendingJob({
+            kind: 'zalo',
+            jobId: job.zaloJobId,
+            tempId: job.tempId,
+            groupName: job.ch.name || '',
+            account: job.ch.zaloAccount || '',
+            pendingLogId: job.pendingLogId || null,
+          });
         }
       });
 
@@ -11079,9 +11088,12 @@
               const deadline = Date.now() + 10 * 60 * 1000;
               while (Date.now() < deadline) {
                 await sleepOrVisible(2000);
-                const sr = await fetch(`${BASE_URL}/api/zalo/status/${job.zaloJobId}`);
-                const sd = await parseJson(sr);
-                if (sd.status === 'done') { d = sd; break; }
+                try {
+                  const sr = await fetch(`${BASE_URL}/api/zalo/status/${job.zaloJobId}`);
+                  if (!sr.ok) continue;
+                  const sd = await parseJson(sr);
+                  if (sd.status === 'done') { d = sd; break; }
+                } catch {}
               }
               d = d || { success: false, error: 'Timeout' };
             } else {
@@ -11096,6 +11108,7 @@
           const idx = _activeRepostJobs.indexOf(job);
           if (idx !== -1) _activeRepostJobs.splice(idx, 1);
           if (job.jobId) removePendingJob(job.jobId);
+          if (job.zaloJobId) removePendingJob(job.zaloJobId);
         }
         dashPage = 0;
         loadDashHistory({ noSkeleton: true });
