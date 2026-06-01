@@ -299,6 +299,21 @@ async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message
 
   const page = await browser.newPage();
 
+  // Dọn dẹp browser CHẠY NỀN (fire-and-forget) — không bao giờ chặn việc trả
+  // kết quả. Trước đây finally await page.close()/browser.close() có thể treo
+  // (dù có Promise.race) → promise postToZaloGroup không resolve → local-server
+  // không set job 'done' → cloud poll mãi 'processing' → frontend kẹt "Đang đăng".
+  // Tách cleanup ra để lỗi đóng browser không ảnh hưởng tới việc báo kết quả.
+  let cleaned = false;
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    Promise.race([page.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {})
+      .then(() => Promise.race([browser.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {}))
+      .then(() => logger.info('[salework] Đã đóng browser'))
+      .catch(() => {});
+  };
+
   try {
     logger.info(`[salework] === account=${zaloAccountName}, group=${groupName} ===`);
 
@@ -317,14 +332,13 @@ async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message
     await sendMessage(page, message, imagePaths);
 
     logger.info(`[salework] Đã đăng lên "${groupName}" qua "${zaloAccountName}"`);
+    cleanup(); // chạy nền, không await — trả kết quả ngay
     return { success: true };
   } catch (e) {
     logger.error(`[salework] Lỗi: ${e.message}`);
     try { await screenshot(page, '99-error'); } catch {}
+    cleanup(); // chạy nền, không await
     return { success: false, error: e.message };
-  } finally {
-    await Promise.race([page.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {});
-    await Promise.race([browser.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {});
   }
 }
 
