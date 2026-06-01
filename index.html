@@ -5895,8 +5895,17 @@
 
     // Poll kết quả Zalo post async — cập nhật chatbot khi Playwright hoàn thành
     async function pollZaloJob(jobId, groupName, account, progressRow = null, dashRowId = null) {
+      const pendingLogId = dashRowId?.startsWith('pending-log-') ? dashRowId.replace('pending-log-', '') : null;
+      if (pendingLogId) _pendingLogProgressRows[pendingLogId] = { progressRow, groupName, account };
+
       const maxTries = 150; // tối đa 5 phút (150 × 2s)
       for (let i = 0; i < maxTries; i++) {
+        if (pendingLogId && _dismissedPendingIds.has(pendingLogId)) {
+          if (progressRow) morphBot(progressRow, `⚠️ Group Zalo <strong>${groupName}</strong>: đã bị hủy từ Dashboard.`, 'warning');
+          if (pendingLogId) delete _pendingLogProgressRows[pendingLogId];
+          removePendingJob(jobId);
+          return false;
+        }
         await sleepOrVisible(2000);
         try {
           const r = await fetch(`${BASE_URL}/api/zalo/status/${jobId}`);
@@ -5917,6 +5926,7 @@
               const el = document.getElementById(dashRowId);
               if (el) el.removeAttribute('id'); // dừng pending poll timer detect row này
             }
+            if (pendingLogId) delete _pendingLogProgressRows[pendingLogId];
             removePendingJob(jobId);
             return !!d.success;
           }
@@ -9505,6 +9515,8 @@
     let dashPage = 0;
     const dashLimit = 20;
     const _activeRepostJobs = []; // jobs đang poll background
+    const _dismissedPendingIds = new Set(); // pendingLogId đã bị dismiss từ dashboard
+    const _pendingLogProgressRows = {}; // pendingLogId → { progressRow, groupName, account }
     let _loadDashHistoryVersion = 0; // version guard để cancel concurrent loadDashHistory calls
     let _dashPendingPollTimer = null; // auto-refresh khi có pending rows
 
@@ -9535,6 +9547,14 @@
       } catch {}
       const el = document.getElementById(trId);
       if (el) el.remove();
+      // Signal pollZaloJob (nếu đang chạy) để dừng và cập nhật chat
+      const sid = String(id);
+      _dismissedPendingIds.add(sid);
+      const info = _pendingLogProgressRows[sid];
+      if (info?.progressRow) {
+        morphBot(info.progressRow, `⚠️ Group Zalo <strong>${info.groupName}</strong>: đã hủy từ Dashboard.`, 'warning');
+        delete _pendingLogProgressRows[sid];
+      }
     }
 
     function _updateDashRowDone(tempId, success) {
