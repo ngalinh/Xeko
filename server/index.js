@@ -357,6 +357,9 @@ app.post('/api/profile', async (req, res) => {
 // Dọn pending rows cũ còn sót từ lần khởi động trước (server crash / kill)
 postLogger.cleanupStalePending();
 
+// Định kỳ mỗi 10 phút: mark pending posts > 10 phút là failed (timeout)
+setInterval(() => postLogger.markTimedOutPending(10 * 60 * 1000), 10 * 60 * 1000);
+
 // Job queue: post chạy async để tránh reverse proxy timeout ở ~60s.
 // Browser POST /api/post → trả ngay {jobId}, rồi polling /api/job/:id.
 const postJobs = new Map();
@@ -1338,6 +1341,19 @@ app.delete('/api/post-history/:id', (req, res) => {
   try {
     const result = postLogger.deleteById(Number(req.params.id));
     res.json({ deleted: result.changes });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Frontend gọi khi pollZaloJob timeout để mark pending row là failed
+app.post('/api/pending/:id/timeout', (req, res) => {
+  try {
+    const result = postLogger.completePendingPost(Number(req.params.id), {
+      success: false,
+      error: 'Timeout - không xác nhận được kết quả',
+    });
+    res.json({ updated: result?.changes || 0 });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

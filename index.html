@@ -5925,6 +5925,12 @@
       const timeoutMsg = `⚠️ Group Zalo <strong>${groupName}</strong>: Xeko chờ 5 phút mà chưa thấy phản hồi, bạn check giúp mình nha!`;
       if (progressRow) morphBot(progressRow, timeoutMsg, 'error');
       else addBot(timeoutMsg);
+      // Mark pending DB row as failed so it stops showing "Đang đăng" in dashboard
+      if (dashRowId && dashRowId.startsWith('pending-log-')) {
+        const pendingId = dashRowId.replace('pending-log-', '');
+        fetch(`${BASE_URL}/api/pending/${pendingId}/timeout`, { method: 'POST' }).catch(() => {});
+        _updateDashRowDone(dashRowId, false);
+      }
       removePendingJob(jobId);
       return false;
     }
@@ -6058,7 +6064,8 @@
         message: message,
         ch: { type: target === 'personal' ? 'personal' : 'group', id: groupId || '', key: '', name: '' },
       };
-      _activeRepostJobs.push(_activePostJob);
+      // Only show FB tracker when there is an actual FB target to post to
+      if (target) _activeRepostJobs.push(_activePostJob);
 
       // Track number of successful posts in this batch (for encouragement)
       let successCount = 0;
@@ -9522,6 +9529,14 @@
     }
 
     // Cập nhật badge trực tiếp trên DOM row (không async, không gap UI)
+    async function _dismissPendingDbRow(id, trId) {
+      try {
+        await fetch(`${BASE_URL}/api/pending/${id}/timeout`, { method: 'POST' });
+      } catch {}
+      const el = document.getElementById(trId);
+      if (el) el.remove();
+    }
+
     function _updateDashRowDone(tempId, success) {
       const row = document.getElementById(tempId);
       if (!row) return false;
@@ -10135,7 +10150,7 @@
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${tgtLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${grpLabel}</div>`}</div></td>
               <td style="padding:8px 12px; vertical-align:middle;">${timeStacked}</td>
               <td style="padding:8px 12px; text-align:center;"><span class="badge-pulse" style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span></td>
-              <td></td>
+              <td style="padding:8px 12px; text-align:center;"><button onclick="_dismissPendingDbRow(${row.id},'pending-log-${row.id}')" title="Bỏ qua / Đánh dấu đã xử lý" style="background:none;border:1px solid #d1d5db;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;color:#6b7280;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">✕ Bỏ qua</button></td>
             </tr>`;
           }),
           ..._stalePendingRows.map(row => {
@@ -10151,7 +10166,7 @@
             const tgtLabel = tgt === 'personal' ? 'Profile' : tgt === 'group' ? 'Group' : tgt === 'page' ? 'Page' : tgt === 'personal+groups' ? 'Profile+Groups' : tgt;
             const isPersonal = tgt === 'personal';
             const grpLabel = resolveGroupLabel(row.platform, row.group_id, row.group_name);
-            return `<tr style="border-bottom:1px solid #fde68a; background:#fffbeb; border-left:3px solid #f59e0b;">
+            return `<tr id="pending-log-stale-${row.id}" style="border-bottom:1px solid #fde68a; background:#fffbeb; border-left:3px solid #f59e0b;">
               <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#92400e;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
               <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msgShort}</td>
               <td style="padding:8px 12px; color:#bbb;">—</td>
@@ -10159,7 +10174,7 @@
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${tgtLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${grpLabel}</div>`}</div></td>
               <td style="padding:8px 12px; vertical-align:middle;">${timeStacked}</td>
               <td style="padding:8px 12px; text-align:center;"><span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="Quá 30 phút không nhận được xác nhận từ server">⚠️ Không xác nhận</span></td>
-              <td></td>
+              <td style="padding:8px 12px; text-align:center;"><button onclick="_dismissPendingDbRow(${row.id},'pending-log-stale-${row.id}')" title="Bỏ qua / Đánh dấu đã xử lý" style="background:none;border:1px solid #d1d5db;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;color:#6b7280;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">✕ Bỏ qua</button></td>
             </tr>`;
           }),
         ].join('');

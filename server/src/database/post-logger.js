@@ -82,6 +82,12 @@ function cleanupStalePending() {
   db.prepare('DELETE FROM post_logs WHERE success = -1 AND timestamp < ?').run(cutoff);
 }
 
+// Mark pending posts older than maxAgeMs as failed (timeout) instead of leaving them stuck
+function markTimedOutPending(maxAgeMs = 10 * 60 * 1000) {
+  const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
+  db.prepare(`UPDATE post_logs SET success=0, error='Timeout - không xác nhận được kết quả' WHERE success=-1 AND timestamp < ?`).run(cutoff);
+}
+
 /**
  * Lay lich su bai dang voi filter
  */
@@ -320,4 +326,4 @@ function getByProfileStats({ profile, platform, target, groupId, from, to } = {}
   return db.prepare(sql).all(params);
 }
 
-module.exports = { logPost, insertPendingPost, completePendingPost, getPendingPosts, cleanupStalePending, getPostHistory, getStatistics, getDailyByProfile, getByProfileStats, deleteById, deleteByIds, deleteByFilter };
+module.exports = { logPost, insertPendingPost, completePendingPost, getPendingPosts, cleanupStalePending, markTimedOutPending, getPostHistory, getStatistics, getDailyByProfile, getByProfileStats, deleteById, deleteByIds, deleteByFilter };
