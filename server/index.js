@@ -402,7 +402,7 @@ setInterval(() => {
   }
 }, 3600_000);
 
-async function executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId = null }) {
+async function executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId = null, jobId: _jobId = null }) {
   if (profile) await playwright.setProfile(profile);
 
   // Snapshot 1 lần ngay đầu — không gọi getActiveProfile() sau await (global có thể bị đổi)
@@ -413,11 +413,16 @@ async function executePost({ profile, profileDisplayName, message, target, group
 
   if (!batchId) batchId = crypto.randomUUID();
 
-  // Helper: dùng completePendingPost nếu có pendingLogId, fallback về logPost
+  // Helper: dùng completePendingPost nếu có pendingLogId, fallback về job_id, rồi mới logPost
   const _doLog = (logArgs, result, groupName) => {
     if (pendingLogId) {
       const upd = postLogger.completePendingPost(pendingLogId, { success: result.success, error: result.error, postUrl: result.postUrl, groupName });
       if (upd && upd.changes > 0) return;
+      // 0 changes → row bị markTimedOut hoặc id sai → thử bằng job_id
+      if (_jobId) {
+        const upd2 = postLogger.completePendingByJobId(_jobId, { success: result.success, error: result.error, postUrl: result.postUrl });
+        if (upd2 && upd2.changes > 0) return;
+      }
     }
     postLogger.logPost(logArgs);
   };
@@ -596,7 +601,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
     queuePost(() => {
       const tStart = Date.now();
       logger.info(`[job ${jobId}] start (waited ${tStart - tQueued}ms in queue) — profile=${profile || '(active)'}, target=${targetDesc}`);
-      return executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId })
+      return executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId, jobId })
         .finally(() => logger.info(`[job ${jobId}] done in ${Date.now() - tStart}ms`));
     })
       .then(result => setJobResult(jobId, result))
