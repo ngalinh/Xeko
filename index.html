@@ -10273,7 +10273,7 @@
           let thumbs;
           if (imgCount > 0) {
             const shown = Math.min(imgCount, 4);
-            const imgUrls = Array.from({length: shown}, (_, i) => `${BASE_URL}/api/schedule-image/${sched.id}/${i}`);
+            const imgUrls = Array.from({length: shown}, (_, i) => `${BASE_URL}/api/schedule-image/${sched.id}/${i}?v=${sched.id}`);
             thumbs = `<div style="display:flex; flex-wrap:nowrap; gap:3px; align-items:center;">${imgUrls.map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:36px; height:36px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\'font-size:18px;\'>🖼️</span>'"></a>`).join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
           } else {
             thumbs = '<span style="color:#bbb;">—</span>';

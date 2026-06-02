@@ -1316,6 +1316,7 @@ app.get('/api/schedule-image/:id/:index', (req, res) => {
 
   const imgPath = schedule.imagePaths[index];
   if (fs.existsSync(imgPath)) {
+    res.set('Cache-Control', 'no-store');
     res.sendFile(path.resolve(imgPath));
   } else {
     res.status(404).json({ error: 'File không tồn tại' });
