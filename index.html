@@ -5194,7 +5194,7 @@
       panelHtml += `<div class="channel-chip-wrap">`;
 
       // FB section label
-      panelHtml += `<div class="chip-section-label">${xekoIcon('fb')} Facebook</div>`;
+      panelHtml += `<div class="chip-section-label" style="color:#1877f2;font-weight:700;">${xekoIcon('fb')} Facebook</div>`;
 
       // "FB Cá nhân" — kênh đơn, đăng riêng
       const personalCh = (p.fb || []).find(c => c.id === 'personal');
@@ -5236,7 +5236,7 @@
 
       // Zalo chips
       if (p.zalo.length > 0) {
-        panelHtml += `<div class="chip-section-label">${xekoIcon('chat')} Zalo</div>`;
+        panelHtml += `<div class="chip-section-label" style="color:#2563EB;font-weight:700;">${xekoIcon('zalo')} Zalo</div>`;
         for (const ch of p.zalo) {
           panelHtml += `<label class="channel-item ch-zalo" data-panel="${pid}" data-platform="zalo" data-profile="${currentProfile}" data-chid="${ch.id}" data-zalo-account="${p.zaloAccount}">
             <span class="ch-dot"></span><input type="checkbox" onchange="onChannelChange(${pid})"> ${ch.icon} ${ch.name}
