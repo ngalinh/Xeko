@@ -11303,6 +11303,32 @@
       _renderSeedEntryImages(entryIdx);
     }
 
+    function _onSeedDragOver(e, entryIdx) {
+      // Chỉ phản hồi khi đang kéo file vào
+      if (!e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes('Files')) return;
+      e.preventDefault();
+      const box = e.currentTarget;
+      box.style.borderColor = '#059669';
+      box.style.background = '#f0fdf4';
+    }
+
+    function _onSeedDragLeave(e, entryIdx) {
+      const box = e.currentTarget;
+      // Bỏ qua khi con trỏ chỉ di chuyển sang phần tử con bên trong
+      if (box.contains(e.relatedTarget)) return;
+      box.style.borderColor = '#e5e7eb';
+      box.style.background = '#fafafa';
+    }
+
+    function _onSeedDrop(e, entryIdx) {
+      e.preventDefault();
+      const box = e.currentTarget;
+      box.style.borderColor = '#e5e7eb';
+      box.style.background = '#fafafa';
+      const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []).filter(f => f.type.startsWith('image/'));
+      if (files.length) _addSeedEntryImages(entryIdx, files);
+    }
+
     function _removeSeedEntryImage(entryIdx, imgIdx) {
       if (!_seedComments[entryIdx]) return;
       _seedComments[entryIdx].images.splice(imgIdx, 1);
@@ -11312,7 +11338,8 @@
     function _renderSeedComments() {
       const list = document.getElementById('seedCommentsList');
       list.innerHTML = _seedComments.map((entry, i) => `
-        <div style="border:1px solid #e5e7eb; border-radius:10px; padding:10px 12px; background:#fafafa;">
+        <div data-seed-entry="${i}" style="border:1px solid #e5e7eb; border-radius:10px; padding:10px 12px; background:#fafafa; transition:border-color .15s, background .15s;"
+          ondragover="_onSeedDragOver(event, ${i})" ondragleave="_onSeedDragLeave(event, ${i})" ondrop="_onSeedDrop(event, ${i})">
           <div style="display:flex; gap:6px; align-items:flex-start;">
             <span style="flex-shrink:0; margin-top:9px; font-size:11px; color:#9ca3af; font-weight:700; min-width:14px; text-align:right; user-select:none;">${i + 1}</span>
             <div style="flex:1;">
@@ -11329,6 +11356,7 @@
                   + Ảnh
                 </button>
                 <input type="file" id="_seedImgInp_${i}" multiple accept="image/*" style="display:none;" onchange="_addSeedEntryImages(${i}, this.files)">
+                <span style="font-size:11px; color:#b0b6c0; user-select:none;">hoặc kéo thả ảnh vào đây</span>
               </div>
             </div>
             ${_seedComments.length > 1 ? `<button type="button" onclick="_removeSeedComment(${i})" title="Xóa dòng này" style="flex-shrink:0; margin-top:4px; background:#fee2e2; border:none; color:#b91c1c; width:26px; height:26px; border-radius:50%; cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center; line-height:1;">×</button>` : ''}
@@ -11444,7 +11472,9 @@
             <div style="min-width:0; flex:1;">
               <div style="font-size:12px; color:#374151; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(r.profile_name || r.profile)} · ${ts} · ${status}</div>
               ${r.message ? `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px;">${escapeHtml(r.message.substring(0,100))}</div>` : ''}
-              ${r.image_count ? `<div style="font-size:11px; color:#9ca3af; margin-top:1px;">${r.image_count} ảnh</div>` : ''}
+              ${(r.images && r.images.length)
+                ? `<div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">${r.images.map(u => `<img src="${escapeHtml(u)}" onclick="openLightbox('${escapeHtml(u)}')" style="width:36px; height:36px; object-fit:cover; border-radius:5px; border:1px solid #e5e7eb; cursor:pointer;" loading="lazy">`).join('')}</div>`
+                : (r.image_count ? `<div style="font-size:11px; color:#9ca3af; margin-top:1px;">${r.image_count} ảnh</div>` : '')}
             </div>
             <button onclick="_deleteSeedLog(${r.id})" style="flex-shrink:0; background:none; border:none; color:#d1d5db; cursor:pointer; font-size:16px; line-height:1; padding:0;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#d1d5db'">×</button>
           </div>`;

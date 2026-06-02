@@ -2522,6 +2522,24 @@ async function attachCommentImages(page, imagePaths) {
   return uploaded;
 }
 
+// Đợi ảnh đính kèm hiện preview trong khung soạn bình luận.
+// Gửi quá sớm khi ảnh chưa upload xong khiến FB rớt ảnh → chỉ đăng được text.
+async function waitForCommentImagePreview(page, timeout = 15000) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    const ready = await page.evaluate(() => {
+      const imgs = Array.from(document.querySelectorAll('img'));
+      return imgs.some(im => {
+        const s = im.currentSrc || im.src || '';
+        return (s.startsWith('blob:') || s.startsWith('data:')) && im.offsetWidth > 10 && im.offsetHeight > 10;
+      });
+    }).catch(() => false);
+    if (ready) return true;
+    await page.waitForTimeout(500);
+  }
+  return false;
+}
+
 async function postComment({ postUrl, message, imagePaths, profile }) {
   const tag = `[postComment:${profile || activeProfile}]`;
   logger.info(`${tag} Bắt đầu seeding: ${postUrl}`);
@@ -2591,26 +2609,45 @@ async function postComment({ postUrl, message, imagePaths, profile }) {
     await commentBox.click({ force: true });
     await randomDelay(400, 800);
 
-    // Upload ảnh nếu có
-    if (imagePaths && imagePaths.length > 0) {
-      const imgOk = await attachCommentImages(page, imagePaths);
-      if (!imgOk) logger.warn(`${tag} Không upload được ảnh comment`);
-      else await randomDelay(1000, 2000);
-    }
-
-    // Nhập nội dung
+    // Nhập nội dung TRƯỚC (ô đang focus & rỗng → text chắc chắn vào đúng chỗ,
+    // tránh việc thao tác upload ảnh cướp focus làm rớt text).
     if (message) {
       await pasteText(page, message);
       await randomDelay(400, 800);
+    }
+
+    // Upload ảnh SAU và ĐỢI preview hiện ra rồi mới gửi.
+    // Trước đây chỉ chờ 1-2s rồi gửi ngay khiến FB rớt ảnh → chỉ đăng được mỗi text.
+    if (imagePaths && imagePaths.length > 0) {
+      const imgOk = await attachCommentImages(page, imagePaths);
+      if (!imgOk) {
+        logger.warn(`${tag} Không upload được ảnh comment`);
+      } else {
+        const ready = await waitForCommentImagePreview(page, 15000);
+        if (ready) logger.info(`${tag} Ảnh đã hiện preview, sẵn sàng gửi`);
+        else logger.warn(`${tag} Chưa thấy preview ảnh sau 15s, vẫn thử gửi`);
+        await randomDelay(800, 1200);
+        // Re-focus ô comment (thao tác upload ảnh có thể làm mất focus)
+        await commentBox.click({ force: true }).catch(() => {});
+        await randomDelay(300, 600);
+      }
     }
 
     // Submit: Ctrl+Enter là an toàn nhất trên FB comment
     await page.keyboard.press('Control+Enter');
     await randomDelay(2000, 3000);
 
-    // Verify: nếu ô comment vẫn có nội dung → thử Enter thường
+    // Verify: nếu ô comment vẫn còn text HOẶC ảnh chưa được gửi đi → thử Enter thường
     const remaining = await commentBox.textContent().catch(() => '');
-    if (remaining && remaining.trim()) {
+    const stillHasImg = (imagePaths && imagePaths.length > 0)
+      ? await page.evaluate(() => Array.from(document.querySelectorAll('img')).some(im => {
+          const s = im.currentSrc || im.src || '';
+          return (s.startsWith('blob:') || s.startsWith('data:')) && im.offsetWidth > 10;
+        })).catch(() => false)
+      : false;
+    if ((remaining && remaining.trim()) || stillHasImg) {
+      await commentBox.click({ force: true }).catch(() => {});
+      await randomDelay(300, 500);
       await page.keyboard.press('Enter');
       await randomDelay(1500, 2500);
     }
