@@ -5367,35 +5367,40 @@
 
     function buildChannelSummary(selection) {
       if (!selection) return '';
+      // Tiêu đề nhóm nền tảng (FACEBOOK / ZALO) — màu thương hiệu, thay cho badge mỗi dòng.
+      const sectionLabel = (icon, text, color) =>
+        `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:0.4px;color:${color};">${xekoIcon(icon, 'xi xi-sm')}${text}</span>`;
+      // Dòng kênh — icon line gọn (thay emoji folder/page) + tên, thụt lề nhẹ.
+      const line = (icon, text) =>
+        `<span style="display:inline-flex;align-items:center;gap:5px;padding-left:16px;">${icon ? xekoIcon(icon, 'xi xi-sm') : ''}<span>${text}</span></span>`;
       const summaryParts = [];
       for (const pKey of Object.keys(selection)) {
         const p = buildTargetChannels(pKey, pKey);
-        const fbBadge = platBadge('facebook');
-        const zaloBadge = platBadge('zalo');
-        const fbNames = (selection[pKey].fb || []).map(c => {
-          if (c.id === 'custom') return `${fbBadge} Group ${getFbGroupDisplayName(c.groupId)}`;
+        const fbLines = [];
+        (selection[pKey].fb || []).forEach(c => {
+          if (c.id === 'custom') { fbLines.push(line('users', `Group ${getFbGroupDisplayName(c.groupId)}`)); return; }
           if (c.id === 'cat') {
             const keys = c.groupKeys || [];
-            return `${fbBadge} 📁 ${c.category} (${keys.length} nhóm)`;
+            fbLines.push(line('users', `${c.category} (${keys.length} nhóm)`));
+            return;
           }
           const ch = (p.fb || []).find(f => f.id === c.id);
-          return `${fbBadge} ${ch ? ch.name : c.id}`;
+          fbLines.push(line(c.id === 'personal' ? 'phone' : 'users', ch ? ch.name : c.id));
         });
-        const pageNames = (selection[pKey].fbPages || []).map(c => {
+        (selection[pKey].fbPages || []).forEach(c => {
           const g = (channelsData.fbPages || []).find(x => x.key === c.key);
-          return `${fbBadge} 📄 ${g ? g.name : c.id}`;
+          fbLines.push(line('post', g ? g.name : c.id));
         });
-        const zaloNames = (selection[pKey].zalo || []).map(c => {
+        const zaloLines = (selection[pKey].zalo || []).map(c => {
           const ch = (p.zalo || []).find(f => f.id === c.id);
-          return `${zaloBadge} ${ch ? ch.name : c.id}`;
+          return line(null, ch ? ch.name : c.id);
         });
-        const parts = [];
-        fbNames.forEach(n => parts.push(n));
-        pageNames.forEach(n => parts.push(n));
-        zaloNames.forEach(n => parts.push(n));
-        if (parts.length > 0) {
+        const blocks = [];
+        if (fbLines.length) blocks.push(sectionLabel('fb', 'FACEBOOK', '#1877f2') + '<br>' + fbLines.join('<br>'));
+        if (zaloLines.length) blocks.push(sectionLabel('zalo', 'ZALO', '#2563EB') + '<br>' + zaloLines.join('<br>'));
+        if (blocks.length > 0) {
           const pLabel = _profileDisplayNames[pKey] || pKey;
-          summaryParts.push(`<strong>${pLabel}:</strong><br>${parts.join('<br>')}`);
+          summaryParts.push(`<strong>${pLabel}:</strong><br>${blocks.join('<br>')}`);
         }
       }
       return summaryParts.join('<br>');
