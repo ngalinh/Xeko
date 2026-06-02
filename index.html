@@ -10330,6 +10330,11 @@
             const ac = Array.isArray(a) ? a.length : 0, bc = Array.isArray(b) ? b.length : 0;
             return ac === bc;
           };
+          // Chỉ gom theo nội dung nếu 2 bài cách nhau không quá 10 phút (cùng phiên đăng)
+          const withinSession = (a, b) => {
+            const ta = new Date(a.timestamp).getTime(), tb = new Date(b.timestamp).getTime();
+            return Math.abs(ta - tb) < 10 * 60 * 1000;
+          };
           const groups = [];
           {
             let current = null;
@@ -10337,7 +10342,7 @@
               const row = histRows[i];
               const merge = current && (
                 (current.anchor.batch_id && row.batch_id && current.anchor.batch_id === row.batch_id) ||
-                (current.anchor.message && row.message && current.anchor.message === row.message && sameImageCount(current.anchor.images, row.images))
+                (current.anchor.message && row.message && current.anchor.message === row.message && sameImageCount(current.anchor.images, row.images) && withinSession(current.anchor, row))
               );
               if (merge) {
                 current.rows.push(row);
