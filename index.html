@@ -5073,8 +5073,15 @@
       try {
         const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), {cache: 'no-store'});
         const data = await parseJson(res);
-        data.facebook.forEach(p => { _profileDisplayNames[p.key] = p.name || p.key; });
-        const buttons = data.facebook.map(p => ({
+        const profiles = (data && data.facebook) || [];
+        _totalProfiles = profiles.length;
+        profiles.forEach(p => { _profileDisplayNames[p.key] = p.name || p.key; });
+        // Smart-skip: chi co 1 profile thi tu chon luon, dung bat user chon (1 lua chon).
+        if (profiles.length === 1) {
+          autoSelectProfile(profiles[0]);
+          return;
+        }
+        const buttons = profiles.map(p => ({
           label: `${xekoIcon('user')} ${p.name}`,
           handler: () => selectProfile(p.key),
         }));
@@ -9368,17 +9375,33 @@
     function showWelcomeBack() {
       // Tuy step ma offer action phu hop. Cac button trong message cu khong
       // con handler (vi luu html), nen them 1 message moi voi button active.
+      //
+      // Quan trong: chi bat user "Chọn Profile" khi THUC SU chua chon profile.
+      // Neu da co currentProfile (vd vua dang/lich xong) thi KHONG bat chon lai
+      // — account 1 profile bi bug bat doi profile moi lan quay lai la do day.
       const buttons = [];
-      if (step === 'compose') {
+      // Cho phep doi profile chi khi account co >1 profile (sau reload PWA
+      // _totalProfiles=0 nen mac dinh an, dung cho tai khoan 1 profile).
+      const canSwitch = _totalProfiles > 1;
+      if (currentProfile && (step === 'compose' || step === 'schedule-time' || step === 'schedule')) {
         buttons.push({ label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() });
+        if (postMode === 'schedule') buttons.push({ label: `${xekoIcon('clock')} Lên lịch thêm`, handler: () => startScheduleCompose() });
         buttons.push({ label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() });
-        if (_totalProfiles > 1) buttons.push({ label: `${xekoIcon('user')} Đổi profile`, handler: () => showProfileSelect() });
-      } else if (step === 'mode') {
+        if (canSwitch) buttons.push({ label: `${xekoIcon('user')} Đổi profile`, handler: () => showProfileSelect() });
+      } else if (currentProfile && step === 'mode') {
         buttons.push({ label: `${xekoIcon('post')} Đăng ngay`, handler: () => selectMode('now') });
         buttons.push({ label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') });
-      } else if (step === 'target') {
+        if (canSwitch) buttons.push({ label: `${xekoIcon('user')} Đổi profile`, handler: () => showProfileSelect() });
+      } else if (currentProfile && step === 'target') {
         buttons.push({ label: `${xekoIcon('pin')} Chọn nơi đăng`, handler: () => showTargetSelect() });
+        if (canSwitch) buttons.push({ label: `${xekoIcon('user')} Đổi profile`, handler: () => showProfileSelect() });
+      } else if (currentProfile) {
+        // Da co profile nhung step khong ro (vd vua dang xong) -> cho dang tiep,
+        // tuyet doi khong bat chon profile lai.
+        buttons.push({ label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => showModeSelect() });
+        if (canSwitch) buttons.push({ label: `${xekoIcon('user')} Đổi profile`, handler: () => showProfileSelect() });
       } else {
+        // Thuc su chua chon profile -> bat chon (showProfileSelect tu skip neu chi 1).
         buttons.push({ label: `${xekoIcon('user')} Chọn Profile`, handler: () => showProfileSelect() });
       }
       buttons.push({ label: `${xekoIcon('refresh')} Bắt đầu lại`, handler: () => { clearChat(); } });
