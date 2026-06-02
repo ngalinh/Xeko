@@ -5353,9 +5353,7 @@
     }
 
 
-    // asCard=true → bọc trong thẻ card có viền + header tên profile (đồng bộ với khung
-    // "Chọn kênh"). asCard=false → text gọn để nhúng inline trong câu.
-    function buildChannelSummary(selection, asCard = false) {
+    function buildChannelSummary(selection) {
       if (!selection) return '';
       // Tiêu đề nhóm nền tảng (FACEBOOK / ZALO) — màu thương hiệu, thay cho badge mỗi dòng.
       const sectionLabel = (icon, text, color) =>
@@ -5387,26 +5385,12 @@
         });
         if (fbLines.length === 0 && zaloLines.length === 0) continue;
         const pLabel = _profileDisplayNames[pKey] || pKey;
-
-        if (asCard) {
-          // Mỗi nền tảng là 1 sub-block (header + các dòng) trong card có viền.
-          const groups = [];
-          if (fbLines.length) groups.push(`<div style="display:flex;flex-direction:column;gap:4px;">${sectionLabel('fb', 'FACEBOOK', '#1877f2')}${fbLines.join('')}</div>`);
-          if (zaloLines.length) groups.push(`<div style="display:flex;flex-direction:column;gap:4px;">${sectionLabel('zalo', 'ZALO', '#2563EB')}${zaloLines.join('')}</div>`);
-          summaryParts.push(
-            `<div class="channel-profile-section" style="margin-top:8px;max-width:460px;">` +
-              `<div class="channel-profile-header">${xekoIcon('user')} ${pLabel}</div>` +
-              `<div style="display:flex;flex-direction:column;gap:10px;padding:10px 14px;">${groups.join('')}</div>` +
-            `</div>`
-          );
-        } else {
-          const blocks = [];
-          if (fbLines.length) blocks.push(sectionLabel('fb', 'FACEBOOK', '#1877f2') + '<br>' + fbLines.join('<br>'));
-          if (zaloLines.length) blocks.push(sectionLabel('zalo', 'ZALO', '#2563EB') + '<br>' + zaloLines.join('<br>'));
-          summaryParts.push(`<strong>${pLabel}:</strong><br>${blocks.join('<br>')}`);
-        }
+        const blocks = [];
+        if (fbLines.length) blocks.push(sectionLabel('fb', 'FACEBOOK', '#1877f2') + '<br>' + fbLines.join('<br>'));
+        if (zaloLines.length) blocks.push(sectionLabel('zalo', 'ZALO', '#2563EB') + '<br>' + zaloLines.join('<br>'));
+        summaryParts.push(`<strong>${pLabel}:</strong><br>${blocks.join('<br>')}`);
       }
-      return summaryParts.join(asCard ? '' : '<br>');
+      return summaryParts.join('<br>');
     }
 
     // Callout nổi bật cho lời nhắc "Soạn nội dung..." — giúp user thấy bước cần làm tiếp theo.
@@ -5472,7 +5456,7 @@
       // Store selection for posting
       window._channelSelection = selected;
 
-      const summaryText = buildChannelSummary(selected, true);
+      const summaryText = buildChannelSummary(selected);
       addUser('Đã chọn kênh đăng bài');
 
       // Determine which profiles need posting
@@ -6512,7 +6496,7 @@
       postMode = 'schedule';
       step = 'compose';
       disablePrevButtons();
-      const summaryText = buildChannelSummary(window._channelSelection, true)
+      const summaryText = buildChannelSummary(window._channelSelection)
         || (currentTarget ? (TARGET_LABELS[currentTarget] || currentTarget) : null)
         || 'kênh đã chọn';
       const buttons = [];
