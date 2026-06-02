@@ -5176,18 +5176,6 @@
       }
       let panelHtml = `<div class="channel-panel" id="channelPanel_${pid}">`;
 
-      // Platform toggles
-      panelHtml += `<div class="channel-platform-row">
-        <label class="channel-platform-toggle checked" id="fbToggle_${pid}">
-          <input type="checkbox" checked onchange="togglePlatform(${pid},'fb',this.checked)">${xekoIcon('fb')} Facebook
-        </label>`;
-      if (p.zalo.length > 0) {
-        panelHtml += `<label class="channel-platform-toggle" id="zaloToggle_${pid}" style="margin-left:8px;">
-          <input type="checkbox" onchange="togglePlatform(${pid},'zalo',this.checked)">${xekoIcon('chat')} Zalo
-        </label>`;
-      }
-      panelHtml += `</div>`;
-
       // Channels for current profile — chip/toggle layout
       panelHtml += `<div class="channel-profile-section">`;
       panelHtml += `<div class="channel-profile-header">${xekoIcon('user')} ${p.label}</div>`;
@@ -5527,7 +5515,7 @@
         ? 'Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!'
         : 'Soạn nội dung + thêm ảnh 📷, gửi là xong nha!');
       addBot(
-        `Sẽ đăng lên: ${summaryText} ✅\n${_schedHint}`,
+        `Sẽ đăng lên: ${summaryText}\n${_schedHint}`,
         [
           { label: `↩ Làm lại`, handler: () => showTargetSelect(), secondary: true },
         ]
@@ -5564,7 +5552,7 @@
         ? 'Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!'
         : 'Soạn nội dung + thêm ảnh 📷, gửi là xong nha!');
       addBot(
-        `Sẽ đăng lên: <strong>${targetText}</strong> ✅\n${_hint}`,
+        `Sẽ đăng lên: <strong>${targetText}</strong>\n${_hint}`,
         [
           { label: `↩ Làm lại`, handler: () => showTargetSelect(), secondary: true },
         ]
@@ -6519,7 +6507,7 @@
       }
       buttons.push({ label: `↩ Đổi kênh`, handler: () => showTargetSelect(), secondary: true });
       addBot(
-        `Sẽ đăng lên: ${summaryText} ✅\n${composeHintBox('Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!')}`,
+        `Sẽ đăng lên: ${summaryText}\n${composeHintBox('Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!')}`,
         buttons
       );
     }
