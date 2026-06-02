@@ -1265,8 +1265,13 @@ app.post('/api/schedule', upload.array('images', 20), (req, res) => {
     return res.status(400).json({ error: 'Chưa chọn profile' });
   }
 
+  const channel = type === 'zalo' ? `zalo:${groupName}` : `${target || 'personal'}${groupId ? ':' + groupId : ''}`;
+  const fileSizes = (req.files || []).map(f => `${f.originalname}(${f.size}B)`).join(', ');
+  logger.info(`[/api/schedule] channel=${channel} images=${imagePaths.length} [${fileSizes}]`);
+
   try {
     const job = scheduler.addSchedule({ time, target, groupId, message, imagePaths, profile, profileDisplayName, type, groupName, zaloAccount, groupKeywords });
+    cleanupFiles(imagePaths);
     res.json({
       success: true,
       message: `Đã lên lịch đăng bài lúc ${job.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`,
