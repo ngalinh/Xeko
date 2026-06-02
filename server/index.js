@@ -1770,6 +1770,8 @@ async function _driveZaloJob(jobId, maxWaitMs = 10 * 60 * 1000) {
 function _completeZaloJob(jobId, { success, error }) {
   if (_zaloJobDoneCache.has(jobId)) return;
   _zaloJobDoneCache.set(jobId, { status: 'done', success: !!success, error: error || null, ts: Date.now() });
+  // Bắn SSE giống FB → frontend nhận kết quả tức thì, đánh thức poll đang sleep
+  sseNotify(jobId, 'done', { success: !!success, error: error || null }, null);
   const donePayload = { success: !!success, error: error || null, postUrl: null };
   const meta = _pendingZaloLogs.get(jobId);
   try {
