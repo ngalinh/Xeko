@@ -6051,6 +6051,11 @@
         addBot('Bạn chốt profile cho Xeko trước đã nha! Bấm 👤 Đổi Profile ở góc trên phải nhé.');
         return;
       }
+      if (step === 'target') {
+        resetMsgInput();
+        addBot('Bạn nhớ bấm ✓ <strong>Tiếp tục</strong> để xác nhận kênh đăng trước rồi gửi nội dung nha!');
+        return;
+      }
       const zaloSelCheck = (window._channelSelection || {})[currentProfile] || { zalo: [] };
       const hasZaloSelection = (zaloSelCheck.zalo || []).length > 0;
       const hasCustomFbSelection = (window._customGroupIds || []).length > 0;
