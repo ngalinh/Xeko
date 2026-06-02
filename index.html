@@ -9367,7 +9367,7 @@
     }
     function pushPendingJob(job) {
       const list = getPendingJobs();
-      list.push({ kind: 'fb-chat', ...job, ts: Date.now() });
+      list.push({ kind: job.kind || 'fb-chat', ...job, ts: Date.now() });
       setPendingJobs(list);
     }
     function removePendingJob(jobId) {
