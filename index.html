@@ -5066,7 +5066,7 @@
         updateHeaderProfile(currentProfileName);
         step = 'mode';
         addBot(
-          `Profile <strong>${currentProfileName}</strong> sẵn sàng rồi! Bạn muốn đăng kiểu nào?`,
+          `<strong>${currentProfileName}</strong> sẵn sàng rồi! Đăng kiểu nào?`,
           [
             { label: `${xekoIcon('send')} Đăng ngay`, handler: () => selectMode('now') },
             { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
@@ -5114,7 +5114,7 @@
         updateHeaderProfile(currentProfileName);
         // STEP 3: Chon che do
         addBot(
-          `Profile <strong>${currentProfileName}</strong> sẵn sàng rồi! Bạn muốn đăng kiểu nào?`,
+          `<strong>${currentProfileName}</strong> sẵn sàng rồi! Đăng kiểu nào?`,
           [
             { label: `${xekoIcon('send')} Đăng ngay`, handler: () => selectMode('now') },
             { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
@@ -5281,7 +5281,7 @@
 
       // Schedule hint
       if (postMode === 'schedule') {
-        panelHtml += `<div style="margin-top:8px;font-size:0.88em;color:#6B7280;">Chọn xong bấm <strong>Tiếp tục</strong>, soạn nội dung rồi nhấn gửi để chọn giờ đăng!</div>`;
+        panelHtml += `<div style="margin-top:8px;font-size:0.88em;color:#6B7280;">Chọn xong bấm <strong>Tiếp tục</strong> rồi soạn bài nha!</div>`;
       }
 
       // Action buttons
@@ -5539,8 +5539,8 @@
 
       disablePrevButtons();
       const _schedHint = postMode === 'schedule'
-        ? 'Soạn nội dung, thêm ảnh bằng 📷 rồi nhấn gửi để chọn giờ đăng!'
-        : 'Soạn nội dung bên dưới, thêm ảnh bằng 📷 rồi nhấn gửi là xong!';
+        ? 'Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!'
+        : 'Soạn nội dung + thêm ảnh 📷, gửi là xong nha!';
       addBot(
         `Sẽ đăng lên: ${summaryText} ✅\n${_schedHint}`,
         [
@@ -5553,7 +5553,7 @@
       disablePrevButtons();
       addUser('Đổi chế độ');
       addBot(
-        'Bạn muốn đăng kiểu nào?',
+        'Đăng kiểu nào?',
         [
           { label: `${xekoIcon('send')} Đăng ngay`, handler: () => selectMode('now') },
           { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
@@ -5576,8 +5576,8 @@
       if (target === 'all') targetText = 'FB Profile + Asale + Tổng Kho';
 
       const _hint = postMode === 'schedule'
-        ? 'Soạn nội dung, thêm ảnh bằng 📷 rồi nhấn gửi để chọn giờ đăng!'
-        : 'Soạn nội dung bên dưới, thêm ảnh bằng 📷 rồi nhấn gửi là xong!';
+        ? 'Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!'
+        : 'Soạn nội dung + thêm ảnh 📷, gửi là xong nha!';
       addBot(
         `Sẽ đăng lên: <strong>${targetText}</strong> ✅\n${_hint}`,
         [
@@ -6527,7 +6527,7 @@
         || (currentTarget ? (TARGET_LABELS[currentTarget] || currentTarget) : null)
         || 'kênh đã chọn';
       addBot(
-        `Soạn nội dung, thêm ảnh bằng 📷 rồi nhấn gửi để chọn giờ đăng lên ${summaryText}!`,
+        `Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng lên ${summaryText} nha!`,
         [{ label: `↩ Đổi kênh`, handler: () => showTargetSelect(), secondary: true }]
       );
     }
@@ -6695,7 +6695,7 @@
         removeTyping();
 
         if (scheduled.length > 0) {
-          let confirmMsg = `⏰ Đã lên lịch đăng bài lúc ${new Date(time).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}\n\n`;
+          let confirmMsg = `⏰ Đã lên lịch đăng lúc ${new Date(time).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}\n\n`;
           confirmMsg += `📍 Nơi đăng: <strong>${scheduled.join(', ')}</strong>\n`;
           if (savedMessage) {
             const preview = savedMessage.length > 100 ? savedMessage.slice(0, 100) + '…' : savedMessage;
