@@ -9740,9 +9740,14 @@
       return { groups, fbKeyToGroup, zaloAccountToGroup };
     }
 
-    function renderStatByProfile(allProfiles) {
+    let _lastStatByProfileJson = null;
+    function renderStatByProfile(allProfiles, noAnimation) {
       const profileEl = document.getElementById('statByProfile');
       if (!profileEl) return;
+      // Skip re-render nếu data không đổi
+      const newJson = JSON.stringify(allProfiles);
+      if (newJson === _lastStatByProfileJson) return;
+      _lastStatByProfileJson = newJson;
       if (!allProfiles.length) {
         profileEl.innerHTML = '<div style="color:#999; padding:8px 0;">Chưa có dữ liệu</div>';
         return;
@@ -9816,12 +9821,14 @@
         });
 
       profileEl.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px;">${cards.join('')}</div>`;
-      requestAnimationFrame(function() {
-        profileEl.querySelectorAll('.stat-profile-card').forEach(function(el, i) {
-          el.style.animationDelay = (i * 60) + 'ms';
-          el.classList.add('dash-anim-enter');
+      if (!noAnimation) {
+        requestAnimationFrame(function() {
+          profileEl.querySelectorAll('.stat-profile-card').forEach(function(el, i) {
+            el.style.animationDelay = (i * 60) + 'ms';
+            el.classList.add('dash-anim-enter');
+          });
         });
-      });
+      }
     }
 
     function animateCountUp(el, target, duration) {
@@ -10120,7 +10127,7 @@
         const allSchedules = schedRes ? await parseJson(schedRes).catch(() => []) : [];
         const data = await parseJson(histRes);
         const byProfileData = byProfileRes.ok ? await parseJson(byProfileRes).catch(() => []) : [];
-        renderStatByProfile(byProfileData);
+        renderStatByProfile(byProfileData, noAnimation);
 
         // Lọc lịch chờ/đang đăng
         const hasPendingFilter = statuses.some(s => s === 'pending' || s === 'running');
