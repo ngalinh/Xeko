@@ -4771,7 +4771,7 @@
     // Dùng chung cho summary chọn kênh và bảng lịch sử dashboard.
     function platBadge(platform) {
       const isZalo = platform === 'zalo';
-      return `<span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:20px;flex-shrink:0;background:${isZalo ? '#e8f0ff' : '#e8f0fe'};color:${isZalo ? '#2563EB' : '#1877f2'};">${isZalo ? 'Zalo' : 'FB'}</span>`;
+      return `<span style="display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:36px;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;flex-shrink:0;vertical-align:middle;background:${isZalo ? '#e8f0ff' : '#e8f0fe'};color:${isZalo ? '#2563EB' : '#1877f2'};">${isZalo ? 'Zalo' : 'FB'}</span>`;
     }
 
     function buildPhotoGrid(photos) {
