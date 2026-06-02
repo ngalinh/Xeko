@@ -9276,7 +9276,7 @@
             let msg = `✅ <strong>Xong rồi má ơi, Xeko canh giờ đăng bài cho bạn chuẩn ko cần chỉnh luôn á!</strong>\n\n`;
             msg += `⏰ Lịch hẹn: ${n.scheduledTime}\n`;
             msg += `📍 Nơi đăng: ${targetText}\n`;
-            msg += `👤 Profile: ${n.profile}\n`;
+            msg += `👤 Profile: ${n.profileName || n.profile}\n`;
             msg += ndToggle(n.message);
             if (n.imageCount > 0) msg += `📷 ${n.imageCount} ảnh đính kèm\n`;
             msg += `\n🕐 Đã đăng lúc: ${n.time}`;
@@ -11066,6 +11066,7 @@
 
     async function submitRepost() {
       const profile = document.getElementById('repostProfile').value;
+      const profileName = document.getElementById('repostProfile').options[document.getElementById('repostProfile').selectedIndex]?.text || profile;
       const message = document.getElementById('repostMessageInput').value;
       const channels = _repostSelectedChannels;
 
@@ -11107,6 +11108,7 @@
             fd.append('target', ch.type === 'group' ? 'group' : 'personal');
             if (ch.type === 'group') fd.append('groupId', ch.id || ch.key || '');
             fd.append('profile', profile);
+            fd.append('profileDisplayName', profileName);
             const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: fd });
             const initial = await parseJson(res);
             // Lưu pendingLogId để dùng DB làm source of truth (giống main post flow)
@@ -11125,7 +11127,6 @@
 
       // 2. Đăng ký job — nếu có pendingLogId thì DB là source of truth (giống main post flow),
       //    không cần in-memory tracker. Nếu không thì dùng _activeRepostJobs như fallback.
-      const profileName = document.getElementById('repostProfile').options[document.getElementById('repostProfile').selectedIndex]?.text || profile;
       const now = new Date();
       const pad = n => String(n).padStart(2,'0');
       const timeLabel = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} ${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}`;

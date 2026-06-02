@@ -254,6 +254,7 @@ async function executeSchedule(job) {
       message: job.message,
       imageCount: job.imagePaths?.length || 0,
       profile: job.profile,
+      profileName: job.profileName || job.profile,
     };
 
     if (overallSuccess) {
@@ -280,6 +281,7 @@ async function executeSchedule(job) {
       message: job.message,
       imageCount: job.imagePaths?.length || 0,
       profile: job.profile,
+      profileName: job.profileName || job.profile,
       error: error.message,
     });
   } finally {
