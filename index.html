@@ -9427,7 +9427,7 @@
     }
 
     function renderResumedJobResult(job, data) {
-      const profile = job.profile || '?';
+      const profile = job.profileName || _profileDisplayNames[job.profile] || job.profile || '?';
       if (data && data.results) {
         data.results.forEach(r => {
           if (r.success) {
