@@ -4579,47 +4579,36 @@
     }
 
     const ENCOURAGEMENTS = [
-      'Bài lên sóng rồi nè! Có bài nào nữa cứ thả vào đây nha 🚀',
-      'Xong 1 bài rồi đó, đăng đều cho page ấm áp nha 🔥',
-      'Xeko vừa đăng xong tay còn ấm, bạn có bài nào tiếp không? 🔥',
-      'Đăng đều đặn là chìa khóa, bạn đang đi đúng hướng rồi 💪',
-      'Một bài = khởi đầu tốt. Hai bài = slay. Ba bài = trang chủ đây rồi 👑',
-      'Xeko idle 0 giây, sẵn sàng nhận bài tiếp ngay bây giờ ⚡',
-      'Có bài kế tiếp chưa? Xeko sẵn sàng đăng tiếp nha ✨',
-      'Content dropped! Lúc nào có bài mới cứ thả vào đây nha 👀',
-      'Xeko thấy bạn có vibe đăng bài hôm nay lắm, đừng dừng lại 🔥',
-      'Plot twist: thuật toán FB thích người đăng đều — bạn đang làm đúng đó 😎',
-      'Bài tiếp đâu rồi nè? 👀',
-      'Bài đã lên, Xeko đang chờ bài tiếp đây nè 🥺',
-      'Đăng một bài = tốt. Đăng đều = rất tốt. Dùng Xeko = đỉnh của chóp 😎',
-      'Bài lên rồi nha! Còn bài nào nữa không? 🎯',
-      'Xeko: sẵn sàng 100%. Bạn cứ thả bài tiếp khi nào sẵn sàng 👀',
-      '1 bài xong xuôi, Xeko sẵn sàng chờ bài kế tiếp ✨',
-      'Page đang on fire đó, đừng tắt lửa nha! 🔥',
-      'Bài vừa lên sóng rồi nè~ Bài tiếp khi nào đăng tiếp nha 👁️',
-      'Bạn đang làm tốt lắm, cứ tiếp tục nha 💅',
-      'Bài lên đẹp rồi đó! Có bài nào nữa không nè 🌟',
-      'Một bài vừa bay lên FB rồi! Bài tiếp theo đang ở đâu? 🛸',
-      'Xeko không biết mệt, lúc nào cần đăng cứ gọi nha ⚡',
-      'Vừa xong 1 bài mà Xeko đã hype cho bài tiếp rồi nè 🎉',
-      'Đăng bài đều là level pro đó nha, bạn đang đi đúng hướng rồi 👑',
-      'Page cần ăn đều nha bạn ơi, một bài nữa đi 🍜',
+      'Xeko đăng xong rồi nè! Có bài tiếp không thả vào đây nha 🚀',
+      'Xeko vừa đẩy bài lên sóng rồi, page đang ấm dần rồi đó 🔥',
+      'Xeko xong tay rồi, bài tiếp đâu thả vào đây nha ⚡',
+      'Xeko không biết mệt, lúc nào có bài cứ gọi nha 💪',
+      'Xeko vừa đăng xong, còn bài nào nữa không nè? 🌟',
+      'Xeko idle 0 giây, sẵn sàng nhận bài tiếp ngay 🎯',
+      'Xeko thấy hôm nay đăng đều lắm, tiếp tục đi nha 🔥',
+      'Xeko đã đẩy bài xong rồi, bài kế tiếp đang ở đâu? 👀',
+      'Xeko xong rồi, page cần ăn đều thì cứ thả thêm bài nha 🍜',
+      'Xeko đăng xong rồi, thuật toán FB thích đăng đều lắm đó 😎',
+      'Xeko sẵn sàng 100%, bài tiếp cứ thả vào đây nha 👀',
+      'Xeko vừa xong 1 bài rồi nè, chờ bài kế tiếp đây 🥺',
+      'Xeko đưa bài lên rồi! Page đang ấm, đừng dừng lại nha 🎉',
+      'Xeko đăng xong, một bài là khởi đầu tốt — thêm bài nữa đi 👑',
+      'Xeko chờ bài tiếp nè, cứ thả vào đây khi nào sẵn nha ✨',
     ];
     // Variants for batches that posted to multiple targets in one go —
     // tránh câu "1 bài / một bài" khi thực tế đăng nhiều nơi.
     const MULTI_ENCOURAGEMENTS = [
-      n => `Xong ${n} bài liền tay luôn nè 🔥 Drop tiếp đi bestie!`,
-      n => `${n} bài đã bay lên FB rồi má! Xeko đang sạc pin chờ bài tiếp 🔋`,
-      n => `Combo ${n} bài cùng lúc, page bạn hôm nay nóng dữ dội á 🌶️`,
-      n => `${n} bài trong 1 lượt? Slay quá đi, tiếp luôn nha! 👑`,
-      n => `Xeko vừa đăng xong ${n} bài, tay còn ấm lắm — bài tiếp đâu? ✨`,
-      n => `Quẩy ${n} bài liên hoàn rồi nè, Xeko sẵn sàng nhận bài tiếp ⚡`,
+      n => `Xeko vừa đăng xong ${n} bài liền tay rồi nè 🔥 Có bài tiếp không?`,
+      n => `Xeko đẩy ${n} bài lên rồi, page hôm nay nóng rồi đó 🌶️`,
+      n => `Xeko combo ${n} bài cùng lúc luôn, sẵn sàng nhận tiếp nha ⚡`,
+      n => `Xeko xong ${n} bài trong 1 lượt, tay còn ấm — bài tiếp đâu? ✨`,
+      n => `Xeko quẩy ${n} bài liên hoàn rồi nè, sẵn sàng chờ bài kế 🎯`,
     ];
 
     const ZERO_ENCOURAGEMENTS = [
-      'Lần này hỏng hết rồi má 😭 Bạn check lại profile/kết nối rồi đăng lại nha!',
-      'Xeko fail toàn tập, ngại quá 🙈 Bạn coi lỗi rồi thử lại giúp mình nhé!',
-      'Huhu không bài nào lên được, bạn xem lại setup giúp Xeko với 🙏',
+      'Xeko thử rồi mà hỏng hết, bạn check lại profile/kết nối rồi thử lại nha 😅',
+      'Xeko fail lần này rồi, bạn xem lại setup rồi đăng lại giúp nha 🙈',
+      'Xeko không đăng được bài nào, bạn kiểm tra kết nối rồi thử lại nha 🙏',
     ];
 
     function pickEncouragement(n = 1) {
