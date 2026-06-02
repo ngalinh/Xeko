@@ -5898,55 +5898,83 @@
       const pendingLogId = dashRowId?.startsWith('pending-log-') ? dashRowId.replace('pending-log-', '') : null;
       if (pendingLogId) _pendingLogProgressRows[pendingLogId] = { progressRow, groupName, account };
 
-      const maxTries = 150; // tối đa 5 phút (150 × 2s)
-      for (let i = 0; i < maxTries; i++) {
-        if (pendingLogId && _dismissedPendingIds.has(pendingLogId)) {
-          if (progressRow) morphBot(progressRow, `⚠️ Group Zalo <strong>${groupName}</strong>: đã bị hủy từ Dashboard.`, 'warning');
-          if (pendingLogId) delete _pendingLogProgressRows[pendingLogId];
-          removePendingJob(jobId);
-          return false;
+      // SSE fast-path (giống pollJob của FB): server push kết quả ngay khi xong →
+      // wake up sleep tức thì. HTTP poll /api/zalo/status là fallback nếu SSE ngắt.
+      const _ac = new AbortController();
+      _jobSseBus.set(jobId, _ac);
+
+      const finishDone = (success, error) => {
+        const okMsg = `✅ Group Zalo <strong>${groupName}</strong> (${account}) xong rồi nha!`;
+        const errMsg = `❌ Huhu Group Zalo <strong>${groupName}</strong> hỏng mất rồi: ${error || 'Không rõ lý do'}`;
+        if (success) {
+          if (progressRow) morphBot(progressRow, okMsg, 'success'); else addBot(okMsg);
+        } else {
+          if (progressRow) morphBot(progressRow, errMsg, 'error'); else addBot(errMsg);
         }
-        await sleepOrVisible(2000);
-        try {
-          const r = await fetch(`${BASE_URL}/api/zalo/status/${jobId}`);
-          if (!r.ok) continue;
-          const d = await r.json();
-          if (d.status === 'done') {
-            const okMsg = `✅ Group Zalo <strong>${groupName}</strong> (${account}) xong rồi nha!`;
-            const errMsg = `❌ Huhu Group Zalo <strong>${groupName}</strong> hỏng mất rồi: ${d.error || 'Không rõ lý do'}`;
-            if (d.success) {
-              if (progressRow) morphBot(progressRow, okMsg, 'success');
-              else addBot(okMsg);
-            } else {
-              if (progressRow) morphBot(progressRow, errMsg, 'error');
-              else addBot(errMsg);
-            }
-            if (dashRowId) {
-              _updateDashRowDone(dashRowId, d.success);
-              const el = document.getElementById(dashRowId);
-              if (el) el.removeAttribute('id'); // dừng pending poll timer detect row này
-            }
+        if (dashRowId) {
+          _updateDashRowDone(dashRowId, success);
+          const el = document.getElementById(dashRowId);
+          if (el) el.removeAttribute('id');
+        }
+        if (pendingLogId) delete _pendingLogProgressRows[pendingLogId];
+        removePendingJob(jobId);
+        if (dashRowId && dashRowId.startsWith('pending-log-') && typeof loadDashHistory === 'function') {
+          loadDashHistory({ noSkeleton: true });
+        }
+      };
+
+      // SSE payload từ _completeZaloJob: { status:'done', result:{success,error} }
+      const readSse = () => {
+        const d = _jobSseResults.get(jobId);
+        if (!d) return null;
+        _jobSseResults.delete(jobId);
+        if (d.status === 'done') {
+          const success = d.result ? !!d.result.success : !!d.success;
+          const error = d.result ? d.result.error : d.error;
+          return { success, error };
+        }
+        return null;
+      };
+
+      try {
+        const maxTries = 150; // tối đa 5 phút (150 × 2s)
+        for (let i = 0; i < maxTries; i++) {
+          if (pendingLogId && _dismissedPendingIds.has(pendingLogId)) {
+            if (progressRow) morphBot(progressRow, `⚠️ Group Zalo <strong>${groupName}</strong>: đã bị hủy từ Dashboard.`, 'warning');
             if (pendingLogId) delete _pendingLogProgressRows[pendingLogId];
             removePendingJob(jobId);
-            // Reload dashboard từ DB để pending row → done (áp dụng mọi caller: chatbot, resume, repost)
-            if (dashRowId && dashRowId.startsWith('pending-log-') && typeof loadDashHistory === 'function') {
-              loadDashHistory({ noSkeleton: true });
-            }
-            return !!d.success;
+            return false;
           }
-        } catch {}
+          // Check SSE trước khi sleep
+          let sse = readSse();
+          if (sse) { finishDone(sse.success, sse.error); return !!sse.success; }
+
+          await sleepOrVisible(2000, _ac.signal);
+
+          // Check SSE ngay sau sleep (có thể vừa được wake up)
+          sse = readSse();
+          if (sse) { finishDone(sse.success, sse.error); return !!sse.success; }
+
+          try {
+            const r = await fetch(`${BASE_URL}/api/zalo/status/${jobId}`);
+            if (!r.ok) continue;
+            const d = await r.json();
+            if (d.status === 'done') { finishDone(!!d.success, d.error); return !!d.success; }
+          } catch {}
+        }
+        const timeoutMsg = `⚠️ Group Zalo <strong>${groupName}</strong>: Xeko chờ 5 phút mà chưa thấy phản hồi, bạn check giúp mình nha!`;
+        if (progressRow) morphBot(progressRow, timeoutMsg, 'error');
+        else addBot(timeoutMsg);
+        if (dashRowId && dashRowId.startsWith('pending-log-')) {
+          const pendingId = dashRowId.replace('pending-log-', '');
+          fetch(`${BASE_URL}/api/pending/${pendingId}/timeout`, { method: 'POST' }).catch(() => {});
+          _updateDashRowDone(dashRowId, false);
+        }
+        removePendingJob(jobId);
+        return false;
+      } finally {
+        _jobSseBus.delete(jobId);
       }
-      const timeoutMsg = `⚠️ Group Zalo <strong>${groupName}</strong>: Xeko chờ 5 phút mà chưa thấy phản hồi, bạn check giúp mình nha!`;
-      if (progressRow) morphBot(progressRow, timeoutMsg, 'error');
-      else addBot(timeoutMsg);
-      // Mark pending DB row as failed so it stops showing "Đang đăng" in dashboard
-      if (dashRowId && dashRowId.startsWith('pending-log-')) {
-        const pendingId = dashRowId.replace('pending-log-', '');
-        fetch(`${BASE_URL}/api/pending/${pendingId}/timeout`, { method: 'POST' }).catch(() => {});
-        _updateDashRowDone(dashRowId, false);
-      }
-      removePendingJob(jobId);
-      return false;
     }
 
     // ===== Multi-tab coordination =====
