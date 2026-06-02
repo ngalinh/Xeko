@@ -11329,6 +11329,19 @@
       if (files.length) _addSeedEntryImages(entryIdx, files);
     }
 
+    function _onSeedPaste(e, entryIdx) {
+      // Dán ảnh từ clipboard (Ctrl+V) vào ô bình luận
+      const items = Array.from((e.clipboardData && e.clipboardData.items) || []);
+      const files = items
+        .filter(it => it.kind === 'file' && it.type.startsWith('image/'))
+        .map(it => it.getAsFile())
+        .filter(Boolean);
+      if (files.length) {
+        e.preventDefault(); // chặn dán đường dẫn/HTML ảnh dưới dạng text
+        _addSeedEntryImages(entryIdx, files);
+      }
+    }
+
     function _removeSeedEntryImage(entryIdx, imgIdx) {
       if (!_seedComments[entryIdx]) return;
       _seedComments[entryIdx].images.splice(imgIdx, 1);
@@ -11343,7 +11356,7 @@
           <div style="display:flex; gap:6px; align-items:flex-start;">
             <span style="flex-shrink:0; margin-top:9px; font-size:11px; color:#9ca3af; font-weight:700; min-width:14px; text-align:right; user-select:none;">${i + 1}</span>
             <div style="flex:1;">
-              <textarea data-seed-idx="${i}" rows="2" oninput="_seedComments[${i}].text=this.value"
+              <textarea data-seed-idx="${i}" rows="2" oninput="_seedComments[${i}].text=this.value" onpaste="_onSeedPaste(event, ${i})"
                 placeholder="Nội dung bình luận ${i + 1}..."
                 style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:7px; font-size:13px; resize:vertical; box-sizing:border-box; line-height:1.5; background:#fff;"></textarea>
               <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:6px;">
@@ -11356,7 +11369,7 @@
                   + Ảnh
                 </button>
                 <input type="file" id="_seedImgInp_${i}" multiple accept="image/*" style="display:none;" onchange="_addSeedEntryImages(${i}, this.files)">
-                <span style="font-size:11px; color:#b0b6c0; user-select:none;">hoặc kéo thả ảnh vào đây</span>
+                <span style="font-size:11px; color:#b0b6c0; user-select:none;">hoặc kéo thả / dán (Ctrl+V) ảnh</span>
               </div>
             </div>
             ${_seedComments.length > 1 ? `<button type="button" onclick="_removeSeedComment(${i})" title="Xóa dòng này" style="flex-shrink:0; margin-top:4px; background:#fee2e2; border:none; color:#b91c1c; width:26px; height:26px; border-radius:50%; cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center; line-height:1;">×</button>` : ''}
