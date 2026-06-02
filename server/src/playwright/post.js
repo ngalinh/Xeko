@@ -2464,62 +2464,87 @@ async function scrapePost(postUrl) {
 
 // ===== SEEDING: Đăng bình luận xuống bài đã đăng =====
 
-async function attachCommentImages(page, imagePaths) {
-  let uploaded = false;
+async function attachCommentImages(page, imagePaths, commentBox) {
+  // Khớp aria-label nút "đính kèm ảnh" của khung bình luận — KHÔNG dùng kiểu
+  // includes('nh') quá rộng (khớp gần hết chữ tiếng Việt) khiến bấm nhầm nút khác.
+  const isPhotoLabel = (label) => {
+    const l = (label || '').toLowerCase();
+    if (!l) return false;
+    if (l.includes('xem') || l.includes('view')) return false; // tránh "Xem ảnh"
+    return l.includes('đính kèm') || l.includes('attach') ||
+           l.includes('photo') || l.includes('camera') ||
+           /(^|[^a-zà-ỹ])ảnh([^a-zà-ỹ]|$)/.test(l);
+  };
 
-  const cameraSelectors = [
-    'div[aria-label*="ảnh"]',
-    'div[aria-label*="Ảnh"]',
-    'div[aria-label*="hoto"]',
-    'div[aria-label*="camera"]',
-    'div[aria-label*="Camera"]',
-    'div[aria-label*="Đính kèm ảnh"]',
-    'div[aria-label*="Attach photo"]',
-  ];
+  // Tìm "gốc" khung soạn bình luận chứa commentBox, để giới hạn mọi thao tác trong đó
+  // → tránh bấm nhầm nút Ảnh của khung đăng bài hoặc set ảnh vào input sai.
+  let scope = null;
+  if (commentBox) {
+    try {
+      const h = await commentBox.evaluateHandle((box) => {
+        let node = box;
+        for (let i = 0; i < 12 && node && node.parentElement; i++) {
+          node = node.parentElement;
+          if (node.tagName === 'FORM') return node;
+          if (node.querySelector('input[type="file"]')) return node;
+        }
+        return box.parentElement || box;
+      });
+      scope = h.asElement();
+    } catch (e) {
+      logger.warn(`attachCommentImages: không xác định được khung comment: ${e.message}`);
+    }
+  }
 
+  // Cách 1 (đáng tin nhất): set thẳng vào input[type=file] BÊN TRONG khung comment, không cần click
+  if (scope) {
+    try {
+      const inputEl = await scope.$('input[type="file"]');
+      if (inputEl) {
+        await inputEl.setInputFiles(imagePaths);
+        logger.info(`attachCommentImages: scoped input OK (${imagePaths.length} ảnh)`);
+        return true;
+      }
+    } catch (e) {
+      logger.warn(`attachCommentImages scoped input fail: ${e.message}`);
+    }
+  }
+
+  // Cách 2: bấm nút camera CHỈ trong khung comment (nếu có scope) rồi mở filechooser
   try {
     const [fileChooser] = await Promise.all([
       page.waitForEvent('filechooser', { timeout: 8000 }),
       (async () => {
         await randomDelay(300, 600);
-        for (const sel of cameraSelectors) {
-          const btns = await page.$$(sel);
-          for (const btn of btns) {
-            const isVisible = await btn.isVisible().catch(() => false);
-            if (isVisible) { await btn.click({ force: true }); return; }
-          }
-        }
-        // Fallback: tìm trong vùng comment
-        const btns = await page.$$('div[role="button"]');
-        for (const btn of btns) {
-          const label = (await btn.getAttribute('aria-label') || '').toLowerCase();
-          if (label.includes('nh') || label.includes('hoto') || label.includes('camera')) {
-            const isVisible = await btn.isVisible().catch(() => false);
-            if (isVisible) { await btn.click({ force: true }); return; }
-          }
+        const buttons = scope
+          ? await scope.$$('[aria-label]')
+          : await page.$$('div[role="button"]');
+        for (const btn of buttons) {
+          const label = await btn.getAttribute('aria-label').catch(() => '');
+          if (!isPhotoLabel(label)) continue;
+          const isVisible = await btn.isVisible().catch(() => false);
+          if (isVisible) { await btn.click({ force: true }); return; }
         }
       })(),
     ]);
     await fileChooser.setFiles(imagePaths);
-    uploaded = true;
-    logger.info(`attachCommentImages: filechooser OK (${imagePaths.length} ảnh)`);
+    logger.info(`attachCommentImages: filechooser ${scope ? '(scoped) ' : ''}OK (${imagePaths.length} ảnh)`);
+    return true;
   } catch (e) {
     logger.warn(`attachCommentImages filechooser fail: ${e.message}`);
   }
 
-  if (!uploaded) {
-    const inputs = await page.$$('input[type="file"]');
-    for (const input of inputs) {
-      try {
-        await input.setInputFiles(imagePaths);
-        uploaded = true;
-        logger.info('attachCommentImages: direct input OK');
-        break;
-      } catch { continue; }
-    }
+  // Cách 3 (chót): bất kỳ input file nào trên trang
+  const inputs = await page.$$('input[type="file"]');
+  for (const input of inputs) {
+    try {
+      await input.setInputFiles(imagePaths);
+      logger.info('attachCommentImages: direct input (fallback) OK');
+      return true;
+    } catch { continue; }
   }
 
-  return uploaded;
+  return false;
 }
 
 // Đếm số ảnh preview (blob:/data:) đang hiển thị — dùng phát hiện ảnh comment mới đính.
@@ -2646,14 +2671,16 @@ async function postComment({ postUrl, message, imagePaths, profile }) {
     const hasImages = imagePaths && imagePaths.length > 0;
     if (hasImages) {
       baselineImgs = await countPreviewImages(page);
-      const imgOk = await attachCommentImages(page, imagePaths);
+      const imgOk = await attachCommentImages(page, imagePaths, commentBox);
       if (!imgOk) {
         logger.warn(`${tag} Không upload được ảnh comment`);
       } else {
         const uploaded = await waitForCommentImageUploaded(page, baselineImgs, 30000);
         if (uploaded) logger.info(`${tag} Ảnh đã upload xong, sẵn sàng gửi`);
         else logger.warn(`${tag} Ảnh có thể chưa upload xong sau 30s, vẫn thử gửi`);
-        await randomDelay(600, 1000);
+        // Đệm thêm theo số ảnh để FB hoàn tất xử lý kể cả khi không bắt được tín hiệu spinner
+        await randomDelay(1500, 2500);
+        await page.waitForTimeout(1200 * imagePaths.length);
         // Re-focus ô comment (thao tác upload ảnh có thể làm mất focus)
         await commentBox.click({ force: true }).catch(() => {});
         await randomDelay(300, 600);

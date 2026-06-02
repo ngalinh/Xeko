@@ -11471,17 +11471,40 @@
     async function _loadSeedHistory() {
       const section = document.getElementById('seedHistorySection');
       const list = document.getElementById('seedHistoryList');
-      // Ưu tiên truy vấn theo postUrl — khóa định danh ổn định, khớp y hệt lúc ghi/đọc
-      // (getSeedLogsByUrl lấy mọi log của bài, kể cả khi post_log_id bị null/lệch).
-      // Fallback postLogId nếu vì lý do nào đó không có postUrl.
-      let qs = '';
-      if (_seedPostUrl) qs = 'postUrl=' + encodeURIComponent(_seedPostUrl);
-      else if (_seedPostLogId) qs = 'postLogId=' + encodeURIComponent(_seedPostLogId);
-      else { section.style.display = 'none'; return; }
-      try {
-        const res = await fetch(`${BASE_URL}/api/seed-logs?${qs}`);
-        const rows = await parseJson(res);
-        if (!Array.isArray(rows) || !rows.length) { section.style.display = 'none'; return; }
+      // Query CẢ postUrl LẪN postLogId rồi gộp — chống lệch khóa khiến lịch sử trống.
+      // Nếu lỗi/HTTP fail thì hiện rõ lý do ngay trong modal (tự chẩn đoán),
+      // thay vì im lặng ẩn đi như trước.
+      const queries = [];
+      if (_seedPostUrl) queries.push('postUrl=' + encodeURIComponent(_seedPostUrl));
+      if (_seedPostLogId) queries.push('postLogId=' + encodeURIComponent(_seedPostLogId));
+      if (!queries.length) { section.style.display = 'none'; return; }
+
+      let rows = [];
+      let lastErr = '';
+      for (const qs of queries) {
+        try {
+          const res = await fetch(`${BASE_URL}/api/seed-logs?${qs}`, { cache: 'no-store' });
+          if (!res.ok) { lastErr = 'HTTP ' + res.status; continue; }
+          const data = await parseJson(res);
+          if (Array.isArray(data) && data.length) {
+            const seen = new Set(rows.map(r => r.id));
+            for (const r of data) if (!seen.has(r.id)) rows.push(r);
+          }
+        } catch (e) { lastErr = (e && e.message) || 'lỗi tải'; }
+      }
+
+      if (!rows.length) {
+        if (lastErr) {
+          section.style.display = '';
+          list.innerHTML = `<div style="font-size:12px; color:#9ca3af;">Chưa tải được lịch sử (${escapeHtml(lastErr)}). Kiểm tra <code>/api/seed-logs</code> trên server.</div>`;
+        } else {
+          section.style.display = 'none';
+        }
+        return;
+      }
+
+      rows.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      {
         section.style.display = '';
         list.innerHTML = rows.map(r => {
           const ts = new Date(r.timestamp).toLocaleString('vi-VN', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit', year:'numeric' });
@@ -11499,7 +11522,7 @@
             <button onclick="_deleteSeedLog(${r.id})" style="flex-shrink:0; background:none; border:none; color:#d1d5db; cursor:pointer; font-size:16px; line-height:1; padding:0;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#d1d5db'">×</button>
           </div>`;
         }).join('');
-      } catch { section.style.display = 'none'; }
+      }
     }
 
     async function _deleteSeedLog(id) {
