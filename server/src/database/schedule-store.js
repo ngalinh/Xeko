@@ -25,6 +25,12 @@ try {
   db.exec(`ALTER TABLE scheduled_posts ADD COLUMN profile_name TEXT`);
 } catch { /* cột đã tồn tại */ }
 
+// Bảng lưu ID counter tăng dần vĩnh viễn, tránh trùng ID sau khi schedules bị xóa
+db.exec(`CREATE TABLE IF NOT EXISTS schedule_id_counter (id INTEGER NOT NULL)`);
+if (!db.prepare('SELECT id FROM schedule_id_counter').get()) {
+  db.prepare('INSERT INTO schedule_id_counter (id) VALUES (0)').run();
+}
+
 const insertStmt = db.prepare(`
   INSERT INTO scheduled_posts (id, time, type, target, group_id, group_name, message, profile, profile_name, image_paths, status, created_at)
   VALUES (@id, @time, @type, @target, @groupId, @groupName, @message, @profile, @profileName, @imagePaths, @status, @createdAt)
@@ -81,11 +87,18 @@ function getPending() {
   }));
 }
 
+// nextId() trả về ID tiếp theo và tăng counter vĩnh viễn trong DB
+// Dùng MAX của cả 2 nguồn để tương thích với DB cũ chưa có counter table
 const maxIdStmt = db.prepare(`SELECT MAX(id) as maxId FROM scheduled_posts`);
+const getCounterStmt = db.prepare(`SELECT id FROM schedule_id_counter`);
+const updateCounterStmt = db.prepare(`UPDATE schedule_id_counter SET id = ?`);
 
 function nextId() {
-  const row = maxIdStmt.get();
-  return (row.maxId || 0) + 1;
+  const existing = (maxIdStmt.get()?.maxId || 0);
+  const counter = (getCounterStmt.get()?.id || 0);
+  const next = Math.max(existing, counter) + 1;
+  updateCounterStmt.run(next);
+  return next;
 }
 
 module.exports = { insert, updateStatus, remove, getPending, nextId };
