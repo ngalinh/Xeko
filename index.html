@@ -5406,6 +5406,11 @@
       return summaryParts.join('<br>');
     }
 
+    // Callout nổi bật cho lời nhắc "Soạn nội dung..." — giúp user thấy bước cần làm tiếp theo.
+    function composeHintBox(text) {
+      return `<span style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:8px 13px;border-radius:10px;background:#eef4ff;border:1px solid #dbeafe;color:#1d4ed8;font-weight:600;">${xekoIcon('edit', 'xi xi-sm')}${text}</span>`;
+    }
+
     function confirmChannelSelection(pid) {
       const panel = document.getElementById(`channelPanel_${pid}`);
       if (!panel) return;
@@ -5518,9 +5523,9 @@
       step = 'compose';
 
       disablePrevButtons();
-      const _schedHint = postMode === 'schedule'
+      const _schedHint = composeHintBox(postMode === 'schedule'
         ? 'Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!'
-        : 'Soạn nội dung + thêm ảnh 📷, gửi là xong nha!';
+        : 'Soạn nội dung + thêm ảnh 📷, gửi là xong nha!');
       addBot(
         `Sẽ đăng lên: ${summaryText} ✅\n${_schedHint}`,
         [
@@ -5555,9 +5560,9 @@
       if (target === 'allgroup') targetText = 'Asale + Tổng Kho';
       if (target === 'all') targetText = 'FB Profile + Asale + Tổng Kho';
 
-      const _hint = postMode === 'schedule'
+      const _hint = composeHintBox(postMode === 'schedule'
         ? 'Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!'
-        : 'Soạn nội dung + thêm ảnh 📷, gửi là xong nha!';
+        : 'Soạn nội dung + thêm ảnh 📷, gửi là xong nha!');
       addBot(
         `Sẽ đăng lên: <strong>${targetText}</strong> ✅\n${_hint}`,
         [
@@ -6514,7 +6519,7 @@
       }
       buttons.push({ label: `↩ Đổi kênh`, handler: () => showTargetSelect(), secondary: true });
       addBot(
-        `Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng lên ${summaryText} nha!`,
+        `Sẽ đăng lên: ${summaryText} ✅\n${composeHintBox('Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!')}`,
         buttons
       );
     }
