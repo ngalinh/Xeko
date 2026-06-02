@@ -1733,6 +1733,76 @@ setInterval(() => {
   }
 }, 60 * 60 * 1000);
 
+// Task nền: cloud TỰ poll local đến khi job Zalo xong, rồi lưu cache + complete
+// pending row — giống FB queuePost/pollLocalJob. Trước đây việc phát hiện done chỉ
+// xảy ra khi frontend poll /api/zalo/status (lazy + forward mỗi lần) → mong manh.
+// Giờ cloud chủ động drive job tới hoàn thành; frontend chỉ cần đọc _zaloJobDoneCache.
+async function _driveZaloJob(jobId, maxWaitMs = 10 * 60 * 1000) {
+  const start = Date.now();
+  const fetchFn = await getFetch();
+  while (Date.now() - start < maxWaitMs) {
+    await new Promise(r => setTimeout(r, 2000));
+    if (_zaloJobDoneCache.has(jobId)) return; // frontend poll đã xử lý xong
+    const LOCAL_URL = getLocalUrl();
+    if (!LOCAL_URL) continue;
+    try {
+      const resp = await fetchFn(`${LOCAL_URL}/api/zalo/status/${jobId}`, {
+        headers: { 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!resp.ok) continue;
+      const txt = await resp.text();
+      let d; try { d = JSON.parse(txt); } catch { continue; }
+      if (d && d.status === 'done') {
+        logger.info(`[driveZalo] ${jobId} → done success=${d.success}`);
+        _completeZaloJob(jobId, { success: !!d.success, error: d.error || null });
+        return;
+      }
+    } catch (e) {
+      if (e.name === 'TimeoutError' || e.name === 'AbortError') continue;
+      logger.warn(`[driveZalo] ${jobId} poll error: ${e.message}`);
+    }
+  }
+  logger.warn(`[driveZalo] ${jobId} → quá ${maxWaitMs}ms chưa done`);
+}
+
+// Lưu cache done + complete pending DB row (dùng chung cho cả driveZalo và frontend poll)
+function _completeZaloJob(jobId, { success, error }) {
+  if (_zaloJobDoneCache.has(jobId)) return;
+  _zaloJobDoneCache.set(jobId, { status: 'done', success: !!success, error: error || null, ts: Date.now() });
+  const donePayload = { success: !!success, error: error || null, postUrl: null };
+  const meta = _pendingZaloLogs.get(jobId);
+  try {
+    if (meta) {
+      _pendingZaloLogs.delete(jobId);
+      if (meta.pendingLogId) {
+        const r = postLogger.completePendingPost(meta.pendingLogId, donePayload);
+        if (r.changes === 0) {
+          const r2 = postLogger.completePendingByJobId(jobId, donePayload);
+          logger.info(`[completeZalo] ${jobId} fallback job_id → ${r2.changes} row(s)`);
+        } else {
+          logger.info(`[completeZalo] ${jobId} completePendingPost → ${r.changes} row(s)`);
+        }
+      } else {
+        const r = postLogger.completePendingByJobId(jobId, donePayload);
+        if (r.changes === 0) {
+          postLogger.logPost({
+            profile: meta.profile, profileName: meta.profileName, platform: 'zalo',
+            target: 'group', groupName: meta.groupName, message: meta.message,
+            imageCount: meta.imageCount, success: !!success, error: error || null,
+            postUrl: null, source: 'web', images: meta.images, batchId: meta.batchId,
+          });
+        }
+      }
+    } else {
+      const r = postLogger.completePendingByJobId(jobId, donePayload);
+      logger.info(`[completeZalo] ${jobId} (no meta) job_id → ${r.changes} row(s)`);
+    }
+  } catch (e) {
+    logger.error(`[completeZalo] ${jobId} error: ${e.message}`);
+  }
+}
+
 app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   const LOCAL_URL = getLocalUrl();
   if (!LOCAL_URL) return res.status(503).json({ error: 'Local server chưa kết nối' });
@@ -1814,6 +1884,8 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
         pendingLogId: zaloPendingLogId,
         ts: Date.now(),
       });
+      // Cloud tự drive job tới hoàn thành ở nền (không phụ thuộc frontend poll)
+      _driveZaloJob(data.jobId).catch(e => logger.warn(`[driveZalo] spawn error: ${e.message}`));
     } else {
       // Kết quả đồng bộ (hiếm) — ghi log ngay
       postLogger.logPost({
@@ -1858,7 +1930,11 @@ app.get('/api/zalo/status/:jobId', async (req, res) => {
       headers: { 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
       signal: AbortSignal.timeout(10000), // 10s timeout — tránh treo vô hạn
     });
-    logger.info(`[zalo/status] ${jobId} → local HTTP ${response.status}`);
+    // Đọc body 1 lần duy nhất (stream không đọc lại được)
+    const localText = await response.text();
+    let data;
+    try { data = JSON.parse(localText); } catch { data = { error: localText.slice(0, 200) }; }
+    logger.info(`[zalo/status] ${jobId} → local HTTP ${response.status} status=${data?.status} success=${data?.success}`);
 
     // Nếu local trả 404 (job đã bị xóa) nhưng job vẫn đang pending → trả processing
     // Ngoại trừ: nếu pending row trong DB đã được complete (success != -1), job đã xong
@@ -1869,21 +1945,15 @@ app.get('/api/zalo/status/:jobId', async (req, res) => {
           const rows = postLogger.getPendingPosts();
           const stillPending = rows.some(r => r.id === meta.pendingLogId);
           if (!stillPending) {
-            // DB row đã complete → job đã xong, xóa khỏi map, trả done từ cache hoặc unknown
             _pendingZaloLogs.delete(jobId);
             const cached = _zaloJobDoneCache.get(jobId);
             if (cached) return res.json(cached);
-            // Không có cache → unknown, báo done/failed dựa theo DB
             return res.json({ status: 'done', success: false, error: 'Job completed (status unknown after local restart)' });
           }
         } catch {}
       }
       return res.json({ status: 'processing' });
     }
-
-    const text = await response.text();
-    let data;
-    try { data = JSON.parse(text); } catch { data = { error: text.slice(0, 200) }; }
 
     // Khi job xong: cache kết quả trước, complete pending row sau
     if (data && data.status === 'done') {
