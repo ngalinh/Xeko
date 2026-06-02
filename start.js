@@ -40,7 +40,7 @@ async function getPublicIp() {
   }
 }
 
-async function registerUrl(localUrl) {
+async function registerUrl(localUrl, { silent = false } = {}) {
   try {
     const fetchFn = await getFetch();
     const res = await fetchFn(`${REMOTE_BOT_URL}/api/register-local`, {
@@ -49,8 +49,9 @@ async function registerUrl(localUrl) {
       body: JSON.stringify({ url: localUrl }),
     });
     const data = await res.json();
-    console.log('[✓] Đã đăng ký URL với remote server:', data.message);
+    if (!silent) console.log('[✓] Đã đăng ký URL với remote server:', data.message);
   } catch (e) {
+    // Heartbeat luôn log lỗi (cloud có thể đang down) nhưng im khi thành công
     console.error('[✗] Không đăng ký được URL:', e.message);
   }
 }
@@ -63,8 +64,13 @@ const server = spawn('node', ['server/local-server.js'], {
 });
 server.on('error', e => console.error('Local server error:', e.message));
 
-// Đợi server sẵn sàng rồi đăng ký URL
-setTimeout(async () => {
+// Đợi server sẵn sàng rồi đăng ký URL.
+// Đăng ký lại ĐỊNH KỲ (heartbeat) vì cloud lưu URL trong RAM — mỗi khi cloud
+// restart/reload, URL bị xóa. Heartbeat đảm bảo local tự thông báo lại trong
+// ~30s mà không cần restart local tay.
+const REGISTER_INTERVAL_MS = Number(process.env.REGISTER_INTERVAL_MS) || 30000;
+
+async function resolveLocalUrl() {
   // Ưu tiên URL trong .env, nếu không có thì tự detect IP public
   let localUrl = process.env.PLAYWRIGHT_LOCAL_URL;
   if (!localUrl) {
@@ -74,11 +80,23 @@ setTimeout(async () => {
       console.log(`[✓] Detect IP public: ${ip}`);
     } else {
       console.error('[✗] Không lấy được IP public. Hãy đặt PLAYWRIGHT_LOCAL_URL trong .env');
-      return;
+      return null;
     }
   }
+  return localUrl;
+}
+
+setTimeout(async () => {
+  const localUrl = await resolveLocalUrl();
+  if (!localUrl) return;
   console.log(`[✓] Local URL: ${localUrl}`);
   await registerUrl(localUrl);
+
+  // Heartbeat: đăng ký lại định kỳ (im lặng) để hồi phục sau khi cloud restart
+  setInterval(async () => {
+    const url = await resolveLocalUrl();
+    if (url) await registerUrl(url, { silent: true });
+  }, REGISTER_INTERVAL_MS);
 }, 2000);
 
 process.on('SIGINT', () => {

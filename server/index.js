@@ -1845,7 +1845,7 @@ app.get('/api/zalo/status/:jobId', async (req, res) => {
 
   // Trả ngay từ cache nếu job đã done (local có thể đã xóa job khỏi memory)
   const cached = _zaloJobDoneCache.get(jobId);
-  if (cached) return res.json(cached);
+  if (cached) { logger.info(`[zalo/status] ${jobId} → cache hit done`); return res.json(cached); }
 
   const LOCAL_URL = getLocalUrl();
   if (!LOCAL_URL) return res.status(503).json({ error: 'Local server chưa kết nối' });
@@ -1853,7 +1853,9 @@ app.get('/api/zalo/status/:jobId', async (req, res) => {
     const fetchFn = await getFetch();
     const response = await fetchFn(`${LOCAL_URL}/api/zalo/status/${jobId}`, {
       headers: { 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+      signal: AbortSignal.timeout(10000), // 10s timeout — tránh treo vô hạn
     });
+    logger.info(`[zalo/status] ${jobId} → local HTTP ${response.status}`);
 
     // Nếu local trả 404 (job đã bị xóa) nhưng job vẫn đang pending → trả processing
     // Ngoại trừ: nếu pending row trong DB đã được complete (success != -1), job đã xong
