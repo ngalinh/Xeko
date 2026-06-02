@@ -96,6 +96,9 @@ a{color:#4f46e5;text-decoration:none}</style>
 //   - Không có dòng [REQ] này → request chưa tới Express (proxy/network cắt)
 const _LOG_POST_PATHS = new Set(['/api/post', '/api/schedule', '/api/zalo/post']);
 app.use((req, res, next) => {
+  if (req.path.startsWith('/api/zalo/status/')) {
+    logger.info(`[REQ] GET ${req.path} — ip=${req.ip}`);
+  }
   if (req.method === 'POST' && _LOG_POST_PATHS.has(req.path)) {
     const len = req.headers['content-length'] || '?';
     const ua = (req.headers['user-agent'] || '').slice(0, 50);
