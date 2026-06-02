@@ -11290,7 +11290,7 @@
       document.getElementById('seedModal').style.display = 'flex';
 
       // Load lịch sử seeding
-      _loadSeedHistory(postLogId);
+      _loadSeedHistory();
     }
 
     function closeSeedModal() {
@@ -11468,14 +11468,14 @@
           showXekoToast(`Seeding thành công ${total} bình luận!`, 'success');
           _seedComments = [{ text: '', images: [] }];
           _renderSeedComments();
-          _loadSeedHistory(_seedPostLogId);
+          _loadSeedHistory();
         } else if (successCount === 0) {
           showStatus(`Thất bại: ${lastError || 'Không rõ lỗi'}`, false);
           showXekoToast('Seeding thất bại', 'error');
         } else {
           showStatus(`${successCount} thành công, ${failCount} thất bại. Lỗi: ${lastError || '?'}`, false);
           showXekoToast(`${successCount}/${total} bình luận seeding thành công`, 'success');
-          _loadSeedHistory(_seedPostLogId);
+          _loadSeedHistory();
         }
       }
 
@@ -11483,14 +11483,20 @@
       btn.innerHTML = `<svg class="xi"><use href="#ic-chat"/></svg> Seeding`;
     }
 
-    async function _loadSeedHistory(postLogId) {
-      if (!postLogId) return;
+    async function _loadSeedHistory() {
       const section = document.getElementById('seedHistorySection');
       const list = document.getElementById('seedHistoryList');
+      // Ưu tiên truy vấn theo postUrl — khóa định danh ổn định, khớp y hệt lúc ghi/đọc
+      // (getSeedLogsByUrl lấy mọi log của bài, kể cả khi post_log_id bị null/lệch).
+      // Fallback postLogId nếu vì lý do nào đó không có postUrl.
+      let qs = '';
+      if (_seedPostUrl) qs = 'postUrl=' + encodeURIComponent(_seedPostUrl);
+      else if (_seedPostLogId) qs = 'postLogId=' + encodeURIComponent(_seedPostLogId);
+      else { section.style.display = 'none'; return; }
       try {
-        const res = await fetch(`${BASE_URL}/api/seed-logs?postLogId=${encodeURIComponent(postLogId)}`);
+        const res = await fetch(`${BASE_URL}/api/seed-logs?${qs}`);
         const rows = await parseJson(res);
-        if (!rows.length) { section.style.display = 'none'; return; }
+        if (!Array.isArray(rows) || !rows.length) { section.style.display = 'none'; return; }
         section.style.display = '';
         list.innerHTML = rows.map(r => {
           const ts = new Date(r.timestamp).toLocaleString('vi-VN', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit', year:'numeric' });
@@ -11514,7 +11520,7 @@
     async function _deleteSeedLog(id) {
       try {
         await fetch(`${BASE_URL}/api/seed-logs/${id}`, { method: 'DELETE' });
-        _loadSeedHistory(_seedPostLogId);
+        _loadSeedHistory();
       } catch {}
     }
 
