@@ -15,7 +15,7 @@ function safeParseArray(s) {
 // Persist temp images sang /data/uploads để history tham chiếu được lâu dài.
 // Mirror behavior với persistImages() trong server/index.js.
 const UPLOADS_DIR = path.resolve(__dirname, '../../../data/uploads');
-function persistImages(imagePaths) {
+function persistImages(imagePaths, scheduleId) {
   if (!imagePaths || !imagePaths.length) return [];
   const now = new Date();
   const dateDir = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -25,7 +25,9 @@ function persistImages(imagePaths) {
   for (const p of imagePaths) {
     try {
       if (!fs.existsSync(p)) continue;
-      const filename = path.basename(p);
+      // Prefix với schedule ID để tránh overwrite khi nhiều lịch chạy cùng ngày
+      const basename = path.basename(p);
+      const filename = scheduleId ? `sched${scheduleId}_${basename}` : basename;
       const target = path.join(targetDir, filename);
       fs.copyFileSync(p, target);
       urls.push(`/api/image/${dateDir}/${filename}`);
@@ -125,7 +127,7 @@ async function executeSchedule(job) {
     let result;
     const imgCount = job.imagePaths?.length || 0;
     // Persist temp images sang /data/uploads để history giữ thumbnail sau khi schedule fired
-    const imageUrls = persistImages(job.imagePaths);
+    const imageUrls = persistImages(job.imagePaths, job.id);
 
     // Zalo
     if (job.type === 'zalo') {
