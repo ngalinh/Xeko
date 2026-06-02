@@ -2522,22 +2522,46 @@ async function attachCommentImages(page, imagePaths) {
   return uploaded;
 }
 
-// Đợi ảnh đính kèm hiện preview trong khung soạn bình luận.
-// Gửi quá sớm khi ảnh chưa upload xong khiến FB rớt ảnh → chỉ đăng được text.
-async function waitForCommentImagePreview(page, timeout = 15000) {
+// Đếm số ảnh preview (blob:/data:) đang hiển thị — dùng phát hiện ảnh comment mới đính.
+async function countPreviewImages(page) {
+  return await page.evaluate(() => {
+    return Array.from(document.querySelectorAll('img')).filter(im => {
+      const s = im.currentSrc || im.src || '';
+      return (s.startsWith('blob:') || s.startsWith('data:')) && im.offsetWidth > 10 && im.offsetHeight > 10;
+    }).length;
+  }).catch(() => 0);
+}
+
+// Đợi ảnh comment đính kèm upload XONG mới được gửi:
+//  (1) có preview mới so với baseline (ảnh thực sự được đính, không nhầm ảnh sẵn có trên trang),
+//  (2) không còn spinner [role="progressbar"] và giữ ổn định ~1.2s.
+// Gửi sớm khi ảnh chưa upload xong khiến FB rớt ảnh → chỉ đăng được mỗi text.
+async function waitForCommentImageUploaded(page, baselineCount, timeout = 30000) {
   const start = Date.now();
+  let previewSeen = false;
+  let stableSince = 0;
   while (Date.now() - start < timeout) {
-    const ready = await page.evaluate(() => {
+    const state = await page.evaluate(() => {
       const imgs = Array.from(document.querySelectorAll('img'));
-      return imgs.some(im => {
+      const blobs = imgs.filter(im => {
         const s = im.currentSrc || im.src || '';
         return (s.startsWith('blob:') || s.startsWith('data:')) && im.offsetWidth > 10 && im.offsetHeight > 10;
-      });
-    }).catch(() => false);
-    if (ready) return true;
-    await page.waitForTimeout(500);
+      }).length;
+      const spinners = document.querySelectorAll('[role="progressbar"]').length;
+      return { blobs, spinners };
+    }).catch(() => null);
+    if (state) {
+      if (state.blobs > baselineCount) previewSeen = true;
+      if (previewSeen && state.spinners === 0) {
+        if (!stableSince) stableSince = Date.now();
+        if (Date.now() - stableSince >= 1200) return true;
+      } else {
+        stableSince = 0;
+      }
+    }
+    await page.waitForTimeout(400);
   }
-  return false;
+  return previewSeen;
 }
 
 async function postComment({ postUrl, message, imagePaths, profile }) {
@@ -2616,17 +2640,20 @@ async function postComment({ postUrl, message, imagePaths, profile }) {
       await randomDelay(400, 800);
     }
 
-    // Upload ảnh SAU và ĐỢI preview hiện ra rồi mới gửi.
-    // Trước đây chỉ chờ 1-2s rồi gửi ngay khiến FB rớt ảnh → chỉ đăng được mỗi text.
-    if (imagePaths && imagePaths.length > 0) {
+    // Upload ảnh SAU và ĐỢI upload XONG (preview mới + hết spinner) rồi mới gửi.
+    // Trước đây chỉ chờ preview xuất hiện (dễ nhầm ảnh sẵn có) rồi gửi ngay → FB rớt ảnh.
+    let baselineImgs = 0;
+    const hasImages = imagePaths && imagePaths.length > 0;
+    if (hasImages) {
+      baselineImgs = await countPreviewImages(page);
       const imgOk = await attachCommentImages(page, imagePaths);
       if (!imgOk) {
         logger.warn(`${tag} Không upload được ảnh comment`);
       } else {
-        const ready = await waitForCommentImagePreview(page, 15000);
-        if (ready) logger.info(`${tag} Ảnh đã hiện preview, sẵn sàng gửi`);
-        else logger.warn(`${tag} Chưa thấy preview ảnh sau 15s, vẫn thử gửi`);
-        await randomDelay(800, 1200);
+        const uploaded = await waitForCommentImageUploaded(page, baselineImgs, 30000);
+        if (uploaded) logger.info(`${tag} Ảnh đã upload xong, sẵn sàng gửi`);
+        else logger.warn(`${tag} Ảnh có thể chưa upload xong sau 30s, vẫn thử gửi`);
+        await randomDelay(600, 1000);
         // Re-focus ô comment (thao tác upload ảnh có thể làm mất focus)
         await commentBox.click({ force: true }).catch(() => {});
         await randomDelay(300, 600);
@@ -2637,14 +2664,9 @@ async function postComment({ postUrl, message, imagePaths, profile }) {
     await page.keyboard.press('Control+Enter');
     await randomDelay(2000, 3000);
 
-    // Verify: nếu ô comment vẫn còn text HOẶC ảnh chưa được gửi đi → thử Enter thường
+    // Verify: nếu ô comment vẫn còn text HOẶC ảnh vẫn còn trong khung soạn → thử Enter thường
     const remaining = await commentBox.textContent().catch(() => '');
-    const stillHasImg = (imagePaths && imagePaths.length > 0)
-      ? await page.evaluate(() => Array.from(document.querySelectorAll('img')).some(im => {
-          const s = im.currentSrc || im.src || '';
-          return (s.startsWith('blob:') || s.startsWith('data:')) && im.offsetWidth > 10;
-        })).catch(() => false)
-      : false;
+    const stillHasImg = hasImages ? (await countPreviewImages(page)) > baselineImgs : false;
     if ((remaining && remaining.trim()) || stillHasImg) {
       await commentBox.click({ force: true }).catch(() => {});
       await randomDelay(300, 500);
