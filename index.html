@@ -3312,15 +3312,6 @@
           <button class="ai-style-chip" data-sstyle="promo" onclick="selectSettingsStyle(this)"><span class="chip-icon">🔥</span><span class="chip-label">Quảng cáo</span></button>
           <button class="ai-style-chip" data-sstyle="viral" onclick="selectSettingsStyle(this)"><span class="chip-icon">🚀</span><span class="chip-label">Viral</span></button>
         </div>
-        <!-- Category tabs in settings -->
-        <div class="ai-style-row" id="aiSettingsCatRow" style="padding:0 0 4px;">
-          <button class="ai-cat-chip active" data-scat="" onclick="selectSettingsCat(this)"><span class="chip-label">🌐 Chung</span></button>
-          <button class="ai-cat-chip" data-scat="fashion" onclick="selectSettingsCat(this)"><span class="chip-label">👗 Thời trang</span></button>
-          <button class="ai-cat-chip" data-scat="beauty" onclick="selectSettingsCat(this)"><span class="chip-label">💄 Mỹ phẩm</span></button>
-          <button class="ai-cat-chip" data-scat="electronics" onclick="selectSettingsCat(this)"><span class="chip-label">📱 Điện tử</span></button>
-          <button class="ai-cat-chip" data-scat="accessories" onclick="selectSettingsCat(this)"><span class="chip-label">💍 Phụ kiện</span></button>
-          <button class="ai-cat-chip" data-scat="health" onclick="selectSettingsCat(this)"><span class="chip-label">💊 Sức khoẻ</span></button>
-        </div>
         <div style="font-size:12px; font-weight:600; color:#6d28d9;">📝 Mô tả phong cách viết</div>
         <textarea id="aiSheetGuideTextarea" rows="3" placeholder="Ví dụ: Viết trẻ trung, vui vẻ, dùng emoji. Nhấn mạnh giá trị thực tế..."
           style="width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid #c4b5fd; border-radius:8px; font-size:13px; font-family:inherit; resize:none; outline:none; background:#faf5ff; color:#1e293b;"
@@ -3342,7 +3333,7 @@
       <!-- Main content -->
       <div id="aiSheetMain" style="display:flex; flex-direction:column; flex:1; min-height:0; overflow:hidden;">
         <!-- Style chips -->
-        <div class="ai-style-row" id="aiStyleRow">
+        <div class="ai-style-row" id="aiStyleRow" style="border-bottom:1px solid #f1f5f9;">
           <button class="ai-style-chip active" data-style="short" onclick="selectAiStyle(this)">
             <span class="chip-icon">⚡</span><span class="chip-label">Ngắn gọn</span>
           </button>
@@ -3357,27 +3348,6 @@
           </button>
           <button class="ai-style-chip" data-style="viral" onclick="selectAiStyle(this)">
             <span class="chip-icon">🚀</span><span class="chip-label">Viral</span>
-          </button>
-        </div>
-        <!-- Category chips -->
-        <div class="ai-style-row" id="aiCategoryRow" style="padding-top:0; padding-bottom:10px; border-bottom:1px solid #f1f5f9;">
-          <button class="ai-cat-chip active" data-cat="" onclick="selectAiCategory(this)">
-            <span class="chip-label">🔍 Tự nhận dạng</span>
-          </button>
-          <button class="ai-cat-chip" data-cat="fashion" onclick="selectAiCategory(this)">
-            <span class="chip-label">👗 Thời trang</span>
-          </button>
-          <button class="ai-cat-chip" data-cat="beauty" onclick="selectAiCategory(this)">
-            <span class="chip-label">💄 Mỹ phẩm</span>
-          </button>
-          <button class="ai-cat-chip" data-cat="electronics" onclick="selectAiCategory(this)">
-            <span class="chip-label">📱 Điện tử</span>
-          </button>
-          <button class="ai-cat-chip" data-cat="accessories" onclick="selectAiCategory(this)">
-            <span class="chip-label">💍 Phụ kiện</span>
-          </button>
-          <button class="ai-cat-chip" data-cat="health" onclick="selectAiCategory(this)">
-            <span class="chip-label">💊 Sức khoẻ</span>
           </button>
         </div>
         <!-- Product focus input -->
@@ -5683,7 +5653,6 @@
         main.style.display = 'none';
         btn.style.background = '#ede9fe';
         document.querySelectorAll('#aiSettingsStyleRow .ai-style-chip').forEach(c => c.classList.toggle('active', c.dataset.sstyle === 'short'));
-        document.querySelectorAll('#aiSettingsCatRow .ai-cat-chip').forEach(c => c.classList.toggle('active', c.dataset.scat === ''));
         _aiSettingsStyle = 'short';
         _aiSettingsCat = '';
         _aiGuidesCache = {};
