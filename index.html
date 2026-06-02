@@ -9252,29 +9252,51 @@
             ? `Zalo: ${n.groupName || n.zaloAccount || 'nhóm'}`
             : (targetLabels[n.target] || n.target || '-');
 
+          const escHtml = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          const ndToggle = (text) => {
+            const LIMIT = 60;
+            if (!text || text.length <= LIMIT) return text ? `📝 Nội dung: ${escHtml(text)}\n` : '';
+            const short = escHtml(text.slice(0, LIMIT)) + '...';
+            const full = escHtml(text);
+            return `📝 Nội dung: <span class="nd-short">${short} <a href="#" class="nd-toggle" style="color:var(--primary,#6c63ff);font-size:0.85em">Xem thêm</a></span><span class="nd-full" style="display:none">${full} <a href="#" class="nd-toggle" style="color:var(--primary,#6c63ff);font-size:0.85em">Ẩn bớt</a></span>\n`;
+          };
+          const attachNdToggle = (row) => {
+            row.querySelectorAll('.nd-toggle').forEach(a => {
+              a.addEventListener('click', e => {
+                e.preventDefault();
+                const msg = a.closest('.msg');
+                const s = msg.querySelector('.nd-short'), f = msg.querySelector('.nd-full');
+                s.style.display = s.style.display === 'none' ? '' : 'none';
+                f.style.display = f.style.display === 'none' ? '' : 'none';
+              });
+            });
+          };
+
           if (n.type === 'success') {
             let msg = `✅ <strong>Xong rồi má ơi, Xeko canh giờ đăng bài cho bạn chuẩn ko cần chỉnh luôn á!</strong>\n\n`;
             msg += `⏰ Lịch hẹn: ${n.scheduledTime}\n`;
             msg += `📍 Nơi đăng: ${targetText}\n`;
             msg += `👤 Profile: ${n.profile}\n`;
-            if (n.message) msg += `📝 Nội dung: ${n.message}\n`;
+            msg += ndToggle(n.message);
             if (n.imageCount > 0) msg += `📷 ${n.imageCount} ảnh đính kèm\n`;
             msg += `\n🕐 Đã đăng lúc: ${n.time}`;
-            addBot(msg, [
+            const row = addBot(msg, [
               { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
               { label: `${xekoIcon('clock')} Lên lịch thêm`, handler: () => startScheduleCompose() },
               { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
             ]);
+            attachNdToggle(row);
           } else {
             let msg = `❌ <strong>Huhu bài lên lịch bị lỗi mất rồi!</strong>\n\n`;
             msg += `⏰ Lịch hẹn: ${n.scheduledTime}\n`;
             msg += `📍 Nơi đăng: ${targetText}\n`;
-            if (n.message) msg += `📝 Nội dung: ${n.message}\n`;
+            msg += ndToggle(n.message);
             msg += `\n❗ Lỗi: ${n.error}`;
-            addBot(msg, [
+            const row = addBot(msg, [
               { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
               { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
             ]);
+            attachNdToggle(row);
           }
         }
       } catch {}
