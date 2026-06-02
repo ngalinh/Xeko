@@ -15,7 +15,7 @@ function safeParseArray(s) {
 // Persist temp images sang /data/uploads để history tham chiếu được lâu dài.
 // Mirror behavior với persistImages() trong server/index.js.
 const UPLOADS_DIR = path.resolve(__dirname, '../../../data/uploads');
-function persistImages(imagePaths, scheduleId) {
+function persistImages(imagePaths) {
   if (!imagePaths || !imagePaths.length) return [];
   const now = new Date();
   const dateDir = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -25,9 +25,7 @@ function persistImages(imagePaths, scheduleId) {
   for (const p of imagePaths) {
     try {
       if (!fs.existsSync(p)) continue;
-      // Prefix với schedule ID để tránh overwrite khi nhiều lịch chạy cùng ngày
-      const basename = path.basename(p);
-      const filename = scheduleId ? `sched${scheduleId}_${basename}` : basename;
+      const filename = path.basename(p);
       const target = path.join(targetDir, filename);
       fs.copyFileSync(p, target);
       urls.push(`/api/image/${dateDir}/${filename}`);
@@ -66,9 +64,8 @@ function addSchedule({ time, target, groupId, message, imagePaths, profile, prof
     const schedDir = path.resolve(__dirname, `../../temp/schedule_${id}`);
     if (!fs.existsSync(schedDir)) fs.mkdirSync(schedDir, { recursive: true });
 
-    ownImagePaths = imagePaths.map((src, i) => {
-      const ext = path.extname(src) || '.jpg';
-      const dest = path.join(schedDir, `img_${i}${ext}`);
+    ownImagePaths = imagePaths.map((src) => {
+      const dest = path.join(schedDir, path.basename(src));
       fs.copyFileSync(src, dest);
       return dest;
     });
@@ -127,7 +124,7 @@ async function executeSchedule(job) {
     let result;
     const imgCount = job.imagePaths?.length || 0;
     // Persist temp images sang /data/uploads để history giữ thumbnail sau khi schedule fired
-    const imageUrls = persistImages(job.imagePaths, job.id);
+    const imageUrls = persistImages(job.imagePaths);
 
     // Zalo
     if (job.type === 'zalo') {
