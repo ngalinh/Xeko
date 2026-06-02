@@ -5064,6 +5064,7 @@
         currentProfile = profile.key;
         currentProfileName = _profileDisplayNames[profile.key] || profile.name || data.name || profile.key;
         updateHeaderProfile(currentProfileName);
+        step = 'mode';
         addBot(
           `Profile <strong>${currentProfileName}</strong> sẵn sàng rồi! Bạn muốn đăng kiểu nào?`,
           [
@@ -5071,7 +5072,6 @@
             { label: `${xekoIcon('clock')} Lên lịch`, handler: () => selectMode('schedule') },
           ]
         );
-        step = 'mode';
       } catch (e) {
         addBot(botSystemError('đặt profile', e));
       }
