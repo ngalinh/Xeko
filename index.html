@@ -4767,6 +4767,13 @@
       return `<svg class="${cls}" aria-hidden="true"><use href="#ic-${name}"/></svg>`;
     }
 
+    // Pill badge "FB" / "Zalo" hiển thị trước tên tài khoản cho gọn & đẹp.
+    // Dùng chung cho summary chọn kênh và bảng lịch sử dashboard.
+    function platBadge(platform) {
+      const isZalo = platform === 'zalo';
+      return `<span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:20px;flex-shrink:0;background:${isZalo ? '#e8f0ff' : '#e8f0fe'};color:${isZalo ? '#2563EB' : '#1877f2'};">${isZalo ? 'Zalo' : 'FB'}</span>`;
+    }
+
     function buildPhotoGrid(photos) {
       if (!photos || photos.length === 0) return '';
       const maxShow = Math.min(photos.length, 5);
@@ -5363,22 +5370,24 @@
       const summaryParts = [];
       for (const pKey of Object.keys(selection)) {
         const p = buildTargetChannels(pKey, pKey);
+        const fbBadge = platBadge('facebook');
+        const zaloBadge = platBadge('zalo');
         const fbNames = (selection[pKey].fb || []).map(c => {
-          if (c.id === 'custom') return `Group FB ${getFbGroupDisplayName(c.groupId)}`;
+          if (c.id === 'custom') return `${fbBadge} Group ${getFbGroupDisplayName(c.groupId)}`;
           if (c.id === 'cat') {
             const keys = c.groupKeys || [];
-            return `📁 ${c.category} (${keys.length} nhóm)`;
+            return `${fbBadge} 📁 ${c.category} (${keys.length} nhóm)`;
           }
           const ch = (p.fb || []).find(f => f.id === c.id);
-          return ch ? ch.name : c.id;
+          return `${fbBadge} ${ch ? ch.name : c.id}`;
         });
         const pageNames = (selection[pKey].fbPages || []).map(c => {
           const g = (channelsData.fbPages || []).find(x => x.key === c.key);
-          return g ? `📄 ${g.name}` : c.id;
+          return `${fbBadge} 📄 ${g ? g.name : c.id}`;
         });
         const zaloNames = (selection[pKey].zalo || []).map(c => {
           const ch = (p.zalo || []).find(f => f.id === c.id);
-          return ch ? `${xekoIcon('chat')} ${ch.name}` : c.id;
+          return `${zaloBadge} ${ch ? ch.name : c.id}`;
         });
         const parts = [];
         fbNames.forEach(n => parts.push(n));
@@ -10180,10 +10189,6 @@
           if (groupId && fbGroupIdToName[groupId]) return fbGroupIdToName[groupId];
           return groupId || groupName || '-';
         }
-        const platBadge = (platform) => {
-          const isZalo = platform === 'zalo';
-          return `<span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:20px;flex-shrink:0;background:${isZalo ? '#e8f0ff' : '#e8f0fe'};color:${isZalo ? '#2563EB' : '#1877f2'};">${isZalo ? 'Zalo' : 'FB'}</span>`;
-        };
 
         const tbody = document.getElementById('dashHistoryBody');
         if (typeof _dashSelectedIds !== 'undefined') { _dashSelectedIds.clear(); _updateBulkBar(); }
