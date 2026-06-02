@@ -5404,12 +5404,12 @@
           return ch ? `${xekoIcon('chat')} ${ch.name}` : c.id;
         });
         const parts = [];
-        if (fbNames.length > 0) parts.push(`📘 ${fbNames.join(', ')}`);
-        if (pageNames.length > 0) parts.push(pageNames.join(', '));
-        if (zaloNames.length > 0) parts.push(zaloNames.join(', '));
+        fbNames.forEach(n => parts.push(n));
+        pageNames.forEach(n => parts.push(n));
+        zaloNames.forEach(n => parts.push(n));
         if (parts.length > 0) {
           const pLabel = _profileDisplayNames[pKey] || pKey;
-          summaryParts.push(`<strong>${pLabel}:</strong> ${parts.join(' • ')}`);
+          summaryParts.push(`<strong>${pLabel}:</strong><br>${parts.join('<br>')}`);
         }
       }
       return summaryParts.join('<br>');
