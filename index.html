@@ -4445,10 +4445,38 @@
         </a>
       </div>
 
-      <!-- Tài khoản -->
-      <div style="margin-bottom:14px;">
+      <!-- Tài khoản (chế độ comment ngay) -->
+      <div id="seedAccountRow" style="margin-bottom:14px;">
         <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Tài khoản comment</label>
         <select id="seedProfile" style="width:100%; padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#333;"></select>
+      </div>
+
+      <!-- Hẹn giờ tự động seeding -->
+      <div style="margin-bottom:14px; border:1px dashed #d1d5db; border-radius:10px; padding:10px 12px; background:#fafafa;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:#374151; cursor:pointer; user-select:none;">
+          <input type="checkbox" id="seedAutoToggle" onchange="_toggleSeedAuto()" style="width:15px; height:15px; cursor:pointer;">
+          ⏰ Hẹn giờ tự động seeding
+        </label>
+        <div id="seedAutoPanel" style="display:none; margin-top:10px;">
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+            <div style="flex:1; min-width:180px;">
+              <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px;">Thời gian chạy</label>
+              <input type="datetime-local" id="seedSchedTime" style="width:100%; padding:8px 10px; border:1px solid #e5e7eb; border-radius:7px; font-size:13px; background:#fff; box-sizing:border-box;">
+            </div>
+            <div style="min-width:150px;">
+              <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px;">Giãn cách (giây)</label>
+              <div style="display:flex; align-items:center; gap:4px;">
+                <input type="number" id="seedMinDelay" value="30" min="0" style="width:60px; padding:8px 6px; border:1px solid #e5e7eb; border-radius:7px; font-size:13px; background:#fff; text-align:center;">
+                <span style="color:#9ca3af;">–</span>
+                <input type="number" id="seedMaxDelay" value="90" min="0" style="width:60px; padding:8px 6px; border:1px solid #e5e7eb; border-radius:7px; font-size:13px; background:#fff; text-align:center;">
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:6px;">Tài khoản comment (chọn nhiều — hệ thống rải ngẫu nhiên)</label>
+            <div id="seedAccountChecks" style="display:flex; flex-wrap:wrap; gap:6px; max-height:120px; overflow-y:auto;"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Nội dung seeding -->
@@ -11278,6 +11306,7 @@
     let _seedComments = [{ text: '', images: [] }];
     let _seedPostLogId = null;
     let _seedPostUrl = null;
+    let _seedProfiles = [];
 
     async function openSeedModal(rowId) {
       const _row = (window._dashRows || []).find(r => r.id === rowId);
@@ -11295,17 +11324,24 @@
       _renderSeedComments();
       document.getElementById('seedStatus').style.display = 'none';
       document.getElementById('seedSubmitBtn').disabled = false;
-      document.getElementById('seedSubmitBtn').innerHTML = `<svg class="xi"><use href="#ic-chat"/></svg> Seeding`;
+      // Reset chế độ hẹn giờ
+      document.getElementById('seedAutoToggle').checked = false;
+      _toggleSeedAuto();
 
       // Load danh sách profiles
       try {
         const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), {cache: 'no-store'});
         const data = await parseJson(res);
-        const profiles = data.facebook || [];
+        _seedProfiles = data.facebook || [];
         const sel = document.getElementById('seedProfile');
-        sel.innerHTML = profiles.length
-          ? profiles.map(p => `<option value="${escapeHtml(p.key)}">${escapeHtml(p.name || p.key)}</option>`).join('')
+        sel.innerHTML = _seedProfiles.length
+          ? _seedProfiles.map(p => `<option value="${escapeHtml(p.key)}">${escapeHtml(p.name || p.key)}</option>`).join('')
           : '<option value="">Chưa có tài khoản</option>';
+        // Checkbox tài khoản cho chế độ hẹn giờ (rải ngẫu nhiên)
+        const checks = document.getElementById('seedAccountChecks');
+        checks.innerHTML = _seedProfiles.length
+          ? _seedProfiles.map(p => `<label style="display:inline-flex; align-items:center; gap:5px; background:#fff; border:1px solid #e5e7eb; border-radius:7px; padding:5px 9px; font-size:12px; cursor:pointer;"><input type="checkbox" class="seed-acc-check" value="${escapeHtml(p.key)}" data-name="${escapeHtml(p.name || p.key)}" style="cursor:pointer;">${escapeHtml(p.name || p.key)}</label>`).join('')
+          : '<span style="font-size:12px; color:#9ca3af;">Chưa có tài khoản</span>';
       } catch {
         document.getElementById('seedProfile').innerHTML = '<option value="">Lỗi tải tài khoản</option>';
       }
@@ -11314,6 +11350,25 @@
 
       // Load lịch sử seeding
       _loadSeedHistory();
+    }
+
+    // Bật/tắt chế độ hẹn giờ tự động seeding
+    function _toggleSeedAuto() {
+      const on = document.getElementById('seedAutoToggle').checked;
+      document.getElementById('seedAutoPanel').style.display = on ? '' : 'none';
+      document.getElementById('seedAccountRow').style.display = on ? 'none' : '';
+      const btn = document.getElementById('seedSubmitBtn');
+      btn.innerHTML = on
+        ? `<svg class="xi"><use href="#ic-clock"/></svg> Đặt lịch seeding`
+        : `<svg class="xi"><use href="#ic-chat"/></svg> Seeding`;
+      // Mặc định thời gian = +5 phút nếu chưa nhập
+      const t = document.getElementById('seedSchedTime');
+      if (on && !t.value) {
+        const d = new Date(Date.now() + 5 * 60000);
+        d.setSeconds(0, 0);
+        const pad = n => String(n).padStart(2, '0');
+        t.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      }
     }
 
     function closeSeedModal() {
@@ -11432,6 +11487,9 @@
     }
 
     async function submitSeed() {
+      // Chế độ hẹn giờ → đặt lịch thay vì comment ngay
+      if (document.getElementById('seedAutoToggle').checked) return submitSeedSchedule();
+
       const profile = document.getElementById('seedProfile').value;
       const entriesToPost = _seedComments.filter(c => c.text.trim() || c.images.length > 0);
 
@@ -11506,6 +11564,62 @@
       btn.innerHTML = `<svg class="xi"><use href="#ic-chat"/></svg> Seeding`;
     }
 
+    // Đặt lịch tự động seeding (nhiều tài khoản rải ngẫu nhiên)
+    async function submitSeedSchedule() {
+      const timeVal = document.getElementById('seedSchedTime').value;
+      const accounts = [...document.querySelectorAll('.seed-acc-check:checked')]
+        .map(cb => ({ key: cb.value, name: cb.dataset.name }));
+      const entries = _seedComments.filter(c => c.text.trim() || c.images.length > 0);
+      const minDelay = Math.max(0, parseInt(document.getElementById('seedMinDelay').value) || 0);
+      let maxDelay = Math.max(0, parseInt(document.getElementById('seedMaxDelay').value) || 0);
+      if (maxDelay < minDelay) maxDelay = minDelay;
+
+      if (!timeVal) { showXekoToast('Chọn thời gian chạy!', 'error'); return; }
+      if (new Date(timeVal).getTime() <= Date.now()) { showXekoToast('Thời gian phải ở tương lai!', 'error'); return; }
+      if (!accounts.length) { showXekoToast('Chọn ít nhất 1 tài khoản!', 'error'); return; }
+      if (!entries.length) { showXekoToast('Nhập nội dung hoặc chọn ảnh!', 'error'); return; }
+
+      const btn = document.getElementById('seedSubmitBtn');
+      btn.disabled = true;
+      btn.innerHTML = `<svg class="xi"><use href="#ic-clock"/></svg> Đang đặt lịch...`;
+      try {
+        const fd = new FormData();
+        fd.append('time', new Date(timeVal).toISOString());
+        fd.append('postUrl', _seedPostUrl);
+        fd.append('postLogId', String(_seedPostLogId || ''));
+        fd.append('comments', JSON.stringify(entries.map(e => ({ text: e.text.trim() }))));
+        fd.append('accounts', JSON.stringify(accounts));
+        fd.append('minDelay', String(minDelay));
+        fd.append('maxDelay', String(maxDelay));
+        entries.forEach((e, i) => {
+          for (const f of e.images) if (f instanceof File) fd.append('img_' + i, f);
+        });
+
+        const res = await fetch(BASE_URL + '/api/seed-schedule', { method: 'POST', body: fd });
+        const data = await parseJson(res);
+        if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+
+        showXekoToast(`Đã đặt lịch seeding lúc ${data.time}`, 'success');
+        const el = document.getElementById('seedStatus');
+        el.style.display = ''; el.style.background = '#d1fae5'; el.style.color = '#065F46'; el.style.border = '1px solid #6ee7b7';
+        el.textContent = `Đã đặt lịch ${entries.length} bình luận, chạy lúc ${data.time}.`;
+        _seedComments = [{ text: '', images: [] }];
+        _renderSeedComments();
+        _loadSeedHistory();
+      } catch (e) {
+        showXekoToast('Lỗi đặt lịch: ' + e.message, 'error');
+      }
+      btn.disabled = false;
+      btn.innerHTML = `<svg class="xi"><use href="#ic-clock"/></svg> Đặt lịch seeding`;
+    }
+
+    async function _cancelSeedSchedule(id) {
+      try {
+        await fetch(`${BASE_URL}/api/seed-schedule/${id}`, { method: 'DELETE' });
+        _loadSeedHistory();
+      } catch {}
+    }
+
     async function _loadSeedHistory() {
       const section = document.getElementById('seedHistorySection');
       const list = document.getElementById('seedHistoryList');
@@ -11531,7 +11645,24 @@
         } catch (e) { lastErr = (e && e.message) || 'lỗi tải'; }
       }
 
-      if (!rows.length) {
+      // Lịch seeding đang chờ chạy (hiển thị phía trên lịch sử)
+      let scheds = [];
+      if (_seedPostUrl) {
+        try {
+          const r = await fetch(`${BASE_URL}/api/seed-schedules?postUrl=${encodeURIComponent(_seedPostUrl)}`, { cache: 'no-store' });
+          if (r.ok) { const d = await parseJson(r); if (Array.isArray(d)) scheds = d; }
+        } catch { /* ignore */ }
+      }
+      const schedHtml = scheds.length ? `
+        <div style="margin-bottom:10px;">
+          <div style="font-size:11px; font-weight:700; color:#2563eb; margin-bottom:6px;">⏰ Lịch chờ chạy</div>
+          ${scheds.map(s => `<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 9px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:7px; margin-bottom:5px;">
+            <div style="min-width:0; flex:1; font-size:11px; color:#1e40af; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(s.time)} · ${s.commentCount} bình luận · ${s.accountCount} acc${s.status === 'running' ? ' · <b>đang chạy</b>' : ''}</div>
+            ${s.status === 'running' ? '' : `<button onclick="_cancelSeedSchedule(${s.id})" title="Huỷ lịch" style="flex-shrink:0; background:none; border:none; color:#93c5fd; cursor:pointer; font-size:15px; line-height:1; padding:0;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#93c5fd'">×</button>`}
+          </div>`).join('')}
+        </div>` : '';
+
+      if (!rows.length && !scheds.length) {
         if (lastErr) {
           section.style.display = '';
           list.innerHTML = `<div style="font-size:12px; color:#9ca3af;">Chưa tải được lịch sử (${escapeHtml(lastErr)}). Kiểm tra <code>/api/seed-logs</code> trên server.</div>`;
@@ -11544,7 +11675,7 @@
       rows.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       {
         section.style.display = '';
-        list.innerHTML = rows.map(r => {
+        list.innerHTML = schedHtml + rows.map(r => {
           const ts = new Date(r.timestamp).toLocaleString('vi-VN', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit', year:'numeric' });
           const status = r.success
             ? `<span style="color:#059669; font-size:11px; font-weight:600;">✓ Thành công</span>`

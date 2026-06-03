@@ -1,6 +1,8 @@
 const logger = require('./logger');
 const postLogger = require('../database/post-logger');
 const scheduleStore = require('../database/schedule-store');
+const seedScheduleStore = require('../database/seed-schedule-store');
+const seedStore = require('../database/seed-store');
 const { queuePost } = require('./post-queue');
 const fs = require('fs');
 const path = require('path');
@@ -42,6 +44,11 @@ let nextId = 1;
 
 // Notifications cho web UI
 const notifications = [];
+
+// ===== AUTO-SEEDING THEO LỊCH =====
+// Cache RAM cho lịch seeding (nguồn sự thật là DB)
+const seedSchedules = [];
+let nextSeedId = 1;
 
 /**
  * Thêm lịch đăng bài
@@ -404,4 +411,203 @@ function getNotifications() {
   return items;
 }
 
-module.exports = { addSchedule, getSchedules, removeSchedule, getNotifications, init };
+// ===== AUTO-SEEDING: thêm / thực thi / liệt kê / xoá / khôi phục =====
+
+const _seedDir = (id) => path.resolve(__dirname, `../../temp/seed_schedule_${id}`);
+
+function _cleanupSeedImages(job) {
+  try {
+    for (const c of (job.comments || [])) {
+      for (const p of (c.imagePaths || [])) {
+        try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch { /* ignore */ }
+      }
+    }
+    const dir = _seedDir(job.id);
+    if (fs.existsSync(dir)) { try { fs.rmdirSync(dir); } catch { /* ignore */ } }
+  } catch { /* ignore */ }
+}
+
+/**
+ * Thêm lịch tự động seeding cho 1 bài.
+ * comments: [{ text, imagePaths: [tmpPath...] }]  (ảnh là file tạm vừa upload)
+ * accounts: [{ key, name }]  — rải ngẫu nhiên qua các bình luận
+ */
+function addSeedSchedule({ time, postLogId, postUrl, comments, accounts, minDelay, maxDelay }) {
+  const scheduleTime = new Date(time);
+  if (isNaN(scheduleTime.getTime())) throw new Error('Thời gian không hợp lệ');
+  if (scheduleTime <= new Date()) throw new Error('Thời gian phải ở tương lai');
+  if (!postUrl) throw new Error('Thiếu postUrl');
+  if (!Array.isArray(comments) || !comments.length) throw new Error('Chưa có nội dung bình luận');
+  if (!Array.isArray(accounts) || !accounts.length) throw new Error('Chưa chọn tài khoản');
+
+  const id = nextSeedId++;
+
+  // Copy ảnh riêng cho lịch này (tránh bị cleanup khi request kết thúc)
+  const dir = _seedDir(id);
+  const ownComments = comments.map((c, ci) => {
+    let imgs = [];
+    if (Array.isArray(c.imagePaths) && c.imagePaths.length) {
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      imgs = c.imagePaths.map((src, k) => {
+        const dest = path.join(dir, `c${ci}_${k}_${path.basename(src)}`);
+        fs.copyFileSync(src, dest);
+        return dest;
+      });
+    }
+    return { text: c.text || '', imagePaths: imgs };
+  });
+
+  const job = {
+    id,
+    time: scheduleTime,
+    postLogId: postLogId || null,
+    postUrl,
+    comments: ownComments,
+    accounts,
+    minDelay: minDelay != null ? Number(minDelay) : 30,
+    maxDelay: maxDelay != null ? Number(maxDelay) : 90,
+    status: 'pending',
+    result: null,
+    timer: null,
+  };
+
+  seedScheduleStore.insert(job);
+  const delay = scheduleTime.getTime() - Date.now();
+  job.timer = setTimeout(() => executeSeedSchedule(job), delay);
+  seedSchedules.push(job);
+  logger.info(`Lên lịch seeding #${id}: ${scheduleTime.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} — ${ownComments.length} bình luận, ${accounts.length} tài khoản`);
+  return job;
+}
+
+/**
+ * Thực thi seeding theo lịch: lần lượt từng bình luận, mỗi cái dùng 1 tài khoản
+ * ngẫu nhiên trong danh sách, có delay ngẫu nhiên giữa các bình luận.
+ * KHÔNG bọc toàn bộ trong queuePost để delay dài không khoá hàng đợi đăng bài;
+ * mỗi postComment vẫn được queue riêng để serial với các thao tác khác.
+ */
+async function executeSeedSchedule(job) {
+  const playwright = process.env.PLAYWRIGHT_LOCAL_URL
+    ? require('../../playwright-proxy')
+    : require('../playwright/post');
+
+  job.status = 'running';
+  seedScheduleStore.updateStatus(job.id, 'running');
+  logger.info(`Bắt đầu seeding theo lịch #${job.id}: ${job.comments.length} bình luận`);
+
+  let success = 0, fail = 0, lastError = '';
+  const pickAccount = () => job.accounts[Math.floor(Math.random() * job.accounts.length)];
+
+  for (let i = 0; i < job.comments.length; i++) {
+    const c = job.comments[i];
+    if (!(c.text && c.text.trim()) && !(c.imagePaths && c.imagePaths.length)) continue;
+    const acc = pickAccount();
+    const imageUrls = persistImages(c.imagePaths || []);
+    let result = null;
+    try {
+      result = await queuePost(() => playwright.postComment({
+        postUrl: job.postUrl,
+        message: c.text || '',
+        imagePaths: c.imagePaths || [],
+        profile: acc.key,
+      }));
+    } catch (e) {
+      result = { success: false, error: e.message };
+    }
+    let profileName = acc.name || acc.key;
+    try { const pd = playwright.getActiveProfile && playwright.getActiveProfile(); if (pd && pd.name) profileName = pd.name; } catch { /* ignore */ }
+    try {
+      seedStore.logSeed({
+        postLogId: job.postLogId,
+        postUrl: job.postUrl,
+        profile: acc.key,
+        profileName,
+        platform: 'facebook',
+        message: c.text || '',
+        imageCount: (c.imagePaths || []).length,
+        images: imageUrls,
+        success: !!(result && result.success),
+        error: result && result.error,
+      });
+    } catch (e) { logger.error(`logSeed lịch #${job.id}: ${e.message}`); }
+
+    if (result && result.success) success++; else { fail++; lastError = (result && result.error) || 'Không rõ'; }
+
+    // Delay ngẫu nhiên giữa các bình luận (không tính cái cuối)
+    if (i < job.comments.length - 1) {
+      const min = Math.max(0, (job.minDelay || 0) * 1000);
+      const max = Math.max(min, (job.maxDelay || 0) * 1000);
+      const wait = min + Math.random() * (max - min);
+      logger.info(`Lịch seeding #${job.id}: chờ ${Math.round(wait / 1000)}s trước bình luận kế tiếp`);
+      await new Promise(r => setTimeout(r, wait));
+    }
+  }
+
+  const status = success === 0 && fail > 0 ? 'error' : 'done';
+  job.status = status;
+  seedScheduleStore.updateStatus(job.id, status, { success, fail, lastError });
+  logger.info(`Seeding lịch #${job.id} xong: ${success} OK, ${fail} lỗi`);
+
+  _cleanupSeedImages(job);
+  seedScheduleStore.remove(job.id);
+  const idx = seedSchedules.findIndex(j => j.id === job.id);
+  if (idx !== -1) seedSchedules.splice(idx, 1);
+}
+
+function getSeedSchedules(postUrl) {
+  return seedSchedules
+    .filter(j => !postUrl || j.postUrl === postUrl)
+    .map(j => ({
+      id: j.id,
+      timeISO: j.time.toISOString(),
+      time: j.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
+      postLogId: j.postLogId,
+      postUrl: j.postUrl,
+      commentCount: j.comments.length,
+      accountCount: j.accounts.length,
+      accounts: j.accounts.map(a => a.name || a.key),
+      minDelay: j.minDelay,
+      maxDelay: j.maxDelay,
+      status: j.status,
+    }));
+}
+
+function removeSeedSchedule(id) {
+  const index = seedSchedules.findIndex(j => j.id === id);
+  if (index === -1) { seedScheduleStore.remove(id); return false; }
+  const job = seedSchedules[index];
+  if (job.timer) clearTimeout(job.timer);
+  _cleanupSeedImages(job);
+  seedSchedules.splice(index, 1);
+  seedScheduleStore.remove(id);
+  logger.info(`Đã xoá lịch seeding #${id}`);
+  return true;
+}
+
+/** Khôi phục lịch seeding từ DB khi server khởi động */
+function initSeeds() {
+  nextSeedId = seedScheduleStore.nextId();
+  const pending = seedScheduleStore.getPending();
+  if (!pending.length) { logger.info('Seed scheduler init: không có lịch pending'); return; }
+
+  const now = Date.now();
+  let catchup = 0, restored = 0;
+  for (const p of pending) {
+    const job = { ...p, status: 'pending', timer: null };
+    seedSchedules.push(job);
+    const delay = p.time.getTime() - now;
+    if (delay <= 0) {
+      logger.warn(`Catch-up lịch seeding #${p.id}: quá hạn, chạy ngay`);
+      catchup++;
+      executeSeedSchedule(job);
+    } else {
+      job.timer = setTimeout(() => executeSeedSchedule(job), delay);
+      restored++;
+    }
+  }
+  logger.info(`Seed scheduler init: khôi phục ${restored}, catch-up ${catchup}`);
+}
+
+module.exports = {
+  addSchedule, getSchedules, removeSchedule, getNotifications, init,
+  addSeedSchedule, getSeedSchedules, removeSeedSchedule, initSeeds,
+};
