@@ -11336,6 +11336,8 @@
     let _seedPostLogId = null;
     let _seedPostUrl = null;
     let _seedProfiles = [];
+    let _seedLastPending = 0;        // số lịch seeding đang chờ/chạy (cập nhật bởi _loadSeedHistory)
+    let _seedModalPollTimer = null;  // poll khi modal mở để tự refresh khi lịch chạy xong
 
     async function openSeedModal(rowId) {
       const _row = (window._dashRows || []).find(r => r.id === rowId);
@@ -11377,8 +11379,9 @@
 
       document.getElementById('seedModal').style.display = 'flex';
 
-      // Load lịch sử seeding
-      _loadSeedHistory();
+      // Load lịch sử seeding; nếu có lịch đang chờ/chạy thì poll để tự cập nhật
+      await _loadSeedHistory();
+      if (_seedLastPending > 0) _startSeedModalPoll();
     }
 
     // Bật/tắt chế độ hẹn giờ tự động seeding
@@ -11402,6 +11405,7 @@
 
     function closeSeedModal() {
       document.getElementById('seedModal').style.display = 'none';
+      _stopSeedModalPoll();
       _seedComments = [{ text: '', images: [] }];
       _seedPostLogId = null;
       _seedPostUrl = null;
@@ -11639,7 +11643,8 @@
         el.textContent = `Đã đặt lịch ${entries.length} bình luận, chạy lúc ${data.time}.`;
         _seedComments = [{ text: '', images: [] }];
         _renderSeedComments();
-        _loadSeedHistory();
+        await _loadSeedHistory();
+        _startSeedModalPoll(); // theo dõi để tự cập nhật khi lịch chạy xong
       } catch (e) {
         showXekoToast('Lỗi đặt lịch: ' + e.message, 'error');
       }
@@ -11652,6 +11657,31 @@
         await fetch(`${BASE_URL}/api/seed-schedule/${id}`, { method: 'DELETE' });
         _loadSeedHistory();
       } catch {}
+    }
+
+    function _stopSeedModalPoll() {
+      if (_seedModalPollTimer) { clearInterval(_seedModalPollTimer); _seedModalPollTimer = null; }
+    }
+
+    // Khi modal mở và có lịch đang chờ/chạy: poll để lịch sử tự cập nhật,
+    // và khi lịch chạy xong thì refresh luôn cột Seeding ngoài dashboard
+    // (tránh phải hard-refresh thủ công).
+    function _startSeedModalPoll() {
+      _stopSeedModalPoll();
+      _seedModalPollTimer = setInterval(async () => {
+        const modal = document.getElementById('seedModal');
+        if (!modal || modal.style.display === 'none') { _stopSeedModalPoll(); return; }
+        const before = _seedLastPending;
+        await _loadSeedHistory();        // cập nhật _seedLastPending + render lại
+        const after = _seedLastPending;
+        if (before > 0 && after === 0) {
+          // Lịch vừa chạy xong → cập nhật cột Seeding ngoài dashboard rồi dừng poll
+          if (typeof loadDashHistory === 'function') { try { loadDashHistory({ noSkeleton: true }); } catch {} }
+          _stopSeedModalPoll();
+        } else if (after === 0) {
+          _stopSeedModalPoll(); // không còn gì để theo dõi
+        }
+      }, 8000);
     }
 
     // Chuẩn hoá URL ảnh seeding giống buildThumbs: /uploads/ → /api/image/, và thêm BASE_URL
@@ -11695,6 +11725,7 @@
           if (r.ok) { const d = await parseJson(r); if (Array.isArray(d)) scheds = d; }
         } catch { /* ignore */ }
       }
+      _seedLastPending = scheds.length;
       const schedHtml = scheds.length ? `
         <div style="margin-bottom:10px;">
           <div style="font-size:11px; font-weight:700; color:#2563eb; margin-bottom:6px;">⏰ Lịch chờ chạy</div>
