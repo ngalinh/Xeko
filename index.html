@@ -7533,7 +7533,7 @@
 
       const escHtml = s => (s == null ? '' : String(s)).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
       const statusColor = s => s === 'done' ? '#16a34a' : s === 'pending' ? '#d97706' : s === 'running' ? '#3B82F6' : s === 'error' ? '#dc2626' : '#9ca3af';
-      const platIcon = () => '📘';
+      const platIcon = (p) => p === 'zalo' ? '💬' : '📘';
 
       // Bucket events theo ngày và sort theo giờ
       const byDay = new Map();
@@ -7565,10 +7565,12 @@
         if (isMobile) {
           // Mobile: badge đếm (ô quá nhỏ để hiện strip)
           const fbCount = list.filter(e => e.platform === 'facebook').length;
+          const zaloCount = list.filter(e => e.platform === 'zalo').length;
           const errCount = list.filter(e => e.status === 'error').length;
           const pendingCount = list.filter(e => e.status === 'pending' || e.status === 'running').length;
           body = `<div style="display:flex; flex-wrap:wrap; gap:3px;">
             ${fbCount > 0 ? `<span style="background:#DBEAFE; color:#1E3A8A; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">FB ${fbCount}</span>` : ''}
+            ${zaloCount > 0 ? `<span style="background:#E0EAFF; color:#2563EB; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">Zalo ${zaloCount}</span>` : ''}
             ${errCount > 0 ? `<span style="background:#fef2f2; color:#dc2626; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">✕${errCount}</span>` : ''}
             ${pendingCount > 0 ? `<span style="background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;"><svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;" aria-hidden="true"><use href="#ic-clock"/></svg>${pendingCount}</span>` : ''}
           </div>`;
@@ -7617,7 +7619,7 @@
           </div>
           <div style="display:flex; flex-direction:column; gap:8px;">
             ${list.map(e => {
-              const plat = 'FB';
+              const plat = e.platform === 'zalo' ? 'Zalo' : 'FB';
               const time = e.date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
               const statusBadge = e.status === 'done'
                 ? '<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:6px; font-size:11px;">Done</span>'
