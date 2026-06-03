@@ -49,6 +49,8 @@ const notifications = [];
 // Cache RAM cho lịch seeding (nguồn sự thật là DB)
 const seedSchedules = [];
 let nextSeedId = 1;
+// Thông báo seeding đã chạy xong (cho client poll → toast), tách khỏi notifications của lịch đăng bài
+const seedNotifications = [];
 
 /**
  * Thêm lịch đăng bài
@@ -491,6 +493,8 @@ async function executeSeedSchedule(job) {
     : require('../playwright/post');
 
   job.status = 'running';
+  job.total = job.comments.length;
+  job.done = 0;
   seedScheduleStore.updateStatus(job.id, 'running');
   logger.info(`Bắt đầu seeding theo lịch #${job.id}: ${job.comments.length} bình luận`);
 
@@ -499,7 +503,7 @@ async function executeSeedSchedule(job) {
 
   for (let i = 0; i < job.comments.length; i++) {
     const c = job.comments[i];
-    if (!(c.text && c.text.trim()) && !(c.imagePaths && c.imagePaths.length)) continue;
+    if (!(c.text && c.text.trim()) && !(c.imagePaths && c.imagePaths.length)) { job.done = i + 1; continue; }
     const acc = pickAccount();
     const imageUrls = persistImages(c.imagePaths || []);
     let result = null;
@@ -531,6 +535,7 @@ async function executeSeedSchedule(job) {
     } catch (e) { logger.error(`logSeed lịch #${job.id}: ${e.message}`); }
 
     if (result && result.success) success++; else { fail++; lastError = (result && result.error) || 'Không rõ'; }
+    job.done = i + 1;
 
     // Delay ngẫu nhiên giữa các bình luận (không tính cái cuối)
     if (i < job.comments.length - 1) {
@@ -546,6 +551,19 @@ async function executeSeedSchedule(job) {
   job.status = status;
   seedScheduleStore.updateStatus(job.id, status, { success, fail, lastError });
   logger.info(`Seeding lịch #${job.id} xong: ${success} OK, ${fail} lỗi`);
+
+  // Thông báo cho client (toast)
+  seedNotifications.push({
+    id: job.id,
+    postUrl: job.postUrl,
+    postLogId: job.postLogId,
+    total: success + fail,
+    success,
+    fail,
+    error: fail ? lastError : null,
+    time: new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
+    type: fail === 0 ? 'success' : (success === 0 ? 'error' : 'partial'),
+  });
 
   _cleanupSeedImages(job);
   seedScheduleStore.remove(job.id);
@@ -568,7 +586,16 @@ function getSeedSchedules(postUrl) {
       minDelay: j.minDelay,
       maxDelay: j.maxDelay,
       status: j.status,
+      done: j.done || 0,
+      total: j.total || j.comments.length,
     }));
+}
+
+/** Lấy & xoá thông báo seeding (client poll → toast) */
+function getSeedNotifications() {
+  const items = [...seedNotifications];
+  seedNotifications.length = 0;
+  return items;
 }
 
 function removeSeedSchedule(id) {
@@ -609,5 +636,5 @@ function initSeeds() {
 
 module.exports = {
   addSchedule, getSchedules, removeSchedule, getNotifications, init,
-  addSeedSchedule, getSeedSchedules, removeSeedSchedule, initSeeds,
+  addSeedSchedule, getSeedSchedules, removeSeedSchedule, initSeeds, getSeedNotifications,
 };

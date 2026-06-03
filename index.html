@@ -9642,25 +9642,46 @@
       if (_dashPendingPollTimer) { clearInterval(_dashPendingPollTimer); _dashPendingPollTimer = null; }
     }
 
-    // Watcher toàn cục: phát hiện lịch seeding vừa chạy xong (số lịch chờ giảm) để
-    // tự cập nhật cột Seeding + lịch sử — kể cả khi modal đóng, không cần hard-refresh.
+    // Toast khi lịch seeding chạy xong (giống lịch đăng bài)
+    function _showSeedToast(n) {
+      const ok = n.success || 0, total = n.total || 0;
+      if (n.type === 'success') showXekoToast(`✅ Đã seeding xong ${ok}/${total} bình luận`, 'success');
+      else if (n.type === 'error') showXekoToast(`❌ Seeding thất bại (${n.fail || total}/${total})${n.error ? ': ' + n.error : ''}`, 'error');
+      else showXekoToast(`⚠️ Seeding xong: ${ok} thành công, ${n.fail || 0} lỗi`, 'success');
+    }
+
+    // Watcher toàn cục: bắn toast khi lịch seeding xong + tự cập nhật cột Seeding/lịch sử
+    // (kể cả khi modal đóng). Khi có lịch đang chạy thì refresh để chip tiến độ "sống".
     let _seedSchedWatchCount = null;
     setInterval(async () => {
       const dashPg = document.getElementById('pageDashboard');
       if (!dashPg || !dashPg.classList.contains('active')) return;
-      let count = null;
+
+      // 1) Thông báo hoàn tất → toast
+      let gotNotif = false;
+      try {
+        const rn = await fetch(BASE_URL + '/api/seed-notifications?_t=' + Date.now(), { cache: 'no-store' });
+        if (rn.ok) {
+          const items = await parseJson(rn);
+          if (Array.isArray(items) && items.length) { gotNotif = true; items.forEach(_showSeedToast); }
+        }
+      } catch { /* ignore */ }
+
+      // 2) Trạng thái lịch → refresh khi có chạy/đổi số lượng (cho chip tiến độ sống)
+      let count = null, running = false;
       try {
         const r = await fetch(BASE_URL + '/api/seed-schedules?_t=' + Date.now(), { cache: 'no-store' });
-        if (r.ok) { const d = await parseJson(r); if (Array.isArray(d)) count = d.length; }
-      } catch { return; }
-      if (count === null) return;
-      if (_seedSchedWatchCount !== null && count < _seedSchedWatchCount) {
+        if (r.ok) { const d = await parseJson(r); if (Array.isArray(d)) { count = d.length; running = d.some(s => s.status === 'running'); } }
+      } catch { /* ignore */ }
+
+      const changed = count !== null && _seedSchedWatchCount !== null && count !== _seedSchedWatchCount;
+      if (gotNotif || running || changed) {
         loadDashHistory({ noSkeleton: true, noAnimation: true });
         const modal = document.getElementById('seedModal');
         if (modal && modal.style.display !== 'none') _loadSeedHistory();
       }
-      _seedSchedWatchCount = count;
-    }, 12000);
+      if (count !== null) _seedSchedWatchCount = count;
+    }, 8000);
 
     // Cập nhật badge trực tiếp trên DOM row (không async, không gap UI)
     async function _dismissPendingDbRow(id, trId) {
@@ -10252,8 +10273,18 @@
         const seedSummaryMap = new Map();
         (Array.isArray(seedSummaryRows) ? seedSummaryRows : []).forEach(s => { if (s && s.post_url) seedSummaryMap.set(s.post_url, s); });
 
-        // Có lịch seeding đang chạy / sắp chạy (≤2 phút) → cần auto-poll để cập nhật cột Seeding
+        // Lịch seeding theo post_url → chip "sống" (đang chạy / chờ) ở cột Seeding
         const seedSchedRows = (seedSchedRes && seedSchedRes.ok) ? await parseJson(seedSchedRes).catch(() => []) : [];
+        const seedSchedMap = new Map();
+        (Array.isArray(seedSchedRows) ? seedSchedRows : []).forEach(s => {
+          if (!s || !s.postUrl) return;
+          const cur = seedSchedMap.get(s.postUrl);
+          // Ưu tiên dòng 'running'; nếu chưa có thì lấy lịch chờ sớm nhất
+          if (!cur || (s.status === 'running' && cur.status !== 'running') ||
+              (s.status === cur.status && new Date(s.timeISO) < new Date(cur.timeISO))) {
+            seedSchedMap.set(s.postUrl, s);
+          }
+        });
         _dashHasPendingSeed = (Array.isArray(seedSchedRows) ? seedSchedRows : [])
           .some(s => s.status === 'running' || (new Date(s.timeISO).getTime() - Date.now()) < 2 * 60 * 1000);
 
@@ -10494,25 +10525,38 @@
           const statusBadgeFor = (row) => row.success
             ? '<span style="background:#d1fae5; color:#047857; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-check"/></svg>Done</span>'
             : `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'').replace(/"/g,'&quot;')}"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-x"/></svg>Failed</span>`;
-          // Ô cột Seeding: gộp số bình luận đã seeding theo post_url (dedupe nếu nhiều dòng cùng URL)
+          // Ô cột Seeding: ưu tiên chip "sống" (đang seeding / lịch chờ), rồi tới kết quả đã seeding.
           const seedCellForRows = (rows, clickId) => {
-            let ok = 0, total = 0, last = '';
+            let ok = 0, total = 0, last = '', sched = null;
             const seen = new Set();
             for (const r of rows) {
               const u = r && r.post_url;
               if (!u || seen.has(u)) continue;
               seen.add(u);
               const s = seedSummaryMap.get(u);
-              if (!s) continue;
-              ok += Number(s.success || 0);
-              total += Number(s.total || 0);
-              if (s.last_timestamp && s.last_timestamp > last) last = s.last_timestamp;
+              if (s) {
+                ok += Number(s.success || 0);
+                total += Number(s.total || 0);
+                if (s.last_timestamp && s.last_timestamp > last) last = s.last_timestamp;
+              }
+              const sc = seedSchedMap.get(u);
+              if (sc && (!sched || (sc.status === 'running' && sched.status !== 'running'))) sched = sc;
+            }
+            const open = `onclick="event.stopPropagation(); openSeedModal(${clickId})"`;
+            // Đang seeding → chip nhấp nháy với tiến độ
+            if (sched && sched.status === 'running') {
+              return `<td style="padding:8px 12px; text-align:center;"><span class="badge-pulse" ${open} title="Đang seeding ${sched.done || 0}/${sched.total || sched.commentCount} bình luận" style="display:inline-flex; align-items:center; gap:4px; background:#DBEAFE; color:#2563EB; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;"><svg style="width:11px;height:11px;" aria-hidden="true"><use href="#ic-clock"/></svg>${sched.done || 0}/${sched.total || sched.commentCount}</span></td>`;
+            }
+            // Có lịch chờ chạy
+            if (sched) {
+              const hm = (sched.time || '').split(' ')[0] || sched.time || '';
+              return `<td style="padding:8px 12px; text-align:center;"><span ${open} title="Lịch chờ chạy lúc ${(sched.time||'').replace(/"/g,'&quot;')} · ${sched.commentCount} bình luận" style="display:inline-flex; align-items:center; gap:4px; background:#eff6ff; color:#2563EB; border:1px solid #bfdbfe; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;"><svg style="width:11px;height:11px;" aria-hidden="true"><use href="#ic-clock"/></svg>⏰ ${hm}${total ? ` · ${ok}/${total}` : ''}</span></td>`;
             }
             if (!total) return `<td style="padding:8px 12px; text-align:center; color:#cbd5e1; font-size:12px;">—</td>`;
             const color = ok === total ? '#047857' : (ok === 0 ? '#b91c1c' : '#92400e');
             const bg = ok === total ? '#d1fae5' : (ok === 0 ? '#fee2e2' : '#fef3c7');
             const title = `Đã seeding ${ok}/${total} bình luận${last ? ' · gần nhất ' + fmtTime(last) : ''} (bấm để xem/chỉnh)`;
-            return `<td style="padding:8px 12px; text-align:center;"><span onclick="event.stopPropagation(); openSeedModal(${clickId})" title="${title.replace(/"/g,'&quot;')}" style="display:inline-flex; align-items:center; gap:4px; background:${bg}; color:${color}; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;"><svg style="width:11px;height:11px;" aria-hidden="true"><use href="#ic-chat"/></svg>${ok}/${total}</span></td>`;
+            return `<td style="padding:8px 12px; text-align:center;"><span ${open} title="${title.replace(/"/g,'&quot;')}" style="display:inline-flex; align-items:center; gap:4px; background:${bg}; color:${color}; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;"><svg style="width:11px;height:11px;" aria-hidden="true"><use href="#ic-chat"/></svg>${ok}/${total}</span></td>`;
           };
           const seedCell = (row) => seedCellForRows([row], row.id);
 
