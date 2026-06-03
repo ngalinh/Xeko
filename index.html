@@ -10545,18 +10545,24 @@
             const open = `onclick="event.stopPropagation(); openSeedModal(${clickId})"`;
             // Đang seeding → chip nhấp nháy với tiến độ
             if (sched && sched.status === 'running') {
-              return `<td style="padding:8px 12px; text-align:center;"><span class="badge-pulse" ${open} title="Đang seeding ${sched.done || 0}/${sched.total || sched.commentCount} bình luận" style="display:inline-flex; align-items:center; gap:4px; background:#DBEAFE; color:#2563EB; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;"><svg style="width:11px;height:11px;" aria-hidden="true"><use href="#ic-clock"/></svg>${sched.done || 0}/${sched.total || sched.commentCount}</span></td>`;
+              return `<td style="padding:8px 8px; text-align:center;"><span class="badge-pulse" ${open} title="Đang seeding ${sched.done || 0}/${sched.total || sched.commentCount} bình luận" style="display:inline-flex; align-items:center; gap:3px; background:#DBEAFE; color:#2563EB; padding:3px 8px; border-radius:999px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;"><svg style="width:11px;height:11px;" aria-hidden="true"><use href="#ic-clock"/></svg>${sched.done || 0}/${sched.total || sched.commentCount}</span></td>`;
             }
-            // Có lịch chờ chạy
+            // Chip kết quả đã seeding (dùng lại cho cả khi có lịch chờ)
+            let resultChip = '';
+            if (total) {
+              const color = ok === total ? '#047857' : (ok === 0 ? '#b91c1c' : '#92400e');
+              const bg = ok === total ? '#d1fae5' : (ok === 0 ? '#fee2e2' : '#fef3c7');
+              const title = `Đã seeding ${ok}/${total} bình luận${last ? ' · gần nhất ' + fmtTime(last) : ''}`;
+              resultChip = `<span ${open} title="${title.replace(/"/g,'&quot;')}" style="display:inline-flex; align-items:center; gap:3px; background:${bg}; color:${color}; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;"><svg style="width:11px;height:11px;" aria-hidden="true"><use href="#ic-chat"/></svg>${ok}/${total}</span>`;
+            }
+            // Có lịch chờ chạy → chip giờ gọn (HH:MM), xếp dưới chip kết quả
             if (sched) {
-              const hm = (sched.time || '').split(' ')[0] || sched.time || '';
-              return `<td style="padding:8px 12px; text-align:center;"><span ${open} title="Lịch chờ chạy lúc ${(sched.time||'').replace(/"/g,'&quot;')} · ${sched.commentCount} bình luận" style="display:inline-flex; align-items:center; gap:4px; background:#eff6ff; color:#2563EB; border:1px solid #bfdbfe; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;"><svg style="width:11px;height:11px;" aria-hidden="true"><use href="#ic-clock"/></svg>⏰ ${hm}${total ? ` · ${ok}/${total}` : ''}</span></td>`;
+              const hm = (sched.time || '').split(' ')[0].slice(0, 5);
+              const clockChip = `<span ${open} title="Lịch chờ chạy lúc ${(sched.time||'').replace(/"/g,'&quot;')} · ${sched.commentCount} bình luận" style="display:inline-flex; align-items:center; gap:3px; background:#eff6ff; color:#2563EB; border:1px solid #bfdbfe; padding:2px 7px; border-radius:999px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;"><svg style="width:10px;height:10px;" aria-hidden="true"><use href="#ic-clock"/></svg>${hm}</span>`;
+              return `<td style="padding:8px 8px; text-align:center;"><div style="display:inline-flex; flex-direction:column; gap:3px; align-items:center;">${resultChip}${clockChip}</div></td>`;
             }
             if (!total) return `<td style="padding:8px 12px; text-align:center; color:#cbd5e1; font-size:12px;">—</td>`;
-            const color = ok === total ? '#047857' : (ok === 0 ? '#b91c1c' : '#92400e');
-            const bg = ok === total ? '#d1fae5' : (ok === 0 ? '#fee2e2' : '#fef3c7');
-            const title = `Đã seeding ${ok}/${total} bình luận${last ? ' · gần nhất ' + fmtTime(last) : ''} (bấm để xem/chỉnh)`;
-            return `<td style="padding:8px 12px; text-align:center;"><span ${open} title="${title.replace(/"/g,'&quot;')}" style="display:inline-flex; align-items:center; gap:4px; background:${bg}; color:${color}; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;"><svg style="width:11px;height:11px;" aria-hidden="true"><use href="#ic-chat"/></svg>${ok}/${total}</span></td>`;
+            return `<td style="padding:8px 12px; text-align:center;">${resultChip}</td>`;
           };
           const seedCell = (row) => seedCellForRows([row], row.id);
 
