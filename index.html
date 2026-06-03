@@ -3977,9 +3977,9 @@
             <input type="date" id="chartTo" onchange="loadDashChart()" style="padding:6px 8px; border:1px solid #ddd; border-radius:7px; font-size:12px; color:#555; width:115px; box-sizing:border-box;">
             <select id="chartDays" onchange="_chartDaysPreset()" style="padding:6px 8px; border:1px solid #ddd; border-radius:7px; font-size:12px; color:#555; min-width:90px;">
               <option value="">Tùy chọn</option>
-              <option value="7">7 ngày</option>
+              <option value="7" selected>7 ngày</option>
               <option value="14">14 ngày</option>
-              <option value="30" selected>30 ngày</option>
+              <option value="30">30 ngày</option>
               <option value="60">60 ngày</option>
             </select>
             <div style="display:flex; gap:4px;">
@@ -9961,6 +9961,21 @@
         console.error('Dashboard stats error:', e);
       }
 
+      // Khởi tạo ngày mặc định: tuần hiện tại (T2–CN) nếu chưa có giá trị
+      const _chartFromEl = document.getElementById('chartFrom');
+      if (_chartFromEl && !_chartFromEl.value) {
+        const _today = new Date();
+        const _dow = _today.getDay(); // 0=CN
+        const _mon = new Date(_today);
+        _mon.setDate(_today.getDate() - (_dow === 0 ? 6 : _dow - 1));
+        const _sun = new Date(_mon);
+        _sun.setDate(_mon.getDate() + 6);
+        const _fmt = d => d.toISOString().slice(0, 10);
+        _chartFromEl.value = _fmt(_mon);
+        document.getElementById('chartTo').value = _fmt(_sun);
+        document.getElementById('chartDays').value = '7';
+      }
+
       // Load history + chart — luôn chạy kể cả khi stats lỗi
       try {
         await Promise.all([loadDashHistory(), loadDashChart()]);
@@ -9989,10 +10004,21 @@
     function _chartDaysPreset() {
       const days = document.getElementById('chartDays')?.value;
       if (!days) return;
-      const to = new Date();
-      const from = new Date();
-      from.setDate(from.getDate() - parseInt(days) + 1);
       const fmt = d => d.toISOString().slice(0, 10);
+      let from, to;
+      if (days === '7') {
+        // Tuần hiện tại: Thứ 2 → Chủ nhật của tuần chứa ngày hôm nay
+        const today = new Date();
+        const dow = today.getDay(); // 0=CN, 1=T2, ...6=T7
+        from = new Date(today);
+        from.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+        to = new Date(from);
+        to.setDate(from.getDate() + 6);
+      } else {
+        to = new Date();
+        from = new Date();
+        from.setDate(from.getDate() - parseInt(days) + 1);
+      }
       document.getElementById('chartFrom').value = fmt(from);
       document.getElementById('chartTo').value = fmt(to);
       loadDashChart();
