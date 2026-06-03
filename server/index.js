@@ -1303,6 +1303,66 @@ app.get('/api/notifications', (req, res) => {
   res.json(scheduler.getNotifications());
 });
 
+// ===== AUTO-SEEDING THEO LỊCH =====
+// Tạo lịch tự động seeding. Ảnh từng bình luận gửi qua field img_<index>.
+app.post('/api/seed-schedule', upload.any(), (req, res) => {
+  const allPaths = (req.files || []).map(f => f.path);
+  try {
+    const { time, postLogId, postUrl, minDelay, maxDelay } = req.body;
+    let comments = [], accounts = [];
+    try { comments = JSON.parse(req.body.comments || '[]'); } catch { comments = []; }
+    try { accounts = JSON.parse(req.body.accounts || '[]'); } catch { accounts = []; }
+
+    if (!postUrl) { cleanupFiles(allPaths); return res.status(400).json({ error: 'Thiếu postUrl' }); }
+    if (!Array.isArray(accounts) || !accounts.length) { cleanupFiles(allPaths); return res.status(400).json({ error: 'Chưa chọn tài khoản' }); }
+    for (const a of accounts) {
+      if (!a || !a.key || !playwright.profileExists(a.key)) {
+        cleanupFiles(allPaths);
+        return res.status(400).json({ error: `Tài khoản "${a && a.key}" không tồn tại` });
+      }
+    }
+
+    // Gom ảnh upload theo chỉ số bình luận (fieldname = img_<i>)
+    const filesByComment = {};
+    for (const f of (req.files || [])) {
+      const m = /^img_(\d+)$/.exec(f.fieldname);
+      if (!m) continue;
+      const ci = Number(m[1]);
+      (filesByComment[ci] = filesByComment[ci] || []).push(f.path);
+    }
+    const builtComments = comments
+      .map((c, i) => ({ text: (c && c.text) || '', imagePaths: filesByComment[i] || [] }))
+      .filter(c => (c.text && c.text.trim()) || c.imagePaths.length);
+
+    if (!builtComments.length) { cleanupFiles(allPaths); return res.status(400).json({ error: 'Chưa có nội dung bình luận' }); }
+
+    const job = scheduler.addSeedSchedule({
+      time,
+      postLogId: postLogId ? Number(postLogId) : null,
+      postUrl,
+      comments: builtComments,
+      accounts,
+      minDelay: minDelay != null ? Number(minDelay) : 30,
+      maxDelay: maxDelay != null ? Number(maxDelay) : 90,
+    });
+    cleanupFiles(allPaths); // addSeedSchedule đã copy ảnh sang thư mục riêng của lịch
+    res.json({ success: true, id: job.id, time: job.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) });
+  } catch (e) {
+    cleanupFiles(allPaths);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+app.get('/api/seed-schedules', (req, res) => {
+  res.json(scheduler.getSeedSchedules(req.query.postUrl));
+});
+
+app.delete('/api/seed-schedule/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  if (scheduler.removeSeedSchedule(id)) res.json({ success: true });
+  else res.status(404).json({ error: 'Không tìm thấy lịch seeding' });
+});
+
 // Serve ảnh từ temp/schedule folders
 app.get('/api/schedule-image/:id/:index', (req, res) => {
   const schedules = scheduler.getSchedules();
@@ -2404,6 +2464,15 @@ app.post('/api/seed', upload.array('images', 10), async (req, res) => {
   });
 });
 
+// Tổng hợp seeding theo post_url cho cột Seeding ở dashboard
+app.get('/api/seed-logs/summary', (req, res) => {
+  try {
+    res.json(seedStore.getSeedSummary());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/seed-logs', (req, res) => {
   const { postLogId, postUrl } = req.query;
   try {
@@ -2484,6 +2553,7 @@ app.listen(config.server.port, () => {
   // Khoi phuc lich tu DB: re-schedule lich tuong lai + catch-up lich qua han
   try {
     scheduler.init();
+    scheduler.initSeeds();
   } catch (e) {
     logger.error(`Scheduler init error: ${e.message}`);
   }
