@@ -9620,16 +9620,17 @@
     const _pendingLogProgressRows = {}; // pendingLogId → { progressRow, groupName, account }
     let _loadDashHistoryVersion = 0; // version guard để cancel concurrent loadDashHistory calls
     let _dashPendingPollTimer = null; // auto-refresh khi có pending rows
+    let _dashHasPendingSeed = false;  // có lịch seeding đang chạy/sắp chạy → cần auto-refresh cột Seeding
 
     function _startDashPendingPoll() {
       if (_dashPendingPollTimer) return;
       _dashPendingPollTimer = setInterval(() => {
         const dashPg = document.getElementById('pageDashboard');
         if (!dashPg || !dashPg.classList.contains('active')) return;
-        // Chỉ poll nếu còn pending rows hoặc active repost jobs
+        // Chỉ poll nếu còn pending rows, active repost jobs, hoặc lịch seeding đang chạy/sắp chạy
         const hasPending = document.querySelector('#dashHistoryBody tr[id^="pending-log-"]');
         const hasActive = _activeRepostJobs.length > 0;
-        if (hasPending || hasActive) {
+        if (hasPending || hasActive || _dashHasPendingSeed) {
           loadDashHistory({ noSkeleton: true, noAnimation: true });
         } else {
           _stopDashPendingPoll();
@@ -9640,6 +9641,26 @@
     function _stopDashPendingPoll() {
       if (_dashPendingPollTimer) { clearInterval(_dashPendingPollTimer); _dashPendingPollTimer = null; }
     }
+
+    // Watcher toàn cục: phát hiện lịch seeding vừa chạy xong (số lịch chờ giảm) để
+    // tự cập nhật cột Seeding + lịch sử — kể cả khi modal đóng, không cần hard-refresh.
+    let _seedSchedWatchCount = null;
+    setInterval(async () => {
+      const dashPg = document.getElementById('pageDashboard');
+      if (!dashPg || !dashPg.classList.contains('active')) return;
+      let count = null;
+      try {
+        const r = await fetch(BASE_URL + '/api/seed-schedules?_t=' + Date.now(), { cache: 'no-store' });
+        if (r.ok) { const d = await parseJson(r); if (Array.isArray(d)) count = d.length; }
+      } catch { return; }
+      if (count === null) return;
+      if (_seedSchedWatchCount !== null && count < _seedSchedWatchCount) {
+        loadDashHistory({ noSkeleton: true, noAnimation: true });
+        const modal = document.getElementById('seedModal');
+        if (modal && modal.style.display !== 'none') _loadSeedHistory();
+      }
+      _seedSchedWatchCount = count;
+    }, 12000);
 
     // Cập nhật badge trực tiếp trên DOM row (không async, không gap UI)
     async function _dismissPendingDbRow(id, trId) {
@@ -10211,11 +10232,12 @@
 
       try {
         const _t = Date.now();
-        const [schedRes, histRes, byProfileRes, seedSumRes] = await Promise.all([
+        const [schedRes, histRes, byProfileRes, seedSumRes, seedSchedRes] = await Promise.all([
           fetch(BASE_URL + '/api/schedules?_t=' + _t, {cache: 'no-store'}).catch(() => null),
           fetch(BASE_URL + '/api/post-history?' + params.toString() + '&_t=' + _t, {cache: 'no-store'}),
           fetch(BASE_URL + '/api/statistics/by-profile?' + statsParams.toString() + '&_t=' + _t, {cache: 'no-store'}),
           fetch(BASE_URL + '/api/seed-logs/summary?_t=' + _t, {cache: 'no-store'}).catch(() => null),
+          fetch(BASE_URL + '/api/seed-schedules?_t=' + _t, {cache: 'no-store'}).catch(() => null),
         ]);
         // Nếu có call mới hơn đang chờ render, bỏ qua call này
         if (myVersion !== _loadDashHistoryVersion) return;
@@ -10229,6 +10251,11 @@
         const seedSummaryRows = (seedSumRes && seedSumRes.ok) ? await parseJson(seedSumRes).catch(() => []) : [];
         const seedSummaryMap = new Map();
         (Array.isArray(seedSummaryRows) ? seedSummaryRows : []).forEach(s => { if (s && s.post_url) seedSummaryMap.set(s.post_url, s); });
+
+        // Có lịch seeding đang chạy / sắp chạy (≤2 phút) → cần auto-poll để cập nhật cột Seeding
+        const seedSchedRows = (seedSchedRes && seedSchedRes.ok) ? await parseJson(seedSchedRes).catch(() => []) : [];
+        _dashHasPendingSeed = (Array.isArray(seedSchedRows) ? seedSchedRows : [])
+          .some(s => s.status === 'running' || (new Date(s.timeISO).getTime() - Date.now()) < 2 * 60 * 1000);
 
         // Lọc lịch chờ/đang đăng
         const hasPendingFilter = statuses.some(s => s === 'pending' || s === 'running');
@@ -10660,8 +10687,8 @@
           if (!noAnimation) _animateTableRows(tbody);
         }
 
-        // Auto-poll khi có pending rows hoặc active jobs đang chạy
-        const hasPendingNow = _pendingDbRows.length > 0 || _activeRepostJobs.length > 0;
+        // Auto-poll khi có pending rows, active jobs, hoặc lịch seeding đang chạy/sắp chạy
+        const hasPendingNow = _pendingDbRows.length > 0 || _activeRepostJobs.length > 0 || _dashHasPendingSeed;
         if (hasPendingNow) _startDashPendingPoll();
         else _stopDashPendingPoll();
 
