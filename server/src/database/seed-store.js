@@ -60,8 +60,22 @@ function deleteSeedLog(id) {
   return db.prepare('DELETE FROM seed_logs WHERE id = ?').run(id);
 }
 
+// Tổng hợp số lần seeding theo từng bài (post_url) — phục vụ cột Seeding ở dashboard.
+function getSeedSummary() {
+  return db.prepare(`
+    SELECT post_url,
+           COUNT(*) AS total,
+           SUM(success) AS success,
+           SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) AS fail,
+           MAX(timestamp) AS last_timestamp
+    FROM seed_logs
+    WHERE post_url IS NOT NULL AND post_url != ''
+    GROUP BY post_url
+  `).all();
+}
+
 function safeParseJson(str) {
   try { return JSON.parse(str); } catch { return []; }
 }
 
-module.exports = { logSeed, getSeedLogs, getSeedLogsByUrl, deleteSeedLog };
+module.exports = { logSeed, getSeedLogs, getSeedLogsByUrl, deleteSeedLog, getSeedSummary };

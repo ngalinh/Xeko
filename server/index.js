@@ -2404,6 +2404,15 @@ app.post('/api/seed', upload.array('images', 10), async (req, res) => {
   });
 });
 
+// Tổng hợp seeding theo post_url cho cột Seeding ở dashboard
+app.get('/api/seed-logs/summary', (req, res) => {
+  try {
+    res.json(seedStore.getSeedSummary());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/seed-logs', (req, res) => {
   const { postLogId, postUrl } = req.query;
   try {
