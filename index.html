@@ -11445,6 +11445,7 @@
 
     function _onSeedDrop(e, entryIdx) {
       e.preventDefault();
+      e.stopPropagation(); // tránh handler drop cấp document (ô soạn bài chat) cũng nhận ảnh
       const box = e.currentTarget;
       box.style.borderColor = '#e5e7eb';
       box.style.background = '#fafafa';
@@ -11453,7 +11454,11 @@
     }
 
     function _onSeedPaste(e, entryIdx) {
-      // Dán ảnh từ clipboard (Ctrl+V) vào ô bình luận
+      // Dán ảnh từ clipboard (Ctrl+V) vào ô bình luận.
+      // Chặn lan truyền để handler paste cấp document (ô soạn bài chat) không
+      // cũng nhận ảnh — nếu không ảnh sẽ hiện cả ở ô "Nhập nội dung bài viết".
+      e.stopPropagation();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
       const items = Array.from((e.clipboardData && e.clipboardData.items) || []);
       const files = items
         .filter(it => it.kind === 'file' && it.type.startsWith('image/'))
