@@ -8857,6 +8857,23 @@
 
     let profilesCache = [];
     let zaloAccountsCache = [];
+    // Map saleworkName (cách bài Zalo lưu trong post_logs) → tên hiển thị của tài
+    // khoản Zalo (z.name). Dùng để dashboard hiển thị đúng "tên hiển thị" thay vì
+    // saleworkName, kể cả với dữ liệu cũ (remap lúc render).
+    let zaloSaleworkToName = {};
+    function setZaloAccountCaches(zaloList) {
+      const list = zaloList || [];
+      zaloAccountsCache = list.map(z => z.saleworkName).filter(Boolean);
+      zaloSaleworkToName = {};
+      list.forEach(z => {
+        if (z.saleworkName && z.name) zaloSaleworkToName[z.saleworkName] = z.name;
+      });
+    }
+    // Trả về tên hiển thị của tài khoản Zalo theo saleworkName; fallback về chính
+    // giá trị truyền vào nếu chưa có trong map.
+    function zaloDisplayName(saleworkName) {
+      return zaloSaleworkToName[saleworkName] || saleworkName;
+    }
     let pickerProfileKey = null;
     let pickerTab = 'all';
     let pickerCategoryFilter = '';
@@ -8879,7 +8896,7 @@
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await parseJson(res);
         profilesCache = data.facebook || [];
-        zaloAccountsCache = (data.zalo || []).map(z => z.saleworkName).filter(Boolean);
+        setZaloAccountCaches(data.zalo);
         renderProfileGrid();
       } catch (e) {
         errorEl.style.display = '';
@@ -9853,11 +9870,16 @@
         </span>`;
 
       const renderPlatformRow = (p, label, badgeBg, badgeColor) => {
+        // Zalo: hiển thị theo "tên hiển thị" của tài khoản (z.name) thay vì
+        // saleworkName mà post_logs lưu. FB giữ nguyên profile_name.
+        const displayName = p.platform === 'zalo'
+          ? zaloDisplayName(p.profile_name || p.profile)
+          : (p.profile_name || p.profile);
         return `<div style="margin-top:8px;">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
             <div style="display:flex; align-items:center; gap:6px; min-width:0;">
               <span style="display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box; min-width:38px; font-size:10px; font-weight:700; padding:1px 6px; border-radius:20px; background:${badgeBg}; color:${badgeColor}; flex-shrink:0;">${label}</span>
-              <span style="font-size:12px; color:#555; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(p.profile_name || p.profile)}</span>
+              <span style="font-size:12px; color:#555; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(displayName)}</span>
             </div>
             ${statNums(p.total, p.success_count, p.fail_count)}
           </div>
@@ -9901,7 +9923,7 @@
         .filter(p => p.platform === 'zalo' && !zaloAccountToGroup[p.profile])
         .forEach(zalo => {
           const rows = renderPlatformRow(zalo, 'Zalo', '#e8f0ff', '#2563EB');
-          cards.push(renderCard(zalo.profile_name || zalo.profile, zalo.total, zalo.success_count, zalo.fail_count, rows));
+          cards.push(renderCard(zaloDisplayName(zalo.profile_name || zalo.profile), zalo.total, zalo.success_count, zalo.fail_count, rows));
         });
 
       profileEl.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px;">${cards.join('')}</div>`;
@@ -9967,7 +9989,7 @@
           if (accRes.ok) {
             const accData = await parseJson(accRes);
             profilesCache = accData.facebook || [];
-            zaloAccountsCache = (accData.zalo || []).map(z => z.saleworkName).filter(Boolean);
+            setZaloAccountCaches(accData.zalo);
           }
         } catch {}
       }
@@ -10000,7 +10022,12 @@
           stats.byProfile.forEach(p => {
             if (!seen.has(p.profile)) {
               seen.add(p.profile);
-              profileOpts.push({ value: p.profile, label: p.profile_name || p.profile });
+              // Value giữ nguyên p.profile (saleworkName) để filter khớp post_logs;
+              // label dùng tên hiển thị cho Zalo.
+              const lbl = p.platform === 'zalo'
+                ? zaloDisplayName(p.profile_name || p.profile)
+                : (p.profile_name || p.profile);
+              profileOpts.push({ value: p.profile, label: lbl });
             }
           });
           setMselOptions('msel-profile', profileOpts, 'Tất cả tài khoản');
