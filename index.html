@@ -11336,6 +11336,8 @@
     let _seedPostLogId = null;
     let _seedPostUrl = null;
     let _seedProfiles = [];
+    let _seedLastPending = 0;        // số lịch seeding đang chờ/chạy (cập nhật bởi _loadSeedHistory)
+    let _seedModalPollTimer = null;  // poll khi modal mở để tự refresh khi lịch chạy xong
 
     async function openSeedModal(rowId) {
       const _row = (window._dashRows || []).find(r => r.id === rowId);
@@ -11377,8 +11379,9 @@
 
       document.getElementById('seedModal').style.display = 'flex';
 
-      // Load lịch sử seeding
-      _loadSeedHistory();
+      // Load lịch sử seeding; nếu có lịch đang chờ/chạy thì poll để tự cập nhật
+      await _loadSeedHistory();
+      if (_seedLastPending > 0) _startSeedModalPoll();
     }
 
     // Bật/tắt chế độ hẹn giờ tự động seeding
@@ -11402,6 +11405,7 @@
 
     function closeSeedModal() {
       document.getElementById('seedModal').style.display = 'none';
+      _stopSeedModalPoll();
       _seedComments = [{ text: '', images: [] }];
       _seedPostLogId = null;
       _seedPostUrl = null;
@@ -11445,6 +11449,7 @@
 
     function _onSeedDrop(e, entryIdx) {
       e.preventDefault();
+      e.stopPropagation(); // tránh handler drop cấp document (ô soạn bài chat) cũng nhận ảnh
       const box = e.currentTarget;
       box.style.borderColor = '#e5e7eb';
       box.style.background = '#fafafa';
@@ -11453,7 +11458,11 @@
     }
 
     function _onSeedPaste(e, entryIdx) {
-      // Dán ảnh từ clipboard (Ctrl+V) vào ô bình luận
+      // Dán ảnh từ clipboard (Ctrl+V) vào ô bình luận.
+      // Chặn lan truyền để handler paste cấp document (ô soạn bài chat) không
+      // cũng nhận ảnh — nếu không ảnh sẽ hiện cả ở ô "Nhập nội dung bài viết".
+      e.stopPropagation();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
       const items = Array.from((e.clipboardData && e.clipboardData.items) || []);
       const files = items
         .filter(it => it.kind === 'file' && it.type.startsWith('image/'))
@@ -11634,7 +11643,8 @@
         el.textContent = `Đã đặt lịch ${entries.length} bình luận, chạy lúc ${data.time}.`;
         _seedComments = [{ text: '', images: [] }];
         _renderSeedComments();
-        _loadSeedHistory();
+        await _loadSeedHistory();
+        _startSeedModalPoll(); // theo dõi để tự cập nhật khi lịch chạy xong
       } catch (e) {
         showXekoToast('Lỗi đặt lịch: ' + e.message, 'error');
       }
@@ -11647,6 +11657,39 @@
         await fetch(`${BASE_URL}/api/seed-schedule/${id}`, { method: 'DELETE' });
         _loadSeedHistory();
       } catch {}
+    }
+
+    function _stopSeedModalPoll() {
+      if (_seedModalPollTimer) { clearInterval(_seedModalPollTimer); _seedModalPollTimer = null; }
+    }
+
+    // Khi modal mở và có lịch đang chờ/chạy: poll để lịch sử tự cập nhật,
+    // và khi lịch chạy xong thì refresh luôn cột Seeding ngoài dashboard
+    // (tránh phải hard-refresh thủ công).
+    function _startSeedModalPoll() {
+      _stopSeedModalPoll();
+      _seedModalPollTimer = setInterval(async () => {
+        const modal = document.getElementById('seedModal');
+        if (!modal || modal.style.display === 'none') { _stopSeedModalPoll(); return; }
+        const before = _seedLastPending;
+        await _loadSeedHistory();        // cập nhật _seedLastPending + render lại
+        const after = _seedLastPending;
+        if (before > 0 && after === 0) {
+          // Lịch vừa chạy xong → cập nhật cột Seeding ngoài dashboard rồi dừng poll
+          if (typeof loadDashHistory === 'function') { try { loadDashHistory({ noSkeleton: true }); } catch {} }
+          _stopSeedModalPoll();
+        } else if (after === 0) {
+          _stopSeedModalPoll(); // không còn gì để theo dõi
+        }
+      }, 8000);
+    }
+
+    // Chuẩn hoá URL ảnh seeding giống buildThumbs: /uploads/ → /api/image/, và thêm BASE_URL
+    // (app có thể chạy dưới sub-path /b/{id}/ nên URL tương đối cần tiền tố BASE_URL).
+    function _seedImgUrl(u) {
+      if (!u) return u;
+      if (u.startsWith('/uploads/')) u = '/api/image/' + u.slice('/uploads/'.length);
+      return u.startsWith('/') ? BASE_URL + u : u;
     }
 
     async function _loadSeedHistory() {
@@ -11682,6 +11725,7 @@
           if (r.ok) { const d = await parseJson(r); if (Array.isArray(d)) scheds = d; }
         } catch { /* ignore */ }
       }
+      _seedLastPending = scheds.length;
       const schedHtml = scheds.length ? `
         <div style="margin-bottom:10px;">
           <div style="font-size:11px; font-weight:700; color:#2563eb; margin-bottom:6px;">⏰ Lịch chờ chạy</div>
@@ -11714,7 +11758,7 @@
               <div style="font-size:12px; color:#374151; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(r.profile_name || r.profile)} · ${ts} · ${status}</div>
               ${r.message ? `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px;">${escapeHtml(r.message.substring(0,100))}</div>` : ''}
               ${(r.images && r.images.length)
-                ? `<div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">${r.images.map(u => `<img src="${escapeHtml(u)}" onclick="openLightbox('${escapeHtml(u)}')" style="width:36px; height:36px; object-fit:cover; border-radius:5px; border:1px solid #e5e7eb; cursor:pointer;" loading="lazy">`).join('')}</div>`
+                ? `<div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">${r.images.map(u => { const su = _seedImgUrl(u); return `<img src="${escapeHtml(su)}" onclick="openLightbox('${escapeHtml(su)}')" style="width:36px; height:36px; object-fit:cover; border-radius:5px; border:1px solid #e5e7eb; cursor:pointer;" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:36px;height:36px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;align-items:center;justify-content:center;font-size:14px;'}))">`; }).join('')}</div>`
                 : (r.image_count ? `<div style="font-size:11px; color:#9ca3af; margin-top:1px;">${r.image_count} ảnh</div>` : '')}
             </div>
             <button onclick="_deleteSeedLog(${r.id})" style="flex-shrink:0; background:none; border:none; color:#d1d5db; cursor:pointer; font-size:16px; line-height:1; padding:0;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#d1d5db'">×</button>
