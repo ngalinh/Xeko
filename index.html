@@ -10246,6 +10246,9 @@
         const seedSummaryRows = (seedSumRes && seedSumRes.ok) ? await parseJson(seedSumRes).catch(() => []) : [];
         const seedSummaryMap = new Map();
         (Array.isArray(seedSummaryRows) ? seedSummaryRows : []).forEach(s => { if (s && s.post_url) seedSummaryMap.set(s.post_url, s); });
+        // Map: id dòng (clickId của cột Seeding) → bài FB seedable + tất cả post_url của nhóm,
+        // để mở modal đúng bài (tránh mở dòng Zalo anchor không có post_url → link null).
+        window._seedRowInfo = {};
 
         // Lịch seeding theo post_url → chip "sống" (đang chạy / chờ) ở cột Seeding
         const seedSchedRows = (seedSchedRes && seedSchedRes.ok) ? await parseJson(seedSchedRes).catch(() => []) : [];
@@ -10503,10 +10506,13 @@
           const seedCellForRows = (rows, clickId) => {
             let ok = 0, total = 0, last = '', sched = null;
             const seen = new Set();
+            const urls = [];
+            let target = null; // bài FB seedable để mở modal (ưu tiên bài có seed)
             for (const r of rows) {
               const u = r && r.post_url;
               if (!u || seen.has(u)) continue;
               seen.add(u);
+              urls.push(u);
               const s = seedSummaryMap.get(u);
               if (s) {
                 ok += Number(s.success || 0);
@@ -10515,22 +10521,38 @@
               }
               const sc = seedSchedMap.get(u);
               if (sc && (!sched || (sc.status === 'running' && sched.status !== 'running'))) sched = sc;
+              // Chọn bài FB seedable: ưu tiên bài đã có seed log, kế đến bài FB bất kỳ có url
+              if (r.platform !== 'zalo') {
+                if (!target || (s && s.total)) target = r;
+              }
             }
+            // Lưu thông tin để openSeedModal mở đúng bài (FB) + truy vấn lịch sử theo mọi url
+            window._seedRowInfo[clickId] = {
+              urls,
+              postUrl: target ? target.post_url : (urls[0] || ''),
+              postLogId: target ? target.id : clickId,
+            };
             const open = `onclick="event.stopPropagation(); openSeedModal(${clickId})"`;
             // Đang seeding → chip nhấp nháy với tiến độ
             if (sched && sched.status === 'running') {
-              return `<td style="padding:8px 12px; text-align:center;"><span class="badge-pulse" ${open} title="Đang seeding ${sched.done || 0}/${sched.total || sched.commentCount} bình luận" style="display:inline-flex; align-items:center; gap:4px; background:#DBEAFE; color:#2563EB; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;"><svg style="width:11px;height:11px;" aria-hidden="true"><use href="#ic-clock"/></svg>${sched.done || 0}/${sched.total || sched.commentCount}</span></td>`;
+              return `<td style="padding:8px 8px; text-align:center;"><span class="badge-pulse" ${open} title="Đang seeding ${sched.done || 0}/${sched.total || sched.commentCount} bình luận" style="display:inline-flex; align-items:center; gap:3px; background:#DBEAFE; color:#2563EB; padding:3px 8px; border-radius:999px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;"><svg style="width:11px;height:11px;" aria-hidden="true"><use href="#ic-clock"/></svg>${sched.done || 0}/${sched.total || sched.commentCount}</span></td>`;
             }
-            // Có lịch chờ chạy
+            // Chip kết quả đã seeding (dùng lại cho cả khi có lịch chờ)
+            let resultChip = '';
+            if (total) {
+              const color = ok === total ? '#047857' : (ok === 0 ? '#b91c1c' : '#92400e');
+              const bg = ok === total ? '#d1fae5' : (ok === 0 ? '#fee2e2' : '#fef3c7');
+              const title = `Đã seeding ${ok}/${total} bình luận${last ? ' · gần nhất ' + fmtTime(last) : ''}`;
+              resultChip = `<span ${open} title="${title.replace(/"/g,'&quot;')}" style="display:inline-flex; align-items:center; gap:3px; background:${bg}; color:${color}; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;"><svg style="width:11px;height:11px;" aria-hidden="true"><use href="#ic-chat"/></svg>${ok}/${total}</span>`;
+            }
+            // Có lịch chờ chạy → chip giờ gọn (HH:MM), xếp dưới chip kết quả
             if (sched) {
-              const hm = (sched.time || '').split(' ')[0] || sched.time || '';
-              return `<td style="padding:8px 12px; text-align:center;"><span ${open} title="Lịch chờ chạy lúc ${(sched.time||'').replace(/"/g,'&quot;')} · ${sched.commentCount} bình luận" style="display:inline-flex; align-items:center; gap:4px; background:#eff6ff; color:#2563EB; border:1px solid #bfdbfe; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;"><svg style="width:11px;height:11px;" aria-hidden="true"><use href="#ic-clock"/></svg>⏰ ${hm}${total ? ` · ${ok}/${total}` : ''}</span></td>`;
+              const hm = (sched.time || '').split(' ')[0].slice(0, 5);
+              const clockChip = `<span ${open} title="Lịch chờ chạy lúc ${(sched.time||'').replace(/"/g,'&quot;')} · ${sched.commentCount} bình luận" style="display:inline-flex; align-items:center; gap:3px; background:#eff6ff; color:#2563EB; border:1px solid #bfdbfe; padding:2px 7px; border-radius:999px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;"><svg style="width:10px;height:10px;" aria-hidden="true"><use href="#ic-clock"/></svg>${hm}</span>`;
+              return `<td style="padding:8px 8px; text-align:center;"><div style="display:inline-flex; flex-direction:column; gap:3px; align-items:center;">${resultChip}${clockChip}</div></td>`;
             }
             if (!total) return `<td style="padding:8px 12px; text-align:center; color:#cbd5e1; font-size:12px;">—</td>`;
-            const color = ok === total ? '#047857' : (ok === 0 ? '#b91c1c' : '#92400e');
-            const bg = ok === total ? '#d1fae5' : (ok === 0 ? '#fee2e2' : '#fef3c7');
-            const title = `Đã seeding ${ok}/${total} bình luận${last ? ' · gần nhất ' + fmtTime(last) : ''} (bấm để xem/chỉnh)`;
-            return `<td style="padding:8px 12px; text-align:center;"><span ${open} title="${title.replace(/"/g,'&quot;')}" style="display:inline-flex; align-items:center; gap:4px; background:${bg}; color:${color}; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;"><svg style="width:11px;height:11px;" aria-hidden="true"><use href="#ic-chat"/></svg>${ok}/${total}</span></td>`;
+            return `<td style="padding:8px 12px; text-align:center;">${resultChip}</td>`;
           };
           const seedCell = (row) => seedCellForRows([row], row.id);
 
@@ -11380,23 +11402,30 @@
     let _seedComments = [{ text: '', images: [] }];
     let _seedPostLogId = null;
     let _seedPostUrl = null;
+    let _seedPostUrls = [];           // mọi post_url của nhóm để truy vấn lịch sử
     let _seedProfiles = [];
     let _seedLastPending = 0;        // số lịch seeding đang chờ/chạy (cập nhật bởi _loadSeedHistory)
     let _seedModalPollTimer = null;  // poll khi modal mở để tự refresh khi lịch chạy xong
 
     async function openSeedModal(rowId) {
       const _row = (window._dashRows || []).find(r => r.id === rowId);
-      if (!_row) return;
-      const postLogId = _row.id;
-      const postUrl = _row.post_url;
-      const postMsgPreview = (_row.message || '').substring(0, 60);
+      // Thông tin từ cột Seeding: chọn đúng bài FB seedable (tránh dòng Zalo anchor → url null)
+      const info = (window._seedRowInfo && window._seedRowInfo[rowId]) || null;
+      if (!_row && !info) return;
+
+      const postUrl = (info && info.postUrl) || (_row && _row.post_url) || '';
+      const postLogId = (info && info.postLogId) || (_row && _row.id);
+      const postMsgPreview = ((_row && _row.message) || '').substring(0, 60);
 
       _seedPostLogId = postLogId;
       _seedPostUrl = postUrl;
+      _seedPostUrls = (info && info.urls && info.urls.length) ? info.urls.slice() : (postUrl ? [postUrl] : []);
       _seedComments = [{ text: '', images: [] }];
 
       document.getElementById('seedPostMsg').textContent = postMsgPreview || '(không có nội dung)';
-      document.getElementById('seedPostLink').href = postUrl;
+      const _linkEl = document.getElementById('seedPostLink');
+      if (postUrl) { _linkEl.href = postUrl; _linkEl.style.display = ''; }
+      else { _linkEl.removeAttribute('href'); _linkEl.style.display = 'none'; }
       _renderSeedComments();
       document.getElementById('seedStatus').style.display = 'none';
       document.getElementById('seedSubmitBtn').disabled = false;
@@ -11744,7 +11773,8 @@
       // Nếu lỗi/HTTP fail thì hiện rõ lý do ngay trong modal (tự chẩn đoán),
       // thay vì im lặng ẩn đi như trước.
       const queries = [];
-      if (_seedPostUrl) queries.push('postUrl=' + encodeURIComponent(_seedPostUrl));
+      const _urls = (_seedPostUrls && _seedPostUrls.length) ? _seedPostUrls : (_seedPostUrl ? [_seedPostUrl] : []);
+      for (const u of _urls) queries.push('postUrl=' + encodeURIComponent(u));
       if (_seedPostLogId) queries.push('postLogId=' + encodeURIComponent(_seedPostLogId));
       if (!queries.length) { section.style.display = 'none'; return; }
 
