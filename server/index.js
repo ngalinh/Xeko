@@ -1357,6 +1357,11 @@ app.get('/api/seed-schedules', (req, res) => {
   res.json(scheduler.getSeedSchedules(req.query.postUrl));
 });
 
+// Thông báo lịch seeding đã chạy xong (client poll → toast)
+app.get('/api/seed-notifications', (req, res) => {
+  res.json(scheduler.getSeedNotifications());
+});
+
 app.delete('/api/seed-schedule/:id', (req, res) => {
   const id = parseInt(req.params.id);
   if (scheduler.removeSeedSchedule(id)) res.json({ success: true });
