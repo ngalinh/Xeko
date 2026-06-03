@@ -11924,7 +11924,11 @@
       // Kiểm tra SW update định kỳ — đảm bảo tab mở lâu luôn nhận code mới sau deploy
       setInterval(() => {
         navigator.serviceWorker.ready.then(reg => reg.update()).catch(() => {});
-      }, 5 * 60 * 1000); // mỗi 5 phút
+      }, 60 * 1000); // mỗi 60 giây
+      // Kiểm tra ngay khi user quay lại tab / cửa sổ → bắt deploy mới trong vài giây
+      const _swCheck = () => navigator.serviceWorker.ready.then(reg => reg.update()).catch(() => {});
+      window.addEventListener('focus', _swCheck);
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') _swCheck(); });
     }
 
     // Refresh dashboard khi user quay lại tab (tránh data cũ sau khi tab bị ẩn)
