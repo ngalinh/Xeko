@@ -2207,6 +2207,20 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
 // Ảnh lấy URL trực tiếp từ DOM (không download file) → trả imageUrls.
 // =============================================================================
 
+// Trích "danh tính" ảnh FB để dedupe. Cùng 1 tấm ảnh FB phục vụ qua nhiều URL khác
+// nhau: khác host scontent, khác size param trong query, bản blur placeholder load
+// trước bản nét... nếu dedupe theo URL đầy đủ thì 1 ảnh bị đếm 3-4 lần. Tên file ảnh
+// (basename, bỏ phần query) chứa các ID ổn định riêng của tấm ảnh → dùng làm key gộp.
+function fbImageKey(url) {
+  try {
+    const u = new URL(url);
+    const base = (u.pathname.split('/').pop() || u.pathname).toLowerCase();
+    return base.replace(/\.(jpg|jpeg|png|webp)$/i, '');
+  } catch {
+    return (url.split('?')[0].split('/').pop() || url).toLowerCase();
+  }
+}
+
 async function scrapePost(postUrl) {
   const t0 = Date.now();
   const profileSnap = getActiveProfile();
@@ -2357,10 +2371,13 @@ async function scrapePost(postUrl) {
       const article = topLevel[idx] || topLevel[0];
       if (!article) return '';
 
-      // Thử selector đặc thù của FB trước
-      for (const sel of ['[data-ad-preview="message"]', '[data-ad-comet-preview="message"]']) {
+      // Thử selector đặc thù của FB trước (story_message là tên mới 2025-2026)
+      for (const sel of ['[data-ad-rendering-role="story_message"]', '[data-ad-preview="message"]', '[data-ad-comet-preview="message"]']) {
         const el = article.querySelector(sel);
-        if (el) return (el.innerText || '').trim();
+        if (el && el.closest('div[role="article"]') === article) {
+          const t = (el.innerText || '').trim();
+          if (t) return t;
+        }
       }
 
       // Lấy div[dir="auto"] DÀI NHẤT (nội dung chính) thay vì lấy đầu tiên
@@ -2442,23 +2459,33 @@ async function scrapePost(postUrl) {
       return urls;
     }, articleIndex).catch(() => []);
 
-    // Bổ sung ảnh bắt được từ network (các ảnh DOM có thể chưa load kịp)
-    const seenUrls = new Set(domImages);
-    const imageUrls = [...domImages];
-    for (const url of netImages) {
-      if (!seenUrls.has(url)) {
-        seenUrls.add(url);
-        imageUrls.push(url);
+    // Gộp ảnh + dedupe theo "danh tính" ảnh FB (1 tấm có nhiều URL: khác host/size/blur).
+    // CHỈ lấy ảnh TRONG đúng bài (domImages đã scope theo article mục tiêu). KHÔNG gộp
+    // thẳng netImages vì network sniffer bắt ảnh TOÀN TRANG — bình luận, bài gợi ý,
+    // sidebar, "người bạn có thể biết"... → phình lên cả trăm ảnh rác (gây bug 127 ảnh).
+    // Network chỉ dùng làm phương án dự phòng KHI DOM không lấy được ảnh nào trong bài.
+    const seenKeys = new Set();
+    const imageUrls = [];
+    for (const url of domImages) {
+      const key = fbImageKey(url);
+      if (!seenKeys.has(key)) { seenKeys.add(key); imageUrls.push(url); }
+    }
+    let usedNetFallback = false;
+    if (imageUrls.length === 0 && netImages.size > 0) {
+      usedNetFallback = true;
+      for (const url of netImages) {
+        const key = fbImageKey(url);
+        if (!seenKeys.has(key)) { seenKeys.add(key); imageUrls.push(url); }
       }
     }
 
-    logger.info(`${tag} xong (+${Date.now() - t0}ms) — text=${text.length} ký tự, ảnh=${imageUrls.length} (dom=${domImages.length}, net=${netImages.size})`);
+    logger.info(`${tag} xong (+${Date.now() - t0}ms) — text=${text.length} ký tự, ảnh=${imageUrls.length} (dom=${domImages.length}, net=${netImages.size}${usedNetFallback ? ', dùng net-fallback' : ''})`);
 
-    // Chụp screenshot để debug khi không lấy được nội dung
-    if (!text && imageUrls.length === 0) {
+    // Chụp screenshot để debug khi thiếu nội dung (text rỗng HOẶC không có ảnh nào)
+    if (!text || imageUrls.length === 0) {
       const screenshotPath = path.resolve(__dirname, '../../logs', `scrape-empty-${Date.now()}.png`);
       await page.screenshot({ path: screenshotPath, fullPage: false }).catch(() => {});
-      logger.warn(`${tag} WARN: kết quả rỗng (articleCount=${articleCount}) — screenshot: ${screenshotPath}`);
+      logger.warn(`${tag} WARN: thiếu nội dung (text=${text.length}, ảnh=${imageUrls.length}, articleCount=${articleCount}) — screenshot: ${screenshotPath}`);
     }
 
     return { success: true, text, imageUrls };
