@@ -1770,6 +1770,7 @@ app.post('/api/ai/suggest', upload.array('images', 5), async (req, res) => {
       || guides[`${style}|`]
       || guides[`short|${category}`]
       || guides[`short|`]
+      || guides['']
       || settingsStore.get('ai_content_guide', '');
     const store = getExamplesStore();
     const examples = store[category]?.length ? store[category] : (store[''] || []);
