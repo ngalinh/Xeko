@@ -323,15 +323,22 @@ async function attachImages(page, imagePaths) {
   await randomDelay(800, 1500); // chờ FB render input sau khi click
 
   // Cách 2: Tìm input[type=file] trực tiếp.
-  // FB render nhiều input file ẩn — ưu tiên input có accept="image/*" + multiple.
+  // FB render nhiều input file ẩn với accept khác nhau (input ảnh, input video, input combo).
+  // Phải phân biệt rõ: nếu nhét ảnh vào input "video đứng đầu" → FB coi file là video/tài liệu,
+  // ảnh KHÔNG hiện trong bài (render thành icon tài liệu). Vì thế chấm điểm phải ưu tiên
+  // input nhận ảnh + cho chọn nhiều ảnh + có "image" đứng đầu accept; phạt input video-first.
   const candidates = await page.$$('input[type="file"]');
   const scored = [];
   for (const input of candidates) {
-    const accept = (await input.getAttribute('accept')) || '';
+    const accept = ((await input.getAttribute('accept')) || '').toLowerCase();
     const multiple = (await input.getAttribute('multiple')) !== null;
+    const acceptList = accept.trim();
     let score = 0;
-    if (accept.includes('image')) score += 2;
-    if (multiple || imagePaths.length === 1) score += 1;
+    if (accept.includes('image')) score += 3;        // bắt buộc: input phải nhận ảnh
+    if (multiple) score += 2;                         // input soạn ảnh thật của FB cho chọn nhiều ảnh
+    if (acceptList.startsWith('image')) score += 2;   // ưu tiên input "ảnh đứng đầu"
+    if (acceptList.startsWith('video')) score -= 3;   // input "video đứng đầu" → FB hay coi file là video/tài liệu
+    if (!acceptList) score -= 1;                      // input không khai báo accept → chung chung, tránh
     scored.push({ input, score, accept, multiple });
   }
   scored.sort((a, b) => b.score - a.score);
@@ -390,29 +397,32 @@ async function attachImages(page, imagePaths) {
     }
     return count >= n;
   }, Math.max(1, imagePaths.length), { timeout: 4000 }).catch(() => {});
-  if (imagePaths.length > 1) {
-    try {
-      const thumbCount = await page.evaluate(() => {
-        const dialog = document.querySelector('div[role="dialog"]');
-        if (!dialog) return -1;
-        const imgs = dialog.querySelectorAll('img');
-        let count = 0;
-        for (const img of imgs) {
-          const src = img.getAttribute('src') || '';
-          // FB preview ảnh dạng blob: hoặc data: URL trước khi upload xong.
-          if (src.startsWith('blob:') || src.startsWith('data:')) count++;
-        }
-        return count;
-      });
-      if (thumbCount >= 0 && thumbCount < imagePaths.length) {
-        logger.warn(`Chỉ thấy ${thumbCount}/${imagePaths.length} thumbnail (method=${uploadMethod}) — FB có thể đã nuốt mất ảnh`);
-        await page.screenshot({ path: path.resolve(__dirname, `../../logs/debug-upload-mismatch-${Date.now()}.png`) }).catch(() => {});
-      } else if (thumbCount >= imagePaths.length) {
-        logger.info(`Verify OK: ${thumbCount} thumbnail trong dialog`);
+  // Verify cho MỌI trường hợp (kể cả 1 ảnh): nếu không thấy thumbnail ảnh nào nghĩa là
+  // FB có thể đã coi file là video/tài liệu (chọn nhầm input) → ảnh sẽ không hiện trong bài.
+  try {
+    const thumbCount = await page.evaluate(() => {
+      const dialog = document.querySelector('div[role="dialog"]');
+      if (!dialog) return -1;
+      const imgs = dialog.querySelectorAll('img');
+      let count = 0;
+      for (const img of imgs) {
+        const src = img.getAttribute('src') || '';
+        // FB preview ảnh dạng blob: hoặc data: URL trước khi upload xong.
+        if (src.startsWith('blob:') || src.startsWith('data:')) count++;
       }
-    } catch (e) {
-      logger.warn(`Không count được thumbnail: ${e.message}`);
+      return count;
+    });
+    if (thumbCount === 0) {
+      logger.warn(`Không thấy thumbnail ảnh nào sau upload (method=${uploadMethod}) — FB có thể đã coi file là video/tài liệu, ảnh sẽ KHÔNG hiện. Kiểm tra input đã chọn.`);
+      await page.screenshot({ path: path.resolve(__dirname, `../../logs/debug-upload-noimg-${Date.now()}.png`) }).catch(() => {});
+    } else if (thumbCount > 0 && thumbCount < imagePaths.length) {
+      logger.warn(`Chỉ thấy ${thumbCount}/${imagePaths.length} thumbnail (method=${uploadMethod}) — FB có thể đã nuốt mất ảnh`);
+      await page.screenshot({ path: path.resolve(__dirname, `../../logs/debug-upload-mismatch-${Date.now()}.png`) }).catch(() => {});
+    } else if (thumbCount >= imagePaths.length) {
+      logger.info(`Verify OK: ${thumbCount} thumbnail trong dialog`);
     }
+  } catch (e) {
+    logger.warn(`Không count được thumbnail: ${e.message}`);
   }
 
   return uploaded;
