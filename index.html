@@ -7563,7 +7563,7 @@
 
       const escHtml = s => (s == null ? '' : String(s)).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
       const statusColor = s => s === 'done' ? '#16a34a' : s === 'pending' ? '#d97706' : s === 'running' ? '#3B82F6' : s === 'error' ? '#dc2626' : '#9ca3af';
-      const platIcon = () => '📘';
+      const platIcon = (p) => p === 'zalo' ? '💬' : '📘';
 
       // Bucket events theo ngày và sort theo giờ
       const byDay = new Map();
@@ -7595,10 +7595,12 @@
         if (isMobile) {
           // Mobile: badge đếm (ô quá nhỏ để hiện strip)
           const fbCount = list.filter(e => e.platform === 'facebook').length;
+          const zaloCount = list.filter(e => e.platform === 'zalo').length;
           const errCount = list.filter(e => e.status === 'error').length;
           const pendingCount = list.filter(e => e.status === 'pending' || e.status === 'running').length;
           body = `<div style="display:flex; flex-wrap:wrap; gap:3px;">
             ${fbCount > 0 ? `<span style="background:#DBEAFE; color:#1E3A8A; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">FB ${fbCount}</span>` : ''}
+            ${zaloCount > 0 ? `<span style="background:#E0EAFF; color:#2563EB; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">Zalo ${zaloCount}</span>` : ''}
             ${errCount > 0 ? `<span style="background:#fef2f2; color:#dc2626; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;">✕${errCount}</span>` : ''}
             ${pendingCount > 0 ? `<span style="background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;"><svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;" aria-hidden="true"><use href="#ic-clock"/></svg>${pendingCount}</span>` : ''}
           </div>`;
@@ -7647,7 +7649,7 @@
           </div>
           <div style="display:flex; flex-direction:column; gap:8px;">
             ${list.map(e => {
-              const plat = 'FB';
+              const plat = e.platform === 'zalo' ? 'Zalo' : 'FB';
               const time = e.date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
               const statusBadge = e.status === 'done'
                 ? '<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:6px; font-size:11px;">Done</span>'
@@ -10387,12 +10389,13 @@
             : '<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-clock"/></svg>Chờ đăng</span>';
           const rowBg = isRunning ? '#EFF6FF' : '#f8f7ff';
           const schedIsPersonal = sched.target === 'personal';
+          const schedPlatformLabel = sched.type === 'zalo' ? 'Zalo' : 'FB';
           return `<tr id="schedRow-${sched.id}" style="border-bottom:1px solid #EFF6FF; background:${rowBg}; border-left:3px solid #BFDBFE;">
             <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
             <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msg}</td>
             <td style="padding:8px 12px;">${thumbs}</td>
             <td style="padding:8px 12px; font-size:12px;"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;">${platBadge(sched.type)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sched.profile_name || sched.profile || '-'}</span></div></td>
-            <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">FB - ${targetLabel}</div>${schedIsPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupIdRaw.replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
+            <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${schedPlatformLabel} - ${targetLabel}</div>${schedIsPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupIdRaw.replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
             <td style="padding:8px 12px; vertical-align:middle;">${time}</td>
             <td style="padding:8px 12px; text-align:center;">${statusBadge}</td>
             <td style="padding:8px 12px; text-align:center; color:#cbd5e1;">—</td>
