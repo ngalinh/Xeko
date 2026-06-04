@@ -120,6 +120,45 @@ app.use((req, res, next) => {
   }
   next();
 });
+// SW động: nhúng VERSION theo HASH NỘI DUNG của index.html + sw.js.
+// Mỗi lần deploy đổi frontend → version đổi → trình duyệt thấy SW mới → tự cập nhật
+// (không cần bump tay v##, hết cảnh "phải Ctrl+Shift+R").
+let _swVerCache = { key: '', version: '' };
+function _getBuildVersion() {
+  const idxPath = path.join(__dirname, '../index.html');
+  const swPath = path.join(__dirname, '../sw.js');
+  let key = '';
+  try {
+    const a = fs.statSync(idxPath), b = fs.statSync(swPath);
+    key = `${a.mtimeMs}:${a.size}:${b.mtimeMs}:${b.size}`;
+  } catch { /* ignore */ }
+  if (key && key === _swVerCache.key && _swVerCache.version) return _swVerCache.version;
+  let version;
+  try {
+    const h = crypto.createHash('sha1');
+    h.update(fs.readFileSync(idxPath));
+    h.update(fs.readFileSync(swPath));
+    version = 'xeko-' + h.digest('hex').slice(0, 12);
+  } catch {
+    version = 'xeko-' + Date.now().toString(36);
+  }
+  _swVerCache = { key, version };
+  return version;
+}
+
+app.get('/sw.js', (req, res) => {
+  try {
+    let code = fs.readFileSync(path.join(__dirname, '../sw.js'), 'utf8');
+    code = code.replace(/const VERSION = '[^']*';/, `const VERSION = '${_getBuildVersion()}';`);
+    res.set('Content-Type', 'application/javascript; charset=utf-8');
+    res.set('Cache-Control', 'no-store');
+    res.set('Service-Worker-Allowed', '/');
+    res.send(code);
+  } catch (e) {
+    res.status(500).send('// sw.js error');
+  }
+});
+
 app.use(express.static(path.join(__dirname, '../')));
 
 async function getFetch() {

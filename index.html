@@ -11934,20 +11934,43 @@
   <!-- PWA install prompt + service worker registration -->
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch((err) => {
-          console.warn('[SW] registration failed:', err);
-        });
-      });
-      // SW báo có version mới → reload để nạp HTML/JS mới (guard tránh loop)
+      // Có SW đang điều khiển trang ngay từ đầu không? (để phân biệt cài mới vs cập nhật)
+      const __hadController = !!navigator.serviceWorker.controller;
       let __xekoReloaded = false;
-      navigator.serviceWorker.addEventListener('message', (evt) => {
-        if (evt.data?.type === 'SW_UPDATED' && !__xekoReloaded) {
-          __xekoReloaded = true;
-          console.info('[SW] updated to', evt.data.version, '— reloading');
-          location.reload();
-        }
+      const __reloadOnce = (why) => {
+        if (__xekoReloaded) return;
+        __xekoReloaded = true;
+        console.info('[SW] reload do', why);
+        location.reload();
+      };
+
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').then((reg) => {
+          reg.update().catch(() => {});           // kiểm tra bản mới ngay khi tải trang
+          // Khi phát hiện SW mới đang cài → cài xong thì nó tự skipWaiting (trong sw.js)
+          reg.addEventListener('updatefound', () => {
+            const nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener('statechange', () => {
+              // SW mới đã cài và đang chờ trong khi có SW cũ điều khiển → ép tiếp quản
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                nw.postMessage('SKIP_WAITING');
+              }
+            });
+          });
+        }).catch((err) => console.warn('[SW] registration failed:', err));
       });
+
+      // SW mới tiếp quản quyền điều khiển → tự reload để nạp HTML/JS mới.
+      // Chỉ reload khi TRƯỚC đó đã có SW (là cập nhật), tránh reload thừa lần cài đầu tiên.
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (__hadController) __reloadOnce('controllerchange');
+      });
+      // Dự phòng: SW chủ động postMessage báo đã cập nhật
+      navigator.serviceWorker.addEventListener('message', (evt) => {
+        if (evt.data?.type === 'SW_UPDATED') __reloadOnce('SW_UPDATED ' + (evt.data.version || ''));
+      });
+
       // Kiểm tra SW update định kỳ — đảm bảo tab mở lâu luôn nhận code mới sau deploy
       setInterval(() => {
         navigator.serviceWorker.ready.then(reg => reg.update()).catch(() => {});
