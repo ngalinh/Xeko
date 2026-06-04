@@ -370,6 +370,9 @@
     .channel-item:hover:not(.disabled) { filter: brightness(0.96); }
     .channel-item.disabled { opacity: 0.35; pointer-events: none; }
     .channel-item .ch-tag { display: none; }
+    /* Panel chọn kênh đã xác nhận (bấm Tiếp tục) → khoá lại, không cho tick/đổi nữa,
+       nhưng vẫn giữ highlight để user thấy đã chọn gì. */
+    .channel-panel.locked { pointer-events: none; opacity: 0.75; }
 
     /* Dark mode for channel panel */
     [data-theme="dark"] .channel-platform-toggle { background: #1e1e3a; border-color: #3a3a5a; color: #BFDBFE; }
@@ -4873,6 +4876,12 @@
     function disablePrevButtons() {
       document.querySelectorAll('#chatArea .msg-buttons button.msg-btn').forEach(btn => {
         btn.disabled = true;
+      });
+      // Khoá luôn panel chọn kênh ở bước cũ — nếu không, sau khi bấm Tiếp tục
+      // user vẫn tick/đổi được chip & toggle (disablePrevButtons chỉ tắt nút msg-btn).
+      document.querySelectorAll('#chatArea .channel-panel:not(.locked)').forEach(panel => {
+        panel.classList.add('locked');
+        panel.querySelectorAll('input').forEach(inp => { inp.disabled = true; });
       });
     }
 
