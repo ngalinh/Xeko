@@ -8861,6 +8861,7 @@
     // khoản Zalo (z.name). Dùng để dashboard hiển thị đúng "tên hiển thị" thay vì
     // saleworkName, kể cả với dữ liệu cũ (remap lúc render).
     let zaloSaleworkToName = {};
+    let _zaloMapLoaded = false;
     function setZaloAccountCaches(zaloList) {
       const list = zaloList || [];
       zaloAccountsCache = list.map(z => z.saleworkName).filter(Boolean);
@@ -8868,11 +8869,19 @@
       list.forEach(z => {
         if (z.saleworkName && z.name) zaloSaleworkToName[z.saleworkName] = z.name;
       });
+      _zaloMapLoaded = true;
     }
     // Trả về tên hiển thị của tài khoản Zalo theo saleworkName; fallback về chính
     // giá trị truyền vào nếu chưa có trong map.
     function zaloDisplayName(saleworkName) {
       return zaloSaleworkToName[saleworkName] || saleworkName;
+    }
+    // Tên hiển thị tài khoản dùng chung cho bảng lịch sử: Zalo lấy theo tên hiển
+    // thị (z.name) của tài khoản; FB ưu tiên _profileDisplayNames rồi profile_name.
+    function resolveAccountName(platform, profileName, profile) {
+      if (platform === 'zalo') return zaloDisplayName(profileName || profile) || '-';
+      return (profile && (typeof _profileDisplayNames !== 'undefined') && _profileDisplayNames[profile])
+        || profileName || profile || '-';
     }
     let pickerProfileKey = null;
     let pickerTab = 'all';
@@ -10206,6 +10215,19 @@
 
     async function loadDashHistory({ noSkeleton = false, noAnimation = false } = {}) {
       const myVersion = ++_loadDashHistoryVersion;
+      // Đảm bảo map saleworkName→tên hiển thị Zalo đã tải (loadDashHistory có thể
+      // chạy độc lập với loadDashboard) để cột "Tài khoản" hiện đúng tên Zalo.
+      if (!_zaloMapLoaded) {
+        try {
+          const allParam = (CURRENT_USER && CURRENT_USER.isXekoAdmin) ? '?all=1' : '';
+          const accRes = await fetch(`${BASE_URL}/api/accounts` + allParam);
+          if (accRes.ok) {
+            const accData = await parseJson(accRes);
+            if (!profilesCache.length) profilesCache = accData.facebook || [];
+            setZaloAccountCaches(accData.zalo);
+          }
+        } catch {}
+      }
       const profiles = getMselValues('msel-profile');
       const platforms = getMselValues('msel-platform');
       const targets = getMselValues('msel-target');
@@ -10339,7 +10361,7 @@
             <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
             <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msgShort}</td>
             <td style="padding:8px 12px; color:#bbb;">—</td>
-            <td style="padding:8px 12px; font-size:12px;" title="${String(job.profileName||'').replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;">${platBadge(ch.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${job.profileName}</span></div></td>
+            <td style="padding:8px 12px; font-size:12px;" title="${String(resolveAccountName(ch.platform, job.profileName)).replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;">${platBadge(ch.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${resolveAccountName(ch.platform, job.profileName)}</span></div></td>
             <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${targetLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${String(groupId).replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
             <td style="padding:8px 12px; vertical-align:middle;">${timeStacked}</td>
             <td style="padding:8px 12px; text-align:center;"><span class="badge-pulse" style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span></td>
@@ -10388,7 +10410,7 @@
               <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
               <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msgShort}</td>
               <td style="padding:8px 12px;">${buildThumbs(row)}</td>
-              <td style="padding:8px 12px; font-size:12px;" title="${String(row.profile_name || row.profile || '-').replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${row.profile_name || row.profile || '-'}</span></div></td>
+              <td style="padding:8px 12px; font-size:12px;" title="${String(resolveAccountName(row.platform, row.profile_name, row.profile)).replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${resolveAccountName(row.platform, row.profile_name, row.profile)}</span></div></td>
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${tgtLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${grpLabel}</div>`}</div></td>
               <td style="padding:8px 12px; vertical-align:middle;">${timeStacked}</td>
               <td style="padding:8px 12px; text-align:center;"><span class="badge-pulse" style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span></td>
@@ -10413,7 +10435,7 @@
               <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#92400e;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
               <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msgShort}</td>
               <td style="padding:8px 12px;">${buildThumbs(row)}</td>
-              <td style="padding:8px 12px; font-size:12px;" title="${String(row.profile_name || row.profile || '-').replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${row.profile_name || row.profile || '-'}</span></div></td>
+              <td style="padding:8px 12px; font-size:12px;" title="${String(resolveAccountName(row.platform, row.profile_name, row.profile)).replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${resolveAccountName(row.platform, row.profile_name, row.profile)}</span></div></td>
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${tgtLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${grpLabel}</div>`}</div></td>
               <td style="padding:8px 12px; vertical-align:middle;">${timeStacked}</td>
               <td style="padding:8px 12px; text-align:center;"><span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="Quá 30 phút không nhận được xác nhận từ server">⚠️ Không xác nhận</span></td>
@@ -10456,7 +10478,7 @@
             <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
             <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msg}</td>
             <td style="padding:8px 12px;">${thumbs}</td>
-            <td style="padding:8px 12px; font-size:12px;"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;">${platBadge(sched.type)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sched.profile_name || sched.profile || '-'}</span></div></td>
+            <td style="padding:8px 12px; font-size:12px;"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;">${platBadge(sched.type)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${resolveAccountName(sched.type, sched.profile_name, sched.profile)}</span></div></td>
             <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${schedPlatformLabel} - ${targetLabel}</div>${schedIsPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupIdRaw.replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
             <td style="padding:8px 12px; vertical-align:middle;">${time}</td>
             <td style="padding:8px 12px; text-align:center;">${statusBadge}</td>
@@ -10474,7 +10496,7 @@
           histRows = histRows.filter(r => {
             const msg = (r.message || '').toLowerCase();
             const grp = (r.group_name || r.group_id || '').toLowerCase();
-            const acc = (r.profile_name || r.profile || '').toLowerCase();
+            const acc = (resolveAccountName(r.platform, r.profile_name, r.profile) || '').toLowerCase();
             return msg.includes(search) || grp.includes(search) || acc.includes(search);
           });
         }
@@ -10620,7 +10642,7 @@
             const fullMsg = (row.message || '').replace(/"/g,'&quot;');
             const ctipMsg = escapeHtml(JSON.stringify({body: row.message || ''}));
             const msg = row.message ? (row.message.length > 160 ? row.message.substring(0, 160) + '…' : row.message) : '-';
-            const profileName = (row.profile && _profileDisplayNames[row.profile]) || row.profile_name || row.profile || '-';
+            const profileName = resolveAccountName(row.platform, row.profile_name, row.profile);
             const thumbs = buildThumbs(row);
             return `<tr id="dashRow-${row.id}" style="border-bottom:1px solid #f3f4f6; background:#fff;">
               <td style="padding:8px 10px;"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><span style="display:inline-block; width:10px; flex-shrink:0;"></span><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
@@ -10664,7 +10686,7 @@
             const accCount = {};
             const platCount = {};
             group.rows.forEach(r => {
-              const a = (r.profile && _profileDisplayNames[r.profile]) || r.profile_name || r.profile || '-';
+              const a = resolveAccountName(r.platform, r.profile_name, r.profile);
               accCount[a] = (accCount[a] || 0) + 1;
               const p = r.platform === 'zalo' ? 'Zalo' : 'FB';
               platCount[p] = (platCount[p] || 0) + 1;
@@ -10704,7 +10726,7 @@
 
             const childrenHtml = group.rows.map((row, k) => {
               const idx = group.indices[k];
-              const profileName = (row.profile && _profileDisplayNames[row.profile]) || row.profile_name || row.profile || '-';
+              const profileName = resolveAccountName(row.platform, row.profile_name, row.profile);
               const gid = resolveGroupLabel(row.platform, row.group_id, row.group_name);
               const childSharedGroups = (row.target === 'personal+groups' || row.target === 'personal-share-groups') ? parseSharedGroups(row.group_name) : null;
               let childNoisub = null, childNoiTitle = '';
@@ -11857,7 +11879,7 @@
             : `<span style="color:#dc2626; font-size:11px; font-weight:600;" title="${escapeHtml(r.error||'')}">✗ Thất bại</span>`;
           return `<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px; padding:8px 0; border-bottom:1px solid #f3f4f6;">
             <div style="min-width:0; flex:1;">
-              <div style="font-size:12px; color:#374151; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(r.profile_name || r.profile)} · ${ts} · ${status}</div>
+              <div style="font-size:12px; color:#374151; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(resolveAccountName(r.platform, r.profile_name, r.profile))} · ${ts} · ${status}</div>
               ${r.message ? `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px;">${escapeHtml(r.message.substring(0,100))}</div>` : ''}
               ${(r.images && r.images.length)
                 ? `<div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">${r.images.map(u => { const su = _seedImgUrl(u); return `<img src="${escapeHtml(su)}" onclick="openLightbox('${escapeHtml(su)}')" style="width:36px; height:36px; object-fit:cover; border-radius:5px; border:1px solid #e5e7eb; cursor:pointer;" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:36px;height:36px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;align-items:center;justify-content:center;font-size:14px;'}))">`; }).join('')}</div>`
