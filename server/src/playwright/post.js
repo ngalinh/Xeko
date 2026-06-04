@@ -2304,19 +2304,29 @@ async function scrapePost(postUrl) {
         }
       }
 
-      // Chiến lược 3: article đầu tiên nằm trong [role="main"]
+      // Chiến lược 3 (fallback): chấm điểm theo NỘI DUNG (text + ảnh) thay vì
+      // "gần đầu trang nhất". Trang permalink thường chỉ có 1 bài chính, các
+      // article còn lại là bài gợi ý/quảng cáo/rỗng → bài có nhiều nội dung
+      // nhất gần như chắc chắn là bài cần lấy. Cộng điểm nếu nằm trong [role=main].
       const main = document.querySelector('[role="main"]');
-      if (main) {
-        for (let i = 0; i < topLevel.length; i++) {
-          if (main.contains(topLevel[i])) return i;
-        }
-      }
-
-      // Chiến lược 4: article gần đầu trang nhất (nhỏ hơn 1 viewport từ trên)
-      let best = { idx: 0, top: Infinity };
+      let best = { idx: 0, score: -1 };
       for (let i = 0; i < topLevel.length; i++) {
-        const top = topLevel[i].getBoundingClientRect().top;
-        if (top >= 0 && top < best.top) best = { idx: i, top };
+        const art = topLevel[i];
+        let textLen = 0;
+        for (const dir of art.querySelectorAll('div[dir="auto"]')) {
+          if (dir.closest('div[role="article"]') !== art) continue;
+          textLen = Math.max(textLen, (dir.innerText || '').trim().length);
+        }
+        let imgCount = 0;
+        for (const img of art.querySelectorAll('img')) {
+          if (img.closest('div[role="article"]') !== art) continue;
+          const w = img.naturalWidth || img.width || 0;
+          const h = img.naturalHeight || img.height || 0;
+          if (w > 64 && h > 64) imgCount++;
+        }
+        let score = textLen + imgCount * 300;
+        if (main && main.contains(art)) score += 1000;
+        if (score > best.score) best = { idx: i, score };
       }
       return best.idx;
     }, [...allIds]).catch(() => 0);
@@ -2349,40 +2359,75 @@ async function scrapePost(postUrl) {
     }, articleIndex).catch(() => {});
     await randomDelay(1500, 2000);
 
-    // Lấy text từ article mục tiêu
+    // Lấy text — ưu tiên article mục tiêu; nếu rỗng thì quét toàn bộ article
+    // top-level lấy bài có nội dung dài nhất (trang permalink chỉ có 1 bài chính).
     const text = await page.evaluate((idx) => {
       const SEE_MORE = new Set(['Xem thêm', 'See more', 'See More']);
       const all = Array.from(document.querySelectorAll('div[role="article"]'));
       const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
-      const article = topLevel[idx] || topLevel[0];
-      if (!article) return '';
+      if (!topLevel.length) return '';
 
-      // Thử selector đặc thù của FB trước
-      for (const sel of ['[data-ad-preview="message"]', '[data-ad-comet-preview="message"]']) {
-        const el = article.querySelector(sel);
-        if (el) return (el.innerText || '').trim();
-      }
-
-      // Lấy div[dir="auto"] DÀI NHẤT (nội dung chính) thay vì lấy đầu tiên
-      let bestText = '';
-      for (const dir of article.querySelectorAll('div[dir="auto"]')) {
-        // Bỏ qua nếu nằm trong article lồng (comment)
-        if (dir.closest('div[role="article"]') !== article) continue;
-        const clone = dir.cloneNode(true);
-        for (const btn of clone.querySelectorAll('[role="button"]')) {
-          if (SEE_MORE.has((btn.textContent || '').trim())) btn.remove();
+      const extract = (article) => {
+        if (!article) return '';
+        // Thử selector đặc thù của FB trước
+        for (const sel of ['[data-ad-preview="message"]', '[data-ad-comet-preview="message"]']) {
+          const el = article.querySelector(sel);
+          if (el && el.closest('div[role="article"]') === article) {
+            const t = (el.innerText || '').trim();
+            if (t) return t;
+          }
         }
-        const t = (clone.innerText || '').trim();
-        if (t.length > bestText.length) bestText = t;
+        // Lấy div[dir="auto"] DÀI NHẤT (nội dung chính) thay vì lấy đầu tiên
+        let bestText = '';
+        for (const dir of article.querySelectorAll('div[dir="auto"]')) {
+          // Bỏ qua nếu nằm trong article lồng (comment)
+          if (dir.closest('div[role="article"]') !== article) continue;
+          const clone = dir.cloneNode(true);
+          for (const btn of clone.querySelectorAll('[role="button"]')) {
+            if (SEE_MORE.has((btn.textContent || '').trim())) btn.remove();
+          }
+          const t = (clone.innerText || '').trim();
+          if (t.length > bestText.length) bestText = t;
+        }
+        return bestText;
+      };
+
+      let result = extract(topLevel[idx] || topLevel[0]);
+      if (!result) {
+        for (const art of topLevel) {
+          const t = extract(art);
+          if (t.length > result.length) result = t;
+        }
       }
-      return bestText;
+      return result;
     }, articleIndex).catch(() => '');
 
-    // Scroll qua nội dung article để trigger lazy-load ảnh
-    // (article đã ở đầu viewport từ scrollIntoView ở trên)
-    for (let i = 0; i < 8; i++) {
-      await page.evaluate(() => window.scrollBy(0, 400));
-      await randomDelay(500, 800);
+    // QUAN TRỌNG: xoá ảnh network bắt được trong lúc load trang. Lúc load,
+    // FB tải hàng loạt ảnh KHÔNG thuộc bài viết: quảng cáo (Shopee/Uniqlo...),
+    // bài gợi ý, sidebar, avatar bình luận → đây là nguồn "ảnh lung tung" và
+    // khiến số ảnh phình lên cả trăm. Chỉ giữ ảnh tải LAZY trong lúc cuộn qua
+    // đúng article mục tiêu bên dưới.
+    netImages.clear();
+
+    // Scroll qua nội dung article để trigger lazy-load ảnh — GIỚI HẠN trong
+    // phạm vi article, không cuộn xuống phần "bài viết gợi ý" phía dưới (tránh
+    // bắt nhầm ảnh của bài khác). Dừng khi đã cuộn hết đáy article.
+    for (let i = 0; i < 14; i++) {
+      const done = await page.evaluate((idx) => {
+        const all = Array.from(document.querySelectorAll('div[role="article"]'));
+        const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
+        const article = topLevel[idx] || topLevel[0];
+        if (!article) { window.scrollBy(0, 400); return true; }
+        const rect = article.getBoundingClientRect();
+        // Còn nội dung article phía dưới viewport → cuộn tiếp (tối đa ~500px/lần)
+        if (rect.bottom > window.innerHeight + 50) {
+          window.scrollBy(0, Math.min(500, rect.bottom - window.innerHeight + 100));
+          return false;
+        }
+        return true; // đã cuộn hết article
+      }, articleIndex).catch(() => true);
+      await randomDelay(400, 700);
+      if (done) break;
     }
     await randomDelay(500, 800);
 
