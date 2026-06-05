@@ -223,10 +223,21 @@ async function sendMessage(page, message, imagePaths = []) {
   }
 
   if (message) {
-    const msgInput = await page.$('[placeholder*="Nhập tin nhắn"], [placeholder*="nhập tin nhắn"], [contenteditable="true"], textarea');
+    // CHỈ lấy element đang HIỂN THỊ (:visible) — tránh vớ phải textarea/contenteditable
+    // ẩn (modal đóng, conversation khác) khiến click chờ 30s rồi ném lỗi dù tin đã gửi.
+    // Fallback selector gốc nếu vì lý do nào đó query :visible không trả về (an toàn).
+    const msgInput =
+      (await page.$('[placeholder*="Nhập tin nhắn"]:visible, [placeholder*="nhập tin nhắn"]:visible, [contenteditable="true"]:visible, textarea:visible').catch(() => null))
+      || (await page.$('[placeholder*="Nhập tin nhắn"], [placeholder*="nhập tin nhắn"], [contenteditable="true"], textarea').catch(() => null));
     if (msgInput) {
       await randomDelay(200, 500);
-      await msgInput.click();
+      // Click để focus; nếu element chập chờn → focus bằng JS thay vì ném lỗi (timeout ngắn 5s).
+      try {
+        await msgInput.click({ timeout: 5000 });
+      } catch (e) {
+        logger.warn(`[salework] Click ô nhập tin lỗi (${e.message}) → focus bằng JS`);
+        await msgInput.evaluate(el => el.focus()).catch(() => {});
+      }
       await randomDelay(250, 600);
       // Copy-paste để giữ nguyên xuống dòng (paste event không trigger gửi như Enter)
       await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -234,22 +245,24 @@ async function sendMessage(page, message, imagePaths = []) {
       await page.keyboard.press('Control+v');
       logger.info('[salework] Đã nhập tin nhắn (paste)');
       await randomDelay(400, 900);
+    } else {
+      logger.warn('[salework] Không thấy ô nhập tin đang hiển thị');
     }
   }
 
   await randomDelay(800, 1600);
 
   const sendSelectors = [
-    'button:has-text("Gửi")',
-    'button:has-text("Send")',
-    '[class*="send"] button',
+    'button:has-text("Gửi"):visible',
+    'button:has-text("Send"):visible',
+    '[class*="send"] button:visible',
   ];
   for (const sel of sendSelectors) {
     try {
       const btn = await page.$(sel);
       if (btn) {
         await randomDelay(300, 800);
-        await btn.click();
+        await btn.click({ timeout: 5000 });
         logger.info('[salework] Click nút Gửi');
         await randomDelay(1800, 2600);
         return true;
