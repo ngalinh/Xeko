@@ -30,6 +30,7 @@ const logger = require('./src/utils/logger');
 const { parseProxy } = require('./src/utils/proxy');
 const apiKey = require('./src/utils/api-key');
 const rateLimit = require('./src/utils/rate-limit');
+const zaloQueue = require('./src/utils/zalo-queue');
 
 // Fail-fast nếu LOCAL_API_KEY chưa đặt / còn placeholder mặc định.
 // Server local accept request từ tunnel public → key yếu = mở cửa.
@@ -390,8 +391,10 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
     return res.status(400).json({ error: 'Thiếu zaloAccountName/profile hoặc groupName' });
   }
 
-  // Rate limit per Zalo account (key trước khi resolve để chặn ngay cả lookup fail)
-  const rl = rateLimit.check(`zalo:${accountName}`);
+  // Chỉ chặn theo giới hạn/giờ (chống spam dài hạn). Min-interval giữa 2 post
+  // cùng account KHÔNG còn từ chối ở đây — đã được xử lý bằng hàng đợi tự giãn
+  // cách bên dưới, để tick nhiều group cùng account vẫn đăng được lần lượt.
+  const rl = rateLimit.checkHourly(`zalo:${accountName}`);
   if (!rl.ok) {
     cleanupFiles(imagePaths);
     res.setHeader('Retry-After', Math.ceil(rl.retryAfterMs / 1000));
@@ -409,7 +412,10 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   // Respond immediately so cloud proxy never hits 504 timeout
   res.json({ success: true, processing: true, jobId });
 
-  salework.postToZaloGroup({ zaloAccountName: accountName, accountKey, groupName, message: message || '', imagePaths })
+  // Xếp hàng theo account: tuần tự hoá (tránh xung đột profile browser) + tự
+  // giãn cách ≥ MIN_INTERVAL giữa 2 post cùng account (chống Zalo flag spam).
+  zaloQueue.enqueue(`zalo:${accountKey || accountName}`, () =>
+    salework.postToZaloGroup({ zaloAccountName: accountName, accountKey, groupName, message: message || '', imagePaths }))
     .then(result => {
       cleanupFiles(imagePaths);
       zaloJobs.set(jobId, { status: 'done', success: result.success, error: result.error || null, completedAt: Date.now() });

@@ -63,6 +63,38 @@ function check(profileKey) {
 }
 
 /**
+ * Chỉ kiểm tra giới hạn theo giờ (bỏ qua min-interval). Dùng cho luồng đăng
+ * nhiều group cùng 1 account: min-interval đã được xử lý bằng queue tự giãn cách
+ * (xem zalo-queue.js), nên ở đây chỉ cần chặn spam dài hạn theo giờ.
+ *
+ * @param {string} profileKey
+ * @returns {{ ok: true } | { ok: false, retryAfterMs: number, reason: string }}
+ */
+function checkHourly(profileKey) {
+  const key = profileKey || '_default';
+  const now = Date.now();
+  let entry = state.get(key);
+  if (!entry) {
+    entry = { last: 0, timestamps: [] };
+    state.set(key, entry);
+  }
+  pruneOld(entry.timestamps, now);
+
+  if (entry.timestamps.length >= HOURLY_LIMIT) {
+    const oldest = entry.timestamps[0];
+    const retryAfterMs = oldest + HOUR_MS - now;
+    return {
+      ok: false,
+      retryAfterMs,
+      reason: `Đã post ${entry.timestamps.length} lần trong 1h (limit ${HOURLY_LIMIT}). Đợi ${Math.ceil(retryAfterMs / 60000)} phút.`,
+    };
+  }
+
+  entry.timestamps.push(now);
+  return { ok: true };
+}
+
+/**
  * Express middleware factory. profileFromReq(req) phải trả về string key
  * (lấy từ body, params, hoặc state). Trả null/undefined → dùng '_default'.
  */
@@ -78,4 +110,4 @@ function middleware(profileFromReq) {
   };
 }
 
-module.exports = { check, middleware, MIN_INTERVAL_MS, HOURLY_LIMIT };
+module.exports = { check, checkHourly, middleware, MIN_INTERVAL_MS, HOURLY_LIMIT };
