@@ -5878,7 +5878,7 @@
     });
 
     // Poll kết quả Zalo post async — cập nhật chatbot khi Playwright hoàn thành
-    async function pollZaloJob(jobId, groupName, account, progressRow = null, dashRowId = null) {
+    async function pollZaloJob(jobId, groupName, account, progressRow = null, dashRowId = null, silent = false) {
       const pendingLogId = dashRowId?.startsWith('pending-log-') ? dashRowId.replace('pending-log-', '') : null;
       if (pendingLogId) _pendingLogProgressRows[pendingLogId] = { progressRow, groupName, account };
 
@@ -5888,12 +5888,15 @@
       _jobSseBus.set(jobId, _ac);
 
       const finishDone = (success, error) => {
-        const okMsg = `✅ Group Zalo <strong>${groupName}</strong> (${account}) xong rồi nha!`;
-        const errMsg = `❌ Huhu Group Zalo <strong>${groupName}</strong> hỏng mất rồi: ${error || 'Không rõ lý do'}`;
-        if (success) {
-          if (progressRow) morphBot(progressRow, okMsg, 'success'); else addBot(okMsg);
-        } else {
-          if (progressRow) morphBot(progressRow, errMsg, 'error'); else addBot(errMsg);
+        // silent=true: Zalo chạy nền, không cập nhật chat — Dashboard là nguồn sự thật
+        if (!silent) {
+          const okMsg = `✅ Group Zalo <strong>${groupName}</strong> (${account}) xong rồi nha!`;
+          const errMsg = `❌ Huhu Group Zalo <strong>${groupName}</strong> hỏng mất rồi: ${error || 'Không rõ lý do'}`;
+          if (success) {
+            if (progressRow) morphBot(progressRow, okMsg, 'success'); else addBot(okMsg);
+          } else {
+            if (progressRow) morphBot(progressRow, errMsg, 'error'); else addBot(errMsg);
+          }
         }
         if (dashRowId) {
           _updateDashRowDone(dashRowId, success);
@@ -5949,9 +5952,11 @@
         // Chat không tự kết luận thành/bại — Dashboard là nguồn sự thật.
         // Cloud (_driveZaloJob) vẫn đang chạy job tới hoàn thành ở nền và sẽ
         // cập nhật DB; markTimedOutPending sẽ dọn nếu thực sự kẹt.
-        const timeoutMsg = `⏳ Group Zalo <strong>${groupName}</strong> đang xử lý lâu hơn thường lệ. Bạn xem kết quả ở tab <strong>Dashboard</strong> nha — Xeko vẫn đang chạy.`;
-        if (progressRow) morphBot(progressRow, timeoutMsg, 'progress');
-        else addBot(timeoutMsg);
+        if (!silent) {
+          const timeoutMsg = `⏳ Group Zalo <strong>${groupName}</strong> đang xử lý lâu hơn thường lệ. Bạn xem kết quả ở tab <strong>Dashboard</strong> nha — Xeko vẫn đang chạy.`;
+          if (progressRow) morphBot(progressRow, timeoutMsg, 'progress');
+          else addBot(timeoutMsg);
+        }
         removePendingJob(jobId);
         return false;
       } finally {
@@ -6048,14 +6053,7 @@
         return;
       }
 
-      // Tao thumbnail URLs truoc khi clear
-      const photoUrls = selectedFiles.map(f => URL.createObjectURL(f));
-      // Capture files truoc khi clearImages() reset selectedFiles
-      const filesToUpload = [...selectedFiles];
-      let userMsg = message || '';
-      addUser(userMsg, photoUrls);
-      resetMsgInput();
-
+      // Resolve target + groupId (validate truoc khi xep hang)
       let target = currentTarget;
       let groupId = null;
       if (target === 'custom') {
@@ -6070,15 +6068,69 @@
         target = 'shortcut';
       }
 
+      // Snapshot toan bo context: bai trong hang cho khong bi anh huong khi user
+      // doi profile/kenh hoac dinh kem anh moi cho bai tiep theo
+      const photoUrls = selectedFiles.map(f => URL.createObjectURL(f));
+      const filesToUpload = [...selectedFiles];
+      const _csRaw = (window._channelSelection || {})[currentProfile] || {};
+      let channelSel;
+      try { channelSel = structuredClone(_csRaw); }
+      catch { channelSel = JSON.parse(JSON.stringify(_csRaw)); }
+      const ctx = {
+        message: message || '',
+        target, groupId,
+        profile: currentProfile,
+        profileName: currentProfileName,
+        channelSel,
+        customGroupIds: [...(window._customGroupIds || [])],
+        files: filesToUpload,
+        postMode,
+      };
+
+      // Echo + clear ngay de user soan duoc bai tiep theo trong luc cho
+      addUser(ctx.message, photoUrls);
+      resetMsgInput();
+      clearImages();
+
+      // Xep hang: dang co bai chay thi bao da xep hang, worker chay tuan tu
+      _postQueue.push(ctx);
+      if (_isPosting) {
+        addBot(`📋 Đã xếp hàng bài này nha — còn <strong>${_postQueue.length}</strong> bài đang chờ. Xeko đăng xong bài hiện tại sẽ làm tiếp liền!`);
+      }
+      _processPostQueue();
+    }
+
+    // Hang cho dang bai — chay tuan tu tung bai mot, cho phep user gui bai tiep theo
+    let _isPosting = false;
+    const _postQueue = [];
+    async function _processPostQueue() {
+      if (_isPosting) return;
+      _isPosting = true;
+      try {
+        while (_postQueue.length > 0) {
+          const ctx = _postQueue.shift();
+          try {
+            await runPostJob(ctx);
+          } catch (e) {
+            addBot(botSystemError('đăng bài', e));
+          }
+        }
+      } finally {
+        _isPosting = false;
+      }
+    }
+
+    async function runPostJob(ctx) {
+      const { message, profile: currentProfile, profileName: currentProfileName,
+              channelSel, customGroupIds, files: filesToUpload, postMode } = ctx;
+      let { target, groupId } = ctx;
+
       // Warn neu tab khac dang post cung profile (server mutex se serialize,
       // user co the bi delay)
       if (isOtherTabPosting(currentProfile)) {
         addBot(`⚠️ Tab khác đang đăng bài profile <strong>${currentProfileName}</strong>. Bài này sẽ chờ tab kia xong rồi mới chạy nha (server tự xếp hàng).`);
       }
       broadcastTabPostStart(currentProfile);
-
-      clearImages();
-      document.getElementById('sendBtn').disabled = true;
 
       const sessionBatchId = crypto.randomUUID();
 
@@ -6128,9 +6180,9 @@
       const _hasPersonalTarget = (target === 'personal' || target === 'all');
       const _isAutoShareEligible = _hasPersonalTarget
                                  && postMode !== 'schedule'
-                                 && (window._customGroupIds || []).length > 0;
+                                 && (customGroupIds || []).length > 0;
       if (postMode === 'quickfb' || _isAutoShareEligible) {
-        const _activeSel = (window._channelSelection || {})[currentProfile] || { fb: [] };
+        const _activeSel = channelSel || { fb: [] };
         const _names = [];
         for (const c of (_activeSel.fb || [])) {
           if (c.id === 'cat' && Array.isArray(c.groupKeys)) {
@@ -6277,7 +6329,7 @@
 
         // Post to custom groups if any — SKIP cho quickfb mode (đã share qua 1 post duy nhất)
         // Skip per-group loop khi đã share-to-groups (cả auto-share lẫn quickfb mode)
-        const customIds = _shareGroupKeywords ? [] : (window._customGroupIds || []);
+        const customIds = _shareGroupKeywords ? [] : (customGroupIds || []);
         for (const gid of customIds) {
           addTyping();
           let groupProgressRow = null;
@@ -6334,7 +6386,7 @@
         }
 
         // Post to FB pages if any
-        const pageSel = (window._channelSelection || {})[currentProfile] || {};
+        const pageSel = channelSel || {};
         const pageItems = pageSel.fbPages || [];
         for (const pageItem of pageItems) {
           addTyping();
@@ -6391,7 +6443,7 @@
         }
 
         // Post to Zalo groups if any
-        const zaloSel = (window._channelSelection || {})[currentProfile] || { zalo: [], zaloAccount: '' };
+        const zaloSel = channelSel || { zalo: [], zaloAccount: '' };
         const zaloGroups = zaloSel.zalo || [];
         const zaloAccount = zaloSel.zaloAccount;
         const zaloPollPromises = [];
@@ -6416,8 +6468,10 @@
               const zd = await parseJson(zr);
               removeTyping();
               if (zd.processing && zd.jobId) {
-                const zRow = addBot(`⏳ Xeko đang đẩy bài lên Group Zalo <strong>${g.name}</strong> (${zaloAccount})...`);
-                zRow?.querySelector('.msg.bot')?.classList.add('status-progress');
+                // Zalo chạy nền: không hiện spinner "đang đẩy bài" (dễ kẹt nếu SSE/poll
+                // gián đoạn, phải reload mới hết). Báo 1 lần rồi điểm thẳng về Dashboard
+                // — nguồn sự thật. Poll vẫn chạy ngầm (silent) để cập nhật Dashboard live.
+                addBot(`📨 Xeko đã nhận bài Group Zalo <strong>${g.name}</strong> (${zaloAccount}) rồi nha! Bạn xem trạng thái ở tab <strong>Dashboard</strong> nhé — Zalo chạy nền nên kết quả cập nhật ở đó.`);
                 pushPendingJob({
                   kind: 'zalo',
                   jobId: zd.jobId,
@@ -6433,7 +6487,7 @@
                   _zaloTrackers.push(zTracker);
                   _refreshDashIfActive(false, true);
                   zaloPollPromises.push(
-                    pollZaloJob(zd.jobId, g.name, zaloAccount, zRow, 'zalo-' + zd.jobId).finally(() => {
+                    pollZaloJob(zd.jobId, g.name, zaloAccount, null, 'zalo-' + zd.jobId, true).finally(() => {
                       const idx = _activeRepostJobs.indexOf(zTracker);
                       if (idx !== -1) _activeRepostJobs.splice(idx, 1);
                       _refreshDashIfActive(true, true);
@@ -6443,7 +6497,7 @@
                   // Có pending DB row → update trực tiếp qua dashRowId khi done
                   _refreshDashIfActive(false, true); // hiện pending row ngay
                   zaloPollPromises.push(
-                    pollZaloJob(zd.jobId, g.name, zaloAccount, zRow, 'pending-log-' + zd.pendingLogId).finally(() => {
+                    pollZaloJob(zd.jobId, g.name, zaloAccount, null, 'pending-log-' + zd.pendingLogId, true).finally(() => {
                       _refreshDashIfActive(true, true);
                     })
                   );
@@ -6497,7 +6551,6 @@
       }
 
       broadcastTabPostEnd(currentProfile);
-      document.getElementById('sendBtn').disabled = false;
     }
 
     // ===== Lên lịch =====
