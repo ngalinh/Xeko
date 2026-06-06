@@ -6048,14 +6048,7 @@
         return;
       }
 
-      // Tao thumbnail URLs truoc khi clear
-      const photoUrls = selectedFiles.map(f => URL.createObjectURL(f));
-      // Capture files truoc khi clearImages() reset selectedFiles
-      const filesToUpload = [...selectedFiles];
-      let userMsg = message || '';
-      addUser(userMsg, photoUrls);
-      resetMsgInput();
-
+      // Resolve target + groupId (validate truoc khi xep hang)
       let target = currentTarget;
       let groupId = null;
       if (target === 'custom') {
@@ -6070,15 +6063,69 @@
         target = 'shortcut';
       }
 
+      // Snapshot toan bo context: bai trong hang cho khong bi anh huong khi user
+      // doi profile/kenh hoac dinh kem anh moi cho bai tiep theo
+      const photoUrls = selectedFiles.map(f => URL.createObjectURL(f));
+      const filesToUpload = [...selectedFiles];
+      const _csRaw = (window._channelSelection || {})[currentProfile] || {};
+      let channelSel;
+      try { channelSel = structuredClone(_csRaw); }
+      catch { channelSel = JSON.parse(JSON.stringify(_csRaw)); }
+      const ctx = {
+        message: message || '',
+        target, groupId,
+        profile: currentProfile,
+        profileName: currentProfileName,
+        channelSel,
+        customGroupIds: [...(window._customGroupIds || [])],
+        files: filesToUpload,
+        postMode,
+      };
+
+      // Echo + clear ngay de user soan duoc bai tiep theo trong luc cho
+      addUser(ctx.message, photoUrls);
+      resetMsgInput();
+      clearImages();
+
+      // Xep hang: dang co bai chay thi bao da xep hang, worker chay tuan tu
+      _postQueue.push(ctx);
+      if (_isPosting) {
+        addBot(`📋 Đã xếp hàng bài này nha — còn <strong>${_postQueue.length}</strong> bài đang chờ. Xeko đăng xong bài hiện tại sẽ làm tiếp liền!`);
+      }
+      _processPostQueue();
+    }
+
+    // Hang cho dang bai — chay tuan tu tung bai mot, cho phep user gui bai tiep theo
+    let _isPosting = false;
+    const _postQueue = [];
+    async function _processPostQueue() {
+      if (_isPosting) return;
+      _isPosting = true;
+      try {
+        while (_postQueue.length > 0) {
+          const ctx = _postQueue.shift();
+          try {
+            await runPostJob(ctx);
+          } catch (e) {
+            addBot(botSystemError('đăng bài', e));
+          }
+        }
+      } finally {
+        _isPosting = false;
+      }
+    }
+
+    async function runPostJob(ctx) {
+      const { message, profile: currentProfile, profileName: currentProfileName,
+              channelSel, customGroupIds, files: filesToUpload, postMode } = ctx;
+      let { target, groupId } = ctx;
+
       // Warn neu tab khac dang post cung profile (server mutex se serialize,
       // user co the bi delay)
       if (isOtherTabPosting(currentProfile)) {
         addBot(`⚠️ Tab khác đang đăng bài profile <strong>${currentProfileName}</strong>. Bài này sẽ chờ tab kia xong rồi mới chạy nha (server tự xếp hàng).`);
       }
       broadcastTabPostStart(currentProfile);
-
-      clearImages();
-      document.getElementById('sendBtn').disabled = true;
 
       const sessionBatchId = crypto.randomUUID();
 
@@ -6128,9 +6175,9 @@
       const _hasPersonalTarget = (target === 'personal' || target === 'all');
       const _isAutoShareEligible = _hasPersonalTarget
                                  && postMode !== 'schedule'
-                                 && (window._customGroupIds || []).length > 0;
+                                 && (customGroupIds || []).length > 0;
       if (postMode === 'quickfb' || _isAutoShareEligible) {
-        const _activeSel = (window._channelSelection || {})[currentProfile] || { fb: [] };
+        const _activeSel = channelSel || { fb: [] };
         const _names = [];
         for (const c of (_activeSel.fb || [])) {
           if (c.id === 'cat' && Array.isArray(c.groupKeys)) {
@@ -6277,7 +6324,7 @@
 
         // Post to custom groups if any — SKIP cho quickfb mode (đã share qua 1 post duy nhất)
         // Skip per-group loop khi đã share-to-groups (cả auto-share lẫn quickfb mode)
-        const customIds = _shareGroupKeywords ? [] : (window._customGroupIds || []);
+        const customIds = _shareGroupKeywords ? [] : (customGroupIds || []);
         for (const gid of customIds) {
           addTyping();
           let groupProgressRow = null;
@@ -6334,7 +6381,7 @@
         }
 
         // Post to FB pages if any
-        const pageSel = (window._channelSelection || {})[currentProfile] || {};
+        const pageSel = channelSel || {};
         const pageItems = pageSel.fbPages || [];
         for (const pageItem of pageItems) {
           addTyping();
@@ -6391,7 +6438,7 @@
         }
 
         // Post to Zalo groups if any
-        const zaloSel = (window._channelSelection || {})[currentProfile] || { zalo: [], zaloAccount: '' };
+        const zaloSel = channelSel || { zalo: [], zaloAccount: '' };
         const zaloGroups = zaloSel.zalo || [];
         const zaloAccount = zaloSel.zaloAccount;
         const zaloPollPromises = [];
@@ -6497,7 +6544,6 @@
       }
 
       broadcastTabPostEnd(currentProfile);
-      document.getElementById('sendBtn').disabled = false;
     }
 
     // ===== Lên lịch =====
