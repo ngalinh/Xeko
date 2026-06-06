@@ -6,6 +6,7 @@ const { getZaloProxyForAccount } = require('../utils/proxy');
 const { randomDelay, humanType } = require('../utils/delay');
 const { getProfileDeviceFingerprint } = require('../utils/device-fingerprint');
 const { checkProxy } = require('../utils/proxy-health');
+const { hasBold, boldToHtml, stripBold } = require('../utils/rich-text');
 
 const DEBUG_SCREENSHOT_DIR = '/tmp/salework-debug';
 
@@ -241,7 +242,31 @@ async function sendMessage(page, message, imagePaths = []) {
       await randomDelay(250, 600);
       // Copy-paste để giữ nguyên xuống dòng (paste event không trigger gửi như Enter)
       await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-      await page.evaluate(text => navigator.clipboard.writeText(text), message);
+      // Nếu nội dung có **in đậm** → ghi clipboard cả text/html lẫn text/plain để
+      // editor rich text của Salework dán ra chữ in đậm. Plain = bản đã bỏ dấu **
+      // (fallback nếu editor không nhận HTML). Không có in đậm → ghi text thường.
+      if (hasBold(message)) {
+        const html = boldToHtml(message);
+        const plain = stripBold(message);
+        const wrote = await page.evaluate(async ({ html, plain }) => {
+          try {
+            const item = new ClipboardItem({
+              'text/html': new Blob([html], { type: 'text/html' }),
+              'text/plain': new Blob([plain], { type: 'text/plain' }),
+            });
+            await navigator.clipboard.write([item]);
+            return true;
+          } catch {
+            return false;
+          }
+        }, { html, plain });
+        if (!wrote) {
+          // Trình duyệt không hỗ trợ ClipboardItem → đành dán plain text
+          await page.evaluate(text => navigator.clipboard.writeText(text), plain);
+        }
+      } else {
+        await page.evaluate(text => navigator.clipboard.writeText(text), message);
+      }
       await page.keyboard.press('Control+v');
       logger.info('[salework] Đã nhập tin nhắn (paste)');
       await randomDelay(400, 900);

@@ -5,6 +5,7 @@ const config = require('../../config/default');
 const logger = require('../utils/logger');
 const { randomDelay, humanType } = require('../utils/delay');
 const funMsg = require('../utils/fun-messages');
+const { stripBold } = require('../utils/rich-text');
 const { getFbProxyForProfile } = require('../utils/proxy');
 const { getProfileDeviceFingerprint } = require('../utils/device-fingerprint');
 const { checkProxy } = require('../utils/proxy-health');
@@ -221,6 +222,9 @@ async function openCreatePost(page, isGroup = false) {
 
 // Nhập text vào contenteditable: clipboard paste → execCommand → keyboard.type
 async function pasteText(page, message) {
+  // Facebook không hỗ trợ markdown → bỏ dấu **in đậm** để không hiện ký tự ** thừa.
+  // (Cú pháp ** chỉ có tác dụng in đậm khi đăng qua Salework/Zalo.)
+  message = stripBold(message);
   // 1. Clipboard paste (instant, hoạt động tốt với React)
   try {
     await page.evaluate(async (txt) => navigator.clipboard.writeText(txt), message);
