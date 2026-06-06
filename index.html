@@ -6269,6 +6269,80 @@
           addBot(`📨 Đã nhận bài, đang đăng lên ${_list}. Theo dõi kết quả ở tab <strong>Dashboard</strong> nha!`);
         }
 
+        // === Gửi request Zalo SỚM (trước khi đăng FB) ===
+        // FB đăng qua Playwright khá chậm; nếu chờ FB xong mới gửi Zalo thì khi
+        // user rời Xeko giữa chừng, request Zalo chưa kịp gửi đi → mất bài Zalo.
+        // Gửi trước ở đây: server nhận request là tự đăng nền (independent),
+        // không phụ thuộc tab còn mở hay không. Việc chờ kết quả để hiện
+        // Dashboard vẫn nằm ở cuối (await zaloPollPromises).
+        const zaloSel = channelSel || { zalo: [], zaloAccount: '' };
+        const zaloGroups = zaloSel.zalo || [];
+        const zaloAccount = zaloSel.zaloAccount;
+        const zaloPollPromises = [];
+        const _zaloTrackers = []; // dashboard trackers cho các Zalo job đang chạy
+        const _now2 = new Date();
+        const _pad2 = n => String(n).padStart(2,'0');
+        const _zaloTimeLabel = `${_pad2(_now2.getHours())}:${_pad2(_now2.getMinutes())}:${_pad2(_now2.getSeconds())} ${_pad2(_now2.getDate())}/${_pad2(_now2.getMonth()+1)}/${_now2.getFullYear()}`;
+        if (zaloGroups.length > 0 && zaloAccount) {
+          const allZalo = channelsData.zaloGroups || [];
+          for (const z of zaloGroups) {
+            const g = allZalo.find(x => x.key === z.id);
+            if (!g) continue;
+            addTyping();
+            try {
+              const zf = new FormData();
+              zf.append('zaloAccountName', zaloAccount);
+              zf.append('groupName', g.name);
+              zf.append('message', message);
+              zf.append('batchId', sessionBatchId);
+              await appendImages(zf, filesToUpload);
+              const zr = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: zf });
+              const zd = await parseJson(zr);
+              removeTyping();
+              if (zd.processing && zd.jobId) {
+                // Đã báo gộp 1 dòng ở trên. Zalo chạy nền (silent poll) → Dashboard.
+                pushPendingJob({
+                  kind: 'zalo',
+                  jobId: zd.jobId,
+                  groupName: g.name,
+                  account: zaloAccount,
+                  pendingLogId: zd.pendingLogId || null,
+                });
+                // Nếu có pendingLogId → DB là source of truth, không cần in-memory tracker
+                // Nếu không → dùng in-memory tracker (fallback)
+                if (!zd.pendingLogId) {
+                  const zTracker = { tempId: 'zalo-' + zd.jobId, profileName: zaloAccount, timeLabel: _zaloTimeLabel, message, ch: { type: 'group', platform: 'zalo', id: g.key, name: g.name } };
+                  _activeRepostJobs.push(zTracker);
+                  _zaloTrackers.push(zTracker);
+                  _refreshDashIfActive(false, true);
+                  zaloPollPromises.push(
+                    pollZaloJob(zd.jobId, g.name, zaloAccount, null, 'zalo-' + zd.jobId, true).finally(() => {
+                      const idx = _activeRepostJobs.indexOf(zTracker);
+                      if (idx !== -1) _activeRepostJobs.splice(idx, 1);
+                      _refreshDashIfActive(true, true);
+                    })
+                  );
+                } else {
+                  // Có pending DB row → update trực tiếp qua dashRowId khi done
+                  _refreshDashIfActive(false, true); // hiện pending row ngay
+                  zaloPollPromises.push(
+                    pollZaloJob(zd.jobId, g.name, zaloAccount, null, 'pending-log-' + zd.pendingLogId, true).finally(() => {
+                      _refreshDashIfActive(true, true);
+                    })
+                  );
+                }
+              } else if (zd.success) {
+                successCount += 1;
+              } else {
+                addBot(`❌ Group Zalo <strong>${g.name}</strong> lỗi: ${zd.error || 'Không rõ lý do'}`);
+              }
+            } catch (ze) {
+              removeTyping();
+              addBot(botSystemError(`đăng Group Zalo ${g.name}`, ze));
+            }
+          }
+        }
+
         if (target) {
           const formData = new FormData();
           formData.append('message', message);
@@ -6388,74 +6462,9 @@
           }
         }
 
-        // Post to Zalo groups if any
-        const zaloSel = channelSel || { zalo: [], zaloAccount: '' };
-        const zaloGroups = zaloSel.zalo || [];
-        const zaloAccount = zaloSel.zaloAccount;
-        const zaloPollPromises = [];
-        const _zaloTrackers = []; // dashboard trackers cho các Zalo job đang chạy
-        const _now2 = new Date();
-        const _pad2 = n => String(n).padStart(2,'0');
-        const _zaloTimeLabel = `${_pad2(_now2.getHours())}:${_pad2(_now2.getMinutes())}:${_pad2(_now2.getSeconds())} ${_pad2(_now2.getDate())}/${_pad2(_now2.getMonth()+1)}/${_now2.getFullYear()}`;
-        if (zaloGroups.length > 0 && zaloAccount) {
-          const allZalo = channelsData.zaloGroups || [];
-          for (const z of zaloGroups) {
-            const g = allZalo.find(x => x.key === z.id);
-            if (!g) continue;
-            addTyping();
-            try {
-              const zf = new FormData();
-              zf.append('zaloAccountName', zaloAccount);
-              zf.append('groupName', g.name);
-              zf.append('message', message);
-              zf.append('batchId', sessionBatchId);
-              await appendImages(zf, filesToUpload);
-              const zr = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: zf });
-              const zd = await parseJson(zr);
-              removeTyping();
-              if (zd.processing && zd.jobId) {
-                // Đã báo gộp 1 dòng ở trên. Zalo chạy nền (silent poll) → Dashboard.
-                pushPendingJob({
-                  kind: 'zalo',
-                  jobId: zd.jobId,
-                  groupName: g.name,
-                  account: zaloAccount,
-                  pendingLogId: zd.pendingLogId || null,
-                });
-                // Nếu có pendingLogId → DB là source of truth, không cần in-memory tracker
-                // Nếu không → dùng in-memory tracker (fallback)
-                if (!zd.pendingLogId) {
-                  const zTracker = { tempId: 'zalo-' + zd.jobId, profileName: zaloAccount, timeLabel: _zaloTimeLabel, message, ch: { type: 'group', platform: 'zalo', id: g.key, name: g.name } };
-                  _activeRepostJobs.push(zTracker);
-                  _zaloTrackers.push(zTracker);
-                  _refreshDashIfActive(false, true);
-                  zaloPollPromises.push(
-                    pollZaloJob(zd.jobId, g.name, zaloAccount, null, 'zalo-' + zd.jobId, true).finally(() => {
-                      const idx = _activeRepostJobs.indexOf(zTracker);
-                      if (idx !== -1) _activeRepostJobs.splice(idx, 1);
-                      _refreshDashIfActive(true, true);
-                    })
-                  );
-                } else {
-                  // Có pending DB row → update trực tiếp qua dashRowId khi done
-                  _refreshDashIfActive(false, true); // hiện pending row ngay
-                  zaloPollPromises.push(
-                    pollZaloJob(zd.jobId, g.name, zaloAccount, null, 'pending-log-' + zd.pendingLogId, true).finally(() => {
-                      _refreshDashIfActive(true, true);
-                    })
-                  );
-                }
-              } else if (zd.success) {
-                successCount += 1;
-              } else {
-                addBot(`❌ Group Zalo <strong>${g.name}</strong> lỗi: ${zd.error || 'Không rõ lý do'}`);
-              }
-            } catch (ze) {
-              removeTyping();
-              addBot(botSystemError(`đăng Group Zalo ${g.name}`, ze));
-            }
-          }
-        }
+        // (Zalo đã được gửi đi SỚM ở phía trên — trước khối FB — nên dù user
+        // rời Xeko trong lúc FB đang đăng thì request Zalo vẫn tới server và
+        // được đăng. Ở đây chỉ chờ kết quả để cập nhật Dashboard.)
         if (zaloPollPromises.length > 0) {
           const zaloResults = await Promise.all(zaloPollPromises);
           successCount += zaloResults.filter(Boolean).length;
