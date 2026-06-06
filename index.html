@@ -5878,7 +5878,7 @@
     });
 
     // Poll kết quả Zalo post async — cập nhật chatbot khi Playwright hoàn thành
-    async function pollZaloJob(jobId, groupName, account, progressRow = null, dashRowId = null) {
+    async function pollZaloJob(jobId, groupName, account, progressRow = null, dashRowId = null, silent = false) {
       const pendingLogId = dashRowId?.startsWith('pending-log-') ? dashRowId.replace('pending-log-', '') : null;
       if (pendingLogId) _pendingLogProgressRows[pendingLogId] = { progressRow, groupName, account };
 
@@ -5888,12 +5888,15 @@
       _jobSseBus.set(jobId, _ac);
 
       const finishDone = (success, error) => {
-        const okMsg = `✅ Group Zalo <strong>${groupName}</strong> (${account}) xong rồi nha!`;
-        const errMsg = `❌ Huhu Group Zalo <strong>${groupName}</strong> hỏng mất rồi: ${error || 'Không rõ lý do'}`;
-        if (success) {
-          if (progressRow) morphBot(progressRow, okMsg, 'success'); else addBot(okMsg);
-        } else {
-          if (progressRow) morphBot(progressRow, errMsg, 'error'); else addBot(errMsg);
+        // silent=true: Zalo chạy nền, không cập nhật chat — Dashboard là nguồn sự thật
+        if (!silent) {
+          const okMsg = `✅ Group Zalo <strong>${groupName}</strong> (${account}) xong rồi nha!`;
+          const errMsg = `❌ Huhu Group Zalo <strong>${groupName}</strong> hỏng mất rồi: ${error || 'Không rõ lý do'}`;
+          if (success) {
+            if (progressRow) morphBot(progressRow, okMsg, 'success'); else addBot(okMsg);
+          } else {
+            if (progressRow) morphBot(progressRow, errMsg, 'error'); else addBot(errMsg);
+          }
         }
         if (dashRowId) {
           _updateDashRowDone(dashRowId, success);
@@ -5949,9 +5952,11 @@
         // Chat không tự kết luận thành/bại — Dashboard là nguồn sự thật.
         // Cloud (_driveZaloJob) vẫn đang chạy job tới hoàn thành ở nền và sẽ
         // cập nhật DB; markTimedOutPending sẽ dọn nếu thực sự kẹt.
-        const timeoutMsg = `⏳ Group Zalo <strong>${groupName}</strong> đang xử lý lâu hơn thường lệ. Bạn xem kết quả ở tab <strong>Dashboard</strong> nha — Xeko vẫn đang chạy.`;
-        if (progressRow) morphBot(progressRow, timeoutMsg, 'progress');
-        else addBot(timeoutMsg);
+        if (!silent) {
+          const timeoutMsg = `⏳ Group Zalo <strong>${groupName}</strong> đang xử lý lâu hơn thường lệ. Bạn xem kết quả ở tab <strong>Dashboard</strong> nha — Xeko vẫn đang chạy.`;
+          if (progressRow) morphBot(progressRow, timeoutMsg, 'progress');
+          else addBot(timeoutMsg);
+        }
         removePendingJob(jobId);
         return false;
       } finally {
@@ -6463,8 +6468,10 @@
               const zd = await parseJson(zr);
               removeTyping();
               if (zd.processing && zd.jobId) {
-                const zRow = addBot(`⏳ Xeko đang đẩy bài lên Group Zalo <strong>${g.name}</strong> (${zaloAccount})...`);
-                zRow?.querySelector('.msg.bot')?.classList.add('status-progress');
+                // Zalo chạy nền: không hiện spinner "đang đẩy bài" (dễ kẹt nếu SSE/poll
+                // gián đoạn, phải reload mới hết). Báo 1 lần rồi điểm thẳng về Dashboard
+                // — nguồn sự thật. Poll vẫn chạy ngầm (silent) để cập nhật Dashboard live.
+                addBot(`📨 Xeko đã nhận bài Group Zalo <strong>${g.name}</strong> (${zaloAccount}) rồi nha! Bạn xem trạng thái ở tab <strong>Dashboard</strong> nhé — Zalo chạy nền nên kết quả cập nhật ở đó.`);
                 pushPendingJob({
                   kind: 'zalo',
                   jobId: zd.jobId,
@@ -6480,7 +6487,7 @@
                   _zaloTrackers.push(zTracker);
                   _refreshDashIfActive(false, true);
                   zaloPollPromises.push(
-                    pollZaloJob(zd.jobId, g.name, zaloAccount, zRow, 'zalo-' + zd.jobId).finally(() => {
+                    pollZaloJob(zd.jobId, g.name, zaloAccount, null, 'zalo-' + zd.jobId, true).finally(() => {
                       const idx = _activeRepostJobs.indexOf(zTracker);
                       if (idx !== -1) _activeRepostJobs.splice(idx, 1);
                       _refreshDashIfActive(true, true);
@@ -6490,7 +6497,7 @@
                   // Có pending DB row → update trực tiếp qua dashRowId khi done
                   _refreshDashIfActive(false, true); // hiện pending row ngay
                   zaloPollPromises.push(
-                    pollZaloJob(zd.jobId, g.name, zaloAccount, zRow, 'pending-log-' + zd.pendingLogId).finally(() => {
+                    pollZaloJob(zd.jobId, g.name, zaloAccount, null, 'pending-log-' + zd.pendingLogId, true).finally(() => {
                       _refreshDashIfActive(true, true);
                     })
                   );
