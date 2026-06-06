@@ -25,6 +25,21 @@ function hasBold(message) {
   return BOLD_RE.test(message);
 }
 
+/**
+ * Trả về danh sách các đoạn chữ cần in đậm (phần bên trong **...**), theo đúng
+ * thứ tự xuất hiện. Dùng để bôi đen từng đoạn rồi nhấn Ctrl+B trong editor.
+ */
+function boldSegments(message) {
+  if (!message) return [];
+  const out = [];
+  let m;
+  BOLD_RE.lastIndex = 0;
+  while ((m = BOLD_RE.exec(message)) !== null) {
+    if (m[1]) out.push(m[1]);
+  }
+  return out;
+}
+
 function escapeHtml(s) {
   return s
     .replace(/&/g, '&amp;')
@@ -44,4 +59,4 @@ function boldToHtml(message) {
   return withBold.replace(/\r?\n/g, '<br>');
 }
 
-module.exports = { stripBold, hasBold, boldToHtml, escapeHtml };
+module.exports = { stripBold, hasBold, boldSegments, boldToHtml, escapeHtml };
