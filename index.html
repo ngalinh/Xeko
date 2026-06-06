@@ -6240,11 +6240,12 @@
           const initial = await parseJson(res);
 
           let data;
-          let progressRow = null;
           if (initial.jobId) {
             removeTyping();
-            progressRow = addBot('⏳ Xeko đang đăng bài nè, bạn chờ xíu nha...');
-            progressRow?.querySelector('.msg.bot')?.classList.add('status-progress');
+            // Đồng bộ mọi kênh: báo 1 lần + điểm về Dashboard (nguồn sự thật),
+            // không spinner/không morph kết quả trong chat. Poll vẫn chạy để biết
+            // hoàn thành (đếm successCount cho câu chốt) + refresh Dashboard ở cuối.
+            addBot(`📨 Xeko đã nhận bài ${targetLabel} rồi nha! Bạn xem kết quả ở tab <strong>Dashboard</strong> nhé.`);
             // Save jobId de resume khi PWA reload giua chung
             pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: targetLabel });
             // DB pending row pre-inserted → remove from in-memory tracker, DB is now source of truth
@@ -6257,14 +6258,7 @@
             try {
               data = await pollJob(initial.jobId);
             } catch (pollErr) {
-              data = null;
-              const isTimeout = isProxyTimeout(pollErr);
-              const errMsg = isTimeout
-                ? '⚠️ Mạng/proxy timeout — chưa xác nhận được bài đã đăng hay chưa. Bạn check Facebook + tab Dashboard sau 1-2 phút, đừng bấm đăng lại liền vì có thể đã thành công rồi!'
-                : botSystemError('đăng bài', pollErr);
-              if (progressRow) morphBot(progressRow, errMsg, isTimeout ? 'warning' : 'error');
-              else addBot(errMsg);
-              progressRow = null;
+              data = null; // Dashboard phản ánh trạng thái thật (kể cả timeout)
             } finally {
               removePendingJob(initial.jobId);
             }
@@ -6273,58 +6267,6 @@
             removeTyping();
           }
           successCount += countSuccess(data);
-
-          if (data && data.results) {
-            data.results.forEach((r, i) => {
-              if (r.success) {
-                let msg = `✅ Đăng lên <strong>${r.target}</strong> (profile <strong>${currentProfileName}</strong>) xong rồi nha!`;
-                if (r.postUrl) msg += `\n<a class="post-link" href="${r.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
-                const shot = r.screenshot ? `/api/screenshot?t=${Date.now()}` : null;
-                if (progressRow && i === 0) {
-                  morphBot(progressRow, msg, 'success', shot);
-                  progressRow = null;
-                } else {
-                  addBot(msg, null, shot);
-                }
-              } else {
-                const errMsg = `❌ Huhu Xeko đăng <strong>${r.target}</strong> hỏng mất rồi: ${r.error}`;
-                if (progressRow && i === 0) {
-                  morphBot(progressRow, errMsg, 'error');
-                  progressRow = null;
-                } else {
-                  addBot(errMsg);
-                }
-              }
-            });
-          } else if (data && data.success) {
-            let msg;
-            const isShareFlow = !!_shareGroupKeywords;
-            const sharedCount = Array.isArray(data.sharedGroups) ? data.sharedGroups.length : (data.sharedGroups || 0);
-            if (isShareFlow && data.partialSuccess && data.missedGroups && data.missedGroups.length > 0) {
-              msg = `⚠️ Đăng FB Profile <strong>${currentProfileName}</strong> OK, nhưng share lên ${data.missedGroups.length} nhóm <strong>${data.missedGroups.join(', ')}</strong> fail (không tick được). Bạn share thủ công hoặc retry nha.`;
-            } else if (isShareFlow && sharedCount > 0) {
-              msg = `✅ Xeko đã đăng FB Profile <strong>${currentProfileName}</strong> + share lên <strong>${sharedCount} nhóm</strong> rồi nha!`;
-            } else {
-              msg = `✅ Xong ${targetLabel} rồi nha!`;
-            }
-            if (data.postUrl) msg += `\n<a class="post-link" href="${data.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
-            const shot = data.screenshot ? `/api/screenshot?t=${Date.now()}` : null;
-            const statusKind = (isShareFlow && data.partialSuccess) ? 'warning' : 'success';
-            if (progressRow) {
-              morphBot(progressRow, msg, statusKind, shot);
-              progressRow = null;
-            } else {
-              addBot(msg, null, shot);
-            }
-          } else if (data) {
-            const errMsg = botSystemError('đăng bài', data.error);
-            if (progressRow) {
-              morphBot(progressRow, errMsg, 'error');
-              progressRow = null;
-            } else {
-              addBot(errMsg);
-            }
-          }
         }
 
         // Post to custom groups if any — SKIP cho quickfb mode (đã share qua 1 post duy nhất)
@@ -6332,7 +6274,6 @@
         const customIds = _shareGroupKeywords ? [] : (customGroupIds || []);
         for (const gid of customIds) {
           addTyping();
-          let groupProgressRow = null;
           try {
             const cf = new FormData();
             cf.append('message', message);
@@ -6342,46 +6283,22 @@
             await appendImages(cf, filesToUpload);
             const cr = await fetch(BASE_URL + '/api/post', { method: 'POST', body: cf });
             const initial = await parseJson(cr);
-            if (initial.jobId) {
-              removeTyping();
-              const gLabel = getFbGroupDisplayName(gid);
-              groupProgressRow = addBot(`⏳ Xeko đang đăng Group FB <strong>${gLabel}</strong>...`);
-              groupProgressRow?.querySelector('.msg.bot')?.classList.add('status-progress');
-              pushPendingJob({
-                jobId: initial.jobId,
-                profile: currentProfile,
-                label: `Group FB <strong>${gLabel}</strong>`,
-              });
-            }
+            const gLabel = getFbGroupDisplayName(gid);
+            removeTyping();
             let cd;
             if (initial.jobId) {
+              addBot(`📨 Xeko đã nhận bài Group FB <strong>${gLabel}</strong> rồi nha! Bạn xem trạng thái ở tab <strong>Dashboard</strong> nhé.`);
+              pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `Group FB <strong>${gLabel}</strong>` });
               try { cd = await pollJob(initial.jobId); }
+              catch { cd = null; }
               finally { removePendingJob(initial.jobId); }
             } else {
               cd = initial;
-              removeTyping();
             }
-            if (cd.success) {
-              successCount += 1;
-              const gLabel = getFbGroupDisplayName(gid);
-              let msg = `✅ Group FB <strong>${gLabel}</strong> (profile <strong>${currentProfileName}</strong>) xong rồi nha!`;
-              if (cd.postUrl) msg += `\n<a class="post-link" href="${cd.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
-              const shot = cd.screenshot ? `/api/screenshot?t=${Date.now()}` : null;
-              if (groupProgressRow) morphBot(groupProgressRow, msg, 'success', shot);
-              else addBot(msg, null, shot);
-            } else {
-              const errMsg = `❌ Huhu Group FB <strong>${getFbGroupDisplayName(gid)}</strong> Xeko đăng lỗi mất: ${cd.error}`;
-              if (groupProgressRow) morphBot(groupProgressRow, errMsg, 'error');
-              else addBot(errMsg);
-            }
+            if (cd && cd.success) successCount += 1;
           } catch (ce) {
             removeTyping();
-            const gLabel = getFbGroupDisplayName(gid);
-            const errMsg = isProxyTimeout(ce)
-              ? `⚠️ Group FB <strong>${gLabel}</strong>: mạng/proxy timeout, Xeko chưa xác nhận được bài đăng. Check FB + tab Dashboard sau 1-2 phút nha, đừng bấm đăng lại liền vì có thể đã đăng rồi đó!`
-              : botSystemError(`đăng Group FB ${gLabel}`, ce);
-            if (groupProgressRow) morphBot(groupProgressRow, errMsg, 'error');
-            else addBot(errMsg);
+            // Dashboard phản ánh trạng thái thật; không spam lỗi vào chat
           }
         }
 
@@ -6390,7 +6307,6 @@
         const pageItems = pageSel.fbPages || [];
         for (const pageItem of pageItems) {
           addTyping();
-          let pageProgressRow = null;
           try {
             const pf = new FormData();
             pf.append('message', message);
@@ -6403,42 +6319,21 @@
             const pr = await fetch(BASE_URL + '/api/post', { method: 'POST', body: pf });
             const initial = await parseJson(pr);
             const pName = (channelsData.fbPages || []).find(x => x.key === pageItem.key)?.name || pageItem.id;
+            removeTyping();
             if (initial.jobId) {
-              removeTyping();
-              pageProgressRow = addBot(`⏳ Xeko đang đăng FB Page <strong>${pName}</strong>...`);
-              pageProgressRow?.querySelector('.msg.bot')?.classList.add('status-progress');
+              addBot(`📨 Xeko đã nhận bài FB Page <strong>${pName}</strong> rồi nha! Bạn xem trạng thái ở tab <strong>Dashboard</strong> nhé.`);
               pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `FB Page <strong>${pName}</strong>` });
               let pd;
               try { pd = await pollJob(initial.jobId); }
+              catch { pd = null; }
               finally { removePendingJob(initial.jobId); }
-              if (pd.success) {
-                successCount += 1;
-                let msg = `✅ FB Page <strong>${pName}</strong> (profile <strong>${currentProfileName}</strong>) xong rồi nha!`;
-                if (pd.postUrl) msg += `\n<a class="post-link" href="${pd.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
-                morphBot(pageProgressRow, msg, 'success');
-              } else {
-                morphBot(pageProgressRow, `❌ FB Page <strong>${pName}</strong> đăng lỗi: ${pd.error}`, 'error');
-              }
-            } else {
-              removeTyping();
-              if (initial.success) {
-                successCount += 1;
-                const pName2 = (channelsData.fbPages || []).find(x => x.key === pageItem.key)?.name || pageItem.id;
-                let msg = `✅ FB Page <strong>${pName2}</strong> xong rồi nha!`;
-                if (initial.postUrl) msg += `\n<a class="post-link" href="${initial.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
-                addBot(msg);
-              } else {
-                addBot(`❌ FB Page <strong>${(channelsData.fbPages || []).find(x => x.key === pageItem.key)?.name || pageItem.id}</strong> lỗi: ${initial.error}`);
-              }
+              if (pd && pd.success) successCount += 1;
+            } else if (initial.success) {
+              successCount += 1;
             }
           } catch (pe) {
             removeTyping();
-            const pName = (channelsData.fbPages || []).find(x => x.key === pageItem.key)?.name || pageItem.id;
-            const errMsg = isProxyTimeout(pe)
-              ? `⚠️ FB Page <strong>${pName}</strong>: mạng/proxy timeout, chưa xác nhận được. Check FB sau 1-2 phút nha!`
-              : botSystemError(`đăng FB Page ${pName}`, pe);
-            if (pageProgressRow) morphBot(pageProgressRow, errMsg, 'error');
-            else addBot(errMsg);
+            // Dashboard phản ánh trạng thái thật; không spam lỗi vào chat
           }
         }
 
