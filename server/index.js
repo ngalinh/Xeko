@@ -1874,7 +1874,11 @@ async function _driveZaloJob(jobId, maxWaitMs = 10 * 60 * 1000) {
       logger.warn(`[driveZalo] ${jobId} poll error: ${e.message}`);
     }
   }
-  logger.warn(`[driveZalo] ${jobId} → quá ${maxWaitMs}ms chưa done`);
+  // Hết thời gian chờ mà job chưa 'done' → đánh dấu thất bại để LUÔN có dòng
+  // trên Dashboard (kể cả khi pending pre-insert lỗi: _completeZaloJob sẽ
+  // logPost fallback). Tránh job kẹt vô hình, user không biết kết quả.
+  logger.warn(`[driveZalo] ${jobId} → quá ${maxWaitMs}ms chưa done, đánh dấu timeout`);
+  _completeZaloJob(jobId, { success: false, error: `Timeout — job Zalo không phản hồi 'done' sau ${Math.round(maxWaitMs / 60000)} phút` });
 }
 
 // Lưu cache done + complete pending DB row (dùng chung cho cả driveZalo và frontend poll)
@@ -1969,22 +1973,33 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
     // (giống FB flow — completePendingPost sẽ update khi job xong)
     let zaloPendingLogId = null;
     if (data.processing && data.jobId) {
-      try {
-        zaloPendingLogId = postLogger.insertPendingPost({
-          profile: accountName || 'zalo',
-          profileName: accountName || 'Zalo',
-          platform: 'zalo',
-          target: 'group',
-          groupName: groupName || '',
-          message: message || '',
-          imageCount: imagePaths.length,
-          source: 'web',
-          images: zaloImageUrls,
-          batchId: batchId || null,
-          jobId: data.jobId,
-        });
-      } catch (e) {
-        logger.error(`[zalo/post] insertPendingPost error: ${e.message}`);
+      const _pendingArgs = {
+        profile: accountName || 'zalo',
+        profileName: accountName || 'Zalo',
+        platform: 'zalo',
+        target: 'group',
+        groupName: groupName || '',
+        message: message || '',
+        imageCount: imagePaths.length,
+        source: 'web',
+        images: zaloImageUrls,
+        batchId: batchId || null,
+        jobId: data.jobId,
+      };
+      // Retry 1 lần để qua được lỗi DB-busy tạm thời; log full stack để lần sau
+      // còn truy được nguyên nhân nếu lỗi mang tính hệ thống (schema/constraint).
+      for (let _try = 0; _try < 2 && !zaloPendingLogId; _try++) {
+        try {
+          zaloPendingLogId = postLogger.insertPendingPost(_pendingArgs);
+        } catch (e) {
+          logger.error(`[zalo/post] insertPendingPost lỗi (lần ${_try + 1}): ${e.stack || e.message}`);
+        }
+      }
+      if (!zaloPendingLogId) {
+        // Không tạo được pending row → vẫn giữ meta bên dưới để _completeZaloJob
+        // logPost fallback khi job xong; nếu job kẹt, driveZalo timeout cũng sẽ
+        // ghi dòng kết quả. Dashboard không bao giờ mất dấu bài Zalo.
+        logger.warn(`[zalo/post] ${data.jobId}: không tạo được pending row, sẽ ghi log kết quả cuối khi job xong/timeout`);
       }
       _pendingZaloLogs.set(data.jobId, {
         profile: accountName || 'zalo',
