@@ -9431,27 +9431,6 @@
       setPendingJobs(getPendingJobs().filter(j => j.jobId !== jobId));
     }
 
-    function renderResumedJobResult(job, data) {
-      const profile = job.profileName || _profileDisplayNames[job.profile] || job.profile || '?';
-      if (data && data.results) {
-        data.results.forEach(r => {
-          if (r.success) {
-            let msg = `✅ Đăng lên <strong>${r.target}</strong> (profile <strong>${profile}</strong>) xong rồi nha!`;
-            if (r.postUrl) msg += `\n<a class="post-link" href="${r.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
-            addBot(msg);
-          } else {
-            addBot(`❌ Đăng <strong>${r.target}</strong> lỗi: ${r.error}`);
-          }
-        });
-      } else if (data && data.success) {
-        let msg = `✅ ${job.label || 'Xong'} (profile <strong>${profile}</strong>)`;
-        if (data.postUrl) msg += `\n<a class="post-link" href="${data.postUrl}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#ic-link"/></svg>Xem bài viết</a>`;
-        addBot(msg);
-      } else {
-        addBot(`❌ Lỗi: ${(data && data.error) || 'unknown'}`);
-      }
-    }
-
     async function resumePendingJobs() {
       const now = Date.now();
       const list = getPendingJobs();
@@ -9463,21 +9442,22 @@
       const fbRepost = fresh.filter(j => j.kind === 'fb-repost');
       const zalo = fresh.filter(j => j.kind === 'zalo');
 
-      // FB chatbot — render result vao chat
+      // FB chatbot — bài từ phiên trước: theo dõi ngầm để hoàn tất + refresh
+      // Dashboard. Không render "✅ Xem bài viết" trong chat (đồng bộ: Dashboard
+      // là nguồn sự thật, tránh kết quả cũ lọt ra lúc user đang thao tác khác).
       if (fbChat.length > 0) {
         addBot(
-          `⏳ Xeko đang theo dõi tiếp ${fbChat.length} bài đăng từ phiên trước...`,
+          `📨 Có ${fbChat.length} bài đăng từ phiên trước — Xeko đang theo dõi, kết quả cập nhật ở tab Dashboard nha!`,
           null, null, 'welcome-back'
         );
         for (const job of fbChat) {
-          try {
-            const data = await pollJob(job.jobId);
-            renderResumedJobResult(job, data);
-          } catch (e) {
-            addBot(`❌ Bài "${job.label || ''}" lỗi: ${e.message}`);
-          } finally {
-            removePendingJob(job.jobId);
-          }
+          try { await pollJob(job.jobId); }
+          catch {}
+          finally { removePendingJob(job.jobId); }
+        }
+        if (typeof loadDashHistory === 'function') {
+          const dashPg = document.getElementById('pageDashboard');
+          if (dashPg && dashPg.classList.contains('active')) loadDashHistory({ noSkeleton: true });
         }
       }
 
