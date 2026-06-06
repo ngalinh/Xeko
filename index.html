@@ -6095,7 +6095,7 @@
       // Xep hang: dang co bai chay thi bao da xep hang, worker chay tuan tu
       _postQueue.push(ctx);
       if (_isPosting) {
-        addBot(`📋 Đã xếp hàng bài này nha — còn <strong>${_postQueue.length}</strong> bài đang chờ. Xeko đăng xong bài hiện tại sẽ làm tiếp liền!`);
+        addBot(`📋 Đã xếp hàng — còn <strong>${_postQueue.length}</strong> bài chờ. Xong bài này Xeko làm tiếp nha!`);
       }
       _processPostQueue();
     }
@@ -6214,6 +6214,28 @@
       }
 
       try {
+        // ===== Gộp 1 thông báo "đã nhận bài" cho cả lượt đăng (mọi kênh) =====
+        const _destLabels = [];
+        if (target) {
+          if (target === 'personal' || target === 'all') _destLabels.push('FB Profile');
+          else if (target === 'personal-share-groups') _destLabels.push(`FB Profile + share ${(_shareGroupKeywords || []).length} nhóm`);
+          else if (target === 'group') _destLabels.push(`Group #${groupId}`);
+          else if (target === 'shortcut') { const _sc = { asale: 'Asale', tongkho: 'Tổng Kho' }; _destLabels.push(`Group ${_sc[groupId] || groupId}`); }
+          else _destLabels.push(String(target));
+        }
+        for (const _gid of (_shareGroupKeywords ? [] : (customGroupIds || []))) _destLabels.push(`Group FB ${getFbGroupDisplayName(_gid)}`);
+        for (const _p of ((channelSel || {}).fbPages || [])) _destLabels.push(`FB Page ${(channelsData.fbPages || []).find(x => x.key === _p.key)?.name || _p.id}`);
+        if (((channelSel || {}).zalo || []).length && (channelSel || {}).zaloAccount) {
+          for (const _z of channelSel.zalo) {
+            const _zg = (channelsData.zaloGroups || []).find(x => x.key === _z.id);
+            if (_zg) _destLabels.push(`Zalo ${_zg.name}`);
+          }
+        }
+        if (_destLabels.length) {
+          const _list = _destLabels.map(s => `<strong>${s}</strong>`).join(', ');
+          addBot(`📨 Đã nhận bài, đang đăng lên ${_list}. Theo dõi kết quả ở tab <strong>Dashboard</strong> nha!`);
+        }
+
         if (target) {
           const formData = new FormData();
           formData.append('message', message);
@@ -6226,7 +6248,8 @@
           await appendImages(formData, filesToUpload);
 
           const targetLabel = (() => {
-            if (!target || target === 'personal') return `FB Profile (<strong>${currentProfileName}</strong>)`;
+            if (!target || target === 'personal' || target === 'all') return `FB Profile (<strong>${currentProfileName}</strong>)`;
+            if (target === 'personal-share-groups') return `FB Profile + share nhóm (<strong>${currentProfileName}</strong>)`;
             if (target === 'group') return `Group <strong>#${groupId}</strong> (profile <strong>${currentProfileName}</strong>)`;
             if (target === 'shortcut') {
               const scMap = { asale: 'Asale', tongkho: 'Tổng Kho' };
@@ -6242,10 +6265,7 @@
           let data;
           if (initial.jobId) {
             removeTyping();
-            // Đồng bộ mọi kênh: báo 1 lần + điểm về Dashboard (nguồn sự thật),
-            // không spinner/không morph kết quả trong chat. Poll vẫn chạy để biết
-            // hoàn thành (đếm successCount cho câu chốt) + refresh Dashboard ở cuối.
-            addBot(`📨 Xeko đã nhận bài ${targetLabel} rồi nha! Bạn xem kết quả ở tab <strong>Dashboard</strong> nhé.`);
+            // Đã báo gộp 1 dòng ở trên; ở đây chỉ chạy ngầm + cập nhật Dashboard.
             // Save jobId de resume khi PWA reload giua chung
             pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: targetLabel });
             // DB pending row pre-inserted → remove from in-memory tracker, DB is now source of truth
@@ -6287,7 +6307,6 @@
             removeTyping();
             let cd;
             if (initial.jobId) {
-              addBot(`📨 Xeko đã nhận bài Group FB <strong>${gLabel}</strong> rồi nha! Bạn xem trạng thái ở tab <strong>Dashboard</strong> nhé.`);
               pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `Group FB <strong>${gLabel}</strong>` });
               try { cd = await pollJob(initial.jobId); }
               catch { cd = null; }
@@ -6321,7 +6340,6 @@
             const pName = (channelsData.fbPages || []).find(x => x.key === pageItem.key)?.name || pageItem.id;
             removeTyping();
             if (initial.jobId) {
-              addBot(`📨 Xeko đã nhận bài FB Page <strong>${pName}</strong> rồi nha! Bạn xem trạng thái ở tab <strong>Dashboard</strong> nhé.`);
               pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `FB Page <strong>${pName}</strong>` });
               let pd;
               try { pd = await pollJob(initial.jobId); }
@@ -6363,10 +6381,7 @@
               const zd = await parseJson(zr);
               removeTyping();
               if (zd.processing && zd.jobId) {
-                // Zalo chạy nền: không hiện spinner "đang đẩy bài" (dễ kẹt nếu SSE/poll
-                // gián đoạn, phải reload mới hết). Báo 1 lần rồi điểm thẳng về Dashboard
-                // — nguồn sự thật. Poll vẫn chạy ngầm (silent) để cập nhật Dashboard live.
-                addBot(`📨 Xeko đã nhận bài Group Zalo <strong>${g.name}</strong> (${zaloAccount}) rồi nha! Bạn xem trạng thái ở tab <strong>Dashboard</strong> nhé — Zalo chạy nền nên kết quả cập nhật ở đó.`);
+                // Đã báo gộp 1 dòng ở trên. Zalo chạy nền (silent poll) → Dashboard.
                 pushPendingJob({
                   kind: 'zalo',
                   jobId: zd.jobId,
@@ -6399,9 +6414,8 @@
                 }
               } else if (zd.success) {
                 successCount += 1;
-                addBot(`✅ Group Zalo <strong>${g.name}</strong> (${zaloAccount}) xong rồi nha!`);
               } else {
-                addBot(`❌ Huhu Group Zalo <strong>${g.name}</strong> bị lỗi rồi: ${zd.error || 'Không rõ lý do'}`);
+                addBot(`❌ Group Zalo <strong>${g.name}</strong> lỗi: ${zd.error || 'Không rõ lý do'}`);
               }
             } catch (ze) {
               removeTyping();
