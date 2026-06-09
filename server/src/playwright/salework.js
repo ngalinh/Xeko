@@ -6,6 +6,7 @@ const { getZaloProxyForAccount } = require('../utils/proxy');
 const { randomDelay, humanType } = require('../utils/delay');
 const { getProfileDeviceFingerprint } = require('../utils/device-fingerprint');
 const { checkProxy } = require('../utils/proxy-health');
+const { boldSegments, stripBold } = require('../utils/rich-text');
 
 const DEBUG_SCREENSHOT_DIR = '/tmp/salework-debug';
 
@@ -219,6 +220,69 @@ async function searchAndClickGroup(page, groupName) {
   return false;
 }
 
+/**
+ * Bôi đen từng đoạn cần in đậm rồi nhấn Ctrl+B — y như thao tác tay. Cách này
+ * ăn chắc với editor rich text của Salework hơn là dán HTML (Salework lọc mất
+ * thẻ <strong> khi paste). Tìm tuần tự theo thứ tự xuất hiện để xử lý đúng cả
+ * khi một cụm từ lặp lại nhiều lần trong bài.
+ */
+async function applyBoldSegments(page, editorHandle, segments) {
+  let searchFrom = 0;
+  let done = 0;
+  for (const seg of segments) {
+    if (!seg) continue;
+    // Đặt vùng chọn (selection) phủ đúng đoạn cần in đậm bằng DOM Range.
+    const endPos = await editorHandle.evaluate((root, { needle, from }) => {
+      // Gom mọi text node thành một chuỗi phẳng + bản đồ offset → node.
+      const nodes = [];
+      let full = '';
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let n;
+      while ((n = walker.nextNode())) {
+        nodes.push({ node: n, start: full.length });
+        full += n.textContent;
+      }
+      const idx = full.indexOf(needle, from);
+      if (idx === -1 || nodes.length === 0) return -1;
+      const end = idx + needle.length;
+      const locate = (pos) => {
+        for (const it of nodes) {
+          if (pos <= it.start + it.node.textContent.length) {
+            return { node: it.node, offset: pos - it.start };
+          }
+        }
+        const last = nodes[nodes.length - 1];
+        return { node: last.node, offset: last.node.textContent.length };
+      };
+      const s = locate(idx);
+      const e = locate(end);
+      const range = document.createRange();
+      range.setStart(s.node, s.offset);
+      range.setEnd(e.node, e.offset);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return end;
+    }, { needle: seg, from: searchFrom }).catch(() => -1);
+
+    if (endPos === -1) {
+      logger.warn(`[salework] Không bôi đen được đoạn in đậm: "${seg.substring(0, 20)}"`);
+      continue;
+    }
+    // Nhấn Ctrl+B thật → editor (Quill/contenteditable) in đậm vùng đang chọn.
+    await page.keyboard.press('Control+b');
+    searchFrom = endPos;
+    done++;
+    await randomDelay(120, 300);
+  }
+  // Bỏ chọn để con trỏ không kẹt trong vùng vừa in đậm.
+  await editorHandle.evaluate(() => {
+    const sel = window.getSelection();
+    if (sel) sel.removeAllRanges();
+  }).catch(() => {});
+  logger.info(`[salework] Đã in đậm ${done}/${segments.length} đoạn`);
+}
+
 async function sendMessage(page, message, imagePaths = []) {
   logger.info(`[salework] Gửi: "${message?.substring(0, 30)}" + ${imagePaths.length} ảnh`);
 
@@ -290,12 +354,26 @@ async function sendMessage(page, message, imagePaths = []) {
         await msgInput.evaluate(el => el.focus()).catch(() => {});
       }
       await randomDelay(250, 600);
-      // Copy-paste để giữ nguyên xuống dòng (paste event không trigger gửi như Enter)
+      // Copy-paste để giữ nguyên xuống dòng (paste event không trigger gửi như Enter).
+      // Luôn dán PLAIN text (đã bỏ dấu **); chữ in đậm được áp dụng sau bằng cách
+      // bôi đen từng đoạn rồi nhấn Ctrl+B — ăn chắc hơn dán HTML (Salework lọc <strong>).
       await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-      await page.evaluate(text => navigator.clipboard.writeText(text), message);
+      const plain = stripBold(message);
+      await page.evaluate(text => navigator.clipboard.writeText(text), plain);
       await page.keyboard.press('Control+v');
       logger.info('[salework] Đã nhập tin nhắn (paste)');
       await randomDelay(400, 900);
+
+      // Áp dụng in đậm cho các đoạn **...** (nếu có) khi ô nhập là rich text.
+      const segments = boldSegments(message);
+      if (segments.length > 0) {
+        const editable = await msgInput.evaluate(el => el.isContentEditable).catch(() => false);
+        if (editable) {
+          await applyBoldSegments(page, msgInput, segments);
+        } else {
+          logger.info('[salework] Ô nhập không phải rich text → bỏ qua in đậm');
+        }
+      }
     } else {
       logger.warn('[salework] Không thấy ô nhập tin đang hiển thị');
     }
