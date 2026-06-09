@@ -72,41 +72,92 @@ async function selectZaloAccount(page, accountName) {
   }
   await delay(1500);
 
-  // Bước 3: Tìm tọa độ option trong dropdown (1 round-trip evaluate),
-  // rồi dùng page.mouse.click() để fire đầy đủ pointer events cho Vue.js.
-  const accountRect = await page.evaluate((name) => {
+  // Bước 3: Đánh dấu đúng option trong dropdown rồi click bằng LOCATOR.
+  //
+  // QUAN TRỌNG: trước đây dùng page.mouse.click(x, y) theo toạ độ
+  // getBoundingClientRect. Option có thể nằm DƯỚI mép viewport (đã gặp y=1193
+  // khi viewport chỉ cao ≤1080) → click bắn ra ngoài màn hình, TRƯỢT hoàn toàn,
+  // dropdown vẫn ở "Tất cả tài khoản" → bài bị đăng bằng tài khoản mặc định
+  // (đăng NHẦM account). Dùng locator.click() vì nó tự scrollIntoView option
+  // vào tầm nhìn trước khi click, không phụ thuộc toạ độ tuyệt đối.
+  await page.evaluate(() => {
+    document.querySelectorAll('[data-xeko-pick]').forEach(el => el.removeAttribute('data-xeko-pick'));
+  });
+  const marked = await page.evaluate((name) => {
     const norm = s => s.normalize('NFC').trim();
     const normName = norm(name);
-    const els = document.querySelectorAll('[class*="dropdown"] li, [class*="option"], li, [class*="item"], div, span, a');
-    for (const el of els) {
+    const matchEl = (el) => {
       const text = norm(el.textContent || '');
       // Khớp chính xác / tên kèm SĐT / DOM bị cắt ellipsis
       const domStripped = text.replace(/[\s.…]+$/, '');
-      if (
+      const hit =
         text === normName ||
         text.startsWith(normName + ' ') || text.startsWith(normName + '\n') ||
-        (domStripped.length >= 6 && normName.startsWith(domStripped))
-      ) {
-        const r = el.getBoundingClientRect();
-        if (r.width === 0 || r.height === 0) continue;
-        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-      }
-    }
-    return null;
+        (domStripped.length >= 6 && normName.startsWith(domStripped));
+      if (!hit) return false;
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) return false;
+      el.setAttribute('data-xeko-pick', '1');
+      return true;
+    };
+    // Pass 1: ưu tiên option thật trong dropdown (tránh khớp nhầm container lớn)
+    const pass1 = document.querySelectorAll('.el-select-dropdown__item, [class*="dropdown"] li, [class*="option"], li');
+    for (const el of pass1) if (matchEl(el)) return true;
+    // Pass 2: fallback rộng hơn nếu Salework đổi cấu trúc DOM
+    const pass2 = document.querySelectorAll('[class*="item"], div, span, a');
+    for (const el of pass2) if (matchEl(el)) return true;
+    return false;
   }, accountName);
 
-  if (accountRect) {
-    logger.info(`[salework] Click tọa độ (${Math.round(accountRect.x)}, ${Math.round(accountRect.y)}) cho tài khoản: ${accountName}`);
-    await page.mouse.click(accountRect.x, accountRect.y);
-    logger.info(`[salework] Đã chọn tài khoản: ${accountName}`);
+  if (marked) {
+    const opt = page.locator('[data-xeko-pick="1"]').first();
+    try { await opt.scrollIntoViewIfNeeded({ timeout: 3000 }); } catch {}
+    try {
+      await opt.click({ timeout: 5000 });
+      logger.info(`[salework] Đã click option tài khoản: ${accountName}`);
+    } catch (e) {
+      logger.warn(`[salework] Click option lỗi: ${e.message}`);
+    }
     await delay(1000);
-    // Click ra ngoài để đóng dropdown
-    await page.click('body', { position: { x: 700, y: 400 }, force: true });
-    await delay(1000);
+  } else {
+    logger.warn(`[salework] Không tìm thấy option cho tài khoản "${accountName}"`);
+  }
+
+  // Click ra ngoài để đóng dropdown (luôn làm để read-back đọc đúng nhãn ô)
+  await page.click('body', { position: { x: 700, y: 400 }, force: true }).catch(() => {});
+  await delay(1000);
+
+  // Bước 4: READ-BACK — đọc lại nhãn ô tài khoản đang hiển thị để XÁC MINH đã
+  // chọn đúng. Không bao giờ tin "đã click" là "đã chọn". Nếu ô vẫn ở "Tất cả
+  // tài khoản" / trống / khác tên yêu cầu → trả false để caller HUỶ đăng.
+  const selectedText = await page.evaluate(() => {
+    const norm = s => (s || '').normalize('NFC').trim();
+    const root = document.querySelector('.el-select') || document.querySelector('[class*="select"]');
+    if (!root) return '';
+    const tags = Array.from(root.querySelectorAll('.el-tag, [class*="tag"]'));
+    if (tags.length) return tags.map(t => norm(t.textContent)).join(' | ');
+    const input = root.querySelector('input');
+    if (input && norm(input.value)) return norm(input.value);
+    return norm(root.textContent);
+  });
+  logger.info(`[salework] Ô tài khoản sau khi chọn: "${selectedText}"`);
+
+  const lc = s => (s || '').normalize('NFC').trim().toLowerCase();
+  const sel = lc(selectedText);
+  const want = lc(accountName);
+  const isAllAccounts = !sel || sel.includes('tất cả');
+  const selStripped = sel.replace(/[\s.…|]+$/, '');
+  const matched = !isAllAccounts && (
+    sel.includes(want) ||
+    (selStripped.length >= 6 && want.startsWith(selStripped))
+  );
+
+  if (matched) {
+    logger.info(`[salework] ✓ Xác minh đã chọn đúng tài khoản: ${accountName}`);
     return true;
   }
 
-  logger.warn(`[salework] Không tìm thấy tài khoản "${accountName}"`);
+  logger.error(`[salework] ✗ Không chọn được tài khoản "${accountName}" — ô đang là "${selectedText || '(trống)'}"`);
   return false;
 }
 
@@ -334,8 +385,14 @@ async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message
     await delay(3000);
     await screenshot(page, '01-loaded');
 
-    await selectZaloAccount(page, zaloAccountName);
+    const accountOk = await selectZaloAccount(page, zaloAccountName);
     await screenshot(page, '02-account-selected');
+
+    // HUỶ đăng nếu không chọn được đúng tài khoản — thà báo lỗi rõ ràng còn hơn
+    // âm thầm đăng nhầm bằng tài khoản mặc định ("Tất cả tài khoản" → Basso…).
+    if (!accountOk) {
+      throw new Error(`Không chọn được tài khoản "${zaloAccountName}" trên Salework (ô vẫn ở "Tất cả tài khoản" hoặc chọn nhầm). Đã huỷ đăng để tránh đăng nhầm tài khoản — mở lại Salework kiểm tra danh sách tài khoản đã kết nối.`);
+    }
 
     if (!(await searchAndClickGroup(page, groupName))) {
       throw new Error(`Không tìm thấy nhóm: ${groupName}`);
