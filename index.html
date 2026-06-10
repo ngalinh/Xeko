@@ -6269,7 +6269,7 @@
         }
         if (_destLabels.length) {
           const _list = _destLabels.map(s => `<strong>${s}</strong>`).join(', ');
-          addBot(`📨 Đã nhận bài, đang đăng lên ${_list}. Theo dõi kết quả ở tab <strong>Dashboard</strong> nha!`);
+          addBot(`✅ Đã nhận bài, đang đăng lên ${_list}. Theo dõi kết quả ở tab <strong>Dashboard</strong> nha!`);
         }
 
         // === Gửi request Zalo SỚM (trước khi đăng FB) ===
@@ -6291,7 +6291,6 @@
           for (const z of zaloGroups) {
             const g = allZalo.find(x => x.key === z.id);
             if (!g) continue;
-            addTyping();
             try {
               const zf = new FormData();
               zf.append('zaloAccountName', zaloAccount);
@@ -6301,7 +6300,6 @@
               await appendImages(zf, filesToUpload);
               const zr = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: zf });
               const zd = await parseJson(zr);
-              removeTyping();
               if (zd.processing && zd.jobId) {
                 // Đã báo gộp 1 dòng ở trên. Zalo chạy nền (silent poll) → Dashboard.
                 pushPendingJob({
@@ -6340,7 +6338,6 @@
                 addBot(`❌ Group Zalo <strong>${g.name}</strong> lỗi: ${zd.error || 'Không rõ lý do'}`);
               }
             } catch (ze) {
-              removeTyping();
               addBot(botSystemError(`đăng Group Zalo ${g.name}`, ze));
             }
           }
@@ -6368,13 +6365,11 @@
             return target;
           })();
 
-          addTyping();
           const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: formData });
           const initial = await parseJson(res);
 
           let data;
           if (initial.jobId) {
-            removeTyping();
             // Đã báo gộp 1 dòng ở trên; ở đây chỉ chạy ngầm + cập nhật Dashboard.
             // Save jobId de resume khi PWA reload giua chung
             pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: targetLabel });
@@ -6396,7 +6391,6 @@
             }
           } else {
             data = initial;
-            removeTyping();
           }
           successCount += countSuccess(data);
         }
@@ -6407,7 +6401,6 @@
         // Skip per-group loop khi đã share-to-groups (cả auto-share lẫn quickfb mode)
         const customIds = _shareGroupKeywords ? [] : (customGroupIds || []);
         for (const gid of customIds) {
-          addTyping();
           try {
             const cf = new FormData();
             cf.append('message', message);
@@ -6418,7 +6411,6 @@
             const cr = await fetch(BASE_URL + '/api/post', { method: 'POST', body: cf });
             const initial = await parseJson(cr);
             const gLabel = getFbGroupDisplayName(gid);
-            removeTyping();
             let cd;
             if (initial.jobId) {
               pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `Group FB <strong>${gLabel}</strong>` });
@@ -6430,7 +6422,6 @@
             }
             if (cd && cd.success) successCount += 1;
           } catch (ce) {
-            removeTyping();
             // Dashboard phản ánh trạng thái thật; không spam lỗi vào chat
           }
         }
@@ -6439,7 +6430,6 @@
         const pageSel = channelSel || {};
         const pageItems = pageSel.fbPages || [];
         for (const pageItem of pageItems) {
-          addTyping();
           try {
             const pf = new FormData();
             pf.append('message', message);
@@ -6452,7 +6442,6 @@
             const pr = await fetch(BASE_URL + '/api/post', { method: 'POST', body: pf });
             const initial = await parseJson(pr);
             const pName = (channelsData.fbPages || []).find(x => x.key === pageItem.key)?.name || pageItem.id;
-            removeTyping();
             if (initial.jobId) {
               pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `FB Page <strong>${pName}</strong>` });
               let pd;
@@ -6464,7 +6453,6 @@
               successCount += 1;
             }
           } catch (pe) {
-            removeTyping();
             // Dashboard phản ánh trạng thái thật; không spam lỗi vào chat
           }
         }
