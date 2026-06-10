@@ -2222,23 +2222,60 @@ function fbImageKey(u) {
   }
 }
 
-// Đệ quy gom mọi caption (message.text) trong payload GraphQL của FB. Cách lấy này
-// KHÔNG phụ thuộc cấu trúc HTML (vốn đổi liên tục) — text bài viết luôn nằm trong
-// node "message" của story. Trả về mảng để bên gọi chọn bản dài nhất (= bài chính).
-function collectGraphQLText(node, out, depth = 0) {
+// Các khoá GraphQL mở đầu nhánh BÌNH LUẬN. Caption của BÀI nằm ở node "message"
+// của story (cấp cao), còn text bình luận/trả lời cũng là "message.text" nhưng nằm
+// SÂU trong các nhánh này. Trước đây ta gom tất cả message rồi lấy bản DÀI NHẤT →
+// bài caption ngắn + comment dài sẽ bị "lấy nhầm comment". Đánh dấu inComments khi
+// đi xuống các nhánh này để KHÔNG gom text bình luận làm caption.
+const GQL_COMMENT_KEYS = new Set([
+  'feedback', 'comments', 'display_comments', 'comment_list_renderer',
+  'comment_rendering_instance', 'comment_rendering_instance_for_feed_location',
+  'replies', 'reply', 'comment',
+]);
+
+// Đệ quy gom caption (message.text) của BÀI trong payload GraphQL của FB. Cách lấy
+// này KHÔNG phụ thuộc cấu trúc HTML (vốn đổi liên tục) — text bài luôn nằm trong
+// node "message" của story. Bỏ qua nhánh bình luận (xem GQL_COMMENT_KEYS). Trả về
+// mảng để bên gọi chọn bản dài nhất (= bài chính).
+function collectGraphQLText(node, out, depth = 0, inComments = false) {
   if (!node || typeof node !== 'object' || depth > 30) return;
   if (Array.isArray(node)) {
-    for (const v of node) collectGraphQLText(v, out, depth + 1);
+    for (const v of node) collectGraphQLText(v, out, depth + 1, inComments);
     return;
   }
-  const msg = node.message;
-  if (msg && typeof msg === 'object' && typeof msg.text === 'string') {
-    const t = msg.text.trim();
-    if (t) out.push(t);
+  if (!inComments) {
+    const msg = node.message;
+    if (msg && typeof msg === 'object' && typeof msg.text === 'string') {
+      const t = msg.text.trim();
+      if (t) out.push(t);
+    }
   }
   for (const k in node) {
     const v = node[k];
-    if (v && typeof v === 'object') collectGraphQLText(v, out, depth + 1);
+    if (v && typeof v === 'object') {
+      collectGraphQLText(v, out, depth + 1, inComments || GQL_COMMENT_KEYS.has(k));
+    }
+  }
+}
+
+// Đệ quy gom thời điểm đăng (creation_time, đơn vị giây Unix) của BÀI. Bỏ qua nhánh
+// bình luận (comment cũng có creation_time). Bên gọi lấy mốc MUỘN NHẤT trong các
+// node không phải comment = thời điểm bài được đăng/chia sẻ.
+function collectGraphQLTime(node, out, depth = 0, inComments = false) {
+  if (!node || typeof node !== 'object' || depth > 30) return;
+  if (Array.isArray(node)) {
+    for (const v of node) collectGraphQLTime(v, out, depth + 1, inComments);
+    return;
+  }
+  if (!inComments) {
+    const ct = node.creation_time;
+    if (typeof ct === 'number' && ct > 1000000000 && ct < 4000000000) out.push(ct);
+  }
+  for (const k in node) {
+    const v = node[k];
+    if (v && typeof v === 'object') {
+      collectGraphQLTime(v, out, depth + 1, inComments || GQL_COMMENT_KEYS.has(k));
+    }
   }
 }
 
@@ -2334,8 +2371,22 @@ async function fetchMbasic(page, postUrl, tag) {
   }
 }
 
+// Phân loại URL bài viết từ đường dẫn: group / post / profile_or_page.
+function detectPostType(url) {
+  try {
+    const path = new URL(url).pathname;
+    if (path.includes('/groups/')) return 'group';
+    if (path.includes('/permalink/') || path.includes('/posts/')
+      || url.includes('story_fbid') || /\/p\/[^/]+/.test(path)) return 'post';
+    return 'profile_or_page';
+  } catch {
+    return 'unknown';
+  }
+}
+
 async function scrapePost(postUrl) {
   const t0 = Date.now();
+  const postType = detectPostType(postUrl);
   const profileSnap = getActiveProfile();
   const tag = `[scrapePost ${profileSnap.name}]`;
   logger.info(`${tag} bắt đầu — url=${postUrl}`);
@@ -2632,12 +2683,19 @@ async function scrapePost(postUrl) {
     // story (dedup theo photoId, bỏ avatar/icon).
     const gqlTextCandidates = [];
     const gqlImagesRaw = [];
+    const gqlTimes = [];
     for (const blob of graphqlBlobs) {
       collectGraphQLText(blob, gqlTextCandidates);
       collectGraphQLImages(blob, gqlImagesRaw);
+      collectGraphQLTime(blob, gqlTimes);
     }
     gqlTextCandidates.sort((a, b) => b.length - a.length);
     const gqlText = gqlTextCandidates[0] || '';
+
+    // Thời điểm đăng: mốc MUỘN NHẤT trong các node không phải comment = lúc bài được
+    // đăng/chia sẻ. null nếu payload không có creation_time.
+    const gqlTimeMax = gqlTimes.length ? Math.max(...gqlTimes) : null;
+    const timestamp = gqlTimeMax ? new Date(gqlTimeMax * 1000).toISOString() : null;
 
     const gqlImgMap = new Map();
     for (const { uri, w, h } of gqlImagesRaw) {
@@ -2794,7 +2852,12 @@ async function scrapePost(postUrl) {
       ? (isModal ? 'dom-modal' : (gqlImages.length ? 'graphql' : 'dom'))
       : (mbasicImages.length ? 'mbasic' : 'none');
 
-    logger.info(`${tag} xong (+${Date.now() - t0}ms) — modal=${isModal}, text=${finalText.length} ký tự (${textSrc}), ảnh=${finalImages.length} (${imgSrc}; mbasic=${mbasicImages.length}, gql=${gqlImages.length}, dom=${domImages.length}, net=${netImages.size})`);
+    // Log chi tiết từng ứng viên text để chẩn đoán "lấy nhầm/sai nội dung": nhìn log
+    // là biết mỗi nguồn lấy ra gì, từ đó truy ra vì sao chọn nguồn đó.
+    const preview = (s) => (s || '').replace(/\s+/g, ' ').slice(0, 60);
+    logger.info(`${tag} nguồn text — mbasic(${mbasicText.length}): "${preview(mbasicText)}" | gql(${gqlText.length}): "${preview(gqlText)}" | dom(${text.length}): "${preview(text)}" → chọn ${textSrc}`);
+
+    logger.info(`${tag} xong (+${Date.now() - t0}ms) — type=${postType}, modal=${isModal}, text=${finalText.length} ký tự (${textSrc}), ảnh=${finalImages.length} (${imgSrc}; mbasic=${mbasicImages.length}, gql=${gqlImages.length}, dom=${domImages.length}, net=${netImages.size}), thời gian=${timestamp || 'N/A'}`);
 
     // Chụp screenshot để debug khi không lấy được nội dung
     if (!finalText && finalImages.length === 0) {
@@ -2803,10 +2866,10 @@ async function scrapePost(postUrl) {
       logger.warn(`${tag} WARN: kết quả rỗng (modal=${isModal}, articleCount=${articleCount}, blobs=${graphqlBlobs.length}) — screenshot: ${screenshotPath}`);
     }
 
-    return { success: true, text: finalText, imageUrls: finalImages };
+    return { success: true, type: postType, text: finalText, imageUrls: finalImages, timestamp };
   } catch (e) {
     logger.error(`${tag} FAIL: ${e.message}`);
-    return { success: false, error: e.message, text: '', imageUrls: [] };
+    return { success: false, error: e.message, type: postType, text: '', imageUrls: [], timestamp: null };
   } finally {
     const _ctx = browsers[activeProfile];
     browsers[activeProfile] = null;

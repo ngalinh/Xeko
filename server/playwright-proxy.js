@@ -250,7 +250,7 @@ async function scrapePost(postUrl) {
   if (!res.jobId) return res;
 
   const result = await pollLocalJob(res.jobId);
-  return { success: result.success, text: result.text || '', imageUrls: result.imageUrls || [], error: result.error };
+  return { success: result.success, type: result.type || null, text: result.text || '', imageUrls: result.imageUrls || [], timestamp: result.timestamp || null, error: result.error };
 }
 
 async function postComment({ postUrl, message, imagePaths = [], profile }) {

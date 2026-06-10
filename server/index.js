@@ -740,8 +740,10 @@ app.post('/api/fb-scrape', async (req, res) => {
       const result = await playwright.scrapePost(url);
       setJobResult(jobId, {
         success: result.success,
+        type: result.type || null,
         text: result.text || '',
         imageUrls: result.imageUrls || [],
+        timestamp: result.timestamp || null,
         error: result.error,
       });
     } catch (e) {
