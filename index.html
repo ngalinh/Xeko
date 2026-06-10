@@ -6792,23 +6792,22 @@
           return;
         }
 
+        // Lịch đã hiển thị đầy đủ (kèm xoá) trên Dashboard rồi → trong chat chỉ
+        // tóm tắt ngắn + nút mở Dashboard, tránh lặp danh sách dài & trùng nội dung.
+        const pendingCount = schedules.filter(s => s.status === 'pending').length;
         let msg = `📋 <strong>Lịch Xeko đang giữ nè:</strong>\n\n`;
-        const buttons = [];
-        schedules.forEach(s => {
-          const statusIcon = { pending: '⏳', running: '🔄', done: '✅', error: '❌' }[s.status] || '❓';
-          msg += `${statusIcon} <strong>#${s.id}</strong> - ${s.time}\n`;
-          msg += `   Profile: ${s.profile} | Nơi đăng: ${s.target}\n`;
-          msg += `   Nội dung: ${s.message || '(ảnh)'}`;
-          if (s.imageCount > 0) msg += ` [${s.imageCount} ảnh]`;
-          msg += `\n\n`;
+        if (pendingCount > 0) {
+          msg += `Bạn đang có <strong>${pendingCount} lịch</strong> chờ đăng`;
+          if (schedules.length > pendingCount) msg += ` (tổng ${schedules.length} lịch)`;
+          msg += `.\nXem chi tiết và quản lý (xoá lịch) ngay trên Dashboard nha!`;
+        } else {
+          msg += `Tất cả lịch đã xử lý xong. Mở Dashboard để xem lại nhé!`;
+        }
 
-          if (s.status === 'pending') {
-            buttons.push({ label: `${xekoIcon('trash')} Xoá lịch #${s.id}`, handler: () => deleteSchedule(s.id) });
-          }
-        });
-
-        buttons.push({ label: `${xekoIcon('clock')} Lên lịch mới`, handler: () => startScheduleCompose() });
-        addBot(msg, buttons);
+        addBot(msg, [
+          { label: `${xekoIcon('clipboard')} Xem trên Dashboard`, handler: () => switchPage('dashboard'), primary: true },
+          { label: `${xekoIcon('clock')} Lên lịch mới`, handler: () => startScheduleCompose() },
+        ]);
       } catch (e) {
         removeTyping();
         addBot(botSystemError('tải danh sách lịch', e));
