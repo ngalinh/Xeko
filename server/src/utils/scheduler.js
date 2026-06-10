@@ -581,6 +581,7 @@ function getSeedSchedules(postUrl) {
       postLogId: j.postLogId,
       postUrl: j.postUrl,
       commentCount: j.comments.length,
+      comments: j.comments.map(c => ({ text: c.text || '', imageCount: (c.imagePaths || []).length })),
       accountCount: j.accounts.length,
       accounts: j.accounts.map(a => a.name || a.key),
       minDelay: j.minDelay,
