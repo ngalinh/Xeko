@@ -2263,6 +2263,77 @@ function collectGraphQLImages(node, out, depth = 0) {
   }
 }
 
+// Đổi link FB sang bản mbasic.facebook.com (HTML thuần, không modal/JS). Bản này
+// render bài viết thành trang riêng đơn giản → lấy caption + ảnh ổn định hơn nhiều
+// so với bản desktop (vốn hay bung modal đè lên trang nền).
+function toMbasicUrl(u) {
+  try {
+    const url = new URL(u);
+    if (!url.hostname.endsWith('facebook.com')) return null;
+    url.hostname = 'mbasic.facebook.com';
+    url.protocol = 'https:';
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+// Lấy text + ảnh từ bản mbasic. Trả {text, images} hoặc null nếu thất bại
+// (redirect login / không có nội dung). KHÔNG ném lỗi để bên gọi fallback desktop.
+async function fetchMbasic(page, postUrl, tag) {
+  const mUrl = toMbasicUrl(postUrl);
+  if (!mUrl) return null;
+  try {
+    await page.goto(mUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    await randomDelay(800, 1400);
+    const cur = page.url();
+    if (/login|checkpoint/i.test(cur)) {
+      logger.warn(`${tag} mbasic bị chuyển sang login (${cur}) — bỏ qua mbasic`);
+      return null;
+    }
+    const result = await page.evaluate(() => {
+      const norm = (s) => (s || '').replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').trim();
+      // Vùng bài viết: mbasic gói trong #m_story_permalink_view; fallback body.
+      const scope = document.querySelector('#m_story_permalink_view')
+        || document.querySelector('[id^="m_story_permalink_view"]')
+        || document.body;
+
+      // TEXT: chọn khối nhiều CHỮ nhất nhưng ÍT phần tử con (tức là khối caption,
+      // không phải container bao cả bài/bình luận). Bỏ khối chứa form (ô comment).
+      let bestText = '', bestScore = -Infinity;
+      for (const el of scope.querySelectorAll('p, div, span')) {
+        if (el.querySelector('form, input, textarea')) continue;
+        const t = norm(el.innerText);
+        if (t.length < 12) continue;
+        const score = t.length - 40 * el.querySelectorAll('*').length;
+        if (score > bestScore) { bestScore = score; bestText = t; }
+      }
+
+      // ẢNH: mọi img fbcdn/scontent trong vùng bài, bỏ icon/avatar nhỏ.
+      const seen = new Set();
+      const images = [];
+      for (const img of scope.querySelectorAll('img')) {
+        const src = img.getAttribute('src') || '';
+        if (!/fbcdn\.net|scontent/.test(src)) continue;
+        if (src.includes('static.xx.fbcdn.net')) continue;
+        if (/\/v\/t1\.\d+-1\//.test(src)) continue; // avatar
+        const w = img.naturalWidth || img.width || 0;
+        const h = img.naturalHeight || img.height || 0;
+        if (w && h && w <= 80 && h <= 80) continue;
+        if (!seen.has(src)) { seen.add(src); images.push(src); }
+      }
+      return { text: bestText, images };
+    }).catch(() => null);
+
+    if (!result) return null;
+    logger.info(`${tag} mbasic: text=${result.text.length} ký tự, ảnh=${result.images.length}`);
+    return result;
+  } catch (e) {
+    logger.warn(`${tag} mbasic lỗi: ${e.message} — fallback desktop`);
+    return null;
+  }
+}
+
 async function scrapePost(postUrl) {
   const t0 = Date.now();
   const profileSnap = getActiveProfile();
@@ -2316,6 +2387,11 @@ async function scrapePost(postUrl) {
     // Intersection Observer của FB không fire cho background tab
     // → ảnh lazy-load không render vào DOM nếu không bring to front
     await page.bringToFront();
+
+    // === BƯỚC 1: thử mbasic trước (HTML thuần, không modal) — nguồn text ổn nhất ===
+    const mbasic = await fetchMbasic(page, postUrl, tag);
+
+    // === BƯỚC 2: load bản desktop để lấy ảnh full-res + dự phòng text ===
     await page.goto(postUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await randomDelay(2000, 3000);
     await ensureLoggedIn(page);
@@ -2696,29 +2772,35 @@ async function scrapePost(postUrl) {
       (el) => el.getAttribute('role') === 'dialog' || !!el.closest('div[role="dialog"]')
     ).catch(() => false) : false;
 
-    let finalText, finalImages, textSrc, imgSrc;
-    if (isModal) {
-      // Modal: DOM (trong dialog) là nguồn chuẩn; GraphQL chỉ dự phòng.
-      finalText = text || gqlText;
-      finalImages = imageUrls.length ? imageUrls : gqlImages;
-      textSrc = text ? 'dom-modal' : (gqlText ? 'graphql' : 'none');
-      imgSrc = imageUrls.length ? 'dom-modal' : 'graphql';
-    } else {
-      // Trang permalink riêng: ưu tiên GraphQL (cấu trúc rõ, đúng bài chính), DOM
-      // dự phòng khi GraphQL không bắt được.
-      finalText = gqlText || text;
-      finalImages = gqlImages.length ? gqlImages : imageUrls;
-      textSrc = gqlText ? 'graphql' : (text ? 'dom' : 'none');
-      imgSrc = gqlImages.length ? 'graphql' : 'dom';
-    }
+    const mbasicText = mbasic && mbasic.text ? mbasic.text : '';
+    const mbasicImages = mbasic && Array.isArray(mbasic.images) ? mbasic.images : [];
 
-    logger.info(`${tag} xong (+${Date.now() - t0}ms) — modal=${isModal}, text=${finalText.length} ký tự (${textSrc}), ảnh=${finalImages.length} (${imgSrc}; gql=${gqlImages.length}, dom=${domImages.length}, net=${netImages.size})`);
+    // Chọn nguồn theo độ tin cậy:
+    //  - TEXT: mbasic (HTML thuần, không modal — ổn nhất) → desktop (modal: DOM,
+    //    permalink: GraphQL) → rỗng.
+    //  - ẢNH: desktop full-res (modal: DOM trong dialog, permalink: GraphQL) →
+    //    mbasic (thumbnail) — dùng mbasic chỉ khi desktop không có ảnh.
+    const desktopText = isModal ? (text || gqlText) : (gqlText || text);
+    const desktopImages = isModal
+      ? (imageUrls.length ? imageUrls : gqlImages)
+      : (gqlImages.length ? gqlImages : imageUrls);
+
+    const finalText = mbasicText || desktopText;
+    const finalImages = desktopImages.length ? desktopImages : mbasicImages;
+
+    const textSrc = mbasicText ? 'mbasic'
+      : (desktopText ? (isModal ? 'dom-modal' : (gqlText ? 'graphql' : 'dom')) : 'none');
+    const imgSrc = desktopImages.length
+      ? (isModal ? 'dom-modal' : (gqlImages.length ? 'graphql' : 'dom'))
+      : (mbasicImages.length ? 'mbasic' : 'none');
+
+    logger.info(`${tag} xong (+${Date.now() - t0}ms) — modal=${isModal}, text=${finalText.length} ký tự (${textSrc}), ảnh=${finalImages.length} (${imgSrc}; mbasic=${mbasicImages.length}, gql=${gqlImages.length}, dom=${domImages.length}, net=${netImages.size})`);
 
     // Chụp screenshot để debug khi không lấy được nội dung
     if (!finalText && finalImages.length === 0) {
       const screenshotPath = path.resolve(__dirname, '../../logs', `scrape-empty-${Date.now()}.png`);
       await page.screenshot({ path: screenshotPath, fullPage: false }).catch(() => {});
-      logger.warn(`${tag} WARN: kết quả rỗng (articleCount=${articleCount}, blobs=${graphqlBlobs.length}) — screenshot: ${screenshotPath}`);
+      logger.warn(`${tag} WARN: kết quả rỗng (modal=${isModal}, articleCount=${articleCount}, blobs=${graphqlBlobs.length}) — screenshot: ${screenshotPath}`);
     }
 
     return { success: true, text: finalText, imageUrls: finalImages };
