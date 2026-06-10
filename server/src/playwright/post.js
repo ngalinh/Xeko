@@ -2309,7 +2309,21 @@ async function scrapePost(postUrl) {
         ? topLevel.filter(a => main.contains(a))
         : topLevel;
 
-      // Chiến lược 1: pagelet permalink đặc thù
+      // Chiến lược 1 (đáng tin nhất): article chứa "message preview" của bài chính.
+      // FB gắn data-ad-comet-preview="message" cho phần caption của bài → bám đúng
+      // bài chính bất kể ID. Quan trọng cho post của Page: link nội bộ dùng numeric
+      // id, KHÔNG khớp pfbid trên URL → chiến lược "khớp ID link" bên dưới sẽ trượt,
+      // và fallback chấm điểm dễ chọn nhầm bài/ads nhiều ảnh nhưng không có caption.
+      const msgRoot = main || document;
+      for (const sel of ['[data-ad-comet-preview="message"]', '[data-ad-preview="message"]']) {
+        const msg = msgRoot.querySelector(sel);
+        if (msg) {
+          const art = msg.closest('div[role="article"]');
+          if (art && pool.includes(art)) return art;
+        }
+      }
+
+      // Chiến lược 2: pagelet permalink đặc thù
       const pagelet = document.querySelector(
         '[data-pagelet="PermalinkPost"], [data-pagelet*="permalink"], [data-pagelet="FeedUnit_0"]'
       );
@@ -2318,7 +2332,7 @@ async function scrapePost(postUrl) {
         if (art && pool.includes(art)) return art;
       }
 
-      // Chiến lược 2: article chứa link khớp BẤT KỲ post ID nào (đáng tin nhất)
+      // Chiến lược 3: article chứa link khớp BẤT KỲ post ID nào
       for (const art of pool) {
         for (const link of art.querySelectorAll('a[href]')) {
           if (!link.href) continue;
@@ -2328,9 +2342,10 @@ async function scrapePost(postUrl) {
         }
       }
 
-      // Chiến lược 3 (fallback): chấm điểm theo NỘI DUNG (text dài nhất + số ảnh).
-      // Trang permalink thường chỉ có 1 bài chính, các article còn lại là gợi
-      // ý/rỗng → bài nhiều nội dung nhất gần như chắc chắn là bài cần lấy.
+      // Chiến lược 4 (fallback): chấm điểm theo NỘI DUNG. Ưu tiên MẠNH article có
+      // caption (message preview) — đó gần như chắc chắn là bài chính. Ảnh chỉ là
+      // phụ trợ với trọng số NHỎ + có trần, để 1 bài/ads nhiều ảnh nhưng KHÔNG có
+      // caption không thể vượt mặt bài thật (lỗi cũ: imgCount*300 lấn át text).
       let best = null, bestScore = -1;
       for (const art of pool) {
         let textLen = 0;
@@ -2345,7 +2360,10 @@ async function scrapePost(postUrl) {
           const h = img.naturalHeight || img.height || 0;
           if (w > 64 && h > 64) imgCount++;
         }
-        const score = textLen + imgCount * 300;
+        const hasCaption = !!art.querySelector('[data-ad-comet-preview="message"], [data-ad-preview="message"]');
+        const score = textLen
+          + Math.min(imgCount, 3) * 40   // ảnh: trọng số nhỏ + trần, không lấn át text
+          + (hasCaption ? 5000 : 0);     // có caption → gần như chắc chắn là bài chính
         if (score > bestScore) { bestScore = score; best = art; }
       }
       return best || pool[0];
@@ -2374,7 +2392,7 @@ async function scrapePost(postUrl) {
     }
 
     // Lấy text từ article mục tiêu (handle ổn định, không bị trôi index)
-    const text = articleEl ? await articleEl.evaluate((article) => {
+    const textInArticle = articleEl ? await articleEl.evaluate((article) => {
       const SEE_MORE = new Set(['Xem thêm', 'See more', 'See More']);
       // Thử selector đặc thù của FB trước
       for (const sel of ['[data-ad-preview="message"]', '[data-ad-comet-preview="message"]']) {
@@ -2417,6 +2435,30 @@ async function scrapePost(postUrl) {
       if (blocks.length > 1) return blocks.join('\n');
       return cleanText(anchor);
     }).catch(() => '') : '';
+
+    // Fallback toàn trang: nếu chưa lấy được text trong article (article chọn sai
+    // hoặc không tìm thấy), quét "message preview" ở bất kỳ đâu — đây là selector
+    // caption đáng tin nhất của FB. Lấy bản dài nhất (bài chính dài hơn ads/gợi ý).
+    let text = textInArticle;
+    if (!text) {
+      text = await page.evaluate(() => {
+        const SEE_MORE = new Set(['Xem thêm', 'See more', 'See More']);
+        const main = document.querySelector('[role="main"]') || document;
+        let best = '';
+        for (const sel of ['[data-ad-comet-preview="message"]', '[data-ad-preview="message"]']) {
+          for (const el of main.querySelectorAll(sel)) {
+            const clone = el.cloneNode(true);
+            for (const btn of clone.querySelectorAll('[role="button"]')) {
+              if (SEE_MORE.has((btn.textContent || '').trim())) btn.remove();
+            }
+            const t = (clone.innerText || '').trim();
+            if (t.length > best.length) best = t;
+          }
+        }
+        return best;
+      }).catch(() => '');
+      if (text) logger.info(`${tag} text lấy từ fallback message-preview toàn trang`);
+    }
 
     // QUAN TRỌNG: xoá ảnh network bắt được trong lúc load trang. Lúc load,
     // FB tải hàng loạt ảnh KHÔNG thuộc bài viết: quảng cáo (Shopee/Uniqlo...),
