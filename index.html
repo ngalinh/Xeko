@@ -6100,27 +6100,47 @@
       _processPostQueue();
     }
 
-    // Hang cho dang bai — chay tuan tu tung bai mot, cho phep user gui bai tiep theo
+    // Hang cho dang bai — chay tuan tu tung bai mot, cho phep user gui bai tiep theo.
+    // QUAN TRONG: hang doi chi cho bai hien tai GUI XONG request len server roi
+    // chuyen sang bai ke tiep — KHONG cho poll ket qua. Server da serialize dang
+    // tuan tu qua queuePost (post-queue.js) nen khong loan; viec poll ket qua +
+    // cap nhat Dashboard + cau chot chay NEN trong runPostJob. Truoc day hang doi
+    // await ca runPostJob (gom poll FB toi 10') nen neu poll bi treo (SSE miss /
+    // cloud nhieu instance) thi bai da xep hang dung yen rat lau du Dashboard da xong.
     let _isPosting = false;
     const _postQueue = [];
+    // Neu submit treo bat thuong (mang), van nha hang doi sau khoang nay de bai ke tiep chay.
+    const _SUBMIT_SAFETY_MS = 30000;
     async function _processPostQueue() {
       if (_isPosting) return;
       _isPosting = true;
       try {
         while (_postQueue.length > 0) {
           const ctx = _postQueue.shift();
-          try {
-            await runPostJob(ctx);
-          } catch (e) {
-            addBot(botSystemError('đăng bài', e));
-          }
+          // Cho den khi bai nay da gui xong request (signalSubmitted) hoac het
+          // safety timeout, roi moi sang bai ke. Poll ket qua chay nen.
+          await new Promise(resolveReady => {
+            let settled = false;
+            const ready = () => { if (!settled) { settled = true; clearTimeout(_t); resolveReady(); } };
+            const _t = setTimeout(ready, _SUBMIT_SAFETY_MS);
+            runPostJob(ctx, ready)
+              .catch(e => addBot(botSystemError('đăng bài', e)))
+              .finally(ready); // bai khong co buoc submit (vd loi som) van nha hang doi
+          });
         }
       } finally {
         _isPosting = false;
       }
     }
 
-    async function runPostJob(ctx) {
+    async function runPostJob(ctx, signalSubmitted = () => {}) {
+      // Goi 1 lan duy nhat khi bai da gui xong request len server → hang doi sang bai ke.
+      let _submittedFired = false;
+      const markSubmitted = () => {
+        if (_submittedFired) return;
+        _submittedFired = true;
+        try { signalSubmitted(); } catch {}
+      };
       const { message, profile: currentProfile, profileName: currentProfileName,
               channelSel, customGroupIds, files: filesToUpload, postMode } = ctx;
       let { target, groupId } = ctx;
@@ -6349,6 +6369,8 @@
               if (_pIdx !== -1) _activeRepostJobs.splice(_pIdx, 1);
               _refreshDashIfActive(); // tránh duplicate row (in-memory + pending DB)
             }
+            // Server đã nhận bài (có jobId) → nhả hàng đợi cho bài kế tiếp, poll chạy nền.
+            markSubmitted();
             try {
               data = await pollJob(initial.jobId);
             } catch (pollErr) {
@@ -6362,6 +6384,8 @@
           }
           successCount += countSuccess(data);
         }
+        // Da gui xong request chinh (ke ca khong co target FB) → nha hang doi.
+        markSubmitted();
 
         // Post to custom groups if any — SKIP cho quickfb mode (đã share qua 1 post duy nhất)
         // Skip per-group loop khi đã share-to-groups (cả auto-share lẫn quickfb mode)
