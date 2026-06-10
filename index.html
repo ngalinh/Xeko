@@ -6477,7 +6477,10 @@
           successCount += zaloResults.filter(Boolean).length;
         }
 
-        // Hien nut tiep tuc — câu chốt theo số bài thật sự đăng được
+        // Hien nut tiep tuc — câu chốt theo số bài thật sự đăng được.
+        // Khoá nút của các lượt trước để không chồng nhiều cụm [Đăng bài tiếp]
+        // [Làm lại] active cùng lúc (gây rối + bấm nhầm lượt cũ).
+        disablePrevButtons();
         addBot(pickEncouragement(successCount), [
           { label: `✍️ Đăng bài tiếp`, handler: () => focusInput(), primary: true },
           { label: `↩ Làm lại`, handler: () => showTargetSelect(), secondary: true },
@@ -9353,7 +9356,10 @@
     const CHAT_STATE_KEY = 'xeko_chat_state_v1';
     const CHAT_STATE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 
-    function saveChatState() {
+    // Placeholder thay cho ảnh nặng khi lưu chat (xem _saveChatStateNow)
+    const IMG_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" rx="8" fill="#e5e7eb"/><circle cx="17" cy="17" r="3.5" fill="#9ca3af"/><path d="M10 36l9-11 6 7 5-6 8 10z" fill="#9ca3af"/></svg>');
+
+    function _saveChatStateNow() {
       try {
         const chat = document.getElementById('chatArea');
         if (!chat || chat.children.length === 0) return;
@@ -9363,6 +9369,13 @@
         const t = clone.querySelector('#typingMsg');
         if (t) t.remove();
         if (clone.children.length === 0) return;
+        // Strip ảnh nặng (screenshot + ảnh user) — chỉ giữ avatar nhẹ.
+        // data:/blob: vừa phình localStorage (dễ tràn quota → mất cả tiến độ),
+        // vừa chết link sau reload (blob bị revoke). Thay bằng placeholder nhẹ.
+        clone.querySelectorAll('img:not(.msg-avatar)').forEach(img => {
+          const src = img.getAttribute('src') || '';
+          if (src.startsWith('data:') || src.startsWith('blob:')) img.setAttribute('src', IMG_PLACEHOLDER);
+        });
         const payload = {
           html: clone.innerHTML,
           currentProfile,
@@ -9380,9 +9393,29 @@
       }
     }
 
+    // Debounce: saveChatState() được gọi sau MỖI addBot/addUser/morphBot.
+    // Trước đây mỗi message = 1 lần clone toàn bộ #chatArea + JSON.stringify +
+    // ghi localStorage đồng bộ → O(n²) cả phiên, block main thread, và dễ chụp
+    // state chồng nhau giữa các thao tác DOM async. Gộp các burst lại 1 lần ghi.
+    let _saveChatTimer = null;
+    function saveChatState() {
+      if (_saveChatTimer) return;
+      _saveChatTimer = setTimeout(() => { _saveChatTimer = null; _saveChatStateNow(); }, 300);
+    }
+    function flushChatState() {
+      if (_saveChatTimer) { clearTimeout(_saveChatTimer); _saveChatTimer = null; }
+      _saveChatStateNow();
+    }
+
     function clearChatState() {
+      if (_saveChatTimer) { clearTimeout(_saveChatTimer); _saveChatTimer = null; }
       try { localStorage.removeItem(CHAT_STATE_KEY); } catch {}
     }
+
+    // Flush ngay khi tab ẩn/đóng — debounce có thể còn pending, đừng để mất
+    // tin nhắn cuối nếu user rời đi trong <300ms sau khi nó được thêm.
+    window.addEventListener('pagehide', flushChatState);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushChatState(); });
 
     function restoreChatState() {
       try {
@@ -9595,6 +9628,9 @@
 
     // Khoi dong: restore neu co state cu, neu khong thi welcome moi
     if (restoreChatState()) {
+      // Nút trong lịch sử restore chỉ là HTML — handler (addEventListener) đã mất,
+      // bấm vào không ăn gì → khoá hết, chỉ banner welcome-back mới còn hoạt động.
+      disablePrevButtons();
       showWelcomeBack();
       resumePendingJobs();
     } else {
