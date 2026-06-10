@@ -11807,12 +11807,24 @@
         } catch (e) { lastErr = (e && e.message) || 'lỗi tải'; }
       }
 
-      // Lịch seeding đang chờ chạy (hiển thị phía trên lịch sử)
+      // Lịch seeding đang chờ chạy (hiển thị phía trên lịch sử).
+      // Lấy TẤT CẢ lịch rồi lọc theo MỌI url của bài + postLogId — tránh lệch khóa khi
+      // modal chọn một biến thể url khác với url lịch đã lưu (trước đây chỉ tra 1 url
+      // duy nhất nên mở lại modal hay bị trống, phải reload mới khớp).
       let scheds = [];
-      if (_seedPostUrl) {
+      if (_urls.length || _seedPostLogId) {
         try {
-          const r = await fetch(`${BASE_URL}/api/seed-schedules?postUrl=${encodeURIComponent(_seedPostUrl)}`, { cache: 'no-store' });
-          if (r.ok) { const d = await parseJson(r); if (Array.isArray(d)) scheds = d; }
+          const r = await fetch(`${BASE_URL}/api/seed-schedules?_t=${Date.now()}`, { cache: 'no-store' });
+          if (r.ok) {
+            const d = await parseJson(r);
+            if (Array.isArray(d)) {
+              const urlSet = new Set([..._urls, _seedPostUrl].filter(Boolean));
+              scheds = d.filter(s =>
+                (s.postUrl && urlSet.has(s.postUrl)) ||
+                (_seedPostLogId && String(s.postLogId) === String(_seedPostLogId))
+              );
+            }
+          }
         } catch { /* ignore */ }
       }
       _seedLastPending = scheds.length;
