@@ -479,6 +479,12 @@
       background: #ef4444; border: none; color: #fff;
       padding: 4px 12px; border-radius: 12px; cursor: pointer; font-size: 12px;
     }
+    .image-preview .image-count {
+      font-size: 12px; font-weight: 600; color: #2563EB;
+      background: #EFF6FF; padding: 4px 10px; border-radius: 12px;
+      white-space: nowrap;
+    }
+    [data-theme="dark"] .image-preview .image-count { background: #1e2747; color: #93C5FD; }
     /* AI badge button on textarea */
     .ai-badge-btn {
       position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
@@ -3279,6 +3285,7 @@
 
   <div class="image-preview" id="imagePreview">
     <div id="previewImages" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+    <span class="image-count" id="imageCount"></span>
     <button class="clear-btn" onclick="clearImages()">Xoá ảnh</button>
   </div>
 
@@ -5618,6 +5625,8 @@
       document.getElementById('fileInput').value = '';
       document.getElementById('imagePreview').classList.remove('show');
       document.getElementById('previewImages').innerHTML = '';
+      const countEl = document.getElementById('imageCount');
+      if (countEl) countEl.textContent = '';
       closeAiSheet();
     }
 
@@ -5625,10 +5634,12 @@
       const preview = document.getElementById('imagePreview');
       const previewDiv = document.getElementById('previewImages');
       const btnAi = document.getElementById('btnAiSuggest');
+      const countEl = document.getElementById('imageCount');
       previewDiv.innerHTML = '';
       if (selectedFiles.length > 0) {
         preview.classList.add('show');
         if (btnAi) btnAi.style.display = '';
+        if (countEl) countEl.textContent = `Đã chọn ${selectedFiles.length} ảnh`;
         selectedFiles.forEach((file, index) => {
           const item = document.createElement('div');
           item.className = 'preview-item';
@@ -5645,6 +5656,7 @@
       } else {
         preview.classList.remove('show');
         if (btnAi) btnAi.style.display = 'none';
+        if (countEl) countEl.textContent = '';
         closeAiSheet();
       }
     }
