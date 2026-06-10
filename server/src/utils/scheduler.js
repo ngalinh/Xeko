@@ -581,7 +581,11 @@ function getSeedSchedules(postUrl) {
       postLogId: j.postLogId,
       postUrl: j.postUrl,
       commentCount: j.comments.length,
-      comments: j.comments.map(c => ({ text: c.text || '', imageCount: (c.imagePaths || []).length })),
+      comments: j.comments.map((c, ci) => ({
+        text: c.text || '',
+        imageCount: (c.imagePaths || []).length,
+        images: (c.imagePaths || []).map((_, k) => `/api/seed-schedule-image/${j.id}/${ci}/${k}`),
+      })),
       accountCount: j.accounts.length,
       accounts: j.accounts.map(a => a.name || a.key),
       minDelay: j.minDelay,
@@ -590,6 +594,15 @@ function getSeedSchedules(postUrl) {
       done: j.done || 0,
       total: j.total || j.comments.length,
     }));
+}
+
+/** Đường dẫn file ảnh của 1 bình luận trong lịch seeding (phục vụ thumbnail preview) */
+function getSeedScheduleImagePath(id, ci, k) {
+  const j = seedSchedules.find(s => s.id === id);
+  if (!j || !Array.isArray(j.comments)) return null;
+  const c = j.comments[ci];
+  if (!c || !Array.isArray(c.imagePaths)) return null;
+  return c.imagePaths[k] || null;
 }
 
 /** Lấy & xoá thông báo seeding (client poll → toast) */
@@ -638,4 +651,5 @@ function initSeeds() {
 module.exports = {
   addSchedule, getSchedules, removeSchedule, getNotifications, init,
   addSeedSchedule, getSeedSchedules, removeSeedSchedule, initSeeds, getSeedNotifications,
+  getSeedScheduleImagePath,
 };

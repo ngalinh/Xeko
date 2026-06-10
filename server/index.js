@@ -1396,6 +1396,17 @@ app.get('/api/seed-schedules', (req, res) => {
   res.json(scheduler.getSeedSchedules(req.query.postUrl));
 });
 
+// Ảnh của 1 bình luận trong lịch seeding (thumbnail preview phần "Lịch chờ chạy")
+app.get('/api/seed-schedule-image/:id/:ci/:k', (req, res) => {
+  const p = scheduler.getSeedScheduleImagePath(Number(req.params.id), Number(req.params.ci), Number(req.params.k));
+  if (p && fs.existsSync(p)) {
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(path.resolve(p));
+  } else {
+    res.status(404).json({ error: 'Không có ảnh' });
+  }
+});
+
 // Thông báo lịch seeding đã chạy xong (client poll → toast)
 app.get('/api/seed-notifications', (req, res) => {
   res.json(scheduler.getSeedNotifications());
