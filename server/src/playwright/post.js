@@ -2353,6 +2353,32 @@ async function scrapePost(postUrl) {
     // ảnh + không thấy text). Dùng ElementHandle để mọi thao tác bám đúng 1 node
     // bất kể DOM thay đổi.
     const articleHandle = await page.evaluateHandle((ids) => {
+      // ƯU TIÊN 0 — MODAL/THEATER: mở link bài trên profile/page thường KHÔNG ra
+      // trang riêng mà bung 1 dialog overlay ("... 's Post") đè lên trang nền.
+      // Nội dung bài (caption + ảnh) nằm TRONG dialog; còn [role=main] phía sau là
+      // trang profile nền (Personal details, Friends, feed riêng) → chính là nguồn
+      // lấy NHẦM text/ảnh trước đây. Nếu thấy dialog có nội dung → dùng nó làm scope.
+      const dialogs = Array.from(document.querySelectorAll('div[role="dialog"]'));
+      let bestDlg = null, bestDlgArea = 0;
+      for (const dlg of dialogs) {
+        const hasText = !!dlg.querySelector('div[dir="auto"]');
+        let maxArea = 0;
+        for (const img of dlg.querySelectorAll('img')) {
+          const w = img.naturalWidth || img.width || 0;
+          const h = img.naturalHeight || img.height || 0;
+          maxArea = Math.max(maxArea, w * h);
+        }
+        // dialog của bài có cả text lẫn ảnh lớn (>200px cạnh) — loại popup menu nhỏ
+        if (hasText && maxArea > 200 * 200 && maxArea > bestDlgArea) {
+          bestDlgArea = maxArea;
+          bestDlg = dlg;
+        }
+      }
+      if (bestDlg) {
+        const art = bestDlg.querySelector('div[role="article"]');
+        return art || bestDlg;
+      }
+
       const all = Array.from(document.querySelectorAll('div[role="article"]'));
       const topLevel = all.filter(a => !a.parentElement?.closest('div[role="article"]'));
       if (!topLevel.length) return null;
@@ -2446,13 +2472,23 @@ async function scrapePost(postUrl) {
       await randomDelay(1200, 1800);
     }
 
-    // Lấy text từ article mục tiêu (handle ổn định, không bị trôi index)
-    const textInArticle = articleEl ? await articleEl.evaluate((article) => {
+    // Lấy text từ scope mục tiêu (article HOẶC dialog của modal — handle ổn định).
+    const textInArticle = articleEl ? await articleEl.evaluate((scope) => {
       const SEE_MORE = new Set(['Xem thêm', 'See more', 'See More']);
+      // "Bài chính" trong scope: nếu scope là article thì chính nó; nếu scope là
+      // dialog thì là article đầu tiên trong dialog (nếu có). Dùng để loại nội dung
+      // bình luận (nằm trong article KHÁC) mà không loại nhầm nội dung bài.
+      const primaryArticle = scope.getAttribute('role') === 'article'
+        ? scope
+        : scope.querySelector('div[role="article"]');
+      const inComment = (el) => {
+        const art = el.closest('div[role="article"]');
+        return art && scope.contains(art) && primaryArticle && art !== primaryArticle;
+      };
       // Thử selector đặc thù của FB trước
       for (const sel of ['[data-ad-preview="message"]', '[data-ad-comet-preview="message"]']) {
-        const el = article.querySelector(sel);
-        if (el && el.closest('div[role="article"]') === article) {
+        const el = scope.querySelector(sel);
+        if (el && !inComment(el)) {
           const t = (el.innerText || '').trim();
           if (t) return t;
         }
@@ -2467,9 +2503,8 @@ async function scrapePost(postUrl) {
 
       // Tìm div[dir="auto"] DÀI NHẤT làm "mỏ neo" của nội dung chính.
       let anchor = null, anchorLen = 0;
-      for (const dir of article.querySelectorAll('div[dir="auto"]')) {
-        // Bỏ qua nếu nằm trong article lồng (comment)
-        if (dir.closest('div[role="article"]') !== article) continue;
+      for (const dir of scope.querySelectorAll('div[dir="auto"]')) {
+        if (inComment(dir)) continue; // bỏ nội dung bình luận
         const len = cleanText(dir).length;
         if (len > anchorLen) { anchorLen = len; anchor = dir; }
       }
@@ -2555,10 +2590,16 @@ async function scrapePost(postUrl) {
     if (articleEl) {
       let lastCount = -1;
       for (let round = 0; round < 6; round++) {
-        const count = await articleEl.evaluate((article) => {
+        const count = await articleEl.evaluate((scope) => {
+          const primaryArticle = scope.getAttribute('role') === 'article'
+            ? scope : scope.querySelector('div[role="article"]');
+          const inComment = (el) => {
+            const art = el.closest('div[role="article"]');
+            return art && scope.contains(art) && primaryArticle && art !== primaryArticle;
+          };
           let n = 0;
-          for (const img of article.querySelectorAll('img')) {
-            if (img.closest('div[role="article"]') !== article) continue;
+          for (const img of scope.querySelectorAll('img')) {
+            if (inComment(img)) continue;
             const w = img.naturalWidth || img.width || 0;
             const h = img.naturalHeight || img.height || 0;
             if (w <= 64 && h <= 64) continue;
@@ -2571,13 +2612,19 @@ async function scrapePost(postUrl) {
         if (count === lastCount) break; // không xuất hiện thêm ảnh mới
         lastCount = count;
       }
-      // Đưa article về đầu viewport cho lần quét DOM cuối ổn định
+      // Đưa scope về đầu viewport cho lần quét DOM cuối ổn định
       await articleEl.scrollIntoViewIfNeeded().catch(() => {});
       await randomDelay(300, 500);
     }
 
-    // Lấy URL ảnh từ article mục tiêu qua DOM (bao gồm cả picture > source)
-    const domImages = articleEl ? await articleEl.evaluate((article) => {
+    // Lấy URL ảnh từ scope mục tiêu qua DOM (bao gồm cả picture > source)
+    const domImages = articleEl ? await articleEl.evaluate((scope) => {
+      const primaryArticle = scope.getAttribute('role') === 'article'
+        ? scope : scope.querySelector('div[role="article"]');
+      const inComment = (el) => {
+        const art = el.closest('div[role="article"]');
+        return art && scope.contains(art) && primaryArticle && art !== primaryArticle;
+      };
       const seen = new Set();
       const urls = [];
 
@@ -2591,8 +2638,8 @@ async function scrapePost(postUrl) {
       };
 
       // Kiểm tra picture > source (FB dùng cho responsive images)
-      for (const source of article.querySelectorAll('picture source')) {
-        if (source.closest('div[role="article"]') !== article) continue;
+      for (const source of scope.querySelectorAll('picture source')) {
+        if (inComment(source)) continue;
         if (source.srcset) {
           const candidates = source.srcset.split(',')
             .map(s => s.trim().split(/\s+/))
@@ -2601,9 +2648,9 @@ async function scrapePost(postUrl) {
         }
       }
 
-      for (const img of article.querySelectorAll('img')) {
+      for (const img of scope.querySelectorAll('img')) {
         // Bỏ qua ảnh nằm trong article lồng (comment)
-        if (img.closest('div[role="article"]') !== article) continue;
+        if (inComment(img)) continue;
 
         // Bỏ qua ảnh quá nhỏ (avatar/icon ≤ 64px)
         const w = img.naturalWidth || img.width || 0;
@@ -2642,14 +2689,30 @@ async function scrapePost(postUrl) {
     for (const url of domImages) pushUnique(url);
     for (const url of netImages) pushUnique(url);
 
-    // Ưu tiên kết quả GraphQL (cấu trúc rõ ràng, đúng bài chính). DOM chỉ là dự
-    // phòng khi GraphQL không bắt được (FB đổi schema / bài cũ render kiểu khác).
-    const finalText = gqlText || text;
-    const finalImages = gqlImages.length ? gqlImages : imageUrls;
-    const textSrc = gqlText ? 'graphql' : (text ? 'dom' : 'none');
-    const imgSrc = gqlImages.length ? 'graphql' : 'dom';
+    // Scope có phải dialog/modal không? Khi mở link bài bung ra modal, DOM trong
+    // dialog là CHÍNH XÁC bài đó → ưu tiên DOM. GraphQL lúc này dễ lẫn payload của
+    // feed trang profile NỀN (cũng load qua graphql) nên kém tin hơn.
+    const isModal = articleEl ? await articleEl.evaluate(
+      (el) => el.getAttribute('role') === 'dialog' || !!el.closest('div[role="dialog"]')
+    ).catch(() => false) : false;
 
-    logger.info(`${tag} xong (+${Date.now() - t0}ms) — text=${finalText.length} ký tự (${textSrc}), ảnh=${finalImages.length} (${imgSrc}; gql=${gqlImages.length}, dom=${domImages.length}, net=${netImages.size})`);
+    let finalText, finalImages, textSrc, imgSrc;
+    if (isModal) {
+      // Modal: DOM (trong dialog) là nguồn chuẩn; GraphQL chỉ dự phòng.
+      finalText = text || gqlText;
+      finalImages = imageUrls.length ? imageUrls : gqlImages;
+      textSrc = text ? 'dom-modal' : (gqlText ? 'graphql' : 'none');
+      imgSrc = imageUrls.length ? 'dom-modal' : 'graphql';
+    } else {
+      // Trang permalink riêng: ưu tiên GraphQL (cấu trúc rõ, đúng bài chính), DOM
+      // dự phòng khi GraphQL không bắt được.
+      finalText = gqlText || text;
+      finalImages = gqlImages.length ? gqlImages : imageUrls;
+      textSrc = gqlText ? 'graphql' : (text ? 'dom' : 'none');
+      imgSrc = gqlImages.length ? 'graphql' : 'dom';
+    }
+
+    logger.info(`${tag} xong (+${Date.now() - t0}ms) — modal=${isModal}, text=${finalText.length} ký tự (${textSrc}), ảnh=${finalImages.length} (${imgSrc}; gql=${gqlImages.length}, dom=${domImages.length}, net=${netImages.size})`);
 
     // Chụp screenshot để debug khi không lấy được nội dung
     if (!finalText && finalImages.length === 0) {
