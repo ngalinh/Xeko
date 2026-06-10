@@ -9257,6 +9257,9 @@
     // Reload nut header: lam moi full page + xoa chat state + pending jobs
     // (truoc day chi reload thi chat persist se restore lai -> user tuong khong reload)
     function reloadFresh() {
+      // Chặn pagehide/visibilitychange flush ghi lại chat sau khi đã clear
+      // (nếu không, restoreChatState sẽ khôi phục lại → reload như không có tác dụng)
+      try { _skipChatPersist = true; } catch {}
       try { clearChatState(); } catch {}
       try { localStorage.removeItem('xeko_pending_jobs_v1'); } catch {}
       // Xác định trang đang active để reload về đúng trang, không về dashboard mặc định
@@ -9371,7 +9374,13 @@
     // Placeholder thay cho ảnh nặng khi lưu chat (xem _saveChatStateNow)
     const IMG_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" rx="8" fill="#e5e7eb"/><circle cx="17" cy="17" r="3.5" fill="#9ca3af"/><path d="M10 36l9-11 6 7 5-6 8 10z" fill="#9ca3af"/></svg>');
 
+    // Khi reloadFresh() chủ động clear rồi reload, navigation phát pagehide/
+    // visibilitychange → flushChatState() sẽ ghi lại chat (DOM vẫn còn) đè lên
+    // state vừa xoá → reload không clear được. Cờ này chặn mọi lần lưu sau clear.
+    let _skipChatPersist = false;
+
     function _saveChatStateNow() {
+      if (_skipChatPersist) return;
       try {
         const chat = document.getElementById('chatArea');
         if (!chat || chat.children.length === 0) return;
