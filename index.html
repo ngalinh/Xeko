@@ -4470,7 +4470,7 @@
         <div style="margin-bottom:14px; border:1px dashed #d1d5db; border-radius:10px; padding:10px 12px; background:#fafafa;">
           <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:#374151; cursor:pointer; user-select:none;">
             <input type="checkbox" id="seedAutoToggle" onchange="_toggleSeedAuto()" style="width:15px; height:15px; cursor:pointer;">
-            ⏰ Hẹn giờ tự động seeding
+            <svg style="width:15px; height:15px; flex-shrink:0; color:#f59e0b;" aria-hidden="true"><use href="#ic-clock"/></svg> Hẹn giờ tự động seeding
           </label>
           <div id="seedAutoPanel" style="display:none; margin-top:10px;">
             <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
@@ -11904,7 +11904,7 @@
         if (scheds.length) {
           banner.style.display = '';
           banner.innerHTML = `
-            <div style="font-size:11px; font-weight:700; color:#1d4ed8; margin-bottom:7px;">⏰ Lịch chờ chạy</div>
+            <div style="font-size:11px; font-weight:700; color:#1d4ed8; margin-bottom:7px; display:flex; align-items:center; gap:5px;"><svg style="width:13px; height:13px;" aria-hidden="true"><use href="#ic-clock"/></svg> Lịch chờ chạy</div>
             ${scheds.map(s => {
               const cmts = Array.isArray(s.comments) ? s.comments : [];
               const isOpen = _seedExpandedScheds.has(s.id);
