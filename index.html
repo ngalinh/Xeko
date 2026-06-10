@@ -4426,77 +4426,93 @@
   </div>
 
   <!-- ===== SEED MODAL ===== -->
-  <div id="seedModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
-    <div style="background:#fff; border-radius:16px; padding:28px; width:560px; max-width:95%; max-height:90vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.25); position:relative;">
-      <button onclick="closeSeedModal()" style="position:absolute; top:16px; right:16px; background:none; border:none; font-size:22px; line-height:1; cursor:pointer; color:#999; padding:0;">×</button>
-      <h3 style="font-size:16px; font-weight:700; color:#1e1e2e; margin:0 0 18px; display:flex; align-items:center; gap:8px;"><svg class="xi xi-md" style="color:#059669;"><use href="#ic-chat"/></svg> Seeding bài viết</h3>
+  <div id="seedModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center; padding:16px; box-sizing:border-box;">
+    <div style="background:#fff; border-radius:16px; width:560px; max-width:100%; max-height:90vh; box-shadow:0 12px 40px rgba(0,0,0,0.28); display:flex; flex-direction:column; overflow:hidden;">
 
-      <!-- Bài gốc -->
-      <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:12px; color:#374151;">
-        <div style="font-weight:600; color:#065F46; margin-bottom:4px;">Bài gốc</div>
-        <div id="seedPostMsg" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#374151;"></div>
-        <a id="seedPostLink" href="#" target="_blank" rel="noopener" style="color:#059669; font-size:11px; margin-top:4px; display:inline-flex; align-items:center; gap:3px; text-decoration:none;">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          Mở bài đăng
-        </a>
+      <!-- Header cố định -->
+      <div style="flex-shrink:0; padding:20px 26px 14px; border-bottom:1px solid #f1f3f5; position:relative;">
+        <button onclick="closeSeedModal()" style="position:absolute; top:16px; right:16px; background:none; border:none; font-size:22px; line-height:1; cursor:pointer; color:#9ca3af; padding:0;" onmouseover="this.style.color='#4b5563'" onmouseout="this.style.color='#9ca3af'">×</button>
+        <h3 style="font-size:16px; font-weight:700; color:#1e1e2e; margin:0 0 12px; display:flex; align-items:center; gap:8px;"><svg class="xi xi-md" style="color:#059669;"><use href="#ic-chat"/></svg> Seeding bài viết</h3>
+        <!-- Bài gốc gọn 1 dòng -->
+        <div style="display:flex; align-items:center; gap:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:8px 11px;">
+          <img id="seedPostThumb" alt="" style="width:38px; height:38px; object-fit:cover; border-radius:7px; flex-shrink:0; display:none; border:1px solid #bbf7d0;">
+          <div style="min-width:0; flex:1;">
+            <div id="seedPostMsg" style="font-size:13px; color:#065F46; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></div>
+            <a id="seedPostLink" href="#" target="_blank" rel="noopener" style="color:#059669; font-size:11px; display:inline-flex; align-items:center; gap:3px; text-decoration:none; margin-top:1px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Mở bài đăng
+            </a>
+          </div>
+        </div>
       </div>
 
-      <!-- Tài khoản (chế độ comment ngay) -->
-      <div id="seedAccountRow" style="margin-bottom:14px;">
-        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Tài khoản comment</label>
-        <select id="seedProfile" style="width:100%; padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#333;"></select>
-      </div>
+      <!-- Body cuộn -->
+      <div style="flex:1; overflow-y:auto; padding:16px 26px;">
 
-      <!-- Hẹn giờ tự động seeding -->
-      <div style="margin-bottom:14px; border:1px dashed #d1d5db; border-radius:10px; padding:10px 12px; background:#fafafa;">
-        <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:#374151; cursor:pointer; user-select:none;">
-          <input type="checkbox" id="seedAutoToggle" onchange="_toggleSeedAuto()" style="width:15px; height:15px; cursor:pointer;">
-          ⏰ Hẹn giờ tự động seeding
-        </label>
-        <div id="seedAutoPanel" style="display:none; margin-top:10px;">
-          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
-            <div style="flex:1; min-width:180px;">
-              <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px;">Thời gian chạy</label>
-              <input type="datetime-local" id="seedSchedTime" style="width:100%; padding:8px 10px; border:1px solid #e5e7eb; border-radius:7px; font-size:13px; background:#fff; box-sizing:border-box;">
-            </div>
-            <div style="min-width:150px;">
-              <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px;">Giãn cách (giây)</label>
-              <div style="display:flex; align-items:center; gap:4px;">
-                <input type="number" id="seedMinDelay" value="30" min="0" style="width:60px; padding:8px 6px; border:1px solid #e5e7eb; border-radius:7px; font-size:13px; background:#fff; text-align:center;">
-                <span style="color:#9ca3af;">–</span>
-                <input type="number" id="seedMaxDelay" value="90" min="0" style="width:60px; padding:8px 6px; border:1px solid #e5e7eb; border-radius:7px; font-size:13px; background:#fff; text-align:center;">
+        <!-- Banner lịch chờ chạy (đưa lên đầu để thấy ngay) -->
+        <div id="seedSchedBanner" style="display:none; margin-bottom:16px;"></div>
+
+        <!-- Tài khoản (chế độ comment ngay) -->
+        <div id="seedAccountRow" style="margin-bottom:14px;">
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Tài khoản comment</label>
+          <select id="seedProfile" style="width:100%; padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#333;"></select>
+        </div>
+
+        <!-- Hẹn giờ tự động seeding -->
+        <div style="margin-bottom:14px; border:1px dashed #d1d5db; border-radius:10px; padding:10px 12px; background:#fafafa;">
+          <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:#374151; cursor:pointer; user-select:none;">
+            <input type="checkbox" id="seedAutoToggle" onchange="_toggleSeedAuto()" style="width:15px; height:15px; cursor:pointer;">
+            ⏰ Hẹn giờ tự động seeding
+          </label>
+          <div id="seedAutoPanel" style="display:none; margin-top:10px;">
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+              <div style="flex:1; min-width:180px;">
+                <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px;">Thời gian chạy</label>
+                <input type="datetime-local" id="seedSchedTime" style="width:100%; padding:8px 10px; border:1px solid #e5e7eb; border-radius:7px; font-size:13px; background:#fff; box-sizing:border-box;">
+              </div>
+              <div style="min-width:150px;">
+                <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px;">Giãn cách (giây)</label>
+                <div style="display:flex; align-items:center; gap:4px;">
+                  <input type="number" id="seedMinDelay" value="30" min="0" style="width:60px; padding:8px 6px; border:1px solid #e5e7eb; border-radius:7px; font-size:13px; background:#fff; text-align:center;">
+                  <span style="color:#9ca3af;">–</span>
+                  <input type="number" id="seedMaxDelay" value="90" min="0" style="width:60px; padding:8px 6px; border:1px solid #e5e7eb; border-radius:7px; font-size:13px; background:#fff; text-align:center;">
+                </div>
               </div>
             </div>
+            <div style="margin-top:10px;">
+              <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:6px;">Tài khoản comment (chọn nhiều — hệ thống rải ngẫu nhiên)</label>
+              <div id="seedAccountChecks" style="display:flex; flex-wrap:wrap; gap:6px; max-height:120px; overflow-y:auto;"></div>
+            </div>
           </div>
-          <div style="margin-top:10px;">
-            <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:6px;">Tài khoản comment (chọn nhiều — hệ thống rải ngẫu nhiên)</label>
-            <div id="seedAccountChecks" style="display:flex; flex-wrap:wrap; gap:6px; max-height:120px; overflow-y:auto;"></div>
+        </div>
+
+        <!-- Nội dung seeding -->
+        <div style="margin-bottom:14px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <label style="font-size:13px; font-weight:600; color:#555;">Nội dung bình luận</label>
+            <button type="button" onclick="_addSeedComment()" style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border:1px dashed #059669; border-radius:6px; background:#f0fdf4; color:#059669; font-size:12px; cursor:pointer; font-weight:500;" onmouseover="this.style.background='#dcfce7'" onmouseout="this.style.background='#f0fdf4'">+ Thêm nội dung</button>
           </div>
+          <div id="seedCommentsList" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+
+        <!-- Status -->
+        <div id="seedStatus" style="display:none; padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:14px;"></div>
+
+        <!-- Lịch sử seeding (thu gọn được) -->
+        <div id="seedHistorySection" style="display:none; border-top:1px solid #f1f3f5; padding-top:12px; margin-top:2px;">
+          <button type="button" id="seedHistoryToggle" onclick="_toggleSeedHistory()" style="display:flex; align-items:center; gap:7px; width:100%; background:none; border:none; padding:0; cursor:pointer; font-size:13px; font-weight:600; color:#374151; text-align:left;">
+            <svg id="seedHistoryCaret" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; transition:transform .15s; color:#9ca3af;"><polyline points="9 18 15 12 9 6"/></svg>
+            Lịch sử seeding bài này
+            <span id="seedHistoryCount" style="font-size:11px; font-weight:600; color:#6b7280; background:#f1f3f5; border-radius:999px; padding:1px 8px;"></span>
+          </button>
+          <div id="seedHistoryList" style="margin-top:10px; display:none;"></div>
         </div>
       </div>
 
-      <!-- Nội dung seeding -->
-      <div style="margin-bottom:14px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-          <label style="font-size:13px; font-weight:600; color:#555;">Nội dung bình luận</label>
-          <button type="button" onclick="_addSeedComment()" style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border:1px dashed #059669; border-radius:6px; background:#f0fdf4; color:#059669; font-size:12px; cursor:pointer; font-weight:500;" onmouseover="this.style.background='#dcfce7'" onmouseout="this.style.background='#f0fdf4'">+ Thêm nội dung</button>
-        </div>
-        <div id="seedCommentsList" style="display:flex; flex-direction:column; gap:8px;"></div>
-      </div>
-
-      <!-- Status -->
-      <div id="seedStatus" style="display:none; padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:14px;"></div>
-
-      <!-- Buttons -->
-      <div style="display:flex; gap:10px; justify-content:flex-end; border-top:1px solid #f3f4f6; padding-top:16px;">
+      <!-- Footer cố định -->
+      <div style="flex-shrink:0; display:flex; gap:10px; justify-content:flex-end; border-top:1px solid #f1f3f5; padding:14px 26px;">
         <button onclick="closeSeedModal()" style="padding:10px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:14px; cursor:pointer; color:#555; font-weight:500;">Huỷ</button>
         <button onclick="submitSeed()" id="seedSubmitBtn" style="padding:10px 24px; border:none; border-radius:8px; background:#059669; color:#fff; font-size:14px; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:6px;"><svg class="xi"><use href="#ic-chat"/></svg> Seeding</button>
-      </div>
-
-      <!-- Lịch sử seeding -->
-      <div id="seedHistorySection" style="margin-top:20px; border-top:1px solid #f3f4f6; padding-top:16px; display:none;">
-        <div style="font-size:13px; font-weight:600; color:#374151; margin-bottom:10px;">Lịch sử seeding bài này</div>
-        <div id="seedHistoryList"></div>
       </div>
     </div>
   </div>
@@ -11435,6 +11451,13 @@
       const _linkEl = document.getElementById('seedPostLink');
       if (postUrl) { _linkEl.href = postUrl; _linkEl.style.display = ''; }
       else { _linkEl.removeAttribute('href'); _linkEl.style.display = 'none'; }
+      // Thumbnail bài gốc (nếu có ảnh) — dùng ảnh đầu của bài
+      const _thumbEl = document.getElementById('seedPostThumb');
+      const _thumbSrc = (_row && Array.isArray(_row.images) && _row.images.length) ? _seedImgUrl(_row.images[0]) : '';
+      if (_thumbSrc) { _thumbEl.src = _thumbSrc; _thumbEl.style.display = ''; _thumbEl.onerror = () => { _thumbEl.style.display = 'none'; }; }
+      else { _thumbEl.removeAttribute('src'); _thumbEl.style.display = 'none'; }
+      // Lịch sử mặc định thu gọn mỗi lần mở
+      _seedHistoryCollapsed = true;
       _renderSeedComments();
       document.getElementById('seedStatus').style.display = 'none';
       document.getElementById('seedSubmitBtn').disabled = false;
@@ -11784,6 +11807,7 @@
     async function _loadSeedHistory() {
       const section = document.getElementById('seedHistorySection');
       const list = document.getElementById('seedHistoryList');
+      const _banner0 = document.getElementById('seedSchedBanner');
       // Query CẢ postUrl LẪN postLogId rồi gộp — chống lệch khóa khiến lịch sử trống.
       // Nếu lỗi/HTTP fail thì hiện rõ lý do ngay trong modal (tự chẩn đoán),
       // thay vì im lặng ẩn đi như trước.
@@ -11791,7 +11815,7 @@
       const _urls = (_seedPostUrls && _seedPostUrls.length) ? _seedPostUrls : (_seedPostUrl ? [_seedPostUrl] : []);
       for (const u of _urls) queries.push('postUrl=' + encodeURIComponent(u));
       if (_seedPostLogId) queries.push('postLogId=' + encodeURIComponent(_seedPostLogId));
-      if (!queries.length) { section.style.display = 'none'; return; }
+      if (!queries.length) { section.style.display = 'none'; if (_banner0) _banner0.style.display = 'none'; return; }
 
       let rows = [];
       let lastErr = '';
@@ -11828,19 +11852,37 @@
         } catch { /* ignore */ }
       }
       _seedLastPending = scheds.length;
-      const schedHtml = scheds.length ? `
-        <div style="margin-bottom:10px;">
-          <div style="font-size:11px; font-weight:700; color:#2563eb; margin-bottom:6px;">⏰ Lịch chờ chạy</div>
-          ${scheds.map(s => `<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 9px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:7px; margin-bottom:5px;">
-            <div style="min-width:0; flex:1; font-size:11px; color:#1e40af; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(s.time)} · ${s.commentCount} bình luận · ${s.accountCount} acc${s.status === 'running' ? ' · <b>đang chạy</b>' : ''}</div>
-            ${s.status === 'running' ? '' : `<button onclick="_cancelSeedSchedule(${s.id})" title="Huỷ lịch" style="flex-shrink:0; background:none; border:none; color:#93c5fd; cursor:pointer; font-size:15px; line-height:1; padding:0;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#93c5fd'">×</button>`}
-          </div>`).join('')}
-        </div>` : '';
 
-      if (!rows.length && !scheds.length) {
+      // --- Banner "Lịch chờ chạy" (đầu modal, nổi bật) ---
+      const banner = document.getElementById('seedSchedBanner');
+      if (banner) {
+        if (scheds.length) {
+          banner.style.display = '';
+          banner.innerHTML = `
+            <div style="font-size:11px; font-weight:700; color:#1d4ed8; margin-bottom:7px;">⏰ Lịch chờ chạy</div>
+            ${scheds.map(s => `<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:9px; margin-bottom:6px;">
+              <div style="min-width:0; flex:1;">
+                <div style="font-size:13px; font-weight:600; color:#1e40af; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(s.time)}</div>
+                <div style="font-size:11px; color:#3b82f6; margin-top:1px;">${s.commentCount} bình luận · ${s.accountCount} tài khoản</div>
+              </div>
+              ${s.status === 'running'
+                ? '<span style="flex-shrink:0; font-size:10px; font-weight:700; color:#1d4ed8; background:#dbeafe; border-radius:999px; padding:3px 9px;">ĐANG CHẠY</span>'
+                : `<button onclick="_cancelSeedSchedule(${s.id})" title="Huỷ lịch" style="flex-shrink:0; background:none; border:none; color:#93c5fd; cursor:pointer; font-size:18px; line-height:1; padding:0;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#93c5fd'">×</button>`}
+            </div>`).join('')}`;
+        } else {
+          banner.style.display = 'none';
+          banner.innerHTML = '';
+        }
+      }
+
+      // --- Lịch sử seeding (thu gọn được) ---
+      const countEl = document.getElementById('seedHistoryCount');
+      if (!rows.length) {
         if (lastErr) {
           section.style.display = '';
+          if (countEl) countEl.textContent = '';
           list.innerHTML = `<div style="font-size:12px; color:#9ca3af;">Chưa tải được lịch sử (${escapeHtml(lastErr)}). Kiểm tra <code>/api/seed-logs</code> trên server.</div>`;
+          _seedHistoryCollapsed = false; _applySeedHistoryCollapse();
         } else {
           section.style.display = 'none';
         }
@@ -11850,7 +11892,8 @@
       rows.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       {
         section.style.display = '';
-        list.innerHTML = schedHtml + rows.map(r => {
+        if (countEl) countEl.textContent = String(rows.length);
+        list.innerHTML = rows.map(r => {
           const ts = new Date(r.timestamp).toLocaleString('vi-VN', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit', year:'numeric' });
           const status = r.success
             ? `<span style="color:#059669; font-size:11px; font-weight:600;">✓ Thành công</span>`
@@ -11868,7 +11911,21 @@
             <button onclick="_deleteSeedLog(${r.id})" style="flex-shrink:0; background:none; border:none; color:#d1d5db; cursor:pointer; font-size:16px; line-height:1; padding:0;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#d1d5db'">×</button>
           </div>`;
         }).join('');
+        _applySeedHistoryCollapse();
       }
+    }
+
+    // Thu gọn / mở rộng mục "Lịch sử seeding bài này"
+    let _seedHistoryCollapsed = true;
+    function _toggleSeedHistory() {
+      _seedHistoryCollapsed = !_seedHistoryCollapsed;
+      _applySeedHistoryCollapse();
+    }
+    function _applySeedHistoryCollapse() {
+      const list = document.getElementById('seedHistoryList');
+      const caret = document.getElementById('seedHistoryCaret');
+      if (list) list.style.display = _seedHistoryCollapsed ? 'none' : '';
+      if (caret) caret.style.transform = _seedHistoryCollapsed ? 'rotate(0deg)' : 'rotate(90deg)';
     }
 
     async function _deleteSeedLog(id) {
