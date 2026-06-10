@@ -662,8 +662,9 @@
     /* Photo grid */
     .photo-grid {
       display: grid; gap: 2px; border-radius: 12px;
-      overflow: hidden; margin: 8px -2px 0;
-      max-width: calc(100% + 4px);
+      overflow: hidden; margin: 8px 0 0;
+      /* Giới hạn để 1 ảnh không phình full chiều rộng bong bóng → tràn xuống quá to */
+      width: 100%; max-width: 280px;
       box-shadow: 0 2px 12px rgba(0,0,0,0.13);
     }
     .photo-grid.count-1 { grid-template-columns: 1fr; }
@@ -944,7 +945,7 @@
       .msg-row { max-width: 88%; }
       .msg { font-size: 14px; padding: 8px 12px; }
       .msg img { max-height: 155px; }
-      .photo-grid { margin: 6px -2px 0; border-radius: 10px; }
+      .photo-grid { margin: 6px 0 0; border-radius: 10px; }
 
       /* Input area */
       .input-area { padding: 6px 8px; gap: 5px; }
@@ -1079,8 +1080,8 @@
       /* Image preview */
       .image-preview { padding: 6px 10px; }
 
-      /* Photo grid — let it fill the bubble width */
-      .photo-grid { max-width: calc(100% + 4px); }
+      /* Photo grid — giữ gọn trên mobile, không tràn full bong bóng */
+      .photo-grid { width: 100%; max-width: 240px; }
 
       /* Channel form inputs wrap nicely */
       #panelChannels > div > div:last-child { gap: 6px !important; }
