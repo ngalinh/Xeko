@@ -2222,6 +2222,47 @@ function fbImageKey(u) {
   }
 }
 
+// Đệ quy gom mọi caption (message.text) trong payload GraphQL của FB. Cách lấy này
+// KHÔNG phụ thuộc cấu trúc HTML (vốn đổi liên tục) — text bài viết luôn nằm trong
+// node "message" của story. Trả về mảng để bên gọi chọn bản dài nhất (= bài chính).
+function collectGraphQLText(node, out, depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 30) return;
+  if (Array.isArray(node)) {
+    for (const v of node) collectGraphQLText(v, out, depth + 1);
+    return;
+  }
+  const msg = node.message;
+  if (msg && typeof msg === 'object' && typeof msg.text === 'string') {
+    const t = msg.text.trim();
+    if (t) out.push(t);
+  }
+  for (const k in node) {
+    const v = node[k];
+    if (v && typeof v === 'object') collectGraphQLText(v, out, depth + 1);
+  }
+}
+
+// Đệ quy gom URL ảnh trong payload GraphQL. Ảnh bài viết nằm ở các node
+// image/photo_image/viewer_image kèm width/height — lấy thẳng URL gốc, không cần
+// chờ DOM lazy-load, không dính ảnh quảng cáo/gợi ý load lẫn trên trang.
+function collectGraphQLImages(node, out, depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 30) return;
+  if (Array.isArray(node)) {
+    for (const v of node) collectGraphQLImages(v, out, depth + 1);
+    return;
+  }
+  for (const key of ['image', 'photo_image', 'viewer_image', 'large_share_image']) {
+    const im = node[key];
+    if (im && typeof im === 'object' && typeof im.uri === 'string') {
+      out.push({ uri: im.uri, w: Number(im.width) || 0, h: Number(im.height) || 0 });
+    }
+  }
+  for (const k in node) {
+    const v = node[k];
+    if (v && typeof v === 'object') collectGraphQLImages(v, out, depth + 1);
+  }
+}
+
 async function scrapePost(postUrl) {
   const t0 = Date.now();
   const profileSnap = getActiveProfile();
@@ -2238,6 +2279,8 @@ async function scrapePost(postUrl) {
 
   // Bắt ảnh từ network response ngay khi load (trước goto) để không bỏ sót
   const netImages = new Set();
+  // Gom payload GraphQL để lấy text + ảnh từ JSON (đáng tin hơn DOM rất nhiều).
+  const graphqlBlobs = [];
 
   let page;
   try {
@@ -2255,6 +2298,18 @@ async function scrapePost(postUrl) {
         const urlPath = url.split('?')[0];
         if (!/\.(jpg|jpeg|png|webp)$/i.test(urlPath)) return;
         netImages.add(url);
+      } catch {}
+    });
+    // Bắt body các response GraphQL — chứa caption + URL ảnh dạng JSON có cấu trúc.
+    page.on('response', async (response) => {
+      try {
+        const url = response.url();
+        if (!/graphql/i.test(url)) return;
+        const ct = response.headers()['content-type'] || '';
+        if (!ct.includes('json') && !ct.includes('javascript') && !ct.includes('text')) return;
+        const body = await response.text();
+        if (!body) return;
+        for (const json of parseGraphQLBody(body)) graphqlBlobs.push(json);
       } catch {}
     });
     // bringToFront: tab mới tạo bởi newPage() là background tab —
@@ -2460,6 +2515,33 @@ async function scrapePost(postUrl) {
       if (text) logger.info(`${tag} text lấy từ fallback message-preview toàn trang`);
     }
 
+    // === Trích text + ảnh từ GraphQL (nguồn chính, đáng tin hơn DOM) ===
+    // Lấy TRƯỚC khi cuộn để tránh dính payload của bài gợi ý/quảng cáo load thêm
+    // lúc cuộn. Caption bài chính = message dài nhất; ảnh = các node image trong
+    // story (dedup theo photoId, bỏ avatar/icon).
+    const gqlTextCandidates = [];
+    const gqlImagesRaw = [];
+    for (const blob of graphqlBlobs) {
+      collectGraphQLText(blob, gqlTextCandidates);
+      collectGraphQLImages(blob, gqlImagesRaw);
+    }
+    gqlTextCandidates.sort((a, b) => b.length - a.length);
+    const gqlText = gqlTextCandidates[0] || '';
+
+    const gqlImgMap = new Map();
+    for (const { uri, w, h } of gqlImagesRaw) {
+      if (!uri || !uri.includes('fbcdn.net')) continue;
+      if (uri.includes('static.xx.fbcdn.net')) continue;
+      if (/\/v\/t1\.\d+-1\//.test(uri)) continue;       // ảnh đại diện
+      if (w && h && w <= 100 && h <= 100) continue;      // icon/avatar/emoji
+      const key = fbImageKey(uri);
+      const area = (w || 0) * (h || 0);
+      const prev = gqlImgMap.get(key);
+      if (!prev || area > prev.area) gqlImgMap.set(key, { uri, area });
+    }
+    const gqlImages = [...gqlImgMap.values()].map(x => x.uri);
+    logger.info(`${tag} GraphQL: text=${gqlText.length} ký tự, ảnh=${gqlImages.length} (blobs=${graphqlBlobs.length})`);
+
     // QUAN TRỌNG: xoá ảnh network bắt được trong lúc load trang. Lúc load,
     // FB tải hàng loạt ảnh KHÔNG thuộc bài viết: quảng cáo (Shopee/Uniqlo...),
     // bài gợi ý, sidebar, avatar bình luận → đây là nguồn "ảnh lung tung" và
@@ -2560,16 +2642,23 @@ async function scrapePost(postUrl) {
     for (const url of domImages) pushUnique(url);
     for (const url of netImages) pushUnique(url);
 
-    logger.info(`${tag} xong (+${Date.now() - t0}ms) — text=${text.length} ký tự, ảnh=${imageUrls.length} (dom=${domImages.length}, net=${netImages.size})`);
+    // Ưu tiên kết quả GraphQL (cấu trúc rõ ràng, đúng bài chính). DOM chỉ là dự
+    // phòng khi GraphQL không bắt được (FB đổi schema / bài cũ render kiểu khác).
+    const finalText = gqlText || text;
+    const finalImages = gqlImages.length ? gqlImages : imageUrls;
+    const textSrc = gqlText ? 'graphql' : (text ? 'dom' : 'none');
+    const imgSrc = gqlImages.length ? 'graphql' : 'dom';
+
+    logger.info(`${tag} xong (+${Date.now() - t0}ms) — text=${finalText.length} ký tự (${textSrc}), ảnh=${finalImages.length} (${imgSrc}; gql=${gqlImages.length}, dom=${domImages.length}, net=${netImages.size})`);
 
     // Chụp screenshot để debug khi không lấy được nội dung
-    if (!text && imageUrls.length === 0) {
+    if (!finalText && finalImages.length === 0) {
       const screenshotPath = path.resolve(__dirname, '../../logs', `scrape-empty-${Date.now()}.png`);
       await page.screenshot({ path: screenshotPath, fullPage: false }).catch(() => {});
-      logger.warn(`${tag} WARN: kết quả rỗng (articleCount=${articleCount}) — screenshot: ${screenshotPath}`);
+      logger.warn(`${tag} WARN: kết quả rỗng (articleCount=${articleCount}, blobs=${graphqlBlobs.length}) — screenshot: ${screenshotPath}`);
     }
 
-    return { success: true, text, imageUrls };
+    return { success: true, text: finalText, imageUrls: finalImages };
   } catch (e) {
     logger.error(`${tag} FAIL: ${e.message}`);
     return { success: false, error: e.message, text: '', imageUrls: [] };
