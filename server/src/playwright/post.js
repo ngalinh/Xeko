@@ -2207,6 +2207,21 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
 // Ảnh lấy URL trực tiếp từ DOM (không download file) → trả imageUrls.
 // =============================================================================
 
+// "Vân tay" ảnh FB để gộp trùng. FB phục vụ CÙNG MỘT ảnh ở nhiều URL khác nhau
+// (nhiều độ phân giải, khác query token, lấy từ DOM srcset lẫn network response)
+// → dedup theo URL nguyên văn sẽ đếm trùng, làm phình số ảnh. Tên file CDN có
+// dạng "<photoId>_<ownerId>_..._n.jpg" — 2 số đầu định danh đúng 1 ảnh, dùng làm key.
+function fbImageKey(u) {
+  try {
+    const pathPart = u.split('?')[0];
+    const file = pathPart.substring(pathPart.lastIndexOf('/') + 1);
+    const m = file.match(/(\d{6,})_(\d{6,})/);
+    return m ? `${m[1]}_${m[2]}` : pathPart;
+  } catch {
+    return u;
+  }
+}
+
 async function scrapePost(postUrl) {
   const t0 = Date.now();
   const profileSnap = getActiveProfile();
@@ -2369,19 +2384,38 @@ async function scrapePost(postUrl) {
           if (t) return t;
         }
       }
-      // Lấy div[dir="auto"] DÀI NHẤT (nội dung chính) thay vì lấy đầu tiên
-      let bestText = '';
-      for (const dir of article.querySelectorAll('div[dir="auto"]')) {
-        // Bỏ qua nếu nằm trong article lồng (comment)
-        if (dir.closest('div[role="article"]') !== article) continue;
-        const clone = dir.cloneNode(true);
+      const cleanText = (node) => {
+        const clone = node.cloneNode(true);
         for (const btn of clone.querySelectorAll('[role="button"]')) {
           if (SEE_MORE.has((btn.textContent || '').trim())) btn.remove();
         }
-        const t = (clone.innerText || '').trim();
-        if (t.length > bestText.length) bestText = t;
+        return (clone.innerText || '').trim();
+      };
+
+      // Tìm div[dir="auto"] DÀI NHẤT làm "mỏ neo" của nội dung chính.
+      let anchor = null, anchorLen = 0;
+      for (const dir of article.querySelectorAll('div[dir="auto"]')) {
+        // Bỏ qua nếu nằm trong article lồng (comment)
+        if (dir.closest('div[role="article"]') !== article) continue;
+        const len = cleanText(dir).length;
+        if (len > anchorLen) { anchorLen = len; anchor = dir; }
       }
-      return bestText;
+      if (!anchor) return '';
+
+      // Bài nhiều đoạn được FB tách thành nhiều div[dir="auto"] ANH EM trong cùng
+      // container → chỉ lấy đoạn dài nhất sẽ MẤT các đoạn còn lại. Gom mọi đoạn
+      // anh em (cùng parent) lại. Header tác giả / thời gian / reactions nằm ở
+      // container khác nên không bị dính vào.
+      const container = anchor.parentElement || anchor;
+      const blocks = [];
+      for (const dir of container.children) {
+        if (dir.matches && dir.matches('div[dir="auto"]')) {
+          const t = cleanText(dir);
+          if (t) blocks.push(t);
+        }
+      }
+      if (blocks.length > 1) return blocks.join('\n');
+      return cleanText(anchor);
     }).catch(() => '') : '';
 
     // QUAN TRỌNG: xoá ảnh network bắt được trong lúc load trang. Lúc load,
@@ -2469,16 +2503,20 @@ async function scrapePost(postUrl) {
       return urls;
     }).catch(() => []) : [];
 
-    // Bổ sung ảnh bắt được từ network (các ảnh DOM có thể chưa load kịp)
-    // — đã clear trước khi cuộn nên chỉ còn ảnh tải trong lúc cuộn đúng bài.
-    const seenUrls = new Set(domImages);
-    const imageUrls = [...domImages];
-    for (const url of netImages) {
-      if (!seenUrls.has(url)) {
-        seenUrls.add(url);
-        imageUrls.push(url);
-      }
-    }
+    // Gộp ảnh DOM + ảnh bắt từ network, dedup theo "vân tay" ảnh (photoId) thay
+    // vì URL nguyên văn — cùng 1 ảnh xuất hiện ở DOM (srcset độ phân giải cao) và
+    // network (kích thước khác) sẽ bị đếm trùng nếu so URL. Ưu tiên giữ URL DOM
+    // (thường là bản phân giải cao nhất từ srcset).
+    const seenKeys = new Set();
+    const imageUrls = [];
+    const pushUnique = (url) => {
+      const key = fbImageKey(url);
+      if (seenKeys.has(key)) return;
+      seenKeys.add(key);
+      imageUrls.push(url);
+    };
+    for (const url of domImages) pushUnique(url);
+    for (const url of netImages) pushUnique(url);
 
     logger.info(`${tag} xong (+${Date.now() - t0}ms) — text=${text.length} ký tự, ảnh=${imageUrls.length} (dom=${domImages.length}, net=${netImages.size})`);
 
