@@ -662,8 +662,9 @@
     /* Photo grid */
     .photo-grid {
       display: grid; gap: 2px; border-radius: 12px;
-      overflow: hidden; margin: 8px -2px 0;
-      max-width: calc(100% + 4px);
+      overflow: hidden; margin: 8px 0 0;
+      /* Giới hạn để 1 ảnh không phình full chiều rộng bong bóng → tràn xuống quá to */
+      width: 100%; max-width: 280px;
       box-shadow: 0 2px 12px rgba(0,0,0,0.13);
     }
     .photo-grid.count-1 { grid-template-columns: 1fr; }
@@ -944,7 +945,7 @@
       .msg-row { max-width: 88%; }
       .msg { font-size: 14px; padding: 8px 12px; }
       .msg img { max-height: 155px; }
-      .photo-grid { margin: 6px -2px 0; border-radius: 10px; }
+      .photo-grid { margin: 6px 0 0; border-radius: 10px; }
 
       /* Input area */
       .input-area { padding: 6px 8px; gap: 5px; }
@@ -1079,8 +1080,8 @@
       /* Image preview */
       .image-preview { padding: 6px 10px; }
 
-      /* Photo grid — let it fill the bubble width */
-      .photo-grid { max-width: calc(100% + 4px); }
+      /* Photo grid — giữ gọn trên mobile, không tràn full bong bóng */
+      .photo-grid { width: 100%; max-width: 240px; }
 
       /* Channel form inputs wrap nicely */
       #panelChannels > div > div:last-child { gap: 6px !important; }
@@ -9245,6 +9246,9 @@
     // Reload nut header: lam moi full page + xoa chat state + pending jobs
     // (truoc day chi reload thi chat persist se restore lai -> user tuong khong reload)
     function reloadFresh() {
+      // Chặn pagehide/visibilitychange flush ghi lại chat sau khi đã clear
+      // (nếu không, restoreChatState sẽ khôi phục lại → reload như không có tác dụng)
+      try { _skipChatPersist = true; } catch {}
       try { clearChatState(); } catch {}
       try { localStorage.removeItem('xeko_pending_jobs_v1'); } catch {}
       // Xác định trang đang active để reload về đúng trang, không về dashboard mặc định
@@ -9359,7 +9363,13 @@
     // Placeholder thay cho ảnh nặng khi lưu chat (xem _saveChatStateNow)
     const IMG_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" rx="8" fill="#e5e7eb"/><circle cx="17" cy="17" r="3.5" fill="#9ca3af"/><path d="M10 36l9-11 6 7 5-6 8 10z" fill="#9ca3af"/></svg>');
 
+    // Khi reloadFresh() chủ động clear rồi reload, navigation phát pagehide/
+    // visibilitychange → flushChatState() sẽ ghi lại chat (DOM vẫn còn) đè lên
+    // state vừa xoá → reload không clear được. Cờ này chặn mọi lần lưu sau clear.
+    let _skipChatPersist = false;
+
     function _saveChatStateNow() {
+      if (_skipChatPersist) return;
       try {
         const chat = document.getElementById('chatArea');
         if (!chat || chat.children.length === 0) return;
