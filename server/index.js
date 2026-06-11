@@ -13,6 +13,7 @@ const playwright = process.env.PLAYWRIGHT_LOCAL_URL
 const postLogger = require('./src/database/post-logger');
 const seedStore = require('./src/database/seed-store');
 const { queuePost } = require('./src/utils/post-queue');
+const retryQueue = require('./src/utils/retry-queue');
 
 const permissions = require('./src/utils/permissions');
 const auth = require('./src/utils/auth');
@@ -444,7 +445,7 @@ setInterval(() => {
   }
 }, 3600_000);
 
-async function executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId = null, jobId: _jobId = null }) {
+async function executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId = null, jobId: _jobId = null, _retryAttempt = 0 }) {
   if (profile) await playwright.setProfile(profile);
 
   // Snapshot 1 lần ngay đầu — không gọi getActiveProfile() sau await (global có thể bị đổi)
@@ -457,6 +458,34 @@ async function executePost({ profile, profileDisplayName, message, target, group
 
   // Helper: dùng completePendingPost nếu có pendingLogId, fallback về job_id, rồi mới logPost
   const _doLog = (logArgs, result, groupName) => {
+    // --- Auto-retry khi bị rate-limit (HTTP 429 từ local server) ---
+    // Thay vì đánh dấu Failed, hẹn tự đăng lại sau cửa sổ rate-limit.
+    if (retryQueue.isRateLimited(result) && pendingLogId) {
+      if (_retryAttempt < retryQueue.MAX_RETRIES) {
+        const attempt = _retryAttempt + 1;
+        const { retryAt } = retryQueue.schedule({
+          postLogId: pendingLogId,
+          retryAfterMs: result.retryAfterMs,
+          attempt,
+          args: { profile, profileDisplayName, message, target, groupId, groupKeywords, imageUrls, batchId },
+          imagePaths,
+        });
+        const hhmm = new Date(retryAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' });
+        const waitMsg = `${result.error || 'Chạm giới hạn đăng bài'} — tự đăng lại lúc ${hhmm} (lần ${attempt}/${retryQueue.MAX_RETRIES}).`;
+        postLogger.markRetryWaiting(pendingLogId, { error: waitMsg, retryAt, retryCount: attempt });
+        logger.info(`[job] post_log=${pendingLogId} bị rate-limit → ${waitMsg}`);
+        return;
+      }
+      // Hết lượt đăng lại → ghi Failed kèm chú thích
+      result = { ...result, error: `${result.error || 'Chạm giới hạn đăng bài'} (đã tự đăng lại ${retryQueue.MAX_RETRIES} lần vẫn bị chặn)` };
+    }
+
+    // Khi đang đăng lại, row đang ở success=2 → cập nhật trực tiếp theo id
+    // (completePendingPost chỉ match success=-1 nên không xử lý được).
+    if (_retryAttempt > 0 && pendingLogId) {
+      const upd = postLogger.completePostById(pendingLogId, { success: result.success, error: result.error, postUrl: result.postUrl, groupName });
+      if (upd && upd.changes > 0) return;
+    }
     if (pendingLogId) {
       const upd = postLogger.completePendingPost(pendingLogId, { success: result.success, error: result.error, postUrl: result.postUrl, groupName });
       if (upd && upd.changes > 0) return;
@@ -559,6 +588,27 @@ async function executePost({ profile, profileDisplayName, message, target, group
   postCount++;
   _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
   return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
+}
+
+// Runner cho retry-queue: dựng lại executePost từ record đã lưu để đăng lại.
+// executePost sẽ tự cập nhật row post_logs (qua _doLog) và hẹn tiếp nếu vẫn bị chặn.
+async function runRetry(record) {
+  const a = record.args || {};
+  logger.info(`[retry] đăng lại post_log=${record.postLogId} (lần ${record.attempt}) — target=${a.target}, ảnh=${(record.imagePaths || []).length}`);
+  return executePost({
+    profile: a.profile,
+    profileDisplayName: a.profileDisplayName,
+    message: a.message,
+    target: a.target,
+    groupId: a.groupId,
+    groupKeywords: a.groupKeywords,
+    imagePaths: record.imagePaths || [],
+    imageUrls: a.imageUrls || [],
+    batchId: a.batchId,
+    pendingLogId: record.postLogId,
+    jobId: null,
+    _retryAttempt: record.attempt,
+  });
 }
 
 // Dang bai (async job)
@@ -2627,6 +2677,7 @@ app.listen(config.server.port, () => {
   try {
     scheduler.init();
     scheduler.initSeeds();
+    retryQueue.init(runRetry);
   } catch (e) {
     logger.error(`Scheduler init error: ${e.message}`);
   }

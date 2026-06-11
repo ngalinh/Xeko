@@ -9662,7 +9662,7 @@
         const dashPg = document.getElementById('pageDashboard');
         if (!dashPg || !dashPg.classList.contains('active')) return;
         // Chỉ poll nếu còn pending rows, active repost jobs, hoặc lịch seeding đang chạy/sắp chạy
-        const hasPending = document.querySelector('#dashHistoryBody tr[id^="pending-log-"]');
+        const hasPending = document.querySelector('#dashHistoryBody tr[id^="pending-log-"]') || document.querySelector('#dashHistoryBody .dash-retry-badge');
         const hasActive = _activeRepostJobs.length > 0;
         if (hasPending || hasActive || _dashHasPendingSeed) {
           loadDashHistory({ noSkeleton: true, noAnimation: true });
@@ -10569,9 +10569,32 @@
               ? `<div style="line-height:1.3;"><div style="font-size:11px; color:#6b7280;">${t}</div><div style="font-size:11px; color:#9ca3af;">${dt}</div></div>`
               : `<div style="line-height:1.3;"><div style="font-size:12px;">${t}</div><div style="font-size:11px; color:#6b7280;">${dt}</div></div>`;
           };
-          const statusBadgeFor = (row) => row.success
+          // Phân loại lý do thất bại để hiển thị trạng thái đúng — không phải lỗi nào
+          // cũng là "Failed". Một số lỗi không phải do nội dung và cần xử lý khác:
+          //  - ambiguous: có thể đã đăng nhưng chưa xác nhận → tránh đăng lại gây trùng
+          //  - connection: mất kết nối máy local/tunnel/proxy → lỗi hạ tầng
+          //  - auth: hết phiên đăng nhập → cần mở lại tài khoản
+          const classifyFailure = (err) => {
+            const e = (err || '').toLowerCase();
+            if (/local server chưa kết nối|không phải json|tunnel|proxy.*không kết nối|chưa kết nối/.test(e))
+              return { color:'#3730a3', bg:'#e0e7ff', emoji:'🔌', label:'Mất kết nối', tip:'Không kết nối được tới máy đăng bài (local/tunnel/proxy). Kiểm tra kết nối rồi đăng lại.' };
+            if (/timeout|không xác nhận|không bắt được posturl|quá 10 phút|job không còn tồn tại|chưa xong/.test(e))
+              return { color:'#92400e', bg:'#fef3c7', emoji:'⚠️', label:'Cần kiểm tra', tip:'Không xác nhận được kết quả — bài CÓ THỂ đã đăng. Kiểm tra Facebook/Zalo trước khi đăng lại để tránh trùng bài.' };
+            if (/hết hạn|session profile|chưa đăng nhập/.test(e))
+              return { color:'#9a3412', bg:'#ffedd5', emoji:'🔑', label:'Hết phiên', tip:'Phiên đăng nhập đã hết hạn — mở lại tài khoản để đăng nhập rồi đăng lại.' };
+            return null;
+          };
+          const failBadge = (row) => {
+            const c = classifyFailure(row.error);
+            if (!c) return `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'').replace(/"/g,'&quot;')}"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-x"/></svg>Failed</span>`;
+            const tip = `${c.tip}${row.error ? '\n\nChi tiết: ' + row.error : ''}`;
+            return `<span style="background:${c.bg}; color:${c.color}; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${tip.replace(/"/g,'&quot;')}">${c.emoji} ${c.label}</span>`;
+          };
+          const statusBadgeFor = (row) => row.success === 2
+            ? `<span class="badge-pulse dash-retry-badge" style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'Chạm giới hạn — đang chờ tự đăng lại').replace(/"/g,'&quot;')}"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-clock"/></svg>Chờ đăng lại</span>`
+            : row.success
             ? '<span style="background:#d1fae5; color:#047857; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-check"/></svg>Done</span>'
-            : `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'').replace(/"/g,'&quot;')}"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-x"/></svg>Failed</span>`;
+            : failBadge(row);
           // Ô cột Seeding: ưu tiên chip "sống" (đang seeding / lịch chờ), rồi tới kết quả đã seeding.
           const seedCellForRows = (rows, clickId) => {
             let ok = 0, total = 0, last = '', sched = null;
@@ -10693,15 +10716,24 @@
             const ctipMsg = escapeHtml(JSON.stringify({body: firstRow.message || ''}));
             const msg = firstRow.message ? (firstRow.message.length > 160 ? firstRow.message.substring(0, 160) + '…' : firstRow.message) : '-';
             const thumbs = buildThumbs(firstRow);
-            const okCount = group.rows.filter(r => r.success).length;
-            const failCount = total - okCount;
+            const okCount = group.rows.filter(r => r.success === 1).length;
+            const waitCount = group.rows.filter(r => r.success === 2).length;
+            const failCount = group.rows.filter(r => r.success !== 1 && r.success !== 2).length;
             let summaryBadge;
-            if (failCount === 0) {
+            if (failCount === 0 && waitCount === 0) {
               summaryBadge = `<span style="background:#d1fae5; color:#047857; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-check"/></svg>Done ${okCount}/${total}</span>`;
-            } else if (okCount === 0) {
+            } else if (okCount === 0 && failCount === 0) {
+              // Tất cả đang chờ đăng lại
+              summaryBadge = `<span class="badge-pulse" style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-clock"/></svg>Chờ đăng lại ${waitCount}/${total}</span>`;
+            } else if (okCount === 0 && waitCount === 0) {
               summaryBadge = `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-x"/></svg>Failed ${failCount}/${total}</span>`;
             } else {
-              summaryBadge = `<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">${okCount} Done · ${failCount} Failed</span>`;
+              // Hỗn hợp — ghép từng phần (Done · Chờ đăng lại · Failed)
+              const parts = [];
+              if (okCount) parts.push(`${okCount} Done`);
+              if (waitCount) parts.push(`${waitCount} Chờ đăng lại`);
+              if (failCount) parts.push(`${failCount} Failed`);
+              summaryBadge = `<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">${parts.join(' · ')}</span>`;
             }
             // Tài khoản đại diện = phổ biến nhất trong phiên
             const accCount = {};
@@ -10798,7 +10830,8 @@
         }
 
         // Auto-poll khi có pending rows, active jobs, hoặc lịch seeding đang chạy/sắp chạy
-        const hasPendingNow = _pendingDbRows.length > 0 || _activeRepostJobs.length > 0 || _dashHasPendingSeed;
+        const hasRetryWaiting = (data.rows || []).some(r => r.success === 2);
+        const hasPendingNow = _pendingDbRows.length > 0 || _activeRepostJobs.length > 0 || _dashHasPendingSeed || hasRetryWaiting;
         if (hasPendingNow) _startDashPendingPoll();
         else _stopDashPendingPoll();
 
