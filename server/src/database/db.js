@@ -53,5 +53,13 @@ if (!cols.includes('batch_id')) {
 if (!cols.includes('job_id')) {
   db.exec(`ALTER TABLE post_logs ADD COLUMN job_id TEXT`);
 }
+// retry_at: ISO time bài sẽ tự đăng lại (khi success=2 = chờ đăng lại vì rate-limit)
+// retry_count: số lần đã tự đăng lại
+if (!cols.includes('retry_at')) {
+  db.exec(`ALTER TABLE post_logs ADD COLUMN retry_at TEXT`);
+}
+if (!cols.includes('retry_count')) {
+  db.exec(`ALTER TABLE post_logs ADD COLUMN retry_count INTEGER DEFAULT 0`);
+}
 
 module.exports = db;

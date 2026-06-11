@@ -75,6 +75,31 @@ function completePendingByJobId(jobId, { success, error, postUrl } = {}) {
   ).run({ jobId, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null });
 }
 
+// Cập nhật kết quả cuối cho 1 row theo id, KHÔNG ràng buộc success hiện tại.
+// Dùng cho luồng auto-retry: row đang ở success=2 (chờ đăng lại) cần được ghi
+// kết quả thật (1/0) mà completePendingPost (chỉ match success=-1) không xử lý được.
+const completeByIdStmt = db.prepare(
+  `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl, retry_at=NULL WHERE id=@id`
+);
+const completeByIdWithGroupStmt = db.prepare(
+  `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl, retry_at=NULL, group_name=@groupName WHERE id=@id`
+);
+function completePostById(id, { success, error, postUrl, groupName } = {}) {
+  if (groupName !== undefined) {
+    return completeByIdWithGroupStmt.run({ id, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null, groupName: groupName || null });
+  }
+  return completeByIdStmt.run({ id, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null });
+}
+
+// Đánh dấu 1 row là "đang chờ đăng lại" (rate-limit). success=2 là trạng thái riêng,
+// không bị markTimedOutPending (chỉ quét success=-1) và bị loại khỏi thống kê.
+const markRetryWaitingStmt = db.prepare(
+  `UPDATE post_logs SET success=2, error=@error, retry_at=@retryAt, retry_count=@retryCount WHERE id=@id`
+);
+function markRetryWaiting(id, { error, retryAt, retryCount } = {}) {
+  return markRetryWaitingStmt.run({ id, error: error || null, retryAt: retryAt || null, retryCount: retryCount || 0 });
+}
+
 function getPendingPosts() {
   const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   return db.prepare('SELECT * FROM post_logs WHERE success = -1 AND timestamp >= ? ORDER BY timestamp DESC').all(since).map(r => ({
@@ -182,7 +207,7 @@ function getStatistics({ from, to } = {}) {
       COUNT(*) as total,
       SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
       SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as fail_count
-    FROM post_logs WHERE success >= 0 ${dateFilter}
+    FROM post_logs WHERE success IN (0,1) ${dateFilter}
   `).get(params);
 
   // Hom nay
@@ -193,7 +218,7 @@ function getStatistics({ from, to } = {}) {
       COUNT(*) as total,
       SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
       SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as fail_count
-    FROM post_logs WHERE success >= 0 AND timestamp >= @todayStart
+    FROM post_logs WHERE success IN (0,1) AND timestamp >= @todayStart
   `).get({ todayStart: todayStart.toISOString() });
 
   // Theo ngay (30 ngay gan nhat)
@@ -204,7 +229,7 @@ function getStatistics({ from, to } = {}) {
       SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
       SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as fail_count
     FROM post_logs
-    WHERE success >= 0 AND timestamp >= DATE('now', '-30 days') ${dateFilter}
+    WHERE success IN (0,1) AND timestamp >= DATE('now', '-30 days') ${dateFilter}
     GROUP BY DATE(timestamp)
     ORDER BY date DESC
   `).all(params);
@@ -216,7 +241,7 @@ function getStatistics({ from, to } = {}) {
       COUNT(*) as total,
       SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
       SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as fail_count
-    FROM post_logs WHERE success >= 0 ${dateFilter}
+    FROM post_logs WHERE success IN (0,1) ${dateFilter}
     GROUP BY profile, platform
     ORDER BY total DESC
   `).all(params);
@@ -229,7 +254,7 @@ function getStatistics({ from, to } = {}) {
       SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
       SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as fail_count
     FROM post_logs
-    WHERE success >= 0 AND group_name IS NOT NULL ${dateFilter}
+    WHERE success IN (0,1) AND group_name IS NOT NULL ${dateFilter}
     GROUP BY group_name, platform
     ORDER BY total DESC
   `).all(params);
@@ -241,7 +266,7 @@ function getStatistics({ from, to } = {}) {
       COUNT(*) as total,
       SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
       SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as fail_count
-    FROM post_logs WHERE success >= 0 ${dateFilter}
+    FROM post_logs WHERE success IN (0,1) ${dateFilter}
     GROUP BY platform
     ORDER BY total DESC
   `).all(params);
@@ -252,7 +277,7 @@ function getStatistics({ from, to } = {}) {
 function getDailyByProfile({ days = 30, from, to } = {}) {
   if (from || to) {
     const params = {};
-    let where = 'success >= 0';
+    let where = 'success IN (0,1)';
     if (from) { where += ' AND timestamp >= @from'; params.from = from; }
     if (to) { where += ' AND timestamp <= @to'; params.to = to; }
     return db.prepare(`
@@ -265,7 +290,7 @@ function getDailyByProfile({ days = 30, from, to } = {}) {
   return db.prepare(`
     SELECT DATE(timestamp) as date, profile,
       COALESCE(profile_name, profile) as profile_name, COUNT(*) as count
-    FROM post_logs WHERE success >= 0 AND timestamp >= DATE('now', '-' || ? || ' days')
+    FROM post_logs WHERE success IN (0,1) AND timestamp >= DATE('now', '-' || ? || ' days')
     GROUP BY DATE(timestamp), profile ORDER BY date ASC
   `).all(days);
 }
@@ -297,7 +322,7 @@ function getByProfileStats({ profile, platform, target, groupId, from, to } = {}
     COUNT(*) as total,
     SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
     SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as fail_count
-    FROM post_logs WHERE success >= 0`;
+    FROM post_logs WHERE success IN (0,1)`;
   const params = {};
 
   if (profile) {
@@ -332,4 +357,4 @@ function getByProfileStats({ profile, platform, target, groupId, from, to } = {}
   return db.prepare(sql).all(params);
 }
 
-module.exports = { logPost, insertPendingPost, completePendingPost, completePendingByJobId, getPendingPosts, cleanupStalePending, markTimedOutPending, getPostHistory, getStatistics, getDailyByProfile, getByProfileStats, deleteById, deleteByIds, deleteByFilter };
+module.exports = { logPost, insertPendingPost, completePendingPost, completePendingByJobId, completePostById, markRetryWaiting, getPendingPosts, cleanupStalePending, markTimedOutPending, getPostHistory, getStatistics, getDailyByProfile, getByProfileStats, deleteById, deleteByIds, deleteByFilter };
