@@ -4631,6 +4631,19 @@
       'Xeko không đăng được bài nào, bạn kiểm tra kết nối rồi thử lại nha 🙏',
     ];
 
+    // Bài đã gửi đi nhưng poll hết giờ chờ → Xeko KHÔNG kết luận fail (server vẫn
+    // đang chạy nền và Dashboard mới là nguồn sự thật). Tránh báo "fail" trong khi
+    // Dashboard báo "Done".
+    const UNCONFIRMED_ENCOURAGEMENTS = [
+      'Xeko đã gửi bài đi rồi, nhưng đăng hơi lâu nên chưa chốt được kết quả ở đây. Bạn xem tab <strong>Dashboard</strong> nha — Xeko vẫn đang chạy nền! ⏳',
+      'Xeko gửi bài xong nhưng chờ kết quả lâu hơn thường lệ. Bạn theo dõi ở tab <strong>Dashboard</strong> nha, đừng đăng lại liền kẻo trùng bài 🙏',
+      'Xeko vẫn đang đăng nền, chưa kịp chốt kết quả ở đây. Mở tab <strong>Dashboard</strong> để xem trạng thái thật nha ⏳',
+    ];
+
+    function pickUnconfirmed() {
+      return UNCONFIRMED_ENCOURAGEMENTS[Math.floor(Math.random() * UNCONFIRMED_ENCOURAGEMENTS.length)];
+    }
+
     function pickEncouragement(n = 1) {
       if (n === 0) {
         return ZERO_ENCOURAGEMENTS[Math.floor(Math.random() * ZERO_ENCOURAGEMENTS.length)];
@@ -4755,7 +4768,7 @@
           if (d.result == null) throw new Error('Job xong nhưng server không trả kết quả — kiểm tra Facebook tay.');
           return d.result; // caller cần return này
         }
-        if (d.status === 'failed') throw new Error(d.error || 'Job thất bại');
+        if (d.status === 'failed') { const _e = new Error(d.error || 'Job thất bại'); _e.confirmedFail = true; throw _e; }
         return null; // status lạ — tiếp tục poll
       };
 
@@ -4796,7 +4809,7 @@
               if (data.result == null) throw new Error('Job xong nhưng server không trả kết quả — kiểm tra Facebook tay.');
               return data.result;
             }
-            if (data.status === 'failed') throw new Error(data.error || 'Job thất bại');
+            if (data.status === 'failed') { const _e = new Error(data.error || 'Job thất bại'); _e.confirmedFail = true; throw _e; }
             if (data.offline) throw new Error('Mất kết nối mạng — kiểm tra internet rồi thử lại.');
           } catch (e) {
             if (isProxyTimeout(e)) { console.log(`[pollJob ${jobId}] proxy timeout, retry`); continue; }
@@ -5906,7 +5919,12 @@
       }
     });
 
-    // Poll kết quả Zalo post async — cập nhật chatbot khi Playwright hoàn thành
+    // Poll kết quả Zalo post async — cập nhật chatbot khi Playwright hoàn thành.
+    // Trả về: true = thành công (đã xác nhận); 'failed' = server báo fail (đã xác
+    // nhận); 'timeout' = hết giờ chờ (server vẫn chạy nền — CHƯA xác nhận);
+    // 'cancelled' = bị hủy từ Dashboard. Caller phải phân biệt 'timeout' với
+    // 'failed' để tránh báo fail sai. KHÔNG dùng filter(Boolean) vì mọi string
+    // đều truthy.
     async function pollZaloJob(jobId, groupName, account, progressRow = null, dashRowId = null, silent = false) {
       const pendingLogId = dashRowId?.startsWith('pending-log-') ? dashRowId.replace('pending-log-', '') : null;
       if (pendingLogId) _pendingLogProgressRows[pendingLogId] = { progressRow, groupName, account };
@@ -5959,23 +5977,23 @@
             if (progressRow) morphBot(progressRow, `⚠️ Group Zalo <strong>${groupName}</strong>: đã bị hủy từ Dashboard.`, 'warning');
             if (pendingLogId) delete _pendingLogProgressRows[pendingLogId];
             removePendingJob(jobId);
-            return false;
+            return 'cancelled';
           }
           // Check SSE trước khi sleep
           let sse = readSse();
-          if (sse) { finishDone(sse.success, sse.error); return !!sse.success; }
+          if (sse) { finishDone(sse.success, sse.error); return sse.success ? true : 'failed'; }
 
           await sleepOrVisible(2000, _ac.signal);
 
           // Check SSE ngay sau sleep (có thể vừa được wake up)
           sse = readSse();
-          if (sse) { finishDone(sse.success, sse.error); return !!sse.success; }
+          if (sse) { finishDone(sse.success, sse.error); return sse.success ? true : 'failed'; }
 
           try {
             const r = await fetch(`${BASE_URL}/api/zalo/status/${jobId}`);
             if (!r.ok) continue;
             const d = await r.json();
-            if (d.status === 'done') { finishDone(!!d.success, d.error); return !!d.success; }
+            if (d.status === 'done') { finishDone(!!d.success, d.error); return d.success ? true : 'failed'; }
           } catch {}
         }
         // Chat không tự kết luận thành/bại — Dashboard là nguồn sự thật.
@@ -5987,7 +6005,7 @@
           else addBot(timeoutMsg);
         }
         removePendingJob(jobId);
-        return false;
+        return 'timeout';
       } finally {
         _jobSseBus.delete(jobId);
       }
@@ -6198,6 +6216,10 @@
 
       // Track number of successful posts in this batch (for encouragement)
       let successCount = 0;
+      // Số job KHÔNG xác nhận được kết quả (poll hết giờ / mất kết nối / server
+      // restart). Không phải fail — server vẫn chạy nền, Dashboard là nguồn sự
+      // thật. Dùng để chọn câu chốt cuối phiên (tránh báo "fail" sai).
+      let unconfirmedCount = 0;
       const countSuccess = (d) => {
         if (!d) return 0;
         if (Array.isArray(d.results)) return d.results.filter(r => r.success).length;
@@ -6399,6 +6421,9 @@
               data = await pollJob(initial.jobId);
             } catch (pollErr) {
               data = null; // Dashboard phản ánh trạng thái thật (kể cả timeout)
+              // Chỉ coi là fail thật khi server xác nhận status='failed'. Còn lại
+              // (timeout, mất kết nối, server restart) là "chưa xác nhận được".
+              if (!pollErr.confirmedFail) unconfirmedCount += 1;
             } finally {
               removePendingJob(initial.jobId);
             }
@@ -6428,14 +6453,15 @@
             if (initial.jobId) {
               pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `Group FB <strong>${gLabel}</strong>` });
               try { cd = await pollJob(initial.jobId); }
-              catch { cd = null; }
+              catch (e) { cd = null; if (!e.confirmedFail) unconfirmedCount += 1; }
               finally { removePendingJob(initial.jobId); }
             } else {
               cd = initial;
             }
             if (cd && cd.success) successCount += 1;
           } catch (ce) {
-            // Dashboard phản ánh trạng thái thật; không spam lỗi vào chat
+            // Submit lỗi (mạng/proxy) → chưa chắc fail, không spam chat. Dashboard là sự thật.
+            unconfirmedCount += 1;
           }
         }
 
@@ -6459,14 +6485,15 @@
               pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `FB Page <strong>${pName}</strong>` });
               let pd;
               try { pd = await pollJob(initial.jobId); }
-              catch { pd = null; }
+              catch (e) { pd = null; if (!e.confirmedFail) unconfirmedCount += 1; }
               finally { removePendingJob(initial.jobId); }
               if (pd && pd.success) successCount += 1;
             } else if (initial.success) {
               successCount += 1;
             }
           } catch (pe) {
-            // Dashboard phản ánh trạng thái thật; không spam lỗi vào chat
+            // Submit lỗi (mạng/proxy) → chưa chắc fail, không spam chat. Dashboard là sự thật.
+            unconfirmedCount += 1;
           }
         }
 
@@ -6475,14 +6502,29 @@
         // được đăng. Ở đây chỉ chờ kết quả để cập nhật Dashboard.)
         if (zaloPollPromises.length > 0) {
           const zaloResults = await Promise.all(zaloPollPromises);
-          successCount += zaloResults.filter(Boolean).length;
+          // pollZaloJob trả string → KHÔNG dùng filter(Boolean) (mọi string đều truthy).
+          // Chỉ true mới là thành công; 'timeout' là chưa xác nhận (không phải fail).
+          for (const zr of zaloResults) {
+            if (zr === true) successCount += 1;
+            else if (zr === 'timeout') unconfirmedCount += 1;
+            // 'failed' / 'cancelled' → không tính vào đâu cả (fail thật / đã hủy)
+          }
         }
 
         // Hien nut tiep tuc — câu chốt theo số bài thật sự đăng được.
         // Khoá nút của các lượt trước để không chồng nhiều cụm [Đăng bài tiếp]
         // [Làm lại] active cùng lúc (gây rối + bấm nhầm lượt cũ).
         disablePrevButtons();
-        addBot(pickEncouragement(successCount), [
+        // 3 trạng thái thay vì 2 — tránh báo "fail" khi Dashboard báo "Done":
+        //  • có ≥1 bài xác nhận thành công  → câu khích lệ
+        //  • không có bài nào success NHƯNG có job chưa xác nhận (poll timeout)
+        //    → câu trung lập, chỉ qua Dashboard (server vẫn chạy nền)
+        //  • tất cả đều fail thật            → câu fail
+        let _finalMsg;
+        if (successCount > 0) _finalMsg = pickEncouragement(successCount);
+        else if (unconfirmedCount > 0) _finalMsg = pickUnconfirmed();
+        else _finalMsg = pickEncouragement(0);
+        addBot(_finalMsg, [
           { label: `✍️ Đăng bài tiếp`, handler: () => focusInput(), primary: true },
           { label: `↩ Làm lại`, handler: () => showTargetSelect(), secondary: true },
         ]);
