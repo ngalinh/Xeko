@@ -2235,25 +2235,40 @@ const GQL_COMMENT_KEYS = new Set([
 
 // Đệ quy gom caption (message.text) của BÀI trong payload GraphQL của FB. Cách lấy
 // này KHÔNG phụ thuộc cấu trúc HTML (vốn đổi liên tục) — text bài luôn nằm trong
-// node "message" của story. Bỏ qua nhánh bình luận (xem GQL_COMMENT_KEYS). Trả về
-// mảng để bên gọi chọn bản dài nhất (= bài chính).
-function collectGraphQLText(node, out, depth = 0, inComments = false) {
+// node "message" của story. Bỏ qua nhánh bình luận (xem GQL_COMMENT_KEYS).
+// Mỗi ứng viên trả về { text, matched }: matched=true nếu node nằm trong story có
+// id/post_id KHỚP một trong các ID bài (targetIds) lấy từ URL đã resolve — dùng để
+// neo vào ĐÚNG bài, tránh vớ nhầm message dài nhất của quảng cáo/bài gợi ý/feed nền.
+function collectGraphQLText(node, out, targetIds, depth = 0, inComments = false, matched = false) {
   if (!node || typeof node !== 'object' || depth > 30) return;
   if (Array.isArray(node)) {
-    for (const v of node) collectGraphQLText(v, out, depth + 1, inComments);
+    for (const v of node) collectGraphQLText(v, out, targetIds, depth + 1, inComments, matched);
     return;
+  }
+  // Nếu node mang ID khớp bài mục tiêu → đánh dấu cả subtree là "matched".
+  // Ưu tiên key đặc thù của story (post_id/legacy_story_api_id/story_id) trước "id"
+  // chung chung để giảm khớp nhầm với actor/entity khác.
+  let nodeMatched = matched;
+  if (!nodeMatched && targetIds && targetIds.size) {
+    for (const idKey of ['post_id', 'legacy_story_api_id', 'story_id', 'id']) {
+      const v = node[idKey];
+      if ((typeof v === 'string' || typeof v === 'number') && targetIds.has(String(v))) {
+        nodeMatched = true;
+        break;
+      }
+    }
   }
   if (!inComments) {
     const msg = node.message;
     if (msg && typeof msg === 'object' && typeof msg.text === 'string') {
       const t = msg.text.trim();
-      if (t) out.push(t);
+      if (t) out.push({ text: t, matched: nodeMatched });
     }
   }
   for (const k in node) {
     const v = node[k];
     if (v && typeof v === 'object') {
-      collectGraphQLText(v, out, depth + 1, inComments || GQL_COMMENT_KEYS.has(k));
+      collectGraphQLText(v, out, targetIds, depth + 1, inComments || GQL_COMMENT_KEYS.has(k), nodeMatched);
     }
   }
 }
@@ -2382,6 +2397,24 @@ function detectPostType(url) {
   } catch {
     return 'unknown';
   }
+}
+
+// Chọn text giữa DOM (đã scope đúng article/dialog của bài) và GraphQL (đầy đủ hơn
+// nhưng dễ lẫn bài khác trên cùng trang/feed nền). Quy tắc:
+//  - Nếu gql nối dài đúng nội dung DOM (chứa "vân tay" 40 ký tự đầu của DOM) → cùng
+//    bài, lấy bản DÀI hơn (DOM có thể bị cắt do nút "Xem thêm" không bung được).
+//  - Nếu gql là nội dung KHÁC → tin DOM vì nó đã được scope vào đúng bài.
+function chooseScopedText(domText, gqlText) {
+  const d = (domText || '').trim();
+  const g = (gqlText || '').trim();
+  if (d && g) {
+    const dn = d.replace(/\s+/g, ' ');
+    const gn = g.replace(/\s+/g, ' ');
+    const fp = dn.slice(0, Math.min(40, dn.length));
+    if (fp && gn.includes(fp)) return g.length >= d.length ? g : d;
+    return d;
+  }
+  return d || g;
 }
 
 async function scrapePost(postUrl) {
@@ -2685,12 +2718,18 @@ async function scrapePost(postUrl) {
     const gqlImagesRaw = [];
     const gqlTimes = [];
     for (const blob of graphqlBlobs) {
-      collectGraphQLText(blob, gqlTextCandidates);
+      collectGraphQLText(blob, gqlTextCandidates, allIds);
       collectGraphQLImages(blob, gqlImagesRaw);
       collectGraphQLTime(blob, gqlTimes);
     }
-    gqlTextCandidates.sort((a, b) => b.length - a.length);
-    const gqlText = gqlTextCandidates[0] || '';
+    // Ưu tiên caption của ĐÚNG bài (node khớp ID bài trên URL đã resolve). Chỉ khi
+    // không khớp được ID nào (vd link pfbid không lộ ID số) mới đành lấy bản dài nhất.
+    const gqlMatchedTexts = gqlTextCandidates
+      .filter(c => c.matched).map(c => c.text).sort((a, b) => b.length - a.length);
+    const gqlAllTexts = gqlTextCandidates
+      .map(c => c.text).sort((a, b) => b.length - a.length);
+    const gqlMatchedText = gqlMatchedTexts[0] || '';
+    const gqlText = gqlMatchedText || gqlAllTexts[0] || '';
 
     // Thời điểm đăng: mốc MUỘN NHẤT trong các node không phải comment = lúc bài được
     // đăng/chia sẻ. null nếu payload không có creation_time.
@@ -2838,7 +2877,12 @@ async function scrapePost(postUrl) {
     //    permalink: GraphQL) → rỗng.
     //  - ẢNH: desktop full-res (modal: DOM trong dialog, permalink: GraphQL) →
     //    mbasic (thumbnail) — dùng mbasic chỉ khi desktop không có ảnh.
-    const desktopText = isModal ? (text || gqlText) : (gqlText || text);
+    // Nguồn TEXT desktop, theo độ tin cậy:
+    //  1. gql khớp ID bài → caption đầy đủ, chắc chắn đúng bài (authoritative).
+    //  2. còn lại: dung hoà DOM (đã scope) với gql dài nhất qua chooseScopedText —
+    //     thay cho kiểu cũ "chọn thẳng gql dài nhất" vốn hay lấy nhầm quảng cáo/bài
+    //     gợi ý có caption dài hơn trên cùng trang.
+    const desktopText = gqlMatchedText || chooseScopedText(text, gqlAllTexts[0] || '');
     const desktopImages = isModal
       ? (imageUrls.length ? imageUrls : gqlImages)
       : (gqlImages.length ? gqlImages : imageUrls);
@@ -2846,8 +2890,12 @@ async function scrapePost(postUrl) {
     const finalText = mbasicText || desktopText;
     const finalImages = desktopImages.length ? desktopImages : mbasicImages;
 
-    const textSrc = mbasicText ? 'mbasic'
-      : (desktopText ? (isModal ? 'dom-modal' : (gqlText ? 'graphql' : 'dom')) : 'none');
+    let textSrc;
+    if (mbasicText) textSrc = 'mbasic';
+    else if (!desktopText) textSrc = 'none';
+    else if (desktopText === gqlMatchedText) textSrc = 'graphql-id';
+    else if (desktopText === text) textSrc = isModal ? 'dom-modal' : 'dom';
+    else textSrc = 'graphql';
     const imgSrc = desktopImages.length
       ? (isModal ? 'dom-modal' : (gqlImages.length ? 'graphql' : 'dom'))
       : (mbasicImages.length ? 'mbasic' : 'none');
