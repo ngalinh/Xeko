@@ -41,6 +41,11 @@ async function delay(ms) {
 // thành 3-4 "tag" ("Linh Thảo Us A... | Linh Thảo Us A... | ... | "). Vì vậy chỉ
 // giữ phần tử NGOÀI CÙNG (không nằm trong phần tử khác đã khớp).
 const TAG_HELPER = `
+  function _xekoVisible(el) {
+    if (!el || el.offsetParent === null) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
   function _xekoTagEls() {
     const root = document.querySelector('.el-select') || document.querySelector('[class*="select"]');
     if (!root) return [];
@@ -49,7 +54,22 @@ const TAG_HELPER = `
       const all = Array.from(root.querySelectorAll('[class*="tag"]'));
       els = all.filter(el => !all.some(o => o !== el && o.contains(el))); // bỏ phần tử con
     }
-    return els;
+    // Chỉ giữ tag ĐANG HIỂN THỊ — tránh đếm tag ẩn/đo kích thước của Element UI
+    // làm 1 account nhìn thành nhiều tag → read-back huỷ oan.
+    return els.filter(_xekoVisible);
+  }
+  // Lấy tên đầy đủ của 1 tag: dùng textContent hiển thị; CHỈ thay bằng 'title'
+  // khi title NỐI DÀI phần text nhìn thấy (đó là tên đầy đủ bị cắt ellipsis).
+  // Tránh vớ nhầm title của nút xoá ("Remove"/"Xóa") hay icon con.
+  function _xekoTagText(t) {
+    const norm = s => (s || '').normalize('NFC').trim();
+    const own = norm(t.textContent);
+    const ownStripped = own.replace(/[\\s.…]+$/, '');
+    const titles = [t, ...Array.from(t.querySelectorAll('[title]'))]
+      .map(e => norm(e.getAttribute && e.getAttribute('title')))
+      .filter(Boolean);
+    const full = ownStripped.length >= 3 ? titles.find(tt => tt.startsWith(ownStripped)) : null;
+    return full || own;
   }
 `;
 
@@ -198,10 +218,7 @@ async function selectZaloAccount(page, accountName) {
     if (!root) return [];
     const tags = _xekoTagEls();
     if (tags.length) {
-      return tags.map(t => {
-        const titled = t.querySelector('[title]');
-        return norm((titled && titled.getAttribute('title')) || t.getAttribute('title') || t.textContent);
-      }).filter(Boolean);
+      return tags.map(t => _xekoTagText(t)).filter(Boolean);
     }
     const input = root.querySelector('input');
     if (input && norm(input.value)) return [norm(input.value)];
@@ -209,23 +226,32 @@ async function selectZaloAccount(page, accountName) {
     return txt ? [txt] : [];
   })()`);
   const selectedText = tagTexts.join(' | ');
-  logger.info(`[salework] Ô tài khoản sau khi chọn: "${selectedText}"`);
+  logger.info(`[salework] Ô tài khoản sau khi chọn (${tagTexts.length} tag): ${JSON.stringify(tagTexts)}`);
 
   const lc = s => (s || '').normalize('NFC').trim().toLowerCase();
   const want = lc(accountName);
 
-  // XÁC MINH: phải có ít nhất 1 tag, và MỌI tag đều là tài khoản cần đăng.
-  // Nếu còn lẫn account khác (read-back nhiều tag khác nhau) → huỷ để tránh
-  // đăng nhầm/đăng đồng thời nhiều account.
-  const tagMatchesWant = (t) => {
-    const lt = lc(t);
-    if (!lt || lt.includes('tất cả')) return false;
-    if (lt === want || lt.includes(want)) return true; // khớp đủ / "tên | sđt"
-    // Tag bị cắt ellipsis: chỉ chấp nhận prefix khi DUY NHẤT 1 tag (không thể lẫn account khác).
+  // Gộp các tag TRÙNG NHAU (Element UI đôi khi render lặp 1 account) → chỉ xét
+  // số account KHÁC BIỆT đang chọn.
+  const distinct = [...new Set(tagTexts.map(lc).filter(t => t && !t.includes('tất cả')))];
+
+  // XÁC MINH:
+  //   - Phải đang chọn ĐÚNG 1 account khác biệt (không lẫn account khác → tránh
+  //     đăng nhầm/đăng đồng thời nhiều account).
+  //   - Account đó phải là cái cần đăng: khớp đủ, "tên | sđt", hoặc prefix khi bị
+  //     cắt ellipsis (giờ an toàn vì đã chắc chỉ có 1 account khác biệt).
+  let matched = false;
+  if (distinct.length === 1) {
+    const lt = distinct[0];
     const ltStripped = lt.replace(/[\s.…]+$/, '');
-    return tagTexts.length === 1 && ltStripped.length >= 6 && want.startsWith(ltStripped);
-  };
-  const matched = tagTexts.length > 0 && tagTexts.every(tagMatchesWant);
+    matched =
+      lt === want ||
+      lt.includes(want) ||
+      (ltStripped.length >= 6 && want.startsWith(ltStripped));
+  } else if (distinct.length > 1) {
+    // Nhiều account khác nhau: chỉ chấp nhận nếu TẤT CẢ đều chính là account cần đăng.
+    matched = distinct.every(lt => lt === want || lt.includes(want));
+  }
 
   if (matched) {
     logger.info(`[salework] ✓ Xác minh đã chọn đúng tài khoản: ${accountName}`);
