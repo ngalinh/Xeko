@@ -3171,6 +3171,11 @@
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
       </symbol>
+      <symbol id="ic-info" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M12 11v5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="12" cy="7.6" r="1.1" fill="currentColor" stroke="none"/>
+      </symbol>
     </defs>
   </svg>
 
@@ -8497,6 +8502,17 @@
       return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
 
+    // Bộ đếm tạo id duy nhất cho từng dòng lý do lỗi có thể bật/tắt.
+    let _failReasonSeq = 0;
+    // Bật/tắt dòng lý do lỗi khi bấm vào icon ℹ️ trên cột Trạng thái (giữ bảng gọn).
+    function toggleFailReason(id, btn) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const show = el.style.display === 'none' || !el.style.display;
+      el.style.display = show ? 'block' : 'none';
+      if (btn) btn.style.color = show ? '#7f1d1d' : '#b91c1c';
+    }
+
     function populateCategoryFilterOptions() {
       const select = document.getElementById('groupCategoryFilter');
       if (!select) return;
@@ -10668,26 +10684,29 @@
             // Không nhận ra mẫu → hiện bản đã lọc chi tiết kỹ thuật.
             return stripped || e;
           };
-          // Dòng lý do dưới badge: hiện câu rõ ràng, tooltip giữ nguyên lỗi gốc đầy đủ.
-          const reasonLineHtml = (visible, rawTip) => {
+          // Giữ bảng gọn: cạnh badge có icon ℹ️, bấm vào mới mở dòng lý do đầy đủ
+          // (mặc định ẩn). Tooltip trên icon vẫn cho xem nhanh khi rê chuột.
+          const failBlock = (badgeHtml, visible, rawTip) => {
             const v = (visible || '').trim();
-            if (!v) return '';
+            if (!v) return `<div style="display:inline-flex; flex-direction:column; align-items:center; max-width:100%;">${badgeHtml}</div>`;
             const tip = ((rawTip || v).trim()) || v;
-            return `<div style="font-size:10px; color:#b91c1c; margin-top:3px; line-height:1.3; white-space:normal; word-break:break-word; text-align:center;" title="${tip.replace(/"/g,'&quot;')}">${escapeHtml(v)}</div>`;
+            const id = 'fr-' + (_failReasonSeq++);
+            const icon = `<button type="button" onclick="toggleFailReason('${id}', this)" title="${tip.replace(/"/g,'&quot;')}" aria-label="Xem lý do lỗi" style="display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; margin-left:4px; padding:0; border:none; background:none; cursor:pointer; color:#b91c1c; flex-shrink:0;"><svg style="width:14px;height:14px;" aria-hidden="true"><use href="#ic-info"/></svg></button>`;
+            const reason = `<div id="${id}" style="display:none; font-size:10px; color:#b91c1c; margin-top:3px; line-height:1.3; white-space:normal; word-break:break-word; text-align:center; max-width:240px;" title="${tip.replace(/"/g,'&quot;')}">${escapeHtml(v)}</div>`;
+            return `<div style="display:inline-flex; flex-direction:column; align-items:center; max-width:100%;"><span style="display:inline-flex; align-items:center;">${badgeHtml}${icon}</span>${reason}</div>`;
           };
-          const failReasonLine = (text) => reasonLineHtml(humanizeFailReason(text), text);
           const failBadge = (row) => {
             const c = classifyFailure(row.error);
             if (!c) {
               const badge = `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'').replace(/"/g,'&quot;')}"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-x"/></svg>Failed</span>`;
-              return `<div style="display:inline-flex; flex-direction:column; align-items:center; max-width:100%;">${badge}${failReasonLine(row.error)}</div>`;
+              return failBlock(badge, humanizeFailReason(row.error), row.error);
             }
             const tip = `${c.tip}${row.error ? '\n\nChi tiết: ' + row.error : ''}`;
             const badge = `<span style="background:${c.bg}; color:${c.color}; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${tip.replace(/"/g,'&quot;')}">${c.emoji} ${c.label}</span>`;
-            return `<div style="display:inline-flex; flex-direction:column; align-items:center; max-width:100%;">${badge}${reasonLineHtml(c.tip, tip)}</div>`;
+            return failBlock(badge, c.tip, tip);
           };
           const statusBadgeFor = (row) => row.success === 2
-            ? `<div style="display:inline-flex; flex-direction:column; align-items:center; max-width:100%;"><span class="badge-pulse dash-retry-badge" style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'Chạm giới hạn — đang chờ tự đăng lại').replace(/"/g,'&quot;')}"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-clock"/></svg>Chờ đăng lại</span>${failReasonLine(row.error)}</div>`
+            ? failBlock(`<span class="badge-pulse dash-retry-badge" style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'Chạm giới hạn — đang chờ tự đăng lại').replace(/"/g,'&quot;')}"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-clock"/></svg>Chờ đăng lại</span>`, humanizeFailReason(row.error), row.error)
             : row.success
             ? '<span style="background:#d1fae5; color:#047857; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-check"/></svg>Done</span>'
             : failBadge(row);
@@ -10823,9 +10842,15 @@
               .filter(Boolean))];
             // Hiện câu rõ ràng (đã gom trùng), tooltip giữ nguyên lỗi gốc đầy đủ.
             const failReasons = [...new Set(failRawReasons.map(humanizeFailReason).filter(Boolean))];
-            const groupFailReasonHtml = failReasons.length
-              ? `<div style="font-size:10px; color:#b91c1c; margin-top:3px; line-height:1.3; white-space:normal; word-break:break-word; text-align:center;" title="${failRawReasons.join('\n').replace(/"/g,'&quot;')}">${failReasons.map(escapeHtml).join('<br>')}</div>`
-              : '';
+            // Bấm icon ℹ️ cạnh badge tổng hợp mới mở danh sách lý do (mặc định ẩn → bảng gọn).
+            const wrapGroupBadge = (badgeHtml) => {
+              if (!failReasons.length) return badgeHtml;
+              const id = 'fr-' + (_failReasonSeq++);
+              const tip = failRawReasons.join('\n');
+              const icon = `<button type="button" onclick="toggleFailReason('${id}', this)" title="${tip.replace(/"/g,'&quot;')}" aria-label="Xem lý do lỗi" style="display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; margin-left:4px; padding:0; border:none; background:none; cursor:pointer; color:#b91c1c; flex-shrink:0;"><svg style="width:14px;height:14px;" aria-hidden="true"><use href="#ic-info"/></svg></button>`;
+              const div = `<div id="${id}" style="display:none; font-size:10px; color:#b91c1c; margin-top:3px; line-height:1.3; white-space:normal; word-break:break-word; text-align:center; max-width:260px;" title="${tip.replace(/"/g,'&quot;')}">${failReasons.map(escapeHtml).join('<br>')}</div>`;
+              return `<div style="display:inline-flex; flex-direction:column; align-items:center; max-width:100%;"><span style="display:inline-flex; align-items:center;">${badgeHtml}${icon}</span>${div}</div>`;
+            };
             let summaryBadge;
             if (failCount === 0 && waitCount === 0) {
               summaryBadge = `<span style="background:#d1fae5; color:#047857; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-check"/></svg>Done ${okCount}/${total}</span>`;
@@ -10833,15 +10858,16 @@
               // Tất cả đang chờ đăng lại
               summaryBadge = `<span class="badge-pulse" style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-clock"/></svg>Chờ đăng lại ${waitCount}/${total}</span>`;
             } else if (okCount === 0 && waitCount === 0) {
-              summaryBadge = `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-x"/></svg>Failed ${failCount}/${total}</span>${groupFailReasonHtml}`;
+              summaryBadge = `<span style="background:#fee2e2; color:#b91c1c; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-x"/></svg>Failed ${failCount}/${total}</span>`;
             } else {
               // Hỗn hợp — ghép từng phần (Done · Chờ đăng lại · Failed)
               const parts = [];
               if (okCount) parts.push(`${okCount} Done`);
               if (waitCount) parts.push(`${waitCount} Chờ đăng lại`);
               if (failCount) parts.push(`${failCount} Failed`);
-              summaryBadge = `<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">${parts.join(' · ')}</span>${groupFailReasonHtml}`;
+              summaryBadge = `<span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;">${parts.join(' · ')}</span>`;
             }
+            summaryBadge = wrapGroupBadge(summaryBadge);
             // Tài khoản đại diện = phổ biến nhất trong phiên
             const accCount = {};
             const platCount = {};
