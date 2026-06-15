@@ -10626,13 +10626,56 @@
               return { color:'#9a3412', bg:'#ffedd5', emoji:'🔑', label:'Hết phiên', tip:'Phiên đăng nhập đã hết hạn — mở lại tài khoản để đăng nhập rồi đăng lại.' };
             return null;
           };
-          // Hiển thị lý do thất bại ngay dưới badge (không cần rê chuột) — vẫn giữ
-          // tooltip để xem đầy đủ khi nội dung bị cắt.
-          const failReasonLine = (text) => {
-            const t = (text || '').trim();
-            if (!t) return '';
-            return `<div style="font-size:10px; color:#b91c1c; margin-top:3px; line-height:1.3; white-space:normal; word-break:break-word; text-align:center;" title="${t.replace(/"/g,'&quot;')}">${escapeHtml(t)}</div>`;
+          // Chuyển lỗi kỹ thuật / câu "chế" (fun-messages) thành lý do rõ ràng kèm
+          // hướng xử lý để hiện ngay trên dashboard. Câu gốc + chi tiết kỹ thuật
+          // (đường dẫn log, url, screenshot) vẫn giữ trong tooltip & log server.
+          const humanizeFailReason = (raw) => {
+            const e = (raw || '').trim();
+            if (!e) return '';
+            const low = e.toLowerCase();
+            // Bỏ chi tiết kỹ thuật nội bộ khỏi phần hiển thị cho người dùng.
+            const stripped = e
+              .replace(/\(xem logs\/[^)]*\)/gi, '')
+              .replace(/\[[^\]]*\]/g, '')
+              .replace(/\s{2,}/g, ' ')
+              .trim();
+            // Đã có hướng dẫn rõ ràng sẵn (vd: thiếu caption) → giữ nguyên.
+            if (/thêm caption|chỉ có ảnh không text/.test(low)) return stripped;
+            // Chạm giới hạn → đang chờ tự đăng lại.
+            if (/giới hạn|rate.?limit|chờ đăng lại|đăng lại sau/.test(low))
+              return 'Tài khoản chạm giới hạn đăng bài — hệ thống sẽ tự đăng lại sau.';
+            // Hạ tầng: mất kết nối local/tunnel/proxy.
+            if (/chưa kết nối|local server|tunnel|proxy|không phải json/.test(low))
+              return 'Không kết nối được tới máy đăng bài (local/tunnel/proxy) — kiểm tra kết nối rồi đăng lại.';
+            // Không xác nhận được kết quả — bài có thể đã đăng.
+            if (/timeout|không xác nhận|không bắt được posturl|quá \d+ phút|job không còn tồn tại|chưa xong/.test(low))
+              return 'Chưa xác nhận được kết quả — bài CÓ THỂ đã đăng. Kiểm tra Facebook/Zalo trước khi đăng lại để tránh trùng.';
+            // Hết phiên đăng nhập.
+            if (/hết hạn|session profile|chưa đăng nhập|đăng nhập/.test(low))
+              return 'Phiên đăng nhập đã hết hạn — mở lại tài khoản để đăng nhập rồi đăng lại.';
+            // Không mở được ô tạo bài.
+            if (/popup/.test(low))
+              return 'Không mở được ô tạo bài — thử đăng lại sau ít phút.';
+            // Lỗi tải ảnh.
+            if (/ảnh|upload/.test(low))
+              return 'Tải ảnh lên thất bại — kiểm tra ảnh và kết nối rồi đăng lại.';
+            // Không nhập được nội dung.
+            if (/ô text|nhập|chữ|câm|khóa miệng|input/.test(low))
+              return 'Không nhập được nội dung bài viết — thử đăng lại.';
+            // FB/Zalo từ chối submit bài.
+            if (/submit|lên sóng|từ chối|không cho|không đăng được|không chịu đăng|đăng bài|bài viết/.test(low))
+              return 'Bài viết bị từ chối đăng — kiểm tra tài khoản/nội dung rồi đăng lại.';
+            // Không nhận ra mẫu → hiện bản đã lọc chi tiết kỹ thuật.
+            return stripped || e;
           };
+          // Dòng lý do dưới badge: hiện câu rõ ràng, tooltip giữ nguyên lỗi gốc đầy đủ.
+          const reasonLineHtml = (visible, rawTip) => {
+            const v = (visible || '').trim();
+            if (!v) return '';
+            const tip = ((rawTip || v).trim()) || v;
+            return `<div style="font-size:10px; color:#b91c1c; margin-top:3px; line-height:1.3; white-space:normal; word-break:break-word; text-align:center;" title="${tip.replace(/"/g,'&quot;')}">${escapeHtml(v)}</div>`;
+          };
+          const failReasonLine = (text) => reasonLineHtml(humanizeFailReason(text), text);
           const failBadge = (row) => {
             const c = classifyFailure(row.error);
             if (!c) {
@@ -10641,7 +10684,7 @@
             }
             const tip = `${c.tip}${row.error ? '\n\nChi tiết: ' + row.error : ''}`;
             const badge = `<span style="background:${c.bg}; color:${c.color}; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${tip.replace(/"/g,'&quot;')}">${c.emoji} ${c.label}</span>`;
-            return `<div style="display:inline-flex; flex-direction:column; align-items:center; max-width:100%;">${badge}${failReasonLine(row.error || c.tip)}</div>`;
+            return `<div style="display:inline-flex; flex-direction:column; align-items:center; max-width:100%;">${badge}${reasonLineHtml(c.tip, tip)}</div>`;
           };
           const statusBadgeFor = (row) => row.success === 2
             ? `<div style="display:inline-flex; flex-direction:column; align-items:center; max-width:100%;"><span class="badge-pulse dash-retry-badge" style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${(row.error||'Chạm giới hạn — đang chờ tự đăng lại').replace(/"/g,'&quot;')}"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-clock"/></svg>Chờ đăng lại</span>${failReasonLine(row.error)}</div>`
@@ -10774,12 +10817,14 @@
             const failCount = group.rows.filter(r => r.success !== 1 && r.success !== 2).length;
             // Gom lý do thất bại (loại trùng) để hiện ngay dưới badge tổng hợp —
             // không cần mở rộng nhóm hay rê chuột mới thấy.
-            const failReasons = [...new Set(group.rows
+            const failRawReasons = [...new Set(group.rows
               .filter(r => r.success !== 1 && r.success !== 2)
               .map(r => (r.error || '').trim())
               .filter(Boolean))];
+            // Hiện câu rõ ràng (đã gom trùng), tooltip giữ nguyên lỗi gốc đầy đủ.
+            const failReasons = [...new Set(failRawReasons.map(humanizeFailReason).filter(Boolean))];
             const groupFailReasonHtml = failReasons.length
-              ? `<div style="font-size:10px; color:#b91c1c; margin-top:3px; line-height:1.3; white-space:normal; word-break:break-word; text-align:center;" title="${failReasons.join('\n').replace(/"/g,'&quot;')}">${failReasons.map(escapeHtml).join('<br>')}</div>`
+              ? `<div style="font-size:10px; color:#b91c1c; margin-top:3px; line-height:1.3; white-space:normal; word-break:break-word; text-align:center;" title="${failRawReasons.join('\n').replace(/"/g,'&quot;')}">${failReasons.map(escapeHtml).join('<br>')}</div>`
               : '';
             let summaryBadge;
             if (failCount === 0 && waitCount === 0) {
