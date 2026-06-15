@@ -483,15 +483,15 @@ async function executePost({ profile, profileDisplayName, message, target, group
     // Khi đang đăng lại, row đang ở success=2 → cập nhật trực tiếp theo id
     // (completePendingPost chỉ match success=-1 nên không xử lý được).
     if (_retryAttempt > 0 && pendingLogId) {
-      const upd = postLogger.completePostById(pendingLogId, { success: result.success, error: result.error, postUrl: result.postUrl, groupName });
+      const upd = postLogger.completePostById(pendingLogId, { success: result.success, error: result.error, postUrl: result.postUrl, groupName, profile: profileKey, profileName });
       if (upd && upd.changes > 0) return;
     }
     if (pendingLogId) {
-      const upd = postLogger.completePendingPost(pendingLogId, { success: result.success, error: result.error, postUrl: result.postUrl, groupName });
+      const upd = postLogger.completePendingPost(pendingLogId, { success: result.success, error: result.error, postUrl: result.postUrl, groupName, profile: profileKey, profileName });
       if (upd && upd.changes > 0) return;
       // 0 changes → row bị markTimedOut hoặc id sai → thử bằng job_id
       if (_jobId) {
-        const upd2 = postLogger.completePendingByJobId(_jobId, { success: result.success, error: result.error, postUrl: result.postUrl });
+        const upd2 = postLogger.completePendingByJobId(_jobId, { success: result.success, error: result.error, postUrl: result.postUrl, profile: profileKey, profileName });
         if (upd2 && upd2.changes > 0) return;
       }
     }
