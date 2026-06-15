@@ -35,27 +35,52 @@ async function delay(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+// Đếm số tag (account đang chọn) đang hiển thị trong ô el-select.
+async function countSelectedTags(page) {
+  return page.evaluate(() => {
+    const root = document.querySelector('.el-select') || document.querySelector('[class*="select"]');
+    if (!root) return 0;
+    return root.querySelectorAll('.el-tag, [class*="tag"]').length;
+  });
+}
+
 async function selectZaloAccount(page, accountName) {
   logger.info(`[salework] Chọn tài khoản: ${accountName}`);
 
-  // Bước 1: Clear tất cả selection cũ (dropdown là multi-select)
-  let cleared = 0;
-  while (cleared < 20) {
-    const removed = await page.evaluate(() => {
-      const closeIcons = document.querySelectorAll('.el-tag__close, .el-icon-close, [class*="tag"] [class*="close"], [class*="tag"] i');
-      for (const icon of closeIcons) {
-        if (icon.offsetParent !== null) {
-          icon.click();
-          return true;
+  // Bước 1: Clear tất cả selection cũ (dropdown là multi-select).
+  //
+  // QUAN TRỌNG: Salework chạy trên persistent profile và NHỚ lựa chọn của lần
+  // đăng trước (mỗi post mở lại browser → ô đã có sẵn tag cũ). Nếu không xoá
+  // sạch, read-back sẽ thấy nhiều tag "Linh Thảo Us A... | ..." (tên bị cắt
+  // ellipsis nên các account khác nhau trông y hệt) → huỷ đăng. Vì vậy phải
+  // xoá rồi XÁC MINH ô đã trống, thử lại nếu còn sót.
+  const clearTags = async () => {
+    let n = 0;
+    while (n < 30) {
+      const removed = await page.evaluate(() => {
+        const closeIcons = document.querySelectorAll(
+          '.el-tag .el-tag__close, .el-tag .el-icon-close, .el-select__tags .el-tag i, ' +
+          '.el-tag__close, .el-icon-close, [class*="tag"] [class*="close"], [class*="tag"] i'
+        );
+        for (const icon of closeIcons) {
+          if (icon.offsetParent !== null) { icon.click(); return true; }
         }
-      }
-      return false;
-    });
-    if (!removed) break;
-    await delay(200);
-    cleared++;
-  }
+        return false;
+      });
+      if (!removed) break;
+      await delay(200);
+      n++;
+    }
+    return n;
+  };
+
+  let cleared = await clearTags();
+  if (await countSelectedTags(page) > 0) cleared += await clearTags(); // 1 lượt vét nữa
   if (cleared > 0) logger.info(`[salework] Xoá ${cleared} tag cũ`);
+  const leftover = await countSelectedTags(page);
+  if (leftover > 0) {
+    logger.warn(`[salework] Vẫn còn ${leftover} tag sau khi xoá — read-back sẽ kiểm tra lại trước khi đăng`);
+  }
 
   // Bước 2: Mở dropdown
   const openSelectors = [
@@ -83,44 +108,63 @@ async function selectZaloAccount(page, accountName) {
   await page.evaluate(() => {
     document.querySelectorAll('[data-xeko-pick]').forEach(el => el.removeAttribute('data-xeko-pick'));
   });
-  const marked = await page.evaluate((name) => {
-    const norm = s => s.normalize('NFC').trim();
+  // Tên account trong Salework hay bị CẮT ellipsis ("Linh Thảo Us A...") nên
+  // nhiều account khác nhau cùng prefix (Authentic / America / ...) trông y hệt.
+  // Quy tắc chọn để KHÔNG đoán bừa (đoán bừa = chọn nhầm account):
+  //   1. Ưu tiên khớp CHÍNH XÁC tên đầy đủ — ưu tiên đọc thuộc tính `title`
+  //      (Element UI gắn title = tên đầy đủ khi cắt ellipsis), fallback textContent.
+  //   2. Nếu không có khớp chính xác mà chỉ khớp prefix (option bị cắt), CHỈ chấp
+  //      nhận khi có ĐÚNG 1 ứng viên. >1 ứng viên mơ hồ → bỏ, để read-back huỷ đăng.
+  const mark = await page.evaluate((name) => {
+    const norm = s => (s || '').normalize('NFC').trim();
     const normName = norm(name);
-    const matchEl = (el) => {
-      const text = norm(el.textContent || '');
-      // Khớp chính xác / tên kèm SĐT / DOM bị cắt ellipsis
-      const domStripped = text.replace(/[\s.…]+$/, '');
-      const hit =
-        text === normName ||
-        text.startsWith(normName + ' ') || text.startsWith(normName + '\n') ||
-        (domStripped.length >= 6 && normName.startsWith(domStripped));
-      if (!hit) return false;
-      const r = el.getBoundingClientRect();
-      if (r.width === 0 || r.height === 0) return false;
-      el.setAttribute('data-xeko-pick', '1');
-      return true;
+    const fullText = el => norm(el.getAttribute && el.getAttribute('title')) || norm(el.textContent);
+
+    const candidates = [];
+    const scan = (els) => {
+      for (const el of els) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) continue;
+        const full = fullText(el);                       // tên đầy đủ (ưu tiên title)
+        const vis = norm(el.textContent);                // text hiển thị (có thể bị cắt)
+        const visStripped = vis.replace(/[\s.…]+$/, '');
+        const exact =
+          full === normName ||
+          full.startsWith(normName + ' ') || full.startsWith(normName + '\n');
+        const prefix = !exact && visStripped.length >= 6 && normName.startsWith(visStripped);
+        if (exact) candidates.push({ el, exact: true });
+        else if (prefix) candidates.push({ el, exact: false });
+      }
     };
-    // Pass 1: ưu tiên option thật trong dropdown (tránh khớp nhầm container lớn)
-    const pass1 = document.querySelectorAll('.el-select-dropdown__item, [class*="dropdown"] li, [class*="option"], li');
-    for (const el of pass1) if (matchEl(el)) return true;
+
+    // Pass 1: option thật trong dropdown (tránh khớp nhầm container lớn)
+    scan(document.querySelectorAll('.el-select-dropdown__item, [class*="dropdown"] li, [class*="option"], li'));
     // Pass 2: fallback rộng hơn nếu Salework đổi cấu trúc DOM
-    const pass2 = document.querySelectorAll('[class*="item"], div, span, a');
-    for (const el of pass2) if (matchEl(el)) return true;
-    return false;
+    if (!candidates.length) scan(document.querySelectorAll('[class*="item"], div, span, a'));
+
+    const exacts = candidates.filter(c => c.exact);
+    let chosen = null, reason = 'none';
+    if (exacts.length === 1) { chosen = exacts[0].el; reason = 'exact'; }
+    else if (exacts.length > 1) { reason = `mơ hồ: ${exacts.length} khớp chính xác`; }
+    else if (candidates.length === 1) { chosen = candidates[0].el; reason = 'prefix-duy-nhất'; }
+    else if (candidates.length > 1) { reason = `mơ hồ: ${candidates.length} option bị cắt cùng prefix`; }
+
+    if (chosen) chosen.setAttribute('data-xeko-pick', '1');
+    return { ok: !!chosen, reason };
   }, accountName);
 
-  if (marked) {
+  if (mark.ok) {
     const opt = page.locator('[data-xeko-pick="1"]').first();
     try { await opt.scrollIntoViewIfNeeded({ timeout: 3000 }); } catch {}
     try {
       await opt.click({ timeout: 5000 });
-      logger.info(`[salework] Đã click option tài khoản: ${accountName}`);
+      logger.info(`[salework] Đã click option tài khoản: ${accountName} (${mark.reason})`);
     } catch (e) {
       logger.warn(`[salework] Click option lỗi: ${e.message}`);
     }
     await delay(1000);
   } else {
-    logger.warn(`[salework] Không tìm thấy option cho tài khoản "${accountName}"`);
+    logger.warn(`[salework] Không chọn được option rõ ràng cho "${accountName}" (${mark.reason}) — để read-back quyết định huỷ`);
   }
 
   // Click ra ngoài để đóng dropdown (luôn làm để read-back đọc đúng nhãn ô)
@@ -130,27 +174,41 @@ async function selectZaloAccount(page, accountName) {
   // Bước 4: READ-BACK — đọc lại nhãn ô tài khoản đang hiển thị để XÁC MINH đã
   // chọn đúng. Không bao giờ tin "đã click" là "đã chọn". Nếu ô vẫn ở "Tất cả
   // tài khoản" / trống / khác tên yêu cầu → trả false để caller HUỶ đăng.
-  const selectedText = await page.evaluate(() => {
+  // Trả về MẢNG nhãn từng tag (ưu tiên `title` = tên đầy đủ khi bị cắt ellipsis).
+  const tagTexts = await page.evaluate(() => {
     const norm = s => (s || '').normalize('NFC').trim();
     const root = document.querySelector('.el-select') || document.querySelector('[class*="select"]');
-    if (!root) return '';
+    if (!root) return [];
     const tags = Array.from(root.querySelectorAll('.el-tag, [class*="tag"]'));
-    if (tags.length) return tags.map(t => norm(t.textContent)).join(' | ');
+    if (tags.length) {
+      return tags.map(t => {
+        const titled = t.querySelector('[title]');
+        return norm((titled && titled.getAttribute('title')) || t.getAttribute('title') || t.textContent);
+      });
+    }
     const input = root.querySelector('input');
-    if (input && norm(input.value)) return norm(input.value);
-    return norm(root.textContent);
+    if (input && norm(input.value)) return [norm(input.value)];
+    const txt = norm(root.textContent);
+    return txt ? [txt] : [];
   });
+  const selectedText = tagTexts.join(' | ');
   logger.info(`[salework] Ô tài khoản sau khi chọn: "${selectedText}"`);
 
   const lc = s => (s || '').normalize('NFC').trim().toLowerCase();
-  const sel = lc(selectedText);
   const want = lc(accountName);
-  const isAllAccounts = !sel || sel.includes('tất cả');
-  const selStripped = sel.replace(/[\s.…|]+$/, '');
-  const matched = !isAllAccounts && (
-    sel.includes(want) ||
-    (selStripped.length >= 6 && want.startsWith(selStripped))
-  );
+
+  // XÁC MINH: phải có ít nhất 1 tag, và MỌI tag đều là tài khoản cần đăng.
+  // Nếu còn lẫn account khác (read-back nhiều tag khác nhau) → huỷ để tránh
+  // đăng nhầm/đăng đồng thời nhiều account.
+  const tagMatchesWant = (t) => {
+    const lt = lc(t);
+    if (!lt || lt.includes('tất cả')) return false;
+    if (lt === want || lt.includes(want)) return true; // khớp đủ / "tên | sđt"
+    // Tag bị cắt ellipsis: chỉ chấp nhận prefix khi DUY NHẤT 1 tag (không thể lẫn account khác).
+    const ltStripped = lt.replace(/[\s.…]+$/, '');
+    return tagTexts.length === 1 && ltStripped.length >= 6 && want.startsWith(ltStripped);
+  };
+  const matched = tagTexts.length > 0 && tagTexts.every(tagMatchesWant);
 
   if (matched) {
     logger.info(`[salework] ✓ Xác minh đã chọn đúng tài khoản: ${accountName}`);
