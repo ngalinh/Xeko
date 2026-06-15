@@ -145,17 +145,19 @@ async function selectZaloAccount(page, accountName) {
   // Tên account trong Salework hay bị CẮT ellipsis ("Linh Thảo Us A...") nên
   // nhiều account khác nhau cùng prefix (Authentic / America / ...) trông y hệt.
   // Quy tắc chọn để KHÔNG đoán bừa (đoán bừa = chọn nhầm account):
-  //   1. Ưu tiên khớp CHÍNH XÁC tên đầy đủ — ưu tiên đọc thuộc tính `title`
-  //      (Element UI gắn title = tên đầy đủ khi cắt ellipsis), fallback textContent.
-  //   2. Nếu không có khớp chính xác mà chỉ khớp prefix (option bị cắt), CHỈ chấp
-  //      nhận khi có ĐÚNG 1 ứng viên. >1 ứng viên mơ hồ → bỏ, để read-back huỷ đăng.
+  //   1. Khớp CHÍNH XÁC tên đầy đủ (ưu tiên đọc `title` = tên đầy đủ khi bị cắt,
+  //      fallback textContent). Nếu có NHIỀU dòng khớp chính xác cùng tên → vẫn
+  //      LÀ account cần đăng (Salework render lặp / kết nối trùng) → bấm dòng đầu,
+  //      ưu tiên option thật trong dropdown. KHÔNG từ chối.
+  //   2. Nếu chỉ khớp prefix (option bị cắt), CHỈ chấp nhận khi có ĐÚNG 1 ứng viên.
+  //      >1 ứng viên prefix khác nhau = mơ hồ thật → bỏ, để read-back huỷ đăng.
   const mark = await page.evaluate((name) => {
     const norm = s => (s || '').normalize('NFC').trim();
     const normName = norm(name);
     const fullText = el => norm(el.getAttribute && el.getAttribute('title')) || norm(el.textContent);
 
     const candidates = [];
-    const scan = (els) => {
+    const scan = (els, isOption) => {
       for (const el of els) {
         const r = el.getBoundingClientRect();
         if (r.width === 0 || r.height === 0) continue;
@@ -166,22 +168,28 @@ async function selectZaloAccount(page, accountName) {
           full === normName ||
           full.startsWith(normName + ' ') || full.startsWith(normName + '\n');
         const prefix = !exact && visStripped.length >= 6 && normName.startsWith(visStripped);
-        if (exact) candidates.push({ el, exact: true });
-        else if (prefix) candidates.push({ el, exact: false });
+        if (exact) candidates.push({ el, exact: true, isOption });
+        else if (prefix) candidates.push({ el, exact: false, isOption });
       }
     };
 
-    // Pass 1: option thật trong dropdown (tránh khớp nhầm container lớn)
-    scan(document.querySelectorAll('.el-select-dropdown__item, [class*="dropdown"] li, [class*="option"], li'));
+    // Pass 1: option thật trong dropdown (đánh dấu isOption để ưu tiên khi bấm)
+    scan(document.querySelectorAll('.el-select-dropdown__item, [class*="dropdown"] li, [class*="option"], li'), true);
     // Pass 2: fallback rộng hơn nếu Salework đổi cấu trúc DOM
-    if (!candidates.length) scan(document.querySelectorAll('[class*="item"], div, span, a'));
+    if (!candidates.length) scan(document.querySelectorAll('[class*="item"], div, span, a'), false);
 
     const exacts = candidates.filter(c => c.exact);
     let chosen = null, reason = 'none';
-    if (exacts.length === 1) { chosen = exacts[0].el; reason = 'exact'; }
-    else if (exacts.length > 1) { reason = `mơ hồ: ${exacts.length} khớp chính xác`; }
-    else if (candidates.length === 1) { chosen = candidates[0].el; reason = 'prefix-duy-nhất'; }
-    else if (candidates.length > 1) { reason = `mơ hồ: ${candidates.length} option bị cắt cùng prefix`; }
+    if (exacts.length) {
+      // Mọi exact đều cùng tên đầy đủ = cùng 1 account → bấm cái đầu (ưu tiên option thật).
+      const pick = exacts.find(c => c.isOption) || exacts[0];
+      chosen = pick.el;
+      reason = exacts.length === 1 ? 'exact' : `exact x${exacts.length}`;
+    } else if (candidates.length === 1) {
+      chosen = candidates[0].el; reason = 'prefix-duy-nhất';
+    } else if (candidates.length > 1) {
+      reason = `mơ hồ: ${candidates.length} option bị cắt cùng prefix`;
+    }
 
     if (chosen) chosen.setAttribute('data-xeko-pick', '1');
     return { ok: !!chosen, reason };
