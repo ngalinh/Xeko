@@ -13,10 +13,16 @@ const insertPendingStmt = db.prepare(`
 `);
 
 const completePendingStmt = db.prepare(
-  `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl WHERE id=@id AND success=-1`
+  `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl,
+     profile=COALESCE(NULLIF(@profile,''), profile),
+     profile_name=COALESCE(NULLIF(@profileName,''), profile_name)
+   WHERE id=@id AND success=-1`
 );
 const completePendingWithGroupStmt = db.prepare(
-  `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl, group_name=@groupName WHERE id=@id AND success=-1`
+  `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl, group_name=@groupName,
+     profile=COALESCE(NULLIF(@profile,''), profile),
+     profile_name=COALESCE(NULLIF(@profileName,''), profile_name)
+   WHERE id=@id AND success=-1`
 );
 
 /**
@@ -62,33 +68,42 @@ function insertPendingPost({ profile, profileName, platform, target, groupName, 
   return result.lastInsertRowid;
 }
 
-function completePendingPost(id, { success, error, postUrl, groupName } = {}) {
+function completePendingPost(id, { success, error, postUrl, groupName, profile, profileName } = {}) {
   if (groupName !== undefined) {
-    return completePendingWithGroupStmt.run({ id, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null, groupName: groupName || null });
+    return completePendingWithGroupStmt.run({ id, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null, groupName: groupName || null, profile: profile || '', profileName: profileName || '' });
   }
-  return completePendingStmt.run({ id, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null });
+  return completePendingStmt.run({ id, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null, profile: profile || '', profileName: profileName || '' });
 }
 
-function completePendingByJobId(jobId, { success, error, postUrl } = {}) {
+function completePendingByJobId(jobId, { success, error, postUrl, profile, profileName } = {}) {
   return db.prepare(
-    `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl WHERE job_id=@jobId AND success=-1`
-  ).run({ jobId, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null });
+    `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl,
+       profile=COALESCE(NULLIF(@profile,''), profile),
+       profile_name=COALESCE(NULLIF(@profileName,''), profile_name)
+     WHERE job_id=@jobId AND success=-1`
+  ).run({ jobId, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null, profile: profile || '', profileName: profileName || '' });
 }
 
 // Cập nhật kết quả cuối cho 1 row theo id, KHÔNG ràng buộc success hiện tại.
 // Dùng cho luồng auto-retry: row đang ở success=2 (chờ đăng lại) cần được ghi
 // kết quả thật (1/0) mà completePendingPost (chỉ match success=-1) không xử lý được.
 const completeByIdStmt = db.prepare(
-  `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl, retry_at=NULL WHERE id=@id`
+  `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl, retry_at=NULL,
+     profile=COALESCE(NULLIF(@profile,''), profile),
+     profile_name=COALESCE(NULLIF(@profileName,''), profile_name)
+   WHERE id=@id`
 );
 const completeByIdWithGroupStmt = db.prepare(
-  `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl, retry_at=NULL, group_name=@groupName WHERE id=@id`
+  `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl, retry_at=NULL, group_name=@groupName,
+     profile=COALESCE(NULLIF(@profile,''), profile),
+     profile_name=COALESCE(NULLIF(@profileName,''), profile_name)
+   WHERE id=@id`
 );
-function completePostById(id, { success, error, postUrl, groupName } = {}) {
+function completePostById(id, { success, error, postUrl, groupName, profile, profileName } = {}) {
   if (groupName !== undefined) {
-    return completeByIdWithGroupStmt.run({ id, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null, groupName: groupName || null });
+    return completeByIdWithGroupStmt.run({ id, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null, groupName: groupName || null, profile: profile || '', profileName: profileName || '' });
   }
-  return completeByIdStmt.run({ id, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null });
+  return completeByIdStmt.run({ id, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null, profile: profile || '', profileName: profileName || '' });
 }
 
 // Đánh dấu 1 row là "đang chờ đăng lại" (rate-limit). success=2 là trạng thái riêng,

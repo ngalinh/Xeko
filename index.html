@@ -6450,6 +6450,8 @@
             cf.append('target', 'group');
             cf.append('groupId', gid);
             cf.append('batchId', sessionBatchId);
+            if (currentProfile) cf.append('profile', currentProfile);
+            if (currentProfileName && currentProfileName !== currentProfile) cf.append('profileDisplayName', currentProfileName);
             await appendImages(cf, filesToUpload);
             const cr = await fetch(BASE_URL + '/api/post', { method: 'POST', body: cf });
             const initial = await parseJson(cr);
