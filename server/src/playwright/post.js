@@ -883,19 +883,50 @@ async function submitPost(page) {
     });
   }
 
-  // Smart wait: resolve ngay khi dialog "Tạo bài viết" đóng, tối đa 8s
-  await page.waitForFunction(() => {
+  // Sau khi bấm "Tiếp", bài cá nhân chuyển sang màn "Cài đặt bài viết" và nút
+  // "Đăng" cuối có thể render trễ (FB còn tải gợi ý nhóm…). Trước đây chỉ chờ
+  // dialog "Tạo bài viết" đóng 1 lần rồi bỏ cuộc → hụt cú click cuối nếu nút
+  // chưa kịp hiện. Giờ: chờ dialog đóng, nếu còn kẹt ở "Cài đặt bài viết"/
+  // "Tạo bài viết" thì bấm lại "Đăng" thêm vài lần.
+  const dialogOpenFn = () => {
     const dialogs = document.querySelectorAll('div[role="dialog"]');
     for (const d of dialogs) {
-      for (const s of d.querySelectorAll('span')) {
-        if ((s.textContent || '').trim() === 'Tạo bài viết' || (s.textContent || '').trim() === 'Create post') return false;
+      const t = d.textContent || '';
+      if (t.includes('Tạo bài viết') || t.includes('Create post') ||
+          t.includes('Cài đặt bài viết') || t.includes('Post settings')) return false; // còn mở
+    }
+    return true; // đã đóng
+  };
+  const clickDangNow = () => page.evaluate(() => {
+    const dialogs = document.querySelectorAll('div[role="dialog"]');
+    const dlg = dialogs[dialogs.length - 1];
+    if (!dlg) return false;
+    dlg.scrollTop = dlg.scrollHeight; // kéo xuống cuối để lộ nút "Đăng"
+    for (const b of dlg.querySelectorAll('div[role="button"]')) {
+      const lbl = b.getAttribute('aria-label');
+      if ((lbl === 'Đăng' || lbl === 'Post') && b.getAttribute('aria-disabled') !== 'true') { b.click(); return true; }
+    }
+    for (const el of dlg.querySelectorAll('span, div')) {
+      const tx = (el.textContent || '').trim();
+      if (tx === 'Đăng' || tx === 'Post') {
+        const btn = el.closest('div[role="button"]');
+        if (btn && btn.getAttribute('aria-disabled') !== 'true') { btn.click(); return true; }
       }
     }
-    return true;
-  }, { timeout: 8000 }).catch(() => {});
+    return false;
+  });
 
-  const stillOpen = await page.$('div[role="dialog"] span:has-text("Tạo bài viết")');
-  if (stillOpen) {
+  let closed = false;
+  for (let i = 0; i < 4; i++) {
+    closed = await page.waitForFunction(dialogOpenFn, { timeout: 4000 }).then(() => true).catch(() => false);
+    if (closed) break;
+    // Vẫn còn dialog → nhiều khả năng đang ở màn "Cài đặt bài viết", bấm "Đăng" lần nữa.
+    const reclicked = await clickDangNow();
+    logger.info(`submitPost: dialog còn mở, thử bấm "Đăng" lại (lần ${i + 1})${reclicked ? '' : ' — không thấy nút'}`);
+    await randomDelay(500, 900);
+  }
+
+  if (!closed) {
     await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-failed.png') });
     return { success: false };
   }
