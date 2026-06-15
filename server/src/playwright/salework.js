@@ -35,13 +35,27 @@ async function delay(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+// Hàm dùng chung (inject vào page.evaluate) để lấy CÁC TAG account thật trong ô
+// el-select. QUAN TRỌNG: selector '[class*="tag"]' khớp cả container `.el-tag`
+// LẪN các con của nó (span text, icon close `.el-tag__close`) → 1 tag bị đếm
+// thành 3-4 "tag" ("Linh Thảo Us A... | Linh Thảo Us A... | ... | "). Vì vậy chỉ
+// giữ phần tử NGOÀI CÙNG (không nằm trong phần tử khác đã khớp).
+const TAG_HELPER = `
+  function _xekoTagEls() {
+    const root = document.querySelector('.el-select') || document.querySelector('[class*="select"]');
+    if (!root) return [];
+    let els = Array.from(root.querySelectorAll('.el-tag'));   // ưu tiên container tag thật
+    if (!els.length) {
+      const all = Array.from(root.querySelectorAll('[class*="tag"]'));
+      els = all.filter(el => !all.some(o => o !== el && o.contains(el))); // bỏ phần tử con
+    }
+    return els;
+  }
+`;
+
 // Đếm số tag (account đang chọn) đang hiển thị trong ô el-select.
 async function countSelectedTags(page) {
-  return page.evaluate(() => {
-    const root = document.querySelector('.el-select') || document.querySelector('[class*="select"]');
-    if (!root) return 0;
-    return root.querySelectorAll('.el-tag, [class*="tag"]').length;
-  });
+  return page.evaluate(`(() => { ${TAG_HELPER} return _xekoTagEls().length; })()`);
 }
 
 async function selectZaloAccount(page, accountName) {
@@ -175,22 +189,25 @@ async function selectZaloAccount(page, accountName) {
   // chọn đúng. Không bao giờ tin "đã click" là "đã chọn". Nếu ô vẫn ở "Tất cả
   // tài khoản" / trống / khác tên yêu cầu → trả false để caller HUỶ đăng.
   // Trả về MẢNG nhãn từng tag (ưu tiên `title` = tên đầy đủ khi bị cắt ellipsis).
-  const tagTexts = await page.evaluate(() => {
+  // Dùng _xekoTagEls() để CHỈ đếm container tag thật — tránh 1 account bị tách
+  // thành nhiều "tag" do span/icon con khiến read-back tưởng đang chọn nhiều account.
+  const tagTexts = await page.evaluate(`(() => {
+    ${TAG_HELPER}
     const norm = s => (s || '').normalize('NFC').trim();
     const root = document.querySelector('.el-select') || document.querySelector('[class*="select"]');
     if (!root) return [];
-    const tags = Array.from(root.querySelectorAll('.el-tag, [class*="tag"]'));
+    const tags = _xekoTagEls();
     if (tags.length) {
       return tags.map(t => {
         const titled = t.querySelector('[title]');
         return norm((titled && titled.getAttribute('title')) || t.getAttribute('title') || t.textContent);
-      });
+      }).filter(Boolean);
     }
     const input = root.querySelector('input');
     if (input && norm(input.value)) return [norm(input.value)];
     const txt = norm(root.textContent);
     return txt ? [txt] : [];
-  });
+  })()`);
   const selectedText = tagTexts.join(' | ');
   logger.info(`[salework] Ô tài khoản sau khi chọn: "${selectedText}"`);
 
