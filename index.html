@@ -3176,6 +3176,10 @@
         <path d="M12 11v5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
         <circle cx="12" cy="7.6" r="1.1" fill="currentColor" stroke="none"/>
       </symbol>
+      <symbol id="ic-file" viewBox="0 0 24 24">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="14 2 14 8 20 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
     </defs>
   </svg>
 
@@ -3313,8 +3317,8 @@
       <div class="ai-sheet-header">
         <span class="ai-sheet-title"><svg width="14" height="14" viewBox="0 0 14 13" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M5.5 0C5.5 3.04 7.96 5.5 11 5.5C7.96 5.5 5.5 7.96 5.5 11C5.5 7.96 3.04 5.5 0 5.5C3.04 5.5 5.5 3.04 5.5 0Z" fill="#6366f1"/><path d="M11.5 0C11.5 1.38 12.62 2.5 14 2.5C12.62 2.5 11.5 3.62 11.5 5C11.5 3.62 10.38 2.5 9 2.5C10.38 2.5 11.5 1.38 11.5 0Z" fill="#8b5cf6" opacity="0.85"/></svg>AI Editor</span>
         <div style="display:flex;gap:6px;align-items:center;">
-          <button class="ai-sheet-close" id="aiSettingsBtn" onclick="toggleAiSettings()" title="Hướng dẫn giọng văn" style="font-size:15px;">⚙</button>
-          <button class="ai-sheet-close" onclick="closeAiSheet()" aria-label="Đóng">✕</button>
+          <button class="ai-sheet-close" id="aiSettingsBtn" onclick="toggleAiSettings()" title="Hướng dẫn giọng văn"><svg class="xi" aria-hidden="true"><use href="#ic-settings"/></svg></button>
+          <button class="ai-sheet-close" onclick="closeAiSheet()" aria-label="Đóng"><svg class="xi" aria-hidden="true"><use href="#ic-x"/></svg></button>
         </div>
       </div>
 
@@ -4312,7 +4316,7 @@
           </button>
           <button type="button" onclick="setGroupModalType('page')" id="groupModalTypePage"
             style="flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff; color:#777; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
-            📄 FB Page
+            <svg class="xi" aria-hidden="true"><use href="#ic-file"/></svg> FB Page
           </button>
           <button type="button" onclick="setGroupModalType('zalo')" id="groupModalTypeZalo"
             style="flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff; color:#777; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
@@ -5280,10 +5284,10 @@
       // FB Pages section
       const fbPageChannels = p.fbPages || [];
       if (fbPageChannels.length > 0) {
-        panelHtml += `<div class="chip-section-label">📄 FB Page</div>`;
+        panelHtml += `<div class="chip-section-label">${xekoIcon('file')} FB Page</div>`;
         for (const ch of fbPageChannels) {
           panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="${escapeHtml(ch.id)}" data-page-id="${escapeHtml(ch.pageId)}">
-            <span class="ch-dot"></span><input type="checkbox" onchange="onChannelChange(${pid})"> 📄 ${escapeHtml(ch.name)}
+            <span class="ch-dot"></span><input type="checkbox" onchange="onChannelChange(${pid})"> ${xekoIcon('file')} ${escapeHtml(ch.name)}
           </label>`;
         }
       }
@@ -5321,7 +5325,7 @@
 
       // Action buttons
       panelHtml += `<div class="msg-buttons" style="margin-top:12px;">
-        <button class="msg-btn primary" onclick="confirmChannelSelection(${pid})">✓ Tiếp tục</button>
+        <button class="msg-btn primary" onclick="confirmChannelSelection(${pid})">${xekoIcon('check')} Tiếp tục</button>
         <button class="msg-btn secondary" onclick="showModeSelect()">${xekoIcon('refresh')} Đổi chế độ</button>
       </div>`;
 
@@ -5590,7 +5594,7 @@
       addBot(
         `Sẽ đăng lên: ${summaryText}\n${_schedHint}`,
         [
-          { label: `↩ Làm lại`, handler: () => showTargetSelect(), secondary: true },
+          { label: `${xekoIcon('back')} Làm lại`, handler: () => showTargetSelect(), secondary: true },
         ]
       );
     }
@@ -5627,7 +5631,7 @@
       addBot(
         `Sẽ đăng lên: <strong>${targetText}</strong>\n${_hint}`,
         [
-          { label: `↩ Làm lại`, handler: () => showTargetSelect(), secondary: true },
+          { label: `${xekoIcon('back')} Làm lại`, handler: () => showTargetSelect(), secondary: true },
         ]
       );
     }
@@ -6147,7 +6151,7 @@
       // Xep hang: dang co bai chay thi bao da xep hang, worker chay tuan tu
       _postQueue.push(ctx);
       if (_isPosting) {
-        addBot(`📋 Đã xếp hàng — còn <strong>${_postQueue.length}</strong> bài chờ. Xong bài này Xeko làm tiếp nha!`);
+        addBot(`${xekoIcon('clipboard')} Đã xếp hàng — còn <strong>${_postQueue.length}</strong> bài chờ. Xong bài này Xeko làm tiếp nha!`);
       }
       _processPostQueue();
     }
@@ -6532,15 +6536,15 @@
         else if (unconfirmedCount > 0) _finalMsg = pickUnconfirmed();
         else _finalMsg = pickEncouragement(0);
         addBot(_finalMsg, [
-          { label: `✍️ Đăng bài tiếp`, handler: () => focusInput(), primary: true },
-          { label: `↩ Làm lại`, handler: () => showTargetSelect(), secondary: true },
+          { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput(), primary: true },
+          { label: `${xekoIcon('back')} Làm lại`, handler: () => showTargetSelect(), secondary: true },
         ]);
       } catch (e) {
         removeTyping();
         if (isProxyTimeout(e)) {
           addBot('⚠️ Mạng/proxy timeout — chưa xác nhận được bài đã đăng hay chưa. Bạn check Facebook + tab Dashboard sau 1-2 phút, đừng bấm đăng lại liền vì có thể đã thành công rồi!', [
-            { label: `✍️ Đăng bài tiếp`, handler: () => focusInput(), primary: true },
-            { label: `↩ Làm lại`, handler: () => showTargetSelect(), secondary: true },
+            { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput(), primary: true },
+            { label: `${xekoIcon('back')} Làm lại`, handler: () => showTargetSelect(), secondary: true },
           ]);
         } else {
           addBot(botSystemError('đăng bài', e));
@@ -6579,7 +6583,7 @@
       if (draft && (draft.message || (draft.files || []).length > 0)) {
         buttons.push({ label: `${xekoIcon('refresh')} Dùng lại nội dung vừa rồi`, handler: () => reuseScheduleDraft() });
       }
-      buttons.push({ label: `↩ Đổi kênh`, handler: () => showTargetSelect(), secondary: true });
+      buttons.push({ label: `${xekoIcon('back')} Đổi kênh`, handler: () => showTargetSelect(), secondary: true });
       addBot(
         `Sẽ đăng lên: ${summaryText}\n${composeHintBox('Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!')}`,
         buttons
@@ -6844,7 +6848,7 @@
         // Lịch đã hiển thị đầy đủ (kèm xoá) trên Dashboard rồi → trong chat chỉ
         // tóm tắt ngắn + nút mở Dashboard, tránh lặp danh sách dài & trùng nội dung.
         const pendingCount = schedules.filter(s => s.status === 'pending').length;
-        let msg = `📋 <strong>Lịch Xeko đang giữ nè:</strong>\n\n`;
+        let msg = `${xekoIcon('clipboard')} <strong>Lịch Xeko đang giữ nè:</strong>\n\n`;
         if (pendingCount > 0) {
           msg += `Bạn đang có <strong>${pendingCount} lịch</strong> chờ đăng`;
           if (schedules.length > pendingCount) msg += ` (tổng ${schedules.length} lịch)`;
@@ -8577,7 +8581,7 @@
         const typeBadge = isFb
           ? `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e8f1ff; color:#1877f2; border-radius:20px; font-size:11px; font-weight:600;"><img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:12px;height:12px;">FB</span>`
           : isPage
-            ? `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#f3e8ff; color:#7c3aed; border-radius:20px; font-size:11px; font-weight:600;">📄 Page</span>`
+            ? `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#f3e8ff; color:#7c3aed; border-radius:20px; font-size:11px; font-weight:600;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-file"/></svg> Page</span>`
             : `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e6f2ff; color:#1E3A8A; border-radius:20px; font-size:11px; font-weight:600;"><svg class="xi" style="width:12px;height:12px;"><use href="#ic-zalo"/></svg>Zalo</span>`;
         const idVal = isFb || isPage ? escapeHtml(g.id || '') : escapeHtml(g.oid || '');
         const idLabel = isFb ? 'Group ID' : isPage ? 'Page ID' : 'Salework';
@@ -9018,7 +9022,7 @@
 
       const pageChips = fbPages.map(g => `
         <span style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:#faf5ff; color:#7c3aed; border:1px solid #e9d5ff; border-radius:99px; font-size:11px; font-weight:600; white-space:nowrap;">
-          📄 ${escapeHtml(g.name)}
+          <svg class="xi" style="width:11px;height:11px;flex-shrink:0;"><use href="#ic-file"/></svg> ${escapeHtml(g.name)}
           <button onclick="removeProfileGroup('${escapeHtml(p.key)}','page','${escapeHtml(g.key)}')"
             style="width:14px;height:14px;border-radius:99px;border:none;background:rgba(124,58,237,0.15);color:#7c3aed;cursor:pointer;font-size:11px;display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1;flex-shrink:0;">×</button>
         </span>`).join('');
@@ -9049,7 +9053,7 @@
       const zaloCount = assignedZaloKeys.length;
       const summaryBadges = [];
       if (fbCount > 0) summaryBadges.push(`<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; background:#EFF6FF; color:#1877f2; border:1px solid #BFDBFE; border-radius:99px; font-size:11px; font-weight:600;"><img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:11px;height:11px;">${fbCount} group</span>`);
-      if (pageCount > 0) summaryBadges.push(`<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; background:#faf5ff; color:#7c3aed; border:1px solid #e9d5ff; border-radius:99px; font-size:11px; font-weight:600;">📄 ${pageCount} page</span>`);
+      if (pageCount > 0) summaryBadges.push(`<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; background:#faf5ff; color:#7c3aed; border:1px solid #e9d5ff; border-radius:99px; font-size:11px; font-weight:600;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-file"/></svg> ${pageCount} page</span>`);
       if (zaloCount > 0) summaryBadges.push(`<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; background:#e0f2fe; color:#0369a1; border:1px solid #BAE6FD; border-radius:99px; font-size:11px; font-weight:600;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-zalo"/></svg>${zaloCount} group</span>`);
 
       return `
@@ -9088,7 +9092,7 @@
               </div>` : ''}
               ${pageChips ? `
               <div style="display:flex; flex-wrap:wrap; align-items:center; gap:5px;">
-                <span style="display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; color:#7c3aed; flex-shrink:0; min-width:28px;">📄 Page</span>
+                <span style="display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; color:#7c3aed; flex-shrink:0; min-width:28px;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-file"/></svg> Page</span>
                 ${pageChips}
               </div>` : ''}
               ${zaloChips ? `
