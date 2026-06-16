@@ -7,6 +7,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 const { parseProxy } = require('./proxy');
 const { safeLaunch } = require('./playwright-launch');
 
@@ -49,17 +50,35 @@ function findProxy(key) {
   return null;
 }
 
+// Lấy IP local bằng HTTPS thuần (không cần Playwright) — nhanh hơn ~15-20s
+function fetchLocalIp(timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    const req = https.get('https://api.ipify.org/?format=json', (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        try { resolve(JSON.parse(data).ip); }
+        catch { reject(new Error('Phản hồi IP không hợp lệ: ' + data.slice(0, 100))); }
+      });
+    });
+    req.setTimeout(timeoutMs, () => { req.destroy(); reject(new Error('Timeout lấy IP local')); });
+    req.on('error', reject);
+  });
+}
+
+// Lấy IP qua proxy bằng Playwright (cần thiết để xác minh browser dùng được proxy)
 async function fetchIp(opts = {}) {
   ensureWritableTmp();
   const browser = await safeLaunch({
     headless: opts.headless !== false,
+    timeout: 15000,
     ...(opts.proxy ? { proxy: opts.proxy } : {}),
   });
   try {
     const page = await browser.newPage();
     await page.goto('https://api.ipify.org/?format=json', {
       waitUntil: 'domcontentloaded',
-      timeout: 30000,
+      timeout: 20000,
     });
     const text = await page.locator('body').innerText();
     return JSON.parse(text).ip;
@@ -107,7 +126,7 @@ async function runProxyTest(profileKey, options = {}) {
   };
 
   try {
-    result.localIp = await fetchIp({ headless: options.headless });
+    result.localIp = await fetchLocalIp(10000);
   } catch (e) {
     result.localIpError = e.message;
   }
