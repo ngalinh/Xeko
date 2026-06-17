@@ -2387,8 +2387,16 @@ app.post('/api/register-local', (req, res) => {
   logger.info(`Local server đã đăng ký URL mới: ${url}`);
   res.json({ success: true, message: `Đã cập nhật URL: ${url}` });
 
-  // Sync user-permissions với LOCAL (LOCAL là source of truth).
-  permissions.syncOnRegister().catch(e => logger.warn(`syncOnRegister: ${e.message}`));
+  // Sync user-permissions với LOCAL. register-local là HEARTBEAT (~30s/lần), nên
+  // KHÔNG được kéo-đè vô điều kiện: nếu không sẽ ghi đè phân quyền admin vừa sửa
+  // trên web bằng bản cũ của LOCAL (bug "tick profile xong tự về 'chưa gán'").
+  //  - REMOTE trống (chỉ còn super-admin): kéo từ LOCAL về để hồi phục sau restart.
+  //  - REMOTE đã có data: chỉ ĐẨY lên LOCAL làm backup, không ghi đè bản remote.
+  if (permissions.isEffectivelyEmpty()) {
+    permissions.syncOnRegister().catch(e => logger.warn(`syncOnRegister: ${e.message}`));
+  } else {
+    permissions.syncToLocal(permissions.load()).catch(e => logger.info(`syncToLocal: ${e.message}`));
+  }
   // Sync channels từ LOCAL nếu remote chưa có data (chỉ sync khi channels.json trống).
   const existing = loadChannels();
   const remoteEmpty = !existing.fbGroups?.length && !existing.fbPages?.length && !existing.zaloGroups?.length;
