@@ -237,6 +237,17 @@ function isSuperAdmin(email) {
   return normalize(email) === SUPER_ADMIN_EMAIL;
 }
 
+// REMOTE coi như "trống" khi chỉ còn super-admin được seed sẵn (chưa có user
+// thật nào). Dùng để quyết định chiều sync ở mỗi heartbeat: trống → KÉO từ
+// LOCAL về (hồi phục sau khi container restart); có data → ĐẨY lên LOCAL backup,
+// KHÔNG ghi đè để tránh xoá phân quyền admin vừa chỉnh trên web.
+function isEffectivelyEmpty() {
+  const data = load();
+  const emails = Object.keys(data.users || {});
+  if (emails.length === 0) return true;
+  return emails.length === 1 && emails[0] === SUPER_ADMIN_EMAIL;
+}
+
 module.exports = {
   SUPER_ADMIN_EMAIL,
   load,
@@ -244,6 +255,7 @@ module.exports = {
   hasAccess,
   isXekoAdmin,
   isSuperAdmin,
+  isEffectivelyEmpty,
   getAllowedProfileKeys,
   filterProfiles,
   listUsers,
