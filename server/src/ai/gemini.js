@@ -70,15 +70,32 @@ Yêu cầu chung:
     generationConfig: { temperature: 0.8, maxOutputTokens: 2048 },
   };
 
-  const res = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  // Gemini hay trả 503 (UNAVAILABLE - quá tải) / 429 (rate limit) / 500 tạm thời.
+  // Retry với exponential backoff thay vì ném lỗi ngay cho người dùng.
+  const RETRYABLE = new Set([429, 500, 503]);
+  const MAX_ATTEMPTS = 4;
+  let res, lastErrBody = '';
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    res = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) break;
+    lastErrBody = await res.text();
+    if (!RETRYABLE.has(res.status) || attempt === MAX_ATTEMPTS) break;
+    // backoff: 1s, 2s, 4s
+    await new Promise(r => setTimeout(r, 1000 * 2 ** (attempt - 1)));
+  }
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Gemini API lỗi ${res.status}: ${err}`);
+    if (res.status === 503) {
+      throw new Error('Gemini đang quá tải (503). Hệ thống đã thử lại vài lần nhưng chưa được — vui lòng bấm Tạo lại sau ít phút.');
+    }
+    if (res.status === 429) {
+      throw new Error('Đã đạt giới hạn lượt gọi Gemini (429). Vui lòng thử lại sau ít phút.');
+    }
+    throw new Error(`Gemini API lỗi ${res.status}: ${lastErrBody}`);
   }
 
   const data = await res.json();
