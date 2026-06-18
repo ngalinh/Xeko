@@ -463,7 +463,8 @@
       border-top: 1px solid #eee;
     }
     .image-preview.show { display: flex; }
-    .preview-item { position: relative; display: inline-block; }
+    .preview-item { position: relative; display: inline-block; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+    .preview-item:active { cursor: grabbing; }
     .preview-item img {
       width: 52px; height: 52px;
       object-fit: cover; border-radius: 8px; border: 2px solid #EFF6FF;
@@ -5667,14 +5668,21 @@
         selectedFiles.forEach((file, index) => {
           const item = document.createElement('div');
           item.className = 'preview-item';
+          item.dataset.index = index;
+          item.__file = file;
           const img = document.createElement('img');
           img.src = URL.createObjectURL(file);
+          img.draggable = false;
           const btn = document.createElement('button');
           btn.className = 'remove-img';
           btn.textContent = '✕';
           btn.onclick = () => removeImage(index);
           item.appendChild(img);
           item.appendChild(btn);
+          item.addEventListener('pointerdown', e => onPreviewPointerDown(e, item));
+          item.addEventListener('pointermove', onPreviewPointerMove);
+          item.addEventListener('pointerup', onPreviewPointerEnd);
+          item.addEventListener('pointercancel', onPreviewPointerEnd);
           previewDiv.appendChild(item);
         });
       } else {
@@ -5688,6 +5696,59 @@
     function removeImage(index) {
       selectedFiles.splice(index, 1);
       updatePreview();
+    }
+
+    // ===== Kéo-thả để đổi vị trí ảnh (hoạt động cả chuột lẫn cảm ứng) =====
+    let _imgDrag = null;
+
+    function onPreviewPointerDown(e, item) {
+      if (e.button !== undefined && e.button !== 0) return;   // chỉ chuột trái
+      if (e.target.closest('.remove-img')) return;            // bấm nút xoá thì bỏ qua
+      const index = parseInt(item.dataset.index, 10);
+      if (Number.isNaN(index)) return;
+      _imgDrag = { item, curIndex: index, startX: e.clientX, startY: e.clientY, moved: false };
+      try { item.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+
+    function onPreviewPointerMove(e) {
+      if (!_imgDrag) return;
+      const dx = e.clientX - _imgDrag.startX, dy = e.clientY - _imgDrag.startY;
+      if (!_imgDrag.moved && Math.hypot(dx, dy) < 6) return;  // ngưỡng để không nhầm với chạm
+      _imgDrag.moved = true;
+      _imgDrag.item.style.opacity = '0.4';
+      e.preventDefault();
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const over = el && el.closest('.preview-item');
+      if (!over) return;
+      const overIndex = parseInt(over.dataset.index, 10);
+      if (Number.isNaN(overIndex) || overIndex === _imgDrag.curIndex) return;
+      const [moved] = selectedFiles.splice(_imgDrag.curIndex, 1);
+      selectedFiles.splice(overIndex, 0, moved);
+      _imgDrag.curIndex = overIndex;
+      reorderPreviewDOM();
+    }
+
+    function onPreviewPointerEnd(e) {
+      if (!_imgDrag) return;
+      _imgDrag.item.style.opacity = '';
+      const moved = _imgDrag.moved;
+      _imgDrag = null;
+      if (moved) updatePreview();   // dựng lại để gắn đúng index/handler
+    }
+
+    // Sắp xếp lại node DOM theo thứ tự selectedFiles mà không tạo lại (giữ thao tác kéo mượt)
+    function reorderPreviewDOM() {
+      const div = document.getElementById('previewImages');
+      const countEl = document.getElementById('imageCount');
+      if (countEl) countEl.textContent = `Đã chọn ${selectedFiles.length} ảnh`;
+      selectedFiles.forEach((file, i) => {
+        const node = Array.from(div.children).find(c => c.__file === file);
+        if (!node) return;
+        node.dataset.index = i;
+        const rm = node.querySelector('.remove-img');
+        if (rm) rm.onclick = () => removeImage(i);
+        div.appendChild(node);   // appendChild di chuyển node về cuối theo thứ tự
+      });
     }
 
     // ===== AI Editor (Telegram-style bottom sheet) =====
