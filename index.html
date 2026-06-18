@@ -5750,7 +5750,7 @@
         _aiSettingsCat = '';
         _aiGuidesCache = {};
         _aiExamplesByCat = {};
-        const res = await fetch(BASE_URL + '/api/ai/guide');
+        const res = await fetch(BASE_URL + '/api/ai/guide', { credentials: 'include' });
         const data = await res.json();
         _aiGuidesCache = data.guides || {};
         _aiExamplesByCat = data.examplesByCategory || {};
@@ -5776,7 +5776,7 @@
       const form = new FormData();
       files.forEach(f => form.append('images', f));
       form.append('category', _aiSettingsCat);
-      const res = await fetch(BASE_URL + '/api/ai/guide/examples', { method: 'POST', body: form });
+      const res = await fetch(BASE_URL + '/api/ai/guide/examples', { method: 'POST', credentials: 'include', body: form });
       const data = await res.json();
       if (res.ok) {
         _aiExamplesByCat[_aiSettingsCat] = data.examples || [];
@@ -5787,7 +5787,7 @@
 
     async function deleteAiExampleFromSheet(index) {
       const catParam = _aiSettingsCat === '' ? '_' : _aiSettingsCat;
-      const res = await fetch(`${BASE_URL}/api/ai/guide/examples/${catParam}/${index}`, { method: 'DELETE' });
+      const res = await fetch(`${BASE_URL}/api/ai/guide/examples/${catParam}/${index}`, { method: 'DELETE', credentials: 'include' });
       const data = await res.json();
       if (res.ok) {
         _aiExamplesByCat[_aiSettingsCat] = data.examples || [];
@@ -5801,7 +5801,7 @@
       _aiGuidesCache[_settingsKey()] = document.getElementById('aiSheetGuideTextarea').value;
       try {
         const res = await fetch(BASE_URL + '/api/ai/guide', {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ guides: _aiGuidesCache }),
         });
         if (res.ok) {
@@ -5869,7 +5869,7 @@
         form.append('style', _aiCurrentStyle);
         form.append('category', _aiCurrentCategory);
         if (productName) form.append('productName', productName);
-        const res = await fetch(BASE_URL + '/api/ai/suggest', { method: 'POST', body: form });
+        const res = await fetch(BASE_URL + '/api/ai/suggest', { method: 'POST', credentials: 'include', body: form });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Lỗi không xác định');
         const text = (data.suggestions || [])[0] || '';
