@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <title>Xeko - Auto Post Content</title>
 
   <!-- PWA -->
@@ -1151,8 +1151,7 @@
 
       /* Cài đặt kênh: Group list toolbar — wrap compactly */
       #pageSession .group-filter-tabs button { padding: 5px 10px !important; font-size: 11px !important; }
-      /* Keep font-size ≥16px on select to prevent iOS auto-zoom */
-      #groupCategoryFilter { min-width: 0 !important; font-size: 16px !important; padding: 5px 8px !important; }
+      #groupCategoryFilter { min-width: 0 !important; padding: 5px 8px !important; }
 
       /* Page header card: don't let rounded radius bleed past viewport */
       .header { margin: 0; border-radius: 0 0 18px 18px; }
@@ -1167,10 +1166,8 @@
       /* AI Editor product input: keep 16px value text (iOS no-zoom) but shrink placeholder */
       #aiProductName::placeholder { font-size: 12px; }
 
-      /* Prevent iOS auto-zoom on <select> focus (same rule as inputs — font-size must be ≥16px) */
-      select { font-size: 16px !important; }
-      /* chartDays mobile override already sets height/padding — add font-size to match */
-      #chartFilterInner #chartDays { font-size: 16px !important; }
+      /* iOS auto-zoom on select is prevented by maximum-scale=1.0 in the viewport meta;
+         no font-size override needed for <select> elements. */
 
       /* Zalo profile grid: single column on mobile (same fix as #fbProfileList) */
       #zaloProfileList { grid-template-columns: 1fr !important; }
