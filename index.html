@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Xeko - Auto Post Content</title>
 
   <!-- PWA -->
@@ -1151,7 +1151,11 @@
 
       /* Cài đặt kênh: Group list toolbar — wrap compactly */
       #pageSession .group-filter-tabs button { padding: 5px 10px !important; font-size: 11px !important; }
-      #groupCategoryFilter { min-width: 0 !important; padding: 5px 8px !important; }
+      /* font-size ≥16px trên select ngăn iOS Safari tự zoom khi focus (font-size < 16px kích hoạt zoom).
+         Không dùng global select{} để tránh phóng to tất cả — chỉ target select có font-size nhỏ. */
+      #groupCategoryFilter { min-width: 0 !important; font-size: 16px !important; padding: 5px 8px !important; }
+      #chartFilterInner #chartDays { font-size: 16px !important; }
+      #logsLines { font-size: 16px !important; }
 
       /* Page header card: don't let rounded radius bleed past viewport */
       .header { margin: 0; border-radius: 0 0 18px 18px; }
@@ -1166,8 +1170,6 @@
       /* AI Editor product input: keep 16px value text (iOS no-zoom) but shrink placeholder */
       #aiProductName::placeholder { font-size: 12px; }
 
-      /* iOS auto-zoom on select is prevented by maximum-scale=1.0 in the viewport meta;
-         no font-size override needed for <select> elements. */
 
       /* Zalo profile grid: single column on mobile (same fix as #fbProfileList) */
       #zaloProfileList { grid-template-columns: 1fr !important; }
