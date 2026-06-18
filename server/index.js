@@ -1071,7 +1071,11 @@ app.delete('/api/accounts/:type/:key', async (req, res) => {
 
   try {
     if (type === 'facebook') {
-      const profileDir = path.resolve(__dirname, `../playwright-data/${key}`);
+      const allowedBase = path.resolve(__dirname, '../playwright-data');
+      const profileDir = path.resolve(allowedBase, key);
+      if (!profileDir.startsWith(allowedBase + path.sep) && profileDir !== allowedBase) {
+        return res.status(400).json({ error: 'Key không hợp lệ' });
+      }
       if (fs.existsSync(profileDir)) {
         fs.rmSync(profileDir, { recursive: true, force: true });
         logger.info(`Da xoa profile dir: ${profileDir}`);
