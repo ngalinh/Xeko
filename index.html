@@ -4589,6 +4589,13 @@
     let currentProfile = null;
     let currentProfileName = null;
     let _profileDisplayNames = {}; // key → display name map for chatbot
+    // Tên hiển thị tuỳ chỉnh cho profile (key → tên đẹp). Dùng khi profile-meta chưa đặt tên.
+    const PROFILE_NAME_OVERRIDES = {
+      'clone.linhduong': 'Linh Duong US',
+    };
+    function resolveProfileName(key, fallback) {
+      return PROFILE_NAME_OVERRIDES[key] || fallback || key;
+    }
     let _totalProfiles = 0;
     let currentTarget = null;
     let selectedFiles = [];
@@ -5070,7 +5077,7 @@
         const data = await parseJson(res);
         const profiles = (data && data.facebook) || [];
         _totalProfiles = profiles.length;
-        profiles.forEach(p => { _profileDisplayNames[p.key] = p.name || p.key; });
+        profiles.forEach(p => { _profileDisplayNames[p.key] = resolveProfileName(p.key, p.name); });
 
         if (profiles.length === 0) {
           addBot(
@@ -5132,14 +5139,14 @@
         const data = await parseJson(res);
         const profiles = (data && data.facebook) || [];
         _totalProfiles = profiles.length;
-        profiles.forEach(p => { _profileDisplayNames[p.key] = p.name || p.key; });
+        profiles.forEach(p => { _profileDisplayNames[p.key] = resolveProfileName(p.key, p.name); });
         // Smart-skip: chi co 1 profile thi tu chon luon, dung bat user chon (1 lua chon).
         if (profiles.length === 1) {
           autoSelectProfile(profiles[0]);
           return;
         }
         const buttons = profiles.map(p => ({
-          label: `${xekoIcon('user')} ${p.name}`,
+          label: `${xekoIcon('user')} ${resolveProfileName(p.key, p.name)}`,
           handler: () => selectProfile(p.key),
         }));
         addBot('Bạn muốn đăng từ profile nào?', buttons);
@@ -6847,43 +6854,20 @@
         removeTyping();
 
         if (scheduled.length > 0) {
-          let confirmMsg = `⏰ Đã lên lịch đăng lúc ${new Date(time).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}\n\n`;
-          confirmMsg += `📍 Nơi đăng: <strong>${scheduled.join(', ')}</strong>\n`;
-          if (savedMessage) {
-            const preview = savedMessage.length > 100 ? savedMessage.slice(0, 100) + '…' : savedMessage;
-            confirmMsg += `📝 Nội dung: ${preview}\n`;
-          }
-          if (photoUrls.length > 0) confirmMsg += `📷 ${photoUrls.length} ảnh đính kèm`;
-
-          let photoHtml = '';
-          if (photoUrls.length > 0) {
-            const maxShow = Math.min(photoUrls.length, 3);
-            let gridClass = 'photo-grid count-' + maxShow;
-            photoHtml = `<div class="${gridClass}">`;
-            for (let i = 0; i < maxShow; i++) {
-              photoHtml += `<div class="photo-item"><img src="${photoUrls[i]}">`;
-              if (i === maxShow - 1 && photoUrls.length > 3) {
-                photoHtml += `<div class="photo-more">+${photoUrls.length - 3}</div>`;
-              }
-              photoHtml += '</div>';
-            }
-            photoHtml += '</div>';
-          }
-
-          const chat = document.getElementById('chatArea');
-          const row = document.createElement('div');
-          row.className = 'msg-row bot';
           window._schedulePendingMessage = '';
           window._schedulePendingFiles = [];
 
-          let btnHtml = '<div class="msg-buttons">';
-          btnHtml += `<button class="msg-btn primary" onclick="startScheduleCompose()">${xekoIcon('clock')} Lên lịch thêm</button>`;
-          btnHtml += `<button class="msg-btn secondary" onclick="showScheduleList()">${xekoIcon('calendar')} Xem lịch đã đặt</button>`;
-          btnHtml += `<button class="msg-btn secondary" onclick="selectMode('now')">${xekoIcon('send')} Đăng ngay</button>`;
-          btnHtml += '</div>';
-          row.innerHTML = `<img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko"><div class="msg bot">${confirmMsg.replace(/\n/g,'<br>')}${photoHtml}${btnHtml}<div class="msg-time">${now()}</div></div>`;
-          chat.appendChild(row);
-          chat.scrollTop = chat.scrollHeight;
+          // Lịch đã hiển thị đầy đủ (nội dung, ảnh, trạng thái) trên Dashboard rồi →
+          // trong chat chỉ báo ngắn + nút mở Dashboard để theo dõi, không gửi lại nội dung/ảnh.
+          const timeLabel = new Date(time).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+          let confirmMsg = `⏰ Đã lên lịch đăng lúc <strong>${timeLabel}</strong>\n`;
+          confirmMsg += `📍 Nơi đăng: <strong>${scheduled.join(', ')}</strong>\n\n`;
+          confirmMsg += `Theo dõi & quản lý lịch này ngay trên Dashboard nha!`;
+
+          addBot(confirmMsg, [
+            { label: `${xekoIcon('clipboard')} Xem trên Dashboard`, handler: () => switchPage('dashboard'), primary: true },
+            { label: `${xekoIcon('clock')} Lên lịch thêm`, handler: () => startScheduleCompose() },
+          ]);
         }
 
         if (errors.length > 0) {
