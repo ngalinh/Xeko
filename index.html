@@ -11316,6 +11316,22 @@
       return [...fbGroups, ...zaloGroups];
     }
 
+    // HTML cho 1 dòng kênh (checkbox + nhãn). indent = true khi nằm trong nhóm.
+    function _repostRowHtml(opt, i, indent) {
+      const sel = _isChannelSelected(opt);
+      const pad = indent ? '8px 14px 8px 38px' : '9px 14px';
+      return `<div onclick="_toggleRepostChannel(${i})"
+        style="display:flex; align-items:center; gap:10px; padding:${pad}; cursor:pointer; font-size:13px;
+          background:${sel ? '#EFF6FF' : '#fff'}; border-bottom:1px solid #f3f4f6; transition:background 0.1s;"
+        onmouseover="this.style.background='${sel ? '#EFF6FF' : '#fafafa'}'" onmouseout="this.style.background='${sel ? '#EFF6FF' : '#fff'}'">
+        <span style="width:16px; height:16px; border-radius:4px; border:2px solid ${sel ? '#2563EB' : '#d1d5db'}; background:${sel ? '#2563EB' : '#fff'}; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.15s;">
+          ${sel ? '<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+        </span>
+        <span style="flex:1; font-weight:${sel ? '600' : '400'}; color:${sel ? '#3B82F6' : '#333'};">${opt.label}</span>
+        ${opt.sub ? `<span style="font-size:11px; color:#999; flex-shrink:0;">${opt.sub}</span>` : ''}
+      </div>`;
+    }
+
     function _renderRepostChannelList() {
       const profileKey = document.getElementById('repostProfile').value;
       const groups = _getAccountGroups(profileKey);
@@ -11324,27 +11340,76 @@
         ...groups.map(g => ({
           type: 'group', platform: g._platform,
           key: g.key, id: g.id, name: g.name,
+          category: (g.category || '').trim(),
           zaloAccount: g._zaloAccount || '',
           label: (g._platform === 'zalo' ? xekoIcon('chat') + ' ' : xekoIcon('users') + ' ') + (g.name || g.key),
           sub: g._platform === 'zalo' ? 'Zalo' : (g.id || ''),
         }))
       ];
       window._repostChannelOptions = options;
+      window._repostCatExpanded = window._repostCatExpanded || {};
 
       const list = document.getElementById('repostChannelList');
-      list.innerHTML = options.map((opt, i) => {
-        const sel = _isChannelSelected(opt);
-        return `<div onclick="_toggleRepostChannel(${i})"
-          style="display:flex; align-items:center; gap:10px; padding:9px 14px; cursor:pointer; font-size:13px;
-            background:${sel ? '#EFF6FF' : '#fff'}; border-bottom:1px solid #f3f4f6; transition:background 0.1s;"
-          onmouseover="this.style.background='${sel ? '#EFF6FF' : '#fafafa'}'" onmouseout="this.style.background='${sel ? '#EFF6FF' : '#fff'}'">
-          <span style="width:16px; height:16px; border-radius:4px; border:2px solid ${sel ? '#2563EB' : '#d1d5db'}; background:${sel ? '#2563EB' : '#fff'}; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.15s;">
-            ${sel ? '<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
-          </span>
-          <span style="flex:1; font-weight:${sel ? '600' : '400'}; color:${sel ? '#3B82F6' : '#333'};">${opt.label}</span>
-          ${opt.sub ? `<span style="font-size:11px; color:#999; flex-shrink:0;">${opt.sub}</span>` : ''}
-        </div>`;
-      }).join('');
+      let html = '';
+
+      // Profile (kênh cá nhân) — luôn ở trên cùng, index 0
+      html += _repostRowHtml(options[0], 0, false);
+
+      // Gom nhóm theo nền tảng → category (giống chatbot), mỗi category sổ ra/thu lại được
+      const platforms = [
+        { key: 'fb', label: `${xekoIcon('fb')} Facebook`, color: '#1877f2' },
+        { key: 'zalo', label: `${xekoIcon('zalo')} Zalo`, color: '#2563EB' },
+      ];
+
+      for (const pf of platforms) {
+        const idxs = options.map((o, i) => i).filter(i => options[i].type === 'group' && options[i].platform === pf.key);
+        if (idxs.length === 0) continue;
+
+        html += `<div style="padding:7px 14px 5px; font-size:11px; font-weight:700; letter-spacing:0.4px; color:${pf.color}; background:#fff; border-bottom:1px solid #f3f4f6; display:flex; align-items:center; gap:5px;">${pf.label}</div>`;
+
+        const catMap = new Map();
+        for (const i of idxs) {
+          const cat = options[i].category || 'Chưa phân loại';
+          if (!catMap.has(cat)) catMap.set(cat, []);
+          catMap.get(cat).push(i);
+        }
+        const cats = [...catMap.keys()].sort((a, b) => a.localeCompare(b, 'vi'));
+
+        for (const cat of cats) {
+          const memberIdxs = catMap.get(cat);
+          const selCount = memberIdxs.filter(i => _isChannelSelected(options[i])).length;
+          const allSel = selCount === memberIdxs.length;
+          const someSel = selCount > 0;
+          const catId = pf.key + '|' + cat;
+          // Mặc định: sổ ra nếu trong nhóm đang có kênh được chọn
+          if (window._repostCatExpanded[catId] === undefined) {
+            window._repostCatExpanded[catId] = someSel;
+          }
+          const expanded = window._repostCatExpanded[catId];
+          // encodeURIComponent giữ nguyên dấu ' → phải escape thủ công để không vỡ chuỗi JS trong onclick
+          const encCat = encodeURIComponent(cat).replace(/'/g, '%27');
+          const encId = encodeURIComponent(catId).replace(/'/g, '%27');
+
+          html += `<div style="display:flex; align-items:center; gap:10px; padding:9px 14px; cursor:pointer; font-size:13px; background:${someSel ? '#EFF6FF' : '#fbfbfd'}; border-bottom:1px solid #f3f4f6;"
+            onmouseover="this.style.background='${someSel ? '#EFF6FF' : '#f3f4f6'}'" onmouseout="this.style.background='${someSel ? '#EFF6FF' : '#fbfbfd'}'">
+            <span onclick="event.stopPropagation(); _toggleRepostCategory('${pf.key}','${encCat}')" title="Chọn/bỏ tất cả nhóm" style="width:16px; height:16px; border-radius:4px; border:2px solid ${someSel ? '#2563EB' : '#d1d5db'}; background:${allSel ? '#2563EB' : (someSel ? '#93C5FD' : '#fff')}; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.15s;">
+              ${allSel ? '<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : (someSel ? '<span style="width:8px;height:2px;background:#fff;border-radius:1px;"></span>' : '')}
+            </span>
+            <span onclick="_toggleRepostCat('${encId}')" style="flex:1; font-weight:600; color:#374151; display:flex; align-items:center; gap:6px; min-width:0;">
+              ${xekoIcon('users')} <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(cat)}</span> <span style="font-size:11px; color:#999; font-weight:400; flex-shrink:0;">(${selCount > 0 ? selCount + '/' : ''}${memberIdxs.length})</span>
+            </span>
+            <span onclick="_toggleRepostCat('${encId}')" style="flex-shrink:0; color:#9ca3af; display:flex; transition:transform 0.15s; transform:rotate(${expanded ? '180' : '0'}deg);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </span>
+          </div>`;
+
+          if (expanded) {
+            for (const i of memberIdxs) html += _repostRowHtml(options[i], i, true);
+          }
+        }
+      }
+
+      list.innerHTML = html;
     }
 
     function _toggleRepostChannel(i) {
@@ -11361,8 +11426,36 @@
       document.getElementById('repostChannelDisplay').innerHTML = _channelsDisplayLabel();
     }
 
+    // Sổ ra / thu lại 1 nhóm category
+    function _toggleRepostCat(encId) {
+      const catId = decodeURIComponent(encId);
+      window._repostCatExpanded = window._repostCatExpanded || {};
+      window._repostCatExpanded[catId] = !window._repostCatExpanded[catId];
+      _renderRepostChannelList();
+    }
+
+    // Chọn/bỏ nhanh tất cả nhóm trong 1 category
+    function _toggleRepostCategory(platform, encCat) {
+      const category = decodeURIComponent(encCat);
+      const opts = window._repostChannelOptions || [];
+      const members = opts.filter(o => o.type === 'group' && o.platform === platform && (o.category || 'Chưa phân loại') === category);
+      const allSel = members.length > 0 && members.every(o => _isChannelSelected(o));
+      if (allSel) {
+        members.forEach(o => {
+          const k = _channelKey(o);
+          const idx = _repostSelectedChannels.findIndex(c => _channelKey(c) === k);
+          if (idx >= 0) _repostSelectedChannels.splice(idx, 1);
+        });
+      } else {
+        members.forEach(o => { if (!_isChannelSelected(o)) _repostSelectedChannels.push(o); });
+      }
+      _renderRepostChannelList();
+      document.getElementById('repostChannelDisplay').innerHTML = _channelsDisplayLabel();
+    }
+
     function _onRepostProfileChange() {
       _repostSelectedChannels = [{ type: 'personal', platform: 'fb', label: `${xekoIcon('home')} Profile`, sub: '' }];
+      window._repostCatExpanded = {};
       _renderRepostChannelList();
     }
 
@@ -11381,6 +11474,7 @@
       if (!row) return;
 
       _repostEditMode = false;
+      window._repostCatExpanded = {};
       _repostImages = (Array.isArray(row.images) ? row.images : [])
         .map(u => u.startsWith('/uploads/') ? '/api/image/' + u.slice('/uploads/'.length) : u);
 
