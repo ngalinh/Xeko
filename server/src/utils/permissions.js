@@ -214,6 +214,12 @@ function upsertUser({ email, name, isXekoAdmin: admin, allProfiles, profiles, no
     // Super-admin phải luôn là admin Xeko (không cho downgrade)
     data.users[e].isXekoAdmin = true;
     // allProfiles + profiles[] cho phép super-admin tự chỉnh để filter view
+  } else {
+    // Đánh dấu rằng file này đã từng có user thật (không chỉ seed super-admin).
+    // Flag này giúp isEffectivelyEmpty() phân biệt "trống vì restart" vs
+    // "trống vì admin vừa xoá user" — sau khi xoá, hasHadUsers vẫn true →
+    // heartbeat sẽ PUSH lên LOCAL thay vì PULL về (tránh hoàn tác việc xoá).
+    data.hasHadUsers = true;
   }
   save(data);
   syncToLocal(data).catch(() => {});
@@ -241,8 +247,12 @@ function isSuperAdmin(email) {
 // thật nào). Dùng để quyết định chiều sync ở mỗi heartbeat: trống → KÉO từ
 // LOCAL về (hồi phục sau khi container restart); có data → ĐẨY lên LOCAL backup,
 // KHÔNG ghi đè để tránh xoá phân quyền admin vừa chỉnh trên web.
+//
+// hasHadUsers=true phân biệt "trống do restart" (chưa bao giờ có user → PULL)
+// với "trống do admin vừa xoá hết user" (đã có user rồi → PUSH, không restore).
 function isEffectivelyEmpty() {
   const data = load();
+  if (data.hasHadUsers) return false;
   const emails = Object.keys(data.users || {});
   if (emails.length === 0) return true;
   return emails.length === 1 && emails[0] === SUPER_ADMIN_EMAIL;
