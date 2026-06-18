@@ -84,6 +84,7 @@ async function _fetchFn() {
 }
 
 async function syncToLocal(data) {
+  if (!data) data = load();
   if (!_getLocalUrl) return;
   const url = _getLocalUrl();
   if (!url) return;

@@ -378,6 +378,8 @@ function init() {
       groupName: p.groupName,
       message: p.message,
       imagePaths: p.imagePaths,
+      groupKeywords: Array.isArray(p.groupKeywords) ? p.groupKeywords : [],
+      zaloAccount: p.zaloAccount || null,
       profile: p.profile,
       profileName: p.profileName || p.profile,
       status: 'pending',

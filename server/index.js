@@ -1767,7 +1767,7 @@ app.post('/api/contents', upload.array('images', 20), async (req, res) => {
   const tagsArr = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
   const profilesArr = profiles ? (Array.isArray(profiles) ? profiles : [profiles]).filter(Boolean) : [];
   const item = contentStore.create({
-    title: title.trim(), body, tags: tagsArr, platform: platform || 'all',
+    title: (title || '').trim(), body, tags: tagsArr, platform: platform || 'all',
     images: newUrls, category: (category || '').trim(), profiles: profilesArr,
   });
   res.json(item);
@@ -1788,7 +1788,7 @@ app.put('/api/contents/:id', upload.array('images', 20), async (req, res) => {
   const tagsArr = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
   const profilesArr = profiles ? (Array.isArray(profiles) ? profiles : [profiles]).filter(Boolean) : [];
   const item = contentStore.update(id, {
-    title: title.trim(), body, tags: tagsArr, platform, images,
+    title: (title || '').trim(), body, tags: tagsArr, platform, images,
     category: (category || '').trim(), profiles: profilesArr,
   });
   res.json(item);
@@ -2399,7 +2399,7 @@ app.post('/api/register-local', (req, res) => {
   if (permissions.isEffectivelyEmpty()) {
     permissions.syncOnRegister().catch(e => logger.warn(`syncOnRegister: ${e.message}`));
   } else {
-    permissions.syncToLocal(permissions.load()).catch(e => logger.info(`syncToLocal: ${e.message}`));
+    permissions.syncToLocal().catch(e => logger.info(`syncToLocal: ${e.message}`));
   }
   // Sync channels từ LOCAL nếu remote chưa có data (chỉ sync khi channels.json trống).
   const existing = loadChannels();

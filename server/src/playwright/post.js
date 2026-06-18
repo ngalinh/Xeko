@@ -941,6 +941,7 @@ async function submitPost(page) {
  */
 
 async function postToPersonal(message, imagePaths = []) {
+  const _profileKey = activeProfile;
   const t0 = Date.now();
   const profileSnap = getActiveProfile();
   const tag = `[postToPersonal ${profileSnap.name}]`;
@@ -1011,8 +1012,8 @@ async function postToPersonal(message, imagePaths = []) {
     return { success: false, error: error.message };
   } finally {
     await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
-    const _ctx = browsers[activeProfile];
-    browsers[activeProfile] = null; // xóa cache ngay để lần sau launch browser mới
+    const _ctx = browsers[_profileKey];
+    browsers[_profileKey] = null; // xóa cache ngay để lần sau launch browser mới
     await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
   }
 }
@@ -1021,6 +1022,7 @@ async function postToPersonal(message, imagePaths = []) {
 // dùng tính năng "Chia sẻ lên nhóm" trong dialog "Cài đặt bài viết" của FB.
 // groupKeywords: mảng tên nhóm (substring, case-insensitive). FB giới hạn 9.
 async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywords = []) {
+  const _profileKey = activeProfile;
   const t0 = Date.now();
   const profileSnap = getActiveProfile();
   const tag = `[postPersonalAndShareToGroups ${profileSnap.name}]`;
@@ -1075,13 +1077,14 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
     return { success: false, error: error.message };
   } finally {
     await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
-    const _ctx = browsers[activeProfile];
-    browsers[activeProfile] = null;
+    const _ctx = browsers[_profileKey];
+    browsers[_profileKey] = null;
     await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
   }
 }
 
 async function postToGroup(groupId, message, imagePaths = []) {
+  const _profileKey = activeProfile;
   const browser = await getBrowser();
 
   let page;
@@ -1156,13 +1159,14 @@ async function postToGroup(groupId, message, imagePaths = []) {
     logger.error(`Lỗi: ${error.message}`);
     return { success: false, error: error.message };
   } finally {
-    const _ctx = browsers[activeProfile];
-    browsers[activeProfile] = null;
+    const _ctx = browsers[_profileKey];
+    browsers[_profileKey] = null;
     await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
   }
 }
 
 async function postToPage(pageId, message, imagePaths = []) {
+  const _profileKey = activeProfile;
   const browser = await getBrowser();
 
   let page;
@@ -1208,8 +1212,8 @@ async function postToPage(pageId, message, imagePaths = []) {
     logger.error(`Lỗi postToPage(${pageId}): ${error.message}`);
     return { success: false, error: error.message };
   } finally {
-    const _ctx = browsers[activeProfile];
-    browsers[activeProfile] = null;
+    const _ctx = browsers[_profileKey];
+    browsers[_profileKey] = null;
     await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
   }
 }
@@ -2101,6 +2105,7 @@ async function _qpCloseShareGroupsDialog(page) {
 }
 
 async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywords = []) {
+  const _profileKey = activeProfile;
   const t0 = Date.now();
   const profileSnap = getActiveProfile();
   const tag = `[quickPost ${profileSnap.name}]`;
@@ -2167,7 +2172,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
       // Step 5: tick groups
       const pick = await qpStep5PickGroups(page, steps, keywords);
 
-      if (pick.selected === 0 && keywords.length > 0) {
+      if (pick.selected.length === 0 && keywords.length > 0) {
         // FALLBACK 2: stuck ở "Chọn nhóm" → close dialog → quay về "Cài đặt" → Đăng personal-only
         await _qpLog(steps, '⚠ Step 5 fail (0 groups ticked) → cancel "Chọn nhóm" → fallback đăng cá nhân');
         const closed = await _qpCloseShareGroupsDialog(page);
@@ -2226,8 +2231,8 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
     return { success: false, error: `${e.message} (screenshot=${shot})`, steps };
   } finally {
     await randomDelay(2000, 3000);
-    const _ctx = browsers[activeProfile];
-    browsers[activeProfile] = null;
+    const _ctx = browsers[_profileKey];
+    browsers[_profileKey] = null;
     await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
   }
 }
@@ -2416,6 +2421,7 @@ function detectPostType(url) {
 }
 
 async function scrapePost(postUrl) {
+  const _profileKey = activeProfile;
   const t0 = Date.now();
   const postType = detectPostType(postUrl);
   const profileSnap = getActiveProfile();
@@ -2902,8 +2908,8 @@ async function scrapePost(postUrl) {
     logger.error(`${tag} FAIL: ${e.message}`);
     return { success: false, error: e.message, type: postType, text: '', imageUrls: [], timestamp: null };
   } finally {
-    const _ctx = browsers[activeProfile];
-    browsers[activeProfile] = null;
+    const _ctx = browsers[_profileKey];
+    browsers[_profileKey] = null;
     await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
   }
 }

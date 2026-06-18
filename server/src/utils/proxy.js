@@ -44,8 +44,9 @@ function parseProxy(input) {
   // user:pass@host:port
   let user, pass, hostPort = raw;
   if (raw.includes('@')) {
-    const [creds, rest] = raw.split('@');
-    hostPort = rest;
+    const atIdx = raw.lastIndexOf('@');
+    const creds = raw.slice(0, atIdx);
+    hostPort = raw.slice(atIdx + 1);
     const colonIdx = creds.indexOf(':');
     if (colonIdx >= 0) {
       user = creds.slice(0, colonIdx);
