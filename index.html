@@ -3336,9 +3336,9 @@
           </label>
         </div>
         <div id="aiSheetExamplesGrid" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
-        <div style="display:flex; justify-content:flex-end; gap:8px;">
-          <button onclick="toggleAiSettings()" style="padding:6px 14px; background:#f1f5f9; color:#555; border:none; border-radius:8px; font-size:12px; cursor:pointer;">Đóng</button>
-          <button onclick="saveAiGuideFromSheet()" id="btnSaveSheetGuide" style="padding:6px 14px; background:#7c3aed; color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer;">Lưu</button>
+        <div style="position:sticky; bottom:0; display:flex; justify-content:flex-end; gap:8px; padding:10px 0 2px; margin-top:4px; background:#fff; border-top:1px solid #f1f5f9; z-index:1;">
+          <button onclick="toggleAiSettings()" style="padding:8px 16px; background:#f1f5f9; color:#555; border:none; border-radius:8px; font-size:13px; cursor:pointer;">Đóng</button>
+          <button onclick="saveAiGuideFromSheet()" id="btnSaveSheetGuide" style="padding:8px 18px; background:#7c3aed; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;">💾 Lưu</button>
         </div>
       </div>
 
@@ -5706,6 +5706,8 @@
       document.body.style.overflow = 'hidden';
       document.getElementById('aiSheetSettings').style.display = 'none';
       document.getElementById('aiSheetMain').style.display = 'flex';
+      const _footer = document.querySelector('#aiSheet .ai-sheet-footer');
+      if (_footer) _footer.style.display = '';
       document.getElementById('aiSettingsBtn').style.background = '';
       document.querySelectorAll('.ai-style-chip').forEach(c => c.classList.toggle('active', c.dataset.style === 'short'));
       document.querySelectorAll('.ai-cat-chip').forEach(c => c.classList.toggle('active', c.dataset.cat === ''));
@@ -5733,14 +5735,17 @@
       const panel = document.getElementById('aiSheetSettings');
       const main = document.getElementById('aiSheetMain');
       const btn = document.getElementById('aiSettingsBtn');
+      const footer = document.querySelector('#aiSheet .ai-sheet-footer');
       const isOpen = panel.style.display !== 'none';
       if (isOpen) {
         panel.style.display = 'none';
         main.style.display = 'flex';
+        if (footer) footer.style.display = '';
         btn.style.background = '';
       } else {
         panel.style.display = 'flex';
         main.style.display = 'none';
+        if (footer) footer.style.display = 'none';
         btn.style.background = '#ede9fe';
         _aiSettingsCat = '';
         _aiGuidesCache = {};
@@ -5791,16 +5796,28 @@
     }
 
     async function saveAiGuideFromSheet() {
+      const btn = document.getElementById('btnSaveSheetGuide');
+      const orig = btn.textContent;
       _aiGuidesCache[_settingsKey()] = document.getElementById('aiSheetGuideTextarea').value;
-      const res = await fetch(BASE_URL + '/api/ai/guide', {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ guides: _aiGuidesCache }),
-      });
-      if (res.ok) {
-        const btn = document.getElementById('btnSaveSheetGuide');
-        const orig = btn.textContent; btn.textContent = '✅ Đã lưu!';
-        setTimeout(() => { btn.textContent = orig; }, 1500);
-        _aiStyleCache = {};
+      try {
+        const res = await fetch(BASE_URL + '/api/ai/guide', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ guides: _aiGuidesCache }),
+        });
+        if (res.ok) {
+          btn.textContent = '✅ Đã lưu!';
+          setTimeout(() => { btn.textContent = orig; }, 1500);
+          _aiStyleCache = {};
+        } else {
+          let msg = '';
+          try { msg = (await res.json()).error || ''; } catch (_) {}
+          btn.textContent = '❌ Lỗi, thử lại';
+          setTimeout(() => { btn.textContent = orig; }, 2000);
+          if (msg) alert('Lưu thất bại: ' + msg);
+        }
+      } catch (err) {
+        btn.textContent = '❌ Lỗi mạng';
+        setTimeout(() => { btn.textContent = orig; }, 2000);
       }
     }
 
