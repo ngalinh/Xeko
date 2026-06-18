@@ -66,10 +66,13 @@ function _fire(record) {
     return;
   }
   queuePost(() => _runner(record))
-    .catch(e => logger.error(`[retry-queue] chạy #${record.id} lỗi: ${e.message}`))
-    .finally(() => {
+    .then(() => {
       _cleanupImages(record.imagePaths);
       retryStore.remove(record.id);
+    })
+    .catch(e => {
+      logger.error(`[retry-queue] chạy #${record.id} lỗi: ${e.message}`);
+      retryStore.updateStatus(record.id, 'error');
     });
 }
 

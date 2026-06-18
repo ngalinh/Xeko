@@ -1071,7 +1071,11 @@ app.delete('/api/accounts/:type/:key', async (req, res) => {
 
   try {
     if (type === 'facebook') {
-      const profileDir = path.resolve(__dirname, `../playwright-data/${key}`);
+      const allowedBase = path.resolve(__dirname, '../playwright-data');
+      const profileDir = path.resolve(allowedBase, key);
+      if (!profileDir.startsWith(allowedBase + path.sep) && profileDir !== allowedBase) {
+        return res.status(400).json({ error: 'Key không hợp lệ' });
+      }
       if (fs.existsSync(profileDir)) {
         fs.rmSync(profileDir, { recursive: true, force: true });
         logger.info(`Da xoa profile dir: ${profileDir}`);
@@ -1763,7 +1767,7 @@ app.post('/api/contents', upload.array('images', 20), async (req, res) => {
   const tagsArr = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
   const profilesArr = profiles ? (Array.isArray(profiles) ? profiles : [profiles]).filter(Boolean) : [];
   const item = contentStore.create({
-    title: title.trim(), body, tags: tagsArr, platform: platform || 'all',
+    title: (title || '').trim(), body, tags: tagsArr, platform: platform || 'all',
     images: newUrls, category: (category || '').trim(), profiles: profilesArr,
   });
   res.json(item);
@@ -1784,7 +1788,7 @@ app.put('/api/contents/:id', upload.array('images', 20), async (req, res) => {
   const tagsArr = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
   const profilesArr = profiles ? (Array.isArray(profiles) ? profiles : [profiles]).filter(Boolean) : [];
   const item = contentStore.update(id, {
-    title: title.trim(), body, tags: tagsArr, platform, images,
+    title: (title || '').trim(), body, tags: tagsArr, platform, images,
     category: (category || '').trim(), profiles: profilesArr,
   });
   res.json(item);
@@ -2395,7 +2399,7 @@ app.post('/api/register-local', (req, res) => {
   if (permissions.isEffectivelyEmpty()) {
     permissions.syncOnRegister().catch(e => logger.warn(`syncOnRegister: ${e.message}`));
   } else {
-    permissions.syncToLocal(permissions.load()).catch(e => logger.info(`syncToLocal: ${e.message}`));
+    permissions.syncToLocal().catch(e => logger.info(`syncToLocal: ${e.message}`));
   }
   // Sync channels từ LOCAL nếu remote chưa có data (chỉ sync khi channels.json trống).
   const existing = loadChannels();

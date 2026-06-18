@@ -24,6 +24,12 @@ db.exec(`
 try {
   db.exec(`ALTER TABLE scheduled_posts ADD COLUMN profile_name TEXT`);
 } catch { /* cột đã tồn tại */ }
+try {
+  db.exec(`ALTER TABLE scheduled_posts ADD COLUMN group_keywords TEXT`);
+} catch { /* cột đã tồn tại */ }
+try {
+  db.exec(`ALTER TABLE scheduled_posts ADD COLUMN zalo_account TEXT`);
+} catch { /* cột đã tồn tại */ }
 
 // Bảng lưu ID counter tăng dần vĩnh viễn, tránh trùng ID sau khi schedules bị xóa
 db.exec(`CREATE TABLE IF NOT EXISTS schedule_id_counter (id INTEGER NOT NULL)`);
@@ -32,8 +38,8 @@ if (!db.prepare('SELECT id FROM schedule_id_counter').get()) {
 }
 
 const insertStmt = db.prepare(`
-  INSERT INTO scheduled_posts (id, time, type, target, group_id, group_name, message, profile, profile_name, image_paths, status, created_at)
-  VALUES (@id, @time, @type, @target, @groupId, @groupName, @message, @profile, @profileName, @imagePaths, @status, @createdAt)
+  INSERT INTO scheduled_posts (id, time, type, target, group_id, group_name, message, profile, profile_name, image_paths, group_keywords, zalo_account, status, created_at)
+  VALUES (@id, @time, @type, @target, @groupId, @groupName, @message, @profile, @profileName, @imagePaths, @groupKeywords, @zaloAccount, @status, @createdAt)
 `);
 
 function insert(job) {
@@ -48,6 +54,8 @@ function insert(job) {
     profile: job.profile,
     profileName: job.profileName || job.profile,
     imagePaths: JSON.stringify(job.imagePaths || []),
+    groupKeywords: JSON.stringify(Array.isArray(job.groupKeywords) ? job.groupKeywords : []),
+    zaloAccount: job.zaloAccount || null,
     status: job.status || 'pending',
     createdAt: new Date().toISOString(),
   });
@@ -83,6 +91,8 @@ function getPending() {
     profile: r.profile,
     profileName: r.profile_name || r.profile,
     imagePaths: JSON.parse(r.image_paths || '[]'),
+    groupKeywords: JSON.parse(r.group_keywords || '[]'),
+    zaloAccount: r.zalo_account || null,
     status: r.status,
   }));
 }

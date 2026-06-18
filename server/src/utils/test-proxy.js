@@ -53,16 +53,30 @@ function findProxy(key) {
 // Lấy IP local bằng HTTPS thuần (không cần Playwright) — nhanh hơn ~15-20s
 function fetchLocalIp(timeoutMs = 10000) {
   return new Promise((resolve, reject) => {
+    let done = false;
+    const finish = (fn, val) => { if (!done) { done = true; fn(val); } };
+
     const req = https.get('https://api.ipify.org/?format=json', (res) => {
       let data = '';
       res.on('data', chunk => { data += chunk; });
       res.on('end', () => {
-        try { resolve(JSON.parse(data).ip); }
-        catch { reject(new Error('Phản hồi IP không hợp lệ: ' + data.slice(0, 100))); }
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          finish(reject, new Error(`HTTP ${res.statusCode} khi lấy IP local`));
+          return;
+        }
+        try {
+          const parsed = JSON.parse(data);
+          if (!parsed.ip) throw new Error('thiếu field ip');
+          finish(resolve, parsed.ip);
+        } catch {
+          finish(reject, new Error('Phản hồi IP không hợp lệ: ' + data.slice(0, 100)));
+        }
       });
     });
-    req.setTimeout(timeoutMs, () => { req.destroy(); reject(new Error('Timeout lấy IP local')); });
-    req.on('error', reject);
+    // Dùng finish() để tránh double-reject: req.destroy() kích hoạt 'error' event
+    // sau khi timeout đã reject rồi.
+    req.setTimeout(timeoutMs, () => { req.destroy(); finish(reject, new Error('Timeout lấy IP local')); });
+    req.on('error', err => finish(reject, err));
   });
 }
 
@@ -146,6 +160,10 @@ async function runProxyTest(profileKey, options = {}) {
   }
 
   result.ok = true;
+  // Cảnh báo khi không lấy được localIp — bypass detection không chạy được.
+  if (!result.localIp) {
+    result.warning = 'Không lấy được IP local — không thể kiểm tra bypass proxy.';
+  }
   return result;
 }
 

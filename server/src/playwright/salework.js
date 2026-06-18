@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const logger = require('../utils/logger');
 const { getZaloProxyForAccount } = require('../utils/proxy');
-const { randomDelay, humanType } = require('../utils/delay');
+const { randomDelay, humanType, sleep } = require('../utils/delay');
 const { getProfileDeviceFingerprint } = require('../utils/device-fingerprint');
 const { checkProxy } = require('../utils/proxy-health');
 
@@ -29,10 +29,6 @@ async function screenshot(page, label) {
     ]);
     logger.info(`[salework] screenshot: ${filePath}`);
   } catch {}
-}
-
-async function delay(ms) {
-  return new Promise(r => setTimeout(r, ms));
 }
 
 // Hàm dùng chung (inject vào page.evaluate) để lấy CÁC TAG account thật trong ô
@@ -102,7 +98,7 @@ async function selectZaloAccount(page, accountName) {
         return false;
       });
       if (!removed) break;
-      await delay(200);
+      await sleep(200);
       n++;
     }
     return n;
@@ -139,7 +135,7 @@ async function selectZaloAccount(page, accountName) {
         break;
       } catch {}
     }
-    await delay(1500);
+    await sleep(1500);
 
     // Bước 3: Đánh dấu đúng option trong dropdown rồi click bằng LOCATOR.
     //
@@ -229,14 +225,14 @@ async function selectZaloAccount(page, accountName) {
       } catch (e) {
         logger.warn(`[salework] Click option lỗi: ${e.message}`);
       }
-      await delay(1000);
+      await sleep(1000);
     } else {
       logger.warn(`[salework] Không chọn được option rõ ràng cho "${accountName}" (${mark.reason}) — để read-back quyết định huỷ`);
     }
 
     // Click ra ngoài để đóng dropdown (luôn làm để read-back đọc đúng nhãn ô)
     await page.click('body', { position: { x: 700, y: 400 }, force: true }).catch(() => {});
-    await delay(1000);
+    await sleep(1000);
 
     // Bước 4: READ-BACK — đọc lại nhãn ô tài khoản đang hiển thị để XÁC MINH đã
     // chọn đúng. Không bao giờ tin "đã click" là "đã chọn". Nếu ô vẫn ở "Tất cả
@@ -259,16 +255,18 @@ async function selectZaloAccount(page, accountName) {
       return txt ? [txt] : [];
     })()`);
     logger.info(`[salework] Ô tài khoản sau khi chọn (${tags.length} tag): ${JSON.stringify(tags)}`);
-    return tags;
+    return { tags, alreadySelected: mark.alreadySelected };
   };
 
-  let tagTexts = await attemptSelect();
+  let { tags: tagTexts, alreadySelected: wasAlreadySelected } = await attemptSelect();
   // Ô về TRỐNG sau lần chọn đầu — rất có thể cú click vừa BỎ CHỌN tag đã sẵn có.
   // Thử lại 1 lần: lần này option không còn ở trạng thái selected nên click sẽ
   // chọn lại đúng (clearTags đã chạy nên không sợ lẫn tag rác).
-  if (tagTexts.length === 0) {
+  // KHÔNG retry nếu lần đầu bỏ qua click vì alreadySelected=true — lần sau cũng
+  // bỏ qua y hệt, retry không giải quyết được gì.
+  if (tagTexts.length === 0 && !wasAlreadySelected) {
     logger.warn('[salework] Ô tài khoản TRỐNG sau lần chọn đầu — thử chọn lại 1 lần');
-    tagTexts = await attemptSelect();
+    ({ tags: tagTexts } = await attemptSelect());
   }
   const selectedText = tagTexts.join(' | ');
 
@@ -313,7 +311,7 @@ async function searchAndClickGroup(page, groupName) {
   if (searchInput) {
     await searchInput.fill('');
     await searchInput.fill(groupName);
-    await delay(2500);
+    await sleep(2500);
   }
 
   await screenshot(page, '03-search-filled');
@@ -354,9 +352,9 @@ async function searchAndClickGroup(page, groupName) {
   if (rect) {
     logger.info(`[salework] [${rect.src}] Click (${Math.round(rect.x)}, ${Math.round(rect.y)}) cho: ${groupName}`);
     await page.mouse.click(rect.x, rect.y);
-    await delay(1000);
+    await sleep(1000);
     await screenshot(page, '03c-after-click');
-    await delay(1500);
+    await sleep(1500);
     return true;
   }
 
@@ -414,7 +412,7 @@ async function sendMessage(page, message, imagePaths = []) {
       }
     }
 
-    await delay(2000);
+    await sleep(2000);
     await screenshot(page, '05-after-upload');
   }
 
@@ -468,11 +466,33 @@ async function sendMessage(page, message, imagePaths = []) {
 
   await page.keyboard.press('Enter');
   logger.info('[salework] Gửi bằng Enter');
-  await delay(2000);
+  await sleep(2000);
   return true;
 }
 
+const _accountLocks = new Map();
+
+async function _withAccountLock(key, fn) {
+  const prev = _accountLocks.get(key) || Promise.resolve();
+  let release;
+  const next = new Promise(r => { release = r; });
+  _accountLocks.set(key, next);
+  await prev;
+  try {
+    return await fn();
+  } finally {
+    _accountLocks.delete(key);
+    release();
+  }
+}
+
 async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message, imagePaths }) {
+  return _withAccountLock(accountKey || zaloAccountName, () =>
+    _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, message, imagePaths })
+  );
+}
+
+async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, message, imagePaths }) {
   const profilePath = getSaleworkProfile(accountKey);
 
   if (!fs.existsSync(profilePath)) {
@@ -527,7 +547,7 @@ async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message
     logger.info(`[salework] === account=${zaloAccountName}, group=${groupName} ===`);
 
     await page.goto('https://zalo.salework.net', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await delay(3000);
+    await sleep(3000);
     await screenshot(page, '01-loaded');
 
     const accountOk = await selectZaloAccount(page, zaloAccountName);
