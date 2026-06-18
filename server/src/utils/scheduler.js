@@ -266,7 +266,8 @@ async function executeSchedule(job) {
     };
 
     if (overallSuccess) {
-      notifications.push({ ...baseNotif, type: 'success' });
+      // Lịch đăng thành công: chỉ theo dõi ở dashboard, KHÔNG đẩy thông báo lên
+      // chat nữa (notifications là hàng đợi chung, dễ hiện nhầm sang profile khác).
     } else {
       job.status = 'error';
       notifications.push({ ...baseNotif, type: 'error', error: errorMsg });
