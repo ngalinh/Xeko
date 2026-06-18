@@ -10815,7 +10815,7 @@
               <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div></td>
               <td style="padding:8px 12px;">${thumbs}</td>
               <td style="padding:8px 12px; font-size:12px;" title="${profileName.replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${profileName}</span></div></td>
-              <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px; display:inline-flex; align-items:center; gap:4px;"><span style="white-space:nowrap;">${noiDangLabel(row)}</span>${postLinkIcon(row.post_url)}</div>${(row.target === 'personal' || !noiDangSub) ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${noiDangTitle.replace(/"/g,'&quot;')}">${noiDangSub}</div>`}</div></td>
+              <td style="padding:8px 12px;"><div style="line-height:1.3; overflow:hidden; min-width:0;"><div style="font-size:12px; display:inline-flex; align-items:center; gap:4px; max-width:100%; overflow:hidden;"><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${noiDangLabel(row)}</span>${postLinkIcon(row.post_url)}</div>${(row.target === 'personal' || !noiDangSub) ? '' : `<div style="font-size:11px; color:#6b7280; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;" title="${noiDangTitle.replace(/"/g,'&quot;')}">${noiDangSub}</div>`}</div></td>
               <td style="padding:8px 12px; vertical-align:middle;">${fmtTimeStacked(row.timestamp)}</td>
               <td style="padding:8px 12px; text-align:center;">${statusBadgeFor(row)}</td>
               ${seedCell(row)}
@@ -10905,7 +10905,7 @@
               <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div></td>
               <td style="padding:8px 12px;">${thumbs}</td>
               <td style="padding:8px 12px; font-size:12px;" title="${accTitle}">${repAccountCell}</td>
-              <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">Đa kênh</div><div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${platBreakdown}</div></div></td>
+              <td style="padding:8px 12px;"><div style="line-height:1.3; overflow:hidden; min-width:0;"><div style="font-size:12px;">Đa kênh</div><div style="font-size:11px; color:#6b7280; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${platBreakdown}</div></div></td>
               <td style="padding:8px 12px; vertical-align:middle;">${fmtTimeStacked(firstRow.timestamp)}</td>
               <td style="padding:8px 12px; text-align:center;">${summaryBadge}</td>
               ${seedCellForRows(group.rows, firstRow.id)}
@@ -10942,7 +10942,7 @@
                 <td style="background:#eef2f6;"></td>
                 <td style="background:#eef2f6;"></td>
                 <td style="padding:8px 12px; font-size:12px;" title="${profileName.replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${profileName}</span></div></td>
-                <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px; display:inline-flex; align-items:center; gap:4px;"><span style="white-space:nowrap;">${noiDangLabel(row)}</span>${postLinkIcon(row.post_url)}</div>${(row.target === 'personal' || !childNoisub) ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${childNoiTitle.replace(/"/g,'&quot;')}">${childNoisub}</div>`}</div></td>
+                <td style="padding:8px 12px;"><div style="line-height:1.3; overflow:hidden; min-width:0;"><div style="font-size:12px; display:inline-flex; align-items:center; gap:4px; max-width:100%; overflow:hidden;"><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${noiDangLabel(row)}</span>${postLinkIcon(row.post_url)}</div>${(row.target === 'personal' || !childNoisub) ? '' : `<div style="font-size:11px; color:#6b7280; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;" title="${childNoiTitle.replace(/"/g,'&quot;')}">${childNoisub}</div>`}</div></td>
                 <td style="padding:8px 12px; vertical-align:middle;">${fmtTimeStacked(row.timestamp, true)}</td>
                 <td style="padding:8px 12px; text-align:center;">${statusBadgeFor(row)}</td>
                 ${seedCell(row)}
