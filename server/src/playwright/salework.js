@@ -259,16 +259,18 @@ async function selectZaloAccount(page, accountName) {
       return txt ? [txt] : [];
     })()`);
     logger.info(`[salework] Ô tài khoản sau khi chọn (${tags.length} tag): ${JSON.stringify(tags)}`);
-    return tags;
+    return { tags, alreadySelected: mark.alreadySelected };
   };
 
-  let tagTexts = await attemptSelect();
+  let { tags: tagTexts, alreadySelected: wasAlreadySelected } = await attemptSelect();
   // Ô về TRỐNG sau lần chọn đầu — rất có thể cú click vừa BỎ CHỌN tag đã sẵn có.
   // Thử lại 1 lần: lần này option không còn ở trạng thái selected nên click sẽ
   // chọn lại đúng (clearTags đã chạy nên không sợ lẫn tag rác).
-  if (tagTexts.length === 0) {
+  // KHÔNG retry nếu lần đầu bỏ qua click vì alreadySelected=true — lần sau cũng
+  // bỏ qua y hệt, retry không giải quyết được gì.
+  if (tagTexts.length === 0 && !wasAlreadySelected) {
     logger.warn('[salework] Ô tài khoản TRỐNG sau lần chọn đầu — thử chọn lại 1 lần');
-    tagTexts = await attemptSelect();
+    ({ tags: tagTexts } = await attemptSelect());
   }
   const selectedText = tagTexts.join(' | ');
 
