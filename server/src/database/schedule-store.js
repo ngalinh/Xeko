@@ -30,6 +30,11 @@ try {
 try {
   db.exec(`ALTER TABLE scheduled_posts ADD COLUMN zalo_account TEXT`);
 } catch { /* cột đã tồn tại */ }
+// Email chủ sở hữu lịch → dùng để gửi notification đúng người (tránh nhảy noti
+// sang tài khoản khác). DB cũ chưa có cột này sẽ được thêm ở đây.
+try {
+  db.exec(`ALTER TABLE scheduled_posts ADD COLUMN owner_email TEXT`);
+} catch { /* cột đã tồn tại */ }
 
 // Bảng lưu ID counter tăng dần vĩnh viễn, tránh trùng ID sau khi schedules bị xóa
 db.exec(`CREATE TABLE IF NOT EXISTS schedule_id_counter (id INTEGER NOT NULL)`);
@@ -38,8 +43,8 @@ if (!db.prepare('SELECT id FROM schedule_id_counter').get()) {
 }
 
 const insertStmt = db.prepare(`
-  INSERT INTO scheduled_posts (id, time, type, target, group_id, group_name, message, profile, profile_name, image_paths, group_keywords, zalo_account, status, created_at)
-  VALUES (@id, @time, @type, @target, @groupId, @groupName, @message, @profile, @profileName, @imagePaths, @groupKeywords, @zaloAccount, @status, @createdAt)
+  INSERT INTO scheduled_posts (id, time, type, target, group_id, group_name, message, profile, profile_name, image_paths, group_keywords, zalo_account, owner_email, status, created_at)
+  VALUES (@id, @time, @type, @target, @groupId, @groupName, @message, @profile, @profileName, @imagePaths, @groupKeywords, @zaloAccount, @ownerEmail, @status, @createdAt)
 `);
 
 function insert(job) {
@@ -56,6 +61,7 @@ function insert(job) {
     imagePaths: JSON.stringify(job.imagePaths || []),
     groupKeywords: JSON.stringify(Array.isArray(job.groupKeywords) ? job.groupKeywords : []),
     zaloAccount: job.zaloAccount || null,
+    ownerEmail: job.ownerEmail || null,
     status: job.status || 'pending',
     createdAt: new Date().toISOString(),
   });
@@ -93,6 +99,7 @@ function getPending() {
     imagePaths: JSON.parse(r.image_paths || '[]'),
     groupKeywords: JSON.parse(r.group_keywords || '[]'),
     zaloAccount: r.zalo_account || null,
+    ownerEmail: r.owner_email || null,
     status: r.status,
   }));
 }

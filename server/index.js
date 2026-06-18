@@ -1365,7 +1365,7 @@ app.post('/api/schedule', upload.array('images', 20), (req, res) => {
   logger.info(`[/api/schedule] channel=${channel} images=${imagePaths.length} [${fileSizes}]`);
 
   try {
-    const job = scheduler.addSchedule({ time, target, groupId, message, imagePaths, profile, profileDisplayName, type, groupName, zaloAccount, groupKeywords });
+    const job = scheduler.addSchedule({ time, target, groupId, message, imagePaths, profile, profileDisplayName, type, groupName, zaloAccount, groupKeywords, ownerEmail: req.user && req.user.email });
     cleanupFiles(imagePaths);
     res.json({
       success: true,
@@ -1395,7 +1395,7 @@ app.delete('/api/schedule/:id', (req, res) => {
 
 // Polling notifications (lịch đã chạy xong)
 app.get('/api/notifications', (req, res) => {
-  res.json(scheduler.getNotifications());
+  res.json(scheduler.getNotifications(req.user && req.user.email));
 });
 
 // ===== AUTO-SEEDING THEO LỊCH =====

@@ -55,7 +55,7 @@ const seedNotifications = [];
 /**
  * Thêm lịch đăng bài
  */
-function addSchedule({ time, target, groupId, message, imagePaths, profile, profileDisplayName, type, groupName, zaloAccount, groupKeywords }) {
+function addSchedule({ time, target, groupId, message, imagePaths, profile, profileDisplayName, type, groupName, zaloAccount, groupKeywords, ownerEmail }) {
   const id = nextId++;
   const scheduleTime = new Date(time);
 
@@ -94,6 +94,7 @@ function addSchedule({ time, target, groupId, message, imagePaths, profile, prof
     imagePaths: ownImagePaths,
     profile,
     profileName: profileDisplayName || profile,
+    ownerEmail: ownerEmail || null,
     status: 'pending',
     result: null,
     timer: null,
@@ -263,10 +264,12 @@ async function executeSchedule(job) {
       imageCount: job.imagePaths?.length || 0,
       profile: job.profile,
       profileName: job.profileName || job.profile,
+      ownerEmail: job.ownerEmail || null,
     };
 
     if (overallSuccess) {
-      notifications.push({ ...baseNotif, type: 'success' });
+      // Lịch đăng thành công: chỉ theo dõi ở dashboard, KHÔNG đẩy thông báo lên
+      // chat nữa (notifications là hàng đợi chung, dễ hiện nhầm sang profile khác).
     } else {
       job.status = 'error';
       notifications.push({ ...baseNotif, type: 'error', error: errorMsg });
@@ -290,6 +293,7 @@ async function executeSchedule(job) {
       imageCount: job.imagePaths?.length || 0,
       profile: job.profile,
       profileName: job.profileName || job.profile,
+      ownerEmail: job.ownerEmail || null,
       error: error.message,
     });
   } finally {
@@ -382,6 +386,7 @@ function init() {
       zaloAccount: p.zaloAccount || null,
       profile: p.profile,
       profileName: p.profileName || p.profile,
+      ownerEmail: p.ownerEmail || null,
       status: 'pending',
       result: null,
       timer: null,
@@ -407,12 +412,24 @@ function init() {
 }
 
 /**
- * Lấy và xoá notifications (polling)
+ * Lấy và xoá notifications (polling).
+ * Lọc theo email người đang poll để noti không nhảy sang tài khoản khác.
+ * Notification không có ownerEmail (lịch cũ trước khi có scoping) gửi cho bất
+ * kỳ ai poll để tránh kẹt lại vĩnh viễn.
  */
-function getNotifications() {
-  const items = [...notifications];
+function getNotifications(email) {
+  const me = (email || '').toLowerCase().trim();
+  const mine = [];
+  const rest = [];
+  for (const n of notifications) {
+    const owner = (n.ownerEmail || '').toLowerCase().trim();
+    if (!me || !owner || owner === me) mine.push(n);
+    else rest.push(n);
+  }
+  // Giữ lại noti của người khác trong hàng đợi, chỉ lấy đi phần của mình
   notifications.length = 0;
-  return items;
+  notifications.push(...rest);
+  return mine;
 }
 
 // ===== AUTO-SEEDING: thêm / thực thi / liệt kê / xoá / khôi phục =====

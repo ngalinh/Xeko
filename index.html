@@ -4649,19 +4649,6 @@
       'Xeko không đăng được bài nào, bạn kiểm tra kết nối rồi thử lại nha 🙏',
     ];
 
-    // Bài đã gửi đi nhưng poll hết giờ chờ → Xeko KHÔNG kết luận fail (server vẫn
-    // đang chạy nền và Dashboard mới là nguồn sự thật). Tránh báo "fail" trong khi
-    // Dashboard báo "Done".
-    const UNCONFIRMED_ENCOURAGEMENTS = [
-      'Xeko đã gửi bài đi rồi, nhưng đăng hơi lâu nên chưa chốt được kết quả ở đây. Bạn xem tab <strong>Dashboard</strong> nha — Xeko vẫn đang chạy nền! ⏳',
-      'Xeko gửi bài xong nhưng chờ kết quả lâu hơn thường lệ. Bạn theo dõi ở tab <strong>Dashboard</strong> nha, đừng đăng lại liền kẻo trùng bài 🙏',
-      'Xeko vẫn đang đăng nền, chưa kịp chốt kết quả ở đây. Mở tab <strong>Dashboard</strong> để xem trạng thái thật nha ⏳',
-    ];
-
-    function pickUnconfirmed() {
-      return UNCONFIRMED_ENCOURAGEMENTS[Math.floor(Math.random() * UNCONFIRMED_ENCOURAGEMENTS.length)];
-    }
-
     function pickEncouragement(n = 1) {
       if (n === 0) {
         return ZERO_ENCOURAGEMENTS[Math.floor(Math.random() * ZERO_ENCOURAGEMENTS.length)];
@@ -4671,6 +4658,17 @@
         return t(n);
       }
       return ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)];
+    }
+
+    // Câu chốt THỐNG NHẤT cho mọi kiểu đăng (đăng ngay / nhiều kênh / Zalo):
+    // sau khi gửi bài xong, không kết luận thành/bại ở chat nữa mà hướng người
+    // dùng theo dõi Dashboard để xem kết quả thật — vẫn giữ câu khích lệ đăng
+    // thêm bài. (Dashboard mới là nguồn sự thật vì server đăng nền.)
+    const DASHBOARD_RESULT_HINT = '👉 Kết quả đăng bài bạn theo dõi ở tab <strong>Dashboard</strong> nha!';
+    function postSentClosing(n = 1) {
+      // n = số bài đã gửi đi — chỉ dùng để chọn câu khích lệ số nhiều cho tự
+      // nhiên; luôn ≥1 để không rơi vào câu "fail" (kết quả để Dashboard chốt).
+      return `${pickEncouragement(Math.max(1, n))}\n\n${DASHBOARD_RESULT_HINT}`;
     }
 
     async function parseJson(res) {
@@ -6612,16 +6610,11 @@
         // Khoá nút của các lượt trước để không chồng nhiều cụm [Đăng bài tiếp]
         // [Làm lại] active cùng lúc (gây rối + bấm nhầm lượt cũ).
         disablePrevButtons();
-        // 3 trạng thái thay vì 2 — tránh báo "fail" khi Dashboard báo "Done":
-        //  • có ≥1 bài xác nhận thành công  → câu khích lệ
-        //  • không có bài nào success NHƯNG có job chưa xác nhận (poll timeout)
-        //    → câu trung lập, chỉ qua Dashboard (server vẫn chạy nền)
-        //  • tất cả đều fail thật            → câu fail
-        let _finalMsg;
-        if (successCount > 0) _finalMsg = pickEncouragement(successCount);
-        else if (unconfirmedCount > 0) _finalMsg = pickUnconfirmed();
-        else _finalMsg = pickEncouragement(0);
-        addBot(_finalMsg, [
+        // Thống nhất mọi kiểu đăng: gửi xong là hướng theo dõi Dashboard để xem
+        // kết quả thật (chat không kết luận success/fail nữa, tránh báo "fail"
+        // oan khi Dashboard báo "Done"), vẫn giữ câu khích lệ đăng thêm bài.
+        const _sentCount = successCount + unconfirmedCount;
+        addBot(postSentClosing(_sentCount), [
           { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput(), primary: true },
           { label: `${xekoIcon('back')} Làm lại`, handler: () => showTargetSelect(), secondary: true },
         ]);
