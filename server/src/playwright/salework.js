@@ -116,125 +116,161 @@ async function selectZaloAccount(page, accountName) {
     logger.warn(`[salework] Vẫn còn ${leftover} tag sau khi xoá — read-back sẽ kiểm tra lại trước khi đăng`);
   }
 
-  // Bước 2: Mở dropdown
-  const openSelectors = [
-    '.el-select',
-    '.el-select .el-input__inner',
-    '.el-select__caret',
-  ];
-  for (const sel of openSelectors) {
-    try {
-      await page.click(sel, { force: true, timeout: 3000 });
-      logger.info(`[salework] Mở dropdown bằng: ${sel}`);
-      break;
-    } catch {}
-  }
-  await delay(1500);
-
-  // Bước 3: Đánh dấu đúng option trong dropdown rồi click bằng LOCATOR.
+  // Bước 2-4: gói trong attemptSelect() để CÓ THỂ THỬ LẠI.
   //
-  // QUAN TRỌNG: trước đây dùng page.mouse.click(x, y) theo toạ độ
-  // getBoundingClientRect. Option có thể nằm DƯỚI mép viewport (đã gặp y=1193
-  // khi viewport chỉ cao ≤1080) → click bắn ra ngoài màn hình, TRƯỢT hoàn toàn,
-  // dropdown vẫn ở "Tất cả tài khoản" → bài bị đăng bằng tài khoản mặc định
-  // (đăng NHẦM account). Dùng locator.click() vì nó tự scrollIntoView option
-  // vào tầm nhìn trước khi click, không phụ thuộc toạ độ tuyệt đối.
-  await page.evaluate(() => {
-    document.querySelectorAll('[data-xeko-pick]').forEach(el => el.removeAttribute('data-xeko-pick'));
-  });
-  // Tên account trong Salework hay bị CẮT ellipsis ("Linh Thảo Us A...") nên
-  // nhiều account khác nhau cùng prefix (Authentic / America / ...) trông y hệt.
-  // Quy tắc chọn để KHÔNG đoán bừa (đoán bừa = chọn nhầm account):
-  //   1. Khớp CHÍNH XÁC tên đầy đủ (ưu tiên đọc `title` = tên đầy đủ khi bị cắt,
-  //      fallback textContent). Nếu có NHIỀU dòng khớp chính xác cùng tên → vẫn
-  //      LÀ account cần đăng (Salework render lặp / kết nối trùng) → bấm dòng đầu,
-  //      ưu tiên option thật trong dropdown. KHÔNG từ chối.
-  //   2. Nếu chỉ khớp prefix (option bị cắt), CHỈ chấp nhận khi có ĐÚNG 1 ứng viên.
-  //      >1 ứng viên prefix khác nhau = mơ hồ thật → bỏ, để read-back huỷ đăng.
-  const mark = await page.evaluate((name) => {
-    const norm = s => (s || '').normalize('NFC').trim();
-    const normName = norm(name);
-    const fullText = el => norm(el.getAttribute && el.getAttribute('title')) || norm(el.textContent);
+  // QUAN TRỌNG (bug đã gặp): Salework chạy trên persistent profile và nhớ lựa
+  // chọn lần trước → mở lên ô đã sẵn tag account đúng (option ở trạng thái
+  // "selected"). Dropdown là multi-select Element UI: BẤM LẠI một option ĐANG
+  // được chọn sẽ BỎ CHỌN nó → ô về 0 tag → read-back tưởng "không chọn được" →
+  // huỷ oan. Vì vậy: nếu option đã được chọn sẵn thì KHÔNG click; và nếu sau khi
+  // chọn ô vẫn TRỐNG thì thử lại 1 lần (lần sau option không còn selected nên
+  // click sẽ chọn lại đúng).
+  const attemptSelect = async () => {
+    // Bước 2: Mở dropdown
+    const openSelectors = [
+      '.el-select',
+      '.el-select .el-input__inner',
+      '.el-select__caret',
+    ];
+    for (const sel of openSelectors) {
+      try {
+        await page.click(sel, { force: true, timeout: 3000 });
+        logger.info(`[salework] Mở dropdown bằng: ${sel}`);
+        break;
+      } catch {}
+    }
+    await delay(1500);
 
-    const candidates = [];
-    const scan = (els, isOption) => {
-      for (const el of els) {
-        const r = el.getBoundingClientRect();
-        if (r.width === 0 || r.height === 0) continue;
-        const full = fullText(el);                       // tên đầy đủ (ưu tiên title)
-        const vis = norm(el.textContent);                // text hiển thị (có thể bị cắt)
-        const visStripped = vis.replace(/[\s.…]+$/, '');
-        const exact =
-          full === normName ||
-          full.startsWith(normName + ' ') || full.startsWith(normName + '\n');
-        const prefix = !exact && visStripped.length >= 6 && normName.startsWith(visStripped);
-        if (exact) candidates.push({ el, exact: true, isOption });
-        else if (prefix) candidates.push({ el, exact: false, isOption });
+    // Bước 3: Đánh dấu đúng option trong dropdown rồi click bằng LOCATOR.
+    //
+    // QUAN TRỌNG: trước đây dùng page.mouse.click(x, y) theo toạ độ
+    // getBoundingClientRect. Option có thể nằm DƯỚI mép viewport (đã gặp y=1193
+    // khi viewport chỉ cao ≤1080) → click bắn ra ngoài màn hình, TRƯỢT hoàn toàn,
+    // dropdown vẫn ở "Tất cả tài khoản" → bài bị đăng bằng tài khoản mặc định
+    // (đăng NHẦM account). Dùng locator.click() vì nó tự scrollIntoView option
+    // vào tầm nhìn trước khi click, không phụ thuộc toạ độ tuyệt đối.
+    await page.evaluate(() => {
+      document.querySelectorAll('[data-xeko-pick]').forEach(el => el.removeAttribute('data-xeko-pick'));
+    });
+    // Tên account trong Salework hay bị CẮT ellipsis ("Linh Thảo Us A...") nên
+    // nhiều account khác nhau cùng prefix (Authentic / America / ...) trông y hệt.
+    // Quy tắc chọn để KHÔNG đoán bừa (đoán bừa = chọn nhầm account):
+    //   1. Khớp CHÍNH XÁC tên đầy đủ (ưu tiên đọc `title` = tên đầy đủ khi bị cắt,
+    //      fallback textContent). Nếu có NHIỀU dòng khớp chính xác cùng tên → vẫn
+    //      LÀ account cần đăng (Salework render lặp / kết nối trùng) → bấm dòng đầu,
+    //      ưu tiên option thật trong dropdown. KHÔNG từ chối.
+    //   2. Nếu chỉ khớp prefix (option bị cắt), CHỈ chấp nhận khi có ĐÚNG 1 ứng viên.
+    //      >1 ứng viên prefix khác nhau = mơ hồ thật → bỏ, để read-back huỷ đăng.
+    const mark = await page.evaluate((name) => {
+      const norm = s => (s || '').normalize('NFC').trim();
+      const normName = norm(name);
+      const fullText = el => norm(el.getAttribute && el.getAttribute('title')) || norm(el.textContent);
+      // Option đã được CHỌN SẴN chưa? Element UI gắn class "selected"/"is-selected"
+      // (hoặc aria-selected="true") lên item đang chọn. Dò lên vài cấp phòng khi
+      // phần tử khớp là span con bên trong item.
+      const isSelectedOpt = (el) => {
+        let n = el;
+        for (let i = 0; i < 4 && n; i++) {
+          if (n.classList && (n.classList.contains('selected') || n.classList.contains('is-selected'))) return true;
+          if (n.getAttribute && n.getAttribute('aria-selected') === 'true') return true;
+          n = n.parentElement;
+        }
+        return false;
+      };
+
+      const candidates = [];
+      const scan = (els, isOption) => {
+        for (const el of els) {
+          const r = el.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0) continue;
+          const full = fullText(el);                       // tên đầy đủ (ưu tiên title)
+          const vis = norm(el.textContent);                // text hiển thị (có thể bị cắt)
+          const visStripped = vis.replace(/[\s.…]+$/, '');
+          const exact =
+            full === normName ||
+            full.startsWith(normName + ' ') || full.startsWith(normName + '\n');
+          const prefix = !exact && visStripped.length >= 6 && normName.startsWith(visStripped);
+          if (exact) candidates.push({ el, exact: true, isOption });
+          else if (prefix) candidates.push({ el, exact: false, isOption });
+        }
+      };
+
+      // Pass 1: option thật trong dropdown (đánh dấu isOption để ưu tiên khi bấm)
+      scan(document.querySelectorAll('.el-select-dropdown__item, [class*="dropdown"] li, [class*="option"], li'), true);
+      // Pass 2: fallback rộng hơn nếu Salework đổi cấu trúc DOM
+      if (!candidates.length) scan(document.querySelectorAll('[class*="item"], div, span, a'), false);
+
+      const exacts = candidates.filter(c => c.exact);
+      let chosen = null, reason = 'none';
+      if (exacts.length) {
+        // Mọi exact đều cùng tên đầy đủ = cùng 1 account → bấm cái đầu (ưu tiên option thật).
+        const pick = exacts.find(c => c.isOption) || exacts[0];
+        chosen = pick.el;
+        reason = exacts.length === 1 ? 'exact' : `exact x${exacts.length}`;
+      } else if (candidates.length === 1) {
+        chosen = candidates[0].el; reason = 'prefix-duy-nhất';
+      } else if (candidates.length > 1) {
+        reason = `mơ hồ: ${candidates.length} option bị cắt cùng prefix`;
       }
-    };
 
-    // Pass 1: option thật trong dropdown (đánh dấu isOption để ưu tiên khi bấm)
-    scan(document.querySelectorAll('.el-select-dropdown__item, [class*="dropdown"] li, [class*="option"], li'), true);
-    // Pass 2: fallback rộng hơn nếu Salework đổi cấu trúc DOM
-    if (!candidates.length) scan(document.querySelectorAll('[class*="item"], div, span, a'), false);
+      if (chosen) chosen.setAttribute('data-xeko-pick', '1');
+      return { ok: !!chosen, reason, alreadySelected: chosen ? isSelectedOpt(chosen) : false };
+    }, accountName);
 
-    const exacts = candidates.filter(c => c.exact);
-    let chosen = null, reason = 'none';
-    if (exacts.length) {
-      // Mọi exact đều cùng tên đầy đủ = cùng 1 account → bấm cái đầu (ưu tiên option thật).
-      const pick = exacts.find(c => c.isOption) || exacts[0];
-      chosen = pick.el;
-      reason = exacts.length === 1 ? 'exact' : `exact x${exacts.length}`;
-    } else if (candidates.length === 1) {
-      chosen = candidates[0].el; reason = 'prefix-duy-nhất';
-    } else if (candidates.length > 1) {
-      reason = `mơ hồ: ${candidates.length} option bị cắt cùng prefix`;
+    if (mark.ok && mark.alreadySelected) {
+      // Đã được chọn sẵn (profile nhớ lần trước) — KHÔNG click lại kẻo bỏ chọn.
+      logger.info(`[salework] Option "${accountName}" đã được chọn sẵn (${mark.reason}) — không click lại để tránh bỏ chọn`);
+    } else if (mark.ok) {
+      const opt = page.locator('[data-xeko-pick="1"]').first();
+      try { await opt.scrollIntoViewIfNeeded({ timeout: 3000 }); } catch {}
+      try {
+        await opt.click({ timeout: 5000 });
+        logger.info(`[salework] Đã click option tài khoản: ${accountName} (${mark.reason})`);
+      } catch (e) {
+        logger.warn(`[salework] Click option lỗi: ${e.message}`);
+      }
+      await delay(1000);
+    } else {
+      logger.warn(`[salework] Không chọn được option rõ ràng cho "${accountName}" (${mark.reason}) — để read-back quyết định huỷ`);
     }
 
-    if (chosen) chosen.setAttribute('data-xeko-pick', '1');
-    return { ok: !!chosen, reason };
-  }, accountName);
-
-  if (mark.ok) {
-    const opt = page.locator('[data-xeko-pick="1"]').first();
-    try { await opt.scrollIntoViewIfNeeded({ timeout: 3000 }); } catch {}
-    try {
-      await opt.click({ timeout: 5000 });
-      logger.info(`[salework] Đã click option tài khoản: ${accountName} (${mark.reason})`);
-    } catch (e) {
-      logger.warn(`[salework] Click option lỗi: ${e.message}`);
-    }
+    // Click ra ngoài để đóng dropdown (luôn làm để read-back đọc đúng nhãn ô)
+    await page.click('body', { position: { x: 700, y: 400 }, force: true }).catch(() => {});
     await delay(1000);
-  } else {
-    logger.warn(`[salework] Không chọn được option rõ ràng cho "${accountName}" (${mark.reason}) — để read-back quyết định huỷ`);
+
+    // Bước 4: READ-BACK — đọc lại nhãn ô tài khoản đang hiển thị để XÁC MINH đã
+    // chọn đúng. Không bao giờ tin "đã click" là "đã chọn". Nếu ô vẫn ở "Tất cả
+    // tài khoản" / trống / khác tên yêu cầu → trả false để caller HUỶ đăng.
+    // Trả về MẢNG nhãn từng tag (ưu tiên `title` = tên đầy đủ khi bị cắt ellipsis).
+    // Dùng _xekoTagEls() để CHỈ đếm container tag thật — tránh 1 account bị tách
+    // thành nhiều "tag" do span/icon con khiến read-back tưởng đang chọn nhiều account.
+    const tags = await page.evaluate(`(() => {
+      ${TAG_HELPER}
+      const norm = s => (s || '').normalize('NFC').trim();
+      const root = document.querySelector('.el-select') || document.querySelector('[class*="select"]');
+      if (!root) return [];
+      const tags = _xekoTagEls();
+      if (tags.length) {
+        return tags.map(t => _xekoTagText(t)).filter(Boolean);
+      }
+      const input = root.querySelector('input');
+      if (input && norm(input.value)) return [norm(input.value)];
+      const txt = norm(root.textContent);
+      return txt ? [txt] : [];
+    })()`);
+    logger.info(`[salework] Ô tài khoản sau khi chọn (${tags.length} tag): ${JSON.stringify(tags)}`);
+    return tags;
+  };
+
+  let tagTexts = await attemptSelect();
+  // Ô về TRỐNG sau lần chọn đầu — rất có thể cú click vừa BỎ CHỌN tag đã sẵn có.
+  // Thử lại 1 lần: lần này option không còn ở trạng thái selected nên click sẽ
+  // chọn lại đúng (clearTags đã chạy nên không sợ lẫn tag rác).
+  if (tagTexts.length === 0) {
+    logger.warn('[salework] Ô tài khoản TRỐNG sau lần chọn đầu — thử chọn lại 1 lần');
+    tagTexts = await attemptSelect();
   }
-
-  // Click ra ngoài để đóng dropdown (luôn làm để read-back đọc đúng nhãn ô)
-  await page.click('body', { position: { x: 700, y: 400 }, force: true }).catch(() => {});
-  await delay(1000);
-
-  // Bước 4: READ-BACK — đọc lại nhãn ô tài khoản đang hiển thị để XÁC MINH đã
-  // chọn đúng. Không bao giờ tin "đã click" là "đã chọn". Nếu ô vẫn ở "Tất cả
-  // tài khoản" / trống / khác tên yêu cầu → trả false để caller HUỶ đăng.
-  // Trả về MẢNG nhãn từng tag (ưu tiên `title` = tên đầy đủ khi bị cắt ellipsis).
-  // Dùng _xekoTagEls() để CHỈ đếm container tag thật — tránh 1 account bị tách
-  // thành nhiều "tag" do span/icon con khiến read-back tưởng đang chọn nhiều account.
-  const tagTexts = await page.evaluate(`(() => {
-    ${TAG_HELPER}
-    const norm = s => (s || '').normalize('NFC').trim();
-    const root = document.querySelector('.el-select') || document.querySelector('[class*="select"]');
-    if (!root) return [];
-    const tags = _xekoTagEls();
-    if (tags.length) {
-      return tags.map(t => _xekoTagText(t)).filter(Boolean);
-    }
-    const input = root.querySelector('input');
-    if (input && norm(input.value)) return [norm(input.value)];
-    const txt = norm(root.textContent);
-    return txt ? [txt] : [];
-  })()`);
   const selectedText = tagTexts.join(' | ');
-  logger.info(`[salework] Ô tài khoản sau khi chọn (${tagTexts.length} tag): ${JSON.stringify(tagTexts)}`);
 
   const lc = s => (s || '').normalize('NFC').trim().toLowerCase();
   const want = lc(accountName);
