@@ -11802,6 +11802,7 @@
     // ===== Repost Modal =====
     let _repostEditMode = false;
     let _repostImages = [];
+    let _repostExpandedCats = new Set(); // các phân loại FB group đang được xổ ra trong modal repost
     let _repostSelectedChannels = []; // array of channel options
 
     function _channelKey(opt) {
@@ -11834,6 +11835,7 @@
         ...groups.map(g => ({
           type: 'group', platform: g._platform,
           key: g.key, id: g.id, name: g.name,
+          category: g._platform === 'fb' ? ((g.category || '').trim() || 'Chưa phân loại') : '',
           zaloAccount: g._zaloAccount || '',
           label: (g._platform === 'zalo' ? xekoIcon('chat') + ' ' : xekoIcon('users') + ' ') + (g.name || g.key),
           sub: g._platform === 'zalo' ? 'Zalo' : (g.id || ''),
@@ -11846,12 +11848,14 @@
       // nằm trong danh sách). Nếu không render, kênh này vẫn nằm trong
       // _repostSelectedChannels nhưng user KHÔNG thấy và KHÔNG bỏ chọn được →
       // repost bị đăng nhầm sang cả kênh gốc (bug đăng trùng 2 tài khoản).
+      const orphanFrom = options.length;
       for (const ch of _repostSelectedChannels) {
         const k = _channelKey(ch);
         if (options.some(o => _channelKey(o) === k)) continue;
         options.push({
           type: ch.type, platform: ch.platform,
           key: ch.key, id: ch.id, name: ch.name,
+          category: '__orphan__',
           zaloAccount: ch.zaloAccount || '',
           label: ch.type === 'personal'
             ? `${xekoIcon('home')} Profile`
@@ -11862,20 +11866,78 @@
 
       window._repostChannelOptions = options;
 
-      const list = document.getElementById('repostChannelList');
-      list.innerHTML = options.map((opt, i) => {
+      // Render 1 dòng kênh (checkbox + nhãn). indent=true khi nằm trong nhóm đã xổ ra.
+      const rowHtml = (opt, i, indent) => {
         const sel = _isChannelSelected(opt);
         return `<div onclick="_toggleRepostChannel(${i})"
-          style="display:flex; align-items:center; gap:10px; padding:9px 14px; cursor:pointer; font-size:13px;
+          style="display:flex; align-items:center; gap:10px; padding:8px 14px 8px ${indent ? '40px' : '14px'}; cursor:pointer; font-size:13px;
             background:${sel ? '#EFF6FF' : '#fff'}; border-bottom:1px solid #f3f4f6; transition:background 0.1s;"
           onmouseover="this.style.background='${sel ? '#EFF6FF' : '#fafafa'}'" onmouseout="this.style.background='${sel ? '#EFF6FF' : '#fff'}'">
           <span style="width:16px; height:16px; border-radius:4px; border:2px solid ${sel ? '#2563EB' : '#d1d5db'}; background:${sel ? '#2563EB' : '#fff'}; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.15s;">
             ${sel ? '<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
           </span>
-          <span style="flex:1; font-weight:${sel ? '600' : '400'}; color:${sel ? '#3B82F6' : '#333'};">${opt.label}</span>
+          <span style="flex:1; font-weight:${sel ? '600' : '400'}; color:${sel ? '#3B82F6' : '#333'}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${opt.label}</span>
           ${opt.sub ? `<span style="font-size:11px; color:#999; flex-shrink:0;">${opt.sub}</span>` : ''}
         </div>`;
-      }).join('');
+      };
+
+      // Gom thành các "phân loại" thu gọn được: FB group theo category (a-z),
+      // Zalo gộp thành 1 nhóm (Zalo group không có category). Mặc định THU GỌN —
+      // user bấm header để xổ ra danh sách đầy đủ từng group.
+      const sections = [];
+      const fbByCat = new Map();
+      options.forEach((o, i) => {
+        if (o.type === 'group' && o.platform === 'fb' && o.category !== '__orphan__') {
+          if (!fbByCat.has(o.category)) fbByCat.set(o.category, []);
+          fbByCat.get(o.category).push(i);
+        }
+      });
+      [...fbByCat.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0], 'vi'))
+        .forEach(([name, idxs]) => sections.push({ key: 'fb:' + name, name: xekoIcon('users') + ' ' + name, idxs }));
+      const zaloIdxs = options
+        .map((o, i) => ({ o, i }))
+        .filter(x => x.o.type === 'group' && x.o.platform === 'zalo' && x.o.category !== '__orphan__')
+        .map(x => x.i);
+      if (zaloIdxs.length) sections.push({ key: 'zalo', name: xekoIcon('chat') + ' Zalo', idxs: zaloIdxs });
+      window._repostSections = sections;
+
+      let html = '';
+      // 1. FB Profile — luôn hiện trên đầu
+      html += rowHtml(options[0], 0, false);
+
+      // 2. Các nhóm phân loại — thu gọn mặc định, header có checkbox chọn-tất-cả + mũi tên xổ ra
+      sections.forEach((sec, si) => {
+        const total = sec.idxs.length;
+        const selCount = sec.idxs.filter(i => _isChannelSelected(options[i])).length;
+        const expanded = _repostExpandedCats.has(sec.key);
+        const state = selCount === 0 ? 'none' : (selCount === total ? 'all' : 'some');
+        const boxBg = state === 'none' ? '#fff' : '#2563EB';
+        const boxBorder = state === 'none' ? '#d1d5db' : '#2563EB';
+        const boxInner = state === 'all'
+          ? '<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+          : (state === 'some' ? '<span style="width:8px;height:2px;background:#fff;border-radius:1px;"></span>' : '');
+        html += `<div onclick="_toggleRepostCat(${si})"
+          style="display:flex; align-items:center; gap:10px; padding:9px 14px; cursor:pointer; font-size:13px; background:#f9fafb; border-bottom:1px solid #eef0f3;">
+          <span onclick="event.stopPropagation(); _toggleRepostCatAll(${si})" title="Chọn / bỏ tất cả trong nhóm"
+            style="width:16px; height:16px; border-radius:4px; border:2px solid ${boxBorder}; background:${boxBg}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            ${boxInner}
+          </span>
+          <span style="flex:1; font-weight:600; color:#374151; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${sec.name}
+            <span style="font-size:11px; font-weight:500; color:#9ca3af;">(${selCount ? selCount + '/' : ''}${total})</span>
+          </span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="flex-shrink:0; transition:transform 0.15s; transform:rotate(${expanded ? '90' : '0'}deg);"><path d="M9 6l6 6-6 6" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>`;
+        if (expanded) {
+          for (const i of sec.idxs) html += rowHtml(options[i], i, true);
+        }
+      });
+
+      // 3. Kênh "mồ côi" đang chọn nhưng không thuộc tài khoản đang xem — luôn hiện
+      //    để user bỏ chọn được (lưới an toàn).
+      for (let i = orphanFrom; i < options.length; i++) html += rowHtml(options[i], i, false);
+
+      document.getElementById('repostChannelList').innerHTML = html;
     }
 
     function _toggleRepostChannel(i) {
@@ -11889,6 +11951,37 @@
       }
       _renderRepostChannelList();
       // Update display label
+      document.getElementById('repostChannelDisplay').innerHTML = _channelsDisplayLabel();
+    }
+
+    // Xổ ra / thu gọn 1 nhóm phân loại trong danh sách kênh repost.
+    function _toggleRepostCat(si) {
+      const sec = (window._repostSections || [])[si];
+      if (!sec) return;
+      if (_repostExpandedCats.has(sec.key)) _repostExpandedCats.delete(sec.key);
+      else _repostExpandedCats.add(sec.key);
+      _renderRepostChannelList();
+    }
+
+    // Chọn / bỏ chọn TẤT CẢ kênh trong 1 nhóm phân loại (checkbox ở header nhóm).
+    function _toggleRepostCatAll(si) {
+      const sec = (window._repostSections || [])[si];
+      const options = window._repostChannelOptions || [];
+      if (!sec) return;
+      const opts = sec.idxs.map(i => options[i]).filter(Boolean);
+      const allSel = opts.length > 0 && opts.every(o => _isChannelSelected(o));
+      if (allSel) {
+        for (const o of opts) {
+          const k = _channelKey(o);
+          const idx = _repostSelectedChannels.findIndex(c => _channelKey(c) === k);
+          if (idx >= 0) _repostSelectedChannels.splice(idx, 1);
+        }
+      } else {
+        for (const o of opts) {
+          if (!_isChannelSelected(o)) _repostSelectedChannels.push(o);
+        }
+      }
+      _renderRepostChannelList();
       document.getElementById('repostChannelDisplay').innerHTML = _channelsDisplayLabel();
     }
 
@@ -11915,6 +12008,7 @@
       if (!row) return;
 
       _repostEditMode = false;
+      _repostExpandedCats = new Set(); // mỗi lần mở: thu gọn hết các nhóm phân loại
       _repostImages = (Array.isArray(row.images) ? row.images : [])
         .map(u => u.startsWith('/uploads/') ? '/api/image/' + u.slice('/uploads/'.length) : u);
 
