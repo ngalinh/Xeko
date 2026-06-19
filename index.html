@@ -5129,16 +5129,19 @@
       }
       _extrasActiveTab = tab || 'emoji';
       switchExtrasTab(_extrasActiveTab);
-      picker.style.display = 'flex';
+      // Position off-screen first to measure real height
+      const pickerW = 352;
       const btnRect = btn.getBoundingClientRect();
-      const pickerH = 400; const pickerW = 352;
-      let top = btnRect.top - pickerH - 8;
-      if (top < 8) top = btnRect.bottom + 8;
       let left = btnRect.right - pickerW;
       if (left + pickerW > window.innerWidth - 8) left = window.innerWidth - pickerW - 8;
       if (left < 8) left = 8;
-      picker.style.top = top + 'px';
       picker.style.left = left + 'px';
+      picker.style.top = '-9999px';
+      picker.style.display = 'flex';
+      const pickerH = picker.offsetHeight;
+      let top = btnRect.top - pickerH - 8;
+      if (top < 8) top = btnRect.bottom + 8;
+      picker.style.top = top + 'px';
       btn.classList.add('active');
     }
 
