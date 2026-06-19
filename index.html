@@ -662,6 +662,45 @@
     .btn-emoji { background: transparent; color: #6B7280; font-size: 20px; line-height: 1; }
     .btn-emoji:hover { background: #F3F4F6; }
     .btn-emoji.active { color: #F59E0B; background: #FEF3C7; }
+    .btn-extras { background: transparent; color: #6B7280; font-size: 20px; line-height: 1; }
+    .btn-extras:hover { background: #F3F4F6; }
+    .btn-extras.active { color: #F59E0B; background: #FEF3C7; }
+    .extras-picker {
+      position: fixed;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      z-index: 9999;
+      width: 352px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .extras-tab-bar {
+      display: flex;
+      border-bottom: 1px solid #f1f5f9;
+      flex-shrink: 0;
+    }
+    .extras-tab-btn {
+      flex: 1;
+      padding: 9px 0;
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 500;
+      color: #6B7280;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .extras-tab-btn.active { color: #3B82F6; border-bottom-color: #3B82F6; }
+    .extras-tab-btn:hover:not(.active) { background: #F9FAFB; }
     .emoji-picker {
       position: fixed;
       background: #fff;
@@ -913,6 +952,14 @@
     [data-theme="dark"] .btn-textstyle { color: #6B8FA8; }
     [data-theme="dark"] .btn-textstyle:hover { background: #243340; color: #818cf8; }
     [data-theme="dark"] .btn-textstyle.active { color: #818cf8; background: rgba(99,102,241,0.15); }
+    [data-theme="dark"] .btn-extras { color: #6B8FA8; }
+    [data-theme="dark"] .btn-extras:hover { background: #243340; }
+    [data-theme="dark"] .btn-extras.active { color: #F59E0B; background: rgba(245,158,11,0.15); }
+    [data-theme="dark"] .extras-picker { background: #1e2c3a; border-color: #2d4255; }
+    [data-theme="dark"] .extras-tab-bar { border-color: #2d4255; }
+    [data-theme="dark"] .extras-tab-btn { color: #6B8FA8; }
+    [data-theme="dark"] .extras-tab-btn.active { color: #60a5fa; border-bottom-color: #60a5fa; }
+    [data-theme="dark"] .extras-tab-btn:hover:not(.active) { background: #243340; }
     [data-theme="dark"] .text-style-picker { background: #1e2c3a; border-color: #2d4255; }
     [data-theme="dark"] .ts-input-wrap { border-color: #2d4255; }
     [data-theme="dark"] .ts-input-wrap input { background: #243340; border-color: #2d4255; color: #e0e0e0; }
@@ -3434,29 +3481,37 @@
     <button class="clear-btn" onclick="clearImages()">Xoá ảnh</button>
   </div>
 
-  <!-- Text Style Picker Panel -->
-  <div class="text-style-picker" id="textStylePicker">
-    <div class="ts-input-wrap">
-      <input id="tsInput" type="text" placeholder="Nhập văn bản để xem trước..." autocomplete="off" oninput="renderTsStyleList()">
+  <!-- Combined Extras Picker (Emoji + Text Style) -->
+  <div class="extras-picker" id="extrasPicker" style="display:none;">
+    <div class="extras-tab-bar">
+      <button class="extras-tab-btn active" id="extrasTabEmoji" onclick="switchExtrasTab('emoji')">
+        <svg class="xi xi-sm"><use href="#ic-smile"/></svg> Emoji
+      </button>
+      <button class="extras-tab-btn" id="extrasTabText" onclick="switchExtrasTab('textstyle')">
+        <svg class="xi xi-sm"><use href="#ic-textstyle"/></svg> Kiểu chữ
+      </button>
     </div>
-    <div class="ts-list" id="tsStyleList"></div>
-  </div>
-
-  <!-- Emoji Picker Panel -->
-  <div class="emoji-picker" id="emojiPicker" style="display:none;">
-    <div class="emoji-grid-wrap">
-      <div class="emoji-section-label" id="emojiSectionLabel">Mặt cười &amp; Người</div>
-      <div class="emoji-grid" id="emojiGrid"></div>
+    <div class="extras-panel" id="extrasEmojiPanel" style="display:flex; flex-direction:column; overflow:hidden;">
+      <div class="emoji-grid-wrap">
+        <div class="emoji-section-label" id="emojiSectionLabel">Mặt cười &amp; Người</div>
+        <div class="emoji-grid" id="emojiGrid"></div>
+      </div>
+      <div class="emoji-tabs">
+        <button class="emoji-tab active" onclick="switchEmojiTab(this,'😀')" title="Mặt cười">😀</button>
+        <button class="emoji-tab" onclick="switchEmojiTab(this,'👋')" title="Cử chỉ">👋</button>
+        <button class="emoji-tab" onclick="switchEmojiTab(this,'🐶')" title="Động vật">🐶</button>
+        <button class="emoji-tab" onclick="switchEmojiTab(this,'🍔')" title="Thức ăn">🍔</button>
+        <button class="emoji-tab" onclick="switchEmojiTab(this,'✈️')" title="Du lịch">✈️</button>
+        <button class="emoji-tab" onclick="switchEmojiTab(this,'⚽')" title="Hoạt động">⚽</button>
+        <button class="emoji-tab" onclick="switchEmojiTab(this,'💡')" title="Đồ vật">💡</button>
+        <button class="emoji-tab" onclick="switchEmojiTab(this,'❤️')" title="Biểu tượng">❤️</button>
+      </div>
     </div>
-    <div class="emoji-tabs">
-      <button class="emoji-tab active" onclick="switchEmojiTab(this,'😀')" title="Mặt cười">😀</button>
-      <button class="emoji-tab" onclick="switchEmojiTab(this,'👋')" title="Cử chỉ">👋</button>
-      <button class="emoji-tab" onclick="switchEmojiTab(this,'🐶')" title="Động vật">🐶</button>
-      <button class="emoji-tab" onclick="switchEmojiTab(this,'🍔')" title="Thức ăn">🍔</button>
-      <button class="emoji-tab" onclick="switchEmojiTab(this,'✈️')" title="Du lịch">✈️</button>
-      <button class="emoji-tab" onclick="switchEmojiTab(this,'⚽')" title="Hoạt động">⚽</button>
-      <button class="emoji-tab" onclick="switchEmojiTab(this,'💡')" title="Đồ vật">💡</button>
-      <button class="emoji-tab" onclick="switchEmojiTab(this,'❤️')" title="Biểu tượng">❤️</button>
+    <div class="extras-panel" id="extrasTextStylePanel" style="display:none; flex-direction:column; overflow:hidden;">
+      <div class="ts-input-wrap">
+        <input id="tsInput" type="text" placeholder="Nhập văn bản để xem trước..." autocomplete="off" oninput="renderTsStyleList()">
+      </div>
+      <div class="ts-list" id="tsStyleList"></div>
     </div>
   </div>
 
@@ -3468,8 +3523,7 @@
       <button id="btnAiSuggest" class="ai-badge-btn" onclick="openAiSheet()" style="display:none;" aria-label="Gợi ý AI"><svg width="13" height="13" viewBox="0 0 14 13" fill="none" style="vertical-align:-2px;margin-right:3px;"><path d="M5.5 0C5.5 3.04 7.96 5.5 11 5.5C7.96 5.5 5.5 7.96 5.5 11C5.5 7.96 3.04 5.5 0 5.5C3.04 5.5 5.5 3.04 5.5 0Z" fill="white"/><path d="M11.5 0C11.5 1.38 12.62 2.5 14 2.5C12.62 2.5 11.5 3.62 11.5 5C11.5 3.62 10.38 2.5 9 2.5C10.38 2.5 11.5 1.38 11.5 0Z" fill="white" opacity="0.85"/></svg>AI</button>
     </div>
     <input type="text" id="groupIdInput" placeholder="Nhập Group ID..." autocomplete="off" style="display:none; width:140px;">
-    <button class="btn-icon btn-textstyle" id="btnTextStyle" onclick="toggleTextStylePicker()" aria-label="Kiểu chữ" type="button"><svg class="xi xi-md"><use href="#ic-textstyle"/></svg></button>
-    <button class="btn-icon btn-emoji" id="btnEmoji" onclick="toggleEmojiPicker()" aria-label="Chọn emoji" type="button"><svg class="xi xi-md"><use href="#ic-smile"/></svg></button>
+    <button class="btn-icon btn-extras" id="btnExtras" onclick="toggleExtrasPicker('emoji')" aria-label="Emoji &amp; Kiểu chữ" type="button"><svg class="xi xi-md"><use href="#ic-smile"/></svg></button>
     <button class="btn-icon btn-send" id="sendBtn" onclick="sendMessage()" aria-label="Gửi"><svg class="xi xi-md"><use href="#ic-send"/></svg></button>
   </div>
 
@@ -4884,19 +4938,26 @@
       try { localStorage.setItem(_EMOJI_RECENT_KEY, JSON.stringify(r)); } catch {}
     }
 
-    function toggleEmojiPicker() {
-      const picker = document.getElementById('emojiPicker');
-      const btn = document.getElementById('btnEmoji');
+    let _extrasActiveTab = 'emoji';
+
+    function toggleExtrasPicker(tab) {
+      const picker = document.getElementById('extrasPicker');
+      const btn = document.getElementById('btnExtras');
       if (!picker || !btn) return;
       if (picker.style.display !== 'none') {
-        picker.style.display = 'none';
-        btn.classList.remove('active');
+        if (!tab || tab === _extrasActiveTab) {
+          picker.style.display = 'none';
+          btn.classList.remove('active');
+          return;
+        }
+        switchExtrasTab(tab);
         return;
       }
-      renderEmojiGrid(_emojiActiveTab);
+      _extrasActiveTab = tab || 'emoji';
+      switchExtrasTab(_extrasActiveTab);
       picker.style.display = 'flex';
       const btnRect = btn.getBoundingClientRect();
-      const pickerH = 310; const pickerW = 352;
+      const pickerH = 400; const pickerW = 352;
       let top = btnRect.top - pickerH - 8;
       if (top < 8) top = btnRect.bottom + 8;
       let left = btnRect.right - pickerW;
@@ -4904,9 +4965,31 @@
       if (left < 8) left = 8;
       picker.style.top = top + 'px';
       picker.style.left = left + 'px';
-      picker.style.bottom = 'auto';
       btn.classList.add('active');
     }
+
+    function switchExtrasTab(tab) {
+      _extrasActiveTab = tab;
+      const emojiPanel = document.getElementById('extrasEmojiPanel');
+      const textPanel = document.getElementById('extrasTextStylePanel');
+      const emojiTabBtn = document.getElementById('extrasTabEmoji');
+      const textTabBtn = document.getElementById('extrasTabText');
+      if (emojiPanel) emojiPanel.style.display = tab === 'emoji' ? 'flex' : 'none';
+      if (textPanel) textPanel.style.display = tab === 'textstyle' ? 'flex' : 'none';
+      if (emojiTabBtn) emojiTabBtn.classList.toggle('active', tab === 'emoji');
+      if (textTabBtn) textTabBtn.classList.toggle('active', tab === 'textstyle');
+      if (tab === 'emoji') renderEmojiGrid(_emojiActiveTab);
+      if (tab === 'textstyle') {
+        const ta = document.getElementById('msgInput');
+        const tsInput = document.getElementById('tsInput');
+        if (ta && tsInput) tsInput.value = ta.value.slice(ta.selectionStart, ta.selectionEnd) || '';
+        renderTsStyleList();
+        setTimeout(() => { const t = document.getElementById('tsInput'); if (t) t.focus(); }, 50);
+      }
+    }
+
+    function toggleEmojiPicker() { toggleExtrasPicker('emoji'); }
+
 
     function renderEmojiGrid(tab) {
       const grid = document.getElementById('emojiGrid');
@@ -4947,8 +5030,8 @@
     }
 
     document.addEventListener('click', function(e) {
-      const picker = document.getElementById('emojiPicker');
-      const btn = document.getElementById('btnEmoji');
+      const picker = document.getElementById('extrasPicker');
+      const btn = document.getElementById('btnExtras');
       if (picker && btn && picker.style.display !== 'none') {
         if (!picker.contains(e.target) && !btn.contains(e.target)) {
           picker.style.display = 'none';
@@ -4959,8 +5042,8 @@
 
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') {
-        const picker = document.getElementById('emojiPicker');
-        const btn = document.getElementById('btnEmoji');
+        const picker = document.getElementById('extrasPicker');
+        const btn = document.getElementById('btnExtras');
         if (picker && picker.style.display !== 'none') {
           picker.style.display = 'none';
           if (btn) btn.classList.remove('active');
@@ -5053,37 +5136,7 @@
       { key:'upsideDown',  name:'Lật ngược',          fn: ts_upsideDown },
     ];
 
-    function toggleTextStylePicker() {
-      const picker = document.getElementById('textStylePicker');
-      const btn = document.getElementById('btnTextStyle');
-      if (!picker || !btn) return;
-      if (picker.style.display === 'flex') {
-        picker.style.display = 'none';
-        btn.classList.remove('active');
-        return;
-      }
-      // close emoji picker if open
-      const ep = document.getElementById('emojiPicker');
-      const eb = document.getElementById('btnEmoji');
-      if (ep && ep.style.display !== 'none') { ep.style.display = 'none'; if (eb) eb.classList.remove('active'); }
-
-      const ta = document.getElementById('msgInput');
-      const tsInput = document.getElementById('tsInput');
-      if (ta && tsInput) tsInput.value = ta.value.slice(ta.selectionStart, ta.selectionEnd) || '';
-      renderTsStyleList();
-      picker.style.display = 'flex';
-      const btnRect = btn.getBoundingClientRect();
-      const pickerH = 380; const pickerW = 320;
-      let top = btnRect.top - pickerH - 8;
-      if (top < 8) top = btnRect.bottom + 8;
-      let left = btnRect.right - pickerW;
-      if (left + pickerW > window.innerWidth - 8) left = window.innerWidth - pickerW - 8;
-      if (left < 8) left = 8;
-      picker.style.top = top + 'px';
-      picker.style.left = left + 'px';
-      btn.classList.add('active');
-      if (tsInput) tsInput.focus();
-    }
+    function toggleTextStylePicker() { toggleExtrasPicker('textstyle'); }
 
     function renderTsStyleList() {
       const list = document.getElementById('tsStyleList');
@@ -5109,22 +5162,11 @@
       ta.value = ta.value.slice(0, start) + converted + ta.value.slice(end);
       ta.selectionStart = ta.selectionEnd = start + [...converted].length;
       ta.focus(); autoGrowMsgInput(ta);
-      const picker = document.getElementById('textStylePicker');
-      const btn = document.getElementById('btnTextStyle');
+      const picker = document.getElementById('extrasPicker');
+      const btn = document.getElementById('btnExtras');
       if (picker) picker.style.display = 'none';
       if (btn) btn.classList.remove('active');
     }
-
-    document.addEventListener('click', function(e) {
-      const tp = document.getElementById('textStylePicker');
-      const tb = document.getElementById('btnTextStyle');
-      if (tp && tb && tp.style.display === 'flex') {
-        if (!tp.contains(e.target) && !tb.contains(e.target)) {
-          tp.style.display = 'none';
-          tb.classList.remove('active');
-        }
-      }
-    });
 
     const ENCOURAGEMENTS = [
       'Xeko đăng xong rồi nè! Có bài tiếp không thả vào đây nha 🚀',
