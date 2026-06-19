@@ -4261,16 +4261,16 @@
 
       <!-- Post History Table -->
       <div style="background:rgba(255,255,255,0.78); border:1px solid #e5e7eb; border-radius:12px; overflow-x:auto;">
-        <table style="width:100%; min-width:1180px; border-collapse:collapse; font-size:13px; table-layout:fixed;">
+        <table style="width:100%; min-width:1320px; border-collapse:collapse; font-size:13px; table-layout:fixed;">
           <colgroup>
             <col style="width:5%;">
+            <col style="width:16%;">
             <col style="width:17%;">
             <col style="width:13%;">
             <col style="width:13%;">
-            <col style="width:13%;">
-            <col style="width:9%;">
-            <col style="width:11%;">
             <col style="width:8%;">
+            <col style="width:10%;">
+            <col style="width:7%;">
             <col style="width:11%;">
           </colgroup>
           <thead>
@@ -11029,10 +11029,10 @@
             .map(u => u.startsWith('/') ? BASE_URL + u : u);
           if (images.length > 0) {
             const shown = images.slice(0, 4);
-            return `<div style="display:flex; flex-wrap:nowrap; gap:3px; align-items:center;">${shown.map(u => `<a href="${u}" onclick="openLightbox('${u}');return false;"><img src="${u}" style="width:40px; height:40px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:40px;height:40px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;align-items:center;justify-content:center;font-size:14px;'}))"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
+            return `<div style="display:flex; flex-wrap:nowrap; gap:3px; align-items:center; overflow:hidden;">${shown.map(u => `<a href="${u}" onclick="openLightbox('${u}');return false;" style="flex-shrink:0;"><img src="${u}" style="width:40px; height:40px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:40px;height:40px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;align-items:center;justify-content:center;font-size:14px;'}))"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
           }
           if (imgCount > 0) {
-            return `<div style="display:flex; flex-wrap:nowrap; gap:3px; align-items:center;">${Array.from({length: Math.min(imgCount, 4)}).map(() => '<span style="display:inline-flex; width:40px; height:40px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:14px;">🖼️</span>').join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
+            return `<div style="display:flex; flex-wrap:nowrap; gap:3px; align-items:center; overflow:hidden;">${Array.from({length: Math.min(imgCount, 4)}).map(() => '<span style="display:inline-flex; flex-shrink:0; width:40px; height:40px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:14px;">🖼️</span>').join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
           }
           return '<span style="color:#bbb;">—</span>';
         };
