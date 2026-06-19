@@ -11839,6 +11839,27 @@
           sub: g._platform === 'zalo' ? 'Zalo' : (g.id || ''),
         }))
       ];
+
+      // Bổ sung các kênh ĐANG được chọn nhưng KHÔNG thuộc danh sách nhóm của tài
+      // khoản đang xem (vd: kênh gốc của bài Zalo thuộc tài khoản Zalo khác — khi
+      // repost, ô tài khoản FB mặc định về profile đầu tiên nên nhóm gốc không
+      // nằm trong danh sách). Nếu không render, kênh này vẫn nằm trong
+      // _repostSelectedChannels nhưng user KHÔNG thấy và KHÔNG bỏ chọn được →
+      // repost bị đăng nhầm sang cả kênh gốc (bug đăng trùng 2 tài khoản).
+      for (const ch of _repostSelectedChannels) {
+        const k = _channelKey(ch);
+        if (options.some(o => _channelKey(o) === k)) continue;
+        options.push({
+          type: ch.type, platform: ch.platform,
+          key: ch.key, id: ch.id, name: ch.name,
+          zaloAccount: ch.zaloAccount || '',
+          label: ch.type === 'personal'
+            ? `${xekoIcon('home')} Profile`
+            : (ch.platform === 'zalo' ? xekoIcon('chat') + ' ' : xekoIcon('users') + ' ') + (ch.name || ch.key || ''),
+          sub: ch.platform === 'zalo' ? (ch.zaloAccount ? 'Zalo · ' + ch.zaloAccount : 'Zalo') : (ch.id || ''),
+        });
+      }
+
       window._repostChannelOptions = options;
 
       const list = document.getElementById('repostChannelList');
