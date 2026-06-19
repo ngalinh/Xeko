@@ -713,6 +713,57 @@
     }
     .emoji-item:hover { background: #F3F4F6; transform: scale(1.25); }
 
+    /* Text style picker */
+    .btn-textstyle { background: transparent; color: #6B7280; }
+    .btn-textstyle:hover { background: #F3F4F6; color: #6366f1; }
+    .btn-textstyle.active { color: #6366f1; background: #EEF2FF; }
+    .text-style-picker {
+      position: fixed;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      z-index: 9999;
+      width: 320px;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .ts-input-wrap {
+      padding: 8px 8px 6px;
+      border-bottom: 1px solid #f1f5f9;
+      flex-shrink: 0;
+    }
+    .ts-input-wrap input {
+      width: 100%; box-sizing: border-box;
+      padding: 7px 11px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 13px; outline: none;
+      font-family: inherit; color: #1e293b;
+      background: #f8fafc;
+    }
+    .ts-input-wrap input:focus { border-color: #6366f1; background: #fff; }
+    .ts-list { overflow-y: auto; max-height: 340px; }
+    .ts-list::-webkit-scrollbar { width: 4px; }
+    .ts-list::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
+    .ts-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 12px; cursor: pointer;
+      transition: background 0.1s;
+    }
+    .ts-item:hover { background: #F3F4F6; }
+    .ts-name {
+      font-size: 10px; color: #9ca3af; font-weight: 700;
+      flex-shrink: 0; width: 80px; text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .ts-preview {
+      font-size: 15px; color: #1e293b;
+      flex: 1; text-align: right;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
     /* Photo grid */
     .photo-grid {
       display: grid; gap: 2px; border-radius: 12px;
@@ -859,6 +910,17 @@
     [data-theme="dark"] .btn-emoji { color: #6B8FA8; }
     [data-theme="dark"] .btn-emoji:hover { background: #243340; }
     [data-theme="dark"] .btn-emoji.active { color: #F59E0B; background: rgba(245,158,11,0.15); }
+    [data-theme="dark"] .btn-textstyle { color: #6B8FA8; }
+    [data-theme="dark"] .btn-textstyle:hover { background: #243340; color: #818cf8; }
+    [data-theme="dark"] .btn-textstyle.active { color: #818cf8; background: rgba(99,102,241,0.15); }
+    [data-theme="dark"] .text-style-picker { background: #1e2c3a; border-color: #2d4255; }
+    [data-theme="dark"] .ts-input-wrap { border-color: #2d4255; }
+    [data-theme="dark"] .ts-input-wrap input { background: #243340; border-color: #2d4255; color: #e0e0e0; }
+    [data-theme="dark"] .ts-input-wrap input:focus { border-color: #6366f1; background: #2d4255; }
+    [data-theme="dark"] .ts-item:hover { background: #243340; }
+    [data-theme="dark"] .ts-name { color: #4B6880; }
+    [data-theme="dark"] .ts-preview { color: #c8d6e0; }
+    [data-theme="dark"] .ts-list::-webkit-scrollbar-thumb { background: #2d4255; }
     [data-theme="dark"] .emoji-picker { background: #1e2c3a; border-color: #2d4255; }
     [data-theme="dark"] .emoji-section-label { color: #4B6880; }
     [data-theme="dark"] .emoji-tabs { border-color: #2d4255; }
@@ -3242,6 +3304,17 @@
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         <polyline points="14 2 14 8 20 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
       </symbol>
+      <symbol id="ic-smile" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M8.5 14.5c.5 1 1.8 1.8 3.5 1.8s3-.8 3.5-1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="9.5" cy="10" r="1" fill="currentColor"/>
+        <circle cx="14.5" cy="10" r="1" fill="currentColor"/>
+      </symbol>
+      <symbol id="ic-textstyle" viewBox="0 0 24 24">
+        <path d="M4 6h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M12 6v13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M8 19h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </symbol>
     </defs>
   </svg>
 
@@ -3361,6 +3434,14 @@
     <button class="clear-btn" onclick="clearImages()">Xoá ảnh</button>
   </div>
 
+  <!-- Text Style Picker Panel -->
+  <div class="text-style-picker" id="textStylePicker">
+    <div class="ts-input-wrap">
+      <input id="tsInput" type="text" placeholder="Nhập văn bản để xem trước..." autocomplete="off" oninput="renderTsStyleList()">
+    </div>
+    <div class="ts-list" id="tsStyleList"></div>
+  </div>
+
   <!-- Emoji Picker Panel -->
   <div class="emoji-picker" id="emojiPicker" style="display:none;">
     <div class="emoji-grid-wrap">
@@ -3387,7 +3468,8 @@
       <button id="btnAiSuggest" class="ai-badge-btn" onclick="openAiSheet()" style="display:none;" aria-label="Gợi ý AI"><svg width="13" height="13" viewBox="0 0 14 13" fill="none" style="vertical-align:-2px;margin-right:3px;"><path d="M5.5 0C5.5 3.04 7.96 5.5 11 5.5C7.96 5.5 5.5 7.96 5.5 11C5.5 7.96 3.04 5.5 0 5.5C3.04 5.5 5.5 3.04 5.5 0Z" fill="white"/><path d="M11.5 0C11.5 1.38 12.62 2.5 14 2.5C12.62 2.5 11.5 3.62 11.5 5C11.5 3.62 10.38 2.5 9 2.5C10.38 2.5 11.5 1.38 11.5 0Z" fill="white" opacity="0.85"/></svg>AI</button>
     </div>
     <input type="text" id="groupIdInput" placeholder="Nhập Group ID..." autocomplete="off" style="display:none; width:140px;">
-    <button class="btn-icon btn-emoji" id="btnEmoji" onclick="toggleEmojiPicker()" aria-label="Chọn emoji" type="button">🙂</button>
+    <button class="btn-icon btn-textstyle" id="btnTextStyle" onclick="toggleTextStylePicker()" aria-label="Kiểu chữ" type="button"><svg class="xi xi-md"><use href="#ic-textstyle"/></svg></button>
+    <button class="btn-icon btn-emoji" id="btnEmoji" onclick="toggleEmojiPicker()" aria-label="Chọn emoji" type="button"><svg class="xi xi-md"><use href="#ic-smile"/></svg></button>
     <button class="btn-icon btn-send" id="sendBtn" onclick="sendMessage()" aria-label="Gửi"><svg class="xi xi-md"><use href="#ic-send"/></svg></button>
   </div>
 
@@ -4882,6 +4964,164 @@
         if (picker && picker.style.display !== 'none') {
           picker.style.display = 'none';
           if (btn) btn.classList.remove('active');
+        }
+      }
+    });
+
+    // Text style converter
+    function _tsRange(text, Acp, acp, zerocp, exc) {
+      return [...text].map(ch => {
+        if (exc && exc[ch]) return exc[ch];
+        const c = ch.charCodeAt(0);
+        if (c >= 65 && c <= 90 && Acp) return String.fromCodePoint(Acp + c - 65);
+        if (c >= 97 && c <= 122 && acp) return String.fromCodePoint(acp + c - 97);
+        if (c >= 48 && c <= 57 && zerocp) return String.fromCodePoint(zerocp + c - 48);
+        return ch;
+      }).join('');
+    }
+    function ts_bold(t)        { return _tsRange(t, 0x1D400, 0x1D41A, 0x1D7CE); }
+    function ts_italic(t)      { return _tsRange(t, 0x1D434, 0x1D44E, null, {'h':'ℎ'}); }
+    function ts_boldItalic(t)  { return _tsRange(t, 0x1D468, 0x1D482, null); }
+    function ts_script(t)      { return _tsRange(t, 0x1D49C, 0x1D4B6, null, {'B':'ℬ','E':'ℰ','F':'ℱ','H':'ℋ','I':'ℐ','L':'ℒ','M':'ℳ','R':'ℛ','e':'ℯ','g':'ℊ','o':'ℴ'}); }
+    function ts_boldScript(t)  { return _tsRange(t, 0x1D4D0, 0x1D4EA, null); }
+    function ts_fraktur(t)     { return _tsRange(t, 0x1D504, 0x1D51E, null, {'C':'ℭ','H':'ℌ','I':'ℑ','R':'ℜ','Z':'ℨ'}); }
+    function ts_doubleStruck(t){ return _tsRange(t, 0x1D538, 0x1D552, 0x1D7D8, {'C':'ℂ','H':'ℍ','N':'ℕ','P':'ℙ','Q':'ℚ','R':'ℝ','Z':'ℤ'}); }
+    function ts_mono(t)        { return _tsRange(t, 0x1D670, 0x1D68A, 0x1D7F6); }
+    function ts_sansBold(t)    { return _tsRange(t, 0x1D5D4, 0x1D5EE, 0x1D7EC); }
+    function ts_sansItalic(t)  { return _tsRange(t, 0x1D608, 0x1D622, null); }
+    function ts_fullwidth(t) {
+      return [...t].map(ch => {
+        const c = ch.charCodeAt(0);
+        if (c >= 33 && c <= 126) return String.fromCodePoint(c + 0xFEE0);
+        if (c === 32) return '　';
+        return ch;
+      }).join('');
+    }
+    const _smallCapsMap = {'a':'ᴀ','b':'ʙ','c':'ᴄ','d':'ᴅ','e':'ᴇ','f':'ꜰ','g':'ɢ','h':'ʜ','i':'ɪ','j':'ᴊ','k':'ᴋ','l':'ʟ','m':'ᴍ','n':'ɴ','o':'ᴏ','p':'ᴘ','q':'ǫ','r':'ʀ','s':'ꜱ','t':'ᴛ','u':'ᴜ','v':'ᴠ','w':'ᴡ','x':'x','y':'ʏ','z':'ᴢ'};
+    function ts_smallCaps(t)   { return [...t].map(ch => _smallCapsMap[ch.toLowerCase()] || ch).join(''); }
+    function ts_circled(t) {
+      return [...t].map(ch => {
+        const c = ch.charCodeAt(0);
+        if (c >= 65 && c <= 90) return String.fromCodePoint(0x24B6 + c - 65);
+        if (c >= 97 && c <= 122) return String.fromCodePoint(0x24D0 + c - 97);
+        if (c === 48) return '⓪';
+        if (c >= 49 && c <= 57) return String.fromCodePoint(0x2460 + c - 49);
+        return ch;
+      }).join('');
+    }
+    function ts_squared(t) {
+      return [...t].map(ch => {
+        const c = ch.charCodeAt(0);
+        if (c >= 65 && c <= 90) return String.fromCodePoint(0x1F130 + c - 65);
+        if (c >= 97 && c <= 122) return String.fromCodePoint(0x1F130 + c - 97);
+        return ch;
+      }).join('');
+    }
+    function ts_negSquared(t) {
+      return [...t].map(ch => {
+        const c = ch.charCodeAt(0);
+        if (c >= 65 && c <= 90) return String.fromCodePoint(0x1F170 + c - 65);
+        if (c >= 97 && c <= 122) return String.fromCodePoint(0x1F170 + c - 97);
+        return ch;
+      }).join('');
+    }
+    function ts_strike(t)     { return [...t].map(ch => ch + '̶').join(''); }
+    function ts_underline(t)  { return [...t].map(ch => ch + '̲').join(''); }
+    function ts_doubleStrike(t){ return [...t].map(ch => ch + '̵').join(''); }
+    const _upsideDownMap = {'a':'ɐ','b':'q','c':'ɔ','d':'p','e':'ǝ','f':'ɟ','g':'ƃ','h':'ɥ','i':'ᴉ','j':'ɾ','k':'ʞ','l':'l','m':'ɯ','n':'u','o':'o','p':'d','q':'b','r':'ɹ','s':'s','t':'ʇ','u':'n','v':'ʌ','w':'ʍ','x':'x','y':'ʎ','z':'z','A':'∀','B':'q','C':'Ɔ','D':'p','E':'Ǝ','F':'Ⅎ','G':'פ','H':'H','I':'I','J':'ɾ','K':'ʞ','L':'˥','M':'W','N':'N','O':'O','P':'Ԁ','Q':'Q','R':'ᴚ','S':'S','T':'⊥','U':'∩','V':'Λ','W':'M','X':'X','Y':'⅄','Z':'Z','0':'0','1':'Ɩ','2':'ᄅ','3':'Ɛ','4':'ㄣ','5':'ϛ','6':'9','7':'L','8':'8','9':'6'};
+    function ts_upsideDown(t) { return [...t].map(ch => _upsideDownMap[ch] || ch).reverse().join(''); }
+
+    const _TS_STYLES = [
+      { key:'bold',        name:'In đậm',           fn: ts_bold },
+      { key:'italic',      name:'In nghiêng',        fn: ts_italic },
+      { key:'boldItalic',  name:'Đậm nghiêng',       fn: ts_boldItalic },
+      { key:'sansBold',    name:'Sans đậm',          fn: ts_sansBold },
+      { key:'sansItalic',  name:'Sans nghiêng',      fn: ts_sansItalic },
+      { key:'script',      name:'Chữ viết tay',      fn: ts_script },
+      { key:'boldScript',  name:'Viết tay đậm',      fn: ts_boldScript },
+      { key:'fraktur',     name:'Gothic',             fn: ts_fraktur },
+      { key:'doubleStruck',name:'Chữ kép',            fn: ts_doubleStruck },
+      { key:'mono',        name:'Monospace',          fn: ts_mono },
+      { key:'fullwidth',   name:'Toàn chiều rộng',    fn: ts_fullwidth },
+      { key:'smallCaps',   name:'Chữ hoa nhỏ',        fn: ts_smallCaps },
+      { key:'circled',     name:'Có vòng tròn',       fn: ts_circled },
+      { key:'squared',     name:'Có ô vuông',         fn: ts_squared },
+      { key:'negSquared',  name:'Ô vuông đặc',        fn: ts_negSquared },
+      { key:'strike',      name:'Gạch ngang',         fn: ts_strike },
+      { key:'underline',   name:'Gạch chân',          fn: ts_underline },
+      { key:'doubleStrike',name:'Gạch kép',           fn: ts_doubleStrike },
+      { key:'upsideDown',  name:'Lật ngược',          fn: ts_upsideDown },
+    ];
+
+    function toggleTextStylePicker() {
+      const picker = document.getElementById('textStylePicker');
+      const btn = document.getElementById('btnTextStyle');
+      if (!picker || !btn) return;
+      if (picker.style.display === 'flex') {
+        picker.style.display = 'none';
+        btn.classList.remove('active');
+        return;
+      }
+      // close emoji picker if open
+      const ep = document.getElementById('emojiPicker');
+      const eb = document.getElementById('btnEmoji');
+      if (ep && ep.style.display !== 'none') { ep.style.display = 'none'; if (eb) eb.classList.remove('active'); }
+
+      const ta = document.getElementById('msgInput');
+      const tsInput = document.getElementById('tsInput');
+      if (ta && tsInput) tsInput.value = ta.value.slice(ta.selectionStart, ta.selectionEnd) || '';
+      renderTsStyleList();
+      picker.style.display = 'flex';
+      const btnRect = btn.getBoundingClientRect();
+      const pickerH = 380; const pickerW = 320;
+      let top = btnRect.top - pickerH - 8;
+      if (top < 8) top = btnRect.bottom + 8;
+      let left = btnRect.right - pickerW;
+      if (left + pickerW > window.innerWidth - 8) left = window.innerWidth - pickerW - 8;
+      if (left < 8) left = 8;
+      picker.style.top = top + 'px';
+      picker.style.left = left + 'px';
+      btn.classList.add('active');
+      if (tsInput) tsInput.focus();
+    }
+
+    function renderTsStyleList() {
+      const list = document.getElementById('tsStyleList');
+      const tsInput = document.getElementById('tsInput');
+      if (!list) return;
+      const sample = (tsInput && tsInput.value) || 'Abc 123';
+      list.innerHTML = _TS_STYLES.map(s => {
+        const preview = s.fn(sample);
+        return `<div class="ts-item" onclick="applyTextStyle('${s.key}')"><span class="ts-name">${s.name}</span><span class="ts-preview">${preview}</span></div>`;
+      }).join('');
+    }
+
+    function applyTextStyle(styleKey) {
+      const style = _TS_STYLES.find(s => s.key === styleKey);
+      if (!style) return;
+      const tsInput = document.getElementById('tsInput');
+      const text = tsInput ? tsInput.value : '';
+      if (!text.trim()) return;
+      const ta = document.getElementById('msgInput');
+      if (!ta) return;
+      const converted = style.fn(text);
+      const start = ta.selectionStart; const end = ta.selectionEnd;
+      ta.value = ta.value.slice(0, start) + converted + ta.value.slice(end);
+      ta.selectionStart = ta.selectionEnd = start + [...converted].length;
+      ta.focus(); autoGrowMsgInput(ta);
+      const picker = document.getElementById('textStylePicker');
+      const btn = document.getElementById('btnTextStyle');
+      if (picker) picker.style.display = 'none';
+      if (btn) btn.classList.remove('active');
+    }
+
+    document.addEventListener('click', function(e) {
+      const tp = document.getElementById('textStylePicker');
+      const tb = document.getElementById('btnTextStyle');
+      if (tp && tb && tp.style.display === 'flex') {
+        if (!tp.contains(e.target) && !tb.contains(e.target)) {
+          tp.style.display = 'none';
+          tb.classList.remove('active');
         }
       }
     });
