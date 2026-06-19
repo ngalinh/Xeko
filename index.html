@@ -4270,8 +4270,8 @@
             <col style="width:13%;">
             <col style="width:8%;">
             <col style="width:10%;">
-            <col style="width:7%;">
             <col style="width:11%;">
+            <col style="width:7%;">
           </colgroup>
           <thead>
             <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
@@ -4282,8 +4282,8 @@
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Nơi đăng</th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Thời gian</th>
               <th style="padding:10px 12px; text-align:center; font-weight:600; white-space:nowrap;">Trạng thái</th>
-              <th style="padding:10px 12px; text-align:center; font-weight:600; white-space:nowrap;">Seeding</th>
               <th style="padding:10px 12px; text-align:center; font-weight:600; white-space:nowrap;">Thao tác</th>
+              <th style="padding:10px 12px; text-align:center; font-weight:600; white-space:nowrap;">Seeding</th>
             </tr>
           </thead>
           <tbody id="dashHistoryBody"></tbody>
@@ -11065,8 +11065,8 @@
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${tgtLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${grpLabel}</div>`}</div></td>
               <td style="padding:8px 12px; vertical-align:middle;">${timeStacked}</td>
               <td style="padding:8px 12px; text-align:center;"><span class="badge-pulse" style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span></td>
-              <td style="padding:8px 12px; text-align:center; color:#cbd5e1;">—</td>
               <td style="padding:8px 12px; text-align:center;"><button onclick="_dismissPendingDbRow(${row.id},'pending-log-${row.id}')" title="Bỏ qua / Đánh dấu đã xử lý" style="background:none;border:1px solid #d1d5db;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;color:#6b7280;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">✕ Bỏ qua</button></td>
+              <td style="padding:8px 12px; text-align:center; color:#cbd5e1;">—</td>
             </tr>`;
           }),
           ..._stalePendingRows.map(row => {
@@ -11090,8 +11090,8 @@
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${tgtLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${grpLabel}</div>`}</div></td>
               <td style="padding:8px 12px; vertical-align:middle;">${timeStacked}</td>
               <td style="padding:8px 12px; text-align:center;"><span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="Quá 30 phút không nhận được xác nhận từ server">⚠️ Không xác nhận</span></td>
-              <td style="padding:8px 12px; text-align:center; color:#cbd5e1;">—</td>
               <td style="padding:8px 12px; text-align:center;"><button onclick="_dismissPendingDbRow(${row.id},'pending-log-stale-${row.id}')" title="Bỏ qua / Đánh dấu đã xử lý" style="background:none;border:1px solid #d1d5db;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;color:#6b7280;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">✕ Bỏ qua</button></td>
+              <td style="padding:8px 12px; text-align:center; color:#cbd5e1;">—</td>
             </tr>`;
           }),
         ].join('');
@@ -11133,10 +11133,10 @@
             <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${schedPlatformLabel} - ${targetLabel}</div>${schedIsPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupIdRaw.replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
             <td style="padding:8px 12px; vertical-align:middle;">${time}</td>
             <td style="padding:8px 12px; text-align:center;">${statusBadge}</td>
-            <td style="padding:8px 12px; text-align:center; color:#cbd5e1;">—</td>
             <td style="padding:8px 10px; text-align:center;">
               <button onclick="cancelScheduleFromTable(${sched.id})" title="Hủy lịch đăng" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
             </td>
+            <td style="padding:8px 12px; text-align:center; color:#cbd5e1;">—</td>
           </tr>`;
         }).join('');
 
@@ -11384,7 +11384,6 @@
               <td style="padding:8px 12px;"><div style="line-height:1.3; overflow:hidden; min-width:0;"><div style="font-size:12px; display:inline-flex; align-items:center; gap:4px; max-width:100%; overflow:hidden;"><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${noiDangLabel(row)}</span>${postLinkIcon(row.post_url)}</div>${(row.target === 'personal' || !noiDangSub) ? '' : `<div style="font-size:11px; color:#6b7280; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;" title="${noiDangTitle.replace(/"/g,'&quot;')}">${noiDangSub}</div>`}</div></td>
               <td style="padding:8px 12px; vertical-align:middle;">${fmtTimeStacked(row.timestamp)}</td>
               <td style="padding:8px 12px; text-align:center;">${statusBadgeFor(row)}</td>
-              ${seedCell(row)}
               <td style="padding:8px 10px; text-align:center;">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
                   <button onclick="openRepostModal(${idx})" title="Đăng lại" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#DBEAFE;color:#1E3A8A;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#BFDBFE'" onmouseout="this.style.background='#DBEAFE'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
@@ -11392,6 +11391,7 @@
                   <button onclick="openSingleDeleteConfirm(${row.id})" title="Xóa" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
                 </div>
               </td>
+              ${seedCell(row)}
             </tr>`;
           };
 
@@ -11474,7 +11474,6 @@
               <td style="padding:8px 12px;"><div style="line-height:1.3; overflow:hidden; min-width:0;"><div style="font-size:12px;">Đa kênh</div><div style="font-size:11px; color:#6b7280; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${platBreakdown}</div></div></td>
               <td style="padding:8px 12px; vertical-align:middle;">${fmtTimeStacked(firstRow.timestamp)}</td>
               <td style="padding:8px 12px; text-align:center;">${summaryBadge}</td>
-              ${seedCellForRows(group.rows, firstRow.id)}
               <td style="padding:8px 10px; text-align:center;" onclick="event.stopPropagation()">
                 <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
                   <button onclick="openRepostModal(${firstIdx})" title="Đăng lại" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#DBEAFE;color:#1E3A8A;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#BFDBFE'" onmouseout="this.style.background='#DBEAFE'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-refresh"/></svg></button>
@@ -11482,6 +11481,7 @@
                   <button onclick="openBatchDeleteConfirm('${idsAttr}')" title="Xóa toàn bộ phiên (${total} bài)" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
                 </div>
               </td>
+              ${seedCellForRows(group.rows, firstRow.id)}
             </tr>`;
 
             const childrenHtml = group.rows.map((row, k) => {
@@ -11511,13 +11511,13 @@
                 <td style="padding:8px 12px;"><div style="line-height:1.3; overflow:hidden; min-width:0;"><div style="font-size:12px; display:inline-flex; align-items:center; gap:4px; max-width:100%; overflow:hidden;"><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${noiDangLabel(row)}</span>${postLinkIcon(row.post_url)}</div>${(row.target === 'personal' || !childNoisub) ? '' : `<div style="font-size:11px; color:#6b7280; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;" title="${childNoiTitle.replace(/"/g,'&quot;')}">${childNoisub}</div>`}</div></td>
                 <td style="padding:8px 12px; vertical-align:middle;">${fmtTimeStacked(row.timestamp, true)}</td>
                 <td style="padding:8px 12px; text-align:center;">${statusBadgeFor(row)}</td>
-                ${seedCell(row)}
                 <td style="padding:6px 10px; text-align:center;">
                   <div style="display:flex; gap:5px; justify-content:center; align-items:center;">
                     ${row.post_url && row.platform !== 'zalo' ? `<button onclick="openSeedModal(${row.id})" title="Seeding" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:none;border-radius:999px;background:#D1FAE5;color:#065F46;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#A7F3D0'" onmouseout="this.style.background='#D1FAE5'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-chat"/></svg></button>` : ''}
                     <button onclick="openSingleDeleteConfirm(${row.id})" title="Xóa dòng này" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
                   </div>
                 </td>
+                ${seedCell(row)}
               </tr>`;
             }).join('');
 
