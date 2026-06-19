@@ -659,6 +659,60 @@
     .btn-send { background: #3B82F6; color: #fff; }
     .btn-send:hover { background: #2563EB; }
     .btn-send:disabled { background: #D1D5DB; cursor: not-allowed; }
+    .btn-emoji { background: transparent; color: #6B7280; font-size: 20px; line-height: 1; }
+    .btn-emoji:hover { background: #F3F4F6; }
+    .btn-emoji.active { color: #F59E0B; background: #FEF3C7; }
+    .emoji-picker {
+      position: fixed;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      z-index: 9999;
+      overflow: hidden;
+      width: 300px;
+    }
+    .emoji-tabs {
+      display: flex;
+      gap: 2px;
+      padding: 6px 6px 4px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .emoji-tab {
+      flex: 1;
+      height: 32px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.1s;
+      opacity: 0.55;
+    }
+    .emoji-tab:hover, .emoji-tab.active { background: #EFF6FF; opacity: 1; }
+    .emoji-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 1px;
+      padding: 6px 6px 8px;
+      max-height: 176px;
+      overflow-y: auto;
+    }
+    .emoji-grid::-webkit-scrollbar { width: 4px; }
+    .emoji-grid::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
+    .emoji-item {
+      height: 34px;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 20px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.1s, transform 0.1s;
+      line-height: 1;
+    }
+    .emoji-item:hover { background: #F3F4F6; transform: scale(1.25); }
 
     /* Photo grid */
     .photo-grid {
@@ -803,6 +857,14 @@
     [data-theme="dark"] .input-area #msgInput:focus { border-color: #4B9EE5; background: #2d4255; box-shadow: none; }
     [data-theme="dark"] .btn-attach { background: transparent; color: #6B8FA8; }
     [data-theme="dark"] .btn-attach:hover { background: #243340; color: #4B9EE5; }
+    [data-theme="dark"] .btn-emoji { color: #6B8FA8; }
+    [data-theme="dark"] .btn-emoji:hover { background: #243340; }
+    [data-theme="dark"] .btn-emoji.active { color: #F59E0B; background: rgba(245,158,11,0.15); }
+    [data-theme="dark"] .emoji-picker { background: #1e2c3a; border-color: #2d4255; }
+    [data-theme="dark"] .emoji-tabs { border-color: #2d4255; }
+    [data-theme="dark"] .emoji-tab:hover, [data-theme="dark"] .emoji-tab.active { background: #243340; }
+    [data-theme="dark"] .emoji-item:hover { background: #243340; }
+    [data-theme="dark"] .emoji-grid::-webkit-scrollbar-thumb { background: #2d4255; }
 
     [data-theme="dark"] .image-preview { background: #16172b; border-color: #2a2a4a; }
     [data-theme="dark"] .preview-item img { border-color: #3a3a5a; }
@@ -3299,8 +3361,21 @@
     <button class="clear-btn" onclick="clearImages()">Xoá ảnh</button>
   </div>
 
+  <!-- Emoji Picker Panel -->
+  <div class="emoji-picker" id="emojiPicker" style="display:none;">
+    <div class="emoji-tabs">
+      <button class="emoji-tab active" onclick="switchEmojiTab(this,'😀')" title="Mặt cười">😀</button>
+      <button class="emoji-tab" onclick="switchEmojiTab(this,'👋')" title="Cử chỉ">👋</button>
+      <button class="emoji-tab" onclick="switchEmojiTab(this,'🌿')" title="Thiên nhiên">🌿</button>
+      <button class="emoji-tab" onclick="switchEmojiTab(this,'💡')" title="Đồ vật">💡</button>
+      <button class="emoji-tab" onclick="switchEmojiTab(this,'❤️')" title="Biểu tượng">❤️</button>
+    </div>
+    <div class="emoji-grid" id="emojiGrid"></div>
+  </div>
+
   <div class="input-area" id="inputArea">
     <button class="btn-icon btn-attach" onclick="document.getElementById('fileInput').click()" aria-label="Đính kèm ảnh"><svg class="xi xi-md"><use href="#ic-camera"/></svg></button>
+    <button class="btn-icon btn-emoji" id="btnEmoji" onclick="toggleEmojiPicker()" aria-label="Chọn emoji" type="button">😊</button>
     <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this)">
     <div style="position:relative; flex:1; display:flex;">
       <textarea id="msgInput" rows="1" placeholder="Nhập nội dung bài viết" autocomplete="off" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();sendMessage();}" oninput="autoGrowMsgInput(this)" style="flex:1;"></textarea>
@@ -4615,6 +4690,91 @@
       el.value = '';
       el.style.height = '';
     }
+
+    // Emoji picker
+    const _EMOJI_DATA = {
+      '😀': ['😀','😂','🤣','😍','🥰','😘','😎','🤩','🥳','😭','😢','😅','🤔','😱','😡','🤗','😴','🥺','😏','🤭','😇','🤯','🥶','🤡','😈','💀','🫡','🥹','😮','😤','🤪','😋','😜','😝','🤑','🤠','🤥','😶','🙄','😬'],
+      '👋': ['👋','👍','👎','👏','🙌','🤝','🫶','💪','✌️','🤞','🖐️','☝️','🤙','🫰','🙏','🤲','🫂','💅','🤌','🫵','✊','👊','🤛','🤜','🤚','🖖','🫱','🫲','🫳','🫴','👐','🤜'],
+      '🌿': ['🌟','⭐','🔥','💥','🌈','☀️','🌙','⛅','🌺','🌸','🍀','🌿','🌴','🦋','🌊','❄️','🌻','🍁','🌵','🍄','🌍','🌏','⚡','🌪️','🌤️','🌧️','🌩️','🌱','🌾','🎋'],
+      '💡': ['💰','🎉','🎁','🏆','📱','💡','🎯','🚀','💎','🎶','📸','🎨','🛒','💌','📦','🔑','💻','🎮','📊','⏰','📢','🔔','🎵','🎤','📝','✏️','📌','🏷️','🎪','🧩'],
+      '❤️': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','❣️','💕','💞','💓','💗','💖','💘','💝','✅','❌','⚡','💯','⭕','🎊','🎀','🎈','✨','🌠','🔴','🟢','🔵']
+    };
+    let _emojiActiveTab = '😀';
+
+    function toggleEmojiPicker() {
+      const picker = document.getElementById('emojiPicker');
+      const btn = document.getElementById('btnEmoji');
+      if (!picker || !btn) return;
+      const isOpen = picker.style.display !== 'none';
+      if (isOpen) {
+        picker.style.display = 'none';
+        btn.classList.remove('active');
+        return;
+      }
+      renderEmojiGrid(_emojiActiveTab);
+      picker.style.display = 'block';
+      const btnRect = btn.getBoundingClientRect();
+      const pickerH = 240;
+      const pickerW = 300;
+      let top = btnRect.top - pickerH - 8;
+      if (top < 8) top = btnRect.bottom + 8;
+      let left = btnRect.left;
+      if (left + pickerW > window.innerWidth - 8) left = window.innerWidth - pickerW - 8;
+      if (left < 8) left = 8;
+      picker.style.top = top + 'px';
+      picker.style.left = left + 'px';
+      picker.style.bottom = 'auto';
+      btn.classList.add('active');
+    }
+
+    function renderEmojiGrid(tab) {
+      const grid = document.getElementById('emojiGrid');
+      if (!grid) return;
+      const emojis = _EMOJI_DATA[tab] || [];
+      grid.innerHTML = emojis.map(e =>
+        `<button class="emoji-item" data-emoji="${e}" onclick="insertEmoji(this.dataset.emoji)">${e}</button>`
+      ).join('');
+    }
+
+    function switchEmojiTab(el, tab) {
+      _emojiActiveTab = tab;
+      document.querySelectorAll('.emoji-tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      renderEmojiGrid(tab);
+    }
+
+    function insertEmoji(emoji) {
+      const ta = document.getElementById('msgInput');
+      if (!ta) return;
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      ta.value = ta.value.slice(0, start) + emoji + ta.value.slice(end);
+      ta.selectionStart = ta.selectionEnd = start + [...emoji].length;
+      ta.focus();
+      autoGrowMsgInput(ta);
+    }
+
+    document.addEventListener('click', function(e) {
+      const picker = document.getElementById('emojiPicker');
+      const btn = document.getElementById('btnEmoji');
+      if (picker && btn && picker.style.display !== 'none') {
+        if (!picker.contains(e.target) && !btn.contains(e.target)) {
+          picker.style.display = 'none';
+          btn.classList.remove('active');
+        }
+      }
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        const picker = document.getElementById('emojiPicker');
+        const btn = document.getElementById('btnEmoji');
+        if (picker && picker.style.display !== 'none') {
+          picker.style.display = 'none';
+          if (btn) btn.classList.remove('active');
+        }
+      }
+    });
 
     const ENCOURAGEMENTS = [
       'Xeko đăng xong rồi nè! Có bài tiếp không thả vào đây nha 🚀',
