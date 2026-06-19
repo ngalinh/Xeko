@@ -488,7 +488,7 @@
     [data-theme="dark"] .image-preview .image-count { background: #1e2747; color: #93C5FD; }
     /* AI badge button on textarea */
     .ai-badge-btn {
-      position: absolute; top: 50%; right: 34px; transform: translateY(-50%);
+      position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
       background: linear-gradient(135deg, #6366f1, #8b5cf6);
       color: #fff; border: none; border-radius: 10px;
       padding: 4px 10px; font-size: 11px; font-weight: 700;
@@ -659,18 +659,9 @@
     .btn-send { background: #3B82F6; color: #fff; }
     .btn-send:hover { background: #2563EB; }
     .btn-send:disabled { background: #D1D5DB; cursor: not-allowed; }
-    .btn-emoji-inline {
-      position: absolute; right: 7px; bottom: 7px;
-      width: 24px; height: 24px;
-      border: none; background: transparent; cursor: pointer;
-      font-size: 17px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      opacity: 0.4; transition: opacity 0.15s, background 0.15s;
-      z-index: 2; line-height: 1; padding: 0; flex-shrink: 0;
-    }
-    .btn-emoji-inline:hover { opacity: 1; background: rgba(0,0,0,0.06); }
-    .btn-emoji-inline.active { opacity: 1; }
-    .input-area #msgInput { padding-right: 34px; }
+    .btn-emoji { background: transparent; color: #6B7280; font-size: 20px; line-height: 1; }
+    .btn-emoji:hover { background: #F3F4F6; }
+    .btn-emoji.active { color: #F59E0B; background: #FEF3C7; }
     .emoji-picker {
       position: fixed;
       background: #fff;
@@ -865,9 +856,9 @@
     [data-theme="dark"] .input-area #msgInput:focus { border-color: #4B9EE5; background: #2d4255; box-shadow: none; }
     [data-theme="dark"] .btn-attach { background: transparent; color: #6B8FA8; }
     [data-theme="dark"] .btn-attach:hover { background: #243340; color: #4B9EE5; }
-    [data-theme="dark"] .btn-emoji-inline { opacity: 0.35; }
-    [data-theme="dark"] .btn-emoji-inline:hover { opacity: 1; background: rgba(255,255,255,0.08); }
-    [data-theme="dark"] .btn-emoji-inline.active { opacity: 1; }
+    [data-theme="dark"] .btn-emoji { color: #6B8FA8; }
+    [data-theme="dark"] .btn-emoji:hover { background: #243340; }
+    [data-theme="dark"] .btn-emoji.active { color: #F59E0B; background: rgba(245,158,11,0.15); }
     [data-theme="dark"] .emoji-picker { background: #1e2c3a; border-color: #2d4255; }
     [data-theme="dark"] .emoji-section-label { color: #4B6880; }
     [data-theme="dark"] .emoji-tabs { border-color: #2d4255; }
@@ -3393,10 +3384,10 @@
     <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this)">
     <div style="position:relative; flex:1; display:flex;">
       <textarea id="msgInput" rows="1" placeholder="Nhập nội dung bài viết" autocomplete="off" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();sendMessage();}" oninput="autoGrowMsgInput(this)" style="flex:1;"></textarea>
-      <button class="btn-emoji-inline" id="btnEmoji" onclick="toggleEmojiPicker()" aria-label="Chọn emoji" type="button">🙂</button>
       <button id="btnAiSuggest" class="ai-badge-btn" onclick="openAiSheet()" style="display:none;" aria-label="Gợi ý AI"><svg width="13" height="13" viewBox="0 0 14 13" fill="none" style="vertical-align:-2px;margin-right:3px;"><path d="M5.5 0C5.5 3.04 7.96 5.5 11 5.5C7.96 5.5 5.5 7.96 5.5 11C5.5 7.96 3.04 5.5 0 5.5C3.04 5.5 5.5 3.04 5.5 0Z" fill="white"/><path d="M11.5 0C11.5 1.38 12.62 2.5 14 2.5C12.62 2.5 11.5 3.62 11.5 5C11.5 3.62 10.38 2.5 9 2.5C10.38 2.5 11.5 1.38 11.5 0Z" fill="white" opacity="0.85"/></svg>AI</button>
     </div>
     <input type="text" id="groupIdInput" placeholder="Nhập Group ID..." autocomplete="off" style="display:none; width:140px;">
+    <button class="btn-icon btn-emoji" id="btnEmoji" onclick="toggleEmojiPicker()" aria-label="Chọn emoji" type="button">🙂</button>
     <button class="btn-icon btn-send" id="sendBtn" onclick="sendMessage()" aria-label="Gửi"><svg class="xi xi-md"><use href="#ic-send"/></svg></button>
   </div>
 
