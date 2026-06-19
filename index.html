@@ -11893,8 +11893,11 @@
     }
 
     function _onRepostProfileChange() {
-      _repostSelectedChannels = [{ type: 'personal', platform: 'fb', label: `${xekoIcon('home')} Profile`, sub: '' }];
+      // Đổi tài khoản → xoá hết kênh đã chọn để user chọn lại NƠI ĐĂNG theo tài
+      // khoản mới (không tự chọn sẵn FB Profile, tránh đăng kèm ngoài ý muốn).
+      _repostSelectedChannels = [];
       _renderRepostChannelList();
+      document.getElementById('repostChannelDisplay').innerHTML = _channelsDisplayLabel();
     }
 
     function _channelsDisplayLabel() {
@@ -11915,31 +11918,12 @@
       _repostImages = (Array.isArray(row.images) ? row.images : [])
         .map(u => u.startsWith('/uploads/') ? '/api/image/' + u.slice('/uploads/'.length) : u);
 
-      // Determine original channel from row data
-      if (row.platform === 'zalo') {
-        // Zalo: group_id is null, match by group_name
-        const matchedZalo = (channelsData.zaloGroups || []).find(g => g.name === row.group_name);
-        const profileKey = row.profile || '';
-        const pCh = (channelsData.profileChannels || {})[profileKey] || {};
-        _repostSelectedChannels = [{
-          type: 'group', platform: 'zalo',
-          key: matchedZalo ? matchedZalo.key : '',
-          name: row.group_name || '',
-          zaloAccount: pCh.zaloAccount || row.profile || '',
-          label: '💬 ' + (row.group_name || ''),
-          sub: 'Zalo',
-        }];
-      } else {
-        const originalGroupId = row.group_id || '';
-        if (row.target === 'personal' || !originalGroupId) {
-          _repostSelectedChannels = [{ type: 'personal', platform: 'fb', label: `${xekoIcon('home')} Profile`, sub: '' }];
-        } else {
-          const matchedGroup = (channelsData.fbGroups || []).find(g => g.id === originalGroupId || g.key === originalGroupId);
-          _repostSelectedChannels = [matchedGroup
-            ? { type: 'group', platform: 'fb', key: matchedGroup.key, id: matchedGroup.id, name: matchedGroup.name }
-            : { type: 'group', platform: 'fb', key: originalGroupId, id: originalGroupId, name: row.group_name || originalGroupId }];
-        }
-      }
+      // Repost CHỈ kế thừa NỘI DUNG (message + ảnh) của bài gốc. Tài khoản và
+      // NƠI ĐĂNG do user CHỌN LẠI — KHÔNG pre-select kênh/tài khoản gốc. Trước
+      // đây pre-select kênh gốc khiến repost bị đăng TRÙNG ngược về kênh cũ
+      // (vd: Thuỳ Trang repost bài của Linh Dương nhưng vẫn đăng lại sang Linh
+      // Dương). Để trống → user tự chọn đích, không bao giờ đăng nhầm kênh gốc.
+      _repostSelectedChannels = [];
 
       // Load accounts into dropdown
       try {
@@ -11947,8 +11931,12 @@
         const data = await parseJson(res);
         const profiles = data.facebook || [];
         const sel = document.getElementById('repostProfile');
+        // Mặc định chọn TÀI KHOẢN ĐANG dùng (currentProfile) chứ không phải tài
+        // khoản của bài gốc — repost là user hiện tại đăng lại, không phải tác
+        // giả gốc. Vẫn cho phép đổi.
+        const _defaultProfile = currentProfile || row.profile || '';
         sel.innerHTML = profiles.length
-          ? profiles.map(p => `<option value="${escapeHtml(p.key)}" ${p.key === row.profile ? 'selected' : ''}>${escapeHtml(p.name || p.key)}</option>`).join('')
+          ? profiles.map(p => `<option value="${escapeHtml(p.key)}" ${p.key === _defaultProfile ? 'selected' : ''}>${escapeHtml(p.name || p.key)}</option>`).join('')
           : `<option value="${escapeHtml(row.profile || '')}">${escapeHtml(row.profile_name || row.profile || '-')}</option>`;
         sel.disabled = true;
       } catch (e) {
@@ -11978,6 +11966,11 @@
 
       _renderRepostImages();
       document.getElementById('repostModal').style.display = 'flex';
+
+      // Mở thẳng chế độ chỉnh sửa: repost luôn cần CHỌN LẠI tài khoản + nơi đăng
+      // (không pre-select kênh gốc nữa). _repostEditMode đang = false ở đầu hàm
+      // nên gọi toggle sẽ bật edit, enable dropdown tài khoản + hiện danh sách kênh.
+      toggleRepostEdit();
     }
 
     function closeRepostModal() {
