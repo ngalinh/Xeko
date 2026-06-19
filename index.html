@@ -10623,7 +10623,7 @@
         const fail    = (fb?.fail_count || 0)    + (zalo?.fail_count || 0);
         const rows = (fb ? renderPlatformRow(fb, 'FB', '#e8f0fe', '#1877f2') : '')
                    + (zalo ? renderPlatformRow(zalo, 'Zalo', '#e8f0ff', '#2563EB') : '');
-        cards.push(renderCard(g.name, total, success, fail, rows));
+        cards.push({ total, html: renderCard(g.name, total, success, fail, rows) });
       });
 
       // 2. Fallback: raw rows không thuộc Profile group nào (vd profile bị xoá khỏi
@@ -10632,16 +10632,17 @@
         .filter(p => p.platform !== 'zalo' && !fbKeyToGroup[p.profile])
         .forEach(fb => {
           const rows = renderPlatformRow(fb, 'FB', '#e8f0fe', '#1877f2');
-          cards.push(renderCard(fb.profile_name || fb.profile, fb.total, fb.success_count, fb.fail_count, rows));
+          cards.push({ total: fb.total, html: renderCard(fb.profile_name || fb.profile, fb.total, fb.success_count, fb.fail_count, rows) });
         });
       allProfiles
         .filter(p => p.platform === 'zalo' && !zaloAccountToGroup[p.profile])
         .forEach(zalo => {
           const rows = renderPlatformRow(zalo, 'Zalo', '#e8f0ff', '#2563EB');
-          cards.push(renderCard(zaloDisplayName(zalo.profile_name || zalo.profile), zalo.total, zalo.success_count, zalo.fail_count, rows));
+          cards.push({ total: zalo.total, html: renderCard(zaloDisplayName(zalo.profile_name || zalo.profile), zalo.total, zalo.success_count, zalo.fail_count, rows) });
         });
 
-      profileEl.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px;">${cards.join('')}</div>`;
+      cards.sort((a, b) => b.total - a.total);
+      profileEl.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px;">${cards.map(c => c.html).join('')}</div>`;
       if (!noAnimation) {
         requestAnimationFrame(function() {
           profileEl.querySelectorAll('.stat-profile-card').forEach(function(el, i) {
