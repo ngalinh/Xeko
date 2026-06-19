@@ -488,7 +488,7 @@
     [data-theme="dark"] .image-preview .image-count { background: #1e2747; color: #93C5FD; }
     /* AI badge button on textarea */
     .ai-badge-btn {
-      position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+      position: absolute; top: 50%; right: 34px; transform: translateY(-50%);
       background: linear-gradient(135deg, #6366f1, #8b5cf6);
       color: #fff; border: none; border-radius: 10px;
       padding: 4px 10px; font-size: 11px; font-weight: 700;
@@ -659,58 +659,66 @@
     .btn-send { background: #3B82F6; color: #fff; }
     .btn-send:hover { background: #2563EB; }
     .btn-send:disabled { background: #D1D5DB; cursor: not-allowed; }
-    .btn-emoji { background: transparent; color: #6B7280; font-size: 20px; line-height: 1; }
-    .btn-emoji:hover { background: #F3F4F6; }
-    .btn-emoji.active { color: #F59E0B; background: #FEF3C7; }
+    .btn-emoji-inline {
+      position: absolute; right: 7px; bottom: 7px;
+      width: 24px; height: 24px;
+      border: none; background: transparent; cursor: pointer;
+      font-size: 17px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0.4; transition: opacity 0.15s, background 0.15s;
+      z-index: 2; line-height: 1; padding: 0; flex-shrink: 0;
+    }
+    .btn-emoji-inline:hover { opacity: 1; background: rgba(0,0,0,0.06); }
+    .btn-emoji-inline.active { opacity: 1; }
+    .input-area #msgInput { padding-right: 34px; }
     .emoji-picker {
       position: fixed;
       background: #fff;
       border: 1px solid #e5e7eb;
       border-radius: 14px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
       z-index: 9999;
+      width: 352px;
+      display: flex; flex-direction: column;
       overflow: hidden;
-      width: 300px;
     }
-    .emoji-tabs {
-      display: flex;
-      gap: 2px;
-      padding: 6px 6px 4px;
-      border-bottom: 1px solid #f1f5f9;
+    .emoji-grid-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .emoji-section-label {
+      font-size: 10.5px; font-weight: 700; color: #9ca3af;
+      padding: 8px 10px 3px; text-transform: uppercase; letter-spacing: 0.4px;
+      flex-shrink: 0;
     }
-    .emoji-tab {
-      flex: 1;
-      height: 32px;
-      border: none;
-      background: transparent;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 18px;
-      display: flex; align-items: center; justify-content: center;
-      transition: background 0.1s;
-      opacity: 0.55;
-    }
-    .emoji-tab:hover, .emoji-tab.active { background: #EFF6FF; opacity: 1; }
     .emoji-grid {
       display: grid;
       grid-template-columns: repeat(8, 1fr);
       gap: 1px;
-      padding: 6px 6px 8px;
-      max-height: 176px;
+      padding: 2px 6px 6px;
+      max-height: 228px;
       overflow-y: auto;
+      flex: 1;
     }
     .emoji-grid::-webkit-scrollbar { width: 4px; }
     .emoji-grid::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
-    .emoji-item {
-      height: 34px;
-      border: none;
-      background: transparent;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 20px;
+    .emoji-tabs {
+      display: flex;
+      border-top: 1px solid #f1f5f9;
+      padding: 3px 4px;
+      flex-shrink: 0;
+    }
+    .emoji-tab {
+      flex: 1; height: 34px;
+      border: none; background: transparent;
+      border-radius: 8px; cursor: pointer;
+      font-size: 17px;
       display: flex; align-items: center; justify-content: center;
-      transition: background 0.1s, transform 0.1s;
-      line-height: 1;
+      transition: background 0.1s; opacity: 0.5;
+    }
+    .emoji-tab:hover, .emoji-tab.active { background: #EFF6FF; opacity: 1; }
+    .emoji-item {
+      height: 36px; border: none; background: transparent;
+      border-radius: 6px; cursor: pointer; font-size: 21px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.1s, transform 0.1s; line-height: 1;
     }
     .emoji-item:hover { background: #F3F4F6; transform: scale(1.25); }
 
@@ -857,10 +865,11 @@
     [data-theme="dark"] .input-area #msgInput:focus { border-color: #4B9EE5; background: #2d4255; box-shadow: none; }
     [data-theme="dark"] .btn-attach { background: transparent; color: #6B8FA8; }
     [data-theme="dark"] .btn-attach:hover { background: #243340; color: #4B9EE5; }
-    [data-theme="dark"] .btn-emoji { color: #6B8FA8; }
-    [data-theme="dark"] .btn-emoji:hover { background: #243340; }
-    [data-theme="dark"] .btn-emoji.active { color: #F59E0B; background: rgba(245,158,11,0.15); }
+    [data-theme="dark"] .btn-emoji-inline { opacity: 0.35; }
+    [data-theme="dark"] .btn-emoji-inline:hover { opacity: 1; background: rgba(255,255,255,0.08); }
+    [data-theme="dark"] .btn-emoji-inline.active { opacity: 1; }
     [data-theme="dark"] .emoji-picker { background: #1e2c3a; border-color: #2d4255; }
+    [data-theme="dark"] .emoji-section-label { color: #4B6880; }
     [data-theme="dark"] .emoji-tabs { border-color: #2d4255; }
     [data-theme="dark"] .emoji-tab:hover, [data-theme="dark"] .emoji-tab.active { background: #243340; }
     [data-theme="dark"] .emoji-item:hover { background: #243340; }
@@ -3363,22 +3372,28 @@
 
   <!-- Emoji Picker Panel -->
   <div class="emoji-picker" id="emojiPicker" style="display:none;">
+    <div class="emoji-grid-wrap">
+      <div class="emoji-section-label" id="emojiSectionLabel">Mặt cười &amp; Người</div>
+      <div class="emoji-grid" id="emojiGrid"></div>
+    </div>
     <div class="emoji-tabs">
       <button class="emoji-tab active" onclick="switchEmojiTab(this,'😀')" title="Mặt cười">😀</button>
       <button class="emoji-tab" onclick="switchEmojiTab(this,'👋')" title="Cử chỉ">👋</button>
-      <button class="emoji-tab" onclick="switchEmojiTab(this,'🌿')" title="Thiên nhiên">🌿</button>
+      <button class="emoji-tab" onclick="switchEmojiTab(this,'🐶')" title="Động vật">🐶</button>
+      <button class="emoji-tab" onclick="switchEmojiTab(this,'🍔')" title="Thức ăn">🍔</button>
+      <button class="emoji-tab" onclick="switchEmojiTab(this,'✈️')" title="Du lịch">✈️</button>
+      <button class="emoji-tab" onclick="switchEmojiTab(this,'⚽')" title="Hoạt động">⚽</button>
       <button class="emoji-tab" onclick="switchEmojiTab(this,'💡')" title="Đồ vật">💡</button>
       <button class="emoji-tab" onclick="switchEmojiTab(this,'❤️')" title="Biểu tượng">❤️</button>
     </div>
-    <div class="emoji-grid" id="emojiGrid"></div>
   </div>
 
   <div class="input-area" id="inputArea">
     <button class="btn-icon btn-attach" onclick="document.getElementById('fileInput').click()" aria-label="Đính kèm ảnh"><svg class="xi xi-md"><use href="#ic-camera"/></svg></button>
-    <button class="btn-icon btn-emoji" id="btnEmoji" onclick="toggleEmojiPicker()" aria-label="Chọn emoji" type="button">😊</button>
     <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this)">
     <div style="position:relative; flex:1; display:flex;">
       <textarea id="msgInput" rows="1" placeholder="Nhập nội dung bài viết" autocomplete="off" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();sendMessage();}" oninput="autoGrowMsgInput(this)" style="flex:1;"></textarea>
+      <button class="btn-emoji-inline" id="btnEmoji" onclick="toggleEmojiPicker()" aria-label="Chọn emoji" type="button">🙂</button>
       <button id="btnAiSuggest" class="ai-badge-btn" onclick="openAiSheet()" style="display:none;" aria-label="Gợi ý AI"><svg width="13" height="13" viewBox="0 0 14 13" fill="none" style="vertical-align:-2px;margin-right:3px;"><path d="M5.5 0C5.5 3.04 7.96 5.5 11 5.5C7.96 5.5 5.5 7.96 5.5 11C5.5 7.96 3.04 5.5 0 5.5C3.04 5.5 5.5 3.04 5.5 0Z" fill="white"/><path d="M11.5 0C11.5 1.38 12.62 2.5 14 2.5C12.62 2.5 11.5 3.62 11.5 5C11.5 3.62 10.38 2.5 9 2.5C10.38 2.5 11.5 1.38 11.5 0Z" fill="white" opacity="0.85"/></svg>AI</button>
     </div>
     <input type="text" id="groupIdInput" placeholder="Nhập Group ID..." autocomplete="off" style="display:none; width:140px;">
@@ -4693,32 +4708,125 @@
 
     // Emoji picker
     const _EMOJI_DATA = {
-      '😀': ['😀','😂','🤣','😍','🥰','😘','😎','🤩','🥳','😭','😢','😅','🤔','😱','😡','🤗','😴','🥺','😏','🤭','😇','🤯','🥶','🤡','😈','💀','🫡','🥹','😮','😤','🤪','😋','😜','😝','🤑','🤠','🤥','😶','🙄','😬'],
-      '👋': ['👋','👍','👎','👏','🙌','🤝','🫶','💪','✌️','🤞','🖐️','☝️','🤙','🫰','🙏','🤲','🫂','💅','🤌','🫵','✊','👊','🤛','🤜','🤚','🖖','🫱','🫲','🫳','🫴','👐','🤜'],
-      '🌿': ['🌟','⭐','🔥','💥','🌈','☀️','🌙','⛅','🌺','🌸','🍀','🌿','🌴','🦋','🌊','❄️','🌻','🍁','🌵','🍄','🌍','🌏','⚡','🌪️','🌤️','🌧️','🌩️','🌱','🌾','🎋'],
-      '💡': ['💰','🎉','🎁','🏆','📱','💡','🎯','🚀','💎','🎶','📸','🎨','🛒','💌','📦','🔑','💻','🎮','📊','⏰','📢','🔔','🎵','🎤','📝','✏️','📌','🏷️','🎪','🧩'],
-      '❤️': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','❣️','💕','💞','💓','💗','💖','💘','💝','✅','❌','⚡','💯','⭕','🎊','🎀','🎈','✨','🌠','🔴','🟢','🔵']
+      '😀': [
+        '😀','😁','😂','🤣','😃','😄','😅','😆',
+        '😉','😊','😋','😎','😍','🥰','😘','😗',
+        '🙂','🤗','🤩','🤔','🤨','😐','😑','😶',
+        '🙄','😏','😣','😥','😮','🤐','😯','😪',
+        '😫','🥱','😴','😌','😛','😜','😝','🤤',
+        '😒','😓','😔','😕','🙃','🤑','😲','😤',
+        '😢','😭','😦','😧','😨','😩','🤯','😬',
+        '😰','😱','🥵','🥶','😳','🤪','😵','🥴',
+        '😷','🤒','🤕','🤧','🥺','😡','😠','🤬',
+        '😈','👿','💀','🤡','👹','👺','👻','😇',
+      ],
+      '👋': [
+        '👋','🤚','🖐️','✋','🖖','👌','🤌','🤏',
+        '✌️','🤞','🤟','🤘','🤙','👈','👉','👆',
+        '🖕','👇','☝️','👍','👎','✊','👊','🤛',
+        '🤜','👏','🙌','👐','🤲','🙏','🤝','🫶',
+        '💅','🤳','💪','🦾','👂','👃','🫰','🫱',
+        '🫲','🫵','🫂','🧠','🦷','🦴','👁️','👅',
+      ],
+      '🐶': [
+        '🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼',
+        '🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈',
+        '🙉','🙊','🐔','🐧','🐦','🦆','🦅','🦉',
+        '🦇','🐺','🐗','🐴','🦄','🐝','🦋','🐌',
+        '🐞','🐜','🦟','🕷️','🦂','🐢','🐍','🦎',
+        '🐙','🦑','🦐','🦀','🐡','🐠','🐟','🐬',
+        '🐳','🦈','🐊','🦓','🦍','🌸','🌺','🌻',
+        '🌹','🌷','🍀','🌿','🌱','🌲','🌴','🌵',
+        '🍄','🌾','🌟','⭐','🔥','🌈','☀️','🌙',
+        '⛅','🌧️','❄️','🌊','🌪️','⚡','🌋','🏔️',
+      ],
+      '🍔': [
+        '🍎','🍊','🍋','🍇','🍓','🫐','🍑','🥭',
+        '🍍','🥥','🥝','🍅','🥑','🍆','🥦','🥕',
+        '🌽','🌶️','🥔','🍠','🥐','🍞','🥖','🥨',
+        '🧀','🍳','🍔','🍟','🌭','🍕','🌮','🌯',
+        '🥙','🧆','🥚','🍜','🍝','🍛','🍣','🍱',
+        '🥟','🍤','🍙','🍘','🍥','🧁','🍰','🎂',
+        '🍮','🍭','🍬','🍫','🍩','🍪','🍦','🧋',
+        '🍵','☕','🍺','🍻','🥂','🍷','🥃','🍸',
+        '🍹','🧃','🥤','🍼','🥛','🫖','🍴','🥢',
+      ],
+      '✈️': [
+        '🚗','🚕','🚙','🏎️','🚌','🚎','🚐','🛻',
+        '🚚','🚛','🛵','🏍️','🚲','🛴','✈️','🛫',
+        '🛬','🚀','🛸','🚁','⛵','🚤','🛥️','🛳️',
+        '🚂','🚆','🚇','🚊','🚝','🚞','🏠','🏡',
+        '🏢','🏥','🏦','🏨','🏫','🏛️','🏗️','⛺',
+        '🗼','🗽','🗿','🌁','🌉','🌃','🌆','🌇',
+        '🌄','🌅','🌏','🌍','🌎','🗺️','🧭','🏖️',
+        '🏝️','🏜️','🏕️','🎡','🎢','🎠','🏟️','🌐',
+      ],
+      '⚽': [
+        '⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉',
+        '🎱','🏓','🏸','🥊','🥋','🏆','🥇','🥈',
+        '🥉','🎖️','🎫','🎟️','🎪','🤹','🎭','🎨',
+        '🎬','🎤','🎧','🎷','🎸','🎹','🎺','🎻',
+        '🥁','🎮','🕹️','🎲','♟️','🎯','🎳','🎰',
+        '🧩','🎣','⛸️','🛷','🎿','🏂','🏄','🤽',
+        '🚣','🧘','🤸','⛹️','🏋️','🤼','🏊','🚴',
+        '🤺','🤾','🤿','🧗','🪂','🏹','🎪','🎡',
+      ],
+      '💡': [
+        '📱','💻','⌨️','🖥️','🖨️','🖱️','💾','💿',
+        '📷','📸','📹','🎥','📞','☎️','📺','📻',
+        '🧭','⏰','⌚','⏱️','💡','🔦','🕯️','🔋',
+        '🔌','💰','💳','💎','🔑','🗝️','🔐','🔒',
+        '🔨','⚒️','🛠️','🔧','🔩','⚙️','🔫','💊',
+        '🩺','🩹','🔬','🔭','📡','💈','🪞','🪟',
+        '📦','📫','✏️','📝','📋','📁','📂','📅',
+        '📌','📍','🔖','🏷️','📢','🔔','🛒','🎁',
+        '🚪','🪑','🛋️','🛏️','🧸','🪆','🎀','🎊',
+      ],
+      '❤️': [
+        '❤️','🧡','💛','💚','💙','💜','🖤','🤍',
+        '🤎','💔','❣️','💕','💞','💓','💗','💖',
+        '💘','💝','💟','☮️','✅','❌','❎','💯',
+        '🔰','♻️','🔱','⚜️','🔔','🔕','📣','📢',
+        '💬','💭','🗯️','🔴','🟠','🟡','🟢','🔵',
+        '🟣','⚫','⚪','🟤','🏁','🚩','🎌','🏴',
+        '🏳️','✨','🎉','🎊','🎈','🎐','🎏','🌠',
+        '⭕','🔺','🔻','🔷','🔶','🔹','🔸','💠',
+      ],
     };
+    const _EMOJI_LABELS = {
+      '😀':'Mặt cười & Người','👋':'Cử chỉ & Cơ thể',
+      '🐶':'Động vật & Thiên nhiên','🍔':'Thức ăn & Đồ uống',
+      '✈️':'Du lịch & Địa điểm','⚽':'Hoạt động & Thể thao',
+      '💡':'Đồ vật','❤️':'Biểu tượng & Tim',
+    };
+    const _EMOJI_RECENT_KEY = 'xeko_emoji_recent';
     let _emojiActiveTab = '😀';
+
+    function getRecentEmojis() {
+      try { return JSON.parse(localStorage.getItem(_EMOJI_RECENT_KEY) || '[]'); } catch { return []; }
+    }
+    function addRecentEmoji(emoji) {
+      let r = getRecentEmojis();
+      r = [emoji, ...r.filter(e => e !== emoji)].slice(0, 32);
+      try { localStorage.setItem(_EMOJI_RECENT_KEY, JSON.stringify(r)); } catch {}
+    }
 
     function toggleEmojiPicker() {
       const picker = document.getElementById('emojiPicker');
       const btn = document.getElementById('btnEmoji');
       if (!picker || !btn) return;
-      const isOpen = picker.style.display !== 'none';
-      if (isOpen) {
+      if (picker.style.display !== 'none') {
         picker.style.display = 'none';
         btn.classList.remove('active');
         return;
       }
       renderEmojiGrid(_emojiActiveTab);
-      picker.style.display = 'block';
+      picker.style.display = 'flex';
       const btnRect = btn.getBoundingClientRect();
-      const pickerH = 240;
-      const pickerW = 300;
+      const pickerH = 310; const pickerW = 352;
       let top = btnRect.top - pickerH - 8;
       if (top < 8) top = btnRect.bottom + 8;
-      let left = btnRect.left;
+      let left = btnRect.right - pickerW;
       if (left + pickerW > window.innerWidth - 8) left = window.innerWidth - pickerW - 8;
       if (left < 8) left = 8;
       picker.style.top = top + 'px';
@@ -4729,11 +4837,21 @@
 
     function renderEmojiGrid(tab) {
       const grid = document.getElementById('emojiGrid');
+      const label = document.getElementById('emojiSectionLabel');
       if (!grid) return;
-      const emojis = _EMOJI_DATA[tab] || [];
-      grid.innerHTML = emojis.map(e =>
+      const recent = getRecentEmojis();
+      let html = '';
+      if (recent.length) {
+        html += `<div style="grid-column:1/-1;font-size:10.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.4px;padding:6px 2px 3px;">Dùng gần đây</div>`;
+        html += recent.map(e => `<button class="emoji-item" data-emoji="${e}" onclick="insertEmoji(this.dataset.emoji)">${e}</button>`).join('');
+        html += `<div style="grid-column:1/-1;font-size:10.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.4px;padding:8px 2px 3px;">${_EMOJI_LABELS[tab]||''}</div>`;
+      }
+      html += (_EMOJI_DATA[tab]||[]).map(e =>
         `<button class="emoji-item" data-emoji="${e}" onclick="insertEmoji(this.dataset.emoji)">${e}</button>`
       ).join('');
+      grid.innerHTML = html;
+      if (label) label.textContent = recent.length ? '' : (_EMOJI_LABELS[tab] || '');
+      if (label) label.style.display = recent.length ? 'none' : '';
     }
 
     function switchEmojiTab(el, tab) {
@@ -4752,6 +4870,7 @@
       ta.selectionStart = ta.selectionEnd = start + [...emoji].length;
       ta.focus();
       autoGrowMsgInput(ta);
+      addRecentEmoji(emoji);
     }
 
     document.addEventListener('click', function(e) {
