@@ -481,7 +481,7 @@ app.post('/api/accounts', (req, res) => {
             ...(proxyOpt ? { proxy: proxyOpt } : {}),
           });
           const page = browser.pages()[0] || await browser.newPage();
-          await page.goto('https://zalo.salework.net/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+          await page.goto(salework.ZALO_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
           loginHistory.addEntry(key, name, 'login', 'Mở Salework Zalo để đăng nhập và chọn tài khoản');
           browser.on('close', () => {
             loginHistory.addEntry(key, name, 'login', 'Đã đóng Salework - session và tài khoản đã lưu');
