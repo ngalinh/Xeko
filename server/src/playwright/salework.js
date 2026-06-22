@@ -9,6 +9,15 @@ const { checkProxy } = require('../utils/proxy-health');
 
 const DEBUG_SCREENSHOT_DIR = '/tmp/salework-debug';
 
+// URL trang quản lý Zalo. Trước đây dùng Salework (zalo.salework.net), nay
+// chuyển sang Zalo Basso (self-hosted, giao diện tương tự Salework). Vì giao
+// diện tương tự nên GIỮ NGUYÊN toàn bộ logic chọn account / tìm nhóm / gửi tin,
+// chỉ đổi domain. Gom URL ở một chỗ để sau này đổi domain chỉ sửa tại đây.
+//   - ZALO_LOGIN_URL: trang đăng nhập (mở khi setup tài khoản mới)
+//   - ZALO_CHAT_URL : trang chat (mở mỗi lần đăng bài)
+const ZALO_LOGIN_URL = 'https://zalo.basso.vn/';
+const ZALO_CHAT_URL = 'https://zalo.basso.vn/chat';
+
 function getSaleworkProfile(accountKey) {
   return path.resolve(__dirname, `../../../playwright-data/salework-${accountKey}`);
 }
@@ -546,7 +555,7 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
   try {
     logger.info(`[salework] === account=${zaloAccountName}, group=${groupName} ===`);
 
-    await page.goto('https://zalo.salework.net', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.goto(ZALO_CHAT_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await sleep(3000);
     await screenshot(page, '01-loaded');
 
@@ -577,4 +586,4 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
   }
 }
 
-module.exports = { postToZaloGroup, getSaleworkProfile };
+module.exports = { postToZaloGroup, getSaleworkProfile, ZALO_LOGIN_URL, ZALO_CHAT_URL };
