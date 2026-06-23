@@ -226,14 +226,134 @@ async function searchAndClickGroup(page, groupName) {
   return false;
 }
 
+// Bấm nút Gửi (.send-btn) — Playwright tự chờ tới khi hết disabled (nút bật khi
+// ô soạn có nội dung/ảnh). Fallback nút theo chữ "Gửi". Trả false nếu không bấm được.
+async function clickSend(page) {
+  await randomDelay(500, 1000);
+  try {
+    await page.locator('button.send-btn').first().click({ timeout: 8000 });
+    logger.info('[basso] Click nút Gửi (.send-btn)');
+    await randomDelay(1500, 2400);
+    return true;
+  } catch (e) {
+    logger.warn(`[basso] Click .send-btn lỗi/vẫn disabled: ${e.message}`);
+  }
+  for (const sel of ['button:has-text("Gửi")', 'button:has-text("Send")']) {
+    try {
+      const btn = page.locator(sel).first();
+      if (await btn.count() && await btn.isEnabled().catch(() => false)) {
+        await btn.click({ timeout: 5000 });
+        logger.info(`[basso] Click nút Gửi (${sel})`);
+        await randomDelay(1500, 2400);
+        return true;
+      }
+    } catch {}
+  }
+  return false;
+}
+
+// Đính ảnh vào ô soạn tin. CÁCH CHÍNH: DÁN (paste) ảnh từ clipboard — dựng File
+// rồi dispatch 'paste' kèm DataTransfer (gán clipboardData qua defineProperty vì
+// constructor ClipboardEvent bỏ qua nó). DỰ PHÒNG: input[type=file] sẵn có / nút
+// .ic-violet → menu "Hình ảnh" → filechooser. Trả true nếu đính được.
+async function attachImages(page, imagePaths) {
+  let uploaded = false;
+
+  // (a) DÁN ảnh vào textarea.
+  try {
+    const files = imagePaths.map(p => {
+      const ext = path.extname(p).toLowerCase();
+      const type = ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif'
+                 : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+      return { name: path.basename(p), type, b64: fs.readFileSync(p).toString('base64') };
+    });
+    await page.locator('textarea.msg-textarea, textarea:visible').first().click({ timeout: 5000 }).catch(() => {});
+    uploaded = await page.evaluate((files) => {
+      const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea') || document.activeElement;
+      if (!ta) return false;
+      const dt = new DataTransfer();
+      for (const f of files) {
+        const bin = atob(f.b64);
+        const arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        dt.items.add(new File([arr], f.name, { type: f.type }));
+      }
+      const evt = new ClipboardEvent('paste', { bubbles: true, cancelable: true });
+      Object.defineProperty(evt, 'clipboardData', { value: dt });
+      ta.focus();
+      ta.dispatchEvent(evt);
+      return true;
+    }, files);
+    if (uploaded) logger.info(`[basso] Đã dán ${imagePaths.length} ảnh vào ô soạn tin`);
+    await sleep(2000);
+  } catch (e) {
+    logger.warn(`[basso] Dán ảnh lỗi: ${e.message} — thử qua menu nút .ic-violet`);
+    uploaded = false;
+  }
+
+  // (b) DỰ PHÒNG: input[type=file] sẵn có; rồi .ic-violet → menu "Hình ảnh" → filechooser.
+  if (!uploaded) {
+    const setOnAnyInput = async () => {
+      for (const input of await page.$$('input[type="file"]')) {
+        try { await input.setInputFiles(imagePaths); return true; } catch {}
+      }
+      return false;
+    };
+    uploaded = await setOnAnyInput();
+    if (!uploaded) {
+      try {
+        const attach = page.locator('button.ic-violet').first();
+        const menuId = await attach.getAttribute('aria-controls').catch(() => null);
+        let [chooser] = await Promise.all([
+          page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null),
+          attach.click({ timeout: 5000 }).catch(() => {}),
+        ]);
+        if (!chooser) {
+          await sleep(600);
+          const scope = menuId ? page.locator(`#${menuId}`) : page.locator('.v-overlay__content').last();
+          const imgItem = scope.locator('.v-list-item, [role="menuitem"]')
+            .filter({ hasText: /hình ảnh|ảnh|hình|image|photo/i }).first();
+          if (await imgItem.count().catch(() => 0)) {
+            [chooser] = await Promise.all([
+              page.waitForEvent('filechooser', { timeout: 6000 }).catch(() => null),
+              imgItem.click({ timeout: 4000 }).catch(() => {}),
+            ]);
+          }
+        }
+        if (chooser) { await chooser.setFiles(imagePaths); uploaded = true; }
+        else { await sleep(800); uploaded = await setOnAnyInput(); }
+      } catch (e) {
+        logger.error(`[basso] Đính ảnh (menu) lỗi: ${e.message}`);
+      }
+    }
+  }
+
+  if (uploaded) logger.info(`[basso] Đã đính ${imagePaths.length} ảnh`);
+  else logger.warn('[basso] CHƯA đính được ảnh — kiểm tra lại cách dán / menu nút .ic-violet');
+  await sleep(1500);
+  await screenshot(page, '05-after-upload');
+  return uploaded;
+}
+
 async function sendMessage(page, message, imagePaths = []) {
   logger.info(`[basso] Gửi: "${message?.substring(0, 30)}" + ${imagePaths.length} ảnh`);
+  let sentAny = false;
 
-  // ----- 1. NHẬP NỘI DUNG vào textarea.msg-textarea -----
-  // basso dùng <textarea class="msg-textarea"> bind Vue v-model. Dùng fill() để
-  // set value + tự bắn event 'input' (Vue mới cập nhật model & BẬT nút Gửi vốn
-  // disabled khi rỗng). KHÔNG gõ Enter — Enter trong ô này có thể chỉ xuống dòng,
-  // không gửi; gửi là do nút .send-btn. Dispatch thêm input/change cho chắc.
+  // THỨ TỰ (theo yêu cầu): GỬI ẢNH TRƯỚC thành 1 tin riêng, RỒI GỬI TEXT thành tin riêng.
+
+  // ----- 1. ẢNH: đính rồi gửi -----
+  if (imagePaths.length > 0) {
+    const uploaded = await attachImages(page, imagePaths);
+    if (uploaded) {
+      if (await clickSend(page)) { sentAny = true; logger.info('[basso] Đã gửi tin ảnh'); }
+      else logger.warn('[basso] Đính được ảnh nhưng chưa gửi được tin ảnh');
+      await sleep(1500);   // chờ tin ảnh gửi xong + ô soạn reset trước khi nhập text
+    }
+  }
+
+  // ----- 2. TEXT: nhập vào textarea.msg-textarea rồi gửi -----
+  // textarea bind Vue v-model → fill() set value + bắn 'input' để BẬT nút Gửi.
+  // KHÔNG gõ Enter (Enter chỉ xuống dòng). Dispatch thêm input/change cho chắc.
   if (message) {
     const ta = page.locator('textarea.msg-textarea, textarea[placeholder*="Nhập tin nhắn"], textarea:visible').first();
     try {
@@ -248,119 +368,14 @@ async function sendMessage(page, message, imagePaths = []) {
     } catch (e) {
       logger.error(`[basso] Không nhập được nội dung: ${e.message}`);
     }
-    await randomDelay(300, 700);
+    if (await clickSend(page)) { sentAny = true; logger.info('[basso] Đã gửi tin text'); }
   }
 
-  // ----- 2. ĐÍNH ẢNH -----
-  // CÁCH CHÍNH: DÁN ảnh thẳng vào ô soạn tin (basso hỗ trợ paste ảnh từ clipboard).
-  // Dựng File từ dữ liệu ảnh rồi dispatch sự kiện 'paste' kèm DataTransfer (phải
-  // gán clipboardData qua defineProperty vì constructor ClipboardEvent bỏ qua nó).
-  // DỰ PHÒNG: bấm nút .ic-violet → menu → mục "Hình ảnh" → hộp chọn file.
-  if (imagePaths.length > 0) {
-    let uploaded = false;
-
-    // 2a. DÁN ảnh vào textarea.
-    try {
-      const files = imagePaths.map(p => {
-        const ext = path.extname(p).toLowerCase();
-        const type = ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif'
-                   : ext === '.webp' ? 'image/webp' : 'image/jpeg';
-        return { name: path.basename(p), type, b64: fs.readFileSync(p).toString('base64') };
-      });
-      await page.locator('textarea.msg-textarea, textarea:visible').first().click({ timeout: 5000 }).catch(() => {});
-      uploaded = await page.evaluate((files) => {
-        const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea') || document.activeElement;
-        if (!ta) return false;
-        const dt = new DataTransfer();
-        for (const f of files) {
-          const bin = atob(f.b64);
-          const arr = new Uint8Array(bin.length);
-          for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-          dt.items.add(new File([arr], f.name, { type: f.type }));
-        }
-        const evt = new ClipboardEvent('paste', { bubbles: true, cancelable: true });
-        Object.defineProperty(evt, 'clipboardData', { value: dt });
-        ta.focus();
-        ta.dispatchEvent(evt);
-        return true;
-      }, files);
-      if (uploaded) logger.info(`[basso] Đã dán ${imagePaths.length} ảnh vào ô soạn tin`);
-      await sleep(2000);
-    } catch (e) {
-      logger.warn(`[basso] Dán ảnh lỗi: ${e.message} — thử qua menu nút .ic-violet`);
-      uploaded = false;
-    }
-
-    // 2b (dự phòng). Có sẵn input[type=file] → set; rồi bấm .ic-violet → menu "Hình ảnh" → filechooser.
-    if (!uploaded) {
-      const setOnAnyInput = async () => {
-        for (const input of await page.$$('input[type="file"]')) {
-          try { await input.setInputFiles(imagePaths); return true; } catch {}
-        }
-        return false;
-      };
-      uploaded = await setOnAnyInput();
-      if (!uploaded) {
-        try {
-          const attach = page.locator('button.ic-violet').first();
-          const menuId = await attach.getAttribute('aria-controls').catch(() => null);
-          let [chooser] = await Promise.all([
-            page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null),
-            attach.click({ timeout: 5000 }).catch(() => {}),
-          ]);
-          if (!chooser) {
-            await sleep(600);
-            const scope = menuId ? page.locator(`#${menuId}`) : page.locator('.v-overlay__content').last();
-            const imgItem = scope.locator('.v-list-item, [role="menuitem"]')
-              .filter({ hasText: /hình ảnh|ảnh|hình|image|photo/i }).first();
-            if (await imgItem.count().catch(() => 0)) {
-              [chooser] = await Promise.all([
-                page.waitForEvent('filechooser', { timeout: 6000 }).catch(() => null),
-                imgItem.click({ timeout: 4000 }).catch(() => {}),
-              ]);
-            }
-          }
-          if (chooser) { await chooser.setFiles(imagePaths); uploaded = true; }
-          else { await sleep(800); uploaded = await setOnAnyInput(); }
-        } catch (e) {
-          logger.error(`[basso] Đính ảnh (menu) lỗi: ${e.message}`);
-        }
-      }
-    }
-
-    if (uploaded) logger.info(`[basso] Đã đính ${imagePaths.length} ảnh`);
-    else logger.warn('[basso] CHƯA đính được ảnh — kiểm tra lại cách dán / menu nút .ic-violet');
-    await sleep(2000);
-    await screenshot(page, '05-after-upload');
+  if (!sentAny) {
+    logger.error('[basso] Không gửi được tin nào (ảnh & text đều thất bại)');
+    return false;
   }
-
-  // ----- 3. BẤM NÚT GỬI (.send-btn) — Playwright tự chờ tới khi hết disabled -----
-  await randomDelay(500, 1000);
-  try {
-    const send = page.locator('button.send-btn').first();
-    await send.click({ timeout: 8000 });
-    logger.info('[basso] Click nút Gửi (.send-btn)');
-    await randomDelay(1800, 2600);
-    return true;
-  } catch (e) {
-    logger.warn(`[basso] Click .send-btn lỗi/vẫn disabled: ${e.message}`);
-  }
-
-  // Fallback: nút Gửi theo text (chỉ bấm khi đã enabled).
-  for (const sel of ['button:has-text("Gửi")', 'button:has-text("Send")']) {
-    try {
-      const btn = page.locator(sel).first();
-      if (await btn.count() && await btn.isEnabled().catch(() => false)) {
-        await btn.click({ timeout: 5000 });
-        logger.info(`[basso] Click nút Gửi (${sel})`);
-        await randomDelay(1800, 2600);
-        return true;
-      }
-    } catch {}
-  }
-
-  logger.error('[basso] Không bấm được nút Gửi (nội dung trống → nút vẫn disabled?)');
-  return false;
+  return true;
 }
 
 const _accountLocks = new Map();
