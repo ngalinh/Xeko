@@ -252,40 +252,55 @@ async function sendMessage(page, message, imagePaths = []) {
   }
 
   // ----- 2. ĐÍNH ẢNH -----
-  // Nút đính kèm là button.ic-violet (aria-haspopup="menu") → bấm có thể bật ngay
-  // filechooser HOẶC mở menu rồi mới sinh input[type=file]. Thử lần lượt.
+  // Nút đính kèm là button.ic-violet (aria-haspopup="menu"). Bấm nó MỞ MENU có
+  // mục "Hình ảnh"; phải bấm tiếp mục đó mới bật hộp chọn file (filechooser).
   if (imagePaths.length > 0) {
     let uploaded = false;
+    const setOnAnyInput = async () => {
+      for (const input of await page.$$('input[type="file"]')) {
+        try { await input.setInputFiles(imagePaths); return true; } catch {}
+      }
+      return false;
+    };
 
     // 2a. Có sẵn input[type=file] trong DOM → set thẳng.
-    for (const input of await page.$$('input[type="file"]')) {
-      try { await input.setInputFiles(imagePaths); uploaded = true; break; } catch {}
-    }
+    uploaded = await setOnAnyInput();
 
-    // 2b. Bấm nút .ic-violet, bắt filechooser; nếu không có thì chờ input[type=file] xuất hiện.
+    // 2b. Bấm .ic-violet (có thể bật filechooser ngay, hoặc mở menu).
     if (!uploaded) {
       try {
         const attach = page.locator('button.ic-violet').first();
-        const [fileChooser] = await Promise.all([
-          page.waitForEvent('filechooser', { timeout: 8000 }).catch(() => null),
+        const menuId = await attach.getAttribute('aria-controls').catch(() => null);
+        let [chooser] = await Promise.all([
+          page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null),
           attach.click({ timeout: 5000 }).catch(() => {}),
         ]);
-        if (fileChooser) {
-          await fileChooser.setFiles(imagePaths);
-          uploaded = true;
-        } else {
-          await sleep(800);
-          for (const input of await page.$$('input[type="file"]')) {
-            try { await input.setInputFiles(imagePaths); uploaded = true; break; } catch {}
+
+        // 2c. Menu mở ra → bấm mục "Hình ảnh" (khớp theo chữ "ảnh/hình/image"),
+        // CHỈ tìm trong menu vừa mở (theo aria-controls id) để không vớ nhầm chữ
+        // "ảnh" trong danh sách hội thoại. Bấm mục đó rồi chờ filechooser.
+        if (!chooser) {
+          await sleep(600);
+          const scope = menuId ? page.locator(`#${menuId}`) : page.locator('.v-overlay__content').last();
+          const imgItem = scope.locator('.v-list-item, [role="menuitem"]')
+            .filter({ hasText: /hình ảnh|ảnh|hình|image|photo/i }).first();
+          if (await imgItem.count().catch(() => 0)) {
+            [chooser] = await Promise.all([
+              page.waitForEvent('filechooser', { timeout: 6000 }).catch(() => null),
+              imgItem.click({ timeout: 4000 }).catch(() => {}),
+            ]);
           }
         }
+
+        if (chooser) { await chooser.setFiles(imagePaths); uploaded = true; }
+        else { await sleep(800); uploaded = await setOnAnyInput(); }   // menu có thể chèn input[type=file]
       } catch (e) {
-        logger.error(`[basso] Bấm nút đính kèm lỗi: ${e.message}`);
+        logger.error(`[basso] Đính ảnh lỗi: ${e.message}`);
       }
     }
 
     if (uploaded) logger.info(`[basso] Đã đính ${imagePaths.length} ảnh`);
-    else logger.warn('[basso] CHƯA đính được ảnh — nút .ic-violet có thể mở menu cần chọn mục "Hình ảnh" (cần thêm HTML menu)');
+    else logger.warn('[basso] CHƯA đính được ảnh — kiểm tra nhãn mục chọn ảnh trong menu nút .ic-violet');
     await sleep(2500);
     await screenshot(page, '05-after-upload');
   }
