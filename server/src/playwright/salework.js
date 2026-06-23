@@ -252,56 +252,85 @@ async function sendMessage(page, message, imagePaths = []) {
   }
 
   // ----- 2. ĐÍNH ẢNH -----
-  // Nút đính kèm là button.ic-violet (aria-haspopup="menu"). Bấm nó MỞ MENU có
-  // mục "Hình ảnh"; phải bấm tiếp mục đó mới bật hộp chọn file (filechooser).
+  // CÁCH CHÍNH: DÁN ảnh thẳng vào ô soạn tin (basso hỗ trợ paste ảnh từ clipboard).
+  // Dựng File từ dữ liệu ảnh rồi dispatch sự kiện 'paste' kèm DataTransfer (phải
+  // gán clipboardData qua defineProperty vì constructor ClipboardEvent bỏ qua nó).
+  // DỰ PHÒNG: bấm nút .ic-violet → menu → mục "Hình ảnh" → hộp chọn file.
   if (imagePaths.length > 0) {
     let uploaded = false;
-    const setOnAnyInput = async () => {
-      for (const input of await page.$$('input[type="file"]')) {
-        try { await input.setInputFiles(imagePaths); return true; } catch {}
-      }
-      return false;
-    };
 
-    // 2a. Có sẵn input[type=file] trong DOM → set thẳng.
-    uploaded = await setOnAnyInput();
-
-    // 2b. Bấm .ic-violet (có thể bật filechooser ngay, hoặc mở menu).
-    if (!uploaded) {
-      try {
-        const attach = page.locator('button.ic-violet').first();
-        const menuId = await attach.getAttribute('aria-controls').catch(() => null);
-        let [chooser] = await Promise.all([
-          page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null),
-          attach.click({ timeout: 5000 }).catch(() => {}),
-        ]);
-
-        // 2c. Menu mở ra → bấm mục "Hình ảnh" (khớp theo chữ "ảnh/hình/image"),
-        // CHỈ tìm trong menu vừa mở (theo aria-controls id) để không vớ nhầm chữ
-        // "ảnh" trong danh sách hội thoại. Bấm mục đó rồi chờ filechooser.
-        if (!chooser) {
-          await sleep(600);
-          const scope = menuId ? page.locator(`#${menuId}`) : page.locator('.v-overlay__content').last();
-          const imgItem = scope.locator('.v-list-item, [role="menuitem"]')
-            .filter({ hasText: /hình ảnh|ảnh|hình|image|photo/i }).first();
-          if (await imgItem.count().catch(() => 0)) {
-            [chooser] = await Promise.all([
-              page.waitForEvent('filechooser', { timeout: 6000 }).catch(() => null),
-              imgItem.click({ timeout: 4000 }).catch(() => {}),
-            ]);
-          }
+    // 2a. DÁN ảnh vào textarea.
+    try {
+      const files = imagePaths.map(p => {
+        const ext = path.extname(p).toLowerCase();
+        const type = ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif'
+                   : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+        return { name: path.basename(p), type, b64: fs.readFileSync(p).toString('base64') };
+      });
+      await page.locator('textarea.msg-textarea, textarea:visible').first().click({ timeout: 5000 }).catch(() => {});
+      uploaded = await page.evaluate((files) => {
+        const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea') || document.activeElement;
+        if (!ta) return false;
+        const dt = new DataTransfer();
+        for (const f of files) {
+          const bin = atob(f.b64);
+          const arr = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+          dt.items.add(new File([arr], f.name, { type: f.type }));
         }
+        const evt = new ClipboardEvent('paste', { bubbles: true, cancelable: true });
+        Object.defineProperty(evt, 'clipboardData', { value: dt });
+        ta.focus();
+        ta.dispatchEvent(evt);
+        return true;
+      }, files);
+      if (uploaded) logger.info(`[basso] Đã dán ${imagePaths.length} ảnh vào ô soạn tin`);
+      await sleep(2000);
+    } catch (e) {
+      logger.warn(`[basso] Dán ảnh lỗi: ${e.message} — thử qua menu nút .ic-violet`);
+      uploaded = false;
+    }
 
-        if (chooser) { await chooser.setFiles(imagePaths); uploaded = true; }
-        else { await sleep(800); uploaded = await setOnAnyInput(); }   // menu có thể chèn input[type=file]
-      } catch (e) {
-        logger.error(`[basso] Đính ảnh lỗi: ${e.message}`);
+    // 2b (dự phòng). Có sẵn input[type=file] → set; rồi bấm .ic-violet → menu "Hình ảnh" → filechooser.
+    if (!uploaded) {
+      const setOnAnyInput = async () => {
+        for (const input of await page.$$('input[type="file"]')) {
+          try { await input.setInputFiles(imagePaths); return true; } catch {}
+        }
+        return false;
+      };
+      uploaded = await setOnAnyInput();
+      if (!uploaded) {
+        try {
+          const attach = page.locator('button.ic-violet').first();
+          const menuId = await attach.getAttribute('aria-controls').catch(() => null);
+          let [chooser] = await Promise.all([
+            page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null),
+            attach.click({ timeout: 5000 }).catch(() => {}),
+          ]);
+          if (!chooser) {
+            await sleep(600);
+            const scope = menuId ? page.locator(`#${menuId}`) : page.locator('.v-overlay__content').last();
+            const imgItem = scope.locator('.v-list-item, [role="menuitem"]')
+              .filter({ hasText: /hình ảnh|ảnh|hình|image|photo/i }).first();
+            if (await imgItem.count().catch(() => 0)) {
+              [chooser] = await Promise.all([
+                page.waitForEvent('filechooser', { timeout: 6000 }).catch(() => null),
+                imgItem.click({ timeout: 4000 }).catch(() => {}),
+              ]);
+            }
+          }
+          if (chooser) { await chooser.setFiles(imagePaths); uploaded = true; }
+          else { await sleep(800); uploaded = await setOnAnyInput(); }
+        } catch (e) {
+          logger.error(`[basso] Đính ảnh (menu) lỗi: ${e.message}`);
+        }
       }
     }
 
     if (uploaded) logger.info(`[basso] Đã đính ${imagePaths.length} ảnh`);
-    else logger.warn('[basso] CHƯA đính được ảnh — kiểm tra nhãn mục chọn ảnh trong menu nút .ic-violet');
-    await sleep(2500);
+    else logger.warn('[basso] CHƯA đính được ảnh — kiểm tra lại cách dán / menu nút .ic-violet');
+    await sleep(2000);
     await screenshot(page, '05-after-upload');
   }
 
