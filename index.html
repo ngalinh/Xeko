@@ -11478,14 +11478,25 @@
           };
           // Giữ bảng gọn: cạnh badge có icon ℹ️, bấm vào mới mở dòng lý do đầy đủ
           // (mặc định ẩn). Tooltip trên icon vẫn cho xem nhanh khi rê chuột.
+          // Lấy tên ảnh debug FB chụp lúc lỗi từ error gốc (vd "logs/debug-failed-123.png"
+          // hoặc "screenshot=qp-step6-still-open-123.png") để dựng nút "Xem ảnh lỗi".
+          const extractErrorShot = (raw) => {
+            const m = (raw || '').match(/(?:logs\/|screenshot=)([\w.\-]+\.png)/i);
+            return m ? m[1] : '';
+          };
           const failBlock = (badgeHtml, visible, rawTip) => {
             const v = (visible || '').trim();
-            if (!v) return `<div style="display:inline-flex; flex-direction:column; align-items:center; max-width:100%;">${badgeHtml}</div>`;
+            const shot = extractErrorShot(rawTip);
+            if (!v && !shot) return `<div style="display:inline-flex; flex-direction:column; align-items:center; max-width:100%;">${badgeHtml}</div>`;
             const tip = ((rawTip || v).trim()) || v;
             const id = 'fr-' + (_failReasonSeq++);
             // Icon đặt absolute bên phải badge để badge vẫn căn giữa như các dòng khác.
             const icon = `<button type="button" onclick="toggleFailReason('${id}', this)" title="${tip.replace(/"/g,'&quot;')}" aria-label="Xem lý do lỗi" style="position:absolute; left:100%; top:50%; transform:translateY(-50%); margin-left:4px; display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; padding:0; border:none; background:none; cursor:pointer; color:#b91c1c;"><svg style="width:14px;height:14px;" aria-hidden="true"><use href="#ic-info"/></svg></button>`;
-            const reason = `<div id="${id}" style="display:none; font-size:10px; color:#b91c1c; margin-top:3px; line-height:1.3; white-space:normal; word-break:break-word; text-align:center; max-width:240px;" title="${tip.replace(/"/g,'&quot;')}">${escapeHtml(v)}</div>`;
+            // Nút "Xem ảnh lỗi" — mở lightbox ảnh FB chụp lúc đăng thất bại (qua /api/screenshot).
+            const shotBtn = shot
+              ? `<div style="margin-top:5px;"><button type="button" onclick="event.stopPropagation(); openLightbox('${BASE_URL}/api/screenshot?name=${encodeURIComponent(shot)}')" style="display:inline-flex; align-items:center; gap:4px; padding:3px 9px; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:999px; font-size:10px; font-weight:600; cursor:pointer;"><svg style="width:12px;height:12px;" aria-hidden="true"><use href="#ic-camera"/></svg>Xem ảnh lỗi</button></div>`
+              : '';
+            const reason = `<div id="${id}" style="display:none; font-size:10px; color:#b91c1c; margin-top:3px; line-height:1.3; white-space:normal; word-break:break-word; text-align:center; max-width:240px;" title="${tip.replace(/"/g,'&quot;')}">${escapeHtml(v)}${shotBtn}</div>`;
             return `<div style="display:inline-flex; flex-direction:column; align-items:center; max-width:100%;"><span style="position:relative; display:inline-flex; align-items:center;">${badgeHtml}${icon}</span>${reason}</div>`;
           };
           const failBadge = (row) => {
@@ -13082,6 +13093,14 @@
     function openLightbox(url) {
       const lb = document.getElementById('imgLightbox');
       const img = document.getElementById('imgLightboxImg');
+      const note = document.getElementById('imgLightboxNote');
+      if (note) note.style.display = 'none';
+      img.style.display = '';
+      // Ảnh lỗi cũ có thể đã bị xoá/ghi đè → hiện thông báo thay vì icon ảnh vỡ.
+      img.onerror = () => {
+        img.style.display = 'none';
+        if (note) note.style.display = 'block';
+      };
       img.src = url;
       lb.style.display = 'flex';
       // Disable body scroll while lightbox open
@@ -13106,6 +13125,7 @@
       <svg style="width:16px;height:16px;" aria-hidden="true"><use href="#ic-x"/></svg> Đóng
     </button>
     <img id="imgLightboxImg" src="" alt="" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:8px;">
+    <div id="imgLightboxNote" style="display:none; max-width:320px; text-align:center; color:#e5e7eb; font-size:14px; line-height:1.5; padding:24px;">Không tải được ảnh lỗi — file có thể đã bị xoá hoặc ghi đè, hoặc máy đăng bài (local) đang offline.</div>
   </div>
 
   <!-- PWA install FAB (mobile) -->
