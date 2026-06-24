@@ -264,46 +264,60 @@ async function attachImages(page, imagePaths) {
   // tượng "rớt hình"). Cách mới: chỉ đếm ảnh BÊN TRONG khu soạn (tổ tiên gần nhất
   // của textarea mà cũng chứa nút Gửi) và đòi SỐ ẢNH TĂNG so với lúc chưa đính.
 
-  // Tìm "khu soạn" trong trang & đếm số ảnh preview đang hiển thị trong đó.
-  const countComposerImages = () => page.evaluate(() => {
+  // Đo 2 tín hiệu trong page context (KHÔNG dùng eval/new Function — trang có thể
+  // chặn bởi CSP — nên inline cùng một thân đếm ở cả baseline lẫn waitForFunction):
+  //  - local: số ảnh render bằng blob:/data: URL = file CỤC BỘ vừa đính. Ảnh trong
+  //    lịch sử chat luôn là URL http(s) từ CDN → KHÔNG khớp. Độc lập vị trí preview.
+  //  - scoped: số ảnh hiển thị TRONG khu soạn (tổ tiên gần nhất của textarea mà
+  //    cũng chứa nút Gửi) — phòng khi trang dùng URL http cho preview tại chỗ.
+  // Cả 2 đều so với baseline trước khi đính nên miễn nhiễm ảnh lịch sử chat.
+  const countImages = () => page.evaluate(() => {
     const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
-    if (!ta) return -1;
-    let root = ta;
-    for (let i = 0; i < 8 && root.parentElement; i++) {
-      root = root.parentElement;
-      if (root.querySelector('button.send-btn')) break; // dừng ở khu soạn (có nút Gửi)
+    const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 12 && r.height > 12; };
+    let local = 0;
+    for (const img of document.querySelectorAll('img')) {
+      const src = img.currentSrc || img.src || '';
+      if ((src.startsWith('blob:') || src.startsWith('data:')) && visible(img)) local++;
     }
-    const els = root.querySelectorAll('img, .v-image__image, [class*="preview"], [class*="thumb"]');
-    let n = 0;
-    for (const el of els) {
-      if (el === ta) continue;
-      const r = el.getBoundingClientRect();
-      if (r.width > 12 && r.height > 12) n++; // bỏ qua icon/nút nhỏ & phần tử ẩn
+    let scoped = 0;
+    if (ta) {
+      let root = ta;
+      for (let i = 0; i < 8 && root.parentElement; i++) {
+        root = root.parentElement;
+        if (root.querySelector('button.send-btn')) break;
+      }
+      for (const el of root.querySelectorAll('img, .v-image__image, [class*="preview"], [class*="thumb"]')) {
+        if (el !== ta && visible(el)) scoped++;
+      }
     }
-    return n;
+    return { local, scoped };
   });
 
-  // Số ảnh trong khu soạn TRƯỚC khi đính (baseline icon/nút cố định). Đính thành
-  // công = số ảnh vượt baseline. Upload group sau chậm hơn → chờ tối đa 15s.
-  const baseline = await countComposerImages().catch(() => 0);
+  // Baseline (icon/nút & ảnh lịch sử cố định). Đính OK = local HOẶC scoped vượt
+  // baseline. Upload group sau chậm hơn → chờ tối đa 15s.
+  const baseline = await countImages().catch(() => ({ local: 0, scoped: 0 }));
   const imageAttached = async (timeout = 15000) => {
     try {
       await page.waitForFunction((base) => {
         const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
-        if (!ta) return false;
-        let root = ta;
-        for (let i = 0; i < 8 && root.parentElement; i++) {
-          root = root.parentElement;
-          if (root.querySelector('button.send-btn')) break;
+        const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 12 && r.height > 12; };
+        let local = 0;
+        for (const img of document.querySelectorAll('img')) {
+          const src = img.currentSrc || img.src || '';
+          if ((src.startsWith('blob:') || src.startsWith('data:')) && visible(img)) local++;
         }
-        const els = root.querySelectorAll('img, .v-image__image, [class*="preview"], [class*="thumb"]');
-        let n = 0;
-        for (const el of els) {
-          if (el === ta) continue;
-          const r = el.getBoundingClientRect();
-          if (r.width > 12 && r.height > 12) n++;
+        let scoped = 0;
+        if (ta) {
+          let root = ta;
+          for (let i = 0; i < 8 && root.parentElement; i++) {
+            root = root.parentElement;
+            if (root.querySelector('button.send-btn')) break;
+          }
+          for (const el of root.querySelectorAll('img, .v-image__image, [class*="preview"], [class*="thumb"]')) {
+            if (el !== ta && visible(el)) scoped++;
+          }
         }
-        return n > base;
+        return local > base.local || scoped > base.scoped;
       }, baseline, { timeout });
       return true;
     } catch {
