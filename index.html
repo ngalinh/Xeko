@@ -4640,7 +4640,10 @@
 
       <!-- Nội dung -->
       <div style="margin-bottom:14px;">
-        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Nội dung</label>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+          <label style="font-size:13px; font-weight:600; color:#555;">Nội dung</label>
+          <button type="button" id="repostExtrasBtn" onclick="toggleExtrasPicker('emoji','repostMessageInput','repostExtrasBtn')" title="Emoji &amp; Kiểu chữ" style="display:none; align-items:center; gap:5px; padding:4px 10px; border:1px solid #dbeafe; border-radius:6px; background:#eff6ff; color:#2563EB; font-size:12px; font-weight:600; cursor:pointer;" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'"><svg class="xi xi-sm"><use href="#ic-smile"/></svg> Emoji &amp; Kiểu chữ</button>
+        </div>
         <div id="repostMessageDisplay" style="padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#333; white-space:pre-wrap; max-height:140px; overflow-y:auto; min-height:44px; line-height:1.5;"></div>
         <textarea id="repostMessageInput" rows="5" placeholder="Nhập nội dung bài viết..." style="display:none; width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; resize:vertical; box-sizing:border-box; line-height:1.5;"></textarea>
       </div>
@@ -5113,10 +5116,28 @@
     }
 
     let _extrasActiveTab = 'emoji';
-
-    function toggleExtrasPicker(tab) {
+    // Which textarea + trigger button the extras picker currently acts on.
+    let _extrasTargetId = 'msgInput';
+    let _extrasBtnId = 'btnExtras';
+    function _getExtrasTarget() { return document.getElementById(_extrasTargetId); }
+    function _closeExtrasPicker() {
       const picker = document.getElementById('extrasPicker');
-      const btn = document.getElementById('btnExtras');
+      const btn = document.getElementById(_extrasBtnId);
+      if (picker) picker.style.display = 'none';
+      if (btn) btn.classList.remove('active');
+    }
+
+    function toggleExtrasPicker(tab, targetId, btnId) {
+      const picker = document.getElementById('extrasPicker');
+      // If switching to a different target/button while open, close first so it
+      // re-anchors to the new trigger instead of toggling shut.
+      const nextBtnId = btnId || 'btnExtras';
+      if (picker && picker.style.display !== 'none' && nextBtnId !== _extrasBtnId) {
+        _closeExtrasPicker();
+      }
+      _extrasTargetId = targetId || 'msgInput';
+      _extrasBtnId = nextBtnId;
+      const btn = document.getElementById(_extrasBtnId);
       if (!picker || !btn) return;
       if (picker.style.display !== 'none') {
         if (!tab || tab === _extrasActiveTab) {
@@ -5157,7 +5178,7 @@
       if (textTabBtn) textTabBtn.classList.toggle('active', tab === 'textstyle');
       if (tab === 'emoji') renderEmojiGrid(_emojiActiveTab);
       if (tab === 'textstyle') {
-        const ta = document.getElementById('msgInput');
+        const ta = _getExtrasTarget();
         const tsInput = document.getElementById('tsInput');
         if (ta && tsInput) tsInput.value = ta.value.slice(ta.selectionStart, ta.selectionEnd) || '';
         renderTsStyleList();
@@ -5195,24 +5216,23 @@
     }
 
     function insertEmoji(emoji) {
-      const ta = document.getElementById('msgInput');
+      const ta = _getExtrasTarget();
       if (!ta) return;
       const start = ta.selectionStart;
       const end = ta.selectionEnd;
       ta.value = ta.value.slice(0, start) + emoji + ta.value.slice(end);
       ta.selectionStart = ta.selectionEnd = start + [...emoji].length;
       ta.focus();
-      autoGrowMsgInput(ta);
+      if (ta.id === 'msgInput') autoGrowMsgInput(ta);
       addRecentEmoji(emoji);
     }
 
     document.addEventListener('click', function(e) {
       const picker = document.getElementById('extrasPicker');
-      const btn = document.getElementById('btnExtras');
+      const btn = document.getElementById(_extrasBtnId);
       if (picker && btn && picker.style.display !== 'none') {
         if (!picker.contains(e.target) && !btn.contains(e.target)) {
-          picker.style.display = 'none';
-          btn.classList.remove('active');
+          _closeExtrasPicker();
         }
       }
     });
@@ -5220,10 +5240,8 @@
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') {
         const picker = document.getElementById('extrasPicker');
-        const btn = document.getElementById('btnExtras');
         if (picker && picker.style.display !== 'none') {
-          picker.style.display = 'none';
-          if (btn) btn.classList.remove('active');
+          _closeExtrasPicker();
         }
       }
     });
@@ -5332,17 +5350,14 @@
       const tsInput = document.getElementById('tsInput');
       const text = tsInput ? tsInput.value : '';
       if (!text.trim()) return;
-      const ta = document.getElementById('msgInput');
+      const ta = _getExtrasTarget();
       if (!ta) return;
       const converted = style.fn(text);
       const start = ta.selectionStart; const end = ta.selectionEnd;
       ta.value = ta.value.slice(0, start) + converted + ta.value.slice(end);
       ta.selectionStart = ta.selectionEnd = start + [...converted].length;
-      ta.focus(); autoGrowMsgInput(ta);
-      const picker = document.getElementById('extrasPicker');
-      const btn = document.getElementById('btnExtras');
-      if (picker) picker.style.display = 'none';
-      if (btn) btn.classList.remove('active');
+      ta.focus(); if (ta.id === 'msgInput') autoGrowMsgInput(ta);
+      _closeExtrasPicker();
     }
 
     const ENCOURAGEMENTS = [
@@ -12301,6 +12316,7 @@
     function closeRepostModal() {
       document.getElementById('repostModal').style.display = 'none';
       _repostEditMode = false;
+      _closeExtrasPicker();
     }
 
     function _renderRepostImages() {
@@ -12362,13 +12378,17 @@
       // Message fields
       const msgDisplay = document.getElementById('repostMessageDisplay');
       const msgInput = document.getElementById('repostMessageInput');
+      const extrasBtn = document.getElementById('repostExtrasBtn');
       if (_repostEditMode) {
         msgDisplay.style.display = 'none';
         msgInput.style.display = '';
+        if (extrasBtn) extrasBtn.style.display = 'inline-flex';
       } else {
         msgDisplay.textContent = msgInput.value || '(không có nội dung)';
         msgDisplay.style.display = '';
         msgInput.style.display = 'none';
+        if (extrasBtn) extrasBtn.style.display = 'none';
+        _closeExtrasPicker();
       }
 
       _renderRepostImages();
