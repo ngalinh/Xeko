@@ -1315,8 +1315,19 @@ app.get('/api/logs/tail', (req, res) => {
   }
   const lines = Math.min(parseInt(req.query.lines) || 200, 2000);
   const q = (req.query.q || '').toString();
-  const logPath = path.resolve(__dirname, 'logs/app.log');
-  if (!fs.existsSync(logPath)) return res.json({ lines: [], path: logPath });
+  // Chọn file log mới sửa gần nhất trong bộ xoay vòng (app.log, app1.log, app2.log).
+  // Phòng trường hợp winston đã xoay vòng và file mới nhất không phải app.log —
+  // tránh đọc nhầm file cũ đã đông cứng khiến log trông như ngừng cập nhật.
+  const logDir = path.resolve(__dirname, 'logs');
+  const candidates = ['app.log', 'app1.log', 'app2.log', 'app3.log']
+    .map(name => path.join(logDir, name))
+    .filter(p => fs.existsSync(p));
+  if (candidates.length === 0) {
+    return res.json({ lines: [], path: path.join(logDir, 'app.log') });
+  }
+  const logPath = candidates.reduce((newest, p) =>
+    fs.statSync(p).mtimeMs > fs.statSync(newest).mtimeMs ? p : newest
+  );
 
   try {
     const stat = fs.statSync(logPath);
