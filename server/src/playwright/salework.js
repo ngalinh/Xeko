@@ -257,20 +257,54 @@ async function clickSend(page) {
 // nhiều group. DỰ PHÒNG: DÁN (paste) ảnh từ clipboard giả lập (untrusted, Zalo hay
 // bỏ qua). Thử tối đa 2 vòng + xác minh ảnh đã vào thật. Trả true nếu đính được.
 async function attachImages(page, imagePaths) {
-  // XÁC MINH ảnh đã thực sự đính vào ô soạn (KHÔNG chỉ tin là đã dán). Lúc gọi
-  // hàm này textarea CHƯA có text → nút Gửi (.send-btn) chỉ bật khi có ảnh đính;
-  // hoặc khu soạn xuất hiện preview/thumbnail ảnh. Thấy 1 trong 2 = đính OK.
-  // Timeout 15s (trước 6s) vì upload ảnh ở group sau thường chậm hơn group đầu.
+  // XÁC MINH ảnh đã thực sự đính vào Ô SOẠN — KHÔNG đếm ảnh trong lịch sử chat.
+  // Cách cũ (nút .send-btn bật HOẶC có 1 ảnh bất kỳ trong document) dễ DƯƠNG TÍNH
+  // GIẢ: nút Gửi hay bật sẵn, còn '[class*=thumb] img'/'.v-image__image' khớp luôn
+  // ảnh trong khung chat của group → tưởng đã đính nên gửi mỗi text (đúng hiện
+  // tượng "rớt hình"). Cách mới: chỉ đếm ảnh BÊN TRONG khu soạn (tổ tiên gần nhất
+  // của textarea mà cũng chứa nút Gửi) và đòi SỐ ẢNH TĂNG so với lúc chưa đính.
+
+  // Tìm "khu soạn" trong trang & đếm số ảnh preview đang hiển thị trong đó.
+  const countComposerImages = () => page.evaluate(() => {
+    const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
+    if (!ta) return -1;
+    let root = ta;
+    for (let i = 0; i < 8 && root.parentElement; i++) {
+      root = root.parentElement;
+      if (root.querySelector('button.send-btn')) break; // dừng ở khu soạn (có nút Gửi)
+    }
+    const els = root.querySelectorAll('img, .v-image__image, [class*="preview"], [class*="thumb"]');
+    let n = 0;
+    for (const el of els) {
+      if (el === ta) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width > 12 && r.height > 12) n++; // bỏ qua icon/nút nhỏ & phần tử ẩn
+    }
+    return n;
+  });
+
+  // Số ảnh trong khu soạn TRƯỚC khi đính (baseline icon/nút cố định). Đính thành
+  // công = số ảnh vượt baseline. Upload group sau chậm hơn → chờ tối đa 15s.
+  const baseline = await countComposerImages().catch(() => 0);
   const imageAttached = async (timeout = 15000) => {
     try {
-      await page.waitForFunction(() => {
-        const btn = document.querySelector('button.send-btn');
-        const btnOn = !!btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true';
-        const preview = document.querySelector(
-          '.msg-textarea-wrap img, [class*="preview"] img, [class*="thumb"] img, .v-image__image'
-        );
-        return btnOn || !!preview;
-      }, { timeout });
+      await page.waitForFunction((base) => {
+        const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
+        if (!ta) return false;
+        let root = ta;
+        for (let i = 0; i < 8 && root.parentElement; i++) {
+          root = root.parentElement;
+          if (root.querySelector('button.send-btn')) break;
+        }
+        const els = root.querySelectorAll('img, .v-image__image, [class*="preview"], [class*="thumb"]');
+        let n = 0;
+        for (const el of els) {
+          if (el === ta) continue;
+          const r = el.getBoundingClientRect();
+          if (r.width > 12 && r.height > 12) n++;
+        }
+        return n > base;
+      }, baseline, { timeout });
       return true;
     } catch {
       return false;
@@ -282,7 +316,9 @@ async function attachImages(page, imagePaths) {
     for (const input of await page.$$('input[type="file"]')) {
       try {
         await input.setInputFiles(imagePaths);
-        if (await imageAttached()) return true;
+        // Input "mù" có thể là ô upload khác (avatar…) → đính không vào khu soạn;
+        // chỉ chờ ngắn (5s) rồi rớt xuống menu .ic-violet (cách trusted chuẩn).
+        if (await imageAttached(5000)) return true;
       } catch {}
     }
     try {
