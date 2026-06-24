@@ -3481,41 +3481,6 @@
     <button class="clear-btn" onclick="clearImages()">Xoá ảnh</button>
   </div>
 
-  <!-- Combined Extras Picker (Emoji + Text Style) -->
-  <div class="extras-picker" id="extrasPicker" style="display:none;">
-    <div class="extras-tab-bar">
-      <button class="extras-tab-btn active" id="extrasTabEmoji" onclick="switchExtrasTab('emoji')">
-        <svg class="xi xi-sm"><use href="#ic-smile"/></svg> Emoji
-      </button>
-      <button class="extras-tab-btn" id="extrasTabText" onclick="switchExtrasTab('textstyle')">
-        <svg class="xi xi-sm"><use href="#ic-textstyle"/></svg> Kiểu chữ
-      </button>
-    </div>
-    <div class="extras-panel" id="extrasEmojiPanel" style="display:flex; flex-direction:column; overflow:hidden;">
-      <div class="emoji-grid-wrap">
-        <div class="emoji-section-label" id="emojiSectionLabel">Mặt cười &amp; Người</div>
-        <div class="emoji-grid" id="emojiGrid"></div>
-      </div>
-      <div class="emoji-tabs">
-        <button class="emoji-tab active" onclick="switchEmojiTab(this,'😀')" title="Mặt cười">😀</button>
-        <button class="emoji-tab" onclick="switchEmojiTab(this,'👋')" title="Cử chỉ">👋</button>
-        <button class="emoji-tab" onclick="switchEmojiTab(this,'🐶')" title="Động vật">🐶</button>
-        <button class="emoji-tab" onclick="switchEmojiTab(this,'🍔')" title="Thức ăn">🍔</button>
-        <button class="emoji-tab" onclick="switchEmojiTab(this,'✈️')" title="Du lịch">✈️</button>
-        <button class="emoji-tab" onclick="switchEmojiTab(this,'⚽')" title="Hoạt động">⚽</button>
-        <button class="emoji-tab" onclick="switchEmojiTab(this,'💡')" title="Đồ vật">💡</button>
-        <button class="emoji-tab" onclick="switchEmojiTab(this,'❤️')" title="Biểu tượng">❤️</button>
-        <button class="emoji-tab" onclick="switchEmojiTab(this,'★')" title="Ký hiệu">★</button>
-      </div>
-    </div>
-    <div class="extras-panel" id="extrasTextStylePanel" style="display:none; flex-direction:column; overflow:hidden;">
-      <div class="ts-input-wrap">
-        <input id="tsInput" type="text" placeholder="Nhập văn bản để xem trước..." autocomplete="off" oninput="renderTsStyleList()">
-      </div>
-      <div class="ts-list" id="tsStyleList"></div>
-    </div>
-  </div>
-
   <div class="input-area" id="inputArea">
     <button class="btn-icon btn-attach" onclick="document.getElementById('fileInput').click()" aria-label="Đính kèm ảnh"><svg class="xi xi-md"><use href="#ic-camera"/></svg></button>
     <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this)">
@@ -4619,6 +4584,42 @@
     </div>
   </div>
 
+  <!-- Combined Extras Picker (Emoji + Text Style) — top-level so it works on any
+       page/modal (Đăng bài, Repost…), not only inside the hidden post page. -->
+  <div class="extras-picker" id="extrasPicker" style="display:none;">
+    <div class="extras-tab-bar">
+      <button class="extras-tab-btn active" id="extrasTabEmoji" onclick="switchExtrasTab('emoji')">
+        <svg class="xi xi-sm"><use href="#ic-smile"/></svg> Emoji
+      </button>
+      <button class="extras-tab-btn" id="extrasTabText" onclick="switchExtrasTab('textstyle')">
+        <svg class="xi xi-sm"><use href="#ic-textstyle"/></svg> Kiểu chữ
+      </button>
+    </div>
+    <div class="extras-panel" id="extrasEmojiPanel" style="display:flex; flex-direction:column; overflow:hidden;">
+      <div class="emoji-grid-wrap">
+        <div class="emoji-section-label" id="emojiSectionLabel">Mặt cười &amp; Người</div>
+        <div class="emoji-grid" id="emojiGrid"></div>
+      </div>
+      <div class="emoji-tabs">
+        <button class="emoji-tab active" onclick="switchEmojiTab(this,'😀')" title="Mặt cười">😀</button>
+        <button class="emoji-tab" onclick="switchEmojiTab(this,'👋')" title="Cử chỉ">👋</button>
+        <button class="emoji-tab" onclick="switchEmojiTab(this,'🐶')" title="Động vật">🐶</button>
+        <button class="emoji-tab" onclick="switchEmojiTab(this,'🍔')" title="Thức ăn">🍔</button>
+        <button class="emoji-tab" onclick="switchEmojiTab(this,'✈️')" title="Du lịch">✈️</button>
+        <button class="emoji-tab" onclick="switchEmojiTab(this,'⚽')" title="Hoạt động">⚽</button>
+        <button class="emoji-tab" onclick="switchEmojiTab(this,'💡')" title="Đồ vật">💡</button>
+        <button class="emoji-tab" onclick="switchEmojiTab(this,'❤️')" title="Biểu tượng">❤️</button>
+        <button class="emoji-tab" onclick="switchEmojiTab(this,'★')" title="Ký hiệu">★</button>
+      </div>
+    </div>
+    <div class="extras-panel" id="extrasTextStylePanel" style="display:none; flex-direction:column; overflow:hidden;">
+      <div class="ts-input-wrap">
+        <input id="tsInput" type="text" placeholder="Nhập văn bản để xem trước..." autocomplete="off" oninput="renderTsStyleList()">
+      </div>
+      <div class="ts-list" id="tsStyleList"></div>
+    </div>
+  </div>
+
   <!-- Modal đăng lại bài viết -->
   <div id="repostModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
     <div style="background:#fff; border-radius:16px; padding:28px; width:580px; max-width:95%; max-height:90vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.25); position:relative;">
@@ -4642,7 +4643,7 @@
       <div style="margin-bottom:14px;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
           <label style="font-size:13px; font-weight:600; color:#555;">Nội dung</label>
-          <button type="button" id="repostExtrasBtn" onclick="toggleExtrasPicker('emoji','repostMessageInput','repostExtrasBtn')" title="Emoji &amp; Kiểu chữ" style="display:none; align-items:center; gap:5px; padding:4px 10px; border:1px solid #dbeafe; border-radius:6px; background:#eff6ff; color:#2563EB; font-size:12px; font-weight:600; cursor:pointer;" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'"><svg class="xi xi-sm"><use href="#ic-smile"/></svg> Emoji &amp; Kiểu chữ</button>
+          <button type="button" id="repostExtrasBtn" class="btn-extras" onclick="toggleExtrasPicker('emoji','repostMessageInput','repostExtrasBtn')" title="Emoji &amp; Kiểu chữ" style="display:none; width:32px; height:32px; border-radius:50%; border:none; cursor:pointer; align-items:center; justify-content:center; font-size:18px; line-height:1;"><svg class="xi xi-md"><use href="#ic-smile"/></svg></button>
         </div>
         <div id="repostMessageDisplay" style="padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#333; white-space:pre-wrap; max-height:140px; overflow-y:auto; min-height:44px; line-height:1.5;"></div>
         <textarea id="repostMessageInput" rows="5" placeholder="Nhập nội dung bài viết..." style="display:none; width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; resize:vertical; box-sizing:border-box; line-height:1.5;"></textarea>
