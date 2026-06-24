@@ -897,10 +897,11 @@ async function submitPost(page) {
   });
   await randomDelay(800, 1200);
 
-  // Vòng lặp: bấm "Đăng" rồi chờ MỘT trong hai dấu hiệu thành công —
+  // Vòng lặp: bấm "Tiếp"/"Đăng" rồi chờ dấu hiệu thành công —
   //  (1) hộp thoại tạo bài đóng, HOẶC (2) bắt được postUrl từ GraphQL.
-  // Bài cá nhân có thể qua 2 màn (Tạo bài viết → Cài đặt bài viết) nên cần bấm
-  // vài lần; nút "Đăng" cuối có thể render trễ.
+  // Bài cá nhân qua 2 màn (Tạo bài viết → Cài đặt bài viết): bấm "Tiếp" KHÔNG
+  // làm hộp thoại đóng → KHÔNG chờ đóng (phí ~6s), chỉ chờ nút "Đăng" hiện rồi
+  // bấm ngay (nhanh như bản cũ). Chỉ khi bấm "Đăng" mới chờ hộp thoại đóng hẳn.
   let success = false;
   let lastClick = null;
   for (let i = 0; i < 6; i++) {
@@ -908,8 +909,27 @@ async function submitPost(page) {
     if (clicked) lastClick = clicked;
     logger.info(`submitPost: lần ${i + 1} bấm "Đăng"${clicked ? ` (${clicked})` : ' — KHÔNG thấy nút'}`);
 
-    // Chờ tới khi hộp thoại tạo bài / cài đặt bài viết ĐÓNG hẳn (predicate chạy
-    // trong browser, trả true khi không còn dialog nào mang tiêu đề composer).
+    // Không thấy nút (có thể đang render) → chờ ngắn rồi thử lại, đừng phí 6s.
+    if (!clicked) { await randomDelay(500, 900); continue; }
+
+    // Vừa bấm "Tiếp"/"Next" → chuyển sang màn "Cài đặt bài viết". Chờ NGẮN cho
+    // nút "Đăng" xuất hiện rồi sang vòng sau bấm ngay (không chờ hộp thoại đóng).
+    if (/Tiếp|Next/i.test(clicked)) {
+      await page.waitForFunction(() => {
+        const dialogs = document.querySelectorAll('div[role="dialog"]');
+        const dlg = dialogs[dialogs.length - 1];
+        if (!dlg) return false;
+        if (dlg.querySelector('[aria-label="Đăng"],[aria-label="Post"]')) return true;
+        for (const s of dlg.querySelectorAll('span, div')) {
+          const t = (s.textContent || '').trim();
+          if (t === 'Đăng' || t === 'Post') return true;
+        }
+        return false;
+      }, { timeout: 4000 }).catch(() => {});
+      continue;
+    }
+
+    // Vừa bấm "Đăng"/"Post" (submit cuối) → chờ hộp thoại composer ĐÓNG hẳn.
     const closed = await page.waitForFunction(() => {
       const dialogs = document.querySelectorAll('div[role="dialog"]');
       for (const d of dialogs) {
@@ -918,7 +938,7 @@ async function submitPost(page) {
             t.includes('Cài đặt bài viết') || t.includes('Post settings') || t.includes('Post Settings')) return false;
       }
       return true;
-    }, { timeout: 6000 }).then(() => true).catch(() => false);
+    }, { timeout: 5000 }).then(() => true).catch(() => false);
     if (closed) { success = true; break; }
     await randomDelay(600, 1000);
   }
