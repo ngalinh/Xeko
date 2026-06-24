@@ -963,12 +963,25 @@ app.post('/api/fb-scrape', async (req, res) => {
 });
 
 // ===== SCREENSHOT =====
+// ?name=<file>.png → trả ảnh debug cụ thể (vd debug-failed-<ts>.png) trong logs/.
+// Không có name → ảnh post mới nhất. Chỉ cho phép file .png trong thư mục logs
+// (path.basename + regex chặn path traversal).
 app.get('/api/screenshot', (req, res) => {
-  const screenshotPath = path.resolve(__dirname, 'logs/latest-post.png');
-  if (fs.existsSync(screenshotPath)) {
-    res.sendFile(screenshotPath);
+  const logsDir = path.resolve(__dirname, 'logs');
+  let target;
+  if (req.query.name) {
+    const safe = path.basename(String(req.query.name));
+    if (!/^[\w.\-]+\.png$/i.test(safe)) {
+      return res.status(400).json({ error: 'Tên ảnh không hợp lệ' });
+    }
+    target = path.join(logsDir, safe);
   } else {
-    res.status(404).json({ error: 'Không có screenshot' });
+    target = path.join(logsDir, 'latest-post.png');
+  }
+  if (fs.existsSync(target)) {
+    res.sendFile(target);
+  } else {
+    res.status(404).json({ error: 'Không có ảnh lỗi (có thể đã bị xoá hoặc ghi đè)' });
   }
 });
 

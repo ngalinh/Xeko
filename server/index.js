@@ -847,9 +847,34 @@ app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res)
   })();
 });
 
-// Lay screenshot moi nhat
-app.get('/api/screenshot', (req, res) => {
-  const screenshotPath = path.resolve(__dirname, '../logs/latest-post.png');
+// Lay screenshot moi nhat — hoac anh loi cu the qua ?name=<file>.png.
+// Anh nam tren may local (Playwright chup), nen o che do proxy phai forward
+// sang local va pipe nhi phan ve. Che do chay truc tiep thi doc file logs/.
+app.get('/api/screenshot', async (req, res) => {
+  const name = req.query.name ? String(req.query.name) : '';
+  if (name && !/^[\w.\-]+\.png$/i.test(path.basename(name))) {
+    return res.status(400).json({ error: 'Tên ảnh không hợp lệ' });
+  }
+
+  if (getLocalUrl()) {
+    try {
+      const LOCAL_URL = getLocalUrl();
+      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const fetchFn = await getFetch();
+      const qs = name ? `?name=${encodeURIComponent(path.basename(name))}` : '';
+      const r = await fetchFn(`${LOCAL_URL}/api/screenshot${qs}`, { headers: { 'x-api-key': API_KEY } });
+      if (!r.ok) {
+        return res.status(r.status).json({ error: 'Không lấy được ảnh lỗi từ máy local (có thể đã bị xoá/ghi đè)' });
+      }
+      res.set('Content-Type', r.headers.get('content-type') || 'image/png');
+      return res.send(Buffer.from(await r.arrayBuffer()));
+    } catch (e) {
+      return res.status(502).json({ error: `Không kết nối được máy local: ${e.message}` });
+    }
+  }
+
+  const safe = name ? path.basename(name) : 'latest-post.png';
+  const screenshotPath = path.resolve(__dirname, '../logs', safe);
   if (fs.existsSync(screenshotPath)) {
     res.sendFile(screenshotPath);
   } else {
