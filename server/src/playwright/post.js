@@ -176,6 +176,19 @@ async function tryClick(page, selectors, description, timeout = 5000) {
   return false;
 }
 
+// Lưu screenshot debug với tên DUY NHẤT (kèm timestamp) để KHÔNG ghi đè ảnh
+// của lần lỗi trước — giữ bằng chứng cho từng lần fail. Trả về basename để nhúng
+// vào thông báo lỗi (dashboard có nút "Xem ảnh lỗi" đọc tên này từ error).
+async function saveDebugShot(page, prefix) {
+  const name = `${prefix}-${Date.now()}.png`;
+  try {
+    await page.screenshot({ path: path.resolve(__dirname, `../../logs/${name}`) });
+  } catch (e) {
+    logger.warn(`saveDebugShot(${prefix}) lỗi: ${e.message}`);
+  }
+  return name;
+}
+
 async function openCreatePost(page, isGroup = false) {
   // Đợi feed render xong: domcontentloaded đã done ở page.goto, chờ thêm 1s để
   // React render nút tạo bài. networkidle không dùng — FB liên tục có background
@@ -381,8 +394,9 @@ async function attachImages(page, imagePaths) {
 
   if (!uploaded) {
     logger.error('KHÔNG UPLOAD ĐƯỢC ẢNH!');
-    await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-upload.png') });
-    return false;
+    // Trả tên ảnh (string truthy) thay vì false → caller phân biệt fail bằng
+    // `!== true` và nhúng tên ảnh duy nhất vào thông báo lỗi.
+    return await saveDebugShot(page, 'debug-upload');
   }
 
   // Verify: chờ FB render preview. Smart wait: resolve ngay khi thumbnail xuất hiện,
@@ -770,8 +784,8 @@ async function submitPostAndShareGroups(page, keywords) {
 
   const stillOpen = await page.$('div[role="dialog"] span:has-text("Tạo bài viết"), div[role="dialog"] span:has-text("Cài đặt bài viết")');
   if (stillOpen) {
-    await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-share-submit-failed.png') }).catch(() => {});
-    return { success: false, sharedGroups: shareResult.selected, missedGroups: shareResult.missed };
+    const shot = await saveDebugShot(page, 'debug-share-submit-failed');
+    return { success: false, screenshot: shot, sharedGroups: shareResult.selected, missedGroups: shareResult.missed };
   }
 
   const postUrl = await urlPromise;
@@ -971,7 +985,7 @@ async function postToPersonal(message, imagePaths = []) {
     if (imagePaths.length > 0) {
       const tImg = Date.now();
       const imgOk = await attachImages(page, imagePaths);
-      if (!imgOk) throw new Error(funMsg.errUpload() + ' (xem logs/debug-upload.png)');
+      if (imgOk !== true) throw new Error(funMsg.errUpload() + ` (xem logs/${imgOk || 'debug-upload.png'})`);
       logger.info(`${tag} attach ${imagePaths.length} ảnh xong (${Date.now() - tImg}ms)`);
     }
     await randomDelay(800, 1200);
@@ -1042,7 +1056,7 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
 
     if (imagePaths.length > 0) {
       const imgOk = await attachImages(page, imagePaths);
-      if (!imgOk) throw new Error(funMsg.errUpload() + ' (xem logs/debug-upload.png)');
+      if (imgOk !== true) throw new Error(funMsg.errUpload() + ` (xem logs/${imgOk || 'debug-upload.png'})`);
     }
     await randomDelay(800, 1200);
 
@@ -1056,7 +1070,7 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
       const hint = (!message && imagePaths.length > 0)
         ? 'FB không cho đăng bài chỉ có ảnh không text. Bạn thêm caption rồi đăng lại nha!'
         : funMsg.errPost();
-      throw new Error(`${hint} (xem logs/debug-share-submit-failed.png)`);
+      throw new Error(`${hint} (xem logs/${result.screenshot || 'debug-share-submit-failed.png'})`);
     }
     logger.info(`${tag} xong (${Date.now() - t0}ms) ✅ shared=${Array.isArray(result.sharedGroups) ? result.sharedGroups.length : 0}/${kwList.length}${result.postUrl ? ` postUrl=${result.postUrl}` : ''}`);
     return { success: true, target: 'personal+groups', postUrl: result.postUrl || null, groups: kwList, sharedGroups: result.sharedGroups, missedGroups: result.missedGroups };
@@ -1088,15 +1102,15 @@ async function postToGroup(groupId, message, imagePaths = []) {
     await ensureLoggedIn(page);
 
     if (!(await openCreatePost(page, true))) {
-      await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-group-open.png') });
-      throw new Error(funMsg.errPopupGroup());
+      const shot = await saveDebugShot(page, 'debug-group-open');
+      throw new Error(`${funMsg.errPopupGroup()} (xem logs/${shot})`);
     }
     await randomDelay(2000, 3000);
 
     // Đính kèm ảnh TRƯỚC
     if (imagePaths.length > 0) {
       const imgOk = await attachImages(page, imagePaths);
-      if (!imgOk) throw new Error(funMsg.errUpload() + ' (xem logs/debug-upload.png)');
+      if (imgOk !== true) throw new Error(funMsg.errUpload() + ` (xem logs/${imgOk || 'debug-upload.png'})`);
     }
     await randomDelay(1500, 2500);
 
@@ -1170,14 +1184,14 @@ async function postToPage(pageId, message, imagePaths = []) {
     await ensureLoggedIn(page);
 
     if (!(await openCreatePost(page, false))) {
-      await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-page-open.png') });
-      throw new Error(`Không mở được popup tạo bài cho page ${pageId}. Chắc chắn đã switch sang page trong session chưa?`);
+      const shot = await saveDebugShot(page, 'debug-page-open');
+      throw new Error(`Không mở được popup tạo bài cho page ${pageId}. Chắc chắn đã switch sang page trong session chưa? (xem logs/${shot})`);
     }
     await randomDelay(2000, 3000);
 
     if (imagePaths.length > 0) {
       const imgOk = await attachImages(page, imagePaths);
-      if (!imgOk) throw new Error(funMsg.errUpload() + ' (xem logs/debug-upload.png)');
+      if (imgOk !== true) throw new Error(funMsg.errUpload() + ` (xem logs/${imgOk || 'debug-upload.png'})`);
     }
     await randomDelay(1500, 2500);
 
@@ -1271,7 +1285,7 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
   // 2a. Upload ảnh (TRƯỚC như flow cũ)
   if (imagePaths && imagePaths.length > 0) {
     const ok = await attachImages(page, imagePaths);
-    if (!ok) {
+    if (ok !== true) {
       const shot = await _qpScreenshot(page, 'step2a-fail');
       await _qpLog(steps, `Step 2a: attachImages (cũ) fail (screenshot=${shot})`);
       return false;
