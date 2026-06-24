@@ -855,7 +855,13 @@ async function submitPost(page) {
     await page.evaluate(() => {
       document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
     });
-    const dialog = page.locator('div[role="dialog"]').last();
+    // Nhắm ĐÚNG hộp thoại composer theo tiêu đề — KHÔNG dùng .last() vì FB render
+    // nhiều div[role="dialog"] ẩn, .last() dễ trỏ nhầm hộp rỗng → không thấy nút
+    // "Đăng" (đúng lỗi: nhập xong nội dung mà bot không bấm Đăng). Không thấy
+    // composer theo tiêu đề thì mới fallback về dialog cuối.
+    const composer = page.locator('div[role="dialog"]')
+      .filter({ hasText: /Tạo bài viết|Create post|Cài đặt bài viết|Post settings/i });
+    const dialog = (await composer.count().catch(() => 0)) ? composer.last() : page.locator('div[role="dialog"]').last();
     // A. aria-label exact, bỏ qua nút disabled (Playwright click → event đáng tin)
     for (const lbl of ['Đăng', 'Post', 'Tiếp', 'Next']) {
       try {
@@ -870,19 +876,33 @@ async function submitPost(page) {
         if (await el.count()) { await el.click({ force: true, timeout: 2500 }); return `role=${lbl}`; }
       } catch {}
     }
-    // C. span/div text → leo lên role=button (DOM click), bỏ nút disabled/ẩn
+    // B2. text exact → leo lên [role=button] gần nhất, click bằng Playwright (đáng tin).
+    // Bắt nút xanh "Đăng" dạng <div role=button><span>Đăng</span></div> không aria-label.
+    for (const lbl of ['Đăng', 'Post', 'Tiếp', 'Next']) {
+      try {
+        const el = dialog.getByText(lbl, { exact: true })
+          .locator('xpath=ancestor-or-self::*[@role="button"][1]').first();
+        if ((await el.count()) && (await el.getAttribute('aria-disabled')) !== 'true') {
+          await el.click({ force: true, timeout: 2500 }); return `text=${lbl}`;
+        }
+      } catch {}
+    }
+    // C. DỰ PHÒNG cuối: quét DOM mọi dialog (ưu tiên composer theo tiêu đề), leo
+    // span/div text lên role=button — giống bản cũ quét toàn cục, tránh trượt.
     const viaDom = await page.evaluate(() => {
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      const dlg = dialogs[dialogs.length - 1];
-      if (!dlg) return null;
-      for (const want of ['Đăng', 'Post', 'Tiếp', 'Next']) {
-        for (const s of dlg.querySelectorAll('span, div')) {
-          if ((s.textContent || '').trim() !== want) continue;
-          let el = s;
-          for (let i = 0; i < 8 && el; i++, el = el.parentElement) {
-            if (el.getAttribute && el.getAttribute('role') === 'button' && el.getAttribute('aria-disabled') !== 'true') {
-              const r = el.getBoundingClientRect();
-              if (r.width > 0 && r.height > 0) { el.scrollIntoView({ block: 'center' }); el.click(); return want; }
+      const all = Array.from(document.querySelectorAll('div[role="dialog"]'));
+      const titled = all.filter(d => /Tạo bài viết|Create post|Cài đặt bài viết|Post settings/i.test(d.textContent || ''));
+      const scopes = (titled.length ? titled : all).reverse();
+      for (const dlg of scopes) {
+        for (const want of ['Đăng', 'Post', 'Tiếp', 'Next']) {
+          for (const s of dlg.querySelectorAll('span, div')) {
+            if ((s.textContent || '').trim() !== want) continue;
+            let el = s;
+            for (let i = 0; i < 8 && el; i++, el = el.parentElement) {
+              if (el.getAttribute && el.getAttribute('role') === 'button' && el.getAttribute('aria-disabled') !== 'true') {
+                const r = el.getBoundingClientRect();
+                if (r.width > 0 && r.height > 0) { el.scrollIntoView({ block: 'center' }); el.click(); return want; }
+              }
             }
           }
         }
