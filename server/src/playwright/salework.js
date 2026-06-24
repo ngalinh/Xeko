@@ -259,7 +259,27 @@ async function clickSend(page) {
 async function attachImages(page, imagePaths) {
   let uploaded = false;
 
-  // (a) DÁN ảnh vào textarea.
+  // XÁC MINH ảnh đã thực sự đính vào ô soạn (KHÔNG chỉ tin là đã dán). Lúc gọi
+  // hàm này textarea CHƯA có text → nút Gửi (.send-btn) chỉ bật khi có ảnh đính;
+  // hoặc khu soạn xuất hiện preview/thumbnail ảnh. Thấy 1 trong 2 = đính OK.
+  const imageAttached = async (timeout = 6000) => {
+    try {
+      await page.waitForFunction(() => {
+        const btn = document.querySelector('button.send-btn');
+        const btnOn = !!btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true';
+        const preview = document.querySelector(
+          '.msg-textarea-wrap img, [class*="preview"] img, [class*="thumb"] img, .v-image__image'
+        );
+        return btnOn || !!preview;
+      }, { timeout });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // (a) DÁN ảnh vào textarea. Sự kiện 'paste' tổng hợp là untrusted nên app có
+  // thể bỏ qua → PHẢI xác minh ảnh đã vào thật, nếu không thì để rơi xuống (b).
   try {
     const files = imagePaths.map(p => {
       const ext = path.extname(p).toLowerCase();
@@ -268,7 +288,7 @@ async function attachImages(page, imagePaths) {
       return { name: path.basename(p), type, b64: fs.readFileSync(p).toString('base64') };
     });
     await page.locator('textarea.msg-textarea, textarea:visible').first().click({ timeout: 5000 }).catch(() => {});
-    uploaded = await page.evaluate((files) => {
+    const dispatched = await page.evaluate((files) => {
       const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea') || document.activeElement;
       if (!ta) return false;
       const dt = new DataTransfer();
@@ -284,8 +304,11 @@ async function attachImages(page, imagePaths) {
       ta.dispatchEvent(evt);
       return true;
     }, files);
-    if (uploaded) logger.info(`[basso] Đã dán ${imagePaths.length} ảnh vào ô soạn tin`);
-    await sleep(2000);
+    if (dispatched) {
+      uploaded = await imageAttached();   // CHỜ + KIỂM TRA ảnh thực sự xuất hiện
+      if (uploaded) logger.info(`[basso] Đã dán ${imagePaths.length} ảnh vào ô soạn tin (đã xác minh)`);
+      else logger.warn('[basso] Dán ảnh xong nhưng KHÔNG thấy ảnh đính — chuyển sang dự phòng menu/filechooser');
+    }
   } catch (e) {
     logger.warn(`[basso] Dán ảnh lỗi: ${e.message} — thử qua menu nút .ic-violet`);
     uploaded = false;
