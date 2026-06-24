@@ -832,107 +832,95 @@ async function submitPost(page) {
   // Phải attach listener TRƯỚC khi click — response GraphQL về sau vài trăm ms
   const urlPromise = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
 
-  await page.evaluate(() => {
-    document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
-  });
-  await randomDelay(1000, 1500);
-
-  const step1 = await tryClick(page, [
-    'div[aria-label="Tiếp"]',
-    'div[aria-label="Next"]',
-    'div[aria-label="Đăng"]',
-    'div[aria-label="Post"]',
-  ], 'Bước 1');
-
-  if (!step1) {
-    for (let i = 0; i < 5; i++) {
-      await page.keyboard.press('Tab');
-      await randomDelay(200, 400);
-    }
-    await page.keyboard.press('Enter');
-  }
-
-  await randomDelay(800, 1500);
-
-  await page.evaluate(() => {
-    document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
-  });
-  await randomDelay(500, 900);
-
-  const step2 = await tryClick(page, [
-    'div[aria-label="Đăng"]',
-    'div[aria-label="Post"]',
-  ], 'Bước 2 - Đăng');
-
-  if (!step2) {
+  // Bấm nút "Đăng"/"Tiếp" CHẮC TAY bằng nhiều chiến lược (giống qpStep6Submit).
+  // Nút "Đăng" của FB lúc là div[aria-label="Đăng"], lúc chỉ là <span>Đăng</span>
+  // bọc trong role=button KHÔNG kèm aria-label — nên chỉ dò aria-label sẽ trượt
+  // (đúng lỗi đã thấy: hộp thoại còn mở, nút Đăng sẵn sàng mà bot không bấm được).
+  // Ưu tiên "Đăng" (submit cuối) trước "Tiếp" (chuyển màn của bài cá nhân).
+  const clickPostButton = async () => {
     await page.evaluate(() => {
-      const buttons = document.querySelectorAll('div[role="button"]');
-      for (const btn of buttons) {
-        if (btn.getAttribute('aria-label') === 'Đăng' || btn.getAttribute('aria-label') === 'Post') {
-          btn.click();
-          return;
-        }
-      }
-      const spans = document.querySelectorAll('span');
-      for (const span of spans) {
-        if (span.textContent.trim() === 'Đăng' || span.textContent.trim() === 'Post') {
-          span.closest('div[role="button"]')?.click();
-          return;
-        }
-      }
+      document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
     });
-  }
-
-  // Sau khi bấm "Tiếp", bài cá nhân chuyển sang màn "Cài đặt bài viết" và nút
-  // "Đăng" cuối có thể render trễ (FB còn tải gợi ý nhóm…). Trước đây chỉ chờ
-  // dialog "Tạo bài viết" đóng 1 lần rồi bỏ cuộc → hụt cú click cuối nếu nút
-  // chưa kịp hiện. Giờ: chờ dialog đóng, nếu còn kẹt ở "Cài đặt bài viết"/
-  // "Tạo bài viết" thì bấm lại "Đăng" thêm vài lần.
-  const dialogOpenFn = () => {
-    const dialogs = document.querySelectorAll('div[role="dialog"]');
-    for (const d of dialogs) {
-      const t = d.textContent || '';
-      if (t.includes('Tạo bài viết') || t.includes('Create post') ||
-          t.includes('Cài đặt bài viết') || t.includes('Post settings')) return false; // còn mở
+    const dialog = page.locator('div[role="dialog"]').last();
+    // A. aria-label exact, bỏ qua nút disabled (Playwright click → event đáng tin)
+    for (const lbl of ['Đăng', 'Post', 'Tiếp', 'Next']) {
+      try {
+        const el = dialog.locator(`[aria-label="${lbl}"]:not([aria-disabled="true"])`).first();
+        if (await el.count()) { await el.click({ force: true, timeout: 2500 }); return `aria=${lbl}`; }
+      } catch {}
     }
-    return true; // đã đóng
-  };
-  const clickDangNow = () => page.evaluate(() => {
-    const dialogs = document.querySelectorAll('div[role="dialog"]');
-    const dlg = dialogs[dialogs.length - 1];
-    if (!dlg) return false;
-    dlg.scrollTop = dlg.scrollHeight; // kéo xuống cuối để lộ nút "Đăng"
-    for (const b of dlg.querySelectorAll('div[role="button"]')) {
-      const lbl = b.getAttribute('aria-label');
-      if ((lbl === 'Đăng' || lbl === 'Post') && b.getAttribute('aria-disabled') !== 'true') { b.click(); return true; }
+    // B. getByRole(button, name exact) — bắt được nút accessible-name không có aria-label
+    for (const lbl of ['Đăng', 'Post', 'Tiếp', 'Next']) {
+      try {
+        const el = dialog.getByRole('button', { name: lbl, exact: true }).first();
+        if (await el.count()) { await el.click({ force: true, timeout: 2500 }); return `role=${lbl}`; }
+      } catch {}
     }
-    for (const el of dlg.querySelectorAll('span, div')) {
-      const tx = (el.textContent || '').trim();
-      if (tx === 'Đăng' || tx === 'Post') {
-        const btn = el.closest('div[role="button"]');
-        if (btn && btn.getAttribute('aria-disabled') !== 'true') { btn.click(); return true; }
+    // C. span/div text → leo lên role=button (DOM click), bỏ nút disabled/ẩn
+    const viaDom = await page.evaluate(() => {
+      const dialogs = document.querySelectorAll('div[role="dialog"]');
+      const dlg = dialogs[dialogs.length - 1];
+      if (!dlg) return null;
+      for (const want of ['Đăng', 'Post', 'Tiếp', 'Next']) {
+        for (const s of dlg.querySelectorAll('span, div')) {
+          if ((s.textContent || '').trim() !== want) continue;
+          let el = s;
+          for (let i = 0; i < 8 && el; i++, el = el.parentElement) {
+            if (el.getAttribute && el.getAttribute('role') === 'button' && el.getAttribute('aria-disabled') !== 'true') {
+              const r = el.getBoundingClientRect();
+              if (r.width > 0 && r.height > 0) { el.scrollIntoView({ block: 'center' }); el.click(); return want; }
+            }
+          }
+        }
       }
-    }
-    return false;
+      return null;
+    });
+    return viaDom ? `dom=${viaDom}` : null;
+  };
+
+  await page.evaluate(() => {
+    document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
   });
+  await randomDelay(800, 1200);
 
-  let closed = false;
-  for (let i = 0; i < 4; i++) {
-    closed = await page.waitForFunction(dialogOpenFn, { timeout: 4000 }).then(() => true).catch(() => false);
-    if (closed) break;
-    // Vẫn còn dialog → nhiều khả năng đang ở màn "Cài đặt bài viết", bấm "Đăng" lần nữa.
-    const reclicked = await clickDangNow();
-    logger.info(`submitPost: dialog còn mở, thử bấm "Đăng" lại (lần ${i + 1})${reclicked ? '' : ' — không thấy nút'}`);
-    await randomDelay(500, 900);
+  // Vòng lặp: bấm "Đăng" rồi chờ MỘT trong hai dấu hiệu thành công —
+  //  (1) hộp thoại tạo bài đóng, HOẶC (2) bắt được postUrl từ GraphQL.
+  // Bài cá nhân có thể qua 2 màn (Tạo bài viết → Cài đặt bài viết) nên cần bấm
+  // vài lần; nút "Đăng" cuối có thể render trễ.
+  let success = false;
+  let lastClick = null;
+  for (let i = 0; i < 6; i++) {
+    const clicked = await clickPostButton();
+    if (clicked) lastClick = clicked;
+    logger.info(`submitPost: lần ${i + 1} bấm "Đăng"${clicked ? ` (${clicked})` : ' — KHÔNG thấy nút'}`);
+
+    // Chờ tới khi hộp thoại tạo bài / cài đặt bài viết ĐÓNG hẳn (predicate chạy
+    // trong browser, trả true khi không còn dialog nào mang tiêu đề composer).
+    const closed = await page.waitForFunction(() => {
+      const dialogs = document.querySelectorAll('div[role="dialog"]');
+      for (const d of dialogs) {
+        const t = d.textContent || '';
+        if (t.includes('Tạo bài viết') || t.includes('Create post') || t.includes('Create Post') ||
+            t.includes('Cài đặt bài viết') || t.includes('Post settings') || t.includes('Post Settings')) return false;
+      }
+      return true;
+    }, { timeout: 6000 }).then(() => true).catch(() => false);
+    if (closed) { success = true; break; }
+    await randomDelay(600, 1000);
   }
 
-  if (!closed) {
-    await page.screenshot({ path: path.resolve(__dirname, '../../logs/debug-failed.png') });
-    return { success: false };
-  }
-
+  // postUrl bắt được = bài ĐÃ được tạo, kể cả khi phát hiện đóng hộp thoại chập chờn.
   const postUrl = await urlPromise;
-  if (!postUrl) logger.warn('Không bắt được postUrl từ GraphQL (timeout)');
+  if (postUrl) success = true;
+
+  if (!success) {
+    const shot = `debug-failed-${Date.now()}.png`;
+    await page.screenshot({ path: path.resolve(__dirname, `../../logs/${shot}`) }).catch(() => {});
+    logger.warn(`submitPost: thất bại — hộp thoại không đóng & không bắt được postUrl (lastClick=${lastClick || 'none'}, screenshot=${shot})`);
+    return { success: false, screenshot: shot };
+  }
+
+  if (!postUrl) logger.warn('submitPost: thành công (hộp thoại đóng) nhưng không bắt được postUrl từ GraphQL');
   return { success: true, postUrl };
 }
 
@@ -1003,7 +991,7 @@ async function postToPersonal(message, imagePaths = []) {
       const hint = (!message && imagePaths.length > 0)
         ? 'FB không cho đăng bài chỉ có ảnh không text. Bạn thêm caption (vài dòng nội dung) rồi đăng lại nha!'
         : funMsg.errPost();
-      throw new Error(`${hint} (xem logs/debug-failed.png)`);
+      throw new Error(`${hint} (xem logs/${result.screenshot || 'debug-failed.png'})`);
     }
     logger.info(`${tag} submit xong (${Date.now() - tSubmit}ms) — total ${Date.now() - t0}ms ✅${result.postUrl ? ` postUrl=${result.postUrl}` : ''}`);
     return { success: true, target: 'personal', postUrl: result.postUrl || null };
@@ -1150,7 +1138,7 @@ async function postToGroup(groupId, message, imagePaths = []) {
       const hint = (!message && imagePaths.length > 0)
         ? 'FB không cho đăng bài chỉ có ảnh không text. Bạn thêm caption (vài dòng nội dung) rồi đăng lại nha!'
         : funMsg.errPost();
-      throw new Error(`${hint} (xem logs/debug-failed.png)`);
+      throw new Error(`${hint} (xem logs/${result.screenshot || 'debug-failed.png'})`);
     }
 
     logger.info(`Đã đăng bài group ${groupId} thành công!${result.postUrl ? ` postUrl=${result.postUrl}` : ''}`);
@@ -1203,7 +1191,7 @@ async function postToPage(pageId, message, imagePaths = []) {
       const hint = (!message && imagePaths.length > 0)
         ? 'FB không cho đăng bài chỉ có ảnh không text. Bạn thêm caption (vài dòng nội dung) rồi đăng lại nha!'
         : funMsg.errPost();
-      throw new Error(`${hint} (xem logs/debug-failed.png)`);
+      throw new Error(`${hint} (xem logs/${result.screenshot || 'debug-failed.png'})`);
     }
 
     logger.info(`Đã đăng bài page ${pageId} thành công!${result.postUrl ? ` postUrl=${result.postUrl}` : ''}`);
