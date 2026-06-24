@@ -257,20 +257,68 @@ async function clickSend(page) {
 // nhiều group. DỰ PHÒNG: DÁN (paste) ảnh từ clipboard giả lập (untrusted, Zalo hay
 // bỏ qua). Thử tối đa 2 vòng + xác minh ảnh đã vào thật. Trả true nếu đính được.
 async function attachImages(page, imagePaths) {
-  // XÁC MINH ảnh đã thực sự đính vào ô soạn (KHÔNG chỉ tin là đã dán). Lúc gọi
-  // hàm này textarea CHƯA có text → nút Gửi (.send-btn) chỉ bật khi có ảnh đính;
-  // hoặc khu soạn xuất hiện preview/thumbnail ảnh. Thấy 1 trong 2 = đính OK.
-  // Timeout 15s (trước 6s) vì upload ảnh ở group sau thường chậm hơn group đầu.
+  // XÁC MINH ảnh đã thực sự đính vào Ô SOẠN — KHÔNG đếm ảnh trong lịch sử chat.
+  // Cách cũ (nút .send-btn bật HOẶC có 1 ảnh bất kỳ trong document) dễ DƯƠNG TÍNH
+  // GIẢ: nút Gửi hay bật sẵn, còn '[class*=thumb] img'/'.v-image__image' khớp luôn
+  // ảnh trong khung chat của group → tưởng đã đính nên gửi mỗi text (đúng hiện
+  // tượng "rớt hình"). Cách mới: chỉ đếm ảnh BÊN TRONG khu soạn (tổ tiên gần nhất
+  // của textarea mà cũng chứa nút Gửi) và đòi SỐ ẢNH TĂNG so với lúc chưa đính.
+
+  // Đo 2 tín hiệu trong page context (KHÔNG dùng eval/new Function — trang có thể
+  // chặn bởi CSP — nên inline cùng một thân đếm ở cả baseline lẫn waitForFunction):
+  //  - local: số ảnh render bằng blob:/data: URL = file CỤC BỘ vừa đính. Ảnh trong
+  //    lịch sử chat luôn là URL http(s) từ CDN → KHÔNG khớp. Độc lập vị trí preview.
+  //  - scoped: số ảnh hiển thị TRONG khu soạn (tổ tiên gần nhất của textarea mà
+  //    cũng chứa nút Gửi) — phòng khi trang dùng URL http cho preview tại chỗ.
+  // Cả 2 đều so với baseline trước khi đính nên miễn nhiễm ảnh lịch sử chat.
+  const countImages = () => page.evaluate(() => {
+    const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
+    const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 12 && r.height > 12; };
+    let local = 0;
+    for (const img of document.querySelectorAll('img')) {
+      const src = img.currentSrc || img.src || '';
+      if ((src.startsWith('blob:') || src.startsWith('data:')) && visible(img)) local++;
+    }
+    let scoped = 0;
+    if (ta) {
+      let root = ta;
+      for (let i = 0; i < 8 && root.parentElement; i++) {
+        root = root.parentElement;
+        if (root.querySelector('button.send-btn')) break;
+      }
+      for (const el of root.querySelectorAll('img, .v-image__image, [class*="preview"], [class*="thumb"]')) {
+        if (el !== ta && visible(el)) scoped++;
+      }
+    }
+    return { local, scoped };
+  });
+
+  // Baseline (icon/nút & ảnh lịch sử cố định). Đính OK = local HOẶC scoped vượt
+  // baseline. Upload group sau chậm hơn → chờ tối đa 15s.
+  const baseline = await countImages().catch(() => ({ local: 0, scoped: 0 }));
   const imageAttached = async (timeout = 15000) => {
     try {
-      await page.waitForFunction(() => {
-        const btn = document.querySelector('button.send-btn');
-        const btnOn = !!btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true';
-        const preview = document.querySelector(
-          '.msg-textarea-wrap img, [class*="preview"] img, [class*="thumb"] img, .v-image__image'
-        );
-        return btnOn || !!preview;
-      }, { timeout });
+      await page.waitForFunction((base) => {
+        const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
+        const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 12 && r.height > 12; };
+        let local = 0;
+        for (const img of document.querySelectorAll('img')) {
+          const src = img.currentSrc || img.src || '';
+          if ((src.startsWith('blob:') || src.startsWith('data:')) && visible(img)) local++;
+        }
+        let scoped = 0;
+        if (ta) {
+          let root = ta;
+          for (let i = 0; i < 8 && root.parentElement; i++) {
+            root = root.parentElement;
+            if (root.querySelector('button.send-btn')) break;
+          }
+          for (const el of root.querySelectorAll('img, .v-image__image, [class*="preview"], [class*="thumb"]')) {
+            if (el !== ta && visible(el)) scoped++;
+          }
+        }
+        return local > base.local || scoped > base.scoped;
+      }, baseline, { timeout });
       return true;
     } catch {
       return false;
@@ -282,7 +330,9 @@ async function attachImages(page, imagePaths) {
     for (const input of await page.$$('input[type="file"]')) {
       try {
         await input.setInputFiles(imagePaths);
-        if (await imageAttached()) return true;
+        // Input "mù" có thể là ô upload khác (avatar…) → đính không vào khu soạn;
+        // chỉ chờ ngắn (5s) rồi rớt xuống menu .ic-violet (cách trusted chuẩn).
+        if (await imageAttached(5000)) return true;
       } catch {}
     }
     try {
