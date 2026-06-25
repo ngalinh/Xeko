@@ -252,6 +252,20 @@ async function clickSend(page) {
   return false;
 }
 
+// Chờ Ô SOẠN TIN (textarea) hiện = hội thoại group đã mở & trang chat đã render.
+// Trả false (không throw) để caller tự quyết định reload/retry. Trang basso load
+// chậm qua proxy yếu thì textarea chưa kịp render — đây là tín hiệu tin cậy nhất
+// (tin cậy hơn nút Gửi vốn hay bật sẵn) để biết có chỗ đính ảnh/nhập text chưa.
+async function ensureComposerReady(page, timeout = 15000) {
+  try {
+    await page.locator('textarea.msg-textarea, textarea[placeholder*="Nhập tin nhắn"]')
+      .first().waitFor({ state: 'visible', timeout });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Đính ảnh vào ô soạn tin. CÁCH CHÍNH (TRUSTED): đặt file thẳng vào input[type=file]
 // sẵn có / nút .ic-violet → menu "Hình ảnh" → filechooser — ổn định khi đăng lặp
 // nhiều group. DỰ PHÒNG: DÁN (paste) ảnh từ clipboard giả lập (untrusted, Zalo hay
@@ -626,6 +640,28 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
       throw new Error(`Không tìm thấy nhóm: ${groupName}`);
     }
     await screenshot(page, '04-group-selected');
+
+    // XÁC MINH ô soạn tin đã hiện (= hội thoại group đã mở & trang đã render thật).
+    // Trang basso load chậm/treo qua proxy yếu → textarea CHƯA render; trước đây
+    // code vẫn lao vào đính ảnh rồi báo nhầm "đính ảnh thất bại" (diag composer="",
+    // httpImgs thấp) — thực chất là TRANG CHƯA LOAD. Ở đây nếu ô soạn chưa hiện thì
+    // RELOAD + chọn lại tài khoản + mở lại group MỘT lần để vượt qua lần load chậm
+    // tạm thời; vẫn không có thì báo lỗi ĐÚNG nguyên nhân (proxy/mạng) để đăng lại.
+    if (!(await ensureComposerReady(page, 15000))) {
+      logger.warn(`[salework] Ô soạn tin chưa hiện sau khi mở "${groupName}" — reload trang & mở lại group`);
+      await page.goto(ZALO_CHAT_URL, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
+      await sleep(3000);
+      if (!(await selectZaloAccount(page, zaloAccountName))) {
+        throw new Error(`Không chọn được tài khoản "${zaloAccountName}" sau khi reload — đã huỷ đăng.`);
+      }
+      if (!(await searchAndClickGroup(page, groupName))) {
+        throw new Error(`Không tìm thấy nhóm "${groupName}" sau khi reload — đã huỷ đăng.`);
+      }
+      if (!(await ensureComposerReady(page, 20000))) {
+        throw new Error(`Mở hội thoại nhóm "${groupName}" thất bại — trang chat chưa load (proxy/mạng chậm). Đã huỷ để tránh đăng thiếu hình. Kiểm tra proxy/kết nối rồi đăng lại.`);
+      }
+      await screenshot(page, '04b-group-reopened');
+    }
 
     await sendMessage(page, message, imagePaths);
 
