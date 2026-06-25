@@ -407,8 +407,37 @@ async function attachImages(page, imagePaths) {
     }
   }
 
-  if (uploaded) logger.info(`[basso] Đã đính ${imagePaths.length} ảnh (đã xác minh)`);
-  else logger.warn('[basso] CHƯA đính được ảnh sau 2 lần thử — file input/menu/paste đều fail');
+  if (uploaded) {
+    logger.info(`[basso] Đã đính ${imagePaths.length} ảnh (đã xác minh)`);
+    // QUAN TRỌNG: preview ảnh hiện ra (blob/data) TRƯỚC khi basso upload xong ảnh
+    // lên server của nó. Nếu bấm Gửi ngay thì tin gửi đi KHÔNG kèm ảnh (group rỗng)
+    // nhưng salework vẫn tưởng thành công. Chờ network rảnh để upload hoàn tất.
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+  } else {
+    logger.warn('[basso] CHƯA đính được ảnh sau 2 lần thử — file input/menu/paste đều fail');
+  }
+
+  // CHẨN ĐOÁN (1 dòng log): số ảnh blob/http + cấu trúc khu soạn — để biết ảnh có
+  // vào thật không & sửa đúng DOM thay vì đoán. Xem trong log [basso][diag].
+  try {
+    const diag = await page.evaluate(() => {
+      const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
+      const out = { hasTextarea: !!ta, blobImgs: 0, httpImgs: 0, composerHtml: '' };
+      for (const img of document.querySelectorAll('img')) {
+        const s = img.currentSrc || img.src || '';
+        if (s.startsWith('blob:') || s.startsWith('data:')) out.blobImgs++;
+        else if (s.startsWith('http')) out.httpImgs++;
+      }
+      if (ta) {
+        let root = ta;
+        for (let i = 0; i < 8 && root.parentElement; i++) { root = root.parentElement; if (root.querySelector('button.send-btn')) break; }
+        out.composerHtml = (root.outerHTML || '').replace(/\s+/g, ' ').slice(0, 1800);
+      }
+      return out;
+    });
+    logger.info(`[basso][diag] uploaded=${uploaded} blobImgs=${diag.blobImgs} httpImgs=${diag.httpImgs} baseline=${JSON.stringify(baseline)} composer="${diag.composerHtml}"`);
+  } catch (e) { logger.warn(`[basso][diag] lỗi: ${e.message}`); }
+
   await sleep(1500);
   await screenshot(page, '05-after-upload');
   return uploaded;

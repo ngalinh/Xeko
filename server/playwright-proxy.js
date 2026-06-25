@@ -53,13 +53,16 @@ async function callLocal(method, endpoint, data = null, files = []) {
       }
     }
 
-    // Thêm file
+    // Thêm file. Nếu file KHÔNG tồn tại thì trước đây bỏ qua ÂM THẦM → bài có thể
+    // đăng thiếu hình mà không ai biết. Giờ log cảnh báo để còn truy được nguyên nhân.
     for (const filePath of files) {
       if (fs.existsSync(filePath)) {
         form.append('images', fs.createReadStream(filePath), {
           filename: path.basename(filePath),
           contentType: 'image/jpeg',
         });
+      } else {
+        console.warn(`[playwright-proxy] BỎ QUA ảnh không tồn tại: ${filePath} (bài có thể thiếu hình)`);
       }
     }
 

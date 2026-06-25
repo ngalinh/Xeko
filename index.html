@@ -12395,21 +12395,43 @@
       _renderRepostImages();
     }
 
-    async function _buildRepostFormData(message) {
+    // Tải 1 LẦN tất cả ảnh repost (URL → Blob) + XÁC MINH hợp lệ, dùng lại cho mọi
+    // kênh. Trước đây _buildRepostFormData fetch lại URL cho TỪNG kênh và:
+    //  (a) BỎ QUA ÂM THẦM khi fetch lỗi (chỉ console.warn), và
+    //  (b) KHÔNG kiểm tra imgRes.ok → trang lỗi 404/500 (HTML/JSON) cũng bị append
+    //      như "ảnh".
+    // → bài Zalo/kênh sau dễ "thiếu hình" (hoặc đính file rác) mà vẫn báo thành
+    // công. Giờ tải 1 lần, lỗi thì THROW để bài báo lỗi & đăng lại, thay vì âm
+    // thầm đăng thiếu hình.
+    async function _resolveRepostImages() {
+      const resolved = [];
+      for (const item of _repostImages) {
+        if (item instanceof File) { resolved.push({ blob: item, name: item.name }); continue; }
+        const fullUrl = item.startsWith('/') ? BASE_URL + item : item;
+        const name = fullUrl.split('/').pop() || 'image.jpg';
+        let res;
+        try {
+          res = await fetch(fullUrl, { cache: 'no-store' });
+        } catch (e) {
+          throw new Error(`Không tải được ảnh (mạng) "${name}": ${e.message}`);
+        }
+        if (!res.ok) throw new Error(`Không tải được ảnh "${name}" (HTTP ${res.status})`);
+        const blob = await res.blob();
+        const type = (blob && blob.type) || '';
+        // Chặn trang lỗi (HTML/JSON) và file rỗng; không đòi đúng image/* vì proxy
+        // có thể trả application/octet-stream cho ảnh.
+        if (!blob || blob.size === 0 || type.startsWith('text/') || type === 'application/json') {
+          throw new Error(`Ảnh "${name}" tải về không hợp lệ (type=${type || 'n/a'}, size=${blob ? blob.size : 0})`);
+        }
+        resolved.push({ blob, name });
+      }
+      return resolved;
+    }
+
+    function _buildRepostFormData(message, resolvedImages) {
       const formData = new FormData();
       formData.append('message', message);
-      for (const item of _repostImages) {
-        if (item instanceof File) {
-          formData.append('images', item, item.name);
-        } else {
-          const fullUrl = item.startsWith('/') ? BASE_URL + item : item;
-          try {
-            const imgRes = await fetch(fullUrl);
-            const blob = await imgRes.blob();
-            formData.append('images', blob, fullUrl.split('/').pop() || 'image.jpg');
-          } catch (e) { console.warn('Không tải được ảnh:', item); }
-        }
-      }
+      for (const img of resolvedImages) formData.append('images', img.blob, img.name);
       return formData;
     }
 
@@ -12437,6 +12459,19 @@
         body: JSON.stringify({ profile })
       }).catch(() => {});
 
+      // Tải + xác minh TẤT CẢ ảnh 1 lần TRƯỚC khi đăng. Nếu có ảnh tải lỗi thì
+      // dừng ngay (không đăng kênh nào) để tránh bài thiếu hình ở 1 số kênh.
+      let resolvedImages;
+      try {
+        resolvedImages = await _resolveRepostImages();
+      } catch (e) {
+        alert(`❌ Không lấy được đủ ảnh để đăng nên đã huỷ (chưa đăng kênh nào):\n${e.message}\n\nThử lại sau giây lát.`);
+        submitBtn.disabled = false;
+        submitBtn.textContent = '🔄 Repost';
+        editBtn.disabled = false;
+        return;
+      }
+
       // 1. Submit tất cả jobs (modal vẫn mở để đọc ảnh từ DOM)
       const repostBatchId = crypto.randomUUID();
       const jobs = [];
@@ -12444,7 +12479,7 @@
         const ch = channels[i];
         submitBtn.innerHTML = `${xekoIcon('clock')} ${i + 1}/${channels.length}...`;
         try {
-          const fd = await _buildRepostFormData(message);
+          const fd = _buildRepostFormData(message, resolvedImages);
           fd.append('batchId', repostBatchId);
           if (ch.platform === 'zalo') {
             fd.append('zaloAccountName', ch.zaloAccount || '');
