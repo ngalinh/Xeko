@@ -464,7 +464,11 @@ async function sendMessage(page, message, imagePaths = []) {
     }
     if (await clickSend(page)) { sentAny = true; logger.info('[basso] Đã gửi tin ảnh'); }
     else throw new Error('Đính được ảnh nhưng không bấm gửi được tin ảnh.');
-    await sleep(1500);   // chờ tin ảnh gửi xong + ô soạn reset trước khi nhập text
+    // QUAN TRỌNG (lỗi Zalo-specific): bấm Gửi xong, basso CÒN đang upload ảnh lên
+    // Zalo (chậm hơn text rất nhiều). Trước đây chỉ sleep 1500ms rồi caller đóng
+    // browser ngay → upload bị cắt giữa chừng → group KHÔNG nhận ảnh dù đã báo gửi.
+    // Chờ ô soạn xoá preview (= ảnh đã được gửi đi) + network rảnh trước khi tiếp.
+    await waitImageSent(page);
   }
 
   // ----- 2. TEXT: nhập vào textarea.msg-textarea rồi gửi -----
@@ -490,7 +494,43 @@ async function sendMessage(page, message, imagePaths = []) {
   if (!sentAny) {
     throw new Error('Không gửi được tin nào (ảnh & text đều thất bại)');
   }
+
+  // Lắng đọng lần cuối TRƯỚC khi caller đóng browser: tin cuối (ảnh/text) có thể
+  // vẫn đang lên server. Đóng browser sớm = mất tin. Chờ network rảnh + 1 nhịp.
+  await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
+  await sleep(2000);
   return true;
+}
+
+// Chờ ảnh ĐÃ GỬI ĐI thật sự, không chỉ "đã bấm Gửi". Tín hiệu: preview ảnh trong
+// ô soạn biến mất (basso xoá preview sau khi gửi xong) + network rảnh (upload lên
+// Zalo hoàn tất). Có timeout để không treo nếu basso không xoá preview.
+async function waitImageSent(page) {
+  try {
+    await page.waitForFunction(() => {
+      const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
+      if (!ta) return true;
+      let root = ta;
+      for (let i = 0; i < 8 && root.parentElement; i++) {
+        root = root.parentElement;
+        if (root.querySelector('button.send-btn')) break;
+      }
+      // còn preview blob/data trong khu soạn = chưa gửi xong
+      for (const img of root.querySelectorAll('img')) {
+        const s = img.currentSrc || img.src || '';
+        if (s.startsWith('blob:') || s.startsWith('data:')) {
+          const r = img.getBoundingClientRect();
+          if (r.width > 12 && r.height > 12) return false;
+        }
+      }
+      return true;
+    }, { timeout: 30000 });
+  } catch {
+    logger.warn('[basso] waitImageSent: preview ảnh chưa rời ô soạn sau 30s (có thể upload chậm/đang treo)');
+  }
+  // Dù preview đã rời hay chưa, vẫn chờ network rảnh để upload lên Zalo hoàn tất.
+  await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
+  await sleep(1500);
 }
 
 const _accountLocks = new Map();
