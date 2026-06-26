@@ -49,6 +49,10 @@ function scheduleDataCommit(message) {
   }, 30_000);
 }
 
+const apiKey = require('./src/utils/api-key');
+apiKey.assertConfigured('remote server (index.js)');
+const LOCAL_API_KEY = process.env.LOCAL_API_KEY;
+
 // Auth gate: cần login basso.vn + được admin Xeko phân quyền mới được vào trang.
 // /admin, /platform, /api/auth (basso.vn) đi route khác — chỉ chặn frontend Xeko.
 // /api/me: frontend tự kiểm tra session — public.
@@ -373,7 +377,7 @@ app.post('/api/profile', async (req, res) => {
   if (getLocalUrl()) {
     try {
       const LOCAL_URL = getLocalUrl();
-      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const API_KEY = LOCAL_API_KEY;
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/profile`, {
         method: 'POST',
@@ -859,7 +863,7 @@ app.get('/api/screenshot', async (req, res) => {
   if (getLocalUrl()) {
     try {
       const LOCAL_URL = getLocalUrl();
-      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const API_KEY = LOCAL_API_KEY;
       const fetchFn = await getFetch();
       const qs = name ? `?name=${encodeURIComponent(path.basename(name))}` : '';
       const r = await fetchFn(`${LOCAL_URL}/api/screenshot${qs}`, { headers: { 'x-api-key': API_KEY } });
@@ -899,7 +903,7 @@ app.post('/api/accounts', async (req, res) => {
   if (getLocalUrl()) {
     try {
       const LOCAL_URL = getLocalUrl();
-      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const API_KEY = LOCAL_API_KEY;
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/accounts`, {
         method: 'POST',
@@ -974,7 +978,7 @@ app.post('/api/accounts/:key/login', async (req, res) => {
   if (getLocalUrl()) {
     try {
       const LOCAL_URL = getLocalUrl();
-      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const API_KEY = LOCAL_API_KEY;
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/accounts/${encodeURIComponent(key)}/login`, {
         method: 'POST',
@@ -1017,7 +1021,7 @@ app.post('/api/accounts/:key/test-proxy', async (req, res) => {
   if (getLocalUrl()) {
     try {
       const LOCAL_URL = getLocalUrl();
-      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const API_KEY = LOCAL_API_KEY;
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/accounts/${encodeURIComponent(key)}/test-proxy`, {
         method: 'POST',
@@ -1056,7 +1060,7 @@ app.get('/api/test-proxy/job/:jobId', async (req, res) => {
   if (getLocalUrl()) {
     try {
       const LOCAL_URL = getLocalUrl();
-      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const API_KEY = LOCAL_API_KEY;
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/test-proxy/job/${encodeURIComponent(jobId)}`, {
         headers: { 'x-api-key': API_KEY },
@@ -1081,7 +1085,7 @@ app.delete('/api/accounts/:type/:key', async (req, res) => {
   if (getLocalUrl()) {
     try {
       const LOCAL_URL = getLocalUrl();
-      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const API_KEY = LOCAL_API_KEY;
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/accounts/${type}/${key}`, {
         method: 'DELETE',
@@ -1129,7 +1133,7 @@ app.get('/api/accounts', async (req, res) => {
   if (getLocalUrl()) {
     try {
       const LOCAL_URL = getLocalUrl();
-      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const API_KEY = LOCAL_API_KEY;
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/accounts`, {
         headers: { 'x-api-key': API_KEY },
@@ -1211,7 +1215,7 @@ app.put('/api/accounts/:key', async (req, res) => {
   if (getLocalUrl()) {
     try {
       const LOCAL_URL = getLocalUrl();
-      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const API_KEY = LOCAL_API_KEY;
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/accounts/${key}`, {
         method: 'PUT',
@@ -1352,7 +1356,7 @@ app.get('/api/sessions', async (req, res) => {
   if (getLocalUrl()) {
     try {
       const LOCAL_URL = getLocalUrl();
-      const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+      const API_KEY = LOCAL_API_KEY;
       const fetchFn = await getFetch();
       const response = await fetchFn(`${LOCAL_URL}/api/sessions`, {
         headers: { 'x-api-key': API_KEY },
@@ -1641,7 +1645,7 @@ async function pushChannelsToLocal(data) {
     const fetchFn = await getFetch();
     await fetchFn(`${LOCAL_URL}/api/channels/bulk`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': LOCAL_API_KEY },
       body: JSON.stringify(data),
     });
     logger.info('channels pushed to local');
@@ -1759,7 +1763,7 @@ async function proxyToLocal(req, res, method, path, body = null) {
     const fetchFn = await getFetch();
     const opts = {
       method,
-      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': LOCAL_API_KEY },
     };
     if (body) opts.body = JSON.stringify(body);
     const response = await fetchFn(`${LOCAL_URL}${path}`, opts);
@@ -1950,7 +1954,7 @@ async function _driveZaloJob(jobId, maxWaitMs = 10 * 60 * 1000) {
     if (!LOCAL_URL) continue;
     try {
       const resp = await fetchFn(`${LOCAL_URL}/api/zalo/status/${jobId}`, {
-        headers: { 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+        headers: { 'x-api-key': LOCAL_API_KEY },
         signal: AbortSignal.timeout(10000),
       });
       if (!resp.ok) continue;
@@ -2052,7 +2056,7 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
       headers: {
         ...form.getHeaders(),
         'Content-Length': String(body.length),
-        'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key',
+        'x-api-key': LOCAL_API_KEY,
       },
       body,
     });
@@ -2147,7 +2151,7 @@ app.get('/api/zalo/status/:jobId', async (req, res) => {
   try {
     const fetchFn = await getFetch();
     const response = await fetchFn(`${LOCAL_URL}/api/zalo/status/${jobId}`, {
-      headers: { 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+      headers: { 'x-api-key': LOCAL_API_KEY },
       signal: AbortSignal.timeout(10000), // 10s timeout — tránh treo vô hạn
     });
     // Đọc body 1 lần duy nhất (stream không đọc lại được)
@@ -2322,7 +2326,7 @@ async function syncChannelsFromLocal() {
   try {
     const fetchFn = await getFetch();
     const res = await fetchFn(`${LOCAL_URL}/api/channels`, {
-      headers: { 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+      headers: { 'x-api-key': LOCAL_API_KEY },
     });
     if (!res.ok) return false;
     const text = await res.text();
@@ -2347,7 +2351,7 @@ async function syncProxiesFromLocal() {
   try {
     const fetchFn = await getFetch();
     const res = await fetchFn(`${LOCAL_URL}/api/proxies`, {
-      headers: { 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+      headers: { 'x-api-key': LOCAL_API_KEY },
     });
     if (!res.ok) return false;
     const text = await res.text();
@@ -2370,7 +2374,7 @@ async function pushProxyListToLocal(list) {
     const fetchFn = await getFetch();
     await fetchFn(`${LOCAL_URL}/api/proxies/bulk`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.LOCAL_API_KEY || 'change-this-secret-key' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': LOCAL_API_KEY },
       body: JSON.stringify({ proxies: list }),
     });
   } catch (e) {
@@ -2443,7 +2447,7 @@ function getLocalUrl() {
 // Wire permissions module với LOCAL endpoint để sync data
 permissions.configureSync({
   getLocalUrl,
-  apiKey: process.env.LOCAL_API_KEY || 'change-this-secret-key',
+  apiKey: LOCAL_API_KEY,
 });
 
 // ===== KHO BÀI (saved post templates) =====

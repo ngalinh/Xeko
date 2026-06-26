@@ -8,7 +8,10 @@ const DATA_DIR = process.env.XEKO_DATA_DIR
 const PERMISSIONS_FILE = path.join(DATA_DIR, 'data/user-permissions.json');
 // Legacy path used before migration (was server/config/user-permissions.json)
 const PERMISSIONS_FILE_LEGACY = path.join(path.resolve(__dirname, '../..'), 'config/user-permissions.json');
-const SUPER_ADMIN_EMAIL = (process.env.XEKO_SUPER_ADMIN || 'tram@gmail.com').toLowerCase().trim();
+if (!process.env.XEKO_SUPER_ADMIN) {
+  console.warn('[!] XEKO_SUPER_ADMIN chưa được đặt trong .env — không có super admin');
+}
+const SUPER_ADMIN_EMAIL = (process.env.XEKO_SUPER_ADMIN || '').toLowerCase().trim();
 
 function ensureFile() {
   const dir = path.dirname(PERMISSIONS_FILE);

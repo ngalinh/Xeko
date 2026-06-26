@@ -9,7 +9,9 @@ const path = require('path');
 const { PassThrough } = require('stream');
 
 // Không cache LOCAL_URL — đọc động mỗi lần gọi để nhận URL tunnel mới sau register-local
-const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+const apiKey = require('./src/utils/api-key');
+apiKey.assertConfigured('playwright-proxy');
+const API_KEY = process.env.LOCAL_API_KEY;
 
 // State active profile (lưu trên server để trả lời nhanh)
 let _activeProfile = null;

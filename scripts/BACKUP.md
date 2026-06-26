@@ -25,7 +25,7 @@ deploy thêm code**.
 - **rclone** đã cài trên máy Windows, đã cấu hình remote Google Drive tên `drive`
   (kiểm tra: `rclone listremotes` → thấy `drive:`).
 - **SSH key** `%USERPROFILE%\.ssh\xeko_backup` truy cập được server REMOTE Linux
-  (kiểm tra: `ssh -i $env:USERPROFILE\.ssh\xeko_backup vmadmin@103.140.249.232 "echo ok"`).
+  (kiểm tra: `ssh -i $env:USERPROFILE\.ssh\xeko_backup <SSH_USER>@<REMOTE_VPS_IP> "echo ok"`).
 - Server REMOTE có sẵn `sqlite3`.
 
 > Nếu cài lại rclone từ đầu: tải tại https://rclone.org/downloads/ (Windows amd64),
@@ -44,8 +44,8 @@ $XekoServerDir   = "C:\xeko\server"
 $IncludeSessions = $true
 
 $SshKey    = "$env:USERPROFILE\.ssh\xeko_backup"
-$RemoteSsh = "vmadmin@103.140.249.232"
-$RemoteDb  = "/opt/dashboard-bot/data/bots/9a031e766d216717/server/data/posts.db"
+$RemoteSsh = "<SSH_USER>@<REMOTE_VPS_IP>"
+$RemoteDb  = "/opt/dashboard-bot/data/bots/<BOT_ID>/server/data/posts.db"
 
 $RcloneRemote = "drive"
 $DriveFolder  = "XekoBackups"
