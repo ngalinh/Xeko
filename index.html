@@ -6018,7 +6018,7 @@
       const personalCh = (p.fb || []).find(c => c.id === 'personal');
       if (personalCh) {
         panelHtml += `<label class="channel-item ch-fb" data-panel="${pid}" data-platform="fb" data-profile="${currentProfile}" data-chid="personal">
-          <span class="ch-dot"></span><input type="checkbox" checked onchange="onChannelChange(${pid})"> ${personalCh.icon} ${personalCh.name}
+          <span class="ch-dot"></span><input type="checkbox" onchange="onChannelChange(${pid})"> ${personalCh.icon} ${personalCh.name}
         </label>`;
       }
 
