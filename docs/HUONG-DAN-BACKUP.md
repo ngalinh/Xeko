@@ -25,7 +25,7 @@ Xeko chạy trên 2 máy:
 | Máy | Vai trò | Thông tin |
 |---|---|---|
 | **LOCAL** | Chạy `local-server.js` + trình duyệt Playwright (đăng bài thật) | VPS Windows, thư mục `C:\xeko` |
-| **REMOTE** | Chạy `index.js` (dashboard, API, lưu lịch sử) | VPS Linux, IP `103.140.249.232` |
+| **REMOTE** | Chạy `index.js` (dashboard, API, lưu lịch sử) | VPS Linux, IP `<REMOTE_VPS_IP>` |
 
 ---
 
@@ -45,7 +45,7 @@ Xeko chạy trên 2 máy:
 ### 2.2. Trên server REMOTE (Linux)
 | Đường dẫn | Nội dung |
 |---|---|
-| `/opt/dashboard-bot/data/bots/9a031e766d216717/server/data/posts.db` | **Lịch sử đăng bài + lịch hẹn + seeding + settings + content** — CHỈ tồn tại ở đây |
+| `/opt/dashboard-bot/data/bots/<BOT_ID>/server/data/posts.db` | **Lịch sử đăng bài + lịch hẹn + seeding + settings + content** — CHỈ tồn tại ở đây |
 | `.env` | Secrets: `GEMINI_API_KEY`, `IMAGE_SERVER_*`... |
 | bản sao `config/` | channels/proxies/permissions (tự sync từ LOCAL) |
 
@@ -125,7 +125,7 @@ Copy đè vào `C:\xeko\server\`:
 gunzip posts.db.gz        # ra file posts.db
 
 # DỪNG server REMOTE trước, rồi:
-DB="/opt/dashboard-bot/data/bots/9a031e766d216717/server/data/posts.db"
+DB="/opt/dashboard-bot/data/bots/<BOT_ID>/server/data/posts.db"
 cp posts.db "$DB"
 rm -f "$DB-wal" "$DB-shm"  # xoá WAL/SHM cũ để tránh xung đột
 
@@ -155,8 +155,8 @@ Kiểm tra: `rclone lsd drive:`
 
 ### 6.2. Khôi phục SSH key (để lấy posts.db)
 Đặt lại file key `xeko_backup` vào `C:\Users\Administrator\.ssh\xeko_backup`
-(và đảm bảo public key đã nằm trong `~/.ssh/authorized_keys` của user `vmadmin` trên REMOTE).
-Test: `ssh -i $env:USERPROFILE\.ssh\xeko_backup vmadmin@103.140.249.232 "echo ok"`
+(và đảm bảo public key đã nằm trong `~/.ssh/authorized_keys` của user `<SSH_USER>` trên REMOTE).
+Test: `ssh -i $env:USERPROFILE\.ssh\xeko_backup <SSH_USER>@<REMOTE_VPS_IP> "echo ok"`
 
 ### 6.3. Lấy lại script + tạo lịch
 ```powershell
@@ -174,7 +174,7 @@ schtasks /Create /TN "Xeko Weekly Backup" /TR "powershell -NoProfile -ExecutionP
 
 | Triệu chứng | Nguyên nhân & cách sửa |
 |---|---|
-| `[3/5]` báo lỗi SSH | Key sai/đổi → kiểm tra `ssh -i ...\xeko_backup vmadmin@103.140.249.232 "echo ok"`. Hoặc IP/đường dẫn DB đổi → sửa trong script. |
+| `[3/5]` báo lỗi SSH | Key sai/đổi → kiểm tra `ssh -i ...\xeko_backup <SSH_USER>@<REMOTE_VPS_IP> "echo ok"`. Hoặc IP/đường dẫn DB đổi → sửa trong script. |
 | rclone báo lỗi auth | Token hỏng (đổi mật khẩu Google / bị thu hồi quyền) → chạy lại `rclone config` reconnect remote `drive`. |
 | `playwright-data` thiếu file | Trình duyệt đang mở khoá file → chạy backup khi đã đóng trình duyệt (lịch chạy ban đêm). |
 | Backup không tạo bản mới hằng tuần | Kiểm tra `schtasks /Query /TN "Xeko Weekly Backup"`; chạy thử `schtasks /Run ...`. |

@@ -5,7 +5,11 @@ const express = require('express');
 const multer = require('multer');
 
 const PORT = parseInt(process.env.PORT || '4001', 10);
-const API_KEY = process.env.API_KEY || 'change-this-image-server-secret';
+const API_KEY = process.env.API_KEY;
+if (!API_KEY) {
+  console.error('[✗] API_KEY chưa được đặt trong .env (image-server)');
+  process.exit(1);
+}
 const PUBLIC_URL = (process.env.PUBLIC_URL || '').replace(/\/+$/, '');
 const UPLOADS_DIR = path.resolve(process.env.UPLOADS_DIR || './data/uploads');
 

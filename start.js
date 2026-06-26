@@ -20,8 +20,16 @@ if (fs.existsSync(envFile)) {
   });
 }
 
-const REMOTE_BOT_URL = process.env.REMOTE_BOT_URL || 'https://ai.basso.vn/b/9cdc3e8d6a564b5e';
-const API_KEY = process.env.LOCAL_API_KEY || 'change-this-secret-key';
+const REMOTE_BOT_URL = process.env.REMOTE_BOT_URL;
+if (!REMOTE_BOT_URL) {
+  console.error('[✗] REMOTE_BOT_URL chưa được đặt trong .env');
+  process.exit(1);
+}
+const API_KEY = process.env.LOCAL_API_KEY;
+if (!API_KEY) {
+  console.error('[✗] LOCAL_API_KEY chưa được đặt trong .env');
+  process.exit(1);
+}
 const LOCAL_PORT = process.env.LOCAL_PORT || 3001;
 
 async function getFetch() {
