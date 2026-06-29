@@ -13145,11 +13145,40 @@
       } catch {}
     }
 
-    // ===== Image Lightbox (in-app, có nút back) =====
-    function openLightbox(url) {
-      const lb = document.getElementById('imgLightbox');
+    // ===== Image Lightbox (in-app, có nút back + next/prev) =====
+    let _lbImages = [];   // gallery ảnh của bài đang xem
+    let _lbIndex = 0;     // vị trí ảnh hiện tại
+
+    // Gom tất cả ảnh "cùng bài" với thumbnail vừa bấm để có thể next/back.
+    // Đi ngược lên DOM tìm khối gần nhất chứa >1 thumbnail mở lightbox
+    // (mỗi bài post là 1 khối ảnh riêng), rồi lấy URL theo đúng thứ tự hiển thị.
+    function _collectLightboxGallery(ev, fallbackUrl) {
+      const trigger = ev && (ev.currentTarget || ev.target);
+      let node = trigger && (trigger.closest ? (trigger.closest('a') || trigger) : trigger);
+      const parse = el => {
+        const m = (el.getAttribute('onclick') || '').match(/openLightbox\(\s*['"]([^'"]+)['"]/);
+        return m ? m[1] : null;
+      };
+      let urls = null;
+      for (let depth = 0; node && depth < 4; depth++, node = node.parentElement) {
+        const els = node.querySelectorAll ? node.querySelectorAll('[onclick*="openLightbox("]') : [];
+        if (els.length > 1) {
+          const found = Array.from(els).map(parse).filter(Boolean);
+          if (found.length > 1) { urls = found; break; }
+        }
+      }
+      if (!urls || !urls.length) urls = [fallbackUrl];
+      let idx = urls.indexOf(fallbackUrl);
+      if (idx < 0) idx = 0;
+      return { urls, idx };
+    }
+
+    function _showLightboxImage() {
       const img = document.getElementById('imgLightboxImg');
       const note = document.getElementById('imgLightboxNote');
+      const counter = document.getElementById('imgLightboxCounter');
+      const prev = document.getElementById('imgLightboxPrev');
+      const next = document.getElementById('imgLightboxNext');
       if (note) note.style.display = 'none';
       img.style.display = '';
       // Ảnh lỗi cũ có thể đã bị xoá/ghi đè → hiện thông báo thay vì icon ảnh vỡ.
@@ -13157,21 +13186,44 @@
         img.style.display = 'none';
         if (note) note.style.display = 'block';
       };
-      img.src = url;
-      lb.style.display = 'flex';
+      img.src = _lbImages[_lbIndex] || '';
+      const many = _lbImages.length > 1;
+      if (prev) prev.style.display = many ? 'flex' : 'none';
+      if (next) next.style.display = many ? 'flex' : 'none';
+      if (counter) {
+        counter.style.display = many ? 'block' : 'none';
+        counter.textContent = (_lbIndex + 1) + ' / ' + _lbImages.length;
+      }
+    }
+
+    function openLightbox(url, ev) {
+      const { urls, idx } = _collectLightboxGallery(ev || window.event, url);
+      _lbImages = urls;
+      _lbIndex = idx;
+      _showLightboxImage();
+      document.getElementById('imgLightbox').style.display = 'flex';
       // Disable body scroll while lightbox open
       document.body.style.overflow = 'hidden';
+    }
+    function lightboxStep(delta, ev) {
+      if (ev) ev.stopPropagation();
+      if (_lbImages.length < 2) return;
+      _lbIndex = (_lbIndex + delta + _lbImages.length) % _lbImages.length;
+      _showLightboxImage();
     }
     function closeLightbox() {
       document.getElementById('imgLightbox').style.display = 'none';
       document.getElementById('imgLightboxImg').src = '';
+      _lbImages = [];
+      _lbIndex = 0;
       document.body.style.overflow = '';
     }
-    // ESC để đóng
+    // ESC để đóng, ←/→ để chuyển ảnh
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && document.getElementById('imgLightbox')?.style.display === 'flex') {
-        closeLightbox();
-      }
+      if (document.getElementById('imgLightbox')?.style.display !== 'flex') return;
+      if (e.key === 'Escape') closeLightbox();
+      else if (e.key === 'ArrowLeft') lightboxStep(-1);
+      else if (e.key === 'ArrowRight') lightboxStep(1);
     });
   </script>
 
@@ -13180,6 +13232,13 @@
     <button onclick="closeLightbox()" aria-label="Đóng" style="position:absolute; top:calc(env(safe-area-inset-top) + 12px); left:12px; display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:rgba(255,255,255,0.15); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.25); border-radius:999px; color:#fff; font-size:13px; font-weight:600; cursor:pointer; z-index:1;">
       <svg style="width:16px;height:16px;" aria-hidden="true"><use href="#ic-x"/></svg> Đóng
     </button>
+    <button id="imgLightboxPrev" onclick="lightboxStep(-1, event)" aria-label="Ảnh trước" style="display:none; position:absolute; top:50%; left:12px; transform:translateY(-50%); width:46px; height:46px; align-items:center; justify-content:center; background:rgba(255,255,255,0.15); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.25); border-radius:50%; color:#fff; cursor:pointer; z-index:1;">
+      <svg style="width:22px;height:22px;" aria-hidden="true"><use href="#ic-back"/></svg>
+    </button>
+    <button id="imgLightboxNext" onclick="lightboxStep(1, event)" aria-label="Ảnh sau" style="display:none; position:absolute; top:50%; right:12px; transform:translateY(-50%); width:46px; height:46px; align-items:center; justify-content:center; background:rgba(255,255,255,0.15); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.25); border-radius:50%; color:#fff; cursor:pointer; z-index:1;">
+      <svg style="width:22px;height:22px;transform:scaleX(-1);" aria-hidden="true"><use href="#ic-back"/></svg>
+    </button>
+    <div id="imgLightboxCounter" style="display:none; position:absolute; bottom:calc(env(safe-area-inset-bottom) + 14px); left:50%; transform:translateX(-50%); padding:5px 14px; background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.2); border-radius:999px; color:#fff; font-size:13px; font-weight:600; z-index:1;"></div>
     <img id="imgLightboxImg" src="" alt="" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:8px;">
     <div id="imgLightboxNote" style="display:none; max-width:320px; text-align:center; color:#e5e7eb; font-size:14px; line-height:1.5; padding:24px;">Không tải được ảnh lỗi — file có thể đã bị xoá hoặc ghi đè, hoặc máy đăng bài (local) đang offline.</div>
   </div>
