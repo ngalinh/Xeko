@@ -564,6 +564,40 @@ app.post('/api/accounts/:key/login', (req, res) => {
   if (!profileMeta) return res.status(404).json({ error: `Không tìm thấy profile "${key}"` });
 
   const name = profileMeta.name || key;
+
+  // Zalo account: mở profile Salework riêng (playwright-data/salework-<key>) với
+  // trang Salework Zalo, không phải profile FB.
+  const isZalo = !!profileMeta.saleworkName;
+  if (isZalo) {
+    res.json({ success: true, message: `Đang mở Salework cho "${name}". Kiểm tra đăng nhập xong thì đóng cửa sổ.` });
+
+    (async () => {
+      try {
+        const { safeLaunchPersistentContext } = require('./src/utils/playwright-launch');
+        const saleworkProfileDir = salework.getSaleworkProfile(key);
+        if (!fs.existsSync(saleworkProfileDir)) fs.mkdirSync(saleworkProfileDir, { recursive: true });
+        const proxyOpt = parseProxy(profileMeta.proxy);
+        if (proxyOpt) logger.info(`Salework "${name}" dùng proxy: ${proxyOpt.server}`);
+        const browser = await safeLaunchPersistentContext(saleworkProfileDir, {
+          headless: false,
+          slowMo: 500,
+          viewport: { width: 1280, height: 720 },
+          ...(proxyOpt ? { proxy: proxyOpt } : {}),
+        });
+        const page = browser.pages()[0] || await browser.newPage();
+        await page.goto(salework.ZALO_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        loginHistory.addEntry(key, name, 'login', 'Mở Salework để kiểm tra đăng nhập');
+        browser.on('close', () => {
+          loginHistory.addEntry(key, name, 'login', 'Đã đóng Salework - session được lưu');
+        });
+      } catch (e) {
+        logger.error(`Lỗi mở Salework re-login "${name}": ${e.message}`);
+        loginHistory.addEntry(key, name, 'session_expired', `Không mở được Salework: ${e.message}`);
+      }
+    })();
+    return;
+  }
+
   res.json({ success: true, message: `Đang mở Chromium cho "${name}". Đăng nhập xong thì đóng cửa sổ.` });
 
   (async () => {
