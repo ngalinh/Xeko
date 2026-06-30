@@ -31,6 +31,7 @@ const { parseProxy } = require('./src/utils/proxy');
 const apiKey = require('./src/utils/api-key');
 const rateLimit = require('./src/utils/rate-limit');
 const zaloQueue = require('./src/utils/zalo-queue');
+const { groupDelayMs } = require('./src/utils/post-delays');
 
 // Fail-fast nếu LOCAL_API_KEY chưa đặt / còn placeholder mặc định.
 // Server local accept request từ tunnel public → key yếu = mở cửa.
@@ -206,14 +207,14 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
         logger.info('Đăng lên FB cá nhân...');
         const r = await playwright.postToPersonal(message, imagePaths);
         results.push({ target: 'FB Cá nhân', success: r.success, error: r.error, postUrl: r.postUrl });
-        await new Promise(r => setTimeout(r, Math.random() * 30000 + 30000));
+        await new Promise(r => setTimeout(r, groupDelayMs()));
         const groups = Object.values(cfg.groups);
         for (const group of groups) {
           logger.info(`Đăng lên ${group.name}...`);
           const gr = await playwright.postToGroup(group.id, message, imagePaths);
           results.push({ target: group.name, success: gr.success, error: gr.error, postUrl: gr.postUrl });
           if (groups.indexOf(group) < groups.length - 1) {
-            await new Promise(r => setTimeout(r, Math.random() * 30000 + 30000));
+            await new Promise(r => setTimeout(r, groupDelayMs()));
           }
         }
         setJobResult(jobId, { results });
@@ -227,7 +228,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
           const gr = await playwright.postToGroup(group.id, message, imagePaths);
           results.push({ target: group.name, success: gr.success, error: gr.error, postUrl: gr.postUrl });
           if (groups.indexOf(group) < groups.length - 1) {
-            await new Promise(r => setTimeout(r, Math.random() * 30000 + 30000));
+            await new Promise(r => setTimeout(r, groupDelayMs()));
           }
         }
         setJobResult(jobId, { results });
