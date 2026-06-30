@@ -442,13 +442,26 @@ async function attachImages(page, imagePaths) {
   return uploaded;
 }
 
+// Nhận diện URL permalink bài viết FB ở MỌI dạng. Trang/Nhóm trả URL dạng
+// "/{id}/posts/..." hay "/groups/.../permalink/..." (regex cũ bắt được), NHƯNG
+// bài TRANG CÁ NHÂN (profile) thường trả "permalink.php?story_fbid=...&id=..."
+// hoặc "story.php?..." / "share/p/..." — các dạng này regex cũ BỎ SÓT nên bài
+// cá nhân đăng xong không có link đính kèm. Gộp đủ các dạng để bắt cho cả 3.
+function isPermalinkUrl(u) {
+  if (typeof u !== 'string' || !/facebook\.com/.test(u)) return false;
+  return /facebook\.com\/[^"\s]*\/(posts|permalink|videos|reel|photo)/.test(u)  // Page/Nhóm + media
+      || /facebook\.com\/(permalink|story|photo)\.php/.test(u)                  // Profile: *.php?story_fbid=
+      || /facebook\.com\/(groups|share\/p|share\/v)\//.test(u)                  // Nhóm + link share rút gọn
+      || /[?&](story_fbid|fbid)=/.test(u);                                      // bất kỳ URL có story_fbid/fbid
+}
+
 // Đệ quy tìm permalink trong payload GraphQL.
 // FB shape thay đổi nhiều version → duyệt key bất kỳ thay vì hardcode path.
 function extractPostUrl(obj, depth = 0) {
   if (!obj || typeof obj !== 'object' || depth > 15) return null;
 
   const direct = obj.url || obj.permalink_url || obj.wwwURL || obj.share_url;
-  if (typeof direct === 'string' && /facebook\.com\/[^"\s]*\/(posts|permalink|groups|story\.php|photo)/.test(direct)) {
+  if (isPermalinkUrl(direct)) {
     return direct;
   }
 
@@ -478,7 +491,8 @@ function extractPostUrl(obj, depth = 0) {
 function extractPostId(obj, depth = 0) {
   if (!obj || typeof obj !== 'object' || depth > 10) return null;
   if (obj.story_create && typeof obj.story_create === 'object') {
-    return obj.story_create.post_id || obj.story_create.story_id || null;
+    return obj.story_create.post_id || obj.story_create.story_id
+        || obj.story_create.legacy_story_api_id || null;
   }
   for (const key of Object.keys(obj)) {
     const v = obj[key];
