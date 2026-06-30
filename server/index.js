@@ -351,15 +351,27 @@ const upload = multer({
   },
 });
 
-let postCount = 0;
+// Đếm số bài FB đã đăng trong ngày — TÁCH RIÊNG theo từng profile để mỗi tài
+// khoản có hạn mức độc lập (trước đây dùng 1 biến chung cho mọi profile nên
+// chạy nhiều account là mau chạm trần, chặn cả các profile chưa đăng gì).
+let postCounts = {};            // profileKey → số bài đã đăng hôm nay
 let lastResetDate = new Date().toDateString();
 
 function checkDailyReset() {
   const today = new Date().toDateString();
   if (today !== lastResetDate) {
-    postCount = 0;
+    postCounts = {};
     lastResetDate = today;
   }
+}
+
+function getPostCount(profileKey) {
+  return postCounts[profileKey || ''] || 0;
+}
+function incPostCount(profileKey) {
+  const k = profileKey || '';
+  postCounts[k] = (postCounts[k] || 0) + 1;
+  return postCounts[k];
 }
 
 function cleanupFiles(files) {
@@ -505,10 +517,10 @@ async function executePost({ profile, profileDisplayName, message, target, group
   // Đăng lên cá nhân + tất cả group (multi-target, không dùng pendingLogId)
   if (target === 'all') {
     const results = [];
-    if (postCount < config.posting.maxPostsPerDay) {
+    if (getPostCount(profileKey) < config.posting.maxPostsPerDay) {
       logger.info('Đang đăng lên FB cá nhân...');
       const r = await playwright.postToPersonal(message, imagePaths);
-      postCount++;
+      incPostCount(profileKey);
       postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
       results.push({ target: 'FB Cá nhân', success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
@@ -516,10 +528,10 @@ async function executePost({ profile, profileDisplayName, message, target, group
 
     const groups = Object.values(config.groups);
     for (const group of groups) {
-      if (postCount >= config.posting.maxPostsPerDay) break;
+      if (getPostCount(profileKey) >= config.posting.maxPostsPerDay) break;
       logger.info(`Đang đăng lên ${group.name}...`);
       const r = await playwright.postToGroup(group.id, message, imagePaths);
-      postCount++;
+      incPostCount(profileKey);
       postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
       results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       if (groups.indexOf(group) < groups.length - 1) {
@@ -533,10 +545,10 @@ async function executePost({ profile, profileDisplayName, message, target, group
     const groups = Object.values(config.groups);
     const results = [];
     for (const group of groups) {
-      if (postCount >= config.posting.maxPostsPerDay) break;
+      if (getPostCount(profileKey) >= config.posting.maxPostsPerDay) break;
       logger.info(`Đang đăng lên ${group.name}...`);
       const r = await playwright.postToGroup(group.id, message, imagePaths);
-      postCount++;
+      incPostCount(profileKey);
       postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
       results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       if (groups.indexOf(group) < groups.length - 1) {
@@ -549,21 +561,21 @@ async function executePost({ profile, profileDisplayName, message, target, group
   if (target === 'shortcut') {
     const group = config.groups[groupId];
     const r = await playwright.postToGroup(group.id, message, imagePaths);
-    postCount++;
+    incPostCount(profileKey);
     _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
   }
 
   if (target === 'group') {
     const r = await playwright.postToGroup(groupId, message, imagePaths);
-    postCount++;
+    incPostCount(profileKey);
     _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
   }
 
   if (target === 'page') {
     const r = await playwright.postToPage(groupId, message, imagePaths);
-    postCount++;
+    incPostCount(profileKey);
     _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'page', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
   }
@@ -574,12 +586,12 @@ async function executePost({ profile, profileDisplayName, message, target, group
     if (keywords.length === 0) {
       // Không có nhóm → fallback đăng cá nhân thường
       const r = await playwright.postToPersonal(message, imagePaths);
-      postCount++;
+      incPostCount(profileKey);
       _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
       return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
     }
     const r = await playwright.postPersonalAndShareToGroups(message, imagePaths, keywords);
-    postCount++;
+    incPostCount(profileKey);
     const sharedGroupNames = Array.isArray(r.sharedGroups) ? r.sharedGroups : [];
     const missedGroupNames = Array.isArray(r.missedGroups) ? r.missedGroups : [];
     const groupNameVal = (sharedGroupNames.length || missedGroupNames.length) ? JSON.stringify({ ok: sharedGroupNames, miss: missedGroupNames }) : null;
@@ -589,7 +601,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
 
   // personal (default)
   const r = await playwright.postToPersonal(message, imagePaths);
-  postCount++;
+  incPostCount(profileKey);
   _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
   return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
 }
@@ -651,9 +663,15 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
     }
   }
 
-  if (postCount >= config.posting.maxPostsPerDay) {
+  // Trần đăng/ngày tính RIÊNG theo profile sẽ thực sự đăng (profile truyền lên,
+  // hoặc profile active nếu không truyền). Hết quota profile này không chặn profile khác.
+  let _gateProfileKey = profile;
+  if (!_gateProfileKey) {
+    try { _gateProfileKey = playwright.getActiveProfile().key || ''; } catch { _gateProfileKey = ''; }
+  }
+  if (getPostCount(_gateProfileKey) >= config.posting.maxPostsPerDay) {
     cleanupFiles(imagePaths);
-    return res.json({ error: `Đã đạt giới hạn ${config.posting.maxPostsPerDay} bài/ngày.` });
+    return res.json({ error: `Đã đạt giới hạn ${config.posting.maxPostsPerDay} bài/ngày cho profile này.`, limitReached: true });
   }
 
   if (target === 'shortcut' && !config.groups[groupId]) {
