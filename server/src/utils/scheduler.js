@@ -519,12 +519,20 @@ async function executeSeedSchedule(job) {
   logger.info(`Bắt đầu seeding theo lịch #${job.id}: ${job.comments.length} bình luận`);
 
   let success = 0, fail = 0, lastError = '';
-  const pickAccount = () => job.accounts[Math.floor(Math.random() * job.accounts.length)];
+  // Rải đều tài khoản: xáo trộn thứ tự một lần rồi gán xoay vòng (round-robin).
+  // Random thuần dễ bị trùng → có tài khoản không bao giờ được dùng; round-robin
+  // bảo đảm mọi tài khoản đã chọn đều được comment khi số bình luận ≥ số tài khoản.
+  const seedAccounts = job.accounts.slice();
+  for (let k = seedAccounts.length - 1; k > 0; k--) {
+    const r = Math.floor(Math.random() * (k + 1));
+    [seedAccounts[k], seedAccounts[r]] = [seedAccounts[r], seedAccounts[k]];
+  }
+  let _accIdx = 0;
 
   for (let i = 0; i < job.comments.length; i++) {
     const c = job.comments[i];
     if (!(c.text && c.text.trim()) && !(c.imagePaths && c.imagePaths.length)) { job.done = i + 1; continue; }
-    const acc = pickAccount();
+    const acc = seedAccounts[_accIdx++ % seedAccounts.length];
     const imageUrls = persistImages(c.imagePaths || []);
     let result = null;
     try {
