@@ -575,7 +575,7 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
   if (!fs.existsSync(profilePath)) {
     return {
       success: false,
-      error: `Chưa đăng nhập Salework cho tài khoản "${zaloAccountName}". Hãy xoá và thêm lại tài khoản qua UI.`,
+      error: `Chưa đăng nhập ZaloCRM cho tài khoản "${zaloAccountName}". Hãy xoá và thêm lại tài khoản qua UI.`,
     };
   }
 
@@ -633,7 +633,7 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
     // HUỶ đăng nếu không chọn được đúng tài khoản — thà báo lỗi rõ ràng còn hơn
     // âm thầm đăng nhầm bằng tài khoản mặc định ("Tất cả tài khoản" → Basso…).
     if (!accountOk) {
-      throw new Error(`Không chọn được tài khoản "${zaloAccountName}" trên Salework (ô vẫn ở "Tất cả tài khoản" hoặc chọn nhầm). Đã huỷ đăng để tránh đăng nhầm tài khoản — mở lại Salework kiểm tra danh sách tài khoản đã kết nối.`);
+      throw new Error(`Không chọn được tài khoản "${zaloAccountName}" trên ZaloCRM (ô vẫn ở "Tất cả tài khoản" hoặc chọn nhầm). Đã huỷ đăng để tránh đăng nhầm tài khoản — mở lại ZaloCRM kiểm tra danh sách tài khoản đã kết nối.`);
     }
 
     if (!(await searchAndClickGroup(page, groupName))) {

@@ -446,7 +446,7 @@ app.post('/api/accounts', (req, res) => {
   if (!key || !name) return res.status(400).json({ error: 'Thiếu key hoặc tên' });
 
   if (type === 'zalo') {
-    if (!saleworkName) return res.status(400).json({ error: 'Thiếu tên Salework' });
+    if (!saleworkName) return res.status(400).json({ error: 'Thiếu tên ZaloCRM' });
 
     const accounts = loadZaloAccounts();
     if (accounts.find(a => a.key === key)) return res.status(400).json({ error: 'Key đã tồn tại' });
@@ -465,8 +465,8 @@ app.post('/api/accounts', (req, res) => {
     const alreadyLoggedIn = fs.existsSync(saleworkProfileDir);
 
     res.json({ success: true, message: alreadyLoggedIn
-      ? `Đã thêm tài khoản Zalo "${name}". Profile Salework đã tồn tại — xoá và thêm lại nếu cần setup lại.`
-      : `Đang mở Chromium để đăng nhập Salework và chọn tài khoản "${name}". Chọn đúng tài khoản xong thì đóng cửa sổ.` });
+      ? `Đã thêm tài khoản Zalo "${name}". Profile ZaloCRM đã tồn tại — xoá và thêm lại nếu cần setup lại.`
+      : `Đang mở Chromium để đăng nhập ZaloCRM và chọn tài khoản "${name}". Chọn đúng tài khoản xong thì đóng cửa sổ.` });
 
     if (!alreadyLoggedIn) {
       (async () => {
@@ -474,7 +474,7 @@ app.post('/api/accounts', (req, res) => {
           const { safeLaunchPersistentContext } = require('./src/utils/playwright-launch');
           fs.mkdirSync(saleworkProfileDir, { recursive: true });
           const proxyOpt = parseProxy(proxy);
-          if (proxyOpt) logger.info(`Salework "${name}" dùng proxy: ${proxyOpt.server}`);
+          if (proxyOpt) logger.info(`ZaloCRM "${name}" dùng proxy: ${proxyOpt.server}`);
           const browser = await safeLaunchPersistentContext(saleworkProfileDir, {
             headless: false,
             slowMo: 500,
@@ -483,12 +483,12 @@ app.post('/api/accounts', (req, res) => {
           });
           const page = browser.pages()[0] || await browser.newPage();
           await page.goto(salework.ZALO_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
-          loginHistory.addEntry(key, name, 'login', 'Mở Salework Zalo để đăng nhập và chọn tài khoản');
+          loginHistory.addEntry(key, name, 'login', 'Mở ZaloCRM Zalo để đăng nhập và chọn tài khoản');
           browser.on('close', () => {
-            loginHistory.addEntry(key, name, 'login', 'Đã đóng Salework - session và tài khoản đã lưu');
+            loginHistory.addEntry(key, name, 'login', 'Đã đóng ZaloCRM - session và tài khoản đã lưu');
           });
         } catch (e) {
-          logger.error(`Lỗi mở Salework: ${e.message}`);
+          logger.error(`Lỗi mở ZaloCRM: ${e.message}`);
         }
       })();
     }
@@ -569,7 +569,7 @@ app.post('/api/accounts/:key/login', (req, res) => {
   // trang Salework Zalo, không phải profile FB.
   const isZalo = !!profileMeta.saleworkName;
   if (isZalo) {
-    res.json({ success: true, message: `Đang mở Salework cho "${name}". Kiểm tra đăng nhập xong thì đóng cửa sổ.` });
+    res.json({ success: true, message: `Đang mở ZaloCRM cho "${name}". Kiểm tra đăng nhập xong thì đóng cửa sổ.` });
 
     (async () => {
       try {
@@ -577,7 +577,7 @@ app.post('/api/accounts/:key/login', (req, res) => {
         const saleworkProfileDir = salework.getSaleworkProfile(key);
         if (!fs.existsSync(saleworkProfileDir)) fs.mkdirSync(saleworkProfileDir, { recursive: true });
         const proxyOpt = parseProxy(profileMeta.proxy);
-        if (proxyOpt) logger.info(`Salework "${name}" dùng proxy: ${proxyOpt.server}`);
+        if (proxyOpt) logger.info(`ZaloCRM "${name}" dùng proxy: ${proxyOpt.server}`);
         const browser = await safeLaunchPersistentContext(saleworkProfileDir, {
           headless: false,
           slowMo: 500,
@@ -586,13 +586,13 @@ app.post('/api/accounts/:key/login', (req, res) => {
         });
         const page = browser.pages()[0] || await browser.newPage();
         await page.goto(salework.ZALO_CHAT_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        loginHistory.addEntry(key, name, 'login', 'Mở Salework để kiểm tra đăng nhập');
+        loginHistory.addEntry(key, name, 'login', 'Mở ZaloCRM để kiểm tra đăng nhập');
         browser.on('close', () => {
-          loginHistory.addEntry(key, name, 'login', 'Đã đóng Salework - session được lưu');
+          loginHistory.addEntry(key, name, 'login', 'Đã đóng ZaloCRM - session được lưu');
         });
       } catch (e) {
-        logger.error(`Lỗi mở Salework re-login "${name}": ${e.message}`);
-        loginHistory.addEntry(key, name, 'session_expired', `Không mở được Salework: ${e.message}`);
+        logger.error(`Lỗi mở ZaloCRM re-login "${name}": ${e.message}`);
+        loginHistory.addEntry(key, name, 'session_expired', `Không mở được ZaloCRM: ${e.message}`);
       }
     })();
     return;
