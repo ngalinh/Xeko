@@ -442,13 +442,26 @@ async function attachImages(page, imagePaths) {
   return uploaded;
 }
 
+// Nhận diện URL permalink bài viết FB ở MỌI dạng. Trang/Nhóm trả URL dạng
+// "/{id}/posts/..." hay "/groups/.../permalink/..." (regex cũ bắt được), NHƯNG
+// bài TRANG CÁ NHÂN (profile) thường trả "permalink.php?story_fbid=...&id=..."
+// hoặc "story.php?..." / "share/p/..." — các dạng này regex cũ BỎ SÓT nên bài
+// cá nhân đăng xong không có link đính kèm. Gộp đủ các dạng để bắt cho cả 3.
+function isPermalinkUrl(u) {
+  if (typeof u !== 'string' || !/facebook\.com/.test(u)) return false;
+  return /facebook\.com\/[^"\s]*\/(posts|permalink|videos|reel|photo)/.test(u)  // Page/Nhóm + media
+      || /facebook\.com\/(permalink|story|photo)\.php/.test(u)                  // Profile: *.php?story_fbid=
+      || /facebook\.com\/(groups|share\/p|share\/v)\//.test(u)                  // Nhóm + link share rút gọn
+      || /[?&](story_fbid|fbid)=/.test(u);                                      // bất kỳ URL có story_fbid/fbid
+}
+
 // Đệ quy tìm permalink trong payload GraphQL.
 // FB shape thay đổi nhiều version → duyệt key bất kỳ thay vì hardcode path.
 function extractPostUrl(obj, depth = 0) {
   if (!obj || typeof obj !== 'object' || depth > 15) return null;
 
   const direct = obj.url || obj.permalink_url || obj.wwwURL || obj.share_url;
-  if (typeof direct === 'string' && /facebook\.com\/[^"\s]*\/(posts|permalink|groups|story\.php|photo)/.test(direct)) {
+  if (isPermalinkUrl(direct)) {
     return direct;
   }
 
@@ -478,7 +491,8 @@ function extractPostUrl(obj, depth = 0) {
 function extractPostId(obj, depth = 0) {
   if (!obj || typeof obj !== 'object' || depth > 10) return null;
   if (obj.story_create && typeof obj.story_create === 'object') {
-    return obj.story_create.post_id || obj.story_create.story_id || null;
+    return obj.story_create.post_id || obj.story_create.story_id
+        || obj.story_create.legacy_story_api_id || null;
   }
   for (const key of Object.keys(obj)) {
     const v = obj[key];
@@ -512,13 +526,10 @@ function listenForPostUrl(page, { timeoutMs = 20000, debug = false } = {}) {
   return new Promise((resolve) => {
     let done = false;
     let fallbackPostId = null; // backup: post_id từ story_create nếu không bắt được URL full
-    const finish = (val) => {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      page.off('response', handler);
-      resolve(val);
-    };
+    // Chẩn đoán: gom các response GraphQL "có vẻ liên quan" (chứa story_create/
+    // permalink/post_id...). Khi đăng xong mà KHÔNG bắt được link, dump các
+    // preview này ra log để biết FB thật sự trả shape gì → vá chính xác thay vì đoán.
+    const diag = [];
     const timer = setTimeout(() => {
       // Hết timeout: nếu có post_id từ story_create → ghép URL fallback
       if (fallbackPostId) {
@@ -526,9 +537,23 @@ function listenForPostUrl(page, { timeoutMs = 20000, debug = false } = {}) {
         logger.info(`postUrl fallback từ post_id: ${fb}`);
         finish(fb);
       } else {
+        // KHÔNG bắt được gì → xả chẩn đoán để soi response thật của FB
+        if (diag.length) {
+          logger.warn(`listenForPostUrl: KHÔNG bắt được URL/post_id sau ${timeoutMs}ms — ${diag.length} response nghi vấn:`);
+          diag.forEach((d, i) => logger.warn(`  [${i + 1}] ${d.url}\n      ${d.preview}`));
+        } else {
+          logger.warn(`listenForPostUrl: KHÔNG bắt được URL/post_id sau ${timeoutMs}ms & KHÔNG có response GraphQL nghi vấn nào (FB có thể đổi endpoint đăng bài).`);
+        }
         finish(null);
       }
     }, timeoutMs);
+    const finish = (val) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      page.off('response', handler);
+      resolve(val);
+    };
 
     async function handler(res) {
       const url = res.url();
@@ -548,6 +573,12 @@ function listenForPostUrl(page, { timeoutMs = 20000, debug = false } = {}) {
         const jsons = parseGraphQLBody(text);
         if (debug && jsons.length === 0 && text.length > 100) {
           logger.warn(`[PARSE-FAIL] ${url.slice(0, 120)} len=${text.length} preview=${text.slice(0, 300)}`);
+        }
+
+        // Chẩn đoán: nếu body có dấu vết bài viết (story_create/permalink/post_id)
+        // mà ta vẫn không trích được → lưu preview để dump khi timeout. Giới hạn 6.
+        if (diag.length < 6 && /story_create|create_post|composer|permalink|post_id|legacy_story|story_fbid/i.test(text)) {
+          diag.push({ url: url.slice(0, 140), preview: text.replace(/\s+/g, ' ').slice(0, 600) });
         }
 
         for (const json of jsons) {
@@ -978,6 +1009,50 @@ async function submitPost(page) {
   return { success: true, postUrl };
 }
 
+// Lớp vớt cuối khi GraphQL không bắt được link: vào lại trang cá nhân của chính
+// profile vừa đăng, tìm ĐÚNG bài vừa đăng (khớp theo nội dung, BỎ QUA bài ghim)
+// rồi đọc href permalink ở dòng thời gian. Trả null nếu không chắc chắn — KHÔNG
+// đoán bừa để tránh gắn nhầm link bài khác (thà trống còn hơn sai).
+async function recoverPostUrlFromProfile(page, message) {
+  const snippet = (message || '').replace(/\s+/g, ' ').trim().slice(0, 30);
+  if (!snippet) return null; // không có nội dung để khớp → bỏ qua, tránh lấy nhầm
+  try {
+    await page.goto('https://www.facebook.com/me', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    // FB có thể cần vài giây + cuộn nhẹ để bài mới nhất render
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await randomDelay(1500, 2500);
+      const url = await page.evaluate((snip) => {
+        const isPerma = (h) => typeof h === 'string' && /facebook\.com/.test(h) &&
+          (/\/(posts|permalink)\//.test(h) || /(permalink|story|photo)\.php/.test(h)
+           || /[?&](story_fbid|fbid)=/.test(h) || /\/share\/p\//.test(h));
+        const articles = document.querySelectorAll('[role="article"]');
+        for (const art of articles) {
+          if (/Được ghim|Pinned/i.test(art.textContent || '')) continue;  // bỏ bài ghim
+          if (!(art.textContent || '').includes(snip)) continue;          // khớp đúng bài
+          for (const a of art.querySelectorAll('a[href]')) {
+            if (!isPerma(a.href)) continue;
+            try {
+              const u = new URL(a.href);
+              if (/\.php$/.test(u.pathname)) {  // permalink.php?story_fbid=...&id=... → giữ id, bỏ tracking
+                const keep = new URLSearchParams();
+                for (const k of ['story_fbid', 'id', 'fbid']) if (u.searchParams.get(k)) keep.set(k, u.searchParams.get(k));
+                return u.origin + u.pathname + (keep.toString() ? '?' + keep.toString() : '');
+              }
+              return u.origin + u.pathname;  // /{id}/posts/... → bỏ tracking __cft__/__tn__
+            } catch { return a.href; }
+          }
+        }
+        return null;
+      }, snippet);
+      if (url) return url;
+      await page.mouse.wheel(0, 600).catch(() => {});
+    }
+  } catch (e) {
+    logger.warn(`recoverPostUrlFromProfile: ${e.message}`);
+  }
+  return null;
+}
+
 /**
  * Chụp screenshot bài viết của profile đang active
  */
@@ -1048,7 +1123,16 @@ async function postToPersonal(message, imagePaths = []) {
       throw new Error(`${hint} (xem logs/${result.screenshot || 'debug-failed.png'})`);
     }
     logger.info(`${tag} submit xong (${Date.now() - tSubmit}ms) — total ${Date.now() - t0}ms ✅${result.postUrl ? ` postUrl=${result.postUrl}` : ''}`);
-    return { success: true, target: 'personal', postUrl: result.postUrl || null };
+
+    // Lớp vớt cuối: GraphQL không bắt được link → đọc lại từ trang cá nhân.
+    let postUrl = result.postUrl || null;
+    if (!postUrl) {
+      logger.info(`${tag} chưa có link từ GraphQL — thử đọc lại từ trang cá nhân...`);
+      postUrl = await recoverPostUrlFromProfile(page, message);
+      if (postUrl) logger.info(`${tag} ✅ vớt được link từ trang cá nhân: ${postUrl}`);
+      else logger.warn(`${tag} vẫn không lấy được link sau khi đọc trang cá nhân`);
+    }
+    return { success: true, target: 'personal', postUrl };
   } catch (error) {
     logger.error(`${tag} FAIL sau ${Date.now() - t0}ms: ${error.message}`);
     return { success: false, error: error.message };
