@@ -12677,8 +12677,9 @@
       _renderSeedComments();
       document.getElementById('seedStatus').style.display = 'none';
       document.getElementById('seedSubmitBtn').disabled = false;
-      // Reset chế độ hẹn giờ
-      document.getElementById('seedAutoToggle').checked = false;
+      // Mặc định bật hẹn giờ — mục đích chính của seeding là rải bình luận
+      // theo lịch để đẩy bài lên; comment ngay chỉ là tuỳ chọn phụ.
+      document.getElementById('seedAutoToggle').checked = true;
       _toggleSeedAuto();
 
       // Load danh sách profiles
