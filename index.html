@@ -4712,11 +4712,11 @@
                 <input type="datetime-local" id="seedSchedTime" style="width:100%; padding:8px 10px; border:1px solid #e5e7eb; border-radius:7px; font-size:13px; background:#fff; box-sizing:border-box;">
               </div>
               <div style="min-width:150px;">
-                <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px;">Giãn cách (giây)</label>
+                <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px;">Giãn cách (phút)</label>
                 <div style="display:flex; align-items:center; gap:4px;">
-                  <input type="number" id="seedMinDelay" value="30" min="0" style="width:60px; padding:8px 6px; border:1px solid #e5e7eb; border-radius:7px; font-size:13px; background:#fff; text-align:center;">
+                  <input type="number" id="seedMinDelay" value="1" min="0" style="width:60px; padding:8px 6px; border:1px solid #e5e7eb; border-radius:7px; font-size:13px; background:#fff; text-align:center;">
                   <span style="color:#9ca3af;">–</span>
-                  <input type="number" id="seedMaxDelay" value="90" min="0" style="width:60px; padding:8px 6px; border:1px solid #e5e7eb; border-radius:7px; font-size:13px; background:#fff; text-align:center;">
+                  <input type="number" id="seedMaxDelay" value="3" min="0" style="width:60px; padding:8px 6px; border:1px solid #e5e7eb; border-radius:7px; font-size:13px; background:#fff; text-align:center;">
                 </div>
               </div>
             </div>
@@ -12940,9 +12940,12 @@
       const accounts = [...document.querySelectorAll('.seed-acc-check:checked')]
         .map(cb => ({ key: cb.value, name: cb.dataset.name }));
       const entries = _seedComments.filter(c => c.text.trim() || c.images.length > 0);
-      const minDelay = Math.max(0, parseInt(document.getElementById('seedMinDelay').value) || 0);
-      let maxDelay = Math.max(0, parseInt(document.getElementById('seedMaxDelay').value) || 0);
-      if (maxDelay < minDelay) maxDelay = minDelay;
+      // UI nhập theo phút, backend lưu theo giây → quy đổi ×60
+      const minDelayMin = Math.max(0, parseInt(document.getElementById('seedMinDelay').value) || 0);
+      let maxDelayMin = Math.max(0, parseInt(document.getElementById('seedMaxDelay').value) || 0);
+      if (maxDelayMin < minDelayMin) maxDelayMin = minDelayMin;
+      const minDelay = minDelayMin * 60;
+      const maxDelay = maxDelayMin * 60;
 
       if (!timeVal) { showXekoToast('Chọn thời gian chạy!', 'error'); return; }
       if (new Date(timeVal).getTime() <= Date.now()) { showXekoToast('Thời gian phải ở tương lai!', 'error'); return; }
