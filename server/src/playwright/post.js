@@ -1009,6 +1009,50 @@ async function submitPost(page) {
   return { success: true, postUrl };
 }
 
+// Lớp vớt cuối khi GraphQL không bắt được link: vào lại trang cá nhân của chính
+// profile vừa đăng, tìm ĐÚNG bài vừa đăng (khớp theo nội dung, BỎ QUA bài ghim)
+// rồi đọc href permalink ở dòng thời gian. Trả null nếu không chắc chắn — KHÔNG
+// đoán bừa để tránh gắn nhầm link bài khác (thà trống còn hơn sai).
+async function recoverPostUrlFromProfile(page, message) {
+  const snippet = (message || '').replace(/\s+/g, ' ').trim().slice(0, 30);
+  if (!snippet) return null; // không có nội dung để khớp → bỏ qua, tránh lấy nhầm
+  try {
+    await page.goto('https://www.facebook.com/me', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    // FB có thể cần vài giây + cuộn nhẹ để bài mới nhất render
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await randomDelay(1500, 2500);
+      const url = await page.evaluate((snip) => {
+        const isPerma = (h) => typeof h === 'string' && /facebook\.com/.test(h) &&
+          (/\/(posts|permalink)\//.test(h) || /(permalink|story|photo)\.php/.test(h)
+           || /[?&](story_fbid|fbid)=/.test(h) || /\/share\/p\//.test(h));
+        const articles = document.querySelectorAll('[role="article"]');
+        for (const art of articles) {
+          if (/Được ghim|Pinned/i.test(art.textContent || '')) continue;  // bỏ bài ghim
+          if (!(art.textContent || '').includes(snip)) continue;          // khớp đúng bài
+          for (const a of art.querySelectorAll('a[href]')) {
+            if (!isPerma(a.href)) continue;
+            try {
+              const u = new URL(a.href);
+              if (/\.php$/.test(u.pathname)) {  // permalink.php?story_fbid=...&id=... → giữ id, bỏ tracking
+                const keep = new URLSearchParams();
+                for (const k of ['story_fbid', 'id', 'fbid']) if (u.searchParams.get(k)) keep.set(k, u.searchParams.get(k));
+                return u.origin + u.pathname + (keep.toString() ? '?' + keep.toString() : '');
+              }
+              return u.origin + u.pathname;  // /{id}/posts/... → bỏ tracking __cft__/__tn__
+            } catch { return a.href; }
+          }
+        }
+        return null;
+      }, snippet);
+      if (url) return url;
+      await page.mouse.wheel(0, 600).catch(() => {});
+    }
+  } catch (e) {
+    logger.warn(`recoverPostUrlFromProfile: ${e.message}`);
+  }
+  return null;
+}
+
 /**
  * Chụp screenshot bài viết của profile đang active
  */
@@ -1079,7 +1123,16 @@ async function postToPersonal(message, imagePaths = []) {
       throw new Error(`${hint} (xem logs/${result.screenshot || 'debug-failed.png'})`);
     }
     logger.info(`${tag} submit xong (${Date.now() - tSubmit}ms) — total ${Date.now() - t0}ms ✅${result.postUrl ? ` postUrl=${result.postUrl}` : ''}`);
-    return { success: true, target: 'personal', postUrl: result.postUrl || null };
+
+    // Lớp vớt cuối: GraphQL không bắt được link → đọc lại từ trang cá nhân.
+    let postUrl = result.postUrl || null;
+    if (!postUrl) {
+      logger.info(`${tag} chưa có link từ GraphQL — thử đọc lại từ trang cá nhân...`);
+      postUrl = await recoverPostUrlFromProfile(page, message);
+      if (postUrl) logger.info(`${tag} ✅ vớt được link từ trang cá nhân: ${postUrl}`);
+      else logger.warn(`${tag} vẫn không lấy được link sau khi đọc trang cá nhân`);
+    }
+    return { success: true, target: 'personal', postUrl };
   } catch (error) {
     logger.error(`${tag} FAIL sau ${Date.now() - t0}ms: ${error.message}`);
     return { success: false, error: error.message };
