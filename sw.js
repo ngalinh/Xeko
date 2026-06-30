@@ -1,5 +1,5 @@
 /* Xeko PWA service worker */
-const VERSION = 'xeko-pwa-v29';
+const VERSION = 'xeko-pwa-v30';
 const SHELL_CACHE = `shell-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
@@ -46,7 +46,12 @@ self.addEventListener('message', (event) => {
 });
 
 function isApiRequest(url) {
-  return url.pathname.startsWith('/api/');
+  // App có thể chạy dưới sub-path /b/{id}/ nên /api/ KHÔNG nằm ở đầu pathname
+  // (vd /b/abc/api/seed-logs). Trước đây dùng startsWith('/api/') → request API
+  // dưới sub-path không được nhận diện, rơi vào cache-first static → trả dữ liệu
+  // cũ (lịch sử seeding không cập nhật tới khi Ctrl+Shift+R). Khớp /api/ ở bất kỳ
+  // vị trí path nào để cả root lẫn sub-path đều bypass cache đúng.
+  return url.pathname.includes('/api/');
 }
 
 function isNavigation(request) {
