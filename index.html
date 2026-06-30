@@ -4695,8 +4695,8 @@
 
         <!-- Tài khoản (chế độ comment ngay) -->
         <div id="seedAccountRow" style="margin-bottom:14px;">
-          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Tài khoản comment</label>
-          <select id="seedProfile" style="width:100%; padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#333;"></select>
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Tài khoản comment <span style="font-weight:400; color:#9ca3af;">(chọn nhiều — hệ thống rải ngẫu nhiên)</span></label>
+          <div id="seedProfileChecks" style="display:flex; flex-wrap:wrap; gap:6px; max-height:120px; overflow-y:auto;"></div>
         </div>
 
         <!-- Hẹn giờ tự động seeding -->
@@ -12686,17 +12686,18 @@
         const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), {cache: 'no-store'});
         const data = await parseJson(res);
         _seedProfiles = data.facebook || [];
-        const sel = document.getElementById('seedProfile');
-        sel.innerHTML = _seedProfiles.length
-          ? _seedProfiles.map(p => `<option value="${escapeHtml(p.key)}">${escapeHtml(p.name || p.key)}</option>`).join('')
-          : '<option value="">Chưa có tài khoản</option>';
-        // Checkbox tài khoản cho chế độ hẹn giờ (rải ngẫu nhiên)
-        const checks = document.getElementById('seedAccountChecks');
-        checks.innerHTML = _seedProfiles.length
-          ? _seedProfiles.map(p => `<label style="display:inline-flex; align-items:center; gap:5px; background:#fff; border:1px solid #e5e7eb; border-radius:7px; padding:5px 9px; font-size:12px; cursor:pointer;"><input type="checkbox" class="seed-acc-check" value="${escapeHtml(p.key)}" data-name="${escapeHtml(p.name || p.key)}" style="cursor:pointer;">${escapeHtml(p.name || p.key)}</label>`).join('')
+        const _accCheckHtml = (cls) => _seedProfiles.length
+          ? _seedProfiles.map(p => `<label style="display:inline-flex; align-items:center; gap:5px; background:#fff; border:1px solid #e5e7eb; border-radius:7px; padding:5px 9px; font-size:12px; cursor:pointer;"><input type="checkbox" class="${cls}" value="${escapeHtml(p.key)}" data-name="${escapeHtml(p.name || p.key)}" style="cursor:pointer;">${escapeHtml(p.name || p.key)}</label>`).join('')
           : '<span style="font-size:12px; color:#9ca3af;">Chưa có tài khoản</span>';
+        // Checkbox tài khoản cho chế độ comment ngay (chọn nhiều — rải ngẫu nhiên)
+        const profileChecks = document.getElementById('seedProfileChecks');
+        profileChecks.innerHTML = _accCheckHtml('seed-acc-check-now');
+        const _firstNow = profileChecks.querySelector('.seed-acc-check-now');
+        if (_firstNow) _firstNow.checked = true; // mặc định chọn tài khoản đầu
+        // Checkbox tài khoản cho chế độ hẹn giờ (rải ngẫu nhiên)
+        document.getElementById('seedAccountChecks').innerHTML = _accCheckHtml('seed-acc-check');
       } catch {
-        document.getElementById('seedProfile').innerHTML = '<option value="">Lỗi tải tài khoản</option>';
+        document.getElementById('seedProfileChecks').innerHTML = '<span style="font-size:12px; color:#dc2626;">Lỗi tải tài khoản</span>';
       }
 
       document.getElementById('seedModal').style.display = 'flex';
@@ -12853,10 +12854,10 @@
       // Chế độ hẹn giờ → đặt lịch thay vì comment ngay
       if (document.getElementById('seedAutoToggle').checked) return submitSeedSchedule();
 
-      const profile = document.getElementById('seedProfile').value;
+      const profiles = [...document.querySelectorAll('.seed-acc-check-now:checked')].map(cb => cb.value);
       const entriesToPost = _seedComments.filter(c => c.text.trim() || c.images.length > 0);
 
-      if (!profile) { showXekoToast('Vui lòng chọn tài khoản!', 'error'); return; }
+      if (!profiles.length) { showXekoToast('Vui lòng chọn ít nhất 1 tài khoản!', 'error'); return; }
       if (!entriesToPost.length) { showXekoToast('Nhập nội dung hoặc chọn ảnh!', 'error'); return; }
 
       const btn = document.getElementById('seedSubmitBtn');
@@ -12878,6 +12879,8 @@
         btn.innerHTML = `<svg class="xi"><use href="#ic-clock"/></svg> ${ci + 1}/${entriesToPost.length}...`;
 
         try {
+          // Rải ngẫu nhiên qua các tài khoản đã chọn (giống chế độ hẹn giờ)
+          const profile = profiles[Math.floor(Math.random() * profiles.length)];
           const fd = new FormData();
           fd.append('postLogId', String(_seedPostLogId || ''));
           fd.append('postUrl', _seedPostUrl);
