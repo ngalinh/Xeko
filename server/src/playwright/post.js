@@ -526,13 +526,10 @@ function listenForPostUrl(page, { timeoutMs = 20000, debug = false } = {}) {
   return new Promise((resolve) => {
     let done = false;
     let fallbackPostId = null; // backup: post_id từ story_create nếu không bắt được URL full
-    const finish = (val) => {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      page.off('response', handler);
-      resolve(val);
-    };
+    // Chẩn đoán: gom các response GraphQL "có vẻ liên quan" (chứa story_create/
+    // permalink/post_id...). Khi đăng xong mà KHÔNG bắt được link, dump các
+    // preview này ra log để biết FB thật sự trả shape gì → vá chính xác thay vì đoán.
+    const diag = [];
     const timer = setTimeout(() => {
       // Hết timeout: nếu có post_id từ story_create → ghép URL fallback
       if (fallbackPostId) {
@@ -540,9 +537,23 @@ function listenForPostUrl(page, { timeoutMs = 20000, debug = false } = {}) {
         logger.info(`postUrl fallback từ post_id: ${fb}`);
         finish(fb);
       } else {
+        // KHÔNG bắt được gì → xả chẩn đoán để soi response thật của FB
+        if (diag.length) {
+          logger.warn(`listenForPostUrl: KHÔNG bắt được URL/post_id sau ${timeoutMs}ms — ${diag.length} response nghi vấn:`);
+          diag.forEach((d, i) => logger.warn(`  [${i + 1}] ${d.url}\n      ${d.preview}`));
+        } else {
+          logger.warn(`listenForPostUrl: KHÔNG bắt được URL/post_id sau ${timeoutMs}ms & KHÔNG có response GraphQL nghi vấn nào (FB có thể đổi endpoint đăng bài).`);
+        }
         finish(null);
       }
     }, timeoutMs);
+    const finish = (val) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      page.off('response', handler);
+      resolve(val);
+    };
 
     async function handler(res) {
       const url = res.url();
@@ -562,6 +573,12 @@ function listenForPostUrl(page, { timeoutMs = 20000, debug = false } = {}) {
         const jsons = parseGraphQLBody(text);
         if (debug && jsons.length === 0 && text.length > 100) {
           logger.warn(`[PARSE-FAIL] ${url.slice(0, 120)} len=${text.length} preview=${text.slice(0, 300)}`);
+        }
+
+        // Chẩn đoán: nếu body có dấu vết bài viết (story_create/permalink/post_id)
+        // mà ta vẫn không trích được → lưu preview để dump khi timeout. Giới hạn 6.
+        if (diag.length < 6 && /story_create|create_post|composer|permalink|post_id|legacy_story|story_fbid/i.test(text)) {
+          diag.push({ url: url.slice(0, 140), preview: text.replace(/\s+/g, ' ').slice(0, 600) });
         }
 
         for (const json of jsons) {
