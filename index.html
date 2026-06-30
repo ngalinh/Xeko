@@ -12855,7 +12855,13 @@
       // Chế độ hẹn giờ → đặt lịch thay vì comment ngay
       if (document.getElementById('seedAutoToggle').checked) return submitSeedSchedule();
 
+      // Xáo trộn thứ tự tài khoản rồi gán xoay vòng (round-robin) để mọi tài
+      // khoản đã chọn đều được dùng, thay vì random thuần dễ bị trùng.
       const profiles = [...document.querySelectorAll('.seed-acc-check-now:checked')].map(cb => cb.value);
+      for (let k = profiles.length - 1; k > 0; k--) {
+        const r = Math.floor(Math.random() * (k + 1));
+        [profiles[k], profiles[r]] = [profiles[r], profiles[k]];
+      }
       const entriesToPost = _seedComments.filter(c => c.text.trim() || c.images.length > 0);
 
       if (!profiles.length) { showXekoToast('Vui lòng chọn ít nhất 1 tài khoản!', 'error'); return; }
@@ -12880,8 +12886,8 @@
         btn.innerHTML = `<svg class="xi"><use href="#ic-clock"/></svg> ${ci + 1}/${entriesToPost.length}...`;
 
         try {
-          // Rải ngẫu nhiên qua các tài khoản đã chọn (giống chế độ hẹn giờ)
-          const profile = profiles[Math.floor(Math.random() * profiles.length)];
+          // Xoay vòng qua các tài khoản đã chọn (round-robin)
+          const profile = profiles[ci % profiles.length];
           const fd = new FormData();
           fd.append('postLogId', String(_seedPostLogId || ''));
           fd.append('postUrl', _seedPostUrl);
