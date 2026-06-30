@@ -40,6 +40,24 @@ async function screenshot(page, label) {
   } catch {}
 }
 
+// Phát hiện trang ĐĂNG NHẬP của ZaloCRM (zalo.basso.vn/login). Khi session hết
+// hạn, mở /chat sẽ bị đẩy về trang login — có ô nhập Mật khẩu + nút "Đăng nhập".
+// Lúc này KHÔNG báo "không chọn được tài khoản" (gây hiểu nhầm) mà báo rõ cần
+// admin đăng nhập lại tài khoản.
+async function isOnLoginPage(page) {
+  try {
+    if (/\/login(\b|\/|$)/.test(page.url())) return true;
+    return await page.evaluate(() => {
+      const hasPassword = !!document.querySelector('input[type="password"]');
+      const hasLoginBtn = Array.from(document.querySelectorAll('button'))
+        .some(b => /đăng nhập/i.test(b.textContent || ''));
+      return hasPassword && hasLoginBtn;
+    });
+  } catch {
+    return false;
+  }
+}
+
 // ============================================================================
 // CHỌN TÀI KHOẢN ZALO trên zalo.basso.vn (giao diện Vuetify)
 // ----------------------------------------------------------------------------
@@ -575,7 +593,7 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
   if (!fs.existsSync(profilePath)) {
     return {
       success: false,
-      error: `Chưa đăng nhập Salework cho tài khoản "${zaloAccountName}". Hãy xoá và thêm lại tài khoản qua UI.`,
+      error: `Chưa đăng nhập ZaloCRM cho tài khoản "${zaloAccountName}". Hãy xoá và thêm lại tài khoản qua UI.`,
     };
   }
 
@@ -627,17 +645,23 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
     await sleep(3000);
     await screenshot(page, '01-loaded');
 
+    // Session hết hạn → basso đẩy về trang đăng nhập. Báo rõ cần admin login lại,
+    // KHÔNG để rơi xuống "không chọn được tài khoản" (sai nguyên nhân).
+    if (await isOnLoginPage(page)) {
+      throw new Error(`Phiên đăng nhập ZaloCRM của tài khoản "${zaloAccountName}" đã hết hạn (trình duyệt mở ra trang đăng nhập). Cần kiểm tra lại — báo admin đăng nhập lại tài khoản trên ZaloCRM.`);
+    }
+
     const accountOk = await selectZaloAccount(page, zaloAccountName);
     await screenshot(page, '02-account-selected');
 
     // HUỶ đăng nếu không chọn được đúng tài khoản — thà báo lỗi rõ ràng còn hơn
     // âm thầm đăng nhầm bằng tài khoản mặc định ("Tất cả tài khoản" → Basso…).
     if (!accountOk) {
-      throw new Error(`Không chọn được tài khoản "${zaloAccountName}" trên Salework (ô vẫn ở "Tất cả tài khoản" hoặc chọn nhầm). Đã huỷ đăng để tránh đăng nhầm tài khoản — mở lại Salework kiểm tra danh sách tài khoản đã kết nối.`);
+      throw new Error(`Không chọn được tài khoản "${zaloAccountName}" trên ZaloCRM (ô vẫn ở "Tất cả tài khoản" hoặc chọn nhầm). Đã huỷ đăng để tránh đăng nhầm tài khoản — mở lại ZaloCRM kiểm tra danh sách tài khoản đã kết nối.`);
     }
 
     if (!(await searchAndClickGroup(page, groupName))) {
-      throw new Error(`Không tìm thấy nhóm: ${groupName}`);
+      throw new Error(`Không tìm thấy nhóm "${groupName}" trên ZaloCRM — kiểm tra lại tên nhóm có đúng không, hoặc tài khoản "${zaloAccountName}" có nằm trong nhóm này không.`);
     }
     await screenshot(page, '04-group-selected');
 

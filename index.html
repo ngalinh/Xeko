@@ -4438,7 +4438,7 @@
       </div>
       <div id="newAccZaloFields" style="display:none;">
         <div style="margin-bottom:14px;">
-          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Tên trong Salework</label>
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:4px;">Tên trong ZaloCRM</label>
           <input type="text" id="newZaloSaleworkName" placeholder="vd: Linh Duong Us, Basso Order Hàng Mỹ" autocomplete="off"
             style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
         </div>
@@ -8930,11 +8930,11 @@
                   <div style="width:40px; height:40px; background:${zavatarColor}; border-radius:99px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; font-weight:700; flex-shrink:0;">${zinitial}</div>
                   <div class="info" style="min-width:0;">
                     <div class="name">${escapeHtml(z.name)}</div>
-                    <div class="detail" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="Key: ${escapeHtml(z.key)} · Salework: ${escapeHtml(z.saleworkName)}">Key: ${escapeHtml(z.key)} · Salework: ${escapeHtml(z.saleworkName)}</div>
+                    <div class="detail" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="Key: ${escapeHtml(z.key)} · ZaloCRM: ${escapeHtml(z.saleworkName)}">Key: ${escapeHtml(z.key)} · ZaloCRM: ${escapeHtml(z.saleworkName)}</div>
                     ${zproxyStr ? `<div style="display:flex; align-items:center; gap:4px; margin-top:2px; font-size:11px; color:#1E3A8A; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${xekoIcon('globe')} ${escapeHtml(proxyDisplay(zproxyStr))}</div>` : ''}
                   </div>
                   <div class="pc-actions">
-                    <button class="pc-btn pc-btn-edit" onclick="loginProfile('${z.key}', this)" aria-label="Mở Chrome kiểm tra login" title="Mở Salework profile để kiểm tra đăng nhập">${xekoIcon('key')}<span class="pc-btn-label">Login</span></button>
+                    <button class="pc-btn pc-btn-edit" onclick="loginProfile('${z.key}', this)" aria-label="Mở Chrome kiểm tra login" title="Mở ZaloCRM profile để kiểm tra đăng nhập">${xekoIcon('key')}<span class="pc-btn-label">Login</span></button>
                     ${zproxyStr ? `<button class="pc-btn pc-btn-edit" onclick="testProxyIp('${z.key}', this)" aria-label="Test IP" title="Test IP qua proxy">${xekoIcon('globe')}<span class="pc-btn-label">Test IP</span></button>` : ''}
                     <button class="pc-btn pc-btn-edit" onclick="editZaloProfile('${z.key}', '${z.name.replace(/'/g, "\\'")}', '${(z.saleworkName || '').replace(/'/g, "\\'")}', '${(zproxyStr || '').replace(/'/g, "\\'")}')" title="Đổi proxy" aria-label="Đổi proxy">${xekoIcon('edit')}<span class="pc-btn-label">Sửa</span></button>
                     <button class="pc-btn pc-btn-del" onclick="deleteProfile('zalo','${z.key}','${z.name.replace(/'/g, "\\'")}')" aria-label="Xoá" title="Xoá">
@@ -8953,7 +8953,7 @@
     }
 
     function loginZaloProfile() {
-      alert('Mở Salework: chạy lại lệnh thêm tài khoản Zalo để mở lại trình duyệt Salework.');
+      alert('Mở ZaloCRM: chạy lại lệnh thêm tài khoản Zalo để mở lại trình duyệt ZaloCRM.');
     }
 
     function proxyDisplay(p) {
@@ -9079,7 +9079,7 @@
       }
 
       if (type === 'zalo' && !saleworkName) {
-        alert('Vui lòng nhập tên tài khoản trong Salework!');
+        alert('Vui lòng nhập tên tài khoản trong ZaloCRM!');
         return;
       }
 
@@ -9421,7 +9421,7 @@
             ? `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#f3e8ff; color:#7c3aed; border-radius:20px; font-size:11px; font-weight:600;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-file"/></svg> Page</span>`
             : `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; background:#e6f2ff; color:#1E3A8A; border-radius:20px; font-size:11px; font-weight:600;"><svg class="xi" style="width:12px;height:12px;"><use href="#ic-zalo"/></svg>Zalo</span>`;
         const idVal = isFb || isPage ? escapeHtml(g.id || '') : escapeHtml(g.oid || '');
-        const idLabel = isFb ? 'Group ID' : isPage ? 'Page ID' : 'Salework';
+        const idLabel = isFb ? 'Group ID' : isPage ? 'Page ID' : 'ZaloCRM';
         const category = g.category ? escapeHtml(g.category) : '';
         const categoryCell = category ? escapeHtml(g.category) : '<span style="color:#bbb; font-style:italic;">—</span>';
         return `
@@ -9666,7 +9666,7 @@
         idInput.placeholder = 'vd: 123456789 hoặc mypage';
       } else {
         zaloBtn.style.background = '#e6f2ff'; zaloBtn.style.color = '#2563EB'; zaloBtn.style.borderColor = '#b3d0ff';
-        idLabel.textContent = 'Tên nhóm trong Salework';
+        idLabel.textContent = 'Tên nhóm trong ZaloCRM';
         idInput.placeholder = 'vd: TỔNG KHO HÀNG SẴN US - LINH THẢO';
       }
     }
@@ -9683,7 +9683,7 @@
       const category = document.getElementById('groupModalCategory').value.trim();
 
       if (!key || !idOrOid || !name) {
-        const idFieldLabel = type === 'fb' ? 'Group ID' : type === 'page' ? 'Page ID' : 'Tên Salework';
+        const idFieldLabel = type === 'fb' ? 'Group ID' : type === 'page' ? 'Page ID' : 'Tên ZaloCRM';
         alert('Vui lòng nhập đầy đủ Key, ' + idFieldLabel + ' và Tên hiển thị');
         return;
       }
