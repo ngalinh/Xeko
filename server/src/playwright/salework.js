@@ -661,7 +661,7 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
     }
 
     if (!(await searchAndClickGroup(page, groupName))) {
-      throw new Error(`Không tìm thấy nhóm: ${groupName}`);
+      throw new Error(`Không tìm thấy nhóm "${groupName}" trên ZaloCRM — kiểm tra lại tên nhóm có đúng không, hoặc tài khoản "${zaloAccountName}" có nằm trong nhóm này không.`);
     }
     await screenshot(page, '04-group-selected');
 
