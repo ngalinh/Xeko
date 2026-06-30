@@ -8895,6 +8895,7 @@
               ${proxyStr ? `<div style="display:flex; align-items:center; gap:4px; margin-top:2px; font-size:11px; color:#1E3A8A; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${xekoIcon('globe')} ${escapeHtml(proxyDisplay(proxyStr))}</div>` : ''}
             </div>
             <div class="pc-actions">
+              <button class="pc-btn pc-btn-login" onclick="loginProfile('${p.key}', this)" aria-label="Mở Chrome kiểm tra login" title="Mở Chrome profile để kiểm tra đăng nhập">${xekoIcon('key')}<span class="pc-btn-label">Login</span></button>
               ${proxyStr ? `<button class="pc-btn pc-btn-edit" onclick="testProxyIp('${p.key}', this)" aria-label="Test IP" title="Test IP qua proxy">${xekoIcon('globe')}<span class="pc-btn-label">Test IP</span></button>` : ''}
               <button class="pc-btn pc-btn-edit" onclick="editProfile('${p.key}', '${p.name.replace(/'/g, "\\'")}', '${(p.email || '').replace(/'/g, "\\'")}', '${(proxyStr || '').replace(/'/g, "\\'")}')" title="Đổi proxy" aria-label="Đổi proxy">${xekoIcon('edit')}<span class="pc-btn-label">Sửa</span></button>
               <button class="pc-btn pc-btn-del" onclick="deleteProfile('facebook','${p.key}','${p.name.replace(/'/g, "\\'")}')" aria-label="Xoá" title="Xoá">
@@ -9161,14 +9162,24 @@
       btn.textContent = `<svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;" aria-hidden="true"><use href="#ic-search"/></svg>Kiểm tra lại`;
     }
 
-    async function loginProfile(profileKey) {
+    async function loginProfile(profileKey, btn) {
+      const orig = btn ? btn.innerHTML : null;
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<svg style="width:15px;height:15px;" aria-hidden="true"><use href="#ic-clock"/></svg><span class="pc-btn-label">Đang mở...</span>`;
+      }
       try {
         const res = await fetch(`${BASE_URL}/api/accounts/${encodeURIComponent(profileKey)}/login`, { method: 'POST' });
         const data = await parseJson(res);
-        if (data.success) alert(`✅ ${data.message}`);
+        if (data.success) alert(`✅ ${data.message || 'Đã mở Chrome profile — kiểm tra trạng thái đăng nhập trên cửa sổ trình duyệt.'}`);
         else alert(`❌ Lỗi: ${data.error}`);
       } catch (e) {
         alert(`❌ Lỗi: ${e.message}`);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = orig;
+        }
       }
     }
 
