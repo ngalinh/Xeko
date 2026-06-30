@@ -4,6 +4,7 @@ const scheduleStore = require('../database/schedule-store');
 const seedScheduleStore = require('../database/seed-schedule-store');
 const seedStore = require('../database/seed-store');
 const { queuePost } = require('./post-queue');
+const { groupDelayMs } = require('./post-delays');
 const fs = require('fs');
 const path = require('path');
 
@@ -199,7 +200,7 @@ async function executeSchedule(job) {
         postLogger.logPost({ profile: job.profile, profileName: job.profileName || job.profile, platform: 'facebook', target: 'group', groupId: group.id, groupName: group.name, message: job.message, imageCount: imgCount, images: imageUrls, success: r.success, error: r.error, postUrl: r.postUrl, source: 'schedule' });
         results.push({ target: group.name, ...r });
         if (groups.indexOf(group) < groups.length - 1) {
-          await new Promise(r => setTimeout(r, 30000 + Math.random() * 30000));
+          await new Promise(r => setTimeout(r, groupDelayMs()));
         }
       }
       result = { success: results.every(r => r.success), results };
@@ -222,7 +223,7 @@ async function executeSchedule(job) {
       const r1 = await playwright.postToPersonal(job.message, job.imagePaths);
       postLogger.logPost({ profile: job.profile, profileName: job.profileName || job.profile, platform: 'facebook', target: 'personal', message: job.message, imageCount: imgCount, images: imageUrls, success: r1.success, error: r1.error, postUrl: r1.postUrl, source: 'schedule' });
       results.push({ target: 'FB Cá nhân', ...r1 });
-      await new Promise(r => setTimeout(r, 30000 + Math.random() * 30000));
+      await new Promise(r => setTimeout(r, groupDelayMs()));
       // Groups
       const groups = Object.values(config.groups);
       for (const group of groups) {
@@ -230,7 +231,7 @@ async function executeSchedule(job) {
         postLogger.logPost({ profile: job.profile, profileName: job.profileName || job.profile, platform: 'facebook', target: 'group', groupId: group.id, groupName: group.name, message: job.message, imageCount: imgCount, images: imageUrls, success: r.success, error: r.error, postUrl: r.postUrl, source: 'schedule' });
         results.push({ target: group.name, ...r });
         if (groups.indexOf(group) < groups.length - 1) {
-          await new Promise(r => setTimeout(r, 30000 + Math.random() * 30000));
+          await new Promise(r => setTimeout(r, groupDelayMs()));
         }
       }
       result = { success: results.every(r => r.success), results };

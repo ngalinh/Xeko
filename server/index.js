@@ -13,6 +13,7 @@ const playwright = process.env.PLAYWRIGHT_LOCAL_URL
 const postLogger = require('./src/database/post-logger');
 const seedStore = require('./src/database/seed-store');
 const { queuePost } = require('./src/utils/post-queue');
+const { groupDelayMs } = require('./src/utils/post-delays');
 const retryQueue = require('./src/utils/retry-queue');
 
 const permissions = require('./src/utils/permissions');
@@ -523,7 +524,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
       incPostCount(profileKey);
       postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
       results.push({ target: 'FB Cá nhân', success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
-      await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
+      await new Promise(res => setTimeout(res, groupDelayMs()));
     }
 
     const groups = Object.values(config.groups);
@@ -535,7 +536,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
       postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
       results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       if (groups.indexOf(group) < groups.length - 1) {
-        await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
+        await new Promise(res => setTimeout(res, groupDelayMs()));
       }
     }
     return { results };
@@ -552,7 +553,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
       postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
       results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       if (groups.indexOf(group) < groups.length - 1) {
-        await new Promise(res => setTimeout(res, Math.floor(Math.random() * 30000) + 30000));
+        await new Promise(res => setTimeout(res, groupDelayMs()));
       }
     }
     return { results };
