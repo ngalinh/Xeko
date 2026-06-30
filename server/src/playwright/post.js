@@ -522,15 +522,35 @@ function parseGraphQLBody(text) {
 
 // Lắng nghe response GraphQL để bắt permalink bài vừa đăng.
 // FB trả NDJSON (nhiều JSON cách nhau bằng \n), parse từng dòng.
+// Trả về { promise, arm }. Listener NGHE response ngay khi gắn, nhưng đồng hồ
+// timeout CHỈ chạy khi gọi arm() — gọi lúc bấm "Đăng" CUỐI. Vì bài Trang cá nhân
+// đi qua 2 màn (Tạo bài → Tiếp → Cài đặt → Đăng), nếu đếm 25s từ lúc mở composer
+// thì listener chết TRƯỚC khi bài thật sự được đăng → mất link. Đếm từ lúc bấm
+// Đăng mới đúng mốc response story_create của FB fire.
 function listenForPostUrl(page, { timeoutMs = 20000, debug = false } = {}) {
-  return new Promise((resolve) => {
-    let done = false;
-    let fallbackPostId = null; // backup: post_id từ story_create nếu không bắt được URL full
-    // Chẩn đoán: gom các response GraphQL "có vẻ liên quan" (chứa story_create/
-    // permalink/post_id...). Khi đăng xong mà KHÔNG bắt được link, dump các
-    // preview này ra log để biết FB thật sự trả shape gì → vá chính xác thay vì đoán.
-    const diag = [];
-    const timer = setTimeout(() => {
+  let done = false;
+  let timer = null;
+  let resolveFn = null;
+  let fallbackPostId = null; // backup: post_id từ story_create nếu không bắt được URL full
+  // Chẩn đoán: gom các response GraphQL "có vẻ liên quan" (chứa story_create/
+  // permalink/post_id...). Khi đăng xong mà KHÔNG bắt được link, dump các
+  // preview này ra log để biết FB thật sự trả shape gì → vá chính xác thay vì đoán.
+  const diag = [];
+
+  const promise = new Promise((resolve) => { resolveFn = resolve; });
+
+  const finish = (val) => {
+    if (done) return;
+    done = true;
+    if (timer) clearTimeout(timer);
+    page.off('response', handler);
+    resolveFn(val);
+  };
+
+  // Bắt đầu đếm giờ. Idempotent — gọi nhiều lần chỉ tính lần đầu.
+  const arm = () => {
+    if (done || timer) return;
+    timer = setTimeout(() => {
       // Hết timeout: nếu có post_id từ story_create → ghép URL fallback
       if (fallbackPostId) {
         const fb = `https://www.facebook.com/${fallbackPostId}`;
@@ -547,15 +567,9 @@ function listenForPostUrl(page, { timeoutMs = 20000, debug = false } = {}) {
         finish(null);
       }
     }, timeoutMs);
-    const finish = (val) => {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      page.off('response', handler);
-      resolve(val);
-    };
+  };
 
-    async function handler(res) {
+  async function handler(res) {
       const url = res.url();
       try {
         if (!/graphql|composer|story_create|ajax\/.*post|api\/post/i.test(url)) return;
@@ -600,8 +614,8 @@ function listenForPostUrl(page, { timeoutMs = 20000, debug = false } = {}) {
         if (debug) logger.warn(`[HANDLER-ERR] ${url.slice(0, 120)}: ${e.message}`);
       }
     }
-    page.on('response', handler);
-  });
+  page.on('response', handler);
+  return { promise, arm };
 }
 
 // Click row "Chia sẻ lên nhóm" trong dialog "Cài đặt bài viết".
@@ -743,7 +757,7 @@ async function shareToGroupsInSettings(page, keywords) {
 // để không ảnh hưởng đăng riêng lẻ. Click Tiếp → Cài đặt bài viết → Chia sẻ lên nhóm
 // → tick group → Xong → Đăng.
 async function submitPostAndShareGroups(page, keywords) {
-  const urlPromise = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
+  const listener = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
 
   await page.evaluate(() => {
     document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
@@ -819,7 +833,8 @@ async function submitPostAndShareGroups(page, keywords) {
     return { success: false, screenshot: shot, sharedGroups: shareResult.selected, missedGroups: shareResult.missed };
   }
 
-  const postUrl = await urlPromise;
+  listener.arm(); // bắt đầu đếm timeout TỪ ĐÂY (sau khi đã bấm Đăng + dialog đóng)
+  const postUrl = await listener.promise;
   if (!postUrl) logger.warn('submitPostAndShareGroups: không bắt được postUrl từ GraphQL (timeout)');
   return { success: true, postUrl, sharedGroups: shareResult.selected, missedGroups: shareResult.missed };
 }
@@ -875,7 +890,7 @@ async function selectGroupCheckbox(page, keyword) {
 
 async function submitPost(page) {
   // Phải attach listener TRƯỚC khi click — response GraphQL về sau vài trăm ms
-  const urlPromise = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
+  const listener = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
 
   // Bấm nút "Đăng"/"Tiếp" CHẮC TAY bằng nhiều chiến lược (giống qpStep6Submit).
   // Nút "Đăng" của FB lúc là div[aria-label="Đăng"], lúc chỉ là <span>Đăng</span>
@@ -980,6 +995,10 @@ async function submitPost(page) {
       continue;
     }
 
+    // Vừa bấm "Đăng"/"Post" (submit cuối) → bài THẬT SỰ được gửi từ đây, nên BÂY GIỜ
+    // mới bắt đầu đếm timeout listener (không phải từ lúc mở composer — bài cá nhân
+    // qua 2 màn, đếm sớm sẽ hết giờ trước khi đăng xong → mất link).
+    listener.arm();
     // Vừa bấm "Đăng"/"Post" (submit cuối) → chờ hộp thoại composer ĐÓNG hẳn.
     const closed = await page.waitForFunction(() => {
       const dialogs = document.querySelectorAll('div[role="dialog"]');
@@ -995,7 +1014,8 @@ async function submitPost(page) {
   }
 
   // postUrl bắt được = bài ĐÃ được tạo, kể cả khi phát hiện đóng hộp thoại chập chờn.
-  const postUrl = await urlPromise;
+  listener.arm(); // an toàn: nếu vòng lặp không vào nhánh "Đăng" cuối thì vẫn đếm từ đây
+  const postUrl = await listener.promise;
   if (postUrl) success = true;
 
   if (!success) {
@@ -2026,7 +2046,7 @@ async function _qpPickOneGroup(page, keyword) {
 // Bắt postUrl từ GraphQL listener (reuse listenForPostUrl, đã proven).
 async function qpStep6Submit(page, steps) {
   // Listener phải attach TRƯỚC khi click — response GraphQL về sau vài trăm ms
-  const urlPromise = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
+  const listener = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
 
   // Early-exit: nếu dialog đã đóng hết (FB submit nhanh / Tab+Enter ở step trước đã post)
   // → bài đã đăng thành công, không cần tìm nút "Đăng" nữa.
@@ -2041,7 +2061,8 @@ async function qpStep6Submit(page, steps) {
   });
   if (alreadyDone) {
     await _qpLog(steps, 'Step 6: dialog đã đóng trước khi click "Đăng" — bài đã được gửi ở bước trước');
-    const postUrl = await urlPromise;
+    listener.arm();
+    const postUrl = await listener.promise;
     return { success: true, postUrl: postUrl || null };
   }
 
@@ -2174,7 +2195,8 @@ async function qpStep6Submit(page, steps) {
   }
 
   await _qpLog(steps, 'Step 6: dialog đã đóng — post submitted');
-  const postUrl = await urlPromise;
+  listener.arm();
+  const postUrl = await listener.promise;
   if (postUrl) {
     await _qpLog(steps, `Step 6: postUrl = ${postUrl}`);
   } else {
