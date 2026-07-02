@@ -4203,7 +4203,7 @@
         <!-- Top row: search + Bộ lọc + Lọc -->
         <div class="dash-search-wrap" style="position:relative; display:inline-flex; align-items:center; flex:1; min-width:200px;">
           <svg style="position:absolute; left:9px; color:#9ca3af; pointer-events:none;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="dashFilterSearch" placeholder="Tìm kiếm..." onkeydown="if(event.key==='Enter')loadDashHistory()" style="padding:8px 12px 8px 30px; border:1px solid #ddd; border-radius:8px; font-size:13px; width:100%; box-sizing:border-box;">
+          <input type="text" id="dashFilterSearch" placeholder="Tìm kiếm..." onkeydown="if(event.key==='Enter')dashDoSearch()" style="padding:8px 12px 8px 30px; border:1px solid #ddd; border-radius:8px; font-size:13px; width:100%; box-sizing:border-box;">
         </div>
         <button id="dashFilterToggleBtn" type="button" onclick="toggleDashFilterPanel()" style="padding:8px 16px; background:#fff; color:#374151; border:1px solid #ddd; border-radius:8px; cursor:pointer; font-size:13px; display:inline-flex; align-items:center; gap:6px; flex-shrink:0;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
@@ -11149,6 +11149,13 @@
       }
     }
 
+    // Tìm kiếm theo keyword: luôn quay về trang đầu để không bỏ sót bài viết
+    // khớp keyword đang nằm ở trang khác (lọc chạy phía server trên toàn bộ dữ liệu).
+    function dashDoSearch() {
+      dashPage = 0;
+      loadDashHistory();
+    }
+
     async function loadDashHistory({ noSkeleton = false, noAnimation = false } = {}) {
       const myVersion = ++_loadDashHistoryVersion;
       const profiles = getMselValues('msel-profile');
@@ -11169,6 +11176,7 @@
       if (dbStatuses.length) params.set('success', dbStatuses.join(','));
       if (from) params.set('from', from + 'T00:00:00.000Z');
       if (to) params.set('to', to + 'T23:59:59.999Z');
+      if (search) params.set('search', search);
       params.set('limit', dashLimit);
       params.set('offset', dashPage * dashLimit);
 
@@ -11248,6 +11256,15 @@
         if (profiles.length) schedToShow = schedToShow.filter(s => profiles.includes(s.profile));
         if (targets.length) schedToShow = schedToShow.filter(s => targets.includes(s.target));
         if (groupIds.length) schedToShow = schedToShow.filter(s => groupIds.includes(s.groupId) || groupIds.includes(s.groupName));
+        // Lịch chờ/đang đăng nằm trong bộ nhớ (không phân trang) → lọc keyword tại client
+        if (search) {
+          schedToShow = schedToShow.filter(s => {
+            const msg = (s.message || '').toLowerCase();
+            const grp = (s.groupName || s.groupId || '').toLowerCase();
+            const acc = (s.profile_name || s.profile || '').toLowerCase();
+            return msg.includes(search) || grp.includes(search) || acc.includes(search);
+          });
+        }
         if (!showSchedules) schedToShow = [];
 
         // Lookup: FB group/page ID → tên (từ danh sách kênh đã lưu)
@@ -11413,16 +11430,9 @@
         }).join('');
 
         // Khi filter pending/running: chỉ hiện lịch chờ, ẩn history
+        // Lọc keyword được thực hiện phía server (trên toàn bộ dữ liệu trước khi phân trang),
+        // nên data.rows đã khớp keyword ở mọi trang — không lọc lại tại client.
         let histRows = showHistory ? (data.rows || []) : [];
-        // Lọc client-side theo từ khóa tìm kiếm
-        if (search) {
-          histRows = histRows.filter(r => {
-            const msg = (r.message || '').toLowerCase();
-            const grp = (r.group_name || r.group_id || '').toLowerCase();
-            const acc = (r.profile_name || r.profile || '').toLowerCase();
-            return msg.includes(search) || grp.includes(search) || acc.includes(search);
-          });
-        }
         const activeRepostHtml = showHistory ? (repostHtml + pendingDbHtml) : '';
 
         if (histRows.length > 0) {

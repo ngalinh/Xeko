@@ -1544,12 +1544,13 @@ app.get('/api/schedule-image/:id/:index', (req, res) => {
 
 // === Post History & Statistics API ===
 app.get('/api/post-history', (req, res) => {
-  const { profile, platform, target, groupId, success, from, to, limit, offset } = req.query;
+  const { profile, platform, target, groupId, success, from, to, search, limit, offset } = req.query;
   try {
     const result = postLogger.getPostHistory({
       profile, platform, target, groupId: groupId || undefined,
       success: success !== undefined && success !== '' ? success : undefined,
       from, to,
+      search: search || undefined,
       limit: parseInt(limit) || 50,
       offset: parseInt(offset) || 0,
     });
