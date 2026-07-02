@@ -137,7 +137,7 @@ function markTimedOutPending(maxAgeMs = 10 * 60 * 1000) {
 /**
  * Lay lich su bai dang voi filter
  */
-function getPostHistory({ profile, platform, target, groupId, success, from, to, limit = 50, offset = 0 } = {}) {
+function getPostHistory({ profile, platform, target, groupId, success, from, to, search, limit = 50, offset = 0 } = {}) {
   let sql = 'SELECT * FROM post_logs WHERE success != -1';
   const params = {};
 
@@ -178,6 +178,19 @@ function getPostHistory({ profile, platform, target, groupId, success, from, to,
       const clauses = vals.map((v, i) => { params[`gid${i}`] = v; return `(group_id = @gid${i} OR group_name = @gid${i})`; });
       sql += ` AND (${clauses.join(' OR ')})`;
     }
+  }
+  if (search !== undefined && search !== null && String(search).trim() !== '') {
+    // Tim kiem theo tu khoa tren toan bo du lieu (truoc khi phan trang),
+    // de bai viet khop keyword hien thi du dang o trang nao
+    const term = String(search).trim();
+    params.search = '%' + term.replace(/[\\%_]/g, '\\$&') + '%';
+    sql += ` AND (
+      message LIKE @search ESCAPE '\\'
+      OR group_name LIKE @search ESCAPE '\\'
+      OR group_id LIKE @search ESCAPE '\\'
+      OR profile_name LIKE @search ESCAPE '\\'
+      OR profile LIKE @search ESCAPE '\\'
+    )`;
   }
 
   // Dem tong
