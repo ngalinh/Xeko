@@ -356,6 +356,44 @@ function removeSchedule(id) {
 }
 
 /**
+ * Đổi thời gian đăng của 1 lịch đang chờ.
+ * - Chỉ đổi được lịch còn 'pending' (đang đăng thì không cho đổi).
+ * - Huỷ timer cũ, đặt timer mới, cập nhật DB.
+ * @param {number} id
+ * @param {string|number|Date} newTime  Thời gian mới (ISO string / timestamp / Date)
+ * @returns {object} job đã cập nhật
+ */
+function rescheduleSchedule(id, newTime) {
+  const job = scheduledPosts.find(j => j.id === id);
+  if (!job) {
+    const err = new Error('Không tìm thấy lịch');
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  if (job.status !== 'pending') {
+    const err = new Error('Lịch đang đăng — không thể đổi giờ');
+    err.code = 'NOT_PENDING';
+    throw err;
+  }
+
+  const scheduleTime = new Date(newTime);
+  if (isNaN(scheduleTime.getTime())) throw new Error('Thời gian không hợp lệ');
+  if (scheduleTime <= new Date()) throw new Error('Thời gian phải ở tương lai');
+
+  if (job.timer) clearTimeout(job.timer);
+  job.time = scheduleTime;
+  scheduleStore.updateTime(id, scheduleTime.toISOString());
+
+  const delay = scheduleTime.getTime() - Date.now();
+  job.timer = setTimeout(() => {
+    queuePost(() => executeSchedule(job));
+  }, delay);
+
+  logger.info(`Đã đổi lịch #${id} → ${scheduleTime.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`);
+  return job;
+}
+
+/**
  * Khôi phục lịch từ DB khi server khởi động.
  * Lịch còn trong tương lai -> re-schedule setTimeout.
  * Lịch quá hạn (server down đúng lúc nó) -> chạy ngay (catch-up).
@@ -677,7 +715,7 @@ function initSeeds() {
 }
 
 module.exports = {
-  addSchedule, getSchedules, removeSchedule, getNotifications, init,
+  addSchedule, getSchedules, removeSchedule, rescheduleSchedule, getNotifications, init,
   addSeedSchedule, getSeedSchedules, removeSeedSchedule, initSeeds, getSeedNotifications,
   getSeedScheduleImagePath,
 };

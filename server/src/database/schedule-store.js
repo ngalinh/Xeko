@@ -77,6 +77,13 @@ function updateStatus(id, status, result) {
   });
 }
 
+const updateTimeStmt = db.prepare(`UPDATE scheduled_posts SET time = @time WHERE id = @id`);
+
+// Đổi thời gian đăng của 1 lịch (dùng cho tính năng "Đổi lịch đăng").
+function updateTime(id, timeISO) {
+  updateTimeStmt.run({ id, time: timeISO });
+}
+
 const deleteStmt = db.prepare(`DELETE FROM scheduled_posts WHERE id = ?`);
 
 function remove(id) {
@@ -118,4 +125,4 @@ function nextId() {
   return next;
 }
 
-module.exports = { insert, updateStatus, remove, getPending, nextId };
+module.exports = { insert, updateStatus, updateTime, remove, getPending, nextId };
