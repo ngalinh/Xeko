@@ -4666,6 +4666,27 @@
     </div>
   </div>
 
+  <!-- Modal đổi lịch đăng -->
+  <div id="rescheduleModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:16px; padding:28px; width:420px; max-width:95%; box-shadow:0 8px 32px rgba(0,0,0,0.25); position:relative;">
+      <button onclick="closeRescheduleModal()" style="position:absolute; top:16px; right:16px; background:none; border:none; font-size:22px; line-height:1; cursor:pointer; color:#999; padding:0;">×</button>
+      <h3 style="font-size:16px; font-weight:700; color:#1e1e2e; margin:0 0 6px; display:flex; align-items:center; gap:8px;"><svg class="xi xi-md" style="color:#1E3A8A;"><use href="#ic-clock"/></svg> Đổi lịch đăng</h3>
+      <p style="font-size:13px; color:#6b7280; margin:0 0 18px;">Chọn thời gian đăng mới cho lịch <span id="rescheduleIdLabel" style="font-weight:600; color:#1E3A8A;"></span>.</p>
+
+      <div style="margin-bottom:22px;">
+        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Thời gian mới</label>
+        <input type="datetime-local" id="rescheduleTimeInput" style="width:100%; padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#333; box-sizing:border-box;">
+      </div>
+
+      <div id="rescheduleError" style="display:none; font-size:13px; color:#b91c1c; background:#fee2e2; border-radius:8px; padding:8px 12px; margin-bottom:14px;"></div>
+
+      <div style="display:flex; gap:10px; justify-content:flex-end; border-top:1px solid #f3f4f6; padding-top:18px;">
+        <button onclick="closeRescheduleModal()" style="padding:10px 20px; border:1px solid #ddd; border-radius:8px; background:#fff; font-size:14px; cursor:pointer; color:#555; font-weight:500;">Huỷ</button>
+        <button onclick="submitReschedule()" id="rescheduleSubmitBtn" style="padding:10px 24px; border:none; border-radius:8px; background:#2563EB; color:#fff; font-size:14px; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:6px;"><svg class="xi"><use href="#ic-clock"/></svg> Đổi lịch</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== SEED MODAL ===== -->
   <div id="seedModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center; padding:16px; box-sizing:border-box;">
     <div style="background:#fff; border-radius:16px; width:560px; max-width:100%; max-height:90vh; box-shadow:0 12px 40px rgba(0,0,0,0.28); display:flex; flex-direction:column; overflow:hidden;">
@@ -11423,7 +11444,10 @@
             <td style="padding:8px 12px; vertical-align:middle;">${time}</td>
             <td style="padding:8px 12px; text-align:center;">${statusBadge}</td>
             <td style="padding:8px 10px; text-align:center;">
-              <button onclick="cancelScheduleFromTable(${sched.id})" title="Hủy lịch đăng" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
+              <div style="display:inline-flex;align-items:center;justify-content:center;gap:6px;">
+                ${isRunning ? '' : `<button onclick="openRescheduleModal(${sched.id}, '${(sched.timeISO || '')}')" title="Đổi lịch đăng" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#DBEAFE;color:#1E3A8A;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#BFDBFE'" onmouseout="this.style.background='#DBEAFE'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-clock"/></svg></button>`}
+                <button onclick="cancelScheduleFromTable(${sched.id})" title="Hủy lịch đăng" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:999px;background:#fee2e2;color:#b91c1c;cursor:pointer;flex-shrink:0;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trash"/></svg></button>
+              </div>
             </td>
             <td style="padding:8px 12px; text-align:center; color:#cbd5e1;">—</td>
           </tr>`;
@@ -11905,6 +11929,71 @@
         }
       } catch (e) {
         console.error('Cancel schedule error:', e);
+      }
+    }
+
+    // ===== Đổi lịch đăng =====
+    let _rescheduleId = null;
+
+    function _toLocalDatetimeValue(d) {
+      return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    }
+
+    function openRescheduleModal(id, timeISO) {
+      _rescheduleId = id;
+      const input = document.getElementById('rescheduleTimeInput');
+      const errBox = document.getElementById('rescheduleError');
+      const label = document.getElementById('rescheduleIdLabel');
+      if (errBox) { errBox.style.display = 'none'; errBox.textContent = ''; }
+      if (label) label.textContent = '#' + id;
+      // min = bây giờ; value = giờ hiện tại của lịch (nếu còn ở tương lai) hoặc bây giờ
+      const nowLocal = _toLocalDatetimeValue(new Date());
+      if (input) {
+        input.min = nowLocal;
+        let cur = timeISO ? new Date(timeISO) : new Date();
+        if (isNaN(cur.getTime()) || cur <= new Date()) cur = new Date(Date.now() + 5 * 60000);
+        input.value = _toLocalDatetimeValue(cur);
+      }
+      const modal = document.getElementById('rescheduleModal');
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeRescheduleModal() {
+      _rescheduleId = null;
+      const modal = document.getElementById('rescheduleModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function submitReschedule() {
+      if (_rescheduleId == null) return;
+      const input = document.getElementById('rescheduleTimeInput');
+      const errBox = document.getElementById('rescheduleError');
+      const btn = document.getElementById('rescheduleSubmitBtn');
+      const showErr = (m) => { if (errBox) { errBox.textContent = m; errBox.style.display = 'block'; } };
+      if (!input || !input.value) return showErr('Vui lòng chọn thời gian mới.');
+      const picked = new Date(input.value);
+      if (isNaN(picked.getTime())) return showErr('Thời gian không hợp lệ.');
+      if (picked <= new Date()) return showErr('Thời gian phải ở tương lai.');
+
+      if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+      try {
+        const res = await fetch(`${BASE_URL}/api/schedule/${_rescheduleId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ time: picked.toISOString() }),
+        });
+        const data = await parseJson(res);
+        if (res.ok && data.success) {
+          closeRescheduleModal();
+          if (typeof loadDashHistory === 'function') loadDashHistory({ noSkeleton: true });
+        } else {
+          showErr(data.error || 'Đổi lịch thất bại.');
+        }
+      } catch (e) {
+        console.error('Reschedule error:', e);
+        showErr('Lỗi kết nối, thử lại sau.');
+      } finally {
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
       }
     }
 

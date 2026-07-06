@@ -1441,6 +1441,25 @@ app.delete('/api/schedule/:id', (req, res) => {
   }
 });
 
+// Đổi giờ đăng của 1 lịch đang chờ
+app.patch('/api/schedule/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const { time } = req.body || {};
+  if (!time) return res.status(400).json({ error: 'Thiếu thời gian mới' });
+  try {
+    const job = scheduler.rescheduleSchedule(id, time);
+    res.json({
+      success: true,
+      message: `Đã đổi lịch #${id} sang ${job.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`,
+      id: job.id,
+      timeISO: job.time.toISOString(),
+    });
+  } catch (e) {
+    const status = e.code === 'NOT_FOUND' ? 404 : 400;
+    res.status(status).json({ error: e.message });
+  }
+});
+
 // Polling notifications (lịch đã chạy xong)
 app.get('/api/notifications', (req, res) => {
   res.json(scheduler.getNotifications(req.user && req.user.email));

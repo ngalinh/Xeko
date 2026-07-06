@@ -5,14 +5,14 @@
  *
  * Config qua env (tùy chọn):
  *   POST_MIN_INTERVAL_MS=30000   // tối thiểu 30s giữa 2 post cùng profile
- *   POST_HOURLY_LIMIT=20         // tối đa 20 post/giờ cho 1 profile
+ *   POST_HOURLY_LIMIT=40         // tối đa 40 post/giờ cho 1 profile
  *
  * Lưu trong RAM — restart server reset. Acceptable vì FB/Zalo cũng không
  * nhớ hành vi qua restart từ phía mình; mục tiêu là chặn burst trong 1 phiên.
  */
 
 const MIN_INTERVAL_MS = Number(process.env.POST_MIN_INTERVAL_MS || 30_000);
-const HOURLY_LIMIT = Number(process.env.POST_HOURLY_LIMIT || 20);
+const HOURLY_LIMIT = Number(process.env.POST_HOURLY_LIMIT || 40);
 const HOUR_MS = 60 * 60 * 1000;
 
 // Map<profileKey, { last: number, timestamps: number[] }>
