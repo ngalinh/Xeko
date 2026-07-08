@@ -186,6 +186,23 @@ async function selectZaloAccount(page, accountName) {
   return false;
 }
 
+// Chờ SPA chat dựng xong giao diện sau khi goto: nút chọn tài khoản HOẶC ô tìm
+// kiếm hiện ra = trang chat đã render; ô mật khẩu hiện ra = bị đẩy về trang đăng
+// nhập (để bước isOnLoginPage phía sau xử lý, không phải chờ vô ích hết timeout).
+// Thay cho sleep cố định — proxy chậm thì chờ lâu hơn, nhanh thì đi tiếp ngay.
+async function waitForChatReady(page, timeout = 20000) {
+  try {
+    await page.locator(
+      '.acc-btn-text, .acc-btn, [class*="acc-btn"], ' +
+      'input[placeholder*="Tìm kiếm"], input[placeholder*="tìm kiếm"], input[placeholder*="Search"], ' +
+      'input[type="password"]'
+    ).first().waitFor({ state: 'visible', timeout });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function searchAndClickGroup(page, groupName) {
   logger.info(`[salework] Tìm nhóm: ${groupName}`);
 
@@ -193,14 +210,16 @@ async function searchAndClickGroup(page, groupName) {
   if (searchInput) {
     await searchInput.fill('');
     await searchInput.fill(groupName);
-    await sleep(2500);
+    // Chờ danh sách hội thoại lọc theo từ khoá tải xong (network rảnh) thay vì
+    // sleep cứng — group tải chậm qua proxy yếu vẫn kịp hiện trước khi tìm hàng.
+    await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
   }
 
   await screenshot(page, '03-search-filled');
 
   // Dùng page.evaluate để lấy tọa độ (1 round-trip), rồi page.mouse.click()
   // để fire đầy đủ pointer events mà Vue.js yêu cầu.
-  const rect = await page.evaluate((name) => {
+  const findRect = () => page.evaluate((name) => {
     const norm = s => s.normalize('NFC').trim();
     const normName = norm(name);
 
@@ -228,6 +247,15 @@ async function searchAndClickGroup(page, groupName) {
     }
     return null;
   }, groupName);
+
+  // Poll tối đa ~10s cho hàng nhóm xuất hiện: kết quả tìm kiếm có thể render
+  // trễ (proxy/mạng chậm) — thay vì đọc DOM đúng 1 lần rồi báo "không tìm thấy"
+  // oan, thử lại từng nhịp tới khi hàng hiện rồi mới click.
+  let rect = null;
+  for (let i = 0; i < 10 && !rect; i++) {
+    rect = await findRect();
+    if (!rect) await sleep(1000);
+  }
 
   await screenshot(page, '03b-before-click');
 
@@ -325,12 +353,15 @@ async function attachImages(page, imagePaths) {
     return { local, scoped };
   });
 
-  // Baseline (icon/nút & ảnh lịch sử cố định). Đính OK = local HOẶC scoped vượt
-  // baseline. Upload group sau chậm hơn → chờ tối đa 15s.
+  // Baseline (icon/nút & ảnh lịch sử cố định). SỐ ẢNH CẦN đính = imagePaths.length.
+  // "Đính đủ" = số ảnh MỚI (local blob/data HOẶC trong khu soạn) TĂNG >= số cần —
+  // KHÔNG chỉ ">=1" như trước (đính 2 ảnh mà chỉ 1 vào vẫn tưởng xong → rớt hình).
+  // Upload nhiều ảnh chậm hơn → chờ tối đa 20s.
+  const expected = imagePaths.length;
   const baseline = await countImages().catch(() => ({ local: 0, scoped: 0 }));
-  const imageAttached = async (timeout = 15000) => {
+  const imageAttached = async (need, timeout = 20000) => {
     try {
-      await page.waitForFunction((base) => {
+      await page.waitForFunction(({ base, need }) => {
         const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
         const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 12 && r.height > 12; };
         let local = 0;
@@ -349,8 +380,8 @@ async function attachImages(page, imagePaths) {
             if (el !== ta && visible(el)) scoped++;
           }
         }
-        return local > base.local || scoped > base.scoped;
-      }, baseline, { timeout });
+        return (local - base.local) >= need || (scoped - base.scoped) >= need;
+      }, { base: baseline, need }, { timeout });
       return true;
     } catch {
       return false;
@@ -362,9 +393,10 @@ async function attachImages(page, imagePaths) {
     for (const input of await page.$$('input[type="file"]')) {
       try {
         await input.setInputFiles(imagePaths);
-        // Input "mù" có thể là ô upload khác (avatar…) → đính không vào khu soạn;
-        // chỉ chờ ngắn (5s) rồi rớt xuống menu .ic-violet (cách trusted chuẩn).
-        if (await imageAttached(5000)) return true;
+        // Input "mù" có thể là ô upload khác (avatar…). Có ÍT NHẤT 1 ảnh mới trong
+        // 5s = ĐÚNG input khu soạn → chốt input này rồi đòi ĐỦ số ảnh (20s, upload
+        // nhiều ảnh chậm); không ảnh nào vào thì thử input/menu khác (tránh dán đè).
+        if (await imageAttached(1, 5000)) return await imageAttached(expected, 20000);
       } catch {}
     }
     try {
@@ -386,7 +418,7 @@ async function attachImages(page, imagePaths) {
           ]);
         }
       }
-      if (chooser) { await chooser.setFiles(imagePaths); return await imageAttached(); }
+      if (chooser) { await chooser.setFiles(imagePaths); return await imageAttached(expected, 20000); }
     } catch (e) {
       logger.error(`[basso] Đính ảnh (menu) lỗi: ${e.message}`);
     }
@@ -421,7 +453,7 @@ async function attachImages(page, imagePaths) {
         ta.dispatchEvent(evt);
         return true;
       }, files);
-      if (dispatched) return await imageAttached();
+      if (dispatched) return await imageAttached(expected, 20000);
     } catch (e) {
       logger.warn(`[basso] Dán ảnh lỗi: ${e.message}`);
     }
@@ -440,13 +472,13 @@ async function attachImages(page, imagePaths) {
   }
 
   if (uploaded) {
-    logger.info(`[basso] Đã đính ${imagePaths.length} ảnh (đã xác minh)`);
+    logger.info(`[basso] Đã đính đủ ${imagePaths.length} ảnh (đã xác minh đúng số lượng)`);
     // QUAN TRỌNG: preview ảnh hiện ra (blob/data) TRƯỚC khi basso upload xong ảnh
     // lên server của nó. Nếu bấm Gửi ngay thì tin gửi đi KHÔNG kèm ảnh (group rỗng)
     // nhưng salework vẫn tưởng thành công. Chờ network rảnh để upload hoàn tất.
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
   } else {
-    logger.warn('[basso] CHƯA đính được ảnh sau 2 lần thử — file input/menu/paste đều fail');
+    logger.warn(`[basso] CHƯA đính đủ ${imagePaths.length} ảnh sau 2 lần thử — file input/menu/paste đều fail hoặc đính thiếu`);
   }
 
   // CHẨN ĐOÁN (1 dòng log): số ảnh blob/http + cấu trúc khu soạn — để biết ảnh có
@@ -489,18 +521,23 @@ async function sendMessage(page, message, imagePaths = []) {
   // ----- 1. ẢNH: đính rồi gửi -----
   if (imagePaths.length > 0) {
     const uploaded = await attachImages(page, imagePaths);
-    // KHÔNG đăng thiếu hình: nếu có ảnh mà đính thất bại thì BÁO LỖI để đăng lại,
-    // thay vì âm thầm chỉ gửi text (chính là hiện tượng "rớt hình" ở group sau).
+    // KHÔNG đăng thiếu hình: có ảnh mà đính KHÔNG ĐỦ (thiếu/không vào được) thì BÁO
+    // LỖI để đăng lại, thay vì âm thầm chỉ gửi text (chính là "rớt hình" ở group sau).
     if (!uploaded) {
-      throw new Error('Đính ảnh thất bại (file input/menu/paste đều không gắn được ảnh sau 2 lần thử) — đã huỷ để tránh đăng thiếu hình. Thử đăng lại.');
+      throw new Error(`Không đính đủ ${imagePaths.length} ảnh (file input/menu/paste đều fail hoặc đính thiếu sau 2 lần thử) — đã huỷ để tránh đăng thiếu hình. Thử đăng lại.`);
     }
-    if (await clickSend(page)) { sentAny = true; logger.info('[basso] Đã gửi tin ảnh'); }
+    if (await clickSend(page)) { sentAny = true; logger.info('[basso] Đã bấm gửi tin ảnh'); }
     else throw new Error('Đính được ảnh nhưng không bấm gửi được tin ảnh.');
     // QUAN TRỌNG (lỗi Zalo-specific): bấm Gửi xong, basso CÒN đang upload ảnh lên
     // Zalo (chậm hơn text rất nhiều). Trước đây chỉ sleep 1500ms rồi caller đóng
     // browser ngay → upload bị cắt giữa chừng → group KHÔNG nhận ảnh dù đã báo gửi.
-    // Chờ ô soạn xoá preview (= ảnh đã được gửi đi) + network rảnh trước khi tiếp.
-    await waitImageSent(page);
+    // Chờ ô soạn xoá preview (= ảnh đã gửi đi) + network rảnh. XÁC MINH thật sự đã
+    // gửi: nếu preview KHÔNG rời ô soạn (ảnh chưa gửi được) → DỪNG, KHÔNG gửi text
+    // (theo yêu cầu: gửi xong vẫn không thấy ảnh thì không đăng text của content).
+    const imageSent = await waitImageSent(page);
+    if (!imageSent) {
+      throw new Error('Đã bấm Gửi nhưng ảnh vẫn còn trong ô soạn / chưa gửi được sau khi chờ — đã HUỶ, KHÔNG gửi text để tránh đăng thiếu hình. Thử đăng lại.');
+    }
   }
 
   // ----- 2. TEXT: nhập vào textarea.msg-textarea rồi gửi -----
@@ -534,10 +571,14 @@ async function sendMessage(page, message, imagePaths = []) {
   return true;
 }
 
-// Chờ ảnh ĐÃ GỬI ĐI thật sự, không chỉ "đã bấm Gửi". Tín hiệu: preview ảnh trong
-// ô soạn biến mất (basso xoá preview sau khi gửi xong) + network rảnh (upload lên
-// Zalo hoàn tất). Có timeout để không treo nếu basso không xoá preview.
+// Chờ + XÁC MINH ảnh ĐÃ GỬI ĐI thật sự, không chỉ "đã bấm Gửi". Tín hiệu: preview
+// ảnh trong ô soạn biến mất (basso xoá preview sau khi gửi xong) + network rảnh
+// (upload lên Zalo hoàn tất). Trả về:
+//   - true  = preview đã rời ô soạn → ảnh đã gửi đi.
+//   - false = sau 30s preview VẪN còn (ảnh chưa gửi được) → caller DỪNG, không gửi
+//             text để tránh đăng thiếu hình.
 async function waitImageSent(page) {
+  let sent = true;
   try {
     await page.waitForFunction(() => {
       const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
@@ -558,11 +599,13 @@ async function waitImageSent(page) {
       return true;
     }, { timeout: 30000 });
   } catch {
-    logger.warn('[basso] waitImageSent: preview ảnh chưa rời ô soạn sau 30s (có thể upload chậm/đang treo)');
+    sent = false;
+    logger.warn('[basso] waitImageSent: preview ảnh CHƯA rời ô soạn sau 30s → coi như ảnh CHƯA gửi được');
   }
   // Dù preview đã rời hay chưa, vẫn chờ network rảnh để upload lên Zalo hoàn tất.
   await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
   await sleep(1500);
+  return sent;
 }
 
 const _accountLocks = new Map();
@@ -642,7 +685,13 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
     logger.info(`[salework] === account=${zaloAccountName}, group=${groupName} ===`);
 
     await page.goto(ZALO_CHAT_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await sleep(3000);
+    // Chờ SPA dựng xong UI (nút tài khoản/ô tìm kiếm/ô mật khẩu) thay vì sleep
+    // cứng — mạng/proxy chậm thì chờ đủ lâu, nhanh thì đi tiếp ngay. Không chờ
+    // được cũng vẫn thử (bước chọn tài khoản/ô soạn phía sau tự kiểm tra lại).
+    if (!(await waitForChatReady(page))) {
+      logger.warn('[salework] Trang chat chưa render rõ sau khi mở — vẫn thử tiếp');
+    }
+    await sleep(1000); // 1 nhịp cho Vue settle sau khi phần tử đầu tiên hiện
     await screenshot(page, '01-loaded');
 
     // Session hết hạn → basso đẩy về trang đăng nhập. Báo rõ cần admin login lại,
