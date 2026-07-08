@@ -186,6 +186,23 @@ async function selectZaloAccount(page, accountName) {
   return false;
 }
 
+// Chờ SPA chat dựng xong giao diện sau khi goto: nút chọn tài khoản HOẶC ô tìm
+// kiếm hiện ra = trang chat đã render; ô mật khẩu hiện ra = bị đẩy về trang đăng
+// nhập (để bước isOnLoginPage phía sau xử lý, không phải chờ vô ích hết timeout).
+// Thay cho sleep cố định — proxy chậm thì chờ lâu hơn, nhanh thì đi tiếp ngay.
+async function waitForChatReady(page, timeout = 20000) {
+  try {
+    await page.locator(
+      '.acc-btn-text, .acc-btn, [class*="acc-btn"], ' +
+      'input[placeholder*="Tìm kiếm"], input[placeholder*="tìm kiếm"], input[placeholder*="Search"], ' +
+      'input[type="password"]'
+    ).first().waitFor({ state: 'visible', timeout });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function searchAndClickGroup(page, groupName) {
   logger.info(`[salework] Tìm nhóm: ${groupName}`);
 
@@ -193,14 +210,16 @@ async function searchAndClickGroup(page, groupName) {
   if (searchInput) {
     await searchInput.fill('');
     await searchInput.fill(groupName);
-    await sleep(2500);
+    // Chờ danh sách hội thoại lọc theo từ khoá tải xong (network rảnh) thay vì
+    // sleep cứng — group tải chậm qua proxy yếu vẫn kịp hiện trước khi tìm hàng.
+    await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
   }
 
   await screenshot(page, '03-search-filled');
 
   // Dùng page.evaluate để lấy tọa độ (1 round-trip), rồi page.mouse.click()
   // để fire đầy đủ pointer events mà Vue.js yêu cầu.
-  const rect = await page.evaluate((name) => {
+  const findRect = () => page.evaluate((name) => {
     const norm = s => s.normalize('NFC').trim();
     const normName = norm(name);
 
@@ -228,6 +247,15 @@ async function searchAndClickGroup(page, groupName) {
     }
     return null;
   }, groupName);
+
+  // Poll tối đa ~10s cho hàng nhóm xuất hiện: kết quả tìm kiếm có thể render
+  // trễ (proxy/mạng chậm) — thay vì đọc DOM đúng 1 lần rồi báo "không tìm thấy"
+  // oan, thử lại từng nhịp tới khi hàng hiện rồi mới click.
+  let rect = null;
+  for (let i = 0; i < 10 && !rect; i++) {
+    rect = await findRect();
+    if (!rect) await sleep(1000);
+  }
 
   await screenshot(page, '03b-before-click');
 
@@ -642,7 +670,13 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
     logger.info(`[salework] === account=${zaloAccountName}, group=${groupName} ===`);
 
     await page.goto(ZALO_CHAT_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await sleep(3000);
+    // Chờ SPA dựng xong UI (nút tài khoản/ô tìm kiếm/ô mật khẩu) thay vì sleep
+    // cứng — mạng/proxy chậm thì chờ đủ lâu, nhanh thì đi tiếp ngay. Không chờ
+    // được cũng vẫn thử (bước chọn tài khoản/ô soạn phía sau tự kiểm tra lại).
+    if (!(await waitForChatReady(page))) {
+      logger.warn('[salework] Trang chat chưa render rõ sau khi mở — vẫn thử tiếp');
+    }
+    await sleep(1000); // 1 nhịp cho Vue settle sau khi phần tử đầu tiên hiện
     await screenshot(page, '01-loaded');
 
     // Session hết hạn → basso đẩy về trang đăng nhập. Báo rõ cần admin login lại,
