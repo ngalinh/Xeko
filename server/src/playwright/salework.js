@@ -96,7 +96,9 @@ async function openAccountDropdown(page) {
     const loc = page.locator(sel).first();
     if (!(await loc.count().catch(() => 0))) continue;
     try { await loc.click({ timeout: 3000, force: true }); } catch { continue; }
-    await sleep(800);
+    // Chờ list tài khoản hiện (thay sleep cứng) — render sớm thì đi tiếp ngay.
+    await page.locator('.v-list:has(.acc-tick)').first()
+      .waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
     if (await accountListVisible(page)) {
       logger.info(`[basso] Mở dropdown tài khoản bằng: ${sel}`);
       return true;
@@ -142,7 +144,10 @@ async function selectZaloAccount(page, accountName) {
     logger.error('[basso] Không mở được dropdown chọn tài khoản');
     return false;
   }
-  await sleep(500);
+  // Chờ có ít nhất 1 dòng tài khoản render thay vì sleep cứng (vòng lặp bên dưới
+  // vẫn tự đọc lại nhiều lần nếu list còn dựng dở).
+  await page.locator('.v-list .v-list-item').first()
+    .waitFor({ state: 'visible', timeout: 4000 }).catch(() => {});
 
   // Hội tụ về trạng thái mong muốn: mỗi vòng sửa ĐÚNG 1 việc rồi đọc lại (vì click
   // làm Vue re-render → phải re-mark data-xeko-idx). Tối đa 8 vòng cho an toàn.
@@ -176,7 +181,10 @@ async function selectZaloAccount(page, accountName) {
   // Đóng dropdown để bước tìm nhóm đọc đúng danh sách hội thoại đã lọc.
   await page.keyboard.press('Escape').catch(() => {});
   await page.click('body', { position: { x: 700, y: 400 }, force: true }).catch(() => {});
-  await sleep(800);
+  // Chờ dropdown ĐÓNG hẳn (list biến mất) thay vì sleep cứng — để bước tìm nhóm
+  // không bị overlay dropdown che, đọc đúng danh sách hội thoại đã lọc.
+  await page.locator('.v-list:has(.acc-tick)').first()
+    .waitFor({ state: 'hidden', timeout: 4000 }).catch(() => {});
 
   if (ok) {
     logger.info(`[basso] ✓ Xác minh đã chọn đúng tài khoản: ${accountName}`);
@@ -262,9 +270,12 @@ async function searchAndClickGroup(page, groupName) {
   if (rect) {
     logger.info(`[salework] [${rect.src}] Click (${Math.round(rect.x)}, ${Math.round(rect.y)}) cho: ${groupName}`);
     await page.mouse.click(rect.x, rect.y);
-    await sleep(1000);
+    // Chờ hội thoại mở THẬT (ô soạn hiện) thay vì sleep cứng — click xong Vue cần
+    // dựng khung chat; proxy chậm thì chờ đủ, nhanh thì đi tiếp ngay. Không hiện
+    // cũng không sao: ensureComposerReady ở caller sẽ reload + mở lại group.
+    await page.locator('textarea.msg-textarea, textarea[placeholder*="Nhập tin nhắn"]')
+      .first().waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
     await screenshot(page, '03c-after-click');
-    await sleep(1500);
     return true;
   }
 
