@@ -410,21 +410,56 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   const jobId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   zaloJobs.set(jobId, { status: 'processing', createdAt: Date.now() });
 
+  // COPY ảnh sang thư mục RIÊNG của job (giống scheduler) — tách khỏi vòng đời
+  // temp chung của multer. Khi đăng nhiều kênh/group 1 phiên, job xếp hàng chờ
+  // 30-60s/group; nếu temp bị dọn hay server dọn dẹp giữa chừng thì tới lúc thật
+  // sự đăng, file gốc có thể không còn → đính 0 ảnh, "chỉ gửi text". Có bản riêng
+  // của job thì file luôn còn tới khi job chạy xong. Copy xong dọn temp gốc ngay.
+  let jobImagePaths = imagePaths;
+  let jobDir = null;
+  if (imagePaths.length > 0) {
+    try {
+      jobDir = path.join(TEMP_DIR, `zalo_job_${jobId}`);
+      fs.mkdirSync(jobDir, { recursive: true });
+      jobImagePaths = imagePaths.map((src) => {
+        const dest = path.join(jobDir, path.basename(src));
+        fs.copyFileSync(src, dest);
+        return dest;
+      });
+      logger.info(`[zalo/post] ${jobId}: copy ${jobImagePaths.length} ảnh sang thư mục riêng`);
+      cleanupFiles(imagePaths); // đã có bản riêng → dọn temp gốc ngay
+    } catch (e) {
+      // Copy lỗi → dọn thư mục dang dở, quay về file gốc để KHÔNG mất ảnh.
+      logger.error(`[zalo/post] ${jobId}: copy ảnh lỗi (${e.message}) — dùng file gốc`);
+      if (jobDir) {
+        try { for (const f of fs.readdirSync(jobDir)) fs.unlinkSync(path.join(jobDir, f)); fs.rmdirSync(jobDir); } catch {}
+      }
+      jobImagePaths = imagePaths;
+      jobDir = null;
+    }
+  }
+
+  // Dọn ảnh + thư mục riêng của job (hoặc file gốc nếu không copy được).
+  const cleanupJob = () => {
+    cleanupFiles(jobImagePaths);
+    if (jobDir) { try { fs.rmdirSync(jobDir); } catch {} }
+  };
+
   // Respond immediately so cloud proxy never hits 504 timeout
   res.json({ success: true, processing: true, jobId });
 
   // Xếp hàng theo account: tuần tự hoá (tránh xung đột profile browser) + tự
   // giãn cách ≥ MIN_INTERVAL giữa 2 post cùng account (chống Zalo flag spam).
   zaloQueue.enqueue(`zalo:${accountKey || accountName}`, () =>
-    salework.postToZaloGroup({ zaloAccountName: accountName, accountKey, groupName, message: message || '', imagePaths }))
+    salework.postToZaloGroup({ zaloAccountName: accountName, accountKey, groupName, message: message || '', imagePaths: jobImagePaths }))
     .then(result => {
-      cleanupFiles(imagePaths);
+      cleanupJob();
       zaloJobs.set(jobId, { status: 'done', success: result.success, error: result.error || null, completedAt: Date.now() });
       if (!result.success) logger.error(`[zalo/post] Thất bại "${groupName}": ${result.error}`);
       else logger.info(`[zalo/post] Thành công: ${groupName}`);
     })
     .catch(err => {
-      cleanupFiles(imagePaths);
+      cleanupJob();
       zaloJobs.set(jobId, { status: 'done', success: false, error: err.message, completedAt: Date.now() });
       logger.error(`[zalo/post] Exception: ${err.message}`);
     });
