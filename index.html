@@ -4655,7 +4655,10 @@
 
       <!-- Hình ảnh -->
       <div style="margin-bottom:22px;">
-        <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:8px;">Hình ảnh</label>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <label style="font-size:13px; font-weight:600; color:#555;">Hình ảnh</label>
+          <button type="button" id="repostDownloadAllBtn" onclick="_downloadAllRepostImages()" style="display:none; align-items:center; gap:5px; padding:5px 10px; border:1px solid #d1d5db; border-radius:7px; background:#fff; color:#374151; font-size:12px; font-weight:600; cursor:pointer; transition:border-color 0.15s,color 0.15s;" onmouseover="this.style.borderColor='#2563EB'; this.style.color='#2563EB';" onmouseout="this.style.borderColor='#d1d5db'; this.style.color='#374151';"><svg class="xi" style="width:13px; height:13px;"><use href="#ic-download"/></svg> Tải tất cả</button>
+        </div>
         <div id="repostImagesPreview" style="display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start;"></div>
         <p id="repostNoImages" style="margin:0; color:#bbb; font-size:13px; display:none;">Không có ảnh</p>
         <input type="file" id="repostImageInput" multiple accept="image/*" style="display:none;" onchange="_addRepostImages(this.files)">
@@ -12464,6 +12467,9 @@
       const noImg = document.getElementById('repostNoImages');
       noImg.style.display = (_repostImages.length === 0 && !_repostEditMode) ? '' : 'none';
 
+      const dlAllBtn = document.getElementById('repostDownloadAllBtn');
+      if (dlAllBtn) dlAllBtn.style.display = _repostImages.length ? 'inline-flex' : 'none';
+
       const addBtn = _repostEditMode
         ? `<button type="button" onclick="document.getElementById('repostImageInput').value=''; document.getElementById('repostImageInput').click()"
             style="width:72px; height:72px; border:2px dashed #d1d5db; border-radius:8px; background:#fafafa; color:#9ca3af; font-size:24px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:border-color 0.15s;"
@@ -12516,6 +12522,20 @@
         document.body.appendChild(a); a.click(); a.remove();
       } finally {
         if (item instanceof File) setTimeout(() => URL.revokeObjectURL(src), 1000);
+      }
+    }
+
+    async function _downloadAllRepostImages() {
+      const btn = document.getElementById('repostDownloadAllBtn');
+      if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.style.cursor = 'wait'; }
+      try {
+        for (let i = 0; i < _repostImages.length; i++) {
+          await _downloadRepostImage(i);
+          // Small delay so browsers don't drop rapid successive downloads
+          await new Promise(r => setTimeout(r, 300));
+        }
+      } finally {
+        if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = 'pointer'; }
       }
     }
 
