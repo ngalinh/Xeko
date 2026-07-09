@@ -511,6 +511,20 @@ async function sendMessage(page, message, imagePaths = []) {
   logger.info(`[basso] Gửi: "${message?.substring(0, 30)}" + ${imagePaths.length} ảnh`);
   let sentAny = false;
 
+  // KIỂM TRA FILE ẢNH CÒN TỒN TẠI (bắt lỗi "đăng nhiều kênh 1 phiên bị mất hình"):
+  // khi 1 lượt đăng đẩy cùng bộ ảnh tới nhiều group/kênh, file tạm có thể bị dọn
+  // (cleanup) trước khi tới lượt group sau → imagePaths trỏ tới file KHÔNG còn tồn
+  // tại → đính 0 ảnh mà vẫn gửi text ("chỉ gửi text thôi"). Kiểm ngay & báo lỗi rõ
+  // để đăng lại, thay vì âm thầm rớt hình.
+  if (imagePaths.length > 0) {
+    const existing = imagePaths.filter(p => { try { return fs.existsSync(p); } catch { return false; } });
+    const sizes = existing.map(p => { try { return `${path.basename(p)}(${fs.statSync(p).size}B)`; } catch { return `${path.basename(p)}(?)`; } });
+    logger.info(`[basso][files] nhận ${imagePaths.length} ảnh, tồn tại ${existing.length}/${imagePaths.length}: ${sizes.join(', ')}`);
+    if (existing.length < imagePaths.length) {
+      throw new Error(`Thiếu file ảnh khi gửi (${existing.length}/${imagePaths.length} còn tồn tại) — ảnh có thể đã bị dọn do đăng nhiều kênh cùng lúc. Đã HUỶ để không gửi thiếu hình. Thử đăng lại.`);
+    }
+  }
+
   // Chờ ô soạn tin sẵn sàng — group sau có thể load chậm hơn group đầu, nếu đính
   // ảnh trước khi textarea xuất hiện thì dễ rớt hình (chỉ còn text).
   await page.locator('textarea.msg-textarea, textarea[placeholder*="Nhập tin nhắn"], textarea:visible')
@@ -526,17 +540,23 @@ async function sendMessage(page, message, imagePaths = []) {
     if (!uploaded) {
       throw new Error(`Không đính đủ ${imagePaths.length} ảnh (file input/menu/paste đều fail hoặc đính thiếu sau 2 lần thử) — đã huỷ để tránh đăng thiếu hình. Thử đăng lại.`);
     }
+    // Chụp trạng thái ảnh TRONG HỘI THOẠI ngay TRƯỚC khi bấm Gửi (lúc này ảnh mới
+    // chỉ là preview blob trong ô soạn, CHƯA có bong bóng ảnh trong thread). Dùng làm
+    // mốc để xác minh ảnh THẬT SỰ vào hội thoại sau khi gửi.
+    const before = await _imageThreadState(page).catch(() => ({ http: 0, threadBlob: 0, composerBlob: 0 }));
+    logger.info(`[basso][verify] trước khi gửi ảnh: ${JSON.stringify(before)}`);
     if (await clickSend(page)) { sentAny = true; logger.info('[basso] Đã bấm gửi tin ảnh'); }
     else throw new Error('Đính được ảnh nhưng không bấm gửi được tin ảnh.');
     // QUAN TRỌNG (lỗi Zalo-specific): bấm Gửi xong, basso CÒN đang upload ảnh lên
     // Zalo (chậm hơn text rất nhiều). Trước đây chỉ sleep 1500ms rồi caller đóng
     // browser ngay → upload bị cắt giữa chừng → group KHÔNG nhận ảnh dù đã báo gửi.
-    // Chờ ô soạn xoá preview (= ảnh đã gửi đi) + network rảnh. XÁC MINH thật sự đã
-    // gửi: nếu preview KHÔNG rời ô soạn (ảnh chưa gửi được) → DỪNG, KHÔNG gửi text
-    // (theo yêu cầu: gửi xong vẫn không thấy ảnh thì không đăng text của content).
-    const imageSent = await waitImageSent(page);
+    // SIẾT XÁC MINH: chỉ dựa "preview rời ô soạn" là CHƯA đủ — basso có thể xoá
+    // preview nhưng upload FAIL (group rỗng), rồi ta vẫn gửi text → "chỉ gửi text".
+    // waitImageSent giờ đòi ảnh THẬT SỰ xuất hiện trong hội thoại (số ảnh thread
+    // tăng ≥ số ảnh cần) mới coi là gửi được; không thì DỪNG, KHÔNG gửi text.
+    const imageSent = await waitImageSent(page, imagePaths.length, before);
     if (!imageSent) {
-      throw new Error('Đã bấm Gửi nhưng ảnh vẫn còn trong ô soạn / chưa gửi được sau khi chờ — đã HUỶ, KHÔNG gửi text để tránh đăng thiếu hình. Thử đăng lại.');
+      throw new Error('Đã bấm Gửi nhưng ảnh KHÔNG xuất hiện trong hội thoại sau khi chờ (preview rời ô soạn nhưng bong bóng ảnh không lên) — đã HUỶ, KHÔNG gửi text để tránh đăng thiếu hình. Thử đăng lại.');
     }
   }
 
@@ -571,14 +591,54 @@ async function sendMessage(page, message, imagePaths = []) {
   return true;
 }
 
-// Chờ + XÁC MINH ảnh ĐÃ GỬI ĐI thật sự, không chỉ "đã bấm Gửi". Tín hiệu: preview
-// ảnh trong ô soạn biến mất (basso xoá preview sau khi gửi xong) + network rảnh
-// (upload lên Zalo hoàn tất). Trả về:
-//   - true  = preview đã rời ô soạn → ảnh đã gửi đi.
-//   - false = sau 30s preview VẪN còn (ảnh chưa gửi được) → caller DỪNG, không gửi
-//             text để tránh đăng thiếu hình.
-async function waitImageSent(page) {
-  let sent = true;
+// Đếm ảnh liên quan tới việc gửi, tách theo VỊ TRÍ để phân biệt "đang soạn" và "đã
+// vào hội thoại":
+//   - composerBlob: ảnh blob/data hiển thị TRONG ô soạn = preview ảnh CHƯA gửi.
+//   - threadBlob  : ảnh blob/data hiển thị NGOÀI ô soạn = bong bóng ảnh vừa gửi
+//     (basso hiển thị lạc quan bằng chính blob trước khi swap sang URL CDN).
+//   - http        : ảnh URL http(s) hiển thị (lịch sử chat + ảnh vừa gửi sau khi lên CDN).
+// Khu soạn = tổ tiên gần nhất của textarea mà cũng chứa nút Gửi (giống attachImages).
+async function _imageThreadState(page) {
+  return page.evaluate(() => {
+    const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
+    let root = ta;
+    if (ta) {
+      for (let i = 0; i < 8 && root.parentElement; i++) {
+        root = root.parentElement;
+        if (root.querySelector('button.send-btn')) break;
+      }
+    }
+    const inComposer = (el) => !!(root && root.contains(el));
+    const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 24 && r.height > 24; };
+    let http = 0, threadBlob = 0, composerBlob = 0;
+    for (const img of document.querySelectorAll('img')) {
+      if (!visible(img)) continue;
+      const s = img.currentSrc || img.src || '';
+      if (s.startsWith('http')) http++;
+      else if (s.startsWith('blob:') || s.startsWith('data:')) {
+        if (inComposer(img)) composerBlob++; else threadBlob++;
+      }
+    }
+    return { http, threadBlob, composerBlob };
+  });
+}
+
+// Chờ + XÁC MINH ảnh ĐÃ VÀO HỘI THOẠI thật sự, không chỉ "đã bấm Gửi" hay "preview
+// rời ô soạn". Hai bước:
+//   (1) preview blob rời ô soạn (basso đã nhận lệnh gửi & xoá preview).
+//   (2) SIẾT: bong bóng ảnh THẬT SỰ xuất hiện trong hội thoại — số ảnh trong thread
+//       tăng ≥ số ảnh cần (http tăng khi lên CDN, HOẶC có ảnh blob mới NGOÀI ô soạn).
+// Bước (2) là điểm mới: trước đây preview rời ô soạn là coi như xong, nhưng basso có
+// thể xoá preview rồi upload FAIL → group rỗng, ta vẫn gửi text ("chỉ gửi text thôi").
+// Trả về:
+//   - true  = ảnh đã lên hội thoại → được phép gửi text.
+//   - false = hết giờ chờ mà ảnh KHÔNG lên hội thoại → caller DỪNG, không gửi text.
+async function waitImageSent(page, expected = 1, before = null) {
+  const base = before || { http: 0, threadBlob: 0, composerBlob: 0 };
+  const need = Math.max(1, expected);
+
+  // (1) Preview rời ô soạn (không chặn kết quả, chỉ để log & chờ nhẹ).
+  let previewLeft = true;
   try {
     await page.waitForFunction(() => {
       const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
@@ -588,7 +648,6 @@ async function waitImageSent(page) {
         root = root.parentElement;
         if (root.querySelector('button.send-btn')) break;
       }
-      // còn preview blob/data trong khu soạn = chưa gửi xong
       for (const img of root.querySelectorAll('img')) {
         const s = img.currentSrc || img.src || '';
         if (s.startsWith('blob:') || s.startsWith('data:')) {
@@ -599,13 +658,45 @@ async function waitImageSent(page) {
       return true;
     }, { timeout: 30000 });
   } catch {
-    sent = false;
-    logger.warn('[basso] waitImageSent: preview ảnh CHƯA rời ô soạn sau 30s → coi như ảnh CHƯA gửi được');
+    previewLeft = false;
+    logger.warn('[basso] waitImageSent: preview ảnh CHƯA rời ô soạn sau 30s');
   }
-  // Dù preview đã rời hay chưa, vẫn chờ network rảnh để upload lên Zalo hoàn tất.
+
+  // (2) Ảnh THẬT SỰ vào hội thoại: số ảnh thread tăng ≥ need. Upload ảnh lên Zalo
+  // chậm → chờ tới 45s. Đây là điều kiện QUYẾT ĐỊNH có được gửi text hay không.
+  let inThread = false;
+  try {
+    await page.waitForFunction(({ base, need }) => {
+      const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
+      let root = ta;
+      if (ta) {
+        for (let i = 0; i < 8 && root.parentElement; i++) {
+          root = root.parentElement;
+          if (root.querySelector('button.send-btn')) break;
+        }
+      }
+      const inComposer = (el) => !!(root && root.contains(el));
+      const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 24 && r.height > 24; };
+      let http = 0, threadBlob = 0;
+      for (const img of document.querySelectorAll('img')) {
+        if (!visible(img)) continue;
+        const s = img.currentSrc || img.src || '';
+        if (s.startsWith('http')) http++;
+        else if ((s.startsWith('blob:') || s.startsWith('data:')) && !inComposer(img)) threadBlob++;
+      }
+      return (http - base.http) >= need || (threadBlob - base.threadBlob) >= need;
+    }, { base, need }, { timeout: 45000 });
+    inThread = true;
+  } catch {
+    logger.warn(`[basso] waitImageSent: KHÔNG thấy đủ ${need} ảnh xuất hiện trong hội thoại sau 45s`);
+  }
+
+  // Chờ network rảnh để upload lên Zalo hoàn tất trước khi caller đóng browser.
   await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
   await sleep(1500);
-  return sent;
+  const after = await _imageThreadState(page).catch(() => base);
+  logger.info(`[basso][verify] sau khi gửi ảnh: ${JSON.stringify(after)} (previewLeft=${previewLeft}, inThread=${inThread})`);
+  return inThread;
 }
 
 const _accountLocks = new Map();
