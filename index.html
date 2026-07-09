@@ -3334,6 +3334,10 @@
       <symbol id="ic-plus" viewBox="0 0 24 24">
         <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </symbol>
+      <symbol id="ic-download" viewBox="0 0 24 24">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M7 10l5 5 5-5M12 15V3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
       <symbol id="ic-globe" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>
         <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -12472,6 +12476,7 @@
         const href = item instanceof File ? src : src;
         return `<div style="position:relative; display:inline-block; flex-shrink:0;">
           <a href="${href}" onclick="openLightbox(\'${href}\');return false;"><img src="${src}" style="width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid #e5e7eb; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:72px;height:72px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:8px;align-items:center;justify-content:center;font-size:28px;'}))"></a>
+          <button type="button" title="Tải ảnh" onclick="event.stopPropagation(); _downloadRepostImage(${i})" style="position:absolute; bottom:4px; right:4px; background:rgba(17,24,39,0.7); color:#fff; border:none; border-radius:6px; width:22px; height:22px; cursor:pointer; padding:0; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(2px);" onmouseover="this.style.background='rgba(37,99,235,0.9)';" onmouseout="this.style.background='rgba(17,24,39,0.7)';"><svg class="xi" style="width:13px; height:13px;"><use href="#ic-download"/></svg></button>
           ${_repostEditMode ? `<button type="button" onclick="_removeRepostImage(${i})" style="position:absolute; top:-6px; right:-6px; background:#ef4444; color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:13px; cursor:pointer; line-height:1; padding:0; display:flex; align-items:center; justify-content:center;">×</button>` : ''}
         </div>`;
       }).join('') + addBtn;
@@ -12485,6 +12490,33 @@
     function _removeRepostImage(i) {
       _repostImages.splice(i, 1);
       _renderRepostImages();
+    }
+
+    async function _downloadRepostImage(i) {
+      const item = _repostImages[i];
+      if (item == null) return;
+      const src = item instanceof File ? URL.createObjectURL(item) : (item.startsWith('/') ? BASE_URL + item : item);
+      // Derive a sensible filename from the source
+      let name = item instanceof File ? item.name : '';
+      if (!name) {
+        try { name = decodeURIComponent(new URL(src, location.href).pathname.split('/').pop() || ''); } catch (_) {}
+      }
+      if (!name || !/\.[a-z0-9]{2,5}$/i.test(name)) name = `xeko-anh-${i + 1}.jpg`;
+      try {
+        const res = await fetch(src, { mode: 'cors' });
+        if (!res.ok) throw new Error('fetch failed');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = Object.assign(document.createElement('a'), { href: url, download: name });
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (_) {
+        // Fallback: direct link (may open in a new tab for cross-origin images)
+        const a = Object.assign(document.createElement('a'), { href: src, download: name, target: '_blank', rel: 'noopener' });
+        document.body.appendChild(a); a.click(); a.remove();
+      } finally {
+        if (item instanceof File) setTimeout(() => URL.revokeObjectURL(src), 1000);
+      }
     }
 
     function toggleRepostEdit() {
