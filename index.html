@@ -3211,57 +3211,47 @@
     }
     .guide-hero h2 { margin:0 0 6px; font-size:22px; font-weight:800; letter-spacing:-0.3px; }
     .guide-hero p { margin:0; font-size:14px; line-height:1.6; opacity:0.95; }
-    /* Toolbar (expand/collapse all) */
-    .guide-toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
-    .guide-toolbar .gt-title { font-size:13px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; }
-    .guide-expand-btn {
-      display:inline-flex; align-items:center; gap:6px; background:#fff; border:1px solid #e5e7eb;
-      color:#1E3A8A; padding:7px 14px; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer;
-      transition:background .15s,border-color .15s;
+    /* Two-pane layout: nav trái + nội dung phải */
+    .guide-layout { display:flex; gap:20px; align-items:flex-start; }
+    .guide-nav {
+      flex:0 0 250px; position:sticky; top:0; display:flex; flex-direction:column; gap:5px;
+      max-height:calc(100vh - 120px); overflow-y:auto; padding-right:2px;
     }
-    .guide-expand-btn:hover { background:#EFF6FF; border-color:#BFDBFE; }
-    /* TOC as a neat responsive grid */
-    .guide-toc {
-      display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
-      gap:8px; margin-bottom:22px;
+    .guide-nav-item {
+      display:flex; align-items:center; gap:11px; width:100%; text-align:left; cursor:pointer;
+      background:transparent; border:1px solid transparent; border-radius:12px; padding:9px 11px;
+      font:inherit; color:#334155; transition:background .15s,border-color .15s;
     }
-    .guide-toc a {
-      display:inline-flex; align-items:center; gap:7px; text-decoration:none;
-      background:rgba(255,255,255,0.85); border:1px solid #e5e7eb; color:#1E3A8A;
-      padding:9px 13px; border-radius:10px; font-size:13px; font-weight:600;
-      transition:background .15s,border-color .15s,transform .1s,box-shadow .15s;
+    .guide-nav-item:hover { background:rgba(255,255,255,0.85); border-color:#e5e7eb; }
+    .guide-nav-item.active { background:#fff; border-color:#BFDBFE; box-shadow:0 3px 12px rgba(37,99,235,0.12); }
+    .guide-nav-item .gn-ico {
+      width:34px; height:34px; border-radius:10px; flex-shrink:0; display:flex; align-items:center;
+      justify-content:center; color:#fff; box-shadow:0 2px 6px rgba(0,0,0,0.12);
     }
-    .guide-toc a:hover { background:#EFF6FF; border-color:#BFDBFE; transform:translateY(-1px); box-shadow:0 3px 10px rgba(37,99,235,0.12); }
-    .guide-toc a svg { flex-shrink:0; color:#3B82F6; }
-    .guide-sec {
-      background:rgba(255,255,255,0.9); border:1px solid #e5e7eb; border-radius:14px;
-      margin-bottom:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.04);
-      transition:box-shadow .15s,border-color .15s;
+    .guide-nav-item .gn-ico svg { width:18px; height:18px; }
+    .guide-nav-item .gn-txt { display:flex; flex-direction:column; min-width:0; font-size:14px; font-weight:700; color:#1e1e2e; line-height:1.25; }
+    .guide-nav-item.active .gn-txt { color:#1E40AF; }
+    .guide-nav-item .gn-sub { font-size:11px; font-weight:500; color:#94a3b8; margin-top:2px; white-space:normal; }
+    /* Content pane */
+    .guide-content {
+      flex:1; min-width:0; background:rgba(255,255,255,0.9); border:1px solid #e5e7eb;
+      border-radius:16px; box-shadow:0 2px 10px rgba(0,0,0,0.05); padding:6px 6px 10px;
     }
-    .guide-sec:hover { box-shadow:0 4px 16px rgba(37,99,235,0.09); border-color:#DBEAFE; }
-    .guide-sec[open] { box-shadow:0 6px 22px rgba(37,99,235,0.1); border-color:#BFDBFE; }
-    .guide-sec > summary {
-      list-style:none; cursor:pointer; display:flex; align-items:center; gap:13px;
-      padding:15px 16px; font-size:15.5px; font-weight:700; color:#1e1e2e;
-      user-select:none; transition:background .15s;
+    .guide-panel { display:none; }
+    .guide-panel.active { display:block; animation:guideFade .25s ease; }
+    @keyframes guideFade { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+    .guide-panel-head {
+      display:flex; align-items:center; gap:13px; padding:16px 18px 12px;
+      border-bottom:1px solid #eef2f7; margin-bottom:4px;
     }
-    .guide-sec > summary::-webkit-details-marker { display:none; }
-    .guide-sec > summary:hover { background:#F8FAFF; }
-    .guide-sec[open] > summary { border-bottom:1px solid #eef2f7; }
-    .guide-sec > summary .g-ico {
-      width:40px; height:40px; border-radius:12px; flex-shrink:0;
-      display:flex; align-items:center; justify-content:center; color:#fff;
-      box-shadow:0 3px 8px rgba(0,0,0,0.12);
+    .guide-panel-head .g-ico {
+      width:44px; height:44px; border-radius:13px; flex-shrink:0; display:flex; align-items:center;
+      justify-content:center; color:#fff; box-shadow:0 3px 8px rgba(0,0,0,0.14);
     }
-    .guide-sec > summary .g-ico svg { width:21px; height:21px; }
-    .guide-sec > summary .g-arrow {
-      margin-left:auto; color:#94a3b8; transition:transform .2s,background .15s; flex-shrink:0;
-      width:28px; height:28px; padding:6px; border-radius:8px; box-sizing:border-box;
-      transform:rotate(-90deg);
-    }
-    .guide-sec > summary:hover .g-arrow { background:#EFF6FF; color:#3B82F6; }
-    .guide-sec[open] > summary .g-arrow { transform:rotate(90deg); }
-    .guide-sec > summary .g-sub { display:block; font-size:12px; font-weight:500; color:#8a94a6; margin-top:3px; }
+    .guide-panel-head .g-ico svg { width:23px; height:23px; }
+    .guide-panel-head .gp-title { margin:0; font-size:18px; font-weight:800; color:#1e1e2e; letter-spacing:-0.2px; }
+    .guide-panel-head .gp-sub { font-size:12.5px; color:#8a94a6; }
+    .guide-footer-note { text-align:center; color:#9ca3af; font-size:12px; padding:20px 12px 14px; }
     .guide-body { padding:6px 20px 18px 20px; font-size:14px; line-height:1.7; color:#374151; }
     .guide-body h4 {
       font-size:14px; font-weight:700; color:#1E3A8A; margin:16px 0 8px;
@@ -3294,25 +3284,30 @@
       padding:8px 15px; font-size:13px; font-weight:600; cursor:pointer;
     }
     .guide-cta:hover { background:#1D4ED8; }
-    @media (max-width:640px) {
+    @media (max-width:760px) {
       .guide-wrap { padding:16px; }
       .guide-hero { padding:20px; }
       .guide-hero h2 { font-size:19px; }
-      .guide-sec > summary { font-size:15px; padding:14px; }
+      /* Nav becomes a horizontal scroll row on top */
+      .guide-layout { flex-direction:column; gap:12px; }
+      .guide-nav {
+        flex:none; position:static; max-height:none; width:100%;
+        flex-direction:row; overflow-x:auto; gap:8px; padding-bottom:4px;
+      }
+      .guide-nav-item { flex:0 0 auto; width:auto; background:rgba(255,255,255,0.85); border-color:#e5e7eb; }
+      .guide-nav-item .gn-sub { display:none; }
+      .guide-nav-item .gn-txt { white-space:nowrap; font-size:13px; }
+      .guide-panel-head .gp-title { font-size:16px; }
     }
     /* Dark mode */
-    [data-theme="dark"] .guide-toolbar .gt-title { color:#7d8aa0; }
-    [data-theme="dark"] .guide-expand-btn { background:#1e1e3a; border-color:#2a2a4a; color:#93c5fd; }
-    [data-theme="dark"] .guide-expand-btn:hover { background:#252547; border-color:#3B82F6; }
-    [data-theme="dark"] .guide-toc a { background:#1e1e3a; border-color:#2a2a4a; color:#93c5fd; }
-    [data-theme="dark"] .guide-toc a:hover { background:#252547; border-color:#3B82F6; }
-    [data-theme="dark"] .guide-sec { background:#1e1e3a; border-color:#2a2a4a; }
-    [data-theme="dark"] .guide-sec:hover { border-color:#3a3a5a; }
-    [data-theme="dark"] .guide-sec[open] { border-color:#3B82F6; }
-    [data-theme="dark"] .guide-sec > summary { color:#e0e0f0; }
-    [data-theme="dark"] .guide-sec > summary:hover { background:#252547; }
-    [data-theme="dark"] .guide-sec[open] > summary { border-bottom-color:#2a2a4a; }
-    [data-theme="dark"] .guide-sec > summary:hover .g-arrow { background:#252547; color:#93c5fd; }
+    [data-theme="dark"] .guide-nav-item { color:#c4c4d8; }
+    [data-theme="dark"] .guide-nav-item:hover { background:#1e1e3a; border-color:#2a2a4a; }
+    [data-theme="dark"] .guide-nav-item.active { background:#232346; border-color:#3B82F6; }
+    [data-theme="dark"] .guide-nav-item .gn-txt { color:#e0e0f0; }
+    [data-theme="dark"] .guide-nav-item.active .gn-txt { color:#93c5fd; }
+    [data-theme="dark"] .guide-content { background:#1e1e3a; border-color:#2a2a4a; }
+    [data-theme="dark"] .guide-panel-head { border-bottom-color:#2a2a4a; }
+    [data-theme="dark"] .guide-panel-head .gp-title { color:#e0e0f0; }
     [data-theme="dark"] .guide-body { color:#c4c4d8; }
     [data-theme="dark"] .guide-body h4 { color:#93c5fd; }
     [data-theme="dark"] .guide-body strong { color:#e0e0f0; }
@@ -3622,35 +3617,53 @@
           <p>Xeko giúp bạn <strong>đăng bài tự động</strong> lên Facebook &amp; Zalo, quản lý nhiều tài khoản, lên lịch, seeding, lấy nội dung và lưu kho content — tất cả trong một chỗ. Chọn từng mục bên dưới để xem hướng dẫn chi tiết.</p>
         </div>
 
-        <!-- Toolbar -->
-        <div class="guide-toolbar">
-          <span class="gt-title">📖 Mục lục</span>
-          <button type="button" class="guide-expand-btn" id="guideExpandBtn" onclick="toggleAllGuide()">
-            <svg class="xi" style="width:14px;height:14px;"><use href="#ic-plus"/></svg> Mở tất cả
-          </button>
-        </div>
-
-        <!-- Table of contents -->
-        <div class="guide-toc">
-          <a href="#g-start" onclick="_guideTocClick(event,'g-start')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-home"/></svg> Bắt đầu nhanh</a>
-          <a href="#g-post" onclick="_guideTocClick(event,'g-post')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-post"/></svg> Đăng bài</a>
-          <a href="#g-dash" onclick="_guideTocClick(event,'g-dash')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-dash"/></svg> Dashboard</a>
-          <a href="#g-acc" onclick="_guideTocClick(event,'g-acc')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-users"/></svg> Quản lý tài khoản</a>
-          <a href="#g-spy" onclick="_guideTocClick(event,'g-spy')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-search"/></svg> Lấy nội dung</a>
-          <a href="#g-content" onclick="_guideTocClick(event,'g-content')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-book"/></svg> Kho content</a>
-          <a href="#g-perm" onclick="_guideTocClick(event,'g-perm')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-key"/></svg> Phân quyền</a>
-          <a href="#g-errors" onclick="_guideTocClick(event,'g-errors')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-x"/></svg> Xử lý lỗi</a>
-          <a href="#g-faq" onclick="_guideTocClick(event,'g-faq')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-info"/></svg> Mẹo &amp; FAQ</a>
-        </div>
-
-        <!-- 1. Bắt đầu nhanh -->
-        <details class="guide-sec" id="g-start" open>
-          <summary>
-            <span class="g-ico" style="background:#4a9fe5;"><svg><use href="#ic-home"/></svg></span>
-            <span>Bắt đầu nhanh<span class="g-sub">3 bước để đăng bài đầu tiên</span></span>
-            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
-          </summary>
-          <div class="guide-body">
+        <!-- Layout: mục lục trái + nội dung phải -->
+        <div class="guide-layout">
+          <nav class="guide-nav" id="guideNav">
+            <button class="guide-nav-item active" data-target="g-start" onclick="showGuideSection('g-start')">
+              <span class="gn-ico" style="background:#4a9fe5;"><svg><use href="#ic-home"/></svg></span>
+              <span class="gn-txt">Bắt đầu nhanh<span class="gn-sub">3 bước để đăng bài đầu tiên</span></span>
+            </button>
+            <button class="guide-nav-item" data-target="g-post" onclick="showGuideSection('g-post')">
+              <span class="gn-ico" style="background:#5bab6e;"><svg><use href="#ic-post"/></svg></span>
+              <span class="gn-txt">Đăng bài<span class="gn-sub">Soạn, đính kèm ảnh, AI, lên lịch, seeding</span></span>
+            </button>
+            <button class="guide-nav-item" data-target="g-dash" onclick="showGuideSection('g-dash')">
+              <span class="gn-ico" style="background:#F59E0B;"><svg><use href="#ic-dash"/></svg></span>
+              <span class="gn-txt">Dashboard<span class="gn-sub">Thống kê, biểu đồ &amp; lịch sử đăng bài</span></span>
+            </button>
+            <button class="guide-nav-item" data-target="g-acc" onclick="showGuideSection('g-acc')">
+              <span class="gn-ico" style="background:#8b5cf6;"><svg><use href="#ic-users"/></svg></span>
+              <span class="gn-txt">Quản lý tài khoản<span class="gn-sub">Tài khoản, IP Proxy, Kênh, Group, Logs</span></span>
+            </button>
+            <button class="guide-nav-item" data-target="g-spy" onclick="showGuideSection('g-spy')">
+              <span class="gn-ico" style="background:#e76f51;"><svg><use href="#ic-search"/></svg></span>
+              <span class="gn-txt">Lấy nội dung<span class="gn-sub">Dán link Facebook → lấy text + ảnh</span></span>
+            </button>
+            <button class="guide-nav-item" data-target="g-content" onclick="showGuideSection('g-content')">
+              <span class="gn-ico" style="background:#1E3A8A;"><svg><use href="#ic-book"/></svg></span>
+              <span class="gn-txt">Kho content<span class="gn-sub">Lưu &amp; quản lý bài viết mẫu</span></span>
+            </button>
+            <button class="guide-nav-item" data-target="g-perm" onclick="showGuideSection('g-perm')">
+              <span class="gn-ico" style="background:#64748b;"><svg><use href="#ic-key"/></svg></span>
+              <span class="gn-txt">Phân quyền<span class="gn-sub">Chỉ dành cho admin Xeko</span></span>
+            </button>
+            <button class="guide-nav-item" data-target="g-errors" onclick="showGuideSection('g-errors')">
+              <span class="gn-ico" style="background:#e76f51;"><svg><use href="#ic-x"/></svg></span>
+              <span class="gn-txt">Xử lý lỗi thường gặp<span class="gn-sub">Gặp thông báo lỗi nào thì làm gì</span></span>
+            </button>
+            <button class="guide-nav-item" data-target="g-faq" onclick="showGuideSection('g-faq')">
+              <span class="gn-ico" style="background:#059669;"><svg><use href="#ic-info"/></svg></span>
+              <span class="gn-txt">Mẹo &amp; câu hỏi thường gặp<span class="gn-sub">Xử lý nhanh các tình huống hay gặp</span></span>
+            </button>
+          </nav>
+          <div class="guide-content" id="guideContent">
+            <section class="guide-panel active" id="g-start">
+              <div class="guide-panel-head">
+                <span class="g-ico" style="background:#4a9fe5;"><svg><use href="#ic-home"/></svg></span>
+                <div><h3 class="gp-title">Bắt đầu nhanh</h3><span class="gp-sub">3 bước để đăng bài đầu tiên</span></div>
+              </div>
+              <div class="guide-body">
             <p>Xeko chạy ngay trong trình duyệt, đăng nhập bằng tài khoản <code>ai.basso.vn</code>. Sau khi đăng nhập, bạn sẽ chỉ thấy những tài khoản Facebook mình được phân quyền quản lý.</p>
             <h4>🚀 3 bước cơ bản</h4>
             <ol>
@@ -3661,16 +3674,13 @@
             <div class="guide-note">💡 Theo dõi kết quả (thành công / thất bại) mọi lúc ở tab <strong>Dashboard</strong>.</div>
             <button class="guide-cta" onclick="switchPage('post')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-post"/></svg> Mở tab Đăng bài</button>
           </div>
-        </details>
-
-        <!-- 2. Đăng bài -->
-        <details class="guide-sec" id="g-post">
-          <summary>
-            <span class="g-ico" style="background:#5bab6e;"><svg><use href="#ic-post"/></svg></span>
-            <span>Đăng bài<span class="g-sub">Soạn, đính kèm ảnh, AI, lên lịch, seeding</span></span>
-            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
-          </summary>
-          <div class="guide-body">
+            </section>
+            <section class="guide-panel" id="g-post">
+              <div class="guide-panel-head">
+                <span class="g-ico" style="background:#5bab6e;"><svg><use href="#ic-post"/></svg></span>
+                <div><h3 class="gp-title">Đăng bài</h3><span class="gp-sub">Soạn, đính kèm ảnh, AI, lên lịch, seeding</span></div>
+              </div>
+              <div class="guide-body">
             <p>Tab Đăng bài hoạt động như một <strong>cuộc trò chuyện</strong>: Xeko hỏi từng bước (chọn tài khoản → chọn chế độ → chọn kênh → soạn bài → gửi), bạn chỉ cần bấm chọn theo hướng dẫn trên màn hình.</p>
 
             <h4>1️⃣ Chọn tài khoản (Profile)</h4>
@@ -3716,16 +3726,13 @@
             <div class="guide-tip">⚠️ Lưu ý: khi đăng lên nhiều group Facebook, Xeko dùng cơ chế chia sẻ tự động; nếu chọn quá nhiều group (trên 9) hệ thống sẽ đăng lần lượt từng group nên sẽ lâu hơn.</div>
             <button class="guide-cta" onclick="switchPage('post')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-post"/></svg> Thử đăng bài</button>
           </div>
-        </details>
-
-        <!-- 3. Dashboard -->
-        <details class="guide-sec" id="g-dash">
-          <summary>
-            <span class="g-ico" style="background:#F59E0B;"><svg><use href="#ic-dash"/></svg></span>
-            <span>Dashboard<span class="g-sub">Thống kê, biểu đồ &amp; lịch sử đăng bài</span></span>
-            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
-          </summary>
-          <div class="guide-body">
+            </section>
+            <section class="guide-panel" id="g-dash">
+              <div class="guide-panel-head">
+                <span class="g-ico" style="background:#F59E0B;"><svg><use href="#ic-dash"/></svg></span>
+                <div><h3 class="gp-title">Dashboard</h3><span class="gp-sub">Thống kê, biểu đồ &amp; lịch sử đăng bài</span></div>
+              </div>
+              <div class="guide-body">
             <h4>📊 Thẻ thống kê</h4>
             <p>Trên cùng là 4 thẻ tổng quan: <strong>Hôm nay</strong>, <strong>Thành công</strong>, <strong>Thất bại</strong> và <strong>Tổng cộng</strong>.</p>
 
@@ -3755,16 +3762,13 @@
             </ol>
             <button class="guide-cta" onclick="switchPage('dashboard')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-dash"/></svg> Mở Dashboard</button>
           </div>
-        </details>
-
-        <!-- 4. Quản lý tài khoản -->
-        <details class="guide-sec" id="g-acc">
-          <summary>
-            <span class="g-ico" style="background:#8b5cf6;"><svg><use href="#ic-users"/></svg></span>
-            <span>Quản lý tài khoản<span class="g-sub">Tài khoản, IP Proxy, Kênh, Group, Logs</span></span>
-            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
-          </summary>
-          <div class="guide-body">
+            </section>
+            <section class="guide-panel" id="g-acc">
+              <div class="guide-panel-head">
+                <span class="g-ico" style="background:#8b5cf6;"><svg><use href="#ic-users"/></svg></span>
+                <div><h3 class="gp-title">Quản lý tài khoản</h3><span class="gp-sub">Tài khoản, IP Proxy, Kênh, Group, Logs</span></div>
+              </div>
+              <div class="guide-body">
             <p>Trang này có 3 tab: <strong>Tài khoản</strong>, <strong>Kênh</strong> và <strong>Logs</strong>.</p>
 
             <h4>👤 Thêm tài khoản mới</h4>
@@ -3802,16 +3806,13 @@
             <p>Tab <strong>Logs</strong> hiển thị log server để kiểm tra khi có sự cố: lọc theo <strong>từ khoá</strong> (vd tên profile, <code>FAIL</code>), chọn số dòng (100–2000) và bật <strong>Auto refresh (3s)</strong> để theo dõi trực tiếp.</p>
             <button class="guide-cta" onclick="switchPage('session')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-users"/></svg> Mở Quản lý tài khoản</button>
           </div>
-        </details>
-
-        <!-- 5. Lấy nội dung -->
-        <details class="guide-sec" id="g-spy">
-          <summary>
-            <span class="g-ico" style="background:#e76f51;"><svg><use href="#ic-search"/></svg></span>
-            <span>Lấy nội dung<span class="g-sub">Dán link Facebook → lấy text + ảnh</span></span>
-            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
-          </summary>
-          <div class="guide-body">
+            </section>
+            <section class="guide-panel" id="g-spy">
+              <div class="guide-panel-head">
+                <span class="g-ico" style="background:#e76f51;"><svg><use href="#ic-search"/></svg></span>
+                <div><h3 class="gp-title">Lấy nội dung</h3><span class="gp-sub">Dán link Facebook → lấy text + ảnh</span></div>
+              </div>
+              <div class="guide-body">
             <h4>🔍 Cách dùng</h4>
             <ol>
               <li>Chọn trước một profile Facebook ở tab <strong>Đăng bài</strong> (dùng để mở bài viết).</li>
@@ -3827,16 +3828,13 @@
             <div class="guide-tip">⚠️ Cần chọn profile trước, nếu không Xeko sẽ báo lỗi vì không có tài khoản để mở bài viết.</div>
             <button class="guide-cta" onclick="switchPage('spy')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-search"/></svg> Mở Lấy nội dung</button>
           </div>
-        </details>
-
-        <!-- 6. Kho content -->
-        <details class="guide-sec" id="g-content">
-          <summary>
-            <span class="g-ico" style="background:#1E3A8A;"><svg><use href="#ic-book"/></svg></span>
-            <span>Kho content<span class="g-sub">Lưu &amp; quản lý bài viết mẫu</span></span>
-            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
-          </summary>
-          <div class="guide-body">
+            </section>
+            <section class="guide-panel" id="g-content">
+              <div class="guide-panel-head">
+                <span class="g-ico" style="background:#1E3A8A;"><svg><use href="#ic-book"/></svg></span>
+                <div><h3 class="gp-title">Kho content</h3><span class="gp-sub">Lưu &amp; quản lý bài viết mẫu</span></div>
+              </div>
+              <div class="guide-body">
             <p>Kho content là nơi lưu sẵn các bài mẫu để tái sử dụng khi đăng.</p>
 
             <h4>📚 Thêm content mới</h4>
@@ -3857,16 +3855,13 @@
             <p>Chỉnh sửa từng content, hoặc tick chọn nhiều để <strong>xoá hàng loạt</strong>. Đây là nơi lưu trữ ý tưởng để tái sử dụng khi đăng bài.</p>
             <button class="guide-cta" onclick="switchPage('content')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-book"/></svg> Mở Kho content</button>
           </div>
-        </details>
-
-        <!-- 7. Phân quyền -->
-        <details class="guide-sec" id="g-perm">
-          <summary>
-            <span class="g-ico" style="background:#64748b;"><svg><use href="#ic-key"/></svg></span>
-            <span>Phân quyền<span class="g-sub">Chỉ dành cho admin Xeko</span></span>
-            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
-          </summary>
-          <div class="guide-body">
+            </section>
+            <section class="guide-panel" id="g-perm">
+              <div class="guide-panel-head">
+                <span class="g-ico" style="background:#64748b;"><svg><use href="#ic-key"/></svg></span>
+                <div><h3 class="gp-title">Phân quyền</h3><span class="gp-sub">Chỉ dành cho admin Xeko</span></div>
+              </div>
+              <div class="guide-body">
             <p>Mục này chỉ hiển thị với <strong>admin Xeko</strong>. Dùng để gán mỗi user (email <code>@basso.vn</code>) với những profile Facebook họ được phép quản lý.</p>
             <h4>🔑 Thêm / sửa user</h4>
             <ul>
@@ -3876,16 +3871,13 @@
             </ul>
             <div class="guide-note">💡 Khi user đăng nhập basso.vn, Xeko tự nhận diện và chỉ hiện những profile FB đã phân quyền. Bấm <strong>Đồng bộ từ máy local</strong> để cập nhật danh sách.</div>
           </div>
-        </details>
-
-        <!-- 8. Xử lý lỗi thường gặp -->
-        <details class="guide-sec" id="g-errors">
-          <summary>
-            <span class="g-ico" style="background:#e76f51;"><svg><use href="#ic-x"/></svg></span>
-            <span>Xử lý lỗi thường gặp<span class="g-sub">Gặp thông báo lỗi nào thì làm gì</span></span>
-            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
-          </summary>
-          <div class="guide-body">
+            </section>
+            <section class="guide-panel" id="g-errors">
+              <div class="guide-panel-head">
+                <span class="g-ico" style="background:#e76f51;"><svg><use href="#ic-x"/></svg></span>
+                <div><h3 class="gp-title">Xử lý lỗi thường gặp</h3><span class="gp-sub">Gặp thông báo lỗi nào thì làm gì</span></div>
+              </div>
+              <div class="guide-body">
             <p>Dưới đây là các lỗi hay gặp và cách xử lý. <strong>Dashboard</strong> luôn là nơi phản ánh kết quả thật của bài đăng — khi nghi ngờ, hãy kiểm tra ở đó trước.</p>
 
             <h4>🔐 Lỗi phiên đăng nhập</h4>
@@ -3943,16 +3935,13 @@
             <div class="guide-note">💡 Quy tắc chung: <strong>Lỗi phiên</strong> → tải lại trang &amp; đăng nhập lại. <strong>Lỗi kết nối/đăng bài</strong> → kiểm tra máy local &amp; tài khoản rồi thử lại. <strong>Nghi bài đã đăng</strong> → kiểm tra Facebook/Zalo trước khi đăng lại. Luôn xem <strong>Dashboard</strong> &amp; <strong>Logs</strong> để biết nguyên nhân chính xác.</div>
             <button class="guide-cta" onclick="switchPage('dashboard')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-dash"/></svg> Kiểm tra Dashboard</button>
           </div>
-        </details>
-
-        <!-- 9. Mẹo & FAQ -->
-        <details class="guide-sec" id="g-faq">
-          <summary>
-            <span class="g-ico" style="background:#059669;"><svg><use href="#ic-info"/></svg></span>
-            <span>Mẹo &amp; câu hỏi thường gặp<span class="g-sub">Xử lý nhanh các tình huống hay gặp</span></span>
-            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
-          </summary>
-          <div class="guide-body">
+            </section>
+            <section class="guide-panel" id="g-faq">
+              <div class="guide-panel-head">
+                <span class="g-ico" style="background:#059669;"><svg><use href="#ic-info"/></svg></span>
+                <div><h3 class="gp-title">Mẹo &amp; câu hỏi thường gặp</h3><span class="gp-sub">Xử lý nhanh các tình huống hay gặp</span></div>
+              </div>
+              <div class="guide-body">
             <h4>❓ Không thấy tài khoản của mình?</h4>
             <p>Bạn cần được admin <strong>phân quyền</strong> profile đó. Liên hệ admin để được thêm quyền.</p>
 
@@ -3968,10 +3957,9 @@
             <h4>📱 Cài như một app?</h4>
             <p>Trên điện thoại, bấm nút <strong>Cài Xeko</strong> để cài đặt Xeko như ứng dụng (PWA) và mở nhanh từ màn hình chính.</p>
           </div>
-        </details>
-
-        <div style="text-align:center; color:#9ca3af; font-size:12px; margin:24px 0 8px;">
-          Cần hỗ trợ thêm? Liên hệ đội ngũ Basso · Xeko 💙
+            </section>
+            <div class="guide-footer-note">Cần hỗ trợ thêm? Liên hệ đội ngũ Basso · Xeko 💙</div>
+          </div>
         </div>
 
       </div>
@@ -8322,25 +8310,17 @@
     }
 
     // === HDSD (Hướng dẫn sử dụng) ===
-    function toggleAllGuide() {
-      const secs = document.querySelectorAll('#pageGuide .guide-sec');
-      const btn = document.getElementById('guideExpandBtn');
-      if (!secs.length || !btn) return;
-      // Nếu còn ít nhất 1 mục đóng → mở tất cả; ngược lại → thu gọn tất cả
-      const anyClosed = Array.from(secs).some(s => !s.open);
-      secs.forEach(s => { s.open = anyClosed; });
-      btn.innerHTML = anyClosed
-        ? '<svg class="xi" style="width:14px;height:14px;"><use href="#ic-x"/></svg> Thu gọn tất cả'
-        : '<svg class="xi" style="width:14px;height:14px;"><use href="#ic-plus"/></svg> Mở tất cả';
-    }
-
-    // Bấm mục lục → mở luôn mục tương ứng rồi cuộn tới
-    function _guideTocClick(e, id) {
-      const sec = document.getElementById(id);
-      if (!sec) return;
-      sec.open = true;
-      sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      e.preventDefault();
+    // Bấm mục lục bên trái → hiện nội dung mục đó bên phải
+    function showGuideSection(id) {
+      document.querySelectorAll('#pageGuide .guide-panel').forEach(p => {
+        p.classList.toggle('active', p.id === id);
+      });
+      document.querySelectorAll('#pageGuide .guide-nav-item').forEach(b => {
+        b.classList.toggle('active', b.dataset.target === id);
+      });
+      // Cuộn vùng nội dung lên đầu + trên mobile cuộn tới panel
+      const content = document.getElementById('guideContent');
+      if (content) content.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     // === Spy / Lấy nội dung bài viết ===
