@@ -3211,34 +3211,58 @@
     }
     .guide-hero h2 { margin:0 0 6px; font-size:22px; font-weight:800; letter-spacing:-0.3px; }
     .guide-hero p { margin:0; font-size:14px; line-height:1.6; opacity:0.95; }
-    .guide-toc { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px; }
+    /* Toolbar (expand/collapse all) */
+    .guide-toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+    .guide-toolbar .gt-title { font-size:13px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; }
+    .guide-expand-btn {
+      display:inline-flex; align-items:center; gap:6px; background:#fff; border:1px solid #e5e7eb;
+      color:#1E3A8A; padding:7px 14px; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer;
+      transition:background .15s,border-color .15s;
+    }
+    .guide-expand-btn:hover { background:#EFF6FF; border-color:#BFDBFE; }
+    /* TOC as a neat responsive grid */
+    .guide-toc {
+      display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
+      gap:8px; margin-bottom:22px;
+    }
     .guide-toc a {
-      display:inline-flex; align-items:center; gap:6px; text-decoration:none;
-      background:rgba(255,255,255,0.78); border:1px solid #e5e7eb; color:#1E3A8A;
-      padding:7px 13px; border-radius:999px; font-size:13px; font-weight:600;
-      transition:background .15s,border-color .15s,transform .1s;
+      display:inline-flex; align-items:center; gap:7px; text-decoration:none;
+      background:rgba(255,255,255,0.85); border:1px solid #e5e7eb; color:#1E3A8A;
+      padding:9px 13px; border-radius:10px; font-size:13px; font-weight:600;
+      transition:background .15s,border-color .15s,transform .1s,box-shadow .15s;
     }
-    .guide-toc a:hover { background:#EFF6FF; border-color:#BFDBFE; transform:translateY(-1px); }
+    .guide-toc a:hover { background:#EFF6FF; border-color:#BFDBFE; transform:translateY(-1px); box-shadow:0 3px 10px rgba(37,99,235,0.12); }
+    .guide-toc a svg { flex-shrink:0; color:#3B82F6; }
     .guide-sec {
-      background:rgba(255,255,255,0.82); border:1px solid #e5e7eb; border-radius:14px;
-      margin-bottom:14px; overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,0.05);
+      background:rgba(255,255,255,0.9); border:1px solid #e5e7eb; border-radius:14px;
+      margin-bottom:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.04);
+      transition:box-shadow .15s,border-color .15s;
     }
+    .guide-sec:hover { box-shadow:0 4px 16px rgba(37,99,235,0.09); border-color:#DBEAFE; }
+    .guide-sec[open] { box-shadow:0 6px 22px rgba(37,99,235,0.1); border-color:#BFDBFE; }
     .guide-sec > summary {
-      list-style:none; cursor:pointer; display:flex; align-items:center; gap:12px;
-      padding:16px 18px; font-size:16px; font-weight:700; color:#1e1e2e;
+      list-style:none; cursor:pointer; display:flex; align-items:center; gap:13px;
+      padding:15px 16px; font-size:15.5px; font-weight:700; color:#1e1e2e;
       user-select:none; transition:background .15s;
     }
     .guide-sec > summary::-webkit-details-marker { display:none; }
     .guide-sec > summary:hover { background:#F8FAFF; }
+    .guide-sec[open] > summary { border-bottom:1px solid #eef2f7; }
     .guide-sec > summary .g-ico {
-      width:38px; height:38px; border-radius:11px; flex-shrink:0;
+      width:40px; height:40px; border-radius:12px; flex-shrink:0;
       display:flex; align-items:center; justify-content:center; color:#fff;
+      box-shadow:0 3px 8px rgba(0,0,0,0.12);
     }
-    .guide-sec > summary .g-ico svg { width:20px; height:20px; }
-    .guide-sec > summary .g-arrow { margin-left:auto; color:#9ca3af; transition:transform .2s; flex-shrink:0; }
+    .guide-sec > summary .g-ico svg { width:21px; height:21px; }
+    .guide-sec > summary .g-arrow {
+      margin-left:auto; color:#94a3b8; transition:transform .2s,background .15s; flex-shrink:0;
+      width:28px; height:28px; padding:6px; border-radius:8px; box-sizing:border-box;
+      transform:rotate(-90deg);
+    }
+    .guide-sec > summary:hover .g-arrow { background:#EFF6FF; color:#3B82F6; }
     .guide-sec[open] > summary .g-arrow { transform:rotate(90deg); }
-    .guide-sec > summary .g-sub { display:block; font-size:12px; font-weight:500; color:#8a94a6; margin-top:2px; }
-    .guide-body { padding:2px 20px 18px 20px; font-size:14px; line-height:1.7; color:#374151; }
+    .guide-sec > summary .g-sub { display:block; font-size:12px; font-weight:500; color:#8a94a6; margin-top:3px; }
+    .guide-body { padding:6px 20px 18px 20px; font-size:14px; line-height:1.7; color:#374151; }
     .guide-body h4 {
       font-size:14px; font-weight:700; color:#1E3A8A; margin:16px 0 8px;
       display:flex; align-items:center; gap:7px;
@@ -3277,11 +3301,18 @@
       .guide-sec > summary { font-size:15px; padding:14px; }
     }
     /* Dark mode */
+    [data-theme="dark"] .guide-toolbar .gt-title { color:#7d8aa0; }
+    [data-theme="dark"] .guide-expand-btn { background:#1e1e3a; border-color:#2a2a4a; color:#93c5fd; }
+    [data-theme="dark"] .guide-expand-btn:hover { background:#252547; border-color:#3B82F6; }
     [data-theme="dark"] .guide-toc a { background:#1e1e3a; border-color:#2a2a4a; color:#93c5fd; }
     [data-theme="dark"] .guide-toc a:hover { background:#252547; border-color:#3B82F6; }
     [data-theme="dark"] .guide-sec { background:#1e1e3a; border-color:#2a2a4a; }
+    [data-theme="dark"] .guide-sec:hover { border-color:#3a3a5a; }
+    [data-theme="dark"] .guide-sec[open] { border-color:#3B82F6; }
     [data-theme="dark"] .guide-sec > summary { color:#e0e0f0; }
     [data-theme="dark"] .guide-sec > summary:hover { background:#252547; }
+    [data-theme="dark"] .guide-sec[open] > summary { border-bottom-color:#2a2a4a; }
+    [data-theme="dark"] .guide-sec > summary:hover .g-arrow { background:#252547; color:#93c5fd; }
     [data-theme="dark"] .guide-body { color:#c4c4d8; }
     [data-theme="dark"] .guide-body h4 { color:#93c5fd; }
     [data-theme="dark"] .guide-body strong { color:#e0e0f0; }
@@ -3591,17 +3622,25 @@
           <p>Xeko giúp bạn <strong>đăng bài tự động</strong> lên Facebook &amp; Zalo, quản lý nhiều tài khoản, lên lịch, seeding, lấy nội dung và lưu kho content — tất cả trong một chỗ. Chọn từng mục bên dưới để xem hướng dẫn chi tiết.</p>
         </div>
 
+        <!-- Toolbar -->
+        <div class="guide-toolbar">
+          <span class="gt-title">📖 Mục lục</span>
+          <button type="button" class="guide-expand-btn" id="guideExpandBtn" onclick="toggleAllGuide()">
+            <svg class="xi" style="width:14px;height:14px;"><use href="#ic-plus"/></svg> Mở tất cả
+          </button>
+        </div>
+
         <!-- Table of contents -->
         <div class="guide-toc">
-          <a href="#g-start"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-home"/></svg> Bắt đầu nhanh</a>
-          <a href="#g-post"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-post"/></svg> Đăng bài</a>
-          <a href="#g-dash"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-dash"/></svg> Dashboard</a>
-          <a href="#g-acc"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-users"/></svg> Quản lý tài khoản</a>
-          <a href="#g-spy"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-search"/></svg> Lấy nội dung</a>
-          <a href="#g-content"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-book"/></svg> Kho content</a>
-          <a href="#g-perm"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-key"/></svg> Phân quyền</a>
-          <a href="#g-errors"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-x"/></svg> Xử lý lỗi</a>
-          <a href="#g-faq"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-info"/></svg> Mẹo &amp; FAQ</a>
+          <a href="#g-start" onclick="_guideTocClick(event,'g-start')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-home"/></svg> Bắt đầu nhanh</a>
+          <a href="#g-post" onclick="_guideTocClick(event,'g-post')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-post"/></svg> Đăng bài</a>
+          <a href="#g-dash" onclick="_guideTocClick(event,'g-dash')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-dash"/></svg> Dashboard</a>
+          <a href="#g-acc" onclick="_guideTocClick(event,'g-acc')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-users"/></svg> Quản lý tài khoản</a>
+          <a href="#g-spy" onclick="_guideTocClick(event,'g-spy')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-search"/></svg> Lấy nội dung</a>
+          <a href="#g-content" onclick="_guideTocClick(event,'g-content')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-book"/></svg> Kho content</a>
+          <a href="#g-perm" onclick="_guideTocClick(event,'g-perm')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-key"/></svg> Phân quyền</a>
+          <a href="#g-errors" onclick="_guideTocClick(event,'g-errors')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-x"/></svg> Xử lý lỗi</a>
+          <a href="#g-faq" onclick="_guideTocClick(event,'g-faq')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-info"/></svg> Mẹo &amp; FAQ</a>
         </div>
 
         <!-- 1. Bắt đầu nhanh -->
@@ -8280,6 +8319,28 @@
 
     function switchDashTab() {
       loadDashboard();
+    }
+
+    // === HDSD (Hướng dẫn sử dụng) ===
+    function toggleAllGuide() {
+      const secs = document.querySelectorAll('#pageGuide .guide-sec');
+      const btn = document.getElementById('guideExpandBtn');
+      if (!secs.length || !btn) return;
+      // Nếu còn ít nhất 1 mục đóng → mở tất cả; ngược lại → thu gọn tất cả
+      const anyClosed = Array.from(secs).some(s => !s.open);
+      secs.forEach(s => { s.open = anyClosed; });
+      btn.innerHTML = anyClosed
+        ? '<svg class="xi" style="width:14px;height:14px;"><use href="#ic-x"/></svg> Thu gọn tất cả'
+        : '<svg class="xi" style="width:14px;height:14px;"><use href="#ic-plus"/></svg> Mở tất cả';
+    }
+
+    // Bấm mục lục → mở luôn mục tương ứng rồi cuộn tới
+    function _guideTocClick(e, id) {
+      const sec = document.getElementById(id);
+      if (!sec) return;
+      sec.open = true;
+      sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      e.preventDefault();
     }
 
     // === Spy / Lấy nội dung bài viết ===
