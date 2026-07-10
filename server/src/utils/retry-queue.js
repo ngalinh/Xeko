@@ -16,6 +16,7 @@ const path = require('path');
 const logger = require('./logger');
 const { queuePost } = require('./post-queue');
 const retryStore = require('../database/retry-store');
+const postLogger = require('../database/post-logger');
 
 // Số lần tự đăng lại tối đa trước khi bỏ cuộc và đánh dấu Failed.
 const MAX_RETRIES = Number(process.env.POST_RETRY_MAX || 5);
@@ -71,8 +72,16 @@ function _fire(record) {
       retryStore.remove(record.id);
     })
     .catch(e => {
+      // Lần tự đăng lại NÉM lỗi (mất kết nối máy local, browser rớt...) → executePost
+      // không kịp chạy _doLog nên row post_logs vẫn kẹt ở success=2 ("Chờ đăng lại").
+      // Không tự đăng lại tiếp (bài CÓ THỂ đã lên → tránh trùng): kết thúc row thành
+      // Failed để người dùng thấy và tự xử lý, rồi dọn record.
       logger.error(`[retry-queue] chạy #${record.id} lỗi: ${e.message}`);
-      retryStore.updateStatus(record.id, 'error');
+      try {
+        postLogger.failRetryWaiting(record.postLogId, `Tự đăng lại gặp lỗi: ${e.message} — kiểm tra Facebook/Zalo trước khi đăng lại để tránh trùng bài.`);
+      } catch (err) { logger.error(`[retry-queue] fail row #${record.postLogId}: ${err.message}`); }
+      _cleanupImages(record.imagePaths);
+      retryStore.remove(record.id);
     });
 }
 
@@ -103,17 +112,41 @@ function schedule({ postLogId, retryAfterMs, attempt, args, imagePaths }) {
  */
 function init(runner) {
   _runner = runner;
-  const pending = retryStore.getPending();
-  if (!pending.length) { logger.info('[retry-queue] init: không có lần hẹn nào'); return; }
+  const all = retryStore.getAll();
   const now = Date.now();
   let restored = 0, catchup = 0;
-  for (const p of pending) {
+  const armedLogIds = new Set();
+
+  for (const p of all) {
+    // Record dang dở (running/error) do server bị restart giữa lúc đang đăng lại.
+    // Bài CÓ THỂ đã lên → không tự đăng lại (tránh trùng), chỉ dọn record + kết thúc row.
+    if (p.status !== 'pending') {
+      logger.warn(`[retry-queue] init: record #${p.id} (post_log=${p.postLogId}) ở trạng thái "${p.status}" — dọn & đánh dấu Failed`);
+      try { postLogger.failRetryWaiting(p.postLogId, 'Bị gián đoạn khi đang tự đăng lại — kiểm tra Facebook/Zalo trước khi đăng lại để tránh trùng bài.'); }
+      catch (e) { logger.error(`[retry-queue] init fail row #${p.postLogId}: ${e.message}`); }
+      _cleanupImages(p.imagePaths);
+      retryStore.remove(p.id);
+      continue;
+    }
     const record = { id: p.id, postLogId: p.postLogId, retryAt: p.retryAt, attempt: p.attempt, args: p.args, imagePaths: p.imagePaths };
     const delay = new Date(p.retryAt).getTime() - now;
     if (delay <= 0) { catchup++; _fire(record); }
     else { _arm(record, delay); restored++; }
+    armedLogIds.add(p.postLogId);
   }
-  logger.info(`[retry-queue] init: khôi phục ${restored}, chạy ngay ${catchup}`);
+
+  // Lưới an toàn: row còn kẹt "Chờ đăng lại" (success=2) mà KHÔNG có timer nào phụ trách
+  // (record đã mất/bị dọn) sẽ không bao giờ tự thoát → kết thúc thành Failed.
+  let orphaned = 0;
+  try {
+    for (const row of postLogger.getRetryWaiting()) {
+      if (armedLogIds.has(row.id)) continue;
+      postLogger.failRetryWaiting(row.id, 'Không còn lịch tự đăng lại (mất do gián đoạn) — kiểm tra Facebook/Zalo trước khi đăng lại để tránh trùng bài.');
+      orphaned++;
+    }
+  } catch (e) { logger.error(`[retry-queue] init dò row mồ côi: ${e.message}`); }
+
+  logger.info(`[retry-queue] init: khôi phục ${restored}, chạy ngay ${catchup}, dọn row mồ côi ${orphaned}`);
 }
 
 module.exports = { schedule, init, isRateLimited, MAX_RETRIES };

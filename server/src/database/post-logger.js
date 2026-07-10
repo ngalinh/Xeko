@@ -115,6 +115,21 @@ function markRetryWaiting(id, { error, retryAt, retryCount } = {}) {
   return markRetryWaitingStmt.run({ id, error: error || null, retryAt: retryAt || null, retryCount: retryCount || 0 });
 }
 
+// Kết thúc 1 row đang "chờ đăng lại" (success=2) thành Failed. Dùng khi lần tự
+// đăng lại ném lỗi hoặc timer bị mất (server restart) — để row không kẹt mãi ở
+// trạng thái "Chờ đăng lại". Chỉ đụng vào row còn ở success=2 (idempotent).
+const failRetryWaitingStmt = db.prepare(
+  `UPDATE post_logs SET success=0, error=@error, retry_at=NULL WHERE id=@id AND success=2`
+);
+function failRetryWaiting(id, error) {
+  return failRetryWaitingStmt.run({ id, error: error || 'Tự đăng lại thất bại' });
+}
+
+// Danh sách các row đang chờ đăng lại (success=2) — dùng để dò row mồ côi khi khởi động.
+function getRetryWaiting() {
+  return db.prepare('SELECT id, retry_at, retry_count, error FROM post_logs WHERE success = 2').all();
+}
+
 function getPendingPosts() {
   const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   return db.prepare('SELECT * FROM post_logs WHERE success = -1 AND timestamp >= ? ORDER BY timestamp DESC').all(since).map(r => ({
@@ -385,4 +400,4 @@ function getByProfileStats({ profile, platform, target, groupId, from, to } = {}
   return db.prepare(sql).all(params);
 }
 
-module.exports = { logPost, insertPendingPost, completePendingPost, completePendingByJobId, completePostById, markRetryWaiting, getPendingPosts, cleanupStalePending, markTimedOutPending, getPostHistory, getStatistics, getDailyByProfile, getByProfileStats, deleteById, deleteByIds, deleteByFilter };
+module.exports = { logPost, insertPendingPost, completePendingPost, completePendingByJobId, completePostById, markRetryWaiting, failRetryWaiting, getRetryWaiting, getPendingPosts, cleanupStalePending, markTimedOutPending, getPostHistory, getStatistics, getDailyByProfile, getByProfileStats, deleteById, deleteByIds, deleteByFilter };
