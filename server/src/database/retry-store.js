@@ -39,9 +39,8 @@ function remove(id) { return removeStmt.run(id); }
 const updateStatusStmt = db.prepare('UPDATE post_retries SET status = @status WHERE id = @id');
 function updateStatus(id, status) { return updateStatusStmt.run({ id, status }); }
 
-const getPendingStmt = db.prepare(`SELECT * FROM post_retries WHERE status = 'pending' ORDER BY retry_at ASC`);
-function getPending() {
-  return getPendingStmt.all().map(r => ({
+function _map(r) {
+  return {
     id: r.id,
     postLogId: r.post_log_id,
     retryAt: r.retry_at,
@@ -49,11 +48,23 @@ function getPending() {
     args: safeParse(r.args, {}),
     imagePaths: safeParse(r.image_paths, []),
     status: r.status,
-  }));
+  };
+}
+
+const getPendingStmt = db.prepare(`SELECT * FROM post_retries WHERE status = 'pending' ORDER BY retry_at ASC`);
+function getPending() {
+  return getPendingStmt.all().map(_map);
+}
+
+// Tất cả record (mọi status) — dùng khi khởi động để dọn record dang dở
+// (running/error) còn sót lại sau khi server bị restart giữa chừng.
+const getAllStmt = db.prepare(`SELECT * FROM post_retries ORDER BY retry_at ASC`);
+function getAll() {
+  return getAllStmt.all().map(_map);
 }
 
 function safeParse(s, fallback) {
   try { const v = JSON.parse(s); return v == null ? fallback : v; } catch { return fallback; }
 }
 
-module.exports = { insert, remove, updateStatus, getPending };
+module.exports = { insert, remove, updateStatus, getPending, getAll };
