@@ -3289,6 +3289,21 @@
     [data-theme="dark"] .guide-tag { background:#2d2b60; color:#c7d2fe; }
     [data-theme="dark"] .guide-tip { background:#2a2410; border-color:#4a3f1a; color:#fcd34d; }
     [data-theme="dark"] .guide-note { background:#1a2a4a; border-color:#2a3f6a; color:#93c5fd; }
+    /* Error rows */
+    .guide-err {
+      border:1px solid #FECACA; border-left:4px solid #EF4444; border-radius:10px;
+      padding:12px 14px; margin:10px 0; background:#FEF6F6;
+    }
+    .guide-err .ge-msg {
+      display:block; font-weight:700; color:#b91c1c; font-size:13.5px; margin-bottom:4px;
+    }
+    .guide-err .ge-msg::before { content:"⚠️ "; }
+    .guide-err .ge-fix { font-size:13px; color:#475569; line-height:1.6; }
+    .guide-err .ge-fix strong { color:#166534; }
+    [data-theme="dark"] .guide-err { background:#2a1618; border-color:#5a2a2a; border-left-color:#EF4444; }
+    [data-theme="dark"] .guide-err .ge-msg { color:#fca5a5; }
+    [data-theme="dark"] .guide-err .ge-fix { color:#c4c4d8; }
+    [data-theme="dark"] .guide-err .ge-fix strong { color:#86efac; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
@@ -3585,6 +3600,7 @@
           <a href="#g-spy"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-search"/></svg> Lấy nội dung</a>
           <a href="#g-content"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-book"/></svg> Kho content</a>
           <a href="#g-perm"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-key"/></svg> Phân quyền</a>
+          <a href="#g-errors"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-x"/></svg> Xử lý lỗi</a>
           <a href="#g-faq"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-info"/></svg> Mẹo &amp; FAQ</a>
         </div>
 
@@ -3767,7 +3783,74 @@
           </div>
         </details>
 
-        <!-- 8. Mẹo & FAQ -->
+        <!-- 8. Xử lý lỗi thường gặp -->
+        <details class="guide-sec" id="g-errors">
+          <summary>
+            <span class="g-ico" style="background:#e76f51;"><svg><use href="#ic-x"/></svg></span>
+            <span>Xử lý lỗi thường gặp<span class="g-sub">Gặp thông báo lỗi nào thì làm gì</span></span>
+            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
+          </summary>
+          <div class="guide-body">
+            <p>Dưới đây là các lỗi hay gặp và cách xử lý. <strong>Dashboard</strong> luôn là nơi phản ánh kết quả thật của bài đăng — khi nghi ngờ, hãy kiểm tra ở đó trước.</p>
+
+            <h4>🔐 Lỗi phiên đăng nhập</h4>
+            <div class="guide-err">
+              <span class="ge-msg">Phiên đăng nhập hết hạn — vui lòng reload trang và đăng nhập lại</span>
+              <span class="ge-fix">Phiên <code>ai.basso.vn</code> đã hết hạn. <strong>Tải lại trang</strong> và đăng nhập lại là được.</span>
+            </div>
+            <div class="guide-err">
+              <span class="ge-msg">🔒 Phiên đã hết hạn. Bấm để đăng nhập lại</span>
+              <span class="ge-fix">Tài khoản Facebook/Zalo đã bị đăng xuất. Vào <strong>Quản lý tài khoản</strong> → bấm <strong>Đăng nhập</strong> để mở Chromium và đăng nhập lại tài khoản đó, rồi đăng lại.</span>
+            </div>
+            <div class="guide-err">
+              <span class="ge-msg">Không có quyền truy cập — vui lòng reload trang</span>
+              <span class="ge-fix">Bạn chưa được phân quyền, hoặc phiên lỗi. Tải lại trang; nếu vẫn không thấy tài khoản, liên hệ <strong>admin</strong> để được cấp quyền.</span>
+            </div>
+
+            <h4>🔌 Lỗi kết nối &amp; đăng bài</h4>
+            <div class="guide-err">
+              <span class="ge-msg">Không kết nối được tới máy đăng bài (local/tunnel/proxy)</span>
+              <span class="ge-fix">Máy đăng bài đang tắt hoặc mất mạng. <strong>Kiểm tra kết nối / bật lại máy local</strong> rồi bấm đăng lại.</span>
+            </div>
+            <div class="guide-err">
+              <span class="ge-msg">Không mở được ô tạo bài / Không nhập được nội dung bài viết</span>
+              <span class="ge-fix">Facebook/Zalo tải chậm hoặc đổi giao diện. <strong>Thử đăng lại sau ít phút</strong>; nếu lặp lại, mở tài khoản kiểm tra trạng thái đăng nhập.</span>
+            </div>
+            <div class="guide-err">
+              <span class="ge-msg">Không xác nhận được kết quả — bài CÓ THỂ đã đăng</span>
+              <span class="ge-fix"><strong>Kiểm tra Facebook/Zalo trước khi đăng lại</strong> để tránh trùng bài. Nếu bài đã lên, không cần đăng lại.</span>
+            </div>
+            <div class="guide-err">
+              <span class="ge-msg">Job thất bại / bài hiển thị trạng thái Thất bại trên Dashboard</span>
+              <span class="ge-fix">Mở tab <strong>Logs</strong> (Quản lý tài khoản → Logs) và lọc theo tên profile để xem lý do cụ thể, rồi xử lý và <strong>đăng lại</strong> hoặc dùng <strong>Đăng lại (Repost)</strong>.</span>
+            </div>
+            <div class="guide-err">
+              <span class="ge-msg">Seeding thất bại (x/y)</span>
+              <span class="ge-fix">Một phần bình luận không gửi được (thường do tài khoản/proxy). Kiểm tra đăng nhập tài khoản rồi thử seeding lại.</span>
+            </div>
+
+            <h4>🌐 Lỗi proxy</h4>
+            <div class="guide-err">
+              <span class="ge-msg">Test IP lỗi / proxy đã hết hạn</span>
+              <span class="ge-fix">Vào <strong>IP Proxy</strong>, bấm <strong>Test IP</strong> để kiểm tra proxy. Nếu hỏng/hết hạn, cập nhật proxy mới rồi gán lại cho tài khoản ở phần <strong>sửa tài khoản</strong>.</span>
+            </div>
+
+            <h4>✏️ Lỗi nhập liệu (báo ngay khi bấm)</h4>
+            <p>Các thông báo này chỉ là nhắc nhập đủ thông tin — bổ sung rồi thao tác lại:</p>
+            <ul>
+              <li><strong>“Vui lòng nhập nội dung hoặc có ảnh để đăng!”</strong> — nhập nội dung hoặc đính kèm ít nhất 1 ảnh.</li>
+              <li><strong>“Chọn profile FB trước nha!”</strong> — chọn tài khoản ở tab Đăng bài trước.</li>
+              <li><strong>“Vui lòng chọn ít nhất 1 kênh đăng!”</strong> — chọn nơi đăng (Profile/Group).</li>
+              <li><strong>“Nhập link bài viết vào nha!”</strong> — dán link ở mục Lấy nội dung.</li>
+              <li><strong>“Email không hợp lệ” / “Vui lòng nhập host và port!”</strong> — kiểm tra lại định dạng khi thêm user / proxy.</li>
+            </ul>
+
+            <div class="guide-note">💡 Quy tắc chung: <strong>Lỗi phiên</strong> → tải lại trang &amp; đăng nhập lại. <strong>Lỗi kết nối/đăng bài</strong> → kiểm tra máy local &amp; tài khoản rồi thử lại. <strong>Nghi bài đã đăng</strong> → kiểm tra Facebook/Zalo trước khi đăng lại. Luôn xem <strong>Dashboard</strong> &amp; <strong>Logs</strong> để biết nguyên nhân chính xác.</div>
+            <button class="guide-cta" onclick="switchPage('dashboard')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-dash"/></svg> Kiểm tra Dashboard</button>
+          </div>
+        </details>
+
+        <!-- 9. Mẹo & FAQ -->
         <details class="guide-sec" id="g-faq">
           <summary>
             <span class="g-ico" style="background:#059669;"><svg><use href="#ic-info"/></svg></span>
