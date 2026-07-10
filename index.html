@@ -3200,6 +3200,110 @@
       max-height: 180px;
       overflow-y: auto;
     }
+
+    /* ===== HDSD (Hướng dẫn sử dụng) ===== */
+    .guide-wrap { flex:1; overflow-y:auto; padding:24px 32px; }
+    .guide-inner { max-width:860px; margin:0 auto; }
+    .guide-hero {
+      background:linear-gradient(135deg,#1E40AF 0%,#3B82F6 60%,#5EE5DD 140%);
+      color:#fff; border-radius:18px; padding:26px 28px; margin-bottom:22px;
+      box-shadow:0 8px 28px rgba(37,99,235,0.28);
+    }
+    .guide-hero h2 { margin:0 0 6px; font-size:22px; font-weight:800; letter-spacing:-0.3px; }
+    .guide-hero p { margin:0; font-size:14px; line-height:1.6; opacity:0.95; }
+    .guide-toc { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px; }
+    .guide-toc a {
+      display:inline-flex; align-items:center; gap:6px; text-decoration:none;
+      background:rgba(255,255,255,0.78); border:1px solid #e5e7eb; color:#1E3A8A;
+      padding:7px 13px; border-radius:999px; font-size:13px; font-weight:600;
+      transition:background .15s,border-color .15s,transform .1s;
+    }
+    .guide-toc a:hover { background:#EFF6FF; border-color:#BFDBFE; transform:translateY(-1px); }
+    .guide-sec {
+      background:rgba(255,255,255,0.82); border:1px solid #e5e7eb; border-radius:14px;
+      margin-bottom:14px; overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,0.05);
+    }
+    .guide-sec > summary {
+      list-style:none; cursor:pointer; display:flex; align-items:center; gap:12px;
+      padding:16px 18px; font-size:16px; font-weight:700; color:#1e1e2e;
+      user-select:none; transition:background .15s;
+    }
+    .guide-sec > summary::-webkit-details-marker { display:none; }
+    .guide-sec > summary:hover { background:#F8FAFF; }
+    .guide-sec > summary .g-ico {
+      width:38px; height:38px; border-radius:11px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center; color:#fff;
+    }
+    .guide-sec > summary .g-ico svg { width:20px; height:20px; }
+    .guide-sec > summary .g-arrow { margin-left:auto; color:#9ca3af; transition:transform .2s; flex-shrink:0; }
+    .guide-sec[open] > summary .g-arrow { transform:rotate(90deg); }
+    .guide-sec > summary .g-sub { display:block; font-size:12px; font-weight:500; color:#8a94a6; margin-top:2px; }
+    .guide-body { padding:2px 20px 18px 20px; font-size:14px; line-height:1.7; color:#374151; }
+    .guide-body h4 {
+      font-size:14px; font-weight:700; color:#1E3A8A; margin:16px 0 8px;
+      display:flex; align-items:center; gap:7px;
+    }
+    .guide-body ol, .guide-body ul { margin:6px 0 10px; padding-left:22px; }
+    .guide-body li { margin-bottom:5px; }
+    .guide-body p { margin:6px 0 10px; }
+    .guide-body strong { color:#1e293b; }
+    .guide-body code {
+      background:#EFF6FF; color:#1D4ED8; padding:1px 6px; border-radius:5px;
+      font-size:12.5px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    }
+    .guide-tag {
+      display:inline-block; background:#E0E7FF; color:#3730A3; font-size:11px;
+      font-weight:700; padding:2px 9px; border-radius:999px; margin-right:6px;
+      vertical-align:middle;
+    }
+    .guide-tip {
+      background:#FEF9E7; border:1px solid #FDE68A; border-radius:10px;
+      padding:11px 14px; margin:12px 0; font-size:13px; color:#78350f; line-height:1.6;
+    }
+    .guide-note {
+      background:#EFF6FF; border:1px solid #BFDBFE; border-radius:10px;
+      padding:11px 14px; margin:12px 0; font-size:13px; color:#1e40af; line-height:1.6;
+    }
+    .guide-cta {
+      display:inline-flex; align-items:center; gap:6px; margin-top:6px;
+      background:#3B82F6; color:#fff; border:none; border-radius:8px;
+      padding:8px 15px; font-size:13px; font-weight:600; cursor:pointer;
+    }
+    .guide-cta:hover { background:#1D4ED8; }
+    @media (max-width:640px) {
+      .guide-wrap { padding:16px; }
+      .guide-hero { padding:20px; }
+      .guide-hero h2 { font-size:19px; }
+      .guide-sec > summary { font-size:15px; padding:14px; }
+    }
+    /* Dark mode */
+    [data-theme="dark"] .guide-toc a { background:#1e1e3a; border-color:#2a2a4a; color:#93c5fd; }
+    [data-theme="dark"] .guide-toc a:hover { background:#252547; border-color:#3B82F6; }
+    [data-theme="dark"] .guide-sec { background:#1e1e3a; border-color:#2a2a4a; }
+    [data-theme="dark"] .guide-sec > summary { color:#e0e0f0; }
+    [data-theme="dark"] .guide-sec > summary:hover { background:#252547; }
+    [data-theme="dark"] .guide-body { color:#c4c4d8; }
+    [data-theme="dark"] .guide-body h4 { color:#93c5fd; }
+    [data-theme="dark"] .guide-body strong { color:#e0e0f0; }
+    [data-theme="dark"] .guide-body code { background:#252547; color:#93c5fd; }
+    [data-theme="dark"] .guide-tag { background:#2d2b60; color:#c7d2fe; }
+    [data-theme="dark"] .guide-tip { background:#2a2410; border-color:#4a3f1a; color:#fcd34d; }
+    [data-theme="dark"] .guide-note { background:#1a2a4a; border-color:#2a3f6a; color:#93c5fd; }
+    /* Error rows */
+    .guide-err {
+      border:1px solid #FECACA; border-left:4px solid #EF4444; border-radius:10px;
+      padding:12px 14px; margin:10px 0; background:#FEF6F6;
+    }
+    .guide-err .ge-msg {
+      display:block; font-weight:700; color:#b91c1c; font-size:13.5px; margin-bottom:4px;
+    }
+    .guide-err .ge-msg::before { content:"⚠️ "; }
+    .guide-err .ge-fix { font-size:13px; color:#475569; line-height:1.6; }
+    .guide-err .ge-fix strong { color:#166534; }
+    [data-theme="dark"] .guide-err { background:#2a1618; border-color:#5a2a2a; border-left-color:#EF4444; }
+    [data-theme="dark"] .guide-err .ge-msg { color:#fca5a5; }
+    [data-theme="dark"] .guide-err .ge-fix { color:#c4c4d8; }
+    [data-theme="dark"] .guide-err .ge-fix strong { color:#86efac; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
@@ -3405,6 +3509,9 @@
       <button class="sidebar-item" onclick="switchPage('content')" id="navContent">
         <span class="icon"><svg class="xi"><use href="#ic-book"/></svg></span> Kho content
       </button>
+      <button class="sidebar-item" onclick="switchPage('guide')" id="navGuide">
+        <span class="icon"><svg class="xi"><use href="#ic-info"/></svg></span> HDSD
+      </button>
     </div>
     <div class="sidebar-footer">
       <div id="currentUserBox" style="display:none; padding:10px 12px; background:#f0f9ff; border-radius:10px; font-size:12px;">
@@ -3463,6 +3570,318 @@
     </div>
 
   </div>
+
+  <!-- PAGE: HDSD (Hướng dẫn sử dụng) -->
+  <div class="page" id="pageGuide">
+    <div class="header">
+      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
+      <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#1E3A8A;"><svg class="xi xi-md"><use href="#ic-info"/></svg></div>
+      <div class="header-info">
+        <h1>Hướng dẫn sử dụng</h1>
+        <span>Toàn bộ chức năng của Xeko</span>
+      </div>
+    </div>
+
+    <div class="guide-wrap">
+      <div class="guide-inner">
+
+        <!-- Hero -->
+        <div class="guide-hero">
+          <h2>👋 Chào mừng đến với Xeko</h2>
+          <p>Xeko giúp bạn <strong>đăng bài tự động</strong> lên Facebook &amp; Zalo, quản lý nhiều tài khoản, lên lịch, seeding, lấy nội dung và lưu kho content — tất cả trong một chỗ. Chọn từng mục bên dưới để xem hướng dẫn chi tiết.</p>
+        </div>
+
+        <!-- Table of contents -->
+        <div class="guide-toc">
+          <a href="#g-start"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-home"/></svg> Bắt đầu nhanh</a>
+          <a href="#g-post"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-post"/></svg> Đăng bài</a>
+          <a href="#g-dash"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-dash"/></svg> Dashboard</a>
+          <a href="#g-acc"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-users"/></svg> Quản lý tài khoản</a>
+          <a href="#g-spy"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-search"/></svg> Lấy nội dung</a>
+          <a href="#g-content"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-book"/></svg> Kho content</a>
+          <a href="#g-perm"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-key"/></svg> Phân quyền</a>
+          <a href="#g-errors"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-x"/></svg> Xử lý lỗi</a>
+          <a href="#g-faq"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-info"/></svg> Mẹo &amp; FAQ</a>
+        </div>
+
+        <!-- 1. Bắt đầu nhanh -->
+        <details class="guide-sec" id="g-start" open>
+          <summary>
+            <span class="g-ico" style="background:#4a9fe5;"><svg><use href="#ic-home"/></svg></span>
+            <span>Bắt đầu nhanh<span class="g-sub">3 bước để đăng bài đầu tiên</span></span>
+            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
+          </summary>
+          <div class="guide-body">
+            <p>Xeko chạy ngay trong trình duyệt, đăng nhập bằng tài khoản <code>ai.basso.vn</code>. Sau khi đăng nhập, bạn sẽ chỉ thấy những tài khoản Facebook mình được phân quyền quản lý.</p>
+            <h4>🚀 3 bước cơ bản</h4>
+            <ol>
+              <li><strong>Chọn tài khoản:</strong> Vào <span class="guide-tag">Đăng bài</span> → chọn profile Facebook/Zalo muốn đăng.</li>
+              <li><strong>Soạn nội dung:</strong> Nhập nội dung, đính kèm ảnh, thêm emoji / kiểu chữ, hoặc nhờ <strong>AI</strong> viết giúp.</li>
+              <li><strong>Chọn nơi đăng &amp; gửi:</strong> Đăng lên trang cá nhân hoặc group, chọn <strong>Đăng ngay</strong> hay <strong>Lên lịch</strong> rồi bấm gửi.</li>
+            </ol>
+            <div class="guide-note">💡 Theo dõi kết quả (thành công / thất bại) mọi lúc ở tab <strong>Dashboard</strong>.</div>
+            <button class="guide-cta" onclick="switchPage('post')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-post"/></svg> Mở tab Đăng bài</button>
+          </div>
+        </details>
+
+        <!-- 2. Đăng bài -->
+        <details class="guide-sec" id="g-post">
+          <summary>
+            <span class="g-ico" style="background:#5bab6e;"><svg><use href="#ic-post"/></svg></span>
+            <span>Đăng bài<span class="g-sub">Soạn, đính kèm ảnh, AI, lên lịch, seeding</span></span>
+            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
+          </summary>
+          <div class="guide-body">
+            <h4>1️⃣ Chọn tài khoản &amp; chế độ đăng</h4>
+            <p>Bấm <strong>Đổi Profile</strong> để chọn tài khoản. Sau đó chọn một trong ba chế độ:</p>
+            <ul>
+              <li><span class="guide-tag">✏️ Đăng ngay</span> Đăng nội dung ngay lập tức.</li>
+              <li><span class="guide-tag">⚡ Đăng nhanh FB</span> Đăng 1 lần rồi tự chia sẻ vào nhiều group Facebook (share-to-groups), nhanh và nhẹ.</li>
+              <li><span class="guide-tag">🕐 Lên lịch</span> Hẹn ngày giờ để Xeko tự động đăng.</li>
+            </ul>
+
+            <h4>2️⃣ Chọn nơi đăng</h4>
+            <ul>
+              <li><strong>Trang cá nhân (Profile):</strong> đăng lên tường tài khoản đang chọn.</li>
+              <li><strong>Group:</strong> chọn một hoặc nhiều group từ danh sách đã lưu, hoặc nhập <code>Group ID</code> thủ công.</li>
+            </ul>
+
+            <h4>3️⃣ Đính kèm ảnh</h4>
+            <p>Bấm biểu tượng <strong>máy ảnh</strong> để chọn ảnh từ máy (chọn nhiều ảnh cùng lúc). Ảnh sẽ hiện ở khung xem trước; bấm <strong>Xoá ảnh</strong> nếu muốn bỏ.</p>
+
+            <h4>4️⃣ Emoji &amp; kiểu chữ</h4>
+            <p>Bấm biểu tượng <strong>mặt cười</strong> để chèn emoji hoặc đổi <strong>kiểu chữ</strong> (in đậm, nghiêng, font đặc biệt) cho nội dung nổi bật hơn.</p>
+
+            <h4>5️⃣ Trợ lý AI</h4>
+            <p>Bấm nút <span class="guide-tag">AI</span> để mở <strong>AI Editor</strong> — AI sẽ viết / biến tấu nội dung theo nhiều thể loại: <strong>Ngắn gọn</strong>, <strong>Chi tiết</strong>, <strong>Kể chuyện</strong>…</p>
+            <p>Bấm biểu tượng <strong>bánh răng</strong> trong AI Editor để cài <strong>phong cách viết chung</strong> (giọng văn, emoji, thông điệp) — AI sẽ tự áp dụng cho mọi bài.</p>
+
+            <h4>6️⃣ Lên lịch &amp; seeding</h4>
+            <p>Với chế độ <strong>Lên lịch</strong>, chọn ngày giờ mong muốn. Sau khi bài đã đăng, bạn có thể vào Dashboard để <strong>seeding</strong> (tự động bình luận) — kể cả hẹn giờ seeding tự động.</p>
+
+            <div class="guide-tip">⚠️ Lưu ý: chế độ <strong>Đăng ngay</strong> và <strong>Đăng nhanh FB</strong> khi đăng lên nhiều group sẽ dùng cơ chế chia sẻ; nếu chọn quá nhiều group (trên 9) hệ thống sẽ đăng lần lượt từng group.</div>
+            <button class="guide-cta" onclick="switchPage('post')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-post"/></svg> Thử đăng bài</button>
+          </div>
+        </details>
+
+        <!-- 3. Dashboard -->
+        <details class="guide-sec" id="g-dash">
+          <summary>
+            <span class="g-ico" style="background:#F59E0B;"><svg><use href="#ic-dash"/></svg></span>
+            <span>Dashboard<span class="g-sub">Thống kê, biểu đồ &amp; lịch sử đăng bài</span></span>
+            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
+          </summary>
+          <div class="guide-body">
+            <h4>📊 Thẻ thống kê</h4>
+            <p>Trên cùng là 4 thẻ tổng quan: <strong>Hôm nay</strong>, <strong>Thành công</strong>, <strong>Thất bại</strong> và <strong>Tổng cộng</strong>.</p>
+
+            <h4>📈 Biểu đồ</h4>
+            <p>Xem số bài đăng <strong>theo ngày</strong> (dạng cột <em>Bar</em> hoặc đường <em>Line</em>) và thống kê <strong>theo từng tài khoản</strong>. Chọn khoảng ngày hoặc mốc nhanh (7 / 14 / 30 / 60 ngày).</p>
+
+            <h4>🔍 Bộ lọc lịch sử</h4>
+            <p>Tìm kiếm theo từ khoá và lọc theo: khoảng ngày, tài khoản, nền tảng (Facebook / Zalo), nơi đăng (Profile / Group), nhóm cụ thể và trạng thái (Thành công / Thất bại / Chờ đăng / Đang đăng).</p>
+
+            <h4>🛠️ Thao tác trên từng bài</h4>
+            <ul>
+              <li><strong>Đăng lại (Repost):</strong> đăng lại một bài đã có sang tài khoản / kênh khác — có thể chỉnh sửa nội dung (emoji, kiểu chữ), thêm/bớt ảnh hoặc tải tất cả ảnh về trước khi đăng.</li>
+              <li><strong>Seeding:</strong> tự động bình luận vào bài đã đăng, có thể hẹn giờ.</li>
+              <li><strong>Đổi lịch:</strong> với bài đang chờ đăng, đổi sang thời gian khác.</li>
+              <li><strong>Chọn nhiều &amp; Xoá:</strong> tick chọn nhiều dòng để xoá hàng loạt.</li>
+            </ul>
+            <button class="guide-cta" onclick="switchPage('dashboard')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-dash"/></svg> Mở Dashboard</button>
+          </div>
+        </details>
+
+        <!-- 4. Quản lý tài khoản -->
+        <details class="guide-sec" id="g-acc">
+          <summary>
+            <span class="g-ico" style="background:#8b5cf6;"><svg><use href="#ic-users"/></svg></span>
+            <span>Quản lý tài khoản<span class="g-sub">Tài khoản, IP Proxy, Kênh, Group, Logs</span></span>
+            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
+          </summary>
+          <div class="guide-body">
+            <h4>👤 Tài khoản</h4>
+            <p>Xem danh sách profile Facebook / Zalo. Bấm <strong>+ Thêm tài khoản</strong> để tạo mới, <strong>Đăng nhập</strong> để mở Chromium và đăng nhập profile. Bấm <strong>sửa</strong> để đổi tên, email/SĐT, mật khẩu và gán <strong>IP Proxy</strong> cho tài khoản.</p>
+            <div class="guide-note">💡 Với tài khoản <strong>Zalo</strong>, Chromium sẽ mở <code>zalo.basso.vn</code> — bạn chỉ cần đăng nhập <strong>một lần</strong> là dùng được cho tất cả tài khoản Zalo.</div>
+
+            <h4>🌐 IP Proxy</h4>
+            <p>Ở tab <strong>IP Proxy</strong>, bấm <strong>+ Thêm proxy</strong> để nhập host, port, user/pass và ngày mua / hết hạn. Mỗi tài khoản có thể gán một proxy riêng để đăng an toàn hơn. Bảng hiển thị thời hạn và tài khoản đang dùng proxy đó.</p>
+
+            <h4>⚙️ Kênh — Gán kênh</h4>
+            <p>Ở tab <strong>Kênh → Gán kênh</strong>, chọn những kênh (group) mà mỗi profile được phép đăng.</p>
+
+            <h4>🌍 Danh sách group</h4>
+            <p>Ở tab <strong>Kênh → Danh sách group</strong>, quản lý toàn bộ group Facebook / Zalo: thêm group (tên, ID, phân loại), lọc theo nền tảng &amp; phân loại, hoặc bấm <strong>Đồng bộ từ máy local</strong> để lấy group tự động.</p>
+
+            <h4>📜 Logs</h4>
+            <p>Tab <strong>Logs</strong> hiển thị log server để kiểm tra khi có sự cố — lọc theo từ khoá, chọn số dòng và bật <strong>Auto refresh</strong> để theo dõi trực tiếp.</p>
+            <button class="guide-cta" onclick="switchPage('session')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-users"/></svg> Mở Quản lý tài khoản</button>
+          </div>
+        </details>
+
+        <!-- 5. Lấy nội dung -->
+        <details class="guide-sec" id="g-spy">
+          <summary>
+            <span class="g-ico" style="background:#e76f51;"><svg><use href="#ic-search"/></svg></span>
+            <span>Lấy nội dung<span class="g-sub">Dán link Facebook → lấy text + ảnh</span></span>
+            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
+          </summary>
+          <div class="guide-body">
+            <h4>🔍 Cách dùng</h4>
+            <ol>
+              <li>Chọn trước một profile Facebook ở tab <strong>Đăng bài</strong> (dùng để mở bài viết).</li>
+              <li>Dán <strong>link bài viết Facebook</strong> vào ô nhập.</li>
+              <li>Bấm <strong>Lấy nội dung</strong> và chờ 30–60 giây.</li>
+            </ol>
+            <p>Kết quả trả về gồm <strong>toàn bộ văn bản</strong> và <strong>tất cả ảnh</strong> trong bài. Bạn có thể:</p>
+            <ul>
+              <li><strong>Sao chép</strong> phần văn bản.</li>
+              <li>Bấm <strong>Dùng để đăng bài</strong> để chuyển thẳng nội dung sang tab Đăng bài.</li>
+              <li>Bấm <strong>Tải</strong> trên từng ảnh để lưu về máy.</li>
+            </ul>
+            <div class="guide-tip">⚠️ Cần chọn profile trước, nếu không Xeko sẽ báo lỗi vì không có tài khoản để mở bài viết.</div>
+            <button class="guide-cta" onclick="switchPage('spy')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-search"/></svg> Mở Lấy nội dung</button>
+          </div>
+        </details>
+
+        <!-- 6. Kho content -->
+        <details class="guide-sec" id="g-content">
+          <summary>
+            <span class="g-ico" style="background:#1E3A8A;"><svg><use href="#ic-book"/></svg></span>
+            <span>Kho content<span class="g-sub">Lưu &amp; quản lý bài viết mẫu</span></span>
+            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
+          </summary>
+          <div class="guide-body">
+            <h4>📚 Lưu content</h4>
+            <p>Bấm <strong>+ Thêm content</strong> để lưu một bài mẫu: nội dung, hình ảnh (kéo–thả, dán <code>Ctrl+V</code> hoặc chọn file), kênh đăng (Chung / Facebook / Zalo / TikTok / Instagram / Threads), phân loại và profile áp dụng.</p>
+
+            <h4>🔎 Tìm &amp; lọc</h4>
+            <p>Tìm theo tiêu đề, nội dung, tag; lọc theo kênh. Bảng liệt kê nội dung, hình ảnh, phân loại, profile, kênh đăng và ngày tạo.</p>
+
+            <h4>🗑️ Quản lý</h4>
+            <p>Chỉnh sửa từng content, hoặc tick chọn nhiều để <strong>xoá hàng loạt</strong>. Đây là nơi lưu trữ ý tưởng để tái sử dụng khi đăng bài.</p>
+            <button class="guide-cta" onclick="switchPage('content')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-book"/></svg> Mở Kho content</button>
+          </div>
+        </details>
+
+        <!-- 7. Phân quyền -->
+        <details class="guide-sec" id="g-perm">
+          <summary>
+            <span class="g-ico" style="background:#64748b;"><svg><use href="#ic-key"/></svg></span>
+            <span>Phân quyền<span class="g-sub">Chỉ dành cho admin Xeko</span></span>
+            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
+          </summary>
+          <div class="guide-body">
+            <p>Mục này chỉ hiển thị với <strong>admin Xeko</strong>. Dùng để gán mỗi user (email <code>@basso.vn</code>) với những profile Facebook họ được phép quản lý.</p>
+            <h4>🔑 Thêm / sửa user</h4>
+            <ul>
+              <li>Nhập <strong>Tên</strong> và <strong>Email</strong> (phải khớp email đăng nhập <code>ai.basso.vn</code>).</li>
+              <li>Tick <strong>admin Xeko</strong> để cho user thấy tất cả profile và quản lý phân quyền.</li>
+              <li>Hoặc chọn <strong>tất cả</strong> / một số <strong>profile FB</strong> cụ thể mà user được phép.</li>
+            </ul>
+            <div class="guide-note">💡 Khi user đăng nhập basso.vn, Xeko tự nhận diện và chỉ hiện những profile FB đã phân quyền. Bấm <strong>Đồng bộ từ máy local</strong> để cập nhật danh sách.</div>
+          </div>
+        </details>
+
+        <!-- 8. Xử lý lỗi thường gặp -->
+        <details class="guide-sec" id="g-errors">
+          <summary>
+            <span class="g-ico" style="background:#e76f51;"><svg><use href="#ic-x"/></svg></span>
+            <span>Xử lý lỗi thường gặp<span class="g-sub">Gặp thông báo lỗi nào thì làm gì</span></span>
+            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
+          </summary>
+          <div class="guide-body">
+            <p>Dưới đây là các lỗi hay gặp và cách xử lý. <strong>Dashboard</strong> luôn là nơi phản ánh kết quả thật của bài đăng — khi nghi ngờ, hãy kiểm tra ở đó trước.</p>
+
+            <h4>🔐 Lỗi phiên đăng nhập</h4>
+            <div class="guide-err">
+              <span class="ge-msg">Phiên đăng nhập hết hạn — vui lòng reload trang và đăng nhập lại</span>
+              <span class="ge-fix">Phiên <code>ai.basso.vn</code> đã hết hạn. <strong>Tải lại trang</strong> và đăng nhập lại là được.</span>
+            </div>
+            <div class="guide-err">
+              <span class="ge-msg">🔒 Phiên đã hết hạn. Bấm để đăng nhập lại</span>
+              <span class="ge-fix">Tài khoản Facebook/Zalo đã bị đăng xuất. Vào <strong>Quản lý tài khoản</strong> → bấm <strong>Đăng nhập</strong> để mở Chromium và đăng nhập lại tài khoản đó, rồi đăng lại.</span>
+            </div>
+            <div class="guide-err">
+              <span class="ge-msg">Không có quyền truy cập — vui lòng reload trang</span>
+              <span class="ge-fix">Bạn chưa được phân quyền, hoặc phiên lỗi. Tải lại trang; nếu vẫn không thấy tài khoản, liên hệ <strong>admin</strong> để được cấp quyền.</span>
+            </div>
+
+            <h4>🔌 Lỗi kết nối &amp; đăng bài</h4>
+            <div class="guide-err">
+              <span class="ge-msg">Không kết nối được tới máy đăng bài (local/tunnel/proxy)</span>
+              <span class="ge-fix">Máy đăng bài đang tắt hoặc mất mạng. <strong>Kiểm tra kết nối / bật lại máy local</strong> rồi bấm đăng lại.</span>
+            </div>
+            <div class="guide-err">
+              <span class="ge-msg">Không mở được ô tạo bài / Không nhập được nội dung bài viết</span>
+              <span class="ge-fix">Facebook/Zalo tải chậm hoặc đổi giao diện. <strong>Thử đăng lại sau ít phút</strong>; nếu lặp lại, mở tài khoản kiểm tra trạng thái đăng nhập.</span>
+            </div>
+            <div class="guide-err">
+              <span class="ge-msg">Không xác nhận được kết quả — bài CÓ THỂ đã đăng</span>
+              <span class="ge-fix"><strong>Kiểm tra Facebook/Zalo trước khi đăng lại</strong> để tránh trùng bài. Nếu bài đã lên, không cần đăng lại.</span>
+            </div>
+            <div class="guide-err">
+              <span class="ge-msg">Job thất bại / bài hiển thị trạng thái Thất bại trên Dashboard</span>
+              <span class="ge-fix">Mở tab <strong>Logs</strong> (Quản lý tài khoản → Logs) và lọc theo tên profile để xem lý do cụ thể, rồi xử lý và <strong>đăng lại</strong> hoặc dùng <strong>Đăng lại (Repost)</strong>.</span>
+            </div>
+            <div class="guide-err">
+              <span class="ge-msg">Seeding thất bại (x/y)</span>
+              <span class="ge-fix">Một phần bình luận không gửi được (thường do tài khoản/proxy). Kiểm tra đăng nhập tài khoản rồi thử seeding lại.</span>
+            </div>
+
+            <h4>🌐 Lỗi proxy</h4>
+            <div class="guide-err">
+              <span class="ge-msg">Test IP lỗi / proxy đã hết hạn</span>
+              <span class="ge-fix">Vào <strong>IP Proxy</strong>, bấm <strong>Test IP</strong> để kiểm tra proxy. Nếu hỏng/hết hạn, cập nhật proxy mới rồi gán lại cho tài khoản ở phần <strong>sửa tài khoản</strong>.</span>
+            </div>
+
+            <h4>✏️ Lỗi nhập liệu (báo ngay khi bấm)</h4>
+            <p>Các thông báo này chỉ là nhắc nhập đủ thông tin — bổ sung rồi thao tác lại:</p>
+            <ul>
+              <li><strong>“Vui lòng nhập nội dung hoặc có ảnh để đăng!”</strong> — nhập nội dung hoặc đính kèm ít nhất 1 ảnh.</li>
+              <li><strong>“Chọn profile FB trước nha!”</strong> — chọn tài khoản ở tab Đăng bài trước.</li>
+              <li><strong>“Vui lòng chọn ít nhất 1 kênh đăng!”</strong> — chọn nơi đăng (Profile/Group).</li>
+              <li><strong>“Nhập link bài viết vào nha!”</strong> — dán link ở mục Lấy nội dung.</li>
+              <li><strong>“Email không hợp lệ” / “Vui lòng nhập host và port!”</strong> — kiểm tra lại định dạng khi thêm user / proxy.</li>
+            </ul>
+
+            <div class="guide-note">💡 Quy tắc chung: <strong>Lỗi phiên</strong> → tải lại trang &amp; đăng nhập lại. <strong>Lỗi kết nối/đăng bài</strong> → kiểm tra máy local &amp; tài khoản rồi thử lại. <strong>Nghi bài đã đăng</strong> → kiểm tra Facebook/Zalo trước khi đăng lại. Luôn xem <strong>Dashboard</strong> &amp; <strong>Logs</strong> để biết nguyên nhân chính xác.</div>
+            <button class="guide-cta" onclick="switchPage('dashboard')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-dash"/></svg> Kiểm tra Dashboard</button>
+          </div>
+        </details>
+
+        <!-- 9. Mẹo & FAQ -->
+        <details class="guide-sec" id="g-faq">
+          <summary>
+            <span class="g-ico" style="background:#059669;"><svg><use href="#ic-info"/></svg></span>
+            <span>Mẹo &amp; câu hỏi thường gặp<span class="g-sub">Xử lý nhanh các tình huống hay gặp</span></span>
+            <svg class="g-arrow xi"><use href="#ic-back"/></svg>
+          </summary>
+          <div class="guide-body">
+            <h4>❓ Không thấy tài khoản của mình?</h4>
+            <p>Bạn cần được admin <strong>phân quyền</strong> profile đó. Liên hệ admin để được thêm quyền.</p>
+
+            <h4>❓ Bài đăng bị thất bại?</h4>
+            <p>Kiểm tra tab <strong>Dashboard</strong> để xem lý do, đảm bảo tài khoản đã <strong>đăng nhập</strong> ở tab Quản lý tài khoản và proxy còn hạn. Xem thêm ở tab <strong>Logs</strong>.</p>
+
+            <h4>❓ Đăng lên nhiều group cùng lúc?</h4>
+            <p>Dùng chế độ <strong>⚡ Đăng nhanh FB</strong> để share nhanh vào nhiều group, hoặc chọn nhiều group ở chế độ Đăng ngay.</p>
+
+            <h4>❓ Làm mới khi bị lỗi hiển thị?</h4>
+            <p>Bấm biểu tượng <strong>làm mới</strong> ở góc trên tab Đăng bài để tải lại trang sạch.</p>
+
+            <h4>📱 Cài như một app?</h4>
+            <p>Trên điện thoại, bấm nút <strong>Cài Xeko</strong> để cài đặt Xeko như ứng dụng (PWA) và mở nhanh từ màn hình chính.</p>
+          </div>
+        </details>
+
+        <div style="text-align:center; color:#9ca3af; font-size:12px; margin:24px 0 8px;">
+          Cần hỗ trợ thêm? Liên hệ đội ngũ Basso · Xeko 💙
+        </div>
+
+      </div>
+    </div>
+  </div><!-- end pageGuide -->
 
   <!-- PAGE: Đăng bài -->
   <div class="page" id="pageDangBai">
@@ -7766,6 +8185,7 @@
         permissions: { page: 'pagePermissions', nav: 'navPermissions' },
         spy: { page: 'pageSpyBaiViet', nav: 'navSpy' },
         content: { page: 'pageContent', nav: 'navContent' },
+        guide: { page: 'pageGuide', nav: 'navGuide' },
       };
 
       const target = pageMap[pg];
