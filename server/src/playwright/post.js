@@ -413,8 +413,9 @@ async function attachImages(page, imagePaths) {
   }, Math.max(1, imagePaths.length), { timeout: 4000 }).catch(() => {});
   // Verify cho MỌI trường hợp (kể cả 1 ảnh): nếu không thấy thumbnail ảnh nào nghĩa là
   // FB có thể đã coi file là video/tài liệu (chọn nhầm input) → ảnh sẽ không hiện trong bài.
+  let thumbCount = -1;
   try {
-    const thumbCount = await page.evaluate(() => {
+    thumbCount = await page.evaluate(() => {
       const dialog = document.querySelector('div[role="dialog"]');
       if (!dialog) return -1;
       const imgs = dialog.querySelectorAll('img');
@@ -437,6 +438,55 @@ async function attachImages(page, imagePaths) {
     }
   } catch (e) {
     logger.warn(`Không count được thumbnail: ${e.message}`);
+  }
+
+  // Đủ thumbnail = FB đã nhận ảnh OK → happy path, KHỎI soi banner lỗi (không thêm độ trễ).
+  // CHỈ khi thumbnail THIẾU mới kiểm tra FB có TỪ CHỐI ảnh không. FB đôi khi NHẬN file nhưng
+  // TỪ CHỐI xử lý → hiện banner "Không thể tải file của bạn lên" và KHOÁ nút "Tiếp".
+  // attachImages cũ vẫn trả true → flow đi tiếp rồi chết ở bước bấm "Tiếp" (báo nhầm
+  // "Step 3 fail" khó hiểu). Ở đây phát hiện đúng nguyên nhân + thử đính lại ảnh, nếu FB vẫn
+  // từ chối thì throw lỗi RÕ RÀNG (account bị hạn chế đăng ảnh / ảnh sai định dạng).
+  if (thumbCount < imagePaths.length) {
+    const isRejected = async () => page.evaluate(() => {
+      const dialog = document.querySelector('div[role="dialog"]');
+      if (!dialog) return false;
+      // "." khớp mọi biến thể dấu nháy (couldn't / couldn’t).
+      return /Không thể tải file|couldn.t upload|Unable to upload|could not be uploaded/i
+        .test(dialog.textContent || '');
+    }).catch(() => false);
+
+    // FB render banner lỗi sau ~1-2s → chờ ngắn rồi mới soi.
+    await randomDelay(1200, 1800);
+
+    for (let attempt = 1; attempt <= 2 && (await isRejected()); attempt++) {
+      logger.warn(`FB từ chối ảnh (banner "Không thể tải file") — thử đính lại lần ${attempt}/2...`);
+      // Đính lại: chọn input điểm cao nhất rồi setInputFiles lần nữa (retry upload).
+      try {
+        const inputs = await page.$$('input[type="file"]');
+        let best = null, bestScore = -Infinity;
+        for (const input of inputs) {
+          const accept = ((await input.getAttribute('accept')) || '').toLowerCase().trim();
+          const multiple = (await input.getAttribute('multiple')) !== null;
+          let s = 0;
+          if (accept.includes('image')) s += 3;
+          if (multiple) s += 2;
+          if (accept.startsWith('image')) s += 2;
+          if (accept.startsWith('video')) s -= 3;
+          if (s > bestScore) { best = input; bestScore = s; }
+        }
+        if (best) await best.setInputFiles(imagePaths);
+      } catch (e) {
+        logger.warn(`Đính lại ảnh lần ${attempt} lỗi: ${e.message}`);
+      }
+      await randomDelay(1500, 2500); // chờ FB xử lý lại rồi vòng sau soi banner tiếp
+    }
+
+    if (await isRejected()) {
+      logger.error('FB TỪ CHỐI ẢNH sau khi thử lại — account có thể bị hạn chế đăng ảnh / ảnh sai định dạng.');
+      const shot = await saveDebugShot(page, 'debug-upload-rejected');
+      // Throw để báo RÕ đến UI thay vì trả true rồi chết ở bước "Tiếp" (→ "Step 3 fail" khó hiểu).
+      throw new Error(`${funMsg.errUploadRejected()} (xem logs/${shot})`);
+    }
   }
 
   return uploaded;
