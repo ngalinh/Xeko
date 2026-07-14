@@ -35,6 +35,15 @@ function errUpload() {
   ]);
 }
 
+// FB NHẬN file nhưng TỪ CHỐI xử lý (banner "Không thể tải file của bạn lên" + khoá nút
+// "Tiếp"). Khác errUpload (không tìm được ô upload): ở đây ảnh đã đẩy vào nhưng FB loại.
+// Thông báo cố định (KHÔNG random) vì cần chỉ rõ nguyên nhân + cách xử lý cho user.
+function errUploadRejected() {
+  return 'Facebook từ chối nhận ảnh 🚫 Account có thể đang bị hạn chế đăng ảnh tạm thời, '
+       + 'hoặc ảnh sai định dạng/quá lớn. Thử lại sau ít phút, giảm số ảnh, hoặc đổi ảnh khác nha! '
+       + '(Ảnh vẫn đăng được ở Zalo là bình thường — đây là lỗi riêng phía Facebook.)';
+}
+
 function errTypeContent() {
   return pick([
     'Bị câm rồi! Không nhập được gì vào ô text hết 🤐',
@@ -60,6 +69,7 @@ module.exports = {
   errPopupPersonal,
   errPopupGroup,
   errUpload,
+  errUploadRejected,
   errTypeContent,
   errPost,
 };
