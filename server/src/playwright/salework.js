@@ -6,6 +6,7 @@ const { getZaloProxyForAccount } = require('../utils/proxy');
 const { randomDelay, humanType, sleep } = require('../utils/delay');
 const { getProfileDeviceFingerprint } = require('../utils/device-fingerprint');
 const { checkProxy } = require('../utils/proxy-health');
+const loginHistory = require('../utils/login-history');
 
 const DEBUG_SCREENSHOT_DIR = '/tmp/salework-debug';
 
@@ -55,6 +56,152 @@ async function isOnLoginPage(page) {
     });
   } catch {
     return false;
+  }
+}
+
+// ============================================================================
+// TỰ ĐỘNG ĐĂNG NHẬP LẠI ZaloCRM (zalo.basso.vn) khi session hết hạn (~7 ngày).
+// ----------------------------------------------------------------------------
+// Trước đây session hết hạn → ném lỗi, admin phải MỞ TAY trình duyệt gõ lại
+// username/password mỗi 7 ngày. Nay nếu đã CẤU HÌNH SẴN thông tin đăng nhập
+// ZaloCRM thì tự điền form và bấm "Đăng nhập", khỏi cần thao tác tay.
+//
+// Nguồn thông tin đăng nhập (ưu tiên từ trên xuống):
+//   1. Ghi đè theo từng tài khoản trong config/zalo-accounts.json:
+//        { "key": "...", "crmUsername": "...", "crmPassword": "..." }
+//   2. Biến môi trường dùng chung cho MỌI tài khoản (1 CRM login quản nhiều Zalo):
+//        BASSO_ZALO_USERNAME / BASSO_ZALO_PASSWORD
+// Không có thông tin nào → trả null → GIỮ hành vi cũ (báo admin đăng nhập tay).
+// ============================================================================
+
+const ZALO_ACCOUNTS_FILE = path.resolve(__dirname, '../../config/zalo-accounts.json');
+
+function getCrmCredentials(accountKey) {
+  let username = process.env.BASSO_ZALO_USERNAME || '';
+  let password = process.env.BASSO_ZALO_PASSWORD || '';
+  try {
+    if (fs.existsSync(ZALO_ACCOUNTS_FILE)) {
+      const accounts = JSON.parse(fs.readFileSync(ZALO_ACCOUNTS_FILE, 'utf8'));
+      const acct = Array.isArray(accounts) ? accounts.find(a => a.key === accountKey) : null;
+      if (acct) {
+        if (acct.crmUsername) username = acct.crmUsername;
+        if (acct.crmPassword) password = acct.crmPassword;
+      }
+    }
+  } catch (e) {
+    logger.warn(`[basso][login] Đọc zalo-accounts.json lỗi: ${e.message}`);
+  }
+  if (!username || !password) return null;
+  return { username, password };
+}
+
+// Điền form đăng nhập ZaloCRM và bấm "Đăng nhập". Trả true nếu đã RỜI khỏi trang
+// login (đăng nhập thành công), false nếu vẫn kẹt (sai mật khẩu / OTP / captcha).
+// DOM login của basso có thể là email/username/sđt → thử nhiều selector cho ô
+// tài khoản; ô mật khẩu luôn là input[type="password"].
+async function performCrmLogin(page, creds) {
+  const userSelectors = [
+    'input[name="username"]', 'input[name="email"]', 'input[name="account"]',
+    'input[name="phone"]', 'input[type="email"]', 'input[autocomplete="username"]',
+    'input[placeholder*="ài khoản"]', 'input[placeholder*="mail"]',
+    'input[placeholder*="iện thoại"]', 'input[placeholder*="ăng nhập"]',
+  ];
+  let filledUser = false;
+  for (const sel of userSelectors) {
+    const loc = page.locator(sel).first();
+    if (!(await loc.count().catch(() => 0))) continue;
+    try {
+      await loc.fill(creds.username, { timeout: 3000 });
+      filledUser = true;
+      logger.info(`[basso][login] Điền tài khoản bằng: ${sel}`);
+      break;
+    } catch {}
+  }
+  if (!filledUser) {
+    // Dự phòng: ô nhập text ĐẦU TIÊN không phải password/hidden/checkbox.
+    const loc = page.locator(
+      'input:not([type="password"]):not([type="hidden"]):not([type="checkbox"]):not([type="radio"])'
+    ).first();
+    if (await loc.count().catch(() => 0)) {
+      try { await loc.fill(creds.username, { timeout: 3000 }); filledUser = true; } catch {}
+    }
+  }
+  if (!filledUser) {
+    logger.error('[basso][login] Không tìm thấy ô nhập tài khoản trên trang đăng nhập');
+    return false;
+  }
+
+  const passLoc = page.locator('input[type="password"]').first();
+  try {
+    await passLoc.fill(creds.password, { timeout: 3000 });
+  } catch (e) {
+    logger.error(`[basso][login] Không điền được mật khẩu: ${e.message}`);
+    return false;
+  }
+
+  // Bấm nút "Đăng nhập"; không thấy nút thì Enter dự phòng.
+  const btn = page.locator('button:has-text("Đăng nhập"), button:has-text("đăng nhập")').first();
+  try {
+    if (await btn.count().catch(() => 0)) {
+      await btn.click({ timeout: 4000 });
+    } else {
+      await passLoc.press('Enter');
+    }
+  } catch (e) {
+    logger.warn(`[basso][login] Click nút đăng nhập lỗi (${e.message}) — thử Enter`);
+    try { await passLoc.press('Enter'); } catch {}
+  }
+
+  // Chờ ô mật khẩu biến mất = đã rời trang login (tối đa ~15s cho login + redirect).
+  await page.waitForFunction(
+    () => !document.querySelector('input[type="password"]'),
+    { timeout: 15000 }
+  ).catch(() => {});
+  await sleep(1500);
+  return !(await isOnLoginPage(page));
+}
+
+// Nếu đang ở trang đăng nhập ZaloCRM, thử TỰ đăng nhập lại rồi quay về trang chat.
+// Ném lỗi rõ ràng nếu chưa cấu hình thông tin đăng nhập, hoặc tự đăng nhập thất
+// bại (sai mật khẩu / OTP / captcha) — để caller báo admin xử lý tay.
+async function ensureLoggedIn(page, accountKey, zaloAccountName) {
+  if (!(await isOnLoginPage(page))) return;
+
+  const creds = getCrmCredentials(accountKey);
+  if (!creds) {
+    loginHistory.addEntry(accountKey, zaloAccountName, 'session_expired',
+      'Session ZaloCRM hết hạn — chưa cấu hình tự đăng nhập');
+    throw new Error(
+      `Phiên đăng nhập ZaloCRM của tài khoản "${zaloAccountName}" đã hết hạn và CHƯA cấu hình tự đăng nhập. ` +
+      `Đặt BASSO_ZALO_USERNAME/BASSO_ZALO_PASSWORD (hoặc crmUsername/crmPassword trong config/zalo-accounts.json) ` +
+      `để tự đăng nhập lại, hoặc mở ZaloCRM đăng nhập tay.`
+    );
+  }
+
+  logger.info(`[basso][login] Session "${zaloAccountName}" hết hạn — thử tự đăng nhập lại...`);
+  await screenshot(page, '01b-login-page');
+  const ok = await performCrmLogin(page, creds);
+  if (!ok) {
+    await screenshot(page, '01c-login-failed');
+    loginHistory.addEntry(accountKey, zaloAccountName, 'session_expired',
+      'Tự đăng nhập ZaloCRM thất bại (sai mật khẩu / OTP / captcha)');
+    throw new Error(
+      `Tự đăng nhập ZaloCRM cho "${zaloAccountName}" thất bại (sai mật khẩu, hoặc bị hỏi OTP/captcha). ` +
+      `Cần admin đăng nhập tay trên ZaloCRM.`
+    );
+  }
+
+  logger.info(`[basso][login] ✓ Đã tự đăng nhập lại ZaloCRM cho "${zaloAccountName}"`);
+  loginHistory.addEntry(accountKey, zaloAccountName, 'login', 'Tự đăng nhập lại ZaloCRM thành công');
+
+  // Về lại trang chat để tiếp tục quy trình đăng.
+  await page.goto(ZALO_CHAT_URL, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
+  await waitForChatReady(page);
+  await sleep(1000);
+  if (await isOnLoginPage(page)) {
+    throw new Error(
+      `Đã tự đăng nhập ZaloCRM nhưng vẫn bị đẩy về trang login cho "${zaloAccountName}" — cần admin kiểm tra tay.`
+    );
   }
 }
 
@@ -796,11 +943,11 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
     await sleep(1000); // 1 nhịp cho Vue settle sau khi phần tử đầu tiên hiện
     await screenshot(page, '01-loaded');
 
-    // Session hết hạn → basso đẩy về trang đăng nhập. Báo rõ cần admin login lại,
+    // Session hết hạn → basso đẩy về trang đăng nhập. TỰ đăng nhập lại nếu đã cấu
+    // hình thông tin (BASSO_ZALO_USERNAME/PASSWORD hoặc crmUsername/crmPassword);
+    // chưa cấu hình / tự login thất bại → ensureLoggedIn ném lỗi rõ ràng cho admin.
     // KHÔNG để rơi xuống "không chọn được tài khoản" (sai nguyên nhân).
-    if (await isOnLoginPage(page)) {
-      throw new Error(`Phiên đăng nhập ZaloCRM của tài khoản "${zaloAccountName}" đã hết hạn (trình duyệt mở ra trang đăng nhập). Cần kiểm tra lại — báo admin đăng nhập lại tài khoản trên ZaloCRM.`);
-    }
+    await ensureLoggedIn(page, accountKey, zaloAccountName);
 
     const accountOk = await selectZaloAccount(page, zaloAccountName);
     await screenshot(page, '02-account-selected');
@@ -851,4 +998,7 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
   }
 }
 
-module.exports = { postToZaloGroup, getSaleworkProfile, ZALO_LOGIN_URL, ZALO_CHAT_URL };
+module.exports = {
+  postToZaloGroup, getSaleworkProfile, ZALO_LOGIN_URL, ZALO_CHAT_URL,
+  getCrmCredentials, performCrmLogin, ensureLoggedIn,
+};

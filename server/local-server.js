@@ -477,7 +477,7 @@ app.get('/api/zalo/status/:jobId', (req, res) => {
 
 // ===== ACCOUNTS =====
 app.post('/api/accounts', (req, res) => {
-  const { type, key, name, email, password, saleworkName, proxy } = req.body;
+  const { type, key, name, email, password, saleworkName, proxy, crmUsername, crmPassword } = req.body;
   if (!key || !name) return res.status(400).json({ error: 'Thiếu key hoặc tên' });
 
   if (type === 'zalo') {
@@ -485,7 +485,13 @@ app.post('/api/accounts', (req, res) => {
 
     const accounts = loadZaloAccounts();
     if (accounts.find(a => a.key === key)) return res.status(400).json({ error: 'Key đã tồn tại' });
-    accounts.push({ key, name, saleworkName, fbProfileKey: '', proxy: (proxy || '').trim() });
+    // crmUsername/crmPassword (tuỳ chọn): thông tin đăng nhập zalo.basso.vn để TỰ
+    // đăng nhập lại khi session hết hạn (~7 ngày), khỏi phải mở tay mỗi tuần.
+    accounts.push({
+      key, name, saleworkName, fbProfileKey: '', proxy: (proxy || '').trim(),
+      ...(crmUsername ? { crmUsername: String(crmUsername).trim() } : {}),
+      ...(crmPassword ? { crmPassword: String(crmPassword) } : {}),
+    });
     saveZaloAccounts(accounts);
 
     const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
@@ -728,7 +734,7 @@ app.get('/api/accounts', (req, res) => {
 
 app.put('/api/accounts/:key', (req, res) => {
   const { key } = req.params;
-  const { name, email, password, saleworkName, type, proxy } = req.body;
+  const { name, email, password, saleworkName, type, proxy, crmUsername, crmPassword } = req.body;
   const proxyTrimmed = typeof proxy === 'string' ? proxy.trim() : undefined;
   try {
     if (type === 'zalo') {
@@ -740,6 +746,10 @@ app.put('/api/accounts/:key', (req, res) => {
         name: name || accounts[idx].name,
         saleworkName: saleworkName || accounts[idx].saleworkName,
         ...(proxyTrimmed !== undefined ? { proxy: proxyTrimmed } : {}),
+        // Cập nhật thông tin tự đăng nhập ZaloCRM nếu client gửi lên (chuỗi rỗng =
+        // xoá thông tin đã lưu để tắt tự đăng nhập cho tài khoản này).
+        ...(crmUsername !== undefined ? { crmUsername: String(crmUsername).trim() } : {}),
+        ...(crmPassword !== undefined ? { crmPassword: String(crmPassword) } : {}),
       };
       saveZaloAccounts(accounts);
       return res.json({ success: true });
