@@ -3201,33 +3201,82 @@
       overflow-y: auto;
     }
 
-    /* Touch devices: show the tooltip as a centered, dismissible card
+    /* Touch devices: show the tooltip as a centered modal dialog
        instead of a cursor-following hover tip (which gets clipped off
        screen and stuck on tap). */
     #content-tip-backdrop {
       position: fixed;
       inset: 0;
       z-index: 99998;
-      background: rgba(15, 23, 42, 0.35);
+      background: rgba(15, 23, 42, 0.45);
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.15s ease;
+      transition: opacity 0.18s ease;
     }
     #content-tip-backdrop.tip-show { opacity: 1; pointer-events: auto; }
     #content-tip.tip-mobile {
       left: 50% !important;
-      top: auto !important;
-      bottom: 20px;
-      transform: translateX(-50%) translateY(6px);
-      width: calc(100vw - 28px);
-      max-width: 440px;
-      max-height: 62vh;
-      overflow-y: auto;
+      top: 50% !important;
+      right: auto;
+      bottom: auto;
+      transform: translate(-50%, -50%) scale(0.96);
+      width: calc(100vw - 40px);
+      max-width: 460px;
+      max-height: 78vh;
+      padding: 0;
+      border-radius: 16px;
+      overflow: hidden;
       pointer-events: auto;
-      padding: 16px 18px 18px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
     }
-    #content-tip.tip-mobile.tip-show { transform: translateX(-50%) translateY(0); }
-    #content-tip.tip-mobile .tip-body { max-height: none; }
+    #content-tip.tip-mobile.tip-show {
+      display: flex;
+      flex-direction: column;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    /* Modal header */
+    #content-tip.tip-mobile .tip-m-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 14px 14px 14px 18px;
+      border-bottom: 1px solid #f0f0f0;
+      flex-shrink: 0;
+    }
+    #content-tip.tip-mobile .tip-m-title {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #1e1e2e;
+    }
+    #content-tip.tip-mobile .tip-m-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 9px;
+      background: #f3f4f6;
+      color: #555;
+      font-size: 17px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s ease;
+    }
+    #content-tip.tip-mobile .tip-m-close:active { background: #e5e7eb; }
+    /* Modal scrollable body */
+    #content-tip.tip-mobile .tip-m-body {
+      padding: 16px 18px 20px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      font-size: 13.5px;
+      line-height: 1.65;
+      color: #374151;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
 
     /* ===== HDSD (Hướng dẫn sử dụng) ===== */
     .guide-wrap { flex:1; overflow-y:auto; padding:24px 32px; }
@@ -14473,10 +14522,23 @@
         tip.style.top  = Math.max(pad, Math.min(y, window.innerHeight - th - pad)) + 'px';
       }
 
-      // ---- Mobile / touch: centered dismissible card ----
+      // ---- Mobile / touch: centered modal dialog ----
       function hideMobile(){
         tip.classList.remove('tip-show', 'tip-mobile');
         backdrop.classList.remove('tip-show');
+      }
+      function renderModal(td){
+        let d;
+        try { d = JSON.parse(td.dataset.ctip); } catch(err){ return false; }
+        if (!d || (!d.title && !d.body)) return false;
+        const text = (d.title ? d.title + '\n\n' : '') + (d.body || '');
+        tip.innerHTML =
+          '<div class="tip-m-head">' +
+            '<span class="tip-m-title">Nội dung</span>' +
+            '<button type="button" class="tip-m-close" aria-label="Đóng">✕</button>' +
+          '</div>' +
+          `<div class="tip-m-body">${escT(text)}</div>`;
+        return true;
       }
       if (isTouch) {
         document.addEventListener('click', function(e){
@@ -14484,13 +14546,17 @@
           if (e.target.closest('button, a, input, label, select, textarea')) return;
           const td = e.target.closest('[data-ctip]');
           if (!td) return;
-          if (!renderTip(td)) return;
+          if (!renderModal(td)) return;
           tip.style.left = ''; tip.style.top = '';
           tip.classList.add('tip-mobile', 'tip-show');
           backdrop.classList.add('tip-show');
         });
         backdrop.addEventListener('click', hideMobile);
-        tip.addEventListener('click', function(e){ e.stopPropagation(); });
+        // Close button + block backdrop-dismiss when tapping inside the card.
+        tip.addEventListener('click', function(e){
+          if (e.target.closest('.tip-m-close')) { hideMobile(); return; }
+          e.stopPropagation();
+        });
         return;
       }
 
