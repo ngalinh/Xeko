@@ -3201,9 +3201,10 @@
       overflow-y: auto;
     }
 
-    /* Touch devices: show the tooltip as a centered modal dialog
-       instead of a cursor-following hover tip (which gets clipped off
-       screen and stuck on tap). */
+    /* Click on a content cell opens a centered modal dialog (both desktop
+       and mobile) so the text is selectable and links are clickable —
+       unlike the hover preview, which is pointer-events:none. On touch it
+       also replaces the hover tip, which would otherwise get clipped/stuck. */
     #content-tip-backdrop {
       position: fixed;
       inset: 0;
@@ -3214,14 +3215,16 @@
       transition: opacity 0.18s ease;
     }
     #content-tip-backdrop.tip-show { opacity: 1; pointer-events: auto; }
-    #content-tip.tip-mobile {
+    /* Hint that content cells are clickable. */
+    [data-ctip] { cursor: pointer !important; }
+    #content-tip.tip-modal {
       left: 50% !important;
       top: 50% !important;
       right: auto;
       bottom: auto;
       transform: translate(-50%, -50%) scale(0.96);
       width: calc(100vw - 40px);
-      max-width: 460px;
+      max-width: 480px;
       max-height: 78vh;
       padding: 0;
       border-radius: 16px;
@@ -3229,13 +3232,13 @@
       pointer-events: auto;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
     }
-    #content-tip.tip-mobile.tip-show {
+    #content-tip.tip-modal.tip-show {
       display: flex;
       flex-direction: column;
       transform: translate(-50%, -50%) scale(1);
     }
     /* Modal header */
-    #content-tip.tip-mobile .tip-m-head {
+    #content-tip.tip-modal .tip-m-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -3244,12 +3247,12 @@
       border-bottom: 1px solid #f0f0f0;
       flex-shrink: 0;
     }
-    #content-tip.tip-mobile .tip-m-title {
+    #content-tip.tip-modal .tip-m-title {
       font-size: 14.5px;
       font-weight: 700;
       color: #1e1e2e;
     }
-    #content-tip.tip-mobile .tip-m-close {
+    #content-tip.tip-modal .tip-m-close {
       width: 32px;
       height: 32px;
       border: none;
@@ -3265,9 +3268,9 @@
       flex-shrink: 0;
       transition: background 0.15s ease;
     }
-    #content-tip.tip-mobile .tip-m-close:active { background: #e5e7eb; }
+    #content-tip.tip-modal .tip-m-close:hover { background: #e5e7eb; }
     /* Modal scrollable body */
-    #content-tip.tip-mobile .tip-m-body {
+    #content-tip.tip-modal .tip-m-body {
       padding: 16px 18px 20px;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
@@ -3276,7 +3279,14 @@
       color: #374151;
       white-space: pre-wrap;
       word-break: break-word;
+      user-select: text;
     }
+    #content-tip.tip-modal .tip-m-body a {
+      color: #1D4ED8;
+      text-decoration: underline;
+      word-break: break-all;
+    }
+    #content-tip.tip-modal .tip-m-body a:hover { color: #1E40AF; }
 
     /* ===== HDSD (Hướng dẫn sử dụng) ===== */
     .guide-wrap { flex:1; overflow-y:auto; padding:24px 32px; }
@@ -14493,18 +14503,33 @@
       const tip = document.getElementById('content-tip');
       const backdrop = document.getElementById('content-tip-backdrop');
       let hideTimer;
+      let modalOpen = false;
       // Touch / no-hover devices (mobile PWA) can't use a cursor-following
-      // hover tooltip — it gets clipped off screen and stuck. Detect them
-      // and switch to a tap-to-open, tap-to-dismiss centered card.
+      // hover tooltip — it gets clipped off screen and stuck. On those we
+      // only use the click-to-open modal below.
       const isTouch = !!(window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches)
         || ('ontouchstart' in window);
 
       function escT(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+      // Turn URLs in already-escaped text into clickable links.
+      function linkify(escaped){
+        return escaped.replace(/(https?:\/\/[^\s<]+)/g, function(url){
+          return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>';
+        });
+      }
+
+      function getData(td){
+        try {
+          const d = JSON.parse(td.dataset.ctip);
+          return (d && (d.title || d.body)) ? d : null;
+        } catch(err){ return null; }
+      }
+
+      // ---- Hover preview (desktop only, look-only) ----
       function renderTip(td){
-        let d;
-        try { d = JSON.parse(td.dataset.ctip); } catch(err){ return false; }
-        if (!d || (!d.title && !d.body)) return false;
+        const d = getData(td);
+        if (!d) return false;
         tip.innerHTML =
           (d.title ? `<div class="tip-title">${escT(d.title)}</div>` : '') +
           (d.body  ? `<div class="tip-body">${escT(d.body)}</div>`   : '');
@@ -14522,62 +14547,70 @@
         tip.style.top  = Math.max(pad, Math.min(y, window.innerHeight - th - pad)) + 'px';
       }
 
-      // ---- Mobile / touch: centered modal dialog ----
-      function hideMobile(){
-        tip.classList.remove('tip-show', 'tip-mobile');
-        backdrop.classList.remove('tip-show');
-      }
-      function renderModal(td){
-        let d;
-        try { d = JSON.parse(td.dataset.ctip); } catch(err){ return false; }
-        if (!d || (!d.title && !d.body)) return false;
+      // ---- Centered modal (desktop + mobile, interactive) ----
+      function openModal(td){
+        const d = getData(td);
+        if (!d) return;
         const text = (d.title ? d.title + '\n\n' : '') + (d.body || '');
+        clearTimeout(hideTimer);
+        tip.classList.remove('tip-show');            // drop any hover state
+        tip.style.left = ''; tip.style.top = '';
         tip.innerHTML =
           '<div class="tip-m-head">' +
             '<span class="tip-m-title">Nội dung</span>' +
             '<button type="button" class="tip-m-close" aria-label="Đóng">✕</button>' +
           '</div>' +
-          `<div class="tip-m-body">${escT(text)}</div>`;
-        return true;
+          `<div class="tip-m-body">${linkify(escT(text))}</div>`;
+        tip.classList.add('tip-modal', 'tip-show');
+        backdrop.classList.add('tip-show');
+        modalOpen = true;
       }
-      if (isTouch) {
-        document.addEventListener('click', function(e){
-          // Don't hijack taps on interactive controls inside the row.
-          if (e.target.closest('button, a, input, label, select, textarea')) return;
+      function closeModal(){
+        tip.classList.remove('tip-modal', 'tip-show');
+        backdrop.classList.remove('tip-show');
+        modalOpen = false;
+      }
+
+      // Click a content cell -> open the interactive modal (both platforms).
+      document.addEventListener('click', function(e){
+        // Don't hijack clicks on interactive controls inside the row.
+        if (e.target.closest('button, a, input, label, select, textarea')) return;
+        const td = e.target.closest('[data-ctip]');
+        if (!td || modalOpen) return;
+        openModal(td);
+      });
+      backdrop.addEventListener('click', closeModal);
+      tip.addEventListener('click', function(e){
+        if (e.target.closest('.tip-m-close')) { closeModal(); return; }
+        e.stopPropagation();   // keep modal open when interacting inside it
+      });
+      document.addEventListener('keydown', function(e){
+        if (e.key === 'Escape' && modalOpen) closeModal();
+      });
+
+      // ---- Desktop only: cursor-following hover preview ----
+      if (!isTouch) {
+        document.addEventListener('mouseover', function(e){
+          if (modalOpen) return;
           const td = e.target.closest('[data-ctip]');
           if (!td) return;
-          if (!renderModal(td)) return;
-          tip.style.left = ''; tip.style.top = '';
-          tip.classList.add('tip-mobile', 'tip-show');
-          backdrop.classList.add('tip-show');
+          clearTimeout(hideTimer);
+          if (renderTip(td)) { tip.classList.add('tip-show'); moveTip(e); }
         });
-        backdrop.addEventListener('click', hideMobile);
-        // Close button + block backdrop-dismiss when tapping inside the card.
-        tip.addEventListener('click', function(e){
-          if (e.target.closest('.tip-m-close')) { hideMobile(); return; }
-          e.stopPropagation();
+
+        document.addEventListener('mousemove', function(e){
+          if (modalOpen) return;
+          if (tip.classList.contains('tip-show') && !tip.classList.contains('tip-modal')) moveTip(e);
         });
-        return;
+
+        document.addEventListener('mouseout', function(e){
+          if (modalOpen) return;
+          const td = e.target.closest('[data-ctip]');
+          if (!td) return;
+          if (e.relatedTarget && e.relatedTarget.closest('[data-ctip]')) return;
+          hideTimer = setTimeout(function(){ if (!modalOpen) tip.classList.remove('tip-show'); }, 80);
+        });
       }
-
-      // ---- Desktop: cursor-following hover tooltip ----
-      document.addEventListener('mouseover', function(e){
-        const td = e.target.closest('[data-ctip]');
-        if (!td) return;
-        clearTimeout(hideTimer);
-        if (renderTip(td)) { tip.classList.add('tip-show'); moveTip(e); }
-      });
-
-      document.addEventListener('mousemove', function(e){
-        if (tip.classList.contains('tip-show')) moveTip(e);
-      });
-
-      document.addEventListener('mouseout', function(e){
-        const td = e.target.closest('[data-ctip]');
-        if (!td) return;
-        if (e.relatedTarget && e.relatedTarget.closest('[data-ctip]')) return;
-        hideTimer = setTimeout(function(){ tip.classList.remove('tip-show'); }, 80);
-      });
     })();
   </script>
 </body>
