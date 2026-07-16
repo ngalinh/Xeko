@@ -3201,6 +3201,34 @@
       overflow-y: auto;
     }
 
+    /* Touch devices: show the tooltip as a centered, dismissible card
+       instead of a cursor-following hover tip (which gets clipped off
+       screen and stuck on tap). */
+    #content-tip-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 99998;
+      background: rgba(15, 23, 42, 0.35);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+    }
+    #content-tip-backdrop.tip-show { opacity: 1; pointer-events: auto; }
+    #content-tip.tip-mobile {
+      left: 50% !important;
+      top: auto !important;
+      bottom: 20px;
+      transform: translateX(-50%) translateY(6px);
+      width: calc(100vw - 28px);
+      max-width: 440px;
+      max-height: 62vh;
+      overflow-y: auto;
+      pointer-events: auto;
+      padding: 16px 18px 18px;
+    }
+    #content-tip.tip-mobile.tip-show { transform: translateX(-50%) translateY(0); }
+    #content-tip.tip-mobile .tip-body { max-height: none; }
+
     /* ===== HDSD (Hướng dẫn sử dụng) ===== */
     .guide-wrap { flex:1; overflow-y:auto; padding:24px 32px; }
     .guide-inner { max-width:860px; margin:0 auto; }
@@ -14410,22 +14438,28 @@
 
   <!-- White card tooltip for content table -->
   <div id="content-tip"></div>
+  <div id="content-tip-backdrop"></div>
   <script>
     (function(){
       const tip = document.getElementById('content-tip');
+      const backdrop = document.getElementById('content-tip-backdrop');
       let hideTimer;
+      // Touch / no-hover devices (mobile PWA) can't use a cursor-following
+      // hover tooltip — it gets clipped off screen and stuck. Detect them
+      // and switch to a tap-to-open, tap-to-dismiss centered card.
+      const isTouch = !!(window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches)
+        || ('ontouchstart' in window);
 
       function escT(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-      function showTip(td, e){
-        clearTimeout(hideTimer);
+      function renderTip(td){
         let d;
-        try { d = JSON.parse(td.dataset.ctip); } catch(err){ return; }
+        try { d = JSON.parse(td.dataset.ctip); } catch(err){ return false; }
+        if (!d || (!d.title && !d.body)) return false;
         tip.innerHTML =
           (d.title ? `<div class="tip-title">${escT(d.title)}</div>` : '') +
           (d.body  ? `<div class="tip-body">${escT(d.body)}</div>`   : '');
-        tip.classList.add('tip-show');
-        moveTip(e);
+        return true;
       }
 
       function moveTip(e){
@@ -14434,13 +14468,38 @@
         let x = e.clientX + pad, y = e.clientY + pad;
         if (x + tw > window.innerWidth)  x = e.clientX - tw - pad;
         if (y + th > window.innerHeight) y = e.clientY - th - pad;
-        tip.style.left = x + 'px';
-        tip.style.top  = y + 'px';
+        // Never let the card slip off the top/left edge.
+        tip.style.left = Math.max(pad, Math.min(x, window.innerWidth  - tw - pad)) + 'px';
+        tip.style.top  = Math.max(pad, Math.min(y, window.innerHeight - th - pad)) + 'px';
       }
 
+      // ---- Mobile / touch: centered dismissible card ----
+      function hideMobile(){
+        tip.classList.remove('tip-show', 'tip-mobile');
+        backdrop.classList.remove('tip-show');
+      }
+      if (isTouch) {
+        document.addEventListener('click', function(e){
+          // Don't hijack taps on interactive controls inside the row.
+          if (e.target.closest('button, a, input, label, select, textarea')) return;
+          const td = e.target.closest('[data-ctip]');
+          if (!td) return;
+          if (!renderTip(td)) return;
+          tip.style.left = ''; tip.style.top = '';
+          tip.classList.add('tip-mobile', 'tip-show');
+          backdrop.classList.add('tip-show');
+        });
+        backdrop.addEventListener('click', hideMobile);
+        tip.addEventListener('click', function(e){ e.stopPropagation(); });
+        return;
+      }
+
+      // ---- Desktop: cursor-following hover tooltip ----
       document.addEventListener('mouseover', function(e){
         const td = e.target.closest('[data-ctip]');
-        if (td) showTip(td, e);
+        if (!td) return;
+        clearTimeout(hideTimer);
+        if (renderTip(td)) { tip.classList.add('tip-show'); moveTip(e); }
       });
 
       document.addEventListener('mousemove', function(e){
