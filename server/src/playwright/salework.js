@@ -470,6 +470,84 @@ async function ensureComposerReady(page, timeout = 15000) {
   }
 }
 
+// Zalo (qua basso CRM) hiển thị INLINE dạng bong bóng ảnh với JPEG/PNG chuẩn, nhưng
+// các định dạng khác (webp/heic/heif/bmp/gif) hoặc ảnh QUÁ LỚN thường bị gửi thành
+// FILE ĐÍNH KÈM thay vì ảnh — đúng hiện tượng "hình cuối gửi vào Zalo chuyển thành
+// file" khi trong bộ ảnh lẫn 1 tấm khác định dạng/khổ (vd 1 ảnh webp giữa các ảnh jpg).
+// CHUẨN HOÁ tất cả ảnh về JPEG baseline + giới hạn cạnh dài ≤ MAX_EDGE TRƯỚC khi đính,
+// để Zalo đối xử đồng nhất = luôn là ảnh. Dùng chính Chromium (đã có sẵn) để decode +
+// canvas re-encode → KHÔNG cần thư viện ngoài (sharp/jimp). Ảnh nào Chromium không đọc
+// được (vd HEIC) hoặc lỗi thì GIỮ NGUYÊN file gốc — thà gửi nguyên còn hơn rớt hình.
+const ZALO_IMG_MAX_EDGE = 2048;      // px — cạnh dài tối đa (tránh Zalo hạ ảnh lớn thành file)
+const ZALO_IMG_JPEG_QUALITY = 0.92;  // chất lượng JPEG khi re-encode
+
+// Trả về mảng đường dẫn MỚI cùng độ dài với imagePaths. Với mỗi ảnh chuẩn hoá được,
+// ghi 1 file .zalo.jpg cạnh file gốc và trả về đường dẫn đó; ảnh không chuẩn hoá được
+// giữ nguyên đường dẫn gốc. Đường dẫn .zalo.jpg mới nằm cùng thư mục job → caller nên
+// dọn (được liệt kê để xoá trong _postToZaloGroupImpl).
+async function normalizeImagesForZalo(browser, imagePaths) {
+  if (!imagePaths || imagePaths.length === 0) return imagePaths;
+  let scratch;
+  try {
+    scratch = await browser.newPage();
+    await scratch.goto('about:blank').catch(() => {});
+  } catch (e) {
+    logger.warn(`[salework][img] Không mở được trang chuẩn hoá ảnh (${e.message}) — dùng ảnh gốc`);
+    return imagePaths;
+  }
+  const out = [];
+  for (const src of imagePaths) {
+    try {
+      const ext = path.extname(src).toLowerCase();
+      const mime = ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif'
+                 : ext === '.webp' ? 'image/webp' : ext === '.bmp' ? 'image/bmp'
+                 : (ext === '.heic' || ext === '.heif') ? 'image/heic' : 'image/jpeg';
+      const b64 = fs.readFileSync(src).toString('base64');
+      const jpegB64 = await scratch.evaluate(async ({ dataUrl, maxEdge, quality }) => {
+        const img = new Image();
+        const loaded = await new Promise((resolve) => {
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(false);
+          img.src = dataUrl;
+        });
+        if (!loaded || !img.naturalWidth || !img.naturalHeight) return null;
+        let w = img.naturalWidth, h = img.naturalHeight;
+        const scale = Math.min(1, maxEdge / Math.max(w, h));
+        w = Math.max(1, Math.round(w * scale));
+        h = Math.max(1, Math.round(h * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        // Nền trắng cho ảnh có alpha (PNG/webp trong suốt) khỏi thành nền đen khi sang JPEG.
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        try {
+          const url = canvas.toDataURL('image/jpeg', quality);
+          const comma = url.indexOf(',');
+          return comma >= 0 ? url.slice(comma + 1) : null;
+        } catch { return null; } // canvas tainted (không xảy ra với data: URL cùng gốc)
+      }, { dataUrl: `data:${mime};base64,${b64}`, maxEdge: ZALO_IMG_MAX_EDGE, quality: ZALO_IMG_JPEG_QUALITY });
+
+      if (!jpegB64) {
+        logger.warn(`[salework][img] Không chuẩn hoá được ${path.basename(src)} (Chromium không decode được — vd HEIC) — giữ file gốc`);
+        out.push(src);
+        continue;
+      }
+      const dest = src.replace(/\.[^.]+$/, '') + '.zalo.jpg';
+      fs.writeFileSync(dest, Buffer.from(jpegB64, 'base64'));
+      out.push(dest);
+    } catch (e) {
+      logger.warn(`[salework][img] Lỗi chuẩn hoá ${path.basename(src)}: ${e.message} — giữ file gốc`);
+      out.push(src);
+    }
+  }
+  try { await scratch.close(); } catch {}
+  const changed = out.filter((p, i) => p !== imagePaths[i]).length;
+  logger.info(`[salework][img] Chuẩn hoá ${changed}/${imagePaths.length} ảnh về JPEG (cạnh dài ≤ ${ZALO_IMG_MAX_EDGE}px) cho Zalo`);
+  return out;
+}
+
 // Đính ảnh vào ô soạn tin. CÁCH CHÍNH (TRUSTED): đặt file thẳng vào input[type=file]
 // sẵn có / nút .ic-violet → menu "Hình ảnh" → filechooser — ổn định khi đăng lặp
 // nhiều group. DỰ PHÒNG: DÁN (paste) ảnh từ clipboard giả lập (untrusted, Zalo hay
@@ -921,9 +999,13 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
   // không set job 'done' → cloud poll mãi 'processing' → frontend kẹt "Đang đăng".
   // Tách cleanup ra để lỗi đóng browser không ảnh hưởng tới việc báo kết quả.
   let cleaned = false;
+  let normalizedImageFiles = []; // file .zalo.jpg do chuẩn hoá tạo ra → dọn khi xong
   const cleanup = () => {
     if (cleaned) return;
     cleaned = true;
+    // Dọn ảnh JPEG chuẩn hoá tạm (upload đã xong khi tới đây). File gốc do
+    // local-server quản lý vòng đời, không đụng ở đây.
+    for (const f of normalizedImageFiles) { try { fs.unlinkSync(f); } catch {} }
     Promise.race([page.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {})
       .then(() => Promise.race([browser.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {}))
       .then(() => logger.info('[salework] Đã đóng browser'))
@@ -985,7 +1067,15 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
       await screenshot(page, '04b-group-reopened');
     }
 
-    await sendMessage(page, message, imagePaths);
+    // Chuẩn hoá ảnh về JPEG đồng nhất TRƯỚC khi gửi để Zalo không biến ảnh khác
+    // định dạng/khổ (vd webp) thành FILE đính kèm ("hình cuối chuyển thành file").
+    let sendImagePaths = imagePaths;
+    if (imagePaths && imagePaths.length > 0) {
+      sendImagePaths = await normalizeImagesForZalo(browser, imagePaths);
+      normalizedImageFiles = sendImagePaths.filter((p, i) => p !== imagePaths[i]);
+    }
+
+    await sendMessage(page, message, sendImagePaths);
 
     logger.info(`[salework] Đã đăng lên "${groupName}" qua "${zaloAccountName}"`);
     cleanup(); // chạy nền, không await — trả kết quả ngay
