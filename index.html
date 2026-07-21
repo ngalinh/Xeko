@@ -12145,6 +12145,12 @@
             const e = (err || '').toLowerCase();
             if (/local server chưa kết nối|không phải json|tunnel|proxy.*không kết nối|chưa kết nối/.test(e))
               return { color:'#3730a3', bg:'#e0e7ff', emoji:'🔌', label:'Mất kết nối', tip:'Không kết nối được tới máy đăng bài (local/tunnel/proxy). Kiểm tra kết nối rồi đăng lại.' };
+            // Lỗi mạng cấp trình duyệt (Chromium net::ERR_*): máy đăng không mở nổi
+            // FB/Zalo — proxy chết/bị chặn hoặc mạng chậm. Fail ở bước vào trang nên
+            // bài CHƯA đăng → đăng lại an toàn. Bắt trước "timeout" vì ERR_TIMED_OUT
+            // không chứa chữ "timeout" và không phải trường hợp "có thể đã đăng".
+            if (/net::err_|err_timed_out|err_connection|err_proxy|err_tunnel|err_socks|err_name_not_resolved|err_internet_disconnected|err_network_changed|err_address_unreachable|err_empty_response/.test(e))
+              return { color:'#3730a3', bg:'#e0e7ff', emoji:'🔌', label:'Mất kết nối', tip:'Máy đăng bài không mở được Facebook/Zalo (proxy hoặc mạng chậm/bị chặn). Bài chưa đăng — kiểm tra proxy/mạng rồi đăng lại.' };
             if (/timeout|không xác nhận|không bắt được posturl|quá 10 phút|job không còn tồn tại|chưa xong/.test(e))
               return { color:'#92400e', bg:'#fef3c7', emoji:'⚠️', label:'Cần kiểm tra', tip:'Không xác nhận được kết quả — bài CÓ THỂ đã đăng. Kiểm tra Facebook/Zalo trước khi đăng lại để tránh trùng bài.' };
             if (/hết hạn|session profile|chưa đăng nhập/.test(e))
@@ -12172,6 +12178,11 @@
             // Hạ tầng: mất kết nối local/tunnel/proxy.
             if (/chưa kết nối|local server|tunnel|proxy|không phải json/.test(low))
               return 'Không kết nối được tới máy đăng bài (local/tunnel/proxy) — kiểm tra kết nối rồi đăng lại.';
+            // Máy đăng không mở được FB/Zalo: lỗi mạng cấp trình duyệt (Chromium
+            // net::ERR_*). Bắt TRƯỚC "timeout"/"ảnh" vì ERR_TIMED_OUT không chứa chữ
+            // "timeout" và trước đây bị rơi xuống nhánh khác gây hiểu nhầm.
+            if (/net::err_|err_timed_out|err_connection|err_proxy|err_tunnel|err_socks|err_name_not_resolved|err_internet_disconnected|err_network_changed|err_address_unreachable|err_empty_response/.test(low))
+              return 'Máy đăng bài không mở được Facebook/Zalo (proxy hoặc mạng chậm/bị chặn) — bài chưa đăng, kiểm tra proxy/mạng rồi đăng lại.';
             // Không xác nhận được kết quả — bài có thể đã đăng.
             if (/timeout|không xác nhận|không bắt được posturl|quá \d+ phút|job không còn tồn tại|chưa xong/.test(low))
               return 'Chưa xác nhận được kết quả — bài CÓ THỂ đã đăng. Kiểm tra Facebook/Zalo trước khi đăng lại để tránh trùng.';
