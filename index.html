@@ -11892,8 +11892,10 @@
       if (platforms.length) statsParams.set('platform', platforms.join(','));
       if (targets.length) statsParams.set('target', targets.join(','));
       if (groupIds.length) statsParams.set('groupId', groupIds.join(','));
-      if (effFrom) statsParams.set('from', effFrom + 'T00:00:00.000Z');
-      if (effTo) statsParams.set('to', effTo + 'T23:59:59.999Z');
+      // "Theo tài khoản" giữ nguyên phạm vi người dùng chọn (mặc định toàn thời gian),
+      // KHÔNG áp cửa sổ 7 ngày của bảng lịch sử — để số khớp với ô "Tổng cộng".
+      if (from) statsParams.set('from', from + 'T00:00:00.000Z');
+      if (to) statsParams.set('to', to + 'T23:59:59.999Z');
 
       // Skeleton placeholder while fetching (bỏ qua nếu đã update DOM trực tiếp)
       if (!noSkeleton) {
