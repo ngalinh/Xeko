@@ -619,6 +619,48 @@
       align-items: flex-end;
       box-shadow: 0 -1px 0 rgba(0,0,0,0.06);
     }
+    /* Website bar — bước nhập website trước khi gửi nội dung + ảnh */
+    .website-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      background: #f8fafc;
+      border-top: 1px solid #eef2f7;
+    }
+    .website-bar-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .website-bar input[type="text"] {
+      flex: 1;
+      min-width: 0;
+      padding: 7px 12px;
+      border-radius: 18px;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      color: #1e1e2e;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+    }
+    .website-bar input[type="text"]:focus { border-color: #93C5FD; }
+    .website-bar #websiteClearBtn {
+      flex-shrink: 0;
+      width: 24px; height: 24px;
+      border: none; border-radius: 999px;
+      background: #e5e7eb; color: #475569;
+      font-size: 12px; line-height: 1; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .website-bar #websiteClearBtn:hover { background: #d1d5db; }
+    [data-theme="dark"] .website-bar { background: #16172b; border-color: #2a2a4a; }
+    [data-theme="dark"] .website-bar-label { color: #a3adc2; }
+    [data-theme="dark"] .website-bar input[type="text"] { background: #1f2233; border-color: #2a2a4a; color: #e8e8f0; }
+    [data-theme="dark"] .website-bar #websiteClearBtn { background: #2a2a4a; color: #cbd5e1; }
     .input-area input[type="text"] {
       flex: 1;
       padding: 10px 14px;
@@ -4095,6 +4137,13 @@
     <button class="clear-btn" onclick="clearImages()">Xoá ảnh</button>
   </div>
 
+  <div class="website-bar" id="websiteBar">
+    <span class="website-bar-label" title="Website gắn với bài đăng (chọn hoặc tự nhập)">🌐 Website</span>
+    <input type="text" id="websiteInput" list="websiteDatalist" placeholder="Chọn hoặc nhập website (vd: xeko.vn)" autocomplete="off" spellcheck="false" oninput="onWebsiteInput()">
+    <datalist id="websiteDatalist"></datalist>
+    <button type="button" id="websiteClearBtn" onclick="clearWebsiteInput()" aria-label="Xoá website" title="Xoá website đang nhập" style="display:none;">✕</button>
+  </div>
+
   <div class="input-area" id="inputArea">
     <button class="btn-icon btn-attach" onclick="document.getElementById('fileInput').click()" aria-label="Đính kèm ảnh"><svg class="xi xi-md"><use href="#ic-camera"/></svg></button>
     <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this)">
@@ -7540,16 +7589,82 @@
       return true;
     }
 
+    // ===== Website (metadata gắn với bài đăng) =====
+    // Danh sách website do nhân viên tự thêm, lưu ở localStorage để lần sau chọn nhanh.
+    const _WEBSITE_LIST_KEY = 'xeko_website_list';
+
+    function loadWebsiteList() {
+      try {
+        const raw = localStorage.getItem(_WEBSITE_LIST_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr.filter(x => typeof x === 'string' && x.trim()) : [];
+      } catch { return []; }
+    }
+
+    function saveWebsiteList(arr) {
+      try { localStorage.setItem(_WEBSITE_LIST_KEY, JSON.stringify(arr.slice(0, 100))); } catch {}
+    }
+
+    // Chuẩn hoá nhẹ: bỏ khoảng trắng thừa. Giữ nguyên phần còn lại để nhân viên
+    // tự do nhập (có/không có https://, có path...). Không ép định dạng.
+    function normalizeWebsite(v) {
+      return (v || '').trim().replace(/\s+/g, ' ');
+    }
+
+    function renderWebsiteDatalist() {
+      const dl = document.getElementById('websiteDatalist');
+      if (!dl) return;
+      const list = loadWebsiteList();
+      dl.innerHTML = list.map(w => `<option value="${escapeHtml(w)}"></option>`).join('');
+    }
+
+    // Ghi nhớ 1 website mới vào danh sách (đưa lên đầu, khử trùng lặp không phân biệt hoa/thường).
+    function rememberWebsite(website) {
+      const w = normalizeWebsite(website);
+      if (!w) return;
+      const list = loadWebsiteList();
+      const lower = w.toLowerCase();
+      const filtered = list.filter(x => x.toLowerCase() !== lower);
+      filtered.unshift(w);
+      saveWebsiteList(filtered);
+      renderWebsiteDatalist();
+    }
+
+    // Lấy website đang nhập ở ô compose (đã chuẩn hoá).
+    function getComposeWebsite() {
+      const el = document.getElementById('websiteInput');
+      return el ? normalizeWebsite(el.value) : '';
+    }
+
+    function onWebsiteInput() {
+      const btn = document.getElementById('websiteClearBtn');
+      const el = document.getElementById('websiteInput');
+      if (btn && el) btn.style.display = el.value.trim() ? 'inline-flex' : 'none';
+    }
+
+    function clearWebsiteInput() {
+      const el = document.getElementById('websiteInput');
+      if (el) el.value = '';
+      onWebsiteInput();
+      if (el) el.focus();
+    }
+
+    // Khởi tạo datalist khi load trang
+    renderWebsiteDatalist();
+
     // ===== Gửi bài =====
     async function sendMessage() {
       if (postMode === 'schedule' && step === 'compose') {
         const _input = document.getElementById('msgInput');
         const _msg = _input.value.trim();
         if (!_msg && selectedFiles.length === 0) return;
+        const _website = getComposeWebsite();
+        if (_website) rememberWebsite(_website);
         window._schedulePendingMessage = _msg;
         window._schedulePendingFiles = [...selectedFiles];
+        window._schedulePendingWebsite = _website;
         // Giữ bản nháp để có thể "Dùng lại nội dung" mà không phải gõ lại
-        window._scheduleLastDraft = { message: _msg, files: [...selectedFiles] };
+        window._scheduleLastDraft = { message: _msg, files: [...selectedFiles], website: _website };
         const _photoUrls = selectedFiles.map(f => URL.createObjectURL(f));
         addUser(_msg, _photoUrls);
         resetMsgInput();
@@ -7596,6 +7711,10 @@
         target = 'shortcut';
       }
 
+      // Website (metadata) — chọn/nhập ở ô Website. Ghi nhớ để lần sau chọn nhanh.
+      const website = getComposeWebsite();
+      if (website) rememberWebsite(website);
+
       // Snapshot toan bo context: bai trong hang cho khong bi anh huong khi user
       // doi profile/kenh hoac dinh kem anh moi cho bai tiep theo
       const photoUrls = selectedFiles.map(f => URL.createObjectURL(f));
@@ -7612,6 +7731,7 @@
         channelSel,
         customGroupIds: [...(window._customGroupIds || [])],
         files: filesToUpload,
+        website,
         postMode,
       };
 
@@ -7670,7 +7790,7 @@
         try { signalSubmitted(); } catch {}
       };
       const { message, profile: currentProfile, profileName: currentProfileName,
-              channelSel, customGroupIds, files: filesToUpload, postMode } = ctx;
+              channelSel, customGroupIds, files: filesToUpload, postMode, website } = ctx;
       let { target, groupId } = ctx;
 
       // Warn neu tab khac dang post cung profile (server mutex se serialize,
@@ -7799,7 +7919,8 @@
         }
         if (_destLabels.length) {
           const _list = _destLabels.map(s => `<strong>${s}</strong>`).join(', ');
-          addBot(`✅ Đã nhận bài, đang đăng lên ${_list}. Theo dõi kết quả ở tab <strong>Dashboard</strong> nha!`);
+          const _webNote = website ? ` 🌐 Website: <strong>${escapeHtml(website)}</strong>.` : '';
+          addBot(`✅ Đã nhận bài, đang đăng lên ${_list}.${_webNote} Theo dõi kết quả ở tab <strong>Dashboard</strong> nha!`);
         }
 
         // === Gửi request Zalo SỚM (trước khi đăng FB) ===
@@ -7827,6 +7948,7 @@
               zf.append('groupName', g.name);
               zf.append('message', message);
               zf.append('batchId', sessionBatchId);
+              if (website) zf.append('website', website);
               await appendImages(zf, filesToUpload);
               const zr = await fetch(BASE_URL + '/api/zalo/post', { method: 'POST', body: zf });
               const zd = await parseJson(zr);
@@ -7880,6 +8002,7 @@
           if (groupId) formData.append('groupId', groupId);
           if (_shareGroupKeywords) formData.append('groupKeywords', JSON.stringify(_shareGroupKeywords));
           formData.append('batchId', sessionBatchId);
+          if (website) formData.append('website', website);
           if (currentProfile) formData.append('profile', currentProfile);
           if (currentProfileName && currentProfileName !== currentProfile) formData.append('profileDisplayName', currentProfileName);
           await appendImages(formData, filesToUpload);
@@ -7947,6 +8070,7 @@
             cf.append('target', 'group');
             cf.append('groupId', gid);
             cf.append('batchId', sessionBatchId);
+            if (website) cf.append('website', website);
             if (currentProfile) cf.append('profile', currentProfile);
             if (currentProfileName && currentProfileName !== currentProfile) cf.append('profileDisplayName', currentProfileName);
             await appendImages(cf, filesToUpload);
@@ -7980,6 +8104,7 @@
             pf.append('target', 'page');
             pf.append('groupId', pageItem.pageId);
             pf.append('batchId', sessionBatchId);
+            if (website) pf.append('website', website);
             if (currentProfile) pf.append('profile', currentProfile);
             if (currentProfileName && currentProfileName !== currentProfile) pf.append('profileDisplayName', currentProfileName);
             await appendImages(pf, filesToUpload);
@@ -8091,6 +8216,7 @@
       postMode = 'schedule';
       window._schedulePendingMessage = draft.message || '';
       window._schedulePendingFiles = [...(draft.files || [])];
+      window._schedulePendingWebsite = draft.website || '';
       const photoUrls = (draft.files || []).map(f => URL.createObjectURL(f));
       addUser(draft.message || '', photoUrls);
       showScheduleForm();
@@ -8191,11 +8317,13 @@
       const scheduled = [];
       const errors = [];
 
+      const scheduleWebsite = window._schedulePendingWebsite || '';
       async function postSchedule(extra) {
         const fd = new FormData();
         fd.append('time', isoTime);
         fd.append('message', message);
         fd.append('profile', currentProfile);
+        if (scheduleWebsite) fd.append('website', scheduleWebsite);
         if (currentProfileName && currentProfileName !== currentProfile) fd.append('profileDisplayName', currentProfileName);
         for (const [k, v] of Object.entries(extra)) {
           if (v != null) fd.append(k, v);
@@ -12057,7 +12185,7 @@
             const grpLabel = resolveGroupLabel(row.platform, row.group_id, row.group_name);
             return `<tr id="pending-log-${row.id}" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
               <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
-              <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msgShort}</td>
+              <td style="padding:8px 12px; font-size:12px; overflow:hidden; cursor:default;" data-ctip="${ctipMsg}"><div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${msgShort}</div>${websiteChip(row.website)}</td>
               <td style="padding:8px 12px;">${buildThumbs(row)}</td>
               <td style="padding:8px 12px; font-size:12px;" title="${String(row.profile_name || row.profile || '-').replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${row.profile_name || row.profile || '-'}</span></div></td>
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${tgtLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${grpLabel}</div>`}</div></td>
@@ -12082,7 +12210,7 @@
             const grpLabel = resolveGroupLabel(row.platform, row.group_id, row.group_name);
             return `<tr id="pending-log-stale-${row.id}" style="border-bottom:1px solid #fde68a; background:#fffbeb; border-left:3px solid #f59e0b;">
               <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#92400e;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
-              <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msgShort}</td>
+              <td style="padding:8px 12px; font-size:12px; overflow:hidden; cursor:default;" data-ctip="${ctipMsg}"><div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${msgShort}</div>${websiteChip(row.website)}</td>
               <td style="padding:8px 12px;">${buildThumbs(row)}</td>
               <td style="padding:8px 12px; font-size:12px;" title="${String(row.profile_name || row.profile || '-').replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${row.profile_name || row.profile || '-'}</span></div></td>
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${tgtLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${grpLabel}</div>`}</div></td>
@@ -12360,6 +12488,14 @@
           };
           const postLinkIcon = (url) => url ? `<a href="${String(url).replace(/"/g,'&quot;')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Mở bài đăng" style="color:#3B82F6; text-decoration:none; flex-shrink:0; display:inline-flex; align-items:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : '';
 
+          // Chip website (metadata) hiển thị dưới nội dung bài. Trả '' nếu không có.
+          const websiteChip = (website) => {
+            const w = (website || '').trim();
+            if (!w) return '';
+            const safe = escapeHtml(w);
+            return `<div style="margin-top:4px;"><span title="Website: ${safe}" style="display:inline-flex; align-items:center; gap:3px; max-width:100%; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:1px 7px; border-radius:999px; font-size:10.5px; font-weight:600; overflow:hidden;"><svg style="width:9px;height:9px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${safe}</span></span></div>`;
+          };
+
           const parseSharedGroups = (groupName) => {
             if (!groupName) return null;
             try {
@@ -12394,7 +12530,7 @@
             const thumbs = buildThumbs(row);
             return `<tr id="dashRow-${row.id}" style="border-bottom:1px solid #f3f4f6; background:#fff;">
               <td style="padding:8px 10px;"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><span style="display:inline-block; width:10px; flex-shrink:0;"></span><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
-              <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div></td>
+              <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div>${websiteChip(row.website)}</td>
               <td style="padding:8px 12px;">${thumbs}</td>
               <td style="padding:8px 12px; font-size:12px;" title="${profileName.replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${profileName}</span></div></td>
               <td style="padding:8px 12px;"><div style="line-height:1.3; overflow:hidden; min-width:0;"><div style="font-size:12px; display:inline-flex; align-items:center; gap:4px; max-width:100%; overflow:hidden;"><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${noiDangLabel(row)}</span>${postLinkIcon(row.post_url)}</div>${(row.target === 'personal' || !noiDangSub) ? '' : `<div style="font-size:11px; color:#6b7280; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;" title="${noiDangTitle.replace(/"/g,'&quot;')}">${noiDangSub}</div>`}</div></td>
@@ -12484,7 +12620,7 @@
 
             const headerHtml = `<tr id="dashGroup-${groupKey}" data-group-key="${groupKey}" onclick="toggleBatchGroup('${groupKey}', event)" style="border-bottom:1px solid #f3f4f6; cursor:pointer; background:#fff;">
               <td style="padding:8px 10px;" onclick="event.stopPropagation()"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-batch-ids="${idsAttr}" onchange="onBatchCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><svg class="caret" style="width:10px;height:10px;color:#6b7280;transition:transform .15s; cursor:pointer;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" onclick="event.stopPropagation(); toggleBatchGroup('${groupKey}')"><polyline points="9 6 15 12 9 18"/></svg><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
-              <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div></td>
+              <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div>${websiteChip(firstRow.website)}</td>
               <td style="padding:8px 12px;">${thumbs}</td>
               <td style="padding:8px 12px; font-size:12px;" title="${accTitle}">${repAccountCell}</td>
               <td style="padding:8px 12px;"><div style="line-height:1.3; overflow:hidden; min-width:0;"><div style="font-size:12px;">Đa kênh</div><div style="font-size:11px; color:#6b7280; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${platBreakdown}</div></div></td>

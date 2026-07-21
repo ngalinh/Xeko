@@ -462,7 +462,7 @@ setInterval(() => {
   }
 }, 3600_000);
 
-async function executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId = null, jobId: _jobId = null, _retryAttempt = 0 }) {
+async function executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId = null, jobId: _jobId = null, website = null, _retryAttempt = 0 }) {
   if (profile) await playwright.setProfile(profile);
 
   // Snapshot 1 lần ngay đầu — không gọi getActiveProfile() sau await (global có thể bị đổi)
@@ -475,6 +475,9 @@ async function executePost({ profile, profileDisplayName, message, target, group
 
   // Helper: dùng completePendingPost nếu có pendingLogId, fallback về job_id, rồi mới logPost
   const _doLog = (logArgs, result, groupName) => {
+    // Gắn website (metadata) vào mọi bản ghi mới. Với single-target (pendingLogId)
+    // website đã lưu sẵn ở pending row nên completePendingPost giữ nguyên.
+    if (website != null && logArgs && logArgs.website === undefined) logArgs.website = website;
     // --- Auto-retry khi bị rate-limit (HTTP 429 từ local server) ---
     // Thay vì đánh dấu Failed, hẹn tự đăng lại sau cửa sổ rate-limit.
     if (retryQueue.isRateLimited(result) && pendingLogId) {
@@ -484,7 +487,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
           postLogId: pendingLogId,
           retryAfterMs: result.retryAfterMs,
           attempt,
-          args: { profile, profileDisplayName, message, target, groupId, groupKeywords, imageUrls, batchId },
+          args: { profile, profileDisplayName, message, target, groupId, groupKeywords, imageUrls, batchId, website },
           imagePaths,
         });
         const hhmm = new Date(retryAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' });
@@ -522,7 +525,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
       logger.info('Đang đăng lên FB cá nhân...');
       const r = await playwright.postToPersonal(message, imagePaths);
       incPostCount(profileKey);
-      postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+      postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId, website });
       results.push({ target: 'FB Cá nhân', success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       await new Promise(res => setTimeout(res, groupDelayMs()));
     }
@@ -533,7 +536,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
       logger.info(`Đang đăng lên ${group.name}...`);
       const r = await playwright.postToGroup(group.id, message, imagePaths);
       incPostCount(profileKey);
-      postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+      postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId, website });
       results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       if (groups.indexOf(group) < groups.length - 1) {
         await new Promise(res => setTimeout(res, groupDelayMs()));
@@ -550,7 +553,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
       logger.info(`Đang đăng lên ${group.name}...`);
       const r = await playwright.postToGroup(group.id, message, imagePaths);
       incPostCount(profileKey);
-      postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId });
+      postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId, website });
       results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
       if (groups.indexOf(group) < groups.length - 1) {
         await new Promise(res => setTimeout(res, groupDelayMs()));
@@ -622,6 +625,7 @@ async function runRetry(record) {
     imagePaths: record.imagePaths || [],
     imageUrls: a.imageUrls || [],
     batchId: a.batchId,
+    website: a.website || null,
     pendingLogId: record.postLogId,
     jobId: null,
     _retryAttempt: record.attempt,
@@ -632,7 +636,7 @@ async function runRetry(record) {
 app.post('/api/post', upload.array('images', 20), async (req, res) => {
   checkDailyReset();
 
-  const { message, target, groupId, profile, profileDisplayName, batchId } = req.body;
+  const { message, target, groupId, profile, profileDisplayName, batchId, website } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
 
   // groupKeywords gửi qua multipart dưới dạng JSON string (target=personal-share-groups)
@@ -706,6 +710,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
       images: imageUrls,
       batchId,
       jobId,
+      website,
     });
     res.json({ jobId, status: 'pending', pendingLogId });
 
@@ -716,7 +721,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
     queuePost(() => {
       const tStart = Date.now();
       logger.info(`[job ${jobId}] start (waited ${tStart - tQueued}ms in queue) — profile=${profile || '(active)'}, target=${targetDesc}`);
-      return executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId, jobId })
+      return executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId, jobId, website })
         .finally(() => logger.info(`[job ${jobId}] done in ${Date.now() - tStart}ms`));
     })
       .then(result => setJobResult(jobId, result))
@@ -741,7 +746,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   queuePost(() => {
     const tStart = Date.now();
     logger.info(`[job ${jobId}] start (waited ${tStart - tQueued}ms in queue) — profile=${profile || '(active)'}, target=${targetDesc}`);
-    return executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId })
+    return executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, website })
       .finally(() => logger.info(`[job ${jobId}] done in ${Date.now() - tStart}ms`));
   })
     .then(result => setJobResult(jobId, result))
@@ -1400,7 +1405,7 @@ const scheduler = require('./src/utils/scheduler');
 
 // Lên lịch đăng bài
 app.post('/api/schedule', upload.array('images', 20), (req, res) => {
-  const { time, target, groupId, message, profile, profileDisplayName, type, groupName, zaloAccount, groupKeywords } = req.body;
+  const { time, target, groupId, message, profile, profileDisplayName, type, groupName, zaloAccount, groupKeywords, website } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
 
   if (!profile) {
@@ -1413,7 +1418,7 @@ app.post('/api/schedule', upload.array('images', 20), (req, res) => {
   logger.info(`[/api/schedule] channel=${channel} images=${imagePaths.length} [${fileSizes}]`);
 
   try {
-    const job = scheduler.addSchedule({ time, target, groupId, message, imagePaths, profile, profileDisplayName, type, groupName, zaloAccount, groupKeywords, ownerEmail: req.user && req.user.email });
+    const job = scheduler.addSchedule({ time, target, groupId, message, imagePaths, profile, profileDisplayName, type, groupName, zaloAccount, groupKeywords, website, ownerEmail: req.user && req.user.email });
     cleanupFiles(imagePaths);
     res.json({
       success: true,
@@ -2043,6 +2048,7 @@ function _completeZaloJob(jobId, { success, error }) {
             target: 'group', groupName: meta.groupName, message: meta.message,
             imageCount: meta.imageCount, success: !!success, error: error || null,
             postUrl: null, source: 'web', images: meta.images, batchId: meta.batchId,
+            website: meta.website || null,
           });
         }
       }
@@ -2066,11 +2072,12 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
     const fetchFn = await getFetch();
     const FormData = (await import('form-data')).default;
     const form = new FormData();
-    const { profile, zaloAccountName, groupName, message, batchId } = req.body;
+    const { profile, zaloAccountName, groupName, message, batchId, website } = req.body;
     const accountName = zaloAccountName || profile;
     if (accountName) form.append('zaloAccountName', accountName);
     if (groupName) form.append('groupName', groupName);
     if (message) form.append('message', message);
+    if (website) form.append('website', website);
     for (const p of imagePaths) {
       form.append('images', fs.createReadStream(p), {
         filename: path.basename(p),
@@ -2120,6 +2127,7 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
         images: zaloImageUrls,
         batchId: batchId || null,
         jobId: data.jobId,
+        website: website || null,
       };
       // Retry 1 lần để qua được lỗi DB-busy tạm thời; log full stack để lần sau
       // còn truy được nguyên nhân nếu lỗi mang tính hệ thống (schema/constraint).
@@ -2145,6 +2153,7 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
         images: zaloImageUrls,
         batchId: batchId || null,
         pendingLogId: zaloPendingLogId,
+        website: website || null,
         ts: Date.now(),
       });
       // Cloud tự drive job tới hoàn thành ở nền (không phụ thuộc frontend poll)
@@ -2165,6 +2174,7 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
         source: 'web',
         images: zaloImageUrls,
         batchId: batchId || null,
+        website: website || null,
       });
     }
 
@@ -2257,6 +2267,7 @@ app.get('/api/zalo/status/:jobId', async (req, res) => {
                 source: 'web',
                 images: meta.images,
                 batchId: meta.batchId,
+                website: meta.website || null,
               });
             }
           }
