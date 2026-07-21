@@ -451,6 +451,12 @@
     .msel-divider { height:1px; background:#f3f4f6; margin:4px 0; }
     #dashHistoryBody > tr:hover { background:#f9fafb !important; }
     #dashHistoryBody > tr[data-batch-child]:hover { background:#f3f4f6 !important; }
+    /* Chế độ Kho lưu trữ: ẩn thống kê/biểu đồ, chỉ giữ bảng lịch sử bài cũ */
+    #pageDashboard[data-archive="1"] #dashSummary,
+    #pageDashboard[data-archive="1"] .dash-2col { display:none !important; }
+    #archiveBanner { display:none; }
+    #pageDashboard[data-archive="1"] #archiveBanner { display:flex; }
+    [data-theme="dark"] #archiveBanner { background:#2e2a1a !important; border-color:#4a3a2a !important; color:#fcd34d !important; }
 
     /* Image preview */
     .image-preview {
@@ -3612,6 +3618,9 @@
       <button class="sidebar-item active" onclick="switchPage('dashboard')" id="navDashboard">
         <span class="icon"><svg class="xi"><use href="#ic-dash"/></svg></span> Dashboard
       </button>
+      <button class="sidebar-item" onclick="switchPage('archive')" id="navArchive">
+        <span class="icon"><svg class="xi"><use href="#ic-scroll"/></svg></span> Kho lưu trữ
+      </button>
       <button class="sidebar-item" onclick="switchPage('post')" id="navPost">
         <span class="icon"><svg class="xi"><use href="#ic-post"/></svg></span> Đăng bài
       </button>
@@ -4734,6 +4743,11 @@
 
     <!-- Thống kê -->
     <div id="dashPanelStats" style="flex:1; overflow-y:auto; padding:20px;">
+      <!-- Banner Kho lưu trữ (chỉ hiện ở chế độ archive) -->
+      <div id="archiveBanner" style="align-items:center; gap:10px; background:#FEF3C7; border:1px solid #FDE68A; color:#92400E; border-radius:12px; padding:12px 16px; margin-bottom:20px; font-size:13px; line-height:1.5;">
+        <svg class="xi xi-md" style="flex-shrink:0;"><use href="#ic-scroll"/></svg>
+        <span>Đây là <strong>Kho lưu trữ</strong> — các bài đã đăng <strong>cũ hơn 7 ngày</strong>. Bài trong 7 ngày gần nhất xem ở tab <strong>Dashboard</strong>. Bạn vẫn tìm kiếm, lọc, đăng lại và seeding bình thường.</span>
+      </div>
       <!-- Summary Cards (Schedulkan-style: icon-circle + number + label) -->
       <div id="dashSummary" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:14px; margin-bottom:24px;">
         <div class="dash-card dash-card-today" style="background:#d8ebf7; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
@@ -8361,6 +8375,8 @@
         home: { page: 'pageMobileHome', nav: null },
         post: { page: 'pageDangBai', nav: 'navPost' },
         dashboard: { page: 'pageDashboard', nav: 'navDashboard' },
+        // Kho lưu trữ: dùng lại trang Dashboard nhưng ở "chế độ archive" (bài cũ hơn 7 ngày)
+        archive: { page: 'pageDashboard', nav: 'navArchive' },
         // 'calendar' alias → dashboard calendar tab (BC cho nơi còn trỏ tới)
         calendar: { page: 'pageDashboard', nav: 'navDashboard' },
         session: { page: 'pageSession', nav: 'navSession' },
@@ -8376,7 +8392,23 @@
         if (target.nav) document.getElementById(target.nav).classList.add('active');
       }
 
-      if (pg === 'dashboard') {
+      // Chế độ Kho lưu trữ vs Dashboard (dùng chung trang pageDashboard)
+      if (pg === 'dashboard' || pg === 'archive' || pg === 'calendar') {
+        const isArchive = (pg === 'archive');
+        window.dashArchiveMode = isArchive;
+        const dashPageEl = document.getElementById('pageDashboard');
+        if (dashPageEl) dashPageEl.setAttribute('data-archive', isArchive ? '1' : '0');
+        // Cập nhật tiêu đề header cho khớp ngữ cảnh
+        const h1 = dashPageEl && dashPageEl.querySelector('.header .header-info h1');
+        const sub = dashPageEl && dashPageEl.querySelector('.header .header-info span');
+        if (h1)  h1.textContent  = isArchive ? 'Kho lưu trữ' : 'Dashboard';
+        if (sub) sub.textContent = isArchive ? 'Bài đã đăng cũ hơn 7 ngày' : 'Thống kê';
+        // Đổi qua/lại giữa Dashboard và Kho → reset bộ lọc ngày để áp đúng cửa sổ mặc định
+        const fromEl = document.getElementById('dashFilterFrom');
+        const toEl = document.getElementById('dashFilterTo');
+        if (fromEl) fromEl.value = '';
+        if (toEl) toEl.value = '';
+        if (typeof _updateDashFilterBadge === 'function') _updateDashFilterBadge();
         loadDashboard();
       } else {
         _stopDashPendingPoll();
@@ -11808,6 +11840,17 @@
       loadDashHistory();
     }
 
+    // Trả về chuỗi YYYY-MM-DD (giờ địa phương) lệch deltaDays so với hôm nay
+    function _dashDateOffset(deltaDays) {
+      const d = new Date();
+      d.setDate(d.getDate() + deltaDays);
+      const p = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    }
+
+    // Số ngày ranh giới giữa Dashboard (gần đây) và Kho lưu trữ (cũ)
+    const ARCHIVE_DAYS = 7;
+
     async function loadDashHistory({ noSkeleton = false, noAnimation = false } = {}) {
       const myVersion = ++_loadDashHistoryVersion;
       const profiles = getMselValues('msel-profile');
@@ -11819,6 +11862,17 @@
       const to = document.getElementById('dashFilterTo').value;
       const search = (document.getElementById('dashFilterSearch')?.value || '').trim().toLowerCase();
 
+      // Cửa sổ thời gian theo chế độ: Dashboard chỉ 7 ngày gần nhất, Kho lưu trữ chỉ bài cũ hơn 7 ngày.
+      // Vẫn tôn trọng bộ lọc ngày người dùng chọn, nhưng luôn giữ trong ranh giới của chế độ.
+      let effFrom = from, effTo = to;
+      if (window.dashArchiveMode) {
+        const archiveTo = _dashDateOffset(-ARCHIVE_DAYS); // đến hết ngày (hôm nay - 7)
+        effTo = (to && to < archiveTo) ? to : archiveTo;
+      } else {
+        const recentFrom = _dashDateOffset(-(ARCHIVE_DAYS - 1)); // từ (hôm nay - 6) → gồm 7 ngày gần nhất
+        effFrom = (from && from > recentFrom) ? from : recentFrom;
+      }
+
       const params = new URLSearchParams();
       if (profiles.length) params.set('profile', profiles.join(','));
       if (platforms.length) params.set('platform', platforms.join(','));
@@ -11826,8 +11880,8 @@
       if (groupIds.length) params.set('groupId', groupIds.join(','));
       const dbStatuses = statuses.filter(s => s === '1' || s === '0');
       if (dbStatuses.length) params.set('success', dbStatuses.join(','));
-      if (from) params.set('from', from + 'T00:00:00.000Z');
-      if (to) params.set('to', to + 'T23:59:59.999Z');
+      if (effFrom) params.set('from', effFrom + 'T00:00:00.000Z');
+      if (effTo) params.set('to', effTo + 'T23:59:59.999Z');
       if (search) params.set('search', search);
       params.set('limit', dashLimit);
       params.set('offset', dashPage * dashLimit);
@@ -11838,8 +11892,8 @@
       if (platforms.length) statsParams.set('platform', platforms.join(','));
       if (targets.length) statsParams.set('target', targets.join(','));
       if (groupIds.length) statsParams.set('groupId', groupIds.join(','));
-      if (from) statsParams.set('from', from + 'T00:00:00.000Z');
-      if (to) statsParams.set('to', to + 'T23:59:59.999Z');
+      if (effFrom) statsParams.set('from', effFrom + 'T00:00:00.000Z');
+      if (effTo) statsParams.set('to', effTo + 'T23:59:59.999Z');
 
       // Skeleton placeholder while fetching (bỏ qua nếu đã update DOM trực tiếp)
       if (!noSkeleton) {
@@ -11900,7 +11954,8 @@
         // Lọc lịch chờ/đang đăng
         const hasPendingFilter = statuses.some(s => s === 'pending' || s === 'running');
         const hasHistoryFilter = statuses.some(s => s === '1' || s === '0');
-        const showSchedules = statuses.length === 0 || hasPendingFilter;
+        // Kho lưu trữ chỉ chứa bài đã đăng (lịch sử) — ẩn lịch chờ/đang đăng/repost đang chạy
+        const showSchedules = !window.dashArchiveMode && (statuses.length === 0 || hasPendingFilter);
         const showHistory = statuses.length === 0 || hasHistoryFilter;
         const schedStatusFilter = hasPendingFilter ? statuses.filter(s => s === 'pending' || s === 'running') : null;
         let schedToShow = (Array.isArray(allSchedules) ? allSchedules : [])
@@ -11935,7 +11990,7 @@
         // --- Render repost-in-progress rows (giữ lại khi reload) ---
         // Loại bỏ in-memory rows đã có pending DB row (tránh hiển thị 2 dòng cho cùng 1 job)
         const _pendingDbJobIdSet = new Set((data.pending || []).map(r => r.job_id).filter(Boolean));
-        const repostHtml = _activeRepostJobs.filter(job => {
+        const repostHtml = window.dashArchiveMode ? '' : _activeRepostJobs.filter(job => {
           const jid = job.zaloJobId || job.jobId;
           return !jid || !_pendingDbJobIdSet.has(jid);
         }).map(job => {
@@ -11981,7 +12036,7 @@
         // --- Render pending DB rows (source of truth for single-target chatbot posts) ---
         const _PENDING_STALE_MS = 30 * 60 * 1000; // 30 phút
         const _now = Date.now();
-        const _allPendingDbRows = (data.pending || []);
+        const _allPendingDbRows = window.dashArchiveMode ? [] : (data.pending || []);
         const _pendingDbRows = _allPendingDbRows.filter(row => (_now - new Date(row.timestamp).getTime()) < _PENDING_STALE_MS);
         const _stalePendingRows = _allPendingDbRows.filter(row => (_now - new Date(row.timestamp).getTime()) >= _PENDING_STALE_MS);
         const pendingDbHtml = [
