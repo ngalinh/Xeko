@@ -3619,7 +3619,7 @@
         <span class="icon"><svg class="xi"><use href="#ic-dash"/></svg></span> Dashboard
       </button>
       <button class="sidebar-item" onclick="switchPage('archive')" id="navArchive">
-        <span class="icon"><svg class="xi"><use href="#ic-scroll"/></svg></span> Kho lưu trữ
+        <span class="icon"><svg class="xi"><use href="#ic-scroll"/></svg></span> Lưu trữ
       </button>
       <button class="sidebar-item" onclick="switchPage('post')" id="navPost">
         <span class="icon"><svg class="xi"><use href="#ic-post"/></svg></span> Đăng bài
@@ -4746,7 +4746,7 @@
       <!-- Banner Kho lưu trữ (chỉ hiện ở chế độ archive) -->
       <div id="archiveBanner" style="align-items:center; gap:10px; background:#FEF3C7; border:1px solid #FDE68A; color:#92400E; border-radius:12px; padding:12px 16px; margin-bottom:20px; font-size:13px; line-height:1.5;">
         <svg class="xi xi-md" style="flex-shrink:0;"><use href="#ic-scroll"/></svg>
-        <span>Đây là <strong>Kho lưu trữ</strong> — các bài đã đăng <strong>cũ hơn 7 ngày</strong>. Bài trong 7 ngày gần nhất xem ở tab <strong>Dashboard</strong>. Bạn vẫn tìm kiếm, lọc, đăng lại và seeding bình thường.</span>
+        <span>Mục <strong>Lưu trữ</strong> — các bài đã đăng <strong>cũ hơn 7 ngày</strong>. Bài trong 7 ngày gần nhất xem ở tab <strong>Dashboard</strong>. Bạn vẫn tìm kiếm, lọc, đăng lại và seeding bình thường.</span>
       </div>
       <!-- Summary Cards (Schedulkan-style: icon-circle + number + label) -->
       <div id="dashSummary" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:14px; margin-bottom:24px;">
@@ -8401,7 +8401,7 @@
         // Cập nhật tiêu đề header cho khớp ngữ cảnh
         const h1 = dashPageEl && dashPageEl.querySelector('.header .header-info h1');
         const sub = dashPageEl && dashPageEl.querySelector('.header .header-info span');
-        if (h1)  h1.textContent  = isArchive ? 'Kho lưu trữ' : 'Dashboard';
+        if (h1)  h1.textContent  = isArchive ? 'Lưu trữ' : 'Dashboard';
         if (sub) sub.textContent = isArchive ? 'Bài đã đăng cũ hơn 7 ngày' : 'Thống kê';
         // Đổi qua/lại giữa Dashboard và Kho → reset bộ lọc ngày để áp đúng cửa sổ mặc định
         const fromEl = document.getElementById('dashFilterFrom');
