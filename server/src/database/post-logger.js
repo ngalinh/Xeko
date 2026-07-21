@@ -3,13 +3,13 @@ const db = require('./db');
 // === Prepared statements ===
 
 const insertStmt = db.prepare(`
-  INSERT INTO post_logs (timestamp, profile, profile_name, platform, target, group_name, group_id, message, image_count, success, error, post_url, source, images, batch_id, job_id)
-  VALUES (@timestamp, @profile, @profileName, @platform, @target, @groupName, @groupId, @message, @imageCount, @success, @error, @postUrl, @source, @images, @batchId, @jobId)
+  INSERT INTO post_logs (timestamp, profile, profile_name, platform, target, group_name, group_id, message, image_count, success, error, post_url, source, images, batch_id, job_id, website)
+  VALUES (@timestamp, @profile, @profileName, @platform, @target, @groupName, @groupId, @message, @imageCount, @success, @error, @postUrl, @source, @images, @batchId, @jobId, @website)
 `);
 
 const insertPendingStmt = db.prepare(`
-  INSERT INTO post_logs (timestamp, profile, profile_name, platform, target, group_name, group_id, message, image_count, success, error, post_url, source, images, batch_id, job_id)
-  VALUES (@timestamp, @profile, @profileName, @platform, @target, @groupName, @groupId, @message, @imageCount, -1, null, null, @source, @images, @batchId, @jobId)
+  INSERT INTO post_logs (timestamp, profile, profile_name, platform, target, group_name, group_id, message, image_count, success, error, post_url, source, images, batch_id, job_id, website)
+  VALUES (@timestamp, @profile, @profileName, @platform, @target, @groupName, @groupId, @message, @imageCount, -1, null, null, @source, @images, @batchId, @jobId, @website)
 `);
 
 const completePendingStmt = db.prepare(
@@ -28,7 +28,7 @@ const completePendingWithGroupStmt = db.prepare(
 /**
  * Ghi log 1 bai dang
  */
-function logPost({ profile, profileName, platform, target, groupName, groupId, message, imageCount, success, error, postUrl, source, images, batchId, jobId }) {
+function logPost({ profile, profileName, platform, target, groupName, groupId, message, imageCount, success, error, postUrl, source, images, batchId, jobId, website }) {
   return insertStmt.run({
     timestamp: new Date().toISOString(),
     profile: profile || 'unknown',
@@ -46,10 +46,11 @@ function logPost({ profile, profileName, platform, target, groupName, groupId, m
     images: images && images.length ? JSON.stringify(images) : null,
     batchId: batchId || null,
     jobId: jobId || null,
+    website: website || null,
   });
 }
 
-function insertPendingPost({ profile, profileName, platform, target, groupName, groupId, message, imageCount, source, images, batchId, jobId }) {
+function insertPendingPost({ profile, profileName, platform, target, groupName, groupId, message, imageCount, source, images, batchId, jobId, website }) {
   const result = insertPendingStmt.run({
     timestamp: new Date().toISOString(),
     profile: profile || 'unknown',
@@ -64,6 +65,7 @@ function insertPendingPost({ profile, profileName, platform, target, groupName, 
     images: images && images.length ? JSON.stringify(images) : null,
     batchId: batchId || null,
     jobId: jobId || null,
+    website: website || null,
   });
   return result.lastInsertRowid;
 }

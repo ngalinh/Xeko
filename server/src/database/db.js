@@ -61,5 +61,9 @@ if (!cols.includes('retry_at')) {
 if (!cols.includes('retry_count')) {
   db.exec(`ALTER TABLE post_logs ADD COLUMN retry_count INTEGER DEFAULT 0`);
 }
+// website: website gắn với bài đăng (metadata, do nhân viên chọn/nhập ở chatbot)
+if (!cols.includes('website')) {
+  db.exec(`ALTER TABLE post_logs ADD COLUMN website TEXT`);
+}
 
 module.exports = db;
