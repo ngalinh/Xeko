@@ -8591,7 +8591,7 @@
           `</a>`
         ).join('');
         const more = images.length > 4 ? `<span style="font-size:11px;color:#888;align-self:center;white-space:nowrap;">+${images.length - 4}</span>` : '';
-        imgHtml = `<div style="display:flex;gap:4px;align-items:center;"><div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">${imgHtml}</div>${more}</div>`;
+        imgHtml = `<div data-lb-gallery="${images.map(encodeURIComponent).join(' ')}" style="display:flex;gap:4px;align-items:center;"><div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">${imgHtml}</div>${more}</div>`;
       } else {
         imgHtml = `<span style="color:#ccc;font-size:12px;">—</span>`;
       }
@@ -9184,7 +9184,7 @@
                 ? '<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:6px; font-size:11px;">Chờ đăng</span>'
                 : '<span style="background:#eef2ff; color:#3B82F6; padding:2px 8px; border-radius:6px; font-size:11px;">Đang chạy</span>';
               const thumbs = (e.images && e.images.length)
-                ? `<div style="display:flex; gap:3px; margin-top:6px;">${e.images.slice(0,4).map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:36px; height:36px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px;"></a>`).join('')}${e.images.length > 4 ? `<span style="font-size:11px; color:#666; align-self:center;">+${e.images.length - 4}</span>` : ''}</div>`
+                ? `<div data-lb-gallery="${e.images.map(encodeURIComponent).join(' ')}" style="display:flex; gap:3px; margin-top:6px;">${e.images.slice(0,4).map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:36px; height:36px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px;"></a>`).join('')}${e.images.length > 4 ? `<span style="font-size:11px; color:#666; align-self:center;">+${e.images.length - 4}</span>` : ''}</div>`
                 : '';
               return `<div style="padding:10px 12px; border:1px solid #eef2ff; border-radius:8px;">
                 <div style="display:flex; align-items:center; gap:8px; font-size:12px;">
@@ -11970,7 +11970,7 @@
             .map(u => u.startsWith('/') ? BASE_URL + u : u);
           if (images.length > 0) {
             const shown = images.slice(0, 4);
-            return `<div style="display:flex; flex-wrap:nowrap; gap:3px; align-items:center; overflow:hidden;">${shown.map(u => `<a href="${u}" onclick="openLightbox('${u}');return false;" style="flex-shrink:0;"><img src="${u}" style="width:40px; height:40px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:40px;height:40px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;align-items:center;justify-content:center;font-size:14px;'}))"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
+            return `<div data-lb-gallery="${images.map(encodeURIComponent).join(' ')}" style="display:flex; flex-wrap:nowrap; gap:3px; align-items:center; overflow:hidden;">${shown.map(u => `<a href="${u}" onclick="openLightbox('${u}');return false;" style="flex-shrink:0;"><img src="${u}" style="width:40px; height:40px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:40px;height:40px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;align-items:center;justify-content:center;font-size:14px;'}))"></a>`).join('')}${images.length > 4 ? `<span style="font-size:11px; color:#666;">+${images.length - 4}</span>` : ''}</div>`;
           }
           if (imgCount > 0) {
             return `<div style="display:flex; flex-wrap:nowrap; gap:3px; align-items:center; overflow:hidden;">${Array.from({length: Math.min(imgCount, 4)}).map(() => '<span style="display:inline-flex; flex-shrink:0; width:40px; height:40px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:14px;">🖼️</span>').join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
@@ -12053,9 +12053,9 @@
           const imgCount = sched.imageCount || 0;
           let thumbs;
           if (imgCount > 0) {
-            const shown = Math.min(imgCount, 4);
-            const imgUrls = Array.from({length: shown}, (_, i) => `${BASE_URL}/api/schedule-image/${sched.id}/${i}?v=${sched.id}`);
-            thumbs = `<div style="display:flex; flex-wrap:nowrap; gap:3px; align-items:center;">${imgUrls.map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:36px; height:36px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\'font-size:18px;\'>🖼️</span>'"></a>`).join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
+            const allUrls = Array.from({length: imgCount}, (_, i) => `${BASE_URL}/api/schedule-image/${sched.id}/${i}?v=${sched.id}`);
+            const imgUrls = allUrls.slice(0, 4);
+            thumbs = `<div data-lb-gallery="${allUrls.map(encodeURIComponent).join(' ')}" style="display:flex; flex-wrap:nowrap; gap:3px; align-items:center;">${imgUrls.map(u => `<a href="${u}" onclick="openLightbox(\'${u}\');return false;"><img src="${u}" style="width:36px; height:36px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\'font-size:18px;\'>🖼️</span>'"></a>`).join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
           } else {
             thumbs = '<span style="color:#bbb;">—</span>';
           }
@@ -13990,6 +13990,18 @@
     function _collectLightboxGallery(ev, fallbackUrl) {
       const trigger = ev && (ev.currentTarget || ev.target);
       let node = trigger && (trigger.closest ? (trigger.closest('a') || trigger) : trigger);
+      // Ưu tiên danh sách ảnh đầy đủ gắn sẵn trên container (data-lb-gallery) —
+      // vì thumbnail thường chỉ render 4 ảnh đầu (badge "+N"), DOM không có đủ.
+      const galleryEl = node && node.closest ? node.closest('[data-lb-gallery]') : null;
+      if (galleryEl) {
+        const all = (galleryEl.getAttribute('data-lb-gallery') || '')
+          .split(' ').filter(Boolean).map(decodeURIComponent);
+        if (all.length) {
+          let i = all.indexOf(fallbackUrl);
+          if (i < 0) i = 0;
+          return { urls: all, idx: i };
+        }
+      }
       const parse = el => {
         const m = (el.getAttribute('onclick') || '').match(/openLightbox\(\s*['"]([^'"]+)['"]/);
         return m ? m[1] : null;
