@@ -7663,6 +7663,20 @@
       addBot(`Sẽ đăng lên: ${summaryText}\n${_hint}`, buttons);
     }
 
+    // "Đăng bài tiếp" → hỏi link cho bài mới TRƯỚC khi gõ nội dung (nhất quán với
+    // bài đầu). Giữ nguyên kênh đã chọn + mọi nội dung/ảnh đang soạn dở (nếu có).
+    function continueNextPost() {
+      // Nếu đang lên lịch thì tiếp tục theo luồng lịch (đã tự qua bước link).
+      if (postMode === 'schedule') { startScheduleCompose(); return; }
+      _autoPostAfterLink = false;
+      _needLinkBeforePost = false;
+      const summaryText = buildChannelSummary(window._channelSelection)
+        || (currentTarget ? (TARGET_LABELS[currentTarget] || currentTarget) : null)
+        || 'kênh đã chọn';
+      window._composeSummaryText = summaryText;
+      showWebsiteStep();
+    }
+
     // ===== Gửi bài =====
     async function sendMessage() {
       if (postMode === 'schedule' && step === 'compose') {
@@ -8178,14 +8192,14 @@
         // oan khi Dashboard báo "Done"), vẫn giữ câu khích lệ đăng thêm bài.
         const _sentCount = successCount + unconfirmedCount;
         addBot(postSentClosing(_sentCount), [
-          { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput(), primary: true },
+          { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => continueNextPost(), primary: true },
           { label: `${xekoIcon('back')} Làm lại`, handler: () => showTargetSelect(), secondary: true },
         ]);
       } catch (e) {
         removeTyping();
         if (isProxyTimeout(e)) {
           addBot('⚠️ Mạng/proxy timeout — chưa xác nhận được bài đã đăng hay chưa. Bạn check Facebook + tab Dashboard sau 1-2 phút, đừng bấm đăng lại liền vì có thể đã thành công rồi!', [
-            { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput(), primary: true },
+            { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => continueNextPost(), primary: true },
             { label: `${xekoIcon('back')} Làm lại`, handler: () => showTargetSelect(), secondary: true },
           ]);
         } else {
@@ -11060,7 +11074,7 @@
             if (n.imageCount > 0) msg += `📷 ${n.imageCount} ảnh đính kèm\n`;
             msg += `\n🕐 Đã đăng lúc: ${n.time}`;
             const row = addBot(msg, [
-              { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
+              { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => continueNextPost() },
               { label: `${xekoIcon('clock')} Lên lịch thêm`, handler: () => startScheduleCompose() },
               { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
             ]);
@@ -11072,7 +11086,7 @@
             msg += ndToggle(n.message);
             msg += `\n❗ Lỗi: ${n.error}`;
             const row = addBot(msg, [
-              { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
+              { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => continueNextPost() },
               { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
             ]);
             attachNdToggle(row);
@@ -11203,7 +11217,7 @@
       // _totalProfiles=0 nen mac dinh an, dung cho tai khoan 1 profile).
       const canSwitch = _totalProfiles > 1;
       if (currentProfile && (step === 'compose' || step === 'schedule-time' || step === 'schedule')) {
-        buttons.push({ label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() });
+        buttons.push({ label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => continueNextPost() });
         if (postMode === 'schedule') buttons.push({ label: `${xekoIcon('clock')} Lên lịch thêm`, handler: () => startScheduleCompose() });
         buttons.push({ label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() });
         if (canSwitch) buttons.push({ label: `${xekoIcon('user')} Đổi profile`, handler: () => showProfileSelect() });
