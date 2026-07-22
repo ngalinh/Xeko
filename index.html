@@ -5467,8 +5467,12 @@
     let currentTarget = null;
     let selectedFiles = [];
     let step = 'welcome'; // welcome -> profile -> target -> website -> compose
-    let currentWebsite = '';   // website sản phẩm cho lượt đăng hiện tại (bước sau khi chọn kênh)
+    let currentWebsite = '';   // link sản phẩm cho lượt đăng hiện tại (bước sau khi chọn kênh)
     let _websiteStepId = 0;
+    // Mỗi bài đăng đều hỏi lại link: sau khi đăng 1 bài, bài kế cần nhập/xác nhận
+    // link trước khi gửi. _autoPostAfterLink = đăng luôn sau khi chốt link ở bước đó.
+    let _needLinkBeforePost = false;
+    let _autoPostAfterLink = false;
 
     function now() {
       return new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -6463,6 +6467,8 @@
     async function showWelcome() {
       step = 'welcome';
       currentWebsite = '';
+      _needLinkBeforePost = false;
+      _autoPostAfterLink = false;
       try {
         const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), {cache: 'no-store'});
         const data = await parseJson(res);
@@ -6636,6 +6642,9 @@
     let channelPanelId = 0;
 
     async function showTargetSelect() {
+      // Đổi kênh/làm lại → huỷ trạng thái "đăng luôn sau khi chốt link" (nếu có).
+      _autoPostAfterLink = false;
+      _needLinkBeforePost = false;
       if (!currentProfile) {
         showProfileSelect();
         return;
@@ -7611,19 +7620,33 @@
       rememberWebsite(w);
       disablePrevButtons();
       addUser('🔗 Đã thêm link sản phẩm');
-      proceedToCompose();
+      _finishWebsiteStep();
     }
 
     function skipWebsiteStep(inputId) {
       currentWebsite = '';
       disablePrevButtons();
       addUser('Bỏ qua link');
+      _finishWebsiteStep();
+    }
+
+    // Sau khi chốt link: nếu đang chờ đăng bài kế (chặn giữa lúc gửi) → đăng luôn
+    // với nội dung + ảnh đang soạn; nếu không → hiện lời nhắc soạn nội dung.
+    function _finishWebsiteStep() {
+      if (_autoPostAfterLink) {
+        _autoPostAfterLink = false;
+        step = 'compose';
+        sendMessage();
+        return;
+      }
       proceedToCompose();
     }
 
-    // Hiện lời nhắc soạn nội dung (bước compose) sau khi đã chốt website.
+    // Hiện lời nhắc soạn nội dung (bước compose) sau khi đã chốt link.
     function proceedToCompose() {
       step = 'compose';
+      // Vừa qua bước link → bài đầu tiên của lượt soạn này không phải hỏi lại.
+      _needLinkBeforePost = false;
       const summaryText = window._composeSummaryText || 'kênh đã chọn';
       const _hint = composeHintBox(postMode === 'schedule'
         ? 'Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!'
@@ -7702,7 +7725,17 @@
         target = 'shortcut';
       }
 
-      // Website (metadata) — đã chọn/nhập ở bước "nhập website" sau khi chọn kênh.
+      // Mỗi bài hỏi lại link: nếu vừa đăng bài trước đó → yêu cầu nhập/xác nhận
+      // link cho bài này trước khi gửi (giữ nguyên nội dung + ảnh đang soạn, đăng
+      // luôn sau khi chốt link). Bước link pre-fill link vừa dùng cho tiện.
+      if (_needLinkBeforePost) {
+        _needLinkBeforePost = false;
+        _autoPostAfterLink = true;
+        showWebsiteStep();
+        return;
+      }
+
+      // Link sản phẩm (metadata) — đã chọn/nhập ở bước "nhập link" sau khi chọn kênh.
       const website = currentWebsite || '';
 
       // Snapshot toan bo context: bai trong hang cho khong bi anh huong khi user
@@ -7736,6 +7769,9 @@
         addBot(`${xekoIcon('clipboard')} Đã xếp hàng — còn <strong>${_postQueue.length}</strong> bài chờ. Xong bài này Xeko làm tiếp nha!`);
       }
       _processPostQueue();
+
+      // Bài kế tiếp phải nhập/xác nhận link lại trước khi gửi.
+      _needLinkBeforePost = true;
     }
 
     // Hang cho dang bai — chay tuan tu tung bai mot, cho phep user gui bai tiep theo.
@@ -8179,10 +8215,12 @@
 
     function startScheduleCompose() {
       postMode = 'schedule';
+      _autoPostAfterLink = false;
+      _needLinkBeforePost = false;
       const summaryText = buildChannelSummary(window._channelSelection)
         || (currentTarget ? (TARGET_LABELS[currentTarget] || currentTarget) : null)
         || 'kênh đã chọn';
-      // Vẫn qua bước nhập website sản phẩm trước khi soạn nội dung.
+      // Vẫn qua bước nhập link sản phẩm trước khi soạn nội dung.
       window._composeSummaryText = summaryText;
       showWebsiteStep();
     }
@@ -10931,6 +10969,8 @@
       postMode = 'now';
       step = 'welcome';
       currentWebsite = '';
+      _needLinkBeforePost = false;
+      _autoPostAfterLink = false;
       window._channelSelection = null;
       window._customGroupIds = null;
       updateHeader('Auto Post Content');
