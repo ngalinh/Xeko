@@ -11457,7 +11457,7 @@
 
     // ===== DASHBOARD =====
     let dashPage = 0;
-    const dashLimit = 50;
+    const dashLimit = 10; // Bảng lịch sử chỉ hiển thị 10 bài mỗi trang (trang đầu = 10 bài mới nhất)
     const _activeRepostJobs = []; // jobs đang poll background
     const _dismissedPendingIds = new Set(); // pendingLogId đã bị dismiss từ dashboard
     const _pendingLogProgressRows = {}; // pendingLogId → { progressRow, groupName, account }
