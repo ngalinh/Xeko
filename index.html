@@ -12144,6 +12144,19 @@
           return '<span style="color:#bbb;">—</span>';
         };
 
+        // Chip link (metadata) hiển thị dưới nội dung bài dạng "Xem link" clickable
+        // (tránh in nguyên link dài). Trả '' nếu không có.
+        // Định nghĩa ở scope ngoài để cả dòng pending/lịch chờ lẫn dòng lịch sử dùng chung
+        // (trước đây khai báo trong block if(histRows) nên dòng pending gọi trúng TDZ → cả bảng kẹt skeleton).
+        const websiteChip = (website) => {
+          const w = (website || '').trim();
+          if (!w) return '';
+          const safe = escapeHtml(w);
+          // Chuẩn hoá href an toàn: chỉ cho http/https, còn lại coi như domain → thêm https://
+          const href = escapeHtml(/^https?:\/\//i.test(w) ? w : 'https://' + w.replace(/^\/+/, ''));
+          return `<div style="margin-top:4px;"><a href="${href}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${safe}" style="display:inline-flex; align-items:center; gap:4px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:1px 8px; border-radius:999px; font-size:10.5px; font-weight:600; text-decoration:none; white-space:nowrap;"><svg style="width:9px;height:9px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Xem link</a></div>`;
+        };
+
         // --- Render pending DB rows (source of truth for single-target chatbot posts) ---
         const _PENDING_STALE_MS = 30 * 60 * 1000; // 30 phút
         const _now = Date.now();
@@ -12469,17 +12482,6 @@
           };
           const postLinkIcon = (url) => url ? `<a href="${String(url).replace(/"/g,'&quot;')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Mở bài đăng" style="color:#3B82F6; text-decoration:none; flex-shrink:0; display:inline-flex; align-items:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : '';
 
-          // Chip link (metadata) hiển thị dưới nội dung bài dạng "Xem link" clickable
-          // (tránh in nguyên link dài). Trả '' nếu không có.
-          const websiteChip = (website) => {
-            const w = (website || '').trim();
-            if (!w) return '';
-            const safe = escapeHtml(w);
-            // Chuẩn hoá href an toàn: chỉ cho http/https, còn lại coi như domain → thêm https://
-            const href = escapeHtml(/^https?:\/\//i.test(w) ? w : 'https://' + w.replace(/^\/+/, ''));
-            return `<div style="margin-top:4px;"><a href="${href}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${safe}" style="display:inline-flex; align-items:center; gap:4px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:1px 8px; border-radius:999px; font-size:10.5px; font-weight:600; text-decoration:none; white-space:nowrap;"><svg style="width:9px;height:9px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Xem link</a></div>`;
-          };
-
           const parseSharedGroups = (groupName) => {
             if (!groupName) return null;
             try {
@@ -12699,6 +12701,14 @@
         }
       } catch (e) {
         console.error('History error:', e);
+        // Nếu render lỗi giữa chừng, đừng để skeleton kẹt mãi ("load liên tục") —
+        // chỉ xoá khi call này vẫn là mới nhất (tránh ghi đè kết quả của call sau).
+        if (myVersion === _loadDashHistoryVersion) {
+          const tb = document.getElementById('dashHistoryBody');
+          if (tb && tb.querySelector('.dash-skel')) {
+            tb.innerHTML = '<tr><td colspan="9" style="padding:24px 12px; text-align:center; color:#94a3b8; font-size:13px;">Không tải được danh sách. Vui lòng thử lại.</td></tr>';
+          }
+        }
       }
     }
 
