@@ -7576,9 +7576,9 @@
         <img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko">
         <div class="msg-wrapper">
           <div class="msg bot">
-            🌐 Nhập <strong>website sản phẩm</strong> cho bài này nha (chọn từ danh sách hoặc gõ mới):
+            🔗 Nhập <strong>link sản phẩm</strong> cho bài này nha (chọn từ danh sách hoặc dán link mới):
             <div style="margin-top:10px;">
-              <input type="text" id="${inputId}" list="${listId}" value="${prefill}" placeholder="vd: xeko.vn" autocomplete="off" spellcheck="false"
+              <input type="text" id="${inputId}" list="${listId}" value="${prefill}" placeholder="vd: https://xeko.vn/san-pham" autocomplete="off" spellcheck="false"
                 onkeydown="if(event.key==='Enter'){event.preventDefault();confirmWebsiteStep('${inputId}');}"
                 style="width:100%; box-sizing:border-box; padding:9px 12px; border:1px solid #DBEAFE; border-radius:10px; font-size:14px; background:#f0f9ff; color:#1e293b; outline:none;">
               <datalist id="${listId}">${options}</datalist>
@@ -7608,14 +7608,14 @@
       currentWebsite = w;
       rememberWebsite(w);
       disablePrevButtons();
-      addUser(`🌐 Website: ${w}`);
+      addUser(`🔗 Link: ${w}`);
       proceedToCompose();
     }
 
     function skipWebsiteStep(inputId) {
       currentWebsite = '';
       disablePrevButtons();
-      addUser('Bỏ qua website');
+      addUser('Bỏ qua link');
       proceedToCompose();
     }
 
@@ -7626,7 +7626,7 @@
       const _hint = composeHintBox(postMode === 'schedule'
         ? 'Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!'
         : 'Soạn nội dung + thêm ảnh 📷, gửi là xong nha!');
-      const webLine = currentWebsite ? `\n🌐 Website: <strong>${escapeHtml(currentWebsite)}</strong>` : '';
+      const webLine = currentWebsite ? `\n🔗 Link: <strong>${escapeHtml(currentWebsite)}</strong>` : '';
       const buttons = [];
       // Lên lịch thêm: giữ nút "Dùng lại nội dung vừa rồi" cho tiện.
       if (postMode === 'schedule') {
@@ -7673,7 +7673,7 @@
         return;
       }
       if (step === 'website') {
-        addBot('Bạn nhập <strong>website sản phẩm</strong> rồi bấm ✓ <strong>Tiếp tục</strong> (hoặc <strong>Bỏ qua</strong>) trước khi soạn nội dung nha!');
+        addBot('Bạn nhập <strong>link sản phẩm</strong> rồi bấm ✓ <strong>Tiếp tục</strong> (hoặc <strong>Bỏ qua</strong>) trước khi soạn nội dung nha!');
         return;
       }
       const zaloSelCheck = (window._channelSelection || {})[currentProfile] || { zalo: [] };
@@ -7908,7 +7908,7 @@
         }
         if (_destLabels.length) {
           const _list = _destLabels.map(s => `<strong>${s}</strong>`).join(', ');
-          const _webNote = website ? ` 🌐 Website: <strong>${escapeHtml(website)}</strong>.` : '';
+          const _webNote = website ? ` 🔗 Link: <strong>${escapeHtml(website)}</strong>.` : '';
           addBot(`✅ Đã nhận bài, đang đăng lên ${_list}.${_webNote} Theo dõi kết quả ở tab <strong>Dashboard</strong> nha!`);
         }
 
@@ -12469,12 +12469,15 @@
           };
           const postLinkIcon = (url) => url ? `<a href="${String(url).replace(/"/g,'&quot;')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Mở bài đăng" style="color:#3B82F6; text-decoration:none; flex-shrink:0; display:inline-flex; align-items:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : '';
 
-          // Chip website (metadata) hiển thị dưới nội dung bài. Trả '' nếu không có.
+          // Chip link (metadata) hiển thị dưới nội dung bài dạng "Xem link" clickable
+          // (tránh in nguyên link dài). Trả '' nếu không có.
           const websiteChip = (website) => {
             const w = (website || '').trim();
             if (!w) return '';
             const safe = escapeHtml(w);
-            return `<div style="margin-top:4px;"><span title="Website: ${safe}" style="display:inline-flex; align-items:center; gap:3px; max-width:100%; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:1px 7px; border-radius:999px; font-size:10.5px; font-weight:600; overflow:hidden;"><svg style="width:9px;height:9px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${safe}</span></span></div>`;
+            // Chuẩn hoá href an toàn: chỉ cho http/https, còn lại coi như domain → thêm https://
+            const href = escapeHtml(/^https?:\/\//i.test(w) ? w : 'https://' + w.replace(/^\/+/, ''));
+            return `<div style="margin-top:4px;"><a href="${href}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${safe}" style="display:inline-flex; align-items:center; gap:4px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:1px 8px; border-radius:999px; font-size:10.5px; font-weight:600; text-decoration:none; white-space:nowrap;"><svg style="width:9px;height:9px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Xem link</a></div>`;
           };
 
           const parseSharedGroups = (groupName) => {
