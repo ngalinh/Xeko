@@ -451,10 +451,14 @@
     .msel-divider { height:1px; background:#f3f4f6; margin:4px 0; }
     #dashHistoryBody > tr:hover { background:#f9fafb !important; }
     #dashHistoryBody > tr[data-batch-child]:hover { background:#f3f4f6 !important; }
-    /* Cột Link SP: nút Sửa/Thêm link mờ mặc định, rõ khi rê chuột vào hàng (giảm nhiễu) */
-    #dashHistoryBody .lnk-edit { opacity:.4; transition:opacity .12s ease, background .12s ease, border-color .12s ease; }
-    #dashHistoryBody tr:hover .lnk-edit { opacity:1; }
-    #dashHistoryBody .lnk-edit:hover { opacity:1 !important; background:#eef2f7 !important; border-color:#94a3b8 !important; }
+    /* Cột Link SP: nút bút chì Sửa ẩn hẳn lúc nghỉ, chỉ hiện khi rê chuột vào hàng */
+    #dashHistoryBody .lnk-edit { opacity:0; transition:opacity .12s ease, color .12s ease; pointer-events:none; }
+    #dashHistoryBody tr:hover .lnk-edit { opacity:1; pointer-events:auto; }
+    #dashHistoryBody .lnk-edit:hover { color:#334155 !important; }
+    /* Nút "＋ Link" (hàng chưa có link): mờ nhẹ, rõ khi hover */
+    #dashHistoryBody .lnk-add { opacity:.6; transition:opacity .12s ease, color .12s ease; }
+    #dashHistoryBody tr:hover .lnk-add { opacity:1; }
+    #dashHistoryBody .lnk-add:hover { color:#2563eb !important; }
     /* Chế độ Kho lưu trữ: ẩn thống kê/biểu đồ, chỉ giữ bảng lịch sử bài cũ */
     #pageDashboard[data-archive="1"] #dashSummary,
     #pageDashboard[data-archive="1"] .dash-2col { display:none !important; }
@@ -12606,14 +12610,14 @@
               const safe = escapeHtml(w);
               // Chuẩn hoá href an toàn: chỉ cho http/https, còn lại coi như domain → thêm https://
               const href = escapeHtml(/^https?:\/\//i.test(w) ? w : 'https://' + w.replace(/^\/+/, ''));
-              // Icon "mở link" là chính (nút đặc màu xanh); nút "sửa" là ghost mờ, rõ khi hover.
-              const openIcon = `<a href="${href}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Mở link: ${safe}" style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:999px; background:#2563eb; color:#fff; text-decoration:none; flex-shrink:0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`;
-              const editIcon = editable ? `<button type="button" class="lnk-edit" onclick="event.stopPropagation(); openEditLinkModal('${ids}','${enc}')" title="Sửa link" style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:999px; background:transparent; color:#94a3b8; border:none; cursor:pointer; flex-shrink:0;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>` : '';
-              return `<td style="padding:8px 6px; text-align:center;"><div style="display:inline-flex; align-items:center; justify-content:center; gap:2px;">${openIcon}${editIcon}</div></td>`;
+              // Link dạng chữ (không nút tròn); bút chì "Sửa" chỉ hiện khi rê chuột vào hàng.
+              const openLink = `<a href="${href}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Mở link: ${safe}" style="display:inline-flex; align-items:center; gap:3px; color:#2563eb; text-decoration:none; font-size:12px; font-weight:600;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Link</a>`;
+              const editBtn = editable ? `<button type="button" class="lnk-edit" onclick="event.stopPropagation(); openEditLinkModal('${ids}','${enc}')" title="Sửa link" aria-label="Sửa link" style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; background:transparent; color:#94a3b8; border:none; cursor:pointer; padding:0;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>` : '';
+              return `<td style="padding:8px 6px; text-align:center;"><span style="display:inline-flex; align-items:center; justify-content:center; gap:3px;">${openLink}${editBtn}</span></td>`;
             }
-            // Chưa có link + sửa được → nút "＋ Link" rõ nghĩa (ghost, rõ khi hover).
+            // Chưa có link + sửa được → chữ "＋ Link" mờ nhẹ (rõ khi hover), bấm để thêm.
             if (editable) {
-              return `<td style="padding:8px 6px; text-align:center;"><button type="button" class="lnk-edit" onclick="event.stopPropagation(); openEditLinkModal('${ids}','')" title="Thêm link sản phẩm" style="display:inline-flex; align-items:center; gap:3px; padding:2px 9px; border:1px dashed #cbd5e1; border-radius:999px; background:transparent; color:#64748b; font-size:11px; font-weight:600; cursor:pointer;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Link</button></td>`;
+              return `<td style="padding:8px 6px; text-align:center;"><button type="button" class="lnk-add" onclick="event.stopPropagation(); openEditLinkModal('${ids}','')" title="Thêm link sản phẩm" style="display:inline-flex; align-items:center; gap:2px; background:transparent; color:#94a3b8; border:none; cursor:pointer; font-size:12px; font-weight:600; padding:2px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Link</button></td>`;
             }
             return `<td style="padding:8px 12px; text-align:center; color:#cbd5e1;">—</td>`;
           }
