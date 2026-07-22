@@ -295,7 +295,110 @@ async function typeMessage(page, message) {
   return false;
 }
 
+// FB web composer (giống Zalo) TỪ CHỐI một số định dạng ảnh — điển hình WEBP và HEIC/HEIF
+// (ảnh iPhone), BMP, hoặc ảnh JPEG QUÁ LỚN/sai color-profile → hiện banner "Không thể tải
+// file của bạn lên" + khoá nút "Tiếp". Zalo đã xử lý bằng cách chuẩn hoá ảnh về JPEG baseline
+// trước khi đính (normalizeImagesForZalo) — nên "ảnh vẫn đăng được ở Zalo là bình thường"
+// trong khi FB loại đúng bộ ảnh đó. Làm điều tương tự cho FB: CHỈ đụng tới ảnh RỦI RO (định
+// dạng lạ hoặc quá lớn) — giữ nguyên JPEG/PNG thường để KHÔNG hạ chất lượng bài đăng bình
+// thường. Dùng chính Chromium (đã có sẵn) để decode + canvas re-encode → không cần thư viện
+// ngoài (sharp/jimp). Ảnh nào Chromium không đọc được (vd HEIC không hỗ trợ) thì giữ file gốc.
+const FB_IMG_MAX_EDGE = 2048;                      // px — cạnh dài tối đa khi phải re-encode
+const FB_IMG_JPEG_QUALITY = 0.92;                  // chất lượng JPEG khi re-encode
+const FB_RISKY_EXT = /\.(webp|heic|heif|bmp)$/i;   // định dạng FB hay từ chối
+const FB_REENCODE_SIZE = 4 * 1024 * 1024;          // JPEG/PNG > 4MB → re-encode phòng "quá lớn"
+
+function _fbImageIsRisky(p) {
+  if (FB_RISKY_EXT.test(p)) return true;
+  try { return fs.statSync(p).size > FB_REENCODE_SIZE; } catch { return false; }
+}
+
+// Trả { paths, temps }: paths = mảng đường dẫn dùng để đính (cùng độ dài với imagePaths),
+// temps = các file .fb.jpg mới tạo mà caller phải dọn sau khi đính xong.
+async function normalizeImagesForFb(page, imagePaths) {
+  if (!imagePaths || imagePaths.length === 0) return { paths: imagePaths, temps: [] };
+  // Không có ảnh rủi ro → khỏi mở scratch page cho nhanh (đa số bài chỉ có JPEG chuẩn).
+  if (!imagePaths.some(_fbImageIsRisky)) return { paths: imagePaths, temps: [] };
+
+  let scratch;
+  try {
+    scratch = await page.context().newPage();
+    await scratch.goto('about:blank').catch(() => {});
+  } catch (e) {
+    logger.warn(`[fb][img] Không mở được trang chuẩn hoá ảnh (${e.message}) — dùng ảnh gốc`);
+    return { paths: imagePaths, temps: [] };
+  }
+
+  const out = [];
+  const temps = [];
+  for (const src of imagePaths) {
+    if (!_fbImageIsRisky(src)) { out.push(src); continue; } // JPEG/PNG thường → giữ nguyên
+    try {
+      const ext = path.extname(src).toLowerCase();
+      const mime = ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif'
+                 : ext === '.webp' ? 'image/webp' : ext === '.bmp' ? 'image/bmp'
+                 : (ext === '.heic' || ext === '.heif') ? 'image/heic' : 'image/jpeg';
+      const b64 = fs.readFileSync(src).toString('base64');
+      const jpegB64 = await scratch.evaluate(async ({ dataUrl, maxEdge, quality }) => {
+        const img = new Image();
+        const loaded = await new Promise((resolve) => {
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(false);
+          img.src = dataUrl;
+        });
+        if (!loaded || !img.naturalWidth || !img.naturalHeight) return null;
+        let w = img.naturalWidth, h = img.naturalHeight;
+        const scale = Math.min(1, maxEdge / Math.max(w, h));
+        w = Math.max(1, Math.round(w * scale));
+        h = Math.max(1, Math.round(h * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        // Nền trắng cho ảnh có alpha (webp/PNG trong suốt) khỏi thành nền đen khi sang JPEG.
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        try {
+          const url = canvas.toDataURL('image/jpeg', quality);
+          const comma = url.indexOf(',');
+          return comma >= 0 ? url.slice(comma + 1) : null;
+        } catch { return null; } // canvas tainted (không xảy ra với data: URL cùng gốc)
+      }, { dataUrl: `data:${mime};base64,${b64}`, maxEdge: FB_IMG_MAX_EDGE, quality: FB_IMG_JPEG_QUALITY });
+
+      if (!jpegB64) {
+        logger.warn(`[fb][img] Không chuẩn hoá được ${path.basename(src)} (Chromium không decode được — vd HEIC) — giữ file gốc`);
+        out.push(src);
+        continue;
+      }
+      const dest = src.replace(/\.[^.]+$/, '') + '.fb.jpg';
+      fs.writeFileSync(dest, Buffer.from(jpegB64, 'base64'));
+      out.push(dest);
+      temps.push(dest);
+    } catch (e) {
+      logger.warn(`[fb][img] Lỗi chuẩn hoá ${path.basename(src)}: ${e.message} — giữ file gốc`);
+      out.push(src);
+    }
+  }
+  try { await scratch.close(); } catch {}
+  if (temps.length) {
+    logger.info(`[fb][img] Chuẩn hoá ${temps.length}/${imagePaths.length} ảnh rủi ro (webp/heic/bmp/quá lớn) về JPEG cạnh ≤ ${FB_IMG_MAX_EDGE}px cho Facebook`);
+  }
+  return { paths: out, temps };
+}
+
+// Wrapper: chuẩn hoá ảnh rủi ro về JPEG TRƯỚC khi đính (tránh banner "Không thể tải file của
+// bạn lên"), rồi luôn dọn file .fb.jpg tạm sau khi đính xong (kể cả khi lỗi/throw).
 async function attachImages(page, imagePaths) {
+  if (!imagePaths || imagePaths.length === 0) return true;
+  const { paths, temps } = await normalizeImagesForFb(page, imagePaths);
+  try {
+    return await _attachImagesImpl(page, paths);
+  } finally {
+    for (const t of temps) { try { fs.unlinkSync(t); } catch {} }
+  }
+}
+
+async function _attachImagesImpl(page, imagePaths) {
   if (!imagePaths || imagePaths.length === 0) return true;
 
   logger.info(`Đính kèm ${imagePaths.length} ảnh...`);
