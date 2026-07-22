@@ -7628,7 +7628,6 @@
       const _hint = composeHintBox(postMode === 'schedule'
         ? 'Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!'
         : 'Soạn nội dung + thêm ảnh 📷, gửi là xong nha!');
-      const webLine = currentWebsite ? `\n🔗 Đã đính kèm link sản phẩm` : '';
       const buttons = [];
       // Lên lịch thêm: giữ nút "Dùng lại nội dung vừa rồi" cho tiện.
       if (postMode === 'schedule') {
@@ -7638,7 +7637,7 @@
         }
       }
       buttons.push({ label: `${xekoIcon('back')} Làm lại`, handler: () => showTargetSelect(), secondary: true });
-      addBot(`Sẽ đăng lên: ${summaryText}${webLine}\n${_hint}`, buttons);
+      addBot(`Sẽ đăng lên: ${summaryText}\n${_hint}`, buttons);
     }
 
     // ===== Gửi bài =====
