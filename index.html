@@ -12014,6 +12014,7 @@
           '<td style="padding:10px 10px;"><div class="dash-skel" style="width:32px;height:14px;"></div></td>' +
           '<td style="padding:10px 12px;"><div class="dash-skel" style="width:75%;height:14px;"></div></td>' +
           '<td style="padding:10px 12px;"><div class="dash-skel" style="width:40px;height:36px;border-radius:4px;"></div></td>' +
+          '<td style="padding:10px 12px; text-align:center;"><div class="dash-skel" style="width:52px;height:18px;border-radius:999px;margin:0 auto;"></div></td>' +
           '<td style="padding:10px 12px;"><div class="dash-skel" style="width:60%;height:14px;"></div></td>' +
           '<td style="padding:10px 12px;"><div class="dash-skel" style="width:55%;height:14px;"></div></td>' +
           '<td style="padding:10px 12px;"><div class="dash-skel" style="width:50%;height:14px;"></div></td>' +
@@ -12707,6 +12708,14 @@
         }
       } catch (e) {
         console.error('History error:', e);
+        // Nếu render lỗi giữa chừng, đừng để skeleton kẹt mãi ("load liên tục") —
+        // chỉ xoá khi call này vẫn là mới nhất (tránh ghi đè kết quả của call sau).
+        if (myVersion === _loadDashHistoryVersion) {
+          const tb = document.getElementById('dashHistoryBody');
+          if (tb && tb.querySelector('.dash-skel')) {
+            tb.innerHTML = '<tr><td colspan="10" style="padding:24px 12px; text-align:center; color:#94a3b8; font-size:13px;">Không tải được danh sách. Vui lòng thử lại.</td></tr>';
+          }
+        }
       }
     }
 
