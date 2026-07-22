@@ -4903,14 +4903,14 @@
         <table style="width:100%; min-width:1440px; border-collapse:collapse; font-size:13px; table-layout:fixed;">
           <colgroup>
             <col style="width:5%;">
+            <col style="width:17%;">
             <col style="width:16%;">
-            <col style="width:15%;">
-            <col style="width:7%;">
-            <col style="width:12%;">
+            <col style="width:5%;">
+            <col style="width:13%;">
             <col style="width:12%;">
             <col style="width:7%;">
             <col style="width:9%;">
-            <col style="width:10%;">
+            <col style="width:9%;">
             <col style="width:7%;">
           </colgroup>
           <thead>
@@ -12475,7 +12475,7 @@
           };
           const postLinkIcon = (url) => url ? `<a href="${String(url).replace(/"/g,'&quot;')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Mở bài đăng" style="color:#3B82F6; text-decoration:none; flex-shrink:0; display:inline-flex; align-items:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : '';
 
-          // Ô cột "Link SP" (metadata) — nút "Xem link" clickable, tránh in link dài.
+          // Ô cột "Link SP" (metadata) — 1 icon clickable mở link sản phẩm (gọn như icon "mở bài đăng").
           // Dùng function declaration để hoisted, gọi được từ mọi renderer phía trên.
           function linkCell(website) {
             const w = (website || '').trim();
@@ -12483,7 +12483,7 @@
             const safe = escapeHtml(w);
             // Chuẩn hoá href an toàn: chỉ cho http/https, còn lại coi như domain → thêm https://
             const href = escapeHtml(/^https?:\/\//i.test(w) ? w : 'https://' + w.replace(/^\/+/, ''));
-            return `<td style="padding:8px 12px; text-align:center;"><a href="${href}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${safe}" style="display:inline-flex; align-items:center; gap:4px; max-width:100%; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:600; text-decoration:none; white-space:nowrap;"><svg style="width:11px;height:11px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Xem link</a></td>`;
+            return `<td style="padding:8px 12px; text-align:center;"><a href="${href}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Xem link sản phẩm: ${safe}" style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:999px; background:#eff6ff; color:#1d4ed8; text-decoration:none; flex-shrink:0;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></td>`;
           }
 
           const parseSharedGroups = (groupName) => {
