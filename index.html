@@ -1380,27 +1380,6 @@
        Scoped to mobile only — desktop layout untouched.
        ================================================================ */
 
-    /* PWA install FAB (mobile only, shown when beforeinstallprompt fires) */
-    .pwa-install-btn {
-      display: none;
-      position: fixed;
-      right: 14px;
-      bottom: 78px;
-      z-index: 250;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 16px;
-      border: none;
-      border-radius: 999px;
-      background: linear-gradient(135deg, #2563EB 0%, #BFDBFE 100%);
-      color: #fff;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      box-shadow: 0 10px 24px rgba(37, 99, 235,0.35);
-    }
-    .pwa-install-btn:active { transform: scale(0.97); }
-    .pwa-install-icon { font-size: 14px; }
 
     @media (max-width: 768px) {
       /* --- backdrop: cool grey + subtle blobs cho glass effect --- */
@@ -2434,12 +2413,6 @@
       -webkit-backdrop-filter: blur(14px) saturate(180%);
     }
 
-    /* PWA install FAB */
-    .pwa-install-btn {
-      background: var(--xk-ink) !important;
-      box-shadow: 0 10px 24px rgba(15,15,26,0.30) !important;
-    }
-
     /* DARK mode adjustments — giữ tinh thần glass đen */
     [data-theme="dark"] body {
       background:
@@ -2543,10 +2516,6 @@
     .mhome-back-btn {
       background: var(--xk-cta-gradient) !important;
       box-shadow: 0 4px 12px var(--xk-primary-shadow) !important;
-    }
-    .pwa-install-btn {
-      background: var(--xk-cta-gradient) !important;
-      box-shadow: 0 10px 24px var(--xk-primary-shadow) !important;
     }
     .header-emoji {
       background: var(--xk-primary-soft) !important;
@@ -2999,12 +2968,6 @@
       border-top-color: var(--xk-sky-border) !important;
       backdrop-filter: blur(14px) saturate(180%) !important;
       -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
-    }
-
-    /* PWA install FAB */
-    .pwa-install-btn {
-      background: var(--xk-cta-gradient) !important;
-      box-shadow: 0 8px 22px rgba(127, 168, 232, 0.40) !important;
     }
 
     /* Numeric / mono — stats, IDs, timestamps */
@@ -4070,7 +4033,7 @@
             <p>Bấm biểu tượng <strong>làm mới</strong> ở góc trên tab Đăng bài để tải lại trang sạch.</p>
 
             <h4>📱 Cài như một app?</h4>
-            <p>Trên điện thoại, bấm nút <strong>Cài Xeko</strong> để cài đặt Xeko như ứng dụng (PWA) và mở nhanh từ màn hình chính.</p>
+            <p>Trên điện thoại, mở menu trình duyệt và chọn <strong>Thêm vào màn hình chính</strong> để cài đặt Xeko như ứng dụng (PWA) và mở nhanh từ màn hình chính.</p>
           </div>
         </details>
 
@@ -14428,12 +14391,6 @@
     <div id="imgLightboxNote" style="display:none; max-width:320px; text-align:center; color:#e5e7eb; font-size:14px; line-height:1.5; padding:24px;">Không tải được ảnh lỗi — file có thể đã bị xoá hoặc ghi đè, hoặc máy đăng bài (local) đang offline.</div>
   </div>
 
-  <!-- PWA install FAB (mobile) -->
-  <button type="button" id="pwaInstallBtn" class="pwa-install-btn" onclick="xekoTriggerInstall()" style="display:none;" aria-label="Cài đặt ứng dụng">
-    <span class="pwa-install-icon">⬇</span>
-    <span class="pwa-install-text">Cài Xeko</span>
-  </button>
-
   <!-- Mobile bottom navigation -->
   <nav class="mobile-bottom-nav" id="mobileBottomNav">
     <button class="mobile-nav-item" id="mobileNavPost" onclick="switchPage('post')">
@@ -14523,28 +14480,6 @@
         console.info('[SW] bfcache restore — reloading for fresh code');
         location.reload();
       }
-    });
-
-    // Capture install prompt; surface a small floating button on mobile
-    let __xekoInstallPrompt = null;
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      __xekoInstallPrompt = e;
-      const btn = document.getElementById('pwaInstallBtn');
-      if (btn) btn.style.display = 'flex';
-    });
-    function xekoTriggerInstall() {
-      if (!__xekoInstallPrompt) return;
-      __xekoInstallPrompt.prompt();
-      __xekoInstallPrompt.userChoice.finally(() => {
-        __xekoInstallPrompt = null;
-        const btn = document.getElementById('pwaInstallBtn');
-        if (btn) btn.style.display = 'none';
-      });
-    }
-    window.addEventListener('appinstalled', () => {
-      const btn = document.getElementById('pwaInstallBtn');
-      if (btn) btn.style.display = 'none';
     });
 
     // mhome đã bỏ — không inject home button nữa
