@@ -459,11 +459,12 @@
     #dashHistoryBody .lnk-add { opacity:.6; transition:opacity .12s ease, color .12s ease; }
     #dashHistoryBody tr:hover .lnk-add { opacity:1; }
     #dashHistoryBody .lnk-add:hover { color:#2563eb !important; }
-    /* Chế độ Kho lưu trữ: ẩn thống kê/biểu đồ, chỉ giữ bảng lịch sử bài cũ */
-    #pageDashboard[data-archive="1"] #dashSummary,
-    #pageDashboard[data-archive="1"] .dash-2col { display:none !important; }
+    /* Dashboard = chỉ thống kê (ẩn danh sách bài); Kho content = chỉ danh sách bài (ẩn thống kê/biểu đồ) */
+    #pageDashboard[data-view="content"] #dashSummary,
+    #pageDashboard[data-view="content"] .dash-2col { display:none !important; }
+    #pageDashboard[data-view="dashboard"] #dashHistorySection { display:none !important; }
     #archiveBanner { display:none; }
-    #pageDashboard[data-archive="1"] #archiveBanner { display:flex; }
+    #pageDashboard[data-view="content"] #archiveBanner { display:flex; }
     [data-theme="dark"] #archiveBanner { background:#2e2a1a !important; border-color:#4a3a2a !important; color:#fcd34d !important; }
 
     /* Image preview */
@@ -3589,9 +3590,6 @@
       <button class="sidebar-item active" onclick="switchPage('dashboard')" id="navDashboard">
         <span class="icon"><svg class="xi"><use href="#ic-dash"/></svg></span> Dashboard
       </button>
-      <button class="sidebar-item" onclick="switchPage('archive')" id="navArchive">
-        <span class="icon"><svg class="xi"><use href="#ic-scroll"/></svg></span> Lưu trữ
-      </button>
       <button class="sidebar-item" onclick="switchPage('post')" id="navPost">
         <span class="icon"><svg class="xi"><use href="#ic-post"/></svg></span> Đăng bài
       </button>
@@ -3900,28 +3898,17 @@
         <details class="guide-sec" id="g-content">
           <summary>
             <span class="g-ico" style="background:#1E3A8A;"><svg><use href="#ic-book"/></svg></span>
-            <span>Kho content<span class="g-sub">Lưu &amp; quản lý bài viết mẫu</span></span>
+            <span>Kho content<span class="g-sub">Toàn bộ bài đã đăng</span></span>
             <svg class="g-arrow xi"><use href="#ic-back"/></svg>
           </summary>
           <div class="guide-body">
-            <p>Kho content là nơi lưu sẵn các bài mẫu để tái sử dụng khi đăng.</p>
-
-            <h4>📚 Thêm content mới</h4>
-            <p>Bấm <strong>+ Thêm content</strong> rồi điền:</p>
-            <ol>
-              <li><strong>Nội dung bài viết</strong> (bắt buộc).</li>
-              <li><strong>Hình ảnh</strong> (tuỳ chọn): <strong>kéo–thả</strong>, dán <kbd>Ctrl</kbd>+<kbd>V</kbd>, hoặc bấm để chọn file — chọn nhiều ảnh cùng lúc.</li>
-              <li><strong>Kênh đăng:</strong> Chung / Facebook / Zalo / TikTok / Instagram / Threads.</li>
-              <li><strong>Phân loại:</strong> chọn có sẵn hoặc <strong>+ Thêm mới</strong>.</li>
-              <li><strong>Profile</strong> (tuỳ chọn): áp dụng cho tài khoản nào.</li>
-              <li>Bấm <strong>Lưu</strong>.</li>
-            </ol>
+            <p>Kho content là nơi xem <strong>toàn bộ bài đã đăng</strong> (mọi thời điểm). Mỗi bài <strong>đăng xong sẽ tự động vào đây</strong> — không cần thao tác thêm.</p>
 
             <h4>🔎 Tìm &amp; lọc</h4>
-            <p>Ô tìm kiếm lọc theo <strong>tiêu đề, nội dung, tag</strong>; bộ lọc <strong>kênh</strong> ở bên cạnh. Bảng liệt kê nội dung, hình ảnh, phân loại, profile, kênh đăng và ngày tạo.</p>
+            <p>Ô tìm kiếm lọc theo <strong>nội dung, tài khoản, nhóm</strong>; bộ lọc bên cạnh cho <strong>tài khoản, nền tảng, nơi đăng, trạng thái</strong> và khoảng ngày. Bảng liệt kê nội dung, ảnh, link sản phẩm, tài khoản, nơi đăng, thời gian và trạng thái.</p>
 
-            <h4>🗑️ Quản lý</h4>
-            <p>Chỉnh sửa từng content, hoặc tick chọn nhiều để <strong>xoá hàng loạt</strong>. Đây là nơi lưu trữ ý tưởng để tái sử dụng khi đăng bài.</p>
+            <h4>🔁 Thao tác</h4>
+            <p>Với từng bài bạn có thể <strong>đăng lại</strong>, chạy <strong>seeding</strong>, sửa <strong>link sản phẩm</strong>, hoặc tick chọn nhiều để <strong>xoá hàng loạt</strong>. Số liệu tổng hợp (tỉ lệ thành công, biểu đồ) xem ở tab <strong>Dashboard</strong>.</p>
             <button class="guide-cta" onclick="switchPage('content')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-book"/></svg> Mở Kho content</button>
           </div>
         </details>
@@ -4702,7 +4689,7 @@
   </div>
 
   <!-- PAGE: Dashboard (gộp Lịch đăng bài + Thống kê) -->
-  <div class="page active" id="pageDashboard">
+  <div class="page active" id="pageDashboard" data-view="dashboard">
     <div class="header">
       <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
       <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#1E3A8A;"><svg class="xi xi-md"><use href="#ic-dash"/></svg></div>
@@ -4717,7 +4704,7 @@
       <!-- Banner Kho lưu trữ (chỉ hiện ở chế độ archive) -->
       <div id="archiveBanner" style="align-items:center; gap:10px; background:#FEF3C7; border:1px solid #FDE68A; color:#92400E; border-radius:12px; padding:12px 16px; margin-bottom:20px; font-size:13px; line-height:1.5;">
         <svg class="xi xi-md" style="flex-shrink:0;"><use href="#ic-scroll"/></svg>
-        <span>Mục <strong>Lưu trữ</strong> — các bài đã đăng <strong>cũ hơn 7 ngày</strong>. Bài trong 7 ngày gần nhất xem ở tab <strong>Dashboard</strong>. Bạn vẫn tìm kiếm, lọc, đăng lại và seeding bình thường.</span>
+        <span>Mục <strong>Kho content</strong> — <strong>toàn bộ bài đã đăng</strong> (mọi thời điểm). Số liệu tổng hợp xem ở tab <strong>Dashboard</strong>. Bạn vẫn tìm kiếm, lọc, đăng lại và seeding bình thường.</span>
       </div>
       <!-- Summary Cards (Schedulkan-style: icon-circle + number + label) -->
       <div id="dashSummary" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:14px; margin-bottom:24px;">
@@ -4788,6 +4775,8 @@
       </div>
       </div><!-- end dash-2col -->
 
+      <!-- Danh sách bài đã đăng — ẩn ở chế độ Dashboard (chỉ thống kê), hiện ở Kho content -->
+      <div id="dashHistorySection">
       <!-- Filter bar -->
       <div class="dash-filter-bar" style="background:rgba(255,255,255,0.78); border:1px solid #e5e7eb; border-radius:12px; padding:10px 12px; margin-bottom:12px;">
         <!-- Top row: search + Bộ lọc + Lọc -->
@@ -4904,6 +4893,7 @@
 
       <!-- Pagination -->
       <div id="dashPagination" style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:16px; padding-bottom:20px; flex-wrap:wrap;"></div>
+      </div><!-- end dashHistorySection -->
     </div>
   </div><!-- end pageDashboard -->
 
@@ -8507,14 +8497,13 @@
         home: { page: 'pageMobileHome', nav: null },
         post: { page: 'pageDangBai', nav: 'navPost' },
         dashboard: { page: 'pageDashboard', nav: 'navDashboard' },
-        // Kho lưu trữ: dùng lại trang Dashboard nhưng ở "chế độ archive" (bài cũ hơn 7 ngày)
-        archive: { page: 'pageDashboard', nav: 'navArchive' },
-        // 'calendar' alias → dashboard calendar tab (BC cho nơi còn trỏ tới)
+        // 'calendar' alias → dashboard (BC cho nơi còn trỏ tới)
         calendar: { page: 'pageDashboard', nav: 'navDashboard' },
         session: { page: 'pageSession', nav: 'navSession' },
         permissions: { page: 'pagePermissions', nav: 'navPermissions' },
         spy: { page: 'pageSpyBaiViet', nav: 'navSpy' },
-        content: { page: 'pageContent', nav: 'navContent' },
+        // Kho content: dùng lại trang Dashboard ở "chế độ content" (toàn bộ bài đã đăng, ẩn thống kê)
+        content: { page: 'pageDashboard', nav: 'navContent' },
         guide: { page: 'pageGuide', nav: 'navGuide' },
       };
 
@@ -8524,18 +8513,19 @@
         if (target.nav) document.getElementById(target.nav).classList.add('active');
       }
 
-      // Chế độ Kho lưu trữ vs Dashboard (dùng chung trang pageDashboard)
-      if (pg === 'dashboard' || pg === 'archive' || pg === 'calendar') {
-        const isArchive = (pg === 'archive');
-        window.dashArchiveMode = isArchive;
+      // Dashboard (chỉ thống kê) vs Kho content (toàn bộ bài đã đăng) — dùng chung trang pageDashboard
+      if (pg === 'dashboard' || pg === 'content' || pg === 'calendar') {
+        const isContent = (pg === 'content');
+        window.dashViewMode = isContent ? 'content' : 'dashboard';
+        window.dashArchiveMode = false; // đã bỏ chế độ Lưu trữ
         const dashPageEl = document.getElementById('pageDashboard');
-        if (dashPageEl) dashPageEl.setAttribute('data-archive', isArchive ? '1' : '0');
+        if (dashPageEl) dashPageEl.setAttribute('data-view', isContent ? 'content' : 'dashboard');
         // Cập nhật tiêu đề header cho khớp ngữ cảnh
         const h1 = dashPageEl && dashPageEl.querySelector('.header .header-info h1');
         const sub = dashPageEl && dashPageEl.querySelector('.header .header-info span');
-        if (h1)  h1.textContent  = isArchive ? 'Lưu trữ' : 'Dashboard';
-        if (sub) sub.textContent = isArchive ? 'Bài đã đăng cũ hơn 7 ngày' : 'Thống kê';
-        // Đổi qua/lại giữa Dashboard và Kho → reset bộ lọc ngày để áp đúng cửa sổ mặc định
+        if (h1)  h1.textContent  = isContent ? 'Kho content' : 'Dashboard';
+        if (sub) sub.textContent = isContent ? 'Toàn bộ bài đã đăng' : 'Thống kê';
+        // Đổi qua/lại giữa Dashboard và Kho content → reset bộ lọc ngày để áp đúng cửa sổ mặc định
         const fromEl = document.getElementById('dashFilterFrom');
         const toEl = document.getElementById('dashFilterTo');
         if (fromEl) fromEl.value = '';
@@ -8554,9 +8544,6 @@
       }
       if (pg === 'spy') {
         updateSpyProfileHint();
-      }
-      if (pg === 'content') {
-        loadContents();
       }
 
       // Sync mobile bottom nav
@@ -12054,13 +12041,11 @@
       const to = document.getElementById('dashFilterTo').value;
       const search = (document.getElementById('dashFilterSearch')?.value || '').trim().toLowerCase();
 
-      // Cửa sổ thời gian theo chế độ: Dashboard chỉ 7 ngày gần nhất, Kho lưu trữ chỉ bài cũ hơn 7 ngày.
-      // Vẫn tôn trọng bộ lọc ngày người dùng chọn, nhưng luôn giữ trong ranh giới của chế độ.
+      // Cửa sổ thời gian theo chế độ:
+      //  - Kho content: TOÀN BỘ bài đã đăng (mọi thời điểm), chỉ tôn trọng bộ lọc ngày người dùng chọn.
+      //  - Dashboard: bảng danh sách bị ẩn (chỉ hiện thống kê) nên giữ 7 ngày gần nhất cho nhẹ.
       let effFrom = from, effTo = to;
-      if (window.dashArchiveMode) {
-        const archiveTo = _dashDateOffset(-ARCHIVE_DAYS); // đến hết ngày (hôm nay - 7)
-        effTo = (to && to < archiveTo) ? to : archiveTo;
-      } else {
+      if (window.dashViewMode !== 'content') {
         const recentFrom = _dashDateOffset(-(ARCHIVE_DAYS - 1)); // từ (hôm nay - 6) → gồm 7 ngày gần nhất
         effFrom = (from && from > recentFrom) ? from : recentFrom;
       }
@@ -12151,8 +12136,7 @@
         // Lọc lịch chờ/đang đăng
         const hasPendingFilter = statuses.some(s => s === 'pending' || s === 'running');
         const hasHistoryFilter = statuses.some(s => s === '1' || s === '0');
-        // Kho lưu trữ chỉ chứa bài đã đăng (lịch sử) — ẩn lịch chờ/đang đăng/repost đang chạy
-        const showSchedules = !window.dashArchiveMode && (statuses.length === 0 || hasPendingFilter);
+        const showSchedules = (statuses.length === 0 || hasPendingFilter);
         const showHistory = statuses.length === 0 || hasHistoryFilter;
         const schedStatusFilter = hasPendingFilter ? statuses.filter(s => s === 'pending' || s === 'running') : null;
         let schedToShow = (Array.isArray(allSchedules) ? allSchedules : [])
@@ -12187,7 +12171,7 @@
         // --- Render repost-in-progress rows (giữ lại khi reload) ---
         // Loại bỏ in-memory rows đã có pending DB row (tránh hiển thị 2 dòng cho cùng 1 job)
         const _pendingDbJobIdSet = new Set((data.pending || []).map(r => r.job_id).filter(Boolean));
-        const repostHtml = window.dashArchiveMode ? '' : _activeRepostJobs.filter(job => {
+        const repostHtml = _activeRepostJobs.filter(job => {
           const jid = job.zaloJobId || job.jobId;
           return !jid || !_pendingDbJobIdSet.has(jid);
         }).map(job => {
@@ -12234,7 +12218,7 @@
         // --- Render pending DB rows (source of truth for single-target chatbot posts) ---
         const _PENDING_STALE_MS = 30 * 60 * 1000; // 30 phút
         const _now = Date.now();
-        const _allPendingDbRows = window.dashArchiveMode ? [] : (data.pending || []);
+        const _allPendingDbRows = (data.pending || []);
         const _pendingDbRows = _allPendingDbRows.filter(row => (_now - new Date(row.timestamp).getTime()) < _PENDING_STALE_MS);
         const _stalePendingRows = _allPendingDbRows.filter(row => (_now - new Date(row.timestamp).getTime()) >= _PENDING_STALE_MS);
         const pendingDbHtml = [
