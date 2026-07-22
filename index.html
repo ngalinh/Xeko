@@ -619,48 +619,6 @@
       align-items: flex-end;
       box-shadow: 0 -1px 0 rgba(0,0,0,0.06);
     }
-    /* Website bar — bước nhập website trước khi gửi nội dung + ảnh */
-    .website-bar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 12px;
-      background: #f8fafc;
-      border-top: 1px solid #eef2f7;
-    }
-    .website-bar-label {
-      font-size: 12px;
-      font-weight: 600;
-      color: #475569;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-    .website-bar input[type="text"] {
-      flex: 1;
-      min-width: 0;
-      padding: 7px 12px;
-      border-radius: 18px;
-      border: 1px solid #e5e7eb;
-      background: #fff;
-      color: #1e1e2e;
-      font-size: 13px;
-      font-family: inherit;
-      outline: none;
-    }
-    .website-bar input[type="text"]:focus { border-color: #93C5FD; }
-    .website-bar #websiteClearBtn {
-      flex-shrink: 0;
-      width: 24px; height: 24px;
-      border: none; border-radius: 999px;
-      background: #e5e7eb; color: #475569;
-      font-size: 12px; line-height: 1; cursor: pointer;
-      display: inline-flex; align-items: center; justify-content: center;
-    }
-    .website-bar #websiteClearBtn:hover { background: #d1d5db; }
-    [data-theme="dark"] .website-bar { background: #16172b; border-color: #2a2a4a; }
-    [data-theme="dark"] .website-bar-label { color: #a3adc2; }
-    [data-theme="dark"] .website-bar input[type="text"] { background: #1f2233; border-color: #2a2a4a; color: #e8e8f0; }
-    [data-theme="dark"] .website-bar #websiteClearBtn { background: #2a2a4a; color: #cbd5e1; }
     .input-area input[type="text"] {
       flex: 1;
       padding: 10px 14px;
@@ -4137,13 +4095,6 @@
     <button class="clear-btn" onclick="clearImages()">Xoá ảnh</button>
   </div>
 
-  <div class="website-bar" id="websiteBar">
-    <span class="website-bar-label" title="Website gắn với bài đăng (chọn hoặc tự nhập)">🌐 Website</span>
-    <input type="text" id="websiteInput" list="websiteDatalist" placeholder="Chọn hoặc nhập website (vd: xeko.vn)" autocomplete="off" spellcheck="false" oninput="onWebsiteInput()">
-    <datalist id="websiteDatalist"></datalist>
-    <button type="button" id="websiteClearBtn" onclick="clearWebsiteInput()" aria-label="Xoá website" title="Xoá website đang nhập" style="display:none;">✕</button>
-  </div>
-
   <div class="input-area" id="inputArea">
     <button class="btn-icon btn-attach" onclick="document.getElementById('fileInput').click()" aria-label="Đính kèm ảnh"><svg class="xi xi-md"><use href="#ic-camera"/></svg></button>
     <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this)">
@@ -5513,7 +5464,9 @@
     let _totalProfiles = 0;
     let currentTarget = null;
     let selectedFiles = [];
-    let step = 'welcome'; // welcome -> profile -> target -> compose
+    let step = 'welcome'; // welcome -> profile -> target -> website -> compose
+    let currentWebsite = '';   // website sản phẩm cho lượt đăng hiện tại (bước sau khi chọn kênh)
+    let _websiteStepId = 0;
 
     function now() {
       return new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -6507,6 +6460,7 @@
     // ===== STEP 1: Welcome =====
     async function showWelcome() {
       step = 'welcome';
+      currentWebsite = '';
       try {
         const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), {cache: 'no-store'});
         const data = await parseJson(res);
@@ -7029,18 +6983,9 @@
 
       currentTarget = target;
 
-      step = 'compose';
-
-      disablePrevButtons();
-      const _schedHint = composeHintBox(postMode === 'schedule'
-        ? 'Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!'
-        : 'Soạn nội dung + thêm ảnh 📷, gửi là xong nha!');
-      addBot(
-        `Sẽ đăng lên: ${summaryText}\n${_schedHint}`,
-        [
-          { label: `${xekoIcon('back')} Làm lại`, handler: () => showTargetSelect(), secondary: true },
-        ]
-      );
+      // Sau khi chọn kênh → bước nhập website sản phẩm, rồi mới soạn nội dung.
+      window._composeSummaryText = summaryText;
+      showWebsiteStep();
     }
 
     function showModeSelect() {
@@ -7062,22 +7007,13 @@
       const groupIdInput = document.getElementById('groupIdInput');
       groupIdInput.style.display = target === 'custom' ? 'block' : 'none';
 
-      // inputArea luon hien
-      step = 'compose';
-
       let targetText = TARGET_LABELS[target];
       if (target === 'allgroup') targetText = 'Asale + Tổng Kho';
       if (target === 'all') targetText = 'FB Profile + Asale + Tổng Kho';
 
-      const _hint = composeHintBox(postMode === 'schedule'
-        ? 'Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!'
-        : 'Soạn nội dung + thêm ảnh 📷, gửi là xong nha!');
-      addBot(
-        `Sẽ đăng lên: <strong>${targetText}</strong>\n${_hint}`,
-        [
-          { label: `${xekoIcon('back')} Làm lại`, handler: () => showTargetSelect(), secondary: true },
-        ]
-      );
+      // Sau khi chọn kênh → bước nhập website sản phẩm, rồi mới soạn nội dung.
+      window._composeSummaryText = `<strong>${targetText}</strong>`;
+      showWebsiteStep();
     }
 
 
@@ -7611,13 +7547,6 @@
       return (v || '').trim().replace(/\s+/g, ' ');
     }
 
-    function renderWebsiteDatalist() {
-      const dl = document.getElementById('websiteDatalist');
-      if (!dl) return;
-      const list = loadWebsiteList();
-      dl.innerHTML = list.map(w => `<option value="${escapeHtml(w)}"></option>`).join('');
-    }
-
     // Ghi nhớ 1 website mới vào danh sách (đưa lên đầu, khử trùng lặp không phân biệt hoa/thường).
     function rememberWebsite(website) {
       const w = normalizeWebsite(website);
@@ -7627,30 +7556,88 @@
       const filtered = list.filter(x => x.toLowerCase() !== lower);
       filtered.unshift(w);
       saveWebsiteList(filtered);
-      renderWebsiteDatalist();
     }
 
-    // Lấy website đang nhập ở ô compose (đã chuẩn hoá).
-    function getComposeWebsite() {
-      const el = document.getElementById('websiteInput');
-      return el ? normalizeWebsite(el.value) : '';
+    // ===== Bước nhập website sản phẩm (sau khi chọn kênh, trước khi soạn nội dung) =====
+    function showWebsiteStep() {
+      disablePrevButtons();
+      step = 'website';
+      _websiteStepId++;
+      const wid = _websiteStepId;
+      const inputId = `websiteStepInput_${wid}`;
+      const listId = `websiteStepList_${wid}`;
+      const options = loadWebsiteList().map(w => `<option value="${escapeHtml(w)}"></option>`).join('');
+      const prefill = escapeHtml(currentWebsite || '');
+
+      const chat = document.getElementById('chatArea');
+      const rowEl = document.createElement('div');
+      rowEl.className = 'msg-row bot';
+      rowEl.innerHTML = `
+        <img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko">
+        <div class="msg-wrapper">
+          <div class="msg bot">
+            🔗 Nhập <strong>link sản phẩm</strong> cho bài này nha (chọn từ danh sách hoặc dán link mới):
+            <div style="margin-top:10px;">
+              <input type="text" id="${inputId}" list="${listId}" value="${prefill}" placeholder="vd: https://xeko.vn/san-pham" autocomplete="off" spellcheck="false"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();confirmWebsiteStep('${inputId}');}"
+                style="width:100%; box-sizing:border-box; padding:9px 12px; border:1px solid #DBEAFE; border-radius:10px; font-size:14px; background:#f0f9ff; color:#1e293b; outline:none;">
+              <datalist id="${listId}">${options}</datalist>
+            </div>
+            <div class="msg-buttons" style="margin-top:12px;">
+              <button class="msg-btn primary" onclick="confirmWebsiteStep('${inputId}')">${xekoIcon('check')} Tiếp tục</button>
+              <button class="msg-btn secondary" onclick="skipWebsiteStep('${inputId}')">Bỏ qua</button>
+              <button class="msg-btn secondary" onclick="showTargetSelect()">${xekoIcon('back')} Đổi kênh</button>
+            </div>
+            <span class="msg-time">${now()}</span>
+          </div>
+        </div>`;
+      chat.appendChild(rowEl);
+      chat.scrollTop = chat.scrollHeight;
+      // focus ô nhập cho tiện gõ ngay
+      setTimeout(() => { const el = document.getElementById(inputId); if (el) el.focus(); }, 50);
     }
 
-    function onWebsiteInput() {
-      const btn = document.getElementById('websiteClearBtn');
-      const el = document.getElementById('websiteInput');
-      if (btn && el) btn.style.display = el.value.trim() ? 'inline-flex' : 'none';
+    function confirmWebsiteStep(inputId) {
+      const el = document.getElementById(inputId);
+      const w = el ? normalizeWebsite(el.value) : '';
+      if (!w) {
+        // Trống → coi như bỏ qua (website là metadata, không bắt buộc)
+        skipWebsiteStep(inputId);
+        return;
+      }
+      currentWebsite = w;
+      rememberWebsite(w);
+      disablePrevButtons();
+      addUser(`🔗 Link: ${w}`);
+      proceedToCompose();
     }
 
-    function clearWebsiteInput() {
-      const el = document.getElementById('websiteInput');
-      if (el) el.value = '';
-      onWebsiteInput();
-      if (el) el.focus();
+    function skipWebsiteStep(inputId) {
+      currentWebsite = '';
+      disablePrevButtons();
+      addUser('Bỏ qua link');
+      proceedToCompose();
     }
 
-    // Khởi tạo datalist khi load trang
-    renderWebsiteDatalist();
+    // Hiện lời nhắc soạn nội dung (bước compose) sau khi đã chốt website.
+    function proceedToCompose() {
+      step = 'compose';
+      const summaryText = window._composeSummaryText || 'kênh đã chọn';
+      const _hint = composeHintBox(postMode === 'schedule'
+        ? 'Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!'
+        : 'Soạn nội dung + thêm ảnh 📷, gửi là xong nha!');
+      const webLine = currentWebsite ? `\n🔗 Link: <strong>${escapeHtml(currentWebsite)}</strong>` : '';
+      const buttons = [];
+      // Lên lịch thêm: giữ nút "Dùng lại nội dung vừa rồi" cho tiện.
+      if (postMode === 'schedule') {
+        const draft = window._scheduleLastDraft;
+        if (draft && (draft.message || (draft.files || []).length > 0)) {
+          buttons.push({ label: `${xekoIcon('refresh')} Dùng lại nội dung vừa rồi`, handler: () => reuseScheduleDraft() });
+        }
+      }
+      buttons.push({ label: `${xekoIcon('back')} Làm lại`, handler: () => showTargetSelect(), secondary: true });
+      addBot(`Sẽ đăng lên: ${summaryText}${webLine}\n${_hint}`, buttons);
+    }
 
     // ===== Gửi bài =====
     async function sendMessage() {
@@ -7658,8 +7645,7 @@
         const _input = document.getElementById('msgInput');
         const _msg = _input.value.trim();
         if (!_msg && selectedFiles.length === 0) return;
-        const _website = getComposeWebsite();
-        if (_website) rememberWebsite(_website);
+        const _website = currentWebsite || '';
         window._schedulePendingMessage = _msg;
         window._schedulePendingFiles = [...selectedFiles];
         window._schedulePendingWebsite = _website;
@@ -7684,6 +7670,10 @@
       }
       if (step === 'target') {
         addBot('Bạn nhớ bấm ✓ <strong>Tiếp tục</strong> để xác nhận kênh đăng trước rồi gửi nội dung nha!');
+        return;
+      }
+      if (step === 'website') {
+        addBot('Bạn nhập <strong>link sản phẩm</strong> rồi bấm ✓ <strong>Tiếp tục</strong> (hoặc <strong>Bỏ qua</strong>) trước khi soạn nội dung nha!');
         return;
       }
       const zaloSelCheck = (window._channelSelection || {})[currentProfile] || { zalo: [] };
@@ -7711,9 +7701,8 @@
         target = 'shortcut';
       }
 
-      // Website (metadata) — chọn/nhập ở ô Website. Ghi nhớ để lần sau chọn nhanh.
-      const website = getComposeWebsite();
-      if (website) rememberWebsite(website);
+      // Website (metadata) — đã chọn/nhập ở bước "nhập website" sau khi chọn kênh.
+      const website = currentWebsite || '';
 
       // Snapshot toan bo context: bai trong hang cho khong bi anh huong khi user
       // doi profile/kenh hoac dinh kem anh moi cho bai tiep theo
@@ -7919,7 +7908,7 @@
         }
         if (_destLabels.length) {
           const _list = _destLabels.map(s => `<strong>${s}</strong>`).join(', ');
-          const _webNote = website ? ` 🌐 Website: <strong>${escapeHtml(website)}</strong>.` : '';
+          const _webNote = website ? ` 🔗 Link: <strong>${escapeHtml(website)}</strong>.` : '';
           addBot(`✅ Đã nhận bài, đang đăng lên ${_list}.${_webNote} Theo dõi kết quả ở tab <strong>Dashboard</strong> nha!`);
         }
 
@@ -8189,21 +8178,12 @@
 
     function startScheduleCompose() {
       postMode = 'schedule';
-      step = 'compose';
-      disablePrevButtons();
       const summaryText = buildChannelSummary(window._channelSelection)
         || (currentTarget ? (TARGET_LABELS[currentTarget] || currentTarget) : null)
         || 'kênh đã chọn';
-      const buttons = [];
-      const draft = window._scheduleLastDraft;
-      if (draft && (draft.message || (draft.files || []).length > 0)) {
-        buttons.push({ label: `${xekoIcon('refresh')} Dùng lại nội dung vừa rồi`, handler: () => reuseScheduleDraft() });
-      }
-      buttons.push({ label: `${xekoIcon('back')} Đổi kênh`, handler: () => showTargetSelect(), secondary: true });
-      addBot(
-        `Sẽ đăng lên: ${summaryText}\n${composeHintBox('Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!')}`,
-        buttons
-      );
+      // Vẫn qua bước nhập website sản phẩm trước khi soạn nội dung.
+      window._composeSummaryText = summaryText;
+      showWebsiteStep();
     }
 
     // Dùng lại nội dung + ảnh đã soạn lần trước, bỏ qua bước gõ lại
@@ -10949,6 +10929,7 @@
       currentTarget = null;
       postMode = 'now';
       step = 'welcome';
+      currentWebsite = '';
       window._channelSelection = null;
       window._customGroupIds = null;
       updateHeader('Auto Post Content');
@@ -12488,12 +12469,15 @@
           };
           const postLinkIcon = (url) => url ? `<a href="${String(url).replace(/"/g,'&quot;')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Mở bài đăng" style="color:#3B82F6; text-decoration:none; flex-shrink:0; display:inline-flex; align-items:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : '';
 
-          // Chip website (metadata) hiển thị dưới nội dung bài. Trả '' nếu không có.
+          // Chip link (metadata) hiển thị dưới nội dung bài dạng "Xem link" clickable
+          // (tránh in nguyên link dài). Trả '' nếu không có.
           const websiteChip = (website) => {
             const w = (website || '').trim();
             if (!w) return '';
             const safe = escapeHtml(w);
-            return `<div style="margin-top:4px;"><span title="Website: ${safe}" style="display:inline-flex; align-items:center; gap:3px; max-width:100%; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:1px 7px; border-radius:999px; font-size:10.5px; font-weight:600; overflow:hidden;"><svg style="width:9px;height:9px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${safe}</span></span></div>`;
+            // Chuẩn hoá href an toàn: chỉ cho http/https, còn lại coi như domain → thêm https://
+            const href = escapeHtml(/^https?:\/\//i.test(w) ? w : 'https://' + w.replace(/^\/+/, ''));
+            return `<div style="margin-top:4px;"><a href="${href}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${safe}" style="display:inline-flex; align-items:center; gap:4px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:1px 8px; border-radius:999px; font-size:10.5px; font-weight:600; text-decoration:none; white-space:nowrap;"><svg style="width:9px;height:9px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Xem link</a></div>`;
           };
 
           const parseSharedGroups = (groupName) => {
