@@ -1604,6 +1604,21 @@ app.delete('/api/post-history/:id', (req, res) => {
   }
 });
 
+// Sửa link sản phẩm (website) cho 1 hoặc nhiều bài từ Dashboard.
+app.post('/api/post-history/website', (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.ids)
+      ? req.body.ids.map(Number).filter(n => !isNaN(n))
+      : [];
+    if (ids.length === 0) return res.status(400).json({ error: 'Không có ID nào hợp lệ' });
+    const website = typeof req.body?.website === 'string' ? req.body.website : '';
+    const result = postLogger.updateWebsiteByIds(ids, website);
+    res.json({ updated: result.changes });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Frontend gọi khi pollZaloJob timeout để mark pending row là failed
 app.post('/api/pending/:id/timeout', (req, res) => {
   try {

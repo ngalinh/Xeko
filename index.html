@@ -4906,11 +4906,11 @@
             <col style="width:16%;">
             <col style="width:15%;">
             <col style="width:7%;">
-            <col style="width:12%;">
+            <col style="width:13%;">
             <col style="width:12%;">
             <col style="width:7%;">
             <col style="width:9%;">
-            <col style="width:10%;">
+            <col style="width:9%;">
             <col style="width:7%;">
           </colgroup>
           <thead>
@@ -5467,8 +5467,12 @@
     let currentTarget = null;
     let selectedFiles = [];
     let step = 'welcome'; // welcome -> profile -> target -> website -> compose
-    let currentWebsite = '';   // website sản phẩm cho lượt đăng hiện tại (bước sau khi chọn kênh)
+    let currentWebsite = '';   // link sản phẩm cho lượt đăng hiện tại (bước sau khi chọn kênh)
     let _websiteStepId = 0;
+    // Mỗi bài đăng đều hỏi lại link: sau khi đăng 1 bài, bài kế cần nhập/xác nhận
+    // link trước khi gửi. _autoPostAfterLink = đăng luôn sau khi chốt link ở bước đó.
+    let _needLinkBeforePost = false;
+    let _autoPostAfterLink = false;
 
     function now() {
       return new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -6463,6 +6467,8 @@
     async function showWelcome() {
       step = 'welcome';
       currentWebsite = '';
+      _needLinkBeforePost = false;
+      _autoPostAfterLink = false;
       try {
         const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), {cache: 'no-store'});
         const data = await parseJson(res);
@@ -6636,6 +6642,9 @@
     let channelPanelId = 0;
 
     async function showTargetSelect() {
+      // Đổi kênh/làm lại → huỷ trạng thái "đăng luôn sau khi chốt link" (nếu có).
+      _autoPostAfterLink = false;
+      _needLinkBeforePost = false;
       if (!currentProfile) {
         showProfileSelect();
         return;
@@ -7611,19 +7620,33 @@
       rememberWebsite(w);
       disablePrevButtons();
       addUser('🔗 Đã thêm link sản phẩm');
-      proceedToCompose();
+      _finishWebsiteStep();
     }
 
     function skipWebsiteStep(inputId) {
       currentWebsite = '';
       disablePrevButtons();
       addUser('Bỏ qua link');
+      _finishWebsiteStep();
+    }
+
+    // Sau khi chốt link: nếu đang chờ đăng bài kế (chặn giữa lúc gửi) → đăng luôn
+    // với nội dung + ảnh đang soạn; nếu không → hiện lời nhắc soạn nội dung.
+    function _finishWebsiteStep() {
+      if (_autoPostAfterLink) {
+        _autoPostAfterLink = false;
+        step = 'compose';
+        sendMessage();
+        return;
+      }
       proceedToCompose();
     }
 
-    // Hiện lời nhắc soạn nội dung (bước compose) sau khi đã chốt website.
+    // Hiện lời nhắc soạn nội dung (bước compose) sau khi đã chốt link.
     function proceedToCompose() {
       step = 'compose';
+      // Vừa qua bước link → bài đầu tiên của lượt soạn này không phải hỏi lại.
+      _needLinkBeforePost = false;
       const summaryText = window._composeSummaryText || 'kênh đã chọn';
       const _hint = composeHintBox(postMode === 'schedule'
         ? 'Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!'
@@ -7638,6 +7661,20 @@
       }
       buttons.push({ label: `${xekoIcon('back')} Làm lại`, handler: () => showTargetSelect(), secondary: true });
       addBot(`Sẽ đăng lên: ${summaryText}\n${_hint}`, buttons);
+    }
+
+    // "Đăng bài tiếp" → hỏi link cho bài mới TRƯỚC khi gõ nội dung (nhất quán với
+    // bài đầu). Giữ nguyên kênh đã chọn + mọi nội dung/ảnh đang soạn dở (nếu có).
+    function continueNextPost() {
+      // Nếu đang lên lịch thì tiếp tục theo luồng lịch (đã tự qua bước link).
+      if (postMode === 'schedule') { startScheduleCompose(); return; }
+      _autoPostAfterLink = false;
+      _needLinkBeforePost = false;
+      const summaryText = buildChannelSummary(window._channelSelection)
+        || (currentTarget ? (TARGET_LABELS[currentTarget] || currentTarget) : null)
+        || 'kênh đã chọn';
+      window._composeSummaryText = summaryText;
+      showWebsiteStep();
     }
 
     // ===== Gửi bài =====
@@ -7702,7 +7739,17 @@
         target = 'shortcut';
       }
 
-      // Website (metadata) — đã chọn/nhập ở bước "nhập website" sau khi chọn kênh.
+      // Mỗi bài hỏi lại link: nếu vừa đăng bài trước đó → yêu cầu nhập/xác nhận
+      // link cho bài này trước khi gửi (giữ nguyên nội dung + ảnh đang soạn, đăng
+      // luôn sau khi chốt link). Bước link pre-fill link vừa dùng cho tiện.
+      if (_needLinkBeforePost) {
+        _needLinkBeforePost = false;
+        _autoPostAfterLink = true;
+        showWebsiteStep();
+        return;
+      }
+
+      // Link sản phẩm (metadata) — đã chọn/nhập ở bước "nhập link" sau khi chọn kênh.
       const website = currentWebsite || '';
 
       // Snapshot toan bo context: bai trong hang cho khong bi anh huong khi user
@@ -7736,6 +7783,9 @@
         addBot(`${xekoIcon('clipboard')} Đã xếp hàng — còn <strong>${_postQueue.length}</strong> bài chờ. Xong bài này Xeko làm tiếp nha!`);
       }
       _processPostQueue();
+
+      // Bài kế tiếp phải nhập/xác nhận link lại trước khi gửi.
+      _needLinkBeforePost = true;
     }
 
     // Hang cho dang bai — chay tuan tu tung bai mot, cho phep user gui bai tiep theo.
@@ -8142,14 +8192,14 @@
         // oan khi Dashboard báo "Done"), vẫn giữ câu khích lệ đăng thêm bài.
         const _sentCount = successCount + unconfirmedCount;
         addBot(postSentClosing(_sentCount), [
-          { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput(), primary: true },
+          { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => continueNextPost(), primary: true },
           { label: `${xekoIcon('back')} Làm lại`, handler: () => showTargetSelect(), secondary: true },
         ]);
       } catch (e) {
         removeTyping();
         if (isProxyTimeout(e)) {
           addBot('⚠️ Mạng/proxy timeout — chưa xác nhận được bài đã đăng hay chưa. Bạn check Facebook + tab Dashboard sau 1-2 phút, đừng bấm đăng lại liền vì có thể đã thành công rồi!', [
-            { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput(), primary: true },
+            { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => continueNextPost(), primary: true },
             { label: `${xekoIcon('back')} Làm lại`, handler: () => showTargetSelect(), secondary: true },
           ]);
         } else {
@@ -8179,10 +8229,12 @@
 
     function startScheduleCompose() {
       postMode = 'schedule';
+      _autoPostAfterLink = false;
+      _needLinkBeforePost = false;
       const summaryText = buildChannelSummary(window._channelSelection)
         || (currentTarget ? (TARGET_LABELS[currentTarget] || currentTarget) : null)
         || 'kênh đã chọn';
-      // Vẫn qua bước nhập website sản phẩm trước khi soạn nội dung.
+      // Vẫn qua bước nhập link sản phẩm trước khi soạn nội dung.
       window._composeSummaryText = summaryText;
       showWebsiteStep();
     }
@@ -10931,6 +10983,8 @@
       postMode = 'now';
       step = 'welcome';
       currentWebsite = '';
+      _needLinkBeforePost = false;
+      _autoPostAfterLink = false;
       window._channelSelection = null;
       window._customGroupIds = null;
       updateHeader('Auto Post Content');
@@ -10960,6 +11014,62 @@
 
     function focusInput() {
       document.getElementById('msgInput').focus();
+    }
+
+    // ===== Sửa link sản phẩm ngay trên Dashboard =====
+    // idsStr: danh sách post_logs id "1,2,3"; encLink: link hiện tại (encodeURIComponent).
+    function openEditLinkModal(idsStr, encLink) {
+      const ids = String(idsStr || '').split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+      if (!ids.length) return;
+      let current = '';
+      try { current = decodeURIComponent(encLink || ''); } catch { current = encLink || ''; }
+
+      const backdrop = document.createElement('div');
+      backdrop.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:10000; display:flex; align-items:center; justify-content:center; padding:16px;';
+      backdrop.innerHTML = `
+        <div style="background:#fff; border-radius:14px; width:min(460px,100%); box-shadow:0 16px 48px rgba(0,0,0,.25); overflow:hidden;">
+          <div style="padding:15px 18px; border-bottom:1px solid #f1f5f9; font-weight:700; color:#1e293b;">🔗 Sửa link sản phẩm${ids.length > 1 ? ` <span style="font-weight:500; color:#64748b; font-size:13px;">(${ids.length} bài trong phiên)</span>` : ''}</div>
+          <div style="padding:16px 18px;">
+            <input id="_editLinkInput" type="text" value="${escapeHtml(current)}" placeholder="Dán link sản phẩm (vd: https://...)" autocomplete="off" spellcheck="false" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; outline:none; color:#1e293b;">
+            <div style="font-size:12px; color:#94a3b8; margin-top:6px;">Để trống rồi bấm Lưu = xoá link.</div>
+          </div>
+          <div style="padding:12px 18px; display:flex; justify-content:flex-end; gap:8px; background:#f8fafc;">
+            <button type="button" id="_editLinkCancel" style="padding:8px 16px; border:1px solid #e2e8f0; background:#fff; color:#475569; border-radius:8px; cursor:pointer; font-size:13px;">Huỷ</button>
+            <button type="button" id="_editLinkSave" style="padding:8px 18px; border:none; background:#2563eb; color:#fff; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600;">Lưu</button>
+          </div>
+        </div>`;
+      backdrop.onclick = (e) => { if (e.target === backdrop) backdrop.remove(); };
+      document.body.appendChild(backdrop);
+
+      const input = backdrop.querySelector('#_editLinkInput');
+      const saveBtn = backdrop.querySelector('#_editLinkSave');
+      input.focus(); input.select();
+      backdrop.querySelector('#_editLinkCancel').onclick = () => backdrop.remove();
+
+      const save = async () => {
+        const website = input.value.trim();
+        saveBtn.disabled = true; saveBtn.textContent = 'Đang lưu...';
+        try {
+          const res = await fetch(BASE_URL + '/api/post-history/website', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids, website }),
+          });
+          const data = await parseJson(res);
+          if (data && data.error) throw new Error(data.error);
+          if (website) rememberWebsite(website); // đưa vào danh sách gợi ý cho lần sau
+          backdrop.remove();
+          if (typeof loadDashHistory === 'function') loadDashHistory({ noSkeleton: true, noAnimation: true });
+        } catch (e) {
+          saveBtn.disabled = false; saveBtn.textContent = 'Lưu';
+          alert('Lưu link lỗi: ' + (e && e.message ? e.message : 'không rõ'));
+        }
+      };
+      saveBtn.onclick = save;
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); save(); }
+        else if (e.key === 'Escape') { e.preventDefault(); backdrop.remove(); }
+      };
     }
 
     // ===== Khởi động =====
@@ -11020,7 +11130,7 @@
             if (n.imageCount > 0) msg += `📷 ${n.imageCount} ảnh đính kèm\n`;
             msg += `\n🕐 Đã đăng lúc: ${n.time}`;
             const row = addBot(msg, [
-              { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
+              { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => continueNextPost() },
               { label: `${xekoIcon('clock')} Lên lịch thêm`, handler: () => startScheduleCompose() },
               { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
             ]);
@@ -11032,7 +11142,7 @@
             msg += ndToggle(n.message);
             msg += `\n❗ Lỗi: ${n.error}`;
             const row = addBot(msg, [
-              { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() },
+              { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => continueNextPost() },
               { label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() },
             ]);
             attachNdToggle(row);
@@ -11163,7 +11273,7 @@
       // _totalProfiles=0 nen mac dinh an, dung cho tai khoan 1 profile).
       const canSwitch = _totalProfiles > 1;
       if (currentProfile && (step === 'compose' || step === 'schedule-time' || step === 'schedule')) {
-        buttons.push({ label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => focusInput() });
+        buttons.push({ label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => continueNextPost() });
         if (postMode === 'schedule') buttons.push({ label: `${xekoIcon('clock')} Lên lịch thêm`, handler: () => startScheduleCompose() });
         buttons.push({ label: `${xekoIcon('refresh')} Đổi chế độ`, handler: () => showModeSelect() });
         if (canSwitch) buttons.push({ label: `${xekoIcon('user')} Đổi profile`, handler: () => showProfileSelect() });
@@ -12171,7 +12281,7 @@
               <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
               <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msgShort}</td>
               <td style="padding:8px 12px;">${buildThumbs(row)}</td>
-              ${linkCell(row.website)}
+              ${linkCell(row.website, String(row.id))}
               <td style="padding:8px 12px; font-size:12px;" title="${String(row.profile_name || row.profile || '-').replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${row.profile_name || row.profile || '-'}</span></div></td>
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${tgtLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${grpLabel}</div>`}</div></td>
               <td style="padding:8px 12px; vertical-align:middle;">${timeStacked}</td>
@@ -12197,7 +12307,7 @@
               <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#92400e;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
               <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msgShort}</td>
               <td style="padding:8px 12px;">${buildThumbs(row)}</td>
-              ${linkCell(row.website)}
+              ${linkCell(row.website, String(row.id))}
               <td style="padding:8px 12px; font-size:12px;" title="${String(row.profile_name || row.profile || '-').replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${row.profile_name || row.profile || '-'}</span></div></td>
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${tgtLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${grpLabel}</div>`}</div></td>
               <td style="padding:8px 12px; vertical-align:middle;">${timeStacked}</td>
@@ -12475,15 +12585,26 @@
           };
           const postLinkIcon = (url) => url ? `<a href="${String(url).replace(/"/g,'&quot;')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Mở bài đăng" style="color:#3B82F6; text-decoration:none; flex-shrink:0; display:inline-flex; align-items:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : '';
 
-          // Ô cột "Link SP" (metadata) — nút "Xem link" clickable, tránh in link dài.
-          // Dùng function declaration để hoisted, gọi được từ mọi renderer phía trên.
-          function linkCell(website) {
+          // Ô cột "Link SP" (metadata): icon mở link + icon bút chì để sửa link
+          // ngay trên Dashboard. editIds = danh sách post_logs id (dạng "1,2,3") mà
+          // link áp dụng cho — có thì hiện nút Sửa; bài trong-bộ-nhớ/lịch để trống → chỉ xem.
+          // Function declaration (hoisted) để mọi renderer phía trên gọi được.
+          function linkCell(website, editIds) {
             const w = (website || '').trim();
-            if (!w) return `<td style="padding:8px 12px; text-align:center; color:#cbd5e1;">—</td>`;
-            const safe = escapeHtml(w);
-            // Chuẩn hoá href an toàn: chỉ cho http/https, còn lại coi như domain → thêm https://
-            const href = escapeHtml(/^https?:\/\//i.test(w) ? w : 'https://' + w.replace(/^\/+/, ''));
-            return `<td style="padding:8px 12px; text-align:center;"><a href="${href}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${safe}" style="display:inline-flex; align-items:center; gap:4px; max-width:100%; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:600; text-decoration:none; white-space:nowrap;"><svg style="width:11px;height:11px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Xem link</a></td>`;
+            const editable = editIds != null && String(editIds).length > 0;
+            const parts = [];
+            if (w) {
+              const safe = escapeHtml(w);
+              // Chuẩn hoá href an toàn: chỉ cho http/https, còn lại coi như domain → thêm https://
+              const href = escapeHtml(/^https?:\/\//i.test(w) ? w : 'https://' + w.replace(/^\/+/, ''));
+              parts.push(`<a href="${href}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Mở link: ${safe}" style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:999px; background:#eff6ff; color:#1d4ed8; text-decoration:none; flex-shrink:0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`);
+            }
+            if (editable) {
+              const enc = encodeURIComponent(w).replace(/'/g, '%27');
+              parts.push(`<button type="button" onclick="event.stopPropagation(); openEditLinkModal('${escapeHtml(String(editIds))}','${enc}')" title="${w ? 'Sửa link' : 'Thêm link'}" style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:999px; background:#f1f5f9; color:#475569; border:none; cursor:pointer; flex-shrink:0;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`);
+            }
+            if (parts.length === 0) return `<td style="padding:8px 12px; text-align:center; color:#cbd5e1;">—</td>`;
+            return `<td style="padding:8px 8px; text-align:center;"><div style="display:inline-flex; align-items:center; justify-content:center; gap:4px;">${parts.join('')}</div></td>`;
           }
 
           const parseSharedGroups = (groupName) => {
@@ -12522,7 +12643,7 @@
               <td style="padding:8px 10px;"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><span style="display:inline-block; width:10px; flex-shrink:0;"></span><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
               <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div></td>
               <td style="padding:8px 12px;">${thumbs}</td>
-              ${linkCell(row.website)}
+              ${linkCell(row.website, String(row.id))}
               <td style="padding:8px 12px; font-size:12px;" title="${profileName.replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${profileName}</span></div></td>
               <td style="padding:8px 12px;"><div style="line-height:1.3; overflow:hidden; min-width:0;"><div style="font-size:12px; display:inline-flex; align-items:center; gap:4px; max-width:100%; overflow:hidden;"><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${noiDangLabel(row)}</span>${postLinkIcon(row.post_url)}</div>${(row.target === 'personal' || !noiDangSub) ? '' : `<div style="font-size:11px; color:#6b7280; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;" title="${noiDangTitle.replace(/"/g,'&quot;')}">${noiDangSub}</div>`}</div></td>
               <td style="padding:8px 12px; vertical-align:middle;">${fmtTimeStacked(row.timestamp)}</td>
@@ -12613,7 +12734,7 @@
               <td style="padding:8px 10px;" onclick="event.stopPropagation()"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-batch-ids="${idsAttr}" onchange="onBatchCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><svg class="caret" style="width:10px;height:10px;color:#6b7280;transition:transform .15s; cursor:pointer;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" onclick="event.stopPropagation(); toggleBatchGroup('${groupKey}')"><polyline points="9 6 15 12 9 18"/></svg><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
               <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div></td>
               <td style="padding:8px 12px;">${thumbs}</td>
-              ${linkCell(firstRow.website)}
+              ${linkCell(firstRow.website, group.rows.map(r => r.id).join(','))}
               <td style="padding:8px 12px; font-size:12px;" title="${accTitle}">${repAccountCell}</td>
               <td style="padding:8px 12px;"><div style="line-height:1.3; overflow:hidden; min-width:0;"><div style="font-size:12px;">Đa kênh</div><div style="font-size:11px; color:#6b7280; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${platBreakdown}</div></div></td>
               <td style="padding:8px 12px; vertical-align:middle;">${fmtTimeStacked(firstRow.timestamp)}</td>

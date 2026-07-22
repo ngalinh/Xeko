@@ -350,6 +350,15 @@ function deleteByIds(ids) {
   return db.prepare(`DELETE FROM post_logs WHERE id IN (${placeholders})`).run(ids);
 }
 
+// Cập nhật link sản phẩm (website) cho 1 hoặc nhiều bài (sửa từ Dashboard).
+// website rỗng → set null (xoá link).
+function updateWebsiteByIds(ids, website) {
+  if (!ids || ids.length === 0) return { changes: 0 };
+  const w = (website != null && String(website).trim()) ? String(website).trim() : null;
+  const placeholders = ids.map(() => '?').join(',');
+  return db.prepare(`UPDATE post_logs SET website = ? WHERE id IN (${placeholders})`).run(w, ...ids);
+}
+
 function deleteByFilter({ profile, success, from, to } = {}) {
   let sql = 'DELETE FROM post_logs WHERE 1=1';
   const params = {};
@@ -402,4 +411,4 @@ function getByProfileStats({ profile, platform, target, groupId, from, to } = {}
   return db.prepare(sql).all(params);
 }
 
-module.exports = { logPost, insertPendingPost, completePendingPost, completePendingByJobId, completePostById, markRetryWaiting, failRetryWaiting, getRetryWaiting, getPendingPosts, cleanupStalePending, markTimedOutPending, getPostHistory, getStatistics, getDailyByProfile, getByProfileStats, deleteById, deleteByIds, deleteByFilter };
+module.exports = { logPost, insertPendingPost, completePendingPost, completePendingByJobId, completePostById, markRetryWaiting, failRetryWaiting, getRetryWaiting, getPendingPosts, cleanupStalePending, markTimedOutPending, getPostHistory, getStatistics, getDailyByProfile, getByProfileStats, deleteById, deleteByIds, deleteByFilter, updateWebsiteByIds };
