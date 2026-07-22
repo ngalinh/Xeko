@@ -4900,15 +4900,16 @@
 
       <!-- Post History Table -->
       <div style="background:rgba(255,255,255,0.78); border:1px solid #e5e7eb; border-radius:12px; overflow-x:auto;">
-        <table style="width:100%; min-width:1320px; border-collapse:collapse; font-size:13px; table-layout:fixed;">
+        <table style="width:100%; min-width:1440px; border-collapse:collapse; font-size:13px; table-layout:fixed;">
           <colgroup>
             <col style="width:5%;">
-            <col style="width:16%;">
-            <col style="width:17%;">
-            <col style="width:13%;">
-            <col style="width:13%;">
+            <col style="width:15%;">
+            <col style="width:7%;">
+            <col style="width:14%;">
+            <col style="width:12%;">
+            <col style="width:12%;">
             <col style="width:8%;">
-            <col style="width:10%;">
+            <col style="width:9%;">
             <col style="width:11%;">
             <col style="width:7%;">
           </colgroup>
@@ -4916,6 +4917,7 @@
             <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
               <th style="padding:10px 10px; text-align:left; font-weight:600;"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="dashSelectAll" onchange="toggleSelectAll(this.checked)" style="cursor:pointer; width:14px; height:14px;"><span>STT</span></div></th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Nội dung</th>
+              <th style="padding:10px 12px; text-align:center; font-weight:600;">Link SP</th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Ảnh</th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Tài khoản</th>
               <th style="padding:10px 12px; text-align:left; font-weight:600;">Nơi đăng</th>
@@ -7608,7 +7610,7 @@
       currentWebsite = w;
       rememberWebsite(w);
       disablePrevButtons();
-      addUser(`🔗 Link: ${w}`);
+      addUser('🔗 Đã thêm link sản phẩm');
       proceedToCompose();
     }
 
@@ -7626,7 +7628,7 @@
       const _hint = composeHintBox(postMode === 'schedule'
         ? 'Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!'
         : 'Soạn nội dung + thêm ảnh 📷, gửi là xong nha!');
-      const webLine = currentWebsite ? `\n🔗 Link: <strong>${escapeHtml(currentWebsite)}</strong>` : '';
+      const webLine = currentWebsite ? `\n🔗 Đã đính kèm link sản phẩm` : '';
       const buttons = [];
       // Lên lịch thêm: giữ nút "Dùng lại nội dung vừa rồi" cho tiện.
       if (postMode === 'schedule') {
@@ -7908,7 +7910,7 @@
         }
         if (_destLabels.length) {
           const _list = _destLabels.map(s => `<strong>${s}</strong>`).join(', ');
-          const _webNote = website ? ` 🔗 Link: <strong>${escapeHtml(website)}</strong>.` : '';
+          const _webNote = website ? ` 🔗 (có kèm link sản phẩm).` : '';
           addBot(`✅ Đã nhận bài, đang đăng lên ${_list}.${_webNote} Theo dõi kết quả ở tab <strong>Dashboard</strong> nha!`);
         }
 
@@ -12118,6 +12120,7 @@
           return `<tr id="${job.tempId}" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
             <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
             <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msgShort}</td>
+            ${linkCell(job.website)}
             <td style="padding:8px 12px; color:#bbb;">—</td>
             <td style="padding:8px 12px; font-size:12px;" title="${String(job.profileName||'').replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(ch.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${job.profileName}</span></div></td>
             <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${targetLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${String(groupId).replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
@@ -12166,7 +12169,8 @@
             const grpLabel = resolveGroupLabel(row.platform, row.group_id, row.group_name);
             return `<tr id="pending-log-${row.id}" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
               <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
-              <td style="padding:8px 12px; font-size:12px; overflow:hidden; cursor:default;" data-ctip="${ctipMsg}"><div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${msgShort}</div>${websiteChip(row.website)}</td>
+              <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msgShort}</td>
+              ${linkCell(row.website)}
               <td style="padding:8px 12px;">${buildThumbs(row)}</td>
               <td style="padding:8px 12px; font-size:12px;" title="${String(row.profile_name || row.profile || '-').replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${row.profile_name || row.profile || '-'}</span></div></td>
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${tgtLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${grpLabel}</div>`}</div></td>
@@ -12191,7 +12195,8 @@
             const grpLabel = resolveGroupLabel(row.platform, row.group_id, row.group_name);
             return `<tr id="pending-log-stale-${row.id}" style="border-bottom:1px solid #fde68a; background:#fffbeb; border-left:3px solid #f59e0b;">
               <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#92400e;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
-              <td style="padding:8px 12px; font-size:12px; overflow:hidden; cursor:default;" data-ctip="${ctipMsg}"><div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${msgShort}</div>${websiteChip(row.website)}</td>
+              <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msgShort}</td>
+              ${linkCell(row.website)}
               <td style="padding:8px 12px;">${buildThumbs(row)}</td>
               <td style="padding:8px 12px; font-size:12px;" title="${String(row.profile_name || row.profile || '-').replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${row.profile_name || row.profile || '-'}</span></div></td>
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${tgtLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${grpLabel}</div>`}</div></td>
@@ -12235,6 +12240,7 @@
           return `<tr id="schedRow-${sched.id}" style="border-bottom:1px solid #EFF6FF; background:${rowBg}; border-left:3px solid #BFDBFE;">
             <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
             <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msg}</td>
+            ${linkCell(sched.website)}
             <td style="padding:8px 12px;">${thumbs}</td>
             <td style="padding:8px 12px; font-size:12px;"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(sched.type)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${sched.profile_name || sched.profile || '-'}</span></div></td>
             <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${schedPlatformLabel} - ${targetLabel}</div>${schedIsPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${groupIdRaw.replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
@@ -12469,16 +12475,16 @@
           };
           const postLinkIcon = (url) => url ? `<a href="${String(url).replace(/"/g,'&quot;')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Mở bài đăng" style="color:#3B82F6; text-decoration:none; flex-shrink:0; display:inline-flex; align-items:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : '';
 
-          // Chip link (metadata) hiển thị dưới nội dung bài dạng "Xem link" clickable
-          // (tránh in nguyên link dài). Trả '' nếu không có.
-          const websiteChip = (website) => {
+          // Ô cột "Link SP" (metadata) — nút "Xem link" clickable, tránh in link dài.
+          // Dùng function declaration để hoisted, gọi được từ mọi renderer phía trên.
+          function linkCell(website) {
             const w = (website || '').trim();
-            if (!w) return '';
+            if (!w) return `<td style="padding:8px 12px; text-align:center; color:#cbd5e1;">—</td>`;
             const safe = escapeHtml(w);
             // Chuẩn hoá href an toàn: chỉ cho http/https, còn lại coi như domain → thêm https://
             const href = escapeHtml(/^https?:\/\//i.test(w) ? w : 'https://' + w.replace(/^\/+/, ''));
-            return `<div style="margin-top:4px;"><a href="${href}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${safe}" style="display:inline-flex; align-items:center; gap:4px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:1px 8px; border-radius:999px; font-size:10.5px; font-weight:600; text-decoration:none; white-space:nowrap;"><svg style="width:9px;height:9px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Xem link</a></div>`;
-          };
+            return `<td style="padding:8px 12px; text-align:center;"><a href="${href}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${safe}" style="display:inline-flex; align-items:center; gap:4px; max-width:100%; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:600; text-decoration:none; white-space:nowrap;"><svg style="width:11px;height:11px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Xem link</a></td>`;
+          }
 
           const parseSharedGroups = (groupName) => {
             if (!groupName) return null;
@@ -12514,7 +12520,8 @@
             const thumbs = buildThumbs(row);
             return `<tr id="dashRow-${row.id}" style="border-bottom:1px solid #f3f4f6; background:#fff;">
               <td style="padding:8px 10px;"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><span style="display:inline-block; width:10px; flex-shrink:0;"></span><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
-              <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div>${websiteChip(row.website)}</td>
+              <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div></td>
+              ${linkCell(row.website)}
               <td style="padding:8px 12px;">${thumbs}</td>
               <td style="padding:8px 12px; font-size:12px;" title="${profileName.replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${profileName}</span></div></td>
               <td style="padding:8px 12px;"><div style="line-height:1.3; overflow:hidden; min-width:0;"><div style="font-size:12px; display:inline-flex; align-items:center; gap:4px; max-width:100%; overflow:hidden;"><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${noiDangLabel(row)}</span>${postLinkIcon(row.post_url)}</div>${(row.target === 'personal' || !noiDangSub) ? '' : `<div style="font-size:11px; color:#6b7280; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;" title="${noiDangTitle.replace(/"/g,'&quot;')}">${noiDangSub}</div>`}</div></td>
@@ -12604,7 +12611,8 @@
 
             const headerHtml = `<tr id="dashGroup-${groupKey}" data-group-key="${groupKey}" onclick="toggleBatchGroup('${groupKey}', event)" style="border-bottom:1px solid #f3f4f6; cursor:pointer; background:#fff;">
               <td style="padding:8px 10px;" onclick="event.stopPropagation()"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-batch-ids="${idsAttr}" onchange="onBatchCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><svg class="caret" style="width:10px;height:10px;color:#6b7280;transition:transform .15s; cursor:pointer;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" onclick="event.stopPropagation(); toggleBatchGroup('${groupKey}')"><polyline points="9 6 15 12 9 18"/></svg><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
-              <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div>${websiteChip(firstRow.website)}</td>
+              <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div></td>
+              ${linkCell(firstRow.website)}
               <td style="padding:8px 12px;">${thumbs}</td>
               <td style="padding:8px 12px; font-size:12px;" title="${accTitle}">${repAccountCell}</td>
               <td style="padding:8px 12px;"><div style="line-height:1.3; overflow:hidden; min-width:0;"><div style="font-size:12px;">Đa kênh</div><div style="font-size:11px; color:#6b7280; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${platBreakdown}</div></div></td>
@@ -12643,6 +12651,7 @@
                 <td style="padding:8px 10px;"><div style="display:flex; align-items:center; gap:6px; padding-left:18px;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><span style="font-size:11px; color:#6b7280;">${stt}.${k + 1}</span></div></td>
                 <td style="background:#eef2f6;"></td>
                 <td style="background:#eef2f6;"></td>
+                <td style="background:#eef2f6;"></td>
                 <td style="padding:8px 12px; font-size:12px;" title="${profileName.replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${profileName}</span></div></td>
                 <td style="padding:8px 12px;"><div style="line-height:1.3; overflow:hidden; min-width:0;"><div style="font-size:12px; display:inline-flex; align-items:center; gap:4px; max-width:100%; overflow:hidden;"><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${noiDangLabel(row)}</span>${postLinkIcon(row.post_url)}</div>${(row.target === 'personal' || !childNoisub) ? '' : `<div style="font-size:11px; color:#6b7280; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;" title="${childNoiTitle.replace(/"/g,'&quot;')}">${childNoisub}</div>`}</div></td>
                 <td style="padding:8px 12px; vertical-align:middle;">${fmtTimeStacked(row.timestamp, true)}</td>
@@ -12668,7 +12677,7 @@
         } else {
           window._dashRows = [];
           const fallbackHtml = activeRepostHtml + schedHtml;
-          tbody.innerHTML = fallbackHtml || '<tr><td colspan="9" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
+          tbody.innerHTML = fallbackHtml || '<tr><td colspan="10" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
           if (!noAnimation) _animateTableRows(tbody);
         }
 
