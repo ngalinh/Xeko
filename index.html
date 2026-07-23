@@ -3093,14 +3093,16 @@
       right: 20px;
       top: 8px;
     }
-    .dash-card-today::before  { width:58px; height:58px; background:rgba(74,159,229,0.28); }
-    .dash-card-today::after   { width:40px; height:40px; background:rgba(74,159,229,0.18); }
-    .dash-card-success::before{ width:58px; height:58px; background:rgba(91,171,110,0.28); }
-    .dash-card-success::after { width:40px; height:40px; background:rgba(91,171,110,0.18); }
-    .dash-card-fail::before   { width:58px; height:58px; background:rgba(231,111,81,0.28); }
-    .dash-card-fail::after    { width:40px; height:40px; background:rgba(231,111,81,0.18); }
-    .dash-card-total::before  { width:58px; height:58px; background:rgba(245,158,11,0.28); }
-    .dash-card-total::after   { width:40px; height:40px; background:rgba(245,158,11,0.18); }
+    .dash-card-today::before  { width:54px; height:54px; background:rgba(74,159,229,0.16); }
+    .dash-card-today::after   { width:38px; height:38px; background:rgba(74,159,229,0.10); }
+    .dash-card-success::before{ width:54px; height:54px; background:rgba(91,171,110,0.16); }
+    .dash-card-success::after { width:38px; height:38px; background:rgba(91,171,110,0.10); }
+    .dash-card-fail::before   { width:54px; height:54px; background:rgba(231,111,81,0.16); }
+    .dash-card-fail::after    { width:38px; height:38px; background:rgba(231,111,81,0.10); }
+    .dash-card-total::before  { width:54px; height:54px; background:rgba(245,158,11,0.16); }
+    .dash-card-total::after   { width:38px; height:38px; background:rgba(245,158,11,0.10); }
+    /* Nhãn thẻ tổng quan + hậu tố phạm vi thời gian (hôm nay / tất cả) */
+    .dcl-scope { opacity:0.6; font-weight:500; }
     .dash-card-pro {
       transition: transform 0.22s ease, box-shadow 0.22s ease;
     }
@@ -3108,6 +3110,26 @@
       transform: translateY(-2px);
       box-shadow: 0 6px 20px rgba(0,0,0,0.08);
     }
+
+    /* ===== Dark mode cho Dashboard (thẻ tổng quan, chart card, Theo tài khoản) ===== */
+    [data-theme="dark"] .dash-card-today   { background:#14293a !important; }
+    [data-theme="dark"] .dash-card-success { background:#16301c !important; }
+    [data-theme="dark"] .dash-card-fail    { background:#3a2018 !important; }
+    [data-theme="dark"] .dash-card-total   { background:#33280f !important; }
+    [data-theme="dark"] #statToday   { color:#7dc4ee !important; }
+    [data-theme="dark"] #statSuccess { color:#86d69b !important; }
+    [data-theme="dark"] #statFail    { color:#f0a58e !important; }
+    [data-theme="dark"] #statTotal   { color:#f3c568 !important; }
+    [data-theme="dark"] .dash-card-today   .dcl { color:#7dc4ee !important; }
+    [data-theme="dark"] .dash-card-success .dcl { color:#86d69b !important; }
+    [data-theme="dark"] .dash-card-fail    .dcl { color:#f0a58e !important; }
+    [data-theme="dark"] .dash-card-total   .dcl { color:#f3c568 !important; }
+    [data-theme="dark"] .dash-card-pro { background:#1e1e3a !important; border-color:#2a2a4a !important; }
+    [data-theme="dark"] .dash-card-pro [style*="color:#1e1e2e"] { color:#e5e7eb !important; }
+    [data-theme="dark"] .stat-profile-card { background:#252547 !important; border-color:#2a2a4a !important; }
+    [data-theme="dark"] .stat-profile-card [style*="color:#1e1e2e"] { color:#e5e7eb !important; }
+    [data-theme="dark"] .stat-profile-card [style*="color:#555"] { color:#b8b8d0 !important; }
+    [data-theme="dark"] .stat-profile-card [style*="background:#f3f4f6"] { background:#3a3a5a !important; }
 
     /* Entrance animation — applied via JS with per-element delay */
     .dash-anim-enter {
@@ -4712,28 +4734,28 @@
           <div style="width:44px; height:44px; border-radius:12px; background:#4a9fe5; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0;"><svg class="xi xi-md"><use href="#ic-calendar"/></svg></div>
           <div style="min-width:0;">
             <div id="statToday" style="font-size:24px; font-weight:700; color:#1f5f7a; line-height:1.1;">0</div>
-            <div style="font-size:12px; color:#4a9fe5; font-weight:600; margin-top:2px;">Hôm nay</div>
+            <div class="dcl" style="font-size:12px; color:#1f5f7a; font-weight:600; margin-top:2px;">Hôm nay</div>
           </div>
         </div>
         <div class="dash-card dash-card-success" style="background:#d5ebd8; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
           <div style="width:44px; height:44px; border-radius:12px; background:#5bab6e; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0;"><svg class="xi xi-md"><use href="#ic-check"/></svg></div>
           <div style="min-width:0;">
             <div id="statSuccess" style="font-size:24px; font-weight:700; color:#2e6b3f; line-height:1.1;">0</div>
-            <div style="font-size:12px; color:#5bab6e; font-weight:600; margin-top:2px;">Thành công</div>
+            <div class="dcl" style="font-size:12px; color:#2e6b3f; font-weight:600; margin-top:2px;">Thành công<span class="dcl-scope"> · hôm nay</span></div>
           </div>
         </div>
         <div class="dash-card dash-card-fail" style="background:#fbe2d5; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
           <div style="width:44px; height:44px; border-radius:12px; background:#e76f51; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0;"><svg class="xi xi-md"><use href="#ic-x"/></svg></div>
           <div style="min-width:0;">
             <div id="statFail" style="font-size:24px; font-weight:700; color:#c4452a; line-height:1.1;">0</div>
-            <div style="font-size:12px; color:#e76f51; font-weight:600; margin-top:2px;">Thất bại</div>
+            <div class="dcl" style="font-size:12px; color:#c4452a; font-weight:600; margin-top:2px;">Thất bại<span class="dcl-scope"> · hôm nay</span></div>
           </div>
         </div>
         <div class="dash-card dash-card-total" style="background:#FEF3C7; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
           <div style="width:44px; height:44px; border-radius:12px; background:#F59E0B; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0;"><svg class="xi xi-md"><use href="#ic-dash"/></svg></div>
           <div style="min-width:0;">
             <div id="statTotal" style="font-size:24px; font-weight:700; color:#92400E; line-height:1.1;">0</div>
-            <div style="font-size:12px; color:#D97706; font-weight:600; margin-top:2px;">Tổng cộng</div>
+            <div class="dcl" style="font-size:12px; color:#92400E; font-weight:600; margin-top:2px;">Tổng cộng<span class="dcl-scope"> · tất cả</span></div>
           </div>
         </div>
       </div>
@@ -4744,7 +4766,7 @@
       <div class="dash-card-pro">
         <div id="chartFilterHeader" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
           <div style="display:flex; align-items:center; justify-content:space-between;">
-            <div style="font-weight:600; font-size:14px; color:#1e1e2e;">Theo ngày</div>
+            <div style="font-weight:600; font-size:14px; color:#1e1e2e;">Theo ngày<span class="dcl-scope" style="font-weight:500;"> · khoảng đã chọn</span></div>
             <div style="display:flex; gap:4px;">
               <button onclick="setChartType('bar')" id="chartTypeBar" style="padding:5px 12px; border:1px solid transparent; border-radius:8px; background:rgba(59, 130, 246, 0.12); color:#1E3A8A; font-size:12px; cursor:pointer; font-weight:600;">Bar</button>
               <button onclick="setChartType('line')" id="chartTypeLine" style="padding:5px 12px; border:1px solid transparent; border-radius:8px; background:transparent; color:#506580; font-size:12px; cursor:pointer; font-weight:600;">Line</button>
@@ -4770,7 +4792,7 @@
 
       <!-- Stats by Profile (right column, updates with filter) -->
       <div class="dash-card-pro" style="overflow-y:auto; max-height:340px; padding:16px;">
-        <div style="font-weight:600; margin-bottom:12px; font-size:14px;">Theo tài khoản</div>
+        <div style="font-weight:600; margin-bottom:12px; font-size:14px;">Theo tài khoản<span class="dcl-scope" style="font-weight:500;"> · toàn thời gian</span></div>
         <div id="statByProfile" style="font-size:13px;"></div>
       </div>
       </div><!-- end dash-2col -->
@@ -10923,6 +10945,10 @@
       html.setAttribute('data-theme', next);
       xekoSyncThemeIcons(next);
       localStorage.setItem('xeko_theme', next);
+      // Vẽ lại chart để màu chữ/lưới khớp theme mới (nếu đang mở Dashboard)
+      if (typeof _dashChart !== 'undefined' && _dashChart && typeof loadDashChart === 'function') {
+        try { loadDashChart(); } catch {}
+      }
     }
 
     // Load theme tu localStorage
@@ -11672,8 +11698,8 @@
       const statNums = (total, success, fail) => `
         <span style="display:inline-flex; align-items:center; justify-content:flex-end; gap:8px; font-size:12px; font-variant-numeric:tabular-nums; white-space:nowrap; flex-shrink:0;">
           <strong style="min-width:22px; text-align:right;">${total}</strong>
-          <span style="color:#16a34a; min-width:34px; text-align:right;">✓${success}</span>
-          <span style="color:#dc2626; min-width:34px; text-align:right;">✗${fail}</span>
+          <span style="color:#16a34a; font-weight:600; min-width:36px; text-align:right;">✓&#8202;${success}</span>
+          <span style="color:#dc2626; font-weight:600; min-width:36px; text-align:right;">✗&#8202;${fail}</span>
         </span>`;
 
       const renderPlatformRow = (p, label, badgeBg, badgeColor) => {
@@ -11989,6 +12015,10 @@
 
         const canvas = document.getElementById('dashChart');
         if (_dashChart) { _dashChart.destroy(); _dashChart = null; }
+        // Màu chữ/lưới của chart theo theme để hiển thị rõ ở cả sáng lẫn tối
+        const _dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const _tickColor = _dark ? '#b8b8d0' : '#666';
+        const _gridColor = _dark ? 'rgba(255,255,255,0.08)' : '#f3f4f6';
         _dashChart = new Chart(canvas, {
           type: _chartType === 'line' ? 'line' : 'bar',
           data: { labels: dates.map(d => d.slice(5)), datasets },
@@ -11998,12 +12028,12 @@
             animation: { duration: 700, easing: 'easeOutQuart' },
             interaction: { mode: 'index', intersect: false },
             plugins: {
-              legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 } } },
+              legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 12 }, color: _tickColor } },
               tooltip: { callbacks: { title: t => dates[t[0].dataIndex] } },
             },
             scales: {
-              x: { stacked: _chartType === 'bar', grid: { display: false }, ticks: { font: { size: 11 } } },
-              y: { stacked: _chartType === 'bar', beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: '#f3f4f6' } },
+              x: { stacked: _chartType === 'bar', grid: { display: false }, ticks: { font: { size: 11 }, color: _tickColor } },
+              y: { stacked: _chartType === 'bar', beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 }, color: _tickColor }, grid: { color: _gridColor } },
             },
           },
         });
