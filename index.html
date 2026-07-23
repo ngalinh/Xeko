@@ -11813,10 +11813,11 @@
         if (typeof _updateDashFilterBadge === 'function') _updateDashFilterBadge();
       }
 
-      // Đảm bảo channelsData đã được tải (cần cho group filter)
+      // Đảm bảo channelsData đã được tải (cần cho group filter). Có timeout để không "treo"
+      // loadDashHistory (hiện danh sách) khi server bận ngay sau khi đăng.
       if (!(channelsData.fbGroups?.length) && !(channelsData.zaloGroups?.length)) {
         try {
-          const chRes = await fetch(`${BASE_URL}/api/channels?_t=` + Date.now(), {cache: 'no-store'});
+          const chRes = await fetch(`${BASE_URL}/api/channels?_t=` + Date.now(), {cache: 'no-store', signal: _dashFetchSignal()});
           if (chRes.ok) channelsData = await parseJson(chRes);
         } catch {}
         populateDashGroupFilter();
@@ -11826,7 +11827,7 @@
       if (profilesCache.length === 0) {
         try {
           const allParam = (CURRENT_USER && CURRENT_USER.isXekoAdmin) ? '?all=1' : '';
-          const accRes = await fetch(`${BASE_URL}/api/accounts` + allParam);
+          const accRes = await fetch(`${BASE_URL}/api/accounts` + allParam, {signal: _dashFetchSignal()});
           if (accRes.ok) {
             const accData = await parseJson(accRes);
             profilesCache = accData.facebook || [];
@@ -11837,7 +11838,7 @@
 
       // Load statistics — lỗi ở đây không được chặn loadDashHistory
       try {
-        const statsRes = await fetch(BASE_URL + '/api/statistics?_t=' + Date.now(), {cache: 'no-store'});
+        const statsRes = await fetch(BASE_URL + '/api/statistics?_t=' + Date.now(), {cache: 'no-store', signal: _dashFetchSignal()});
         const stats = await parseJson(statsRes);
 
         animateCountUp(document.getElementById('statToday'),   stats.today?.total         || 0);
@@ -12989,33 +12990,32 @@
           await new Promise(r => setTimeout(r, _backoff));
           return loadDashHistory({ noSkeleton: true, noAnimation: true, _retry: (_retry || 0) + 1 });
         }
-        // Đã thử lại vẫn lỗi → chỉ can thiệp khi đang ở trạng thái tải mới (skeleton) HOẶC
-        // đang trong vòng tự-phục-hồi (self-heal). KHÔNG xoá danh sách cũ đang hiển thị của
-        // một lần refresh nền. Dùng marker [data-dash-loading] để vòng self-heal tiếp tục
-        // được (retry dùng noSkeleton nên không còn .dash-skel để bám vào).
+        // Đã thử lại (immediate) vẫn lỗi. Cơ chế tự-phục-hồi dựa trên TRẠNG THÁI (không dựa
+        // vào DOM), để chuỗi retry noSkeleton không bị đứt:
+        //  - Đang có bài đăng dở (chatbot/repost) → thử lại nền VÔ HẠN mỗi 4s cho tới khi
+        //    server rảnh và tải được. Danh sách sẽ tự cập nhật (kể cả bài vừa đăng).
+        //  - Không có bài đăng dở → thử lại tối đa 5 lần (3s/lần) rồi mới báo lỗi.
+        // Luôn GIỮ NGUYÊN snapshot/danh sách cũ đang hiển thị (chỉ thay khi đang là skeleton),
+        // và KHÔNG báo lỗi đè lên danh sách đang có.
         const tb = document.getElementById('dashHistoryBody');
-        const _canHeal = tb && (tb.querySelector('.dash-skel') || tb.querySelector('[data-dash-loading]'));
-        if (_canHeal) {
-          const liveHtml = _pendingLiveRowsHtml();
-          // Có bài đang đăng dở (chatbot/repost) → server đang bận, danh sách sẽ tải được
-          // khi server rảnh. KHÔNG báo lỗi "cứng"; giữ dòng "Đang đăng" + báo nhẹ và TỰ
-          // THỬ LẠI nền MỖI 4s cho tới khi tải được (self-heal), tránh kẹt.
-          const _hasInflight = (typeof getPendingJobs === 'function'
-              && getPendingJobs().some(j => j && (Date.now() - (j.ts || 0) <= 30 * 60 * 1000)))
-            || (typeof _activeRepostJobs !== 'undefined' && _activeRepostJobs.length > 0);
-          if (_hasInflight) {
-            tb.innerHTML = liveHtml + '<tr data-dash-loading="1"><td colspan="10" style="padding:20px 12px; text-align:center; color:#94a3b8; font-size:13px;"><svg style="width:13px;height:13px;vertical-align:-2px;margin-right:5px;" class="badge-pulse" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng bài — danh sách sẽ hiện lại ngay khi xong…</td></tr>';
-            setTimeout(() => { if (myVersion === _loadDashHistoryVersion) loadDashHistory({ noSkeleton: true, noAnimation: true }); }, 4000);
-          } else {
-            // Không có bài đăng dở nhưng vẫn tải lỗi → thử lại nền vài lần rồi mới báo lỗi
-            // cứng, tránh kẹt vĩnh viễn nếu chỉ là hiccup ngắn của server.
-            if ((_healTry || 0) < 5) {
-              tb.innerHTML = liveHtml + '<tr data-dash-loading="1"><td colspan="10" style="padding:20px 12px; text-align:center; color:#94a3b8; font-size:13px;"><svg style="width:13px;height:13px;vertical-align:-2px;margin-right:5px;" class="badge-pulse" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang tải danh sách…</td></tr>';
-              setTimeout(() => { if (myVersion === _loadDashHistoryVersion) loadDashHistory({ noSkeleton: true, noAnimation: true, _healTry: (_healTry || 0) + 1 }); }, 3000);
-            } else {
-              tb.innerHTML = liveHtml + '<tr><td colspan="10" style="padding:24px 12px; text-align:center; color:#94a3b8; font-size:13px;">Không tải được danh sách. Vui lòng thử lại.</td></tr>';
-            }
+        const _isSkelOrLoading = tb && (tb.querySelector('.dash-skel') || tb.querySelector('[data-dash-loading]'));
+        const _hasInflight = (typeof getPendingJobs === 'function'
+            && getPendingJobs().some(j => j && (Date.now() - (j.ts || 0) <= 30 * 60 * 1000)))
+          || (typeof _activeRepostJobs !== 'undefined' && _activeRepostJobs.length > 0);
+        const _keepTrying = _hasInflight || (_healTry || 0) < 5;
+        if (_keepTrying) {
+          if (tb && _isSkelOrLoading) {
+            const _msg = _hasInflight ? 'Đang đăng bài — danh sách sẽ hiện lại ngay khi xong…' : 'Đang tải danh sách…';
+            tb.innerHTML = _pendingLiveRowsHtml() + '<tr data-dash-loading="1"><td colspan="10" style="padding:20px 12px; text-align:center; color:#94a3b8; font-size:13px;"><svg style="width:13px;height:13px;vertical-align:-2px;margin-right:5px;" class="badge-pulse" aria-hidden="true"><use href="#ic-refresh"/></svg>' + _msg + '</td></tr>';
           }
+          const _delay = _hasInflight ? 4000 : 3000;
+          setTimeout(() => { if (myVersion === _loadDashHistoryVersion) loadDashHistory({ noSkeleton: true, noAnimation: true, _healTry: _hasInflight ? 0 : (_healTry || 0) + 1 }); }, _delay);
+          return;
+        }
+        // Hết lượt + không có bài đăng dở → chỉ báo lỗi khi đang là skeleton (đừng đè lên
+        // snapshot/danh sách cũ đang hiển thị).
+        if (tb && _isSkelOrLoading) {
+          tb.innerHTML = _pendingLiveRowsHtml() + '<tr><td colspan="10" style="padding:24px 12px; text-align:center; color:#94a3b8; font-size:13px;">Không tải được danh sách. Vui lòng thử lại.</td></tr>';
         }
       }
     }
