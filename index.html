@@ -12129,20 +12129,27 @@
 
       try {
         const _t = Date.now();
+        // Ở Kho content, khối "Theo tài khoản" bị ẩn → bỏ hẳn call by-profile (all-time,
+        // nặng) để giảm tải và loại bớt 1 điểm có thể fail khiến cả danh sách không tải được.
+        const _skipByProfile = (window.dashViewMode === 'content');
         const [schedRes, histRes, byProfileRes, seedSumRes, seedSchedRes] = await Promise.all([
           fetch(BASE_URL + '/api/schedules?_t=' + _t, {cache: 'no-store'}).catch(() => null),
-          fetch(BASE_URL + '/api/post-history?' + params.toString() + '&_t=' + _t, {cache: 'no-store'}),
-          fetch(BASE_URL + '/api/statistics/by-profile?' + statsParams.toString() + '&_t=' + _t, {cache: 'no-store'}),
+          fetch(BASE_URL + '/api/post-history?' + params.toString() + '&_t=' + _t, {cache: 'no-store'}).catch(() => null),
+          _skipByProfile ? Promise.resolve(null) : fetch(BASE_URL + '/api/statistics/by-profile?' + statsParams.toString() + '&_t=' + _t, {cache: 'no-store'}).catch(() => null),
           fetch(BASE_URL + '/api/seed-logs/summary?_t=' + _t, {cache: 'no-store'}).catch(() => null),
           fetch(BASE_URL + '/api/seed-schedules?_t=' + _t, {cache: 'no-store'}).catch(() => null),
         ]);
         // Nếu có call mới hơn đang chờ render, bỏ qua call này
         if (myVersion !== _loadDashHistoryVersion) return;
 
+        // Danh sách bài là dữ liệu bắt buộc — nếu fetch fail/không OK thì ném lỗi để
+        // vào nhánh retry (giữ nội dung/skeleton đang hiển thị), thay vì render rỗng.
+        if (!histRes || !histRes.ok) throw new Error('post-history fetch failed: ' + (histRes ? histRes.status : 'network'));
+
         const allSchedules = schedRes ? await parseJson(schedRes).catch(() => []) : [];
         const data = await parseJson(histRes);
-        const byProfileData = byProfileRes.ok ? await parseJson(byProfileRes).catch(() => []) : [];
-        renderStatByProfile(byProfileData, noAnimation);
+        const byProfileData = (byProfileRes && byProfileRes.ok) ? await parseJson(byProfileRes).catch(() => []) : [];
+        if (!_skipByProfile) renderStatByProfile(byProfileData, noAnimation);
 
         // Tổng hợp seeding theo post_url cho cột Seeding
         const seedSummaryRows = (seedSumRes && seedSumRes.ok) ? await parseJson(seedSumRes).catch(() => []) : [];
@@ -12836,11 +12843,14 @@
         // Chỉ xử lý khi call này vẫn là mới nhất (tránh ghi đè kết quả của call sau).
         if (myVersion !== _loadDashHistoryVersion) return;
         // Lỗi tải danh sách phần lớn là hiccup mạng/proxy tạm thời — hay gặp ngay sau
-        // khi vừa đăng xong (server đang bận chạy Playwright) và ở Kho content vì phải
-        // tải toàn bộ lịch sử. Thử lại 1 lần (giữ nguyên nội dung/skeleton đang hiển thị)
-        // trước khi báo lỗi, để danh sách không bị kẹt ở "Không tải được".
-        if ((_retry || 0) < 1) {
-          await new Promise(r => setTimeout(r, 700));
+        // khi vừa đăng/repost xong (server đang bận chạy Playwright) và ở Kho content vì
+        // phải tải toàn bộ lịch sử. Thử lại vài lần với backoff tăng dần (giữ nguyên
+        // nội dung/skeleton đang hiển thị) để "vượt qua" lúc server bận, tránh danh sách
+        // bị kẹt ở "Không tải được".
+        const _MAX_HIST_RETRY = 3;
+        if ((_retry || 0) < _MAX_HIST_RETRY) {
+          const _backoff = 800 * Math.pow(2, _retry || 0); // 800ms → 1600ms → 3200ms
+          await new Promise(r => setTimeout(r, _backoff));
           return loadDashHistory({ noSkeleton: true, noAnimation: true, _retry: (_retry || 0) + 1 });
         }
         // Đã thử lại vẫn lỗi → chỉ hiện thông báo khi đang là skeleton (lần tải mới),
@@ -13703,6 +13713,42 @@
       submitBtn.textContent = '🔄 Repost';
       editBtn.disabled = false;
       closeRepostModal();
+      // Về trang 1: dòng "Đang đăng" (pending/in-memory) chỉ render ở trang đầu, nên
+      // nếu đang xem trang khác sẽ không thấy job repost vừa tạo → luôn nhảy về trang 1.
+      dashPage = 0;
+      // Chèn NGAY dòng "Đang đăng" (optimistic) để phản hồi tức thì, không phụ thuộc
+      // vào việc tải lại toàn bộ danh sách (fetch nặng ở Kho content, có thể chậm/lỗi).
+      // loadDashHistory khi render xong sẽ thay bằng dòng pending "thật"; nếu fetch lỗi
+      // (giữ nguyên DOM) thì dòng này vẫn còn để người dùng biết bài đang được đăng.
+      try {
+        const _dashBody = document.getElementById('dashHistoryBody');
+        const _dashActive = document.getElementById('pageDashboard')?.classList.contains('active');
+        if (_dashBody && _dashActive) {
+          const _m = message || '';
+          const _msgShort = escapeHtml(_m.length > 60 ? _m.slice(0, 60) + '…' : (_m || '-'));
+          const [_tPart = '-', _dPart = ''] = (timeLabel || '').split(' ');
+          const _optRows = jobs.filter(j => !j.done && j.tempId).map(job => {
+            const ch = job.ch || {};
+            const platformLabel = ch.platform === 'zalo' ? 'Zalo' : 'FB';
+            const targetLabel = ch.type === 'group' ? 'Group' : 'Profile';
+            const isPersonal = ch.type !== 'group';
+            const groupId = ch.platform === 'zalo' ? (ch.name || '-') : (ch.id || ch.key || '-');
+            return `<tr id="opt-${job.tempId}" data-optimistic-repost="1" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
+              <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
+              <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${_msgShort}</td>
+              <td style="padding:8px 12px; color:#bbb;">—</td>
+              <td style="padding:8px 12px; text-align:left; color:#cbd5e1;">—</td>
+              <td style="padding:8px 12px; font-size:12px;"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(ch.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${escapeHtml(profileName || '-')}</span></div></td>
+              <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${targetLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(String(groupId))}</div>`}</div></td>
+              <td style="padding:8px 12px; vertical-align:middle;"><div style="line-height:1.3;"><div style="font-size:12px;">${escapeHtml(_tPart)}</div><div style="font-size:11px; color:#6b7280;">${escapeHtml(_dPart)}</div></div></td>
+              <td style="padding:8px 12px; text-align:center;"><span class="badge-pulse" style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span></td>
+              <td style="padding:8px 12px; text-align:center; color:#cbd5e1;">—</td>
+              <td></td>
+            </tr>`;
+          }).join('');
+          if (_optRows) _dashBody.insertAdjacentHTML('afterbegin', _optRows);
+        }
+      } catch {}
       // noSkeleton: giữ nguyên danh sách đang hiển thị trong lúc fetch — tránh bảng
       // bị "trắng" (skeleton) rồi mới hiện lại sau khi repost. Dòng "Đang đăng" của
       // job repost vẫn được chèn vào khi render xong (giống các refresh khác).
