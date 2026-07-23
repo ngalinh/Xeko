@@ -13221,6 +13221,7 @@
     // ===== Repost Modal =====
     let _repostEditMode = false;
     let _repostImages = [];
+    let _repostWebsite = ''; // link sản phẩm kế thừa từ bài gốc để đăng kèm khi repost
     let _repostExpandedCats = new Set(); // các phân loại FB group đang được xổ ra trong modal repost
     let _repostSelectedChannels = []; // array of channel options
 
@@ -13430,6 +13431,9 @@
       _repostExpandedCats = new Set(); // mỗi lần mở: thu gọn hết các nhóm phân loại
       _repostImages = (Array.isArray(row.images) ? row.images : [])
         .map(u => u.startsWith('/uploads/') ? '/api/image/' + u.slice('/uploads/'.length) : u);
+      // Kế thừa luôn LINK SẢN PHẨM của bài gốc để repost đăng kèm link (trước đây bị bỏ
+      // sót nên bài repost mất link). Tài khoản/nơi đăng vẫn do user chọn lại.
+      _repostWebsite = row.website || '';
 
       // Repost CHỈ kế thừa NỘI DUNG (message + ảnh) của bài gốc. Tài khoản và
       // NƠI ĐĂNG do user CHỌN LẠI — KHÔNG pre-select kênh/tài khoản gốc. Trước
@@ -13648,6 +13652,8 @@
     function _buildRepostFormData(message, resolvedImages) {
       const formData = new FormData();
       formData.append('message', message);
+      // Đăng kèm link sản phẩm kế thừa từ bài gốc (giống luồng đăng thường).
+      if (_repostWebsite) formData.append('website', _repostWebsite);
       for (const img of resolvedImages) formData.append('images', img.blob, img.name);
       return formData;
     }
@@ -13738,6 +13744,7 @@
         job.profileName = profileName;
         job.timeLabel = timeLabel;
         job.message = message;
+        job.website = _repostWebsite;
         // Có pendingLogId → DB pending row đã tồn tại, auto-poll 4s xử lý dashboard
         // Không có pendingLogId → dùng in-memory tracker (fallback)
         if (!job.pendingLogId) {
@@ -13795,7 +13802,7 @@
               <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
               <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${_msgShort}</td>
               <td style="padding:8px 12px; color:#bbb;">—</td>
-              <td style="padding:8px 12px; text-align:left; color:#cbd5e1;">—</td>
+              ${_repostWebsite ? `<td style="padding:8px 12px; text-align:left;"><a href="${escapeHtml(/^https?:\/\//i.test(_repostWebsite) ? _repostWebsite : 'https://' + _repostWebsite.replace(/^\/+/, ''))}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="display:inline-flex; align-items:center; gap:3px; color:#2563eb; text-decoration:none; font-size:12px; font-weight:600;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Link</a></td>` : `<td style="padding:8px 12px; text-align:left; color:#cbd5e1;">—</td>`}
               <td style="padding:8px 12px; font-size:12px;"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(ch.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${escapeHtml(profileName || '-')}</span></div></td>
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${targetLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(String(groupId))}</div>`}</div></td>
               <td style="padding:8px 12px; vertical-align:middle;"><div style="line-height:1.3;"><div style="font-size:12px;">${escapeHtml(_tPart)}</div><div style="font-size:11px; color:#6b7280;">${escapeHtml(_dPart)}</div></div></td>
