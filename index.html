@@ -12066,7 +12066,7 @@
 
     // Signal có timeout để fetch không "treo" mãi (fetch mặc định không có timeout) —
     // server bận chạy Playwright ngay sau khi đăng có thể giữ kết nối lâu → skeleton kẹt.
-    function _dashFetchSignal(ms = 20000) {
+    function _dashFetchSignal(ms = 12000) {
       try { return (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(ms) : undefined; }
       catch { return undefined; }
     }
@@ -12934,12 +12934,23 @@
           await new Promise(r => setTimeout(r, _backoff));
           return loadDashHistory({ noSkeleton: true, noAnimation: true, _retry: (_retry || 0) + 1 });
         }
-        // Đã thử lại vẫn lỗi → chỉ hiện thông báo khi đang là skeleton (lần tải mới),
-        // không xoá danh sách cũ đang hiển thị của một lần refresh nền. Vẫn giữ các dòng
-        // "Đang đăng" (nếu có) phía trên để người dùng biết bài vẫn đang được xử lý.
+        // Đã thử lại vẫn lỗi → chỉ can thiệp khi đang là skeleton (lần tải mới), không xoá
+        // danh sách cũ đang hiển thị của một lần refresh nền.
         const tb = document.getElementById('dashHistoryBody');
         if (tb && tb.querySelector('.dash-skel')) {
-          tb.innerHTML = _pendingLiveRowsHtml() + '<tr><td colspan="10" style="padding:24px 12px; text-align:center; color:#94a3b8; font-size:13px;">Không tải được danh sách. Vui lòng thử lại.</td></tr>';
+          const liveHtml = _pendingLiveRowsHtml();
+          // Có bài đang đăng dở (chatbot/repost) → server đang bận, danh sách sẽ tải được
+          // khi server rảnh. KHÔNG báo lỗi "cứng"; giữ dòng "Đang đăng" + báo nhẹ và TỰ
+          // THỬ LẠI nền cho tới khi tải được (self-heal), tránh kẹt ở "Không tải được".
+          const _hasInflight = (typeof getPendingJobs === 'function'
+              && getPendingJobs().some(j => j && (Date.now() - (j.ts || 0) <= 30 * 60 * 1000)))
+            || (typeof _activeRepostJobs !== 'undefined' && _activeRepostJobs.length > 0);
+          if (_hasInflight) {
+            tb.innerHTML = liveHtml + '<tr><td colspan="10" style="padding:20px 12px; text-align:center; color:#94a3b8; font-size:13px;"><svg style="width:13px;height:13px;vertical-align:-2px;margin-right:5px;" class="badge-pulse" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng bài — danh sách sẽ hiện lại ngay khi xong…</td></tr>';
+            setTimeout(() => { if (myVersion === _loadDashHistoryVersion) loadDashHistory({ noSkeleton: true, noAnimation: true }); }, 4000);
+          } else {
+            tb.innerHTML = liveHtml + '<tr><td colspan="10" style="padding:24px 12px; text-align:center; color:#94a3b8; font-size:13px;">Không tải được danh sách. Vui lòng thử lại.</td></tr>';
+          }
         }
       }
     }
