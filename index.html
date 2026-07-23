@@ -3593,6 +3593,9 @@
       <button class="sidebar-item" onclick="switchPage('post')" id="navPost">
         <span class="icon"><svg class="xi"><use href="#ic-post"/></svg></span> Đăng bài
       </button>
+      <button class="sidebar-item" onclick="switchPage('content')" id="navContent">
+        <span class="icon"><svg class="xi"><use href="#ic-book"/></svg></span> Kho content
+      </button>
       <button class="sidebar-item" onclick="switchPage('session')" id="navSession">
         <span class="icon"><svg class="xi"><use href="#ic-users"/></svg></span> Quản lý tài khoản
       </button>
@@ -3601,9 +3604,6 @@
       </button>
       <button class="sidebar-item" onclick="switchPage('spy')" id="navSpy">
         <span class="icon"><svg class="xi"><use href="#ic-search"/></svg></span> Lấy nội dung
-      </button>
-      <button class="sidebar-item" onclick="switchPage('content')" id="navContent">
-        <span class="icon"><svg class="xi"><use href="#ic-book"/></svg></span> Kho content
       </button>
       <button class="sidebar-item" onclick="switchPage('guide')" id="navGuide">
         <span class="icon"><svg class="xi"><use href="#ic-info"/></svg></span> HDSD
@@ -3723,7 +3723,7 @@
               <li><strong>Soạn nội dung:</strong> Nhập nội dung, đính kèm ảnh, thêm emoji / kiểu chữ, hoặc nhờ <strong>AI</strong> viết giúp.</li>
               <li><strong>Chọn nơi đăng &amp; gửi:</strong> Đăng lên trang cá nhân hoặc group, chọn <strong>Đăng ngay</strong> hay <strong>Lên lịch</strong> rồi bấm gửi.</li>
             </ol>
-            <div class="guide-note">💡 Theo dõi kết quả (thành công / thất bại) mọi lúc ở tab <strong>Dashboard</strong>.</div>
+            <div class="guide-note">💡 Theo dõi kết quả (thành công / thất bại) mọi lúc ở tab <strong>Kho content</strong>.</div>
             <button class="guide-cta" onclick="switchPage('post')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-post"/></svg> Mở tab Đăng bài</button>
           </div>
         </details>
@@ -3776,7 +3776,7 @@
             <p>Bấm biểu tượng <strong>bánh răng</strong> trong AI Editor để cài <strong>phong cách viết chung</strong> (giọng văn, emoji, thông điệp) và <strong>ảnh bài viết mẫu</strong> — AI sẽ tự áp dụng cho mọi bài. Nhớ bấm <strong>💾 Lưu</strong>.</p>
 
             <h4>6️⃣ Gửi &amp; theo dõi</h4>
-            <p>Bấm nút <strong>Gửi</strong>. Với <strong>Lên lịch</strong>, chọn ngày giờ trước khi xác nhận. Xeko báo đã nhận bài và bạn theo dõi kết quả ở tab <strong>Dashboard</strong>.</p>
+            <p>Bấm nút <strong>Gửi</strong>. Với <strong>Lên lịch</strong>, chọn ngày giờ trước khi xác nhận. Xeko báo đã nhận bài và bạn theo dõi kết quả ở tab <strong>Kho content</strong>.</p>
 
             <div class="guide-tip">⚠️ Lưu ý: khi đăng lên nhiều group Facebook, Xeko dùng cơ chế chia sẻ tự động; nếu chọn quá nhiều group (trên 9) hệ thống sẽ đăng lần lượt từng group nên sẽ lâu hơn.</div>
             <button class="guide-cta" onclick="switchPage('post')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-post"/></svg> Thử đăng bài</button>
@@ -6021,7 +6021,7 @@
     // sau khi gửi bài xong, không kết luận thành/bại ở chat nữa mà hướng người
     // dùng theo dõi Dashboard để xem kết quả thật — vẫn giữ câu khích lệ đăng
     // thêm bài. (Dashboard mới là nguồn sự thật vì server đăng nền.)
-    const DASHBOARD_RESULT_HINT = '👉 Kết quả đăng bài bạn theo dõi ở tab <strong>Dashboard</strong> nha!';
+    const DASHBOARD_RESULT_HINT = '👉 Kết quả đăng bài bạn theo dõi ở tab <strong>Kho content</strong> nha!';
     function postSentClosing(n = 1) {
       // n = số bài đã gửi đi — chỉ dùng để chọn câu khích lệ số nhiều cho tự
       // nhiên; luôn ≥1 để không rơi vào câu "fail" (kết quả để Dashboard chốt).
@@ -7438,7 +7438,7 @@
         // Cloud (_driveZaloJob) vẫn đang chạy job tới hoàn thành ở nền và sẽ
         // cập nhật DB; markTimedOutPending sẽ dọn nếu thực sự kẹt.
         if (!silent) {
-          const timeoutMsg = `⏳ Group Zalo <strong>${groupName}</strong> đang xử lý lâu hơn thường lệ. Bạn xem kết quả ở tab <strong>Dashboard</strong> nha — Xeko vẫn đang chạy.`;
+          const timeoutMsg = `⏳ Group Zalo <strong>${groupName}</strong> đang xử lý lâu hơn thường lệ. Bạn xem kết quả ở tab <strong>Kho content</strong> nha — Xeko vẫn đang chạy.`;
           if (progressRow) morphBot(progressRow, timeoutMsg, 'progress');
           else addBot(timeoutMsg);
         }
@@ -7921,7 +7921,7 @@
         if (_destLabels.length) {
           const _list = _destLabels.map(s => `<strong>${s}</strong>`).join(', ');
           const _webNote = website ? ` 🔗 (có kèm link sản phẩm).` : '';
-          addBot(`✅ Đã nhận bài, đang đăng lên ${_list}.${_webNote} Theo dõi kết quả ở tab <strong>Dashboard</strong> nha!`);
+          addBot(`✅ Đã nhận bài, đang đăng lên ${_list}.${_webNote} Theo dõi kết quả ở tab <strong>Kho content</strong> nha!`);
         }
 
         // === Gửi request Zalo SỚM (trước khi đăng FB) ===
@@ -8159,7 +8159,7 @@
       } catch (e) {
         removeTyping();
         if (isProxyTimeout(e)) {
-          addBot('⚠️ Mạng/proxy timeout — chưa xác nhận được bài đã đăng hay chưa. Bạn check Facebook + tab Dashboard sau 1-2 phút, đừng bấm đăng lại liền vì có thể đã thành công rồi!', [
+          addBot('⚠️ Mạng/proxy timeout — chưa xác nhận được bài đã đăng hay chưa. Bạn check Facebook + tab Kho content sau 1-2 phút, đừng bấm đăng lại liền vì có thể đã thành công rồi!', [
             { label: `${xekoIcon('post')} Đăng bài tiếp`, handler: () => continueNextPost(), primary: true },
             { label: `${xekoIcon('back')} Làm lại`, handler: () => showTargetSelect(), secondary: true },
           ]);
@@ -8384,15 +8384,15 @@
           window._schedulePendingMessage = '';
           window._schedulePendingFiles = [];
 
-          // Lịch đã hiển thị đầy đủ (nội dung, ảnh, trạng thái) trên Dashboard rồi →
-          // trong chat chỉ báo ngắn + nút mở Dashboard để theo dõi, không gửi lại nội dung/ảnh.
+          // Lịch đã hiển thị đầy đủ (nội dung, ảnh, trạng thái) trong Kho content rồi →
+          // trong chat chỉ báo ngắn + nút mở Kho content để theo dõi, không gửi lại nội dung/ảnh.
           const timeLabel = new Date(time).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
           let confirmMsg = `⏰ Đã lên lịch đăng lúc <strong>${timeLabel}</strong>\n`;
           confirmMsg += `📍 Nơi đăng: <strong>${scheduled.join(', ')}</strong>\n\n`;
-          confirmMsg += `Theo dõi & quản lý lịch này ngay trên Dashboard nha!`;
+          confirmMsg += `Theo dõi & quản lý lịch này ngay trong Kho content nha!`;
 
           addBot(confirmMsg, [
-            { label: `${xekoIcon('clipboard')} Xem trên Dashboard`, handler: () => switchPage('dashboard'), primary: true },
+            { label: `${xekoIcon('clipboard')} Xem ở Kho content`, handler: () => switchPage('content'), primary: true },
             { label: `${xekoIcon('clock')} Lên lịch thêm`, handler: () => startScheduleCompose() },
           ]);
         }
@@ -8435,20 +8435,20 @@
           return;
         }
 
-        // Lịch đã hiển thị đầy đủ (kèm xoá) trên Dashboard rồi → trong chat chỉ
-        // tóm tắt ngắn + nút mở Dashboard, tránh lặp danh sách dài & trùng nội dung.
+        // Lịch đã hiển thị đầy đủ (kèm xoá) trong Kho content rồi → trong chat chỉ
+        // tóm tắt ngắn + nút mở Kho content, tránh lặp danh sách dài & trùng nội dung.
         const pendingCount = schedules.filter(s => s.status === 'pending').length;
         let msg = `${xekoIcon('clipboard')} <strong>Lịch Xeko đang giữ nè:</strong>\n\n`;
         if (pendingCount > 0) {
           msg += `Bạn đang có <strong>${pendingCount} lịch</strong> chờ đăng`;
           if (schedules.length > pendingCount) msg += ` (tổng ${schedules.length} lịch)`;
-          msg += `.\nXem chi tiết và quản lý (xoá lịch) ngay trên Dashboard nha!`;
+          msg += `.\nXem chi tiết và quản lý (xoá lịch) ngay trong Kho content nha!`;
         } else {
-          msg += `Tất cả lịch đã xử lý xong. Mở Dashboard để xem lại nhé!`;
+          msg += `Tất cả lịch đã xử lý xong. Mở Kho content để xem lại nhé!`;
         }
 
         addBot(msg, [
-          { label: `${xekoIcon('clipboard')} Xem trên Dashboard`, handler: () => switchPage('dashboard'), primary: true },
+          { label: `${xekoIcon('clipboard')} Xem ở Kho content`, handler: () => switchPage('content'), primary: true },
           { label: `${xekoIcon('clock')} Lên lịch mới`, handler: () => startScheduleCompose() },
         ]);
       } catch (e) {
@@ -11301,7 +11301,7 @@
       // là nguồn sự thật, tránh kết quả cũ lọt ra lúc user đang thao tác khác).
       if (fbChat.length > 0) {
         addBot(
-          `📨 Có ${fbChat.length} bài đăng từ phiên trước — Xeko đang theo dõi, kết quả cập nhật ở tab Dashboard nha!`,
+          `📨 Có ${fbChat.length} bài đăng từ phiên trước — Xeko đang theo dõi, kết quả cập nhật ở tab Kho content nha!`,
           null, null, 'welcome-back'
         );
         for (const job of fbChat) {
@@ -12030,7 +12030,7 @@
     // Số ngày ranh giới giữa Dashboard (gần đây) và Kho lưu trữ (cũ)
     const ARCHIVE_DAYS = 7;
 
-    async function loadDashHistory({ noSkeleton = false, noAnimation = false } = {}) {
+    async function loadDashHistory({ noSkeleton = false, noAnimation = false, _retry = 0 } = {}) {
       const myVersion = ++_loadDashHistoryVersion;
       const profiles = getMselValues('msel-profile');
       const platforms = getMselValues('msel-platform');
@@ -12799,13 +12799,21 @@
         }
       } catch (e) {
         console.error('History error:', e);
-        // Nếu render lỗi giữa chừng, đừng để skeleton kẹt mãi ("load liên tục") —
-        // chỉ xoá khi call này vẫn là mới nhất (tránh ghi đè kết quả của call sau).
-        if (myVersion === _loadDashHistoryVersion) {
-          const tb = document.getElementById('dashHistoryBody');
-          if (tb && tb.querySelector('.dash-skel')) {
-            tb.innerHTML = '<tr><td colspan="10" style="padding:24px 12px; text-align:center; color:#94a3b8; font-size:13px;">Không tải được danh sách. Vui lòng thử lại.</td></tr>';
-          }
+        // Chỉ xử lý khi call này vẫn là mới nhất (tránh ghi đè kết quả của call sau).
+        if (myVersion !== _loadDashHistoryVersion) return;
+        // Lỗi tải danh sách phần lớn là hiccup mạng/proxy tạm thời — hay gặp ngay sau
+        // khi vừa đăng xong (server đang bận chạy Playwright) và ở Kho content vì phải
+        // tải toàn bộ lịch sử. Thử lại 1 lần (giữ nguyên nội dung/skeleton đang hiển thị)
+        // trước khi báo lỗi, để danh sách không bị kẹt ở "Không tải được".
+        if ((_retry || 0) < 1) {
+          await new Promise(r => setTimeout(r, 700));
+          return loadDashHistory({ noSkeleton: true, noAnimation: true, _retry: (_retry || 0) + 1 });
+        }
+        // Đã thử lại vẫn lỗi → chỉ hiện thông báo khi đang là skeleton (lần tải mới),
+        // không xoá danh sách cũ đang hiển thị của một lần refresh nền.
+        const tb = document.getElementById('dashHistoryBody');
+        if (tb && tb.querySelector('.dash-skel')) {
+          tb.innerHTML = '<tr><td colspan="10" style="padding:24px 12px; text-align:center; color:#94a3b8; font-size:13px;">Không tải được danh sách. Vui lòng thử lại.</td></tr>';
         }
       }
     }
@@ -13613,7 +13621,7 @@
       // Nếu có channel bị proxy timeout, cảnh báo user
       const timedOut = jobs.filter(j => j.timeout);
       if (timedOut.length > 0) {
-        alert(`⚠️ ${timedOut.length}/${channels.length} kênh: mạng/proxy timeout, server có thể vẫn đang đăng ngầm.\n\nCheck Facebook + tab Dashboard sau 1-2 phút, đừng repost lại liền tránh trùng bài.`);
+        alert(`⚠️ ${timedOut.length}/${channels.length} kênh: mạng/proxy timeout, server có thể vẫn đang đăng ngầm.\n\nCheck Facebook + tab Kho content sau 1-2 phút, đừng repost lại liền tránh trùng bài.`);
       }
 
       // 2. Đăng ký job — nếu có pendingLogId thì DB là source of truth (giống main post flow),
