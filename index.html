@@ -12149,10 +12149,18 @@
       if (effFrom) params.set('from', effFrom + 'T00:00:00.000Z');
       if (effTo) params.set('to', effTo + 'T23:59:59.999Z');
       if (search) params.set('search', search);
-      // Lấy đủ bài trong bộ lọc/khung 7 ngày rồi GOM phiên và phân trang theo phiên ở
-      // client (mỗi trang 10 phiên STT), thay vì phân trang theo từng dòng DB.
-      params.set('limit', DASH_FETCH_CAP);
-      params.set('offset', 0);
+      // Kho content: phân trang theo PHIÊN Ở SERVER — server gom phiên rồi chỉ trả về các
+      // dòng của trang phiên hiện tại (nhẹ payload, không tải toàn bộ lịch sử → hết treo).
+      // Dashboard (bảng bị ẩn, chỉ 7 ngày) giữ cách cũ: lấy tối đa DASH_FETCH_CAP dòng rồi
+      // gom phiên ở client.
+      const _serverPaged = (window.dashViewMode === 'content');
+      if (_serverPaged) {
+        params.set('sessionPage', dashPage);
+        params.set('sessionSize', dashLimit);
+      } else {
+        params.set('limit', DASH_FETCH_CAP);
+        params.set('offset', 0);
+      }
 
       // Params for stats (no limit/offset, no success filter since schedules aren't in DB)
       const statsParams = new URLSearchParams();
@@ -12429,14 +12437,25 @@
         const activeRepostHtml = showHistory ? (repostHtml + pendingDbHtml) : '';
         let _sessionCount = 0; // số phiên đăng (dòng STT) sau khi gom — dùng cho phân trang
 
+        // Server-paged (Kho content): số phiên do server đếm; các dòng trả về ĐÃ đúng trang
+        // hiện tại nên KHÔNG cắt lại ở client. Nếu trang hiện tại vượt quá tổng số phiên
+        // (vd sau khi xoá bớt) thì kẹp về trang cuối và tải lại đúng trang đó.
+        if (_serverPaged) {
+          _sessionCount = data.totalSessions || 0;
+          const _tp = Math.max(1, Math.ceil(_sessionCount / dashLimit));
+          if (dashPage > _tp - 1) {
+            dashPage = _tp - 1;
+            if (myVersion === _loadDashHistoryVersion) return loadDashHistory({ noSkeleton: true, noAnimation });
+          }
+        }
+
         if (histRows.length > 0) {
           window._dashRows = histRows;
 
-          // Gom các dòng liên tiếp cùng batch_id HOẶC cùng nội dung message VÀ cùng số ảnh thành "phiên đăng"
-          const sameImageCount = (a, b) => {
-            const ac = Array.isArray(a) ? a.length : 0, bc = Array.isArray(b) ? b.length : 0;
-            return ac === bc;
-          };
+          // Gom các dòng liên tiếp cùng batch_id HOẶC cùng nội dung message VÀ cùng số ảnh thành "phiên đăng".
+          // So theo image_count (khớp đúng logic gom phiên ở server) — fallback độ dài mảng images nếu thiếu.
+          const imgCountOf = (r) => (r && r.image_count != null) ? Number(r.image_count) : (Array.isArray(r && r.images) ? r.images.length : 0);
+          const sameImageCount = (a, b) => imgCountOf(a) === imgCountOf(b);
           // Chỉ gom theo nội dung nếu 2 bài cách nhau không quá 10 phút (cùng phiên đăng)
           const withinSession = (a, b) => {
             const ta = new Date(a.timestamp).getTime(), tb = new Date(b.timestamp).getTime();
@@ -12449,7 +12468,7 @@
               const row = histRows[i];
               const merge = current && (
                 (current.anchor.batch_id && row.batch_id && current.anchor.batch_id === row.batch_id) ||
-                (current.anchor.message && row.message && current.anchor.message === row.message && sameImageCount(current.anchor.images, row.images) && withinSession(current.anchor, row))
+                (current.anchor.message && row.message && current.anchor.message === row.message && sameImageCount(current.anchor, row) && withinSession(current.anchor, row))
               );
               if (merge) {
                 current.rows.push(row);
@@ -12852,11 +12871,16 @@
 
           // Phân trang theo PHIÊN (mỗi trang dashLimit phiên STT). Các dòng "đang đăng"/
           // lịch chờ (live) chỉ hiện ở trang đầu để không lặp qua các trang.
-          _sessionCount = groups.length;
-          const _totalPagesG = Math.max(1, Math.ceil(_sessionCount / dashLimit));
-          if (dashPage > _totalPagesG - 1) dashPage = _totalPagesG - 1;
+          // - Server-paged (Kho content): groups CHÍNH LÀ các phiên của trang hiện tại (server
+          //   đã cắt) → render hết, không cắt lại; _sessionCount đã lấy từ data.totalSessions.
+          // - Client-paged (Dashboard): gom toàn bộ rồi tự cắt trang như cũ.
+          if (!_serverPaged) {
+            _sessionCount = groups.length;
+            const _tpc = Math.max(1, Math.ceil(_sessionCount / dashLimit));
+            if (dashPage > _tpc - 1) dashPage = _tpc - 1;
+          }
           const _pageStart = dashPage * dashLimit;
-          const pagedGroups = groups.slice(_pageStart, _pageStart + dashLimit);
+          const pagedGroups = _serverPaged ? groups : groups.slice(_pageStart, _pageStart + dashLimit);
           const liveHtml = dashPage === 0 ? (activeRepostHtml + schedHtml) : '';
           tbody.innerHTML = liveHtml + pagedGroups.map((g, gi) => {
             const stt = _pageStart + gi + 1;

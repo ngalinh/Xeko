@@ -152,10 +152,11 @@ function markTimedOutPending(maxAgeMs = 10 * 60 * 1000) {
 }
 
 /**
- * Lay lich su bai dang voi filter
+ * Dung menh de WHERE (kem params) chung cho cac truy van lich su — de getPostHistory
+ * va getPostHistorySessions dung chung, tranh lech logic loc.
  */
-function getPostHistory({ profile, platform, target, groupId, success, from, to, search, limit = 50, offset = 0 } = {}) {
-  let sql = 'SELECT * FROM post_logs WHERE success != -1';
+function buildHistoryWhere({ profile, platform, target, groupId, success, from, to, search } = {}) {
+  let sql = ' WHERE success != -1';
   const params = {};
 
   if (profile) {
@@ -209,21 +210,68 @@ function getPostHistory({ profile, platform, target, groupId, success, from, to,
       OR profile LIKE @search ESCAPE '\\'
     )`;
   }
+  return { where: sql, params };
+}
 
-  // Dem tong
-  const countSql = sql.replace('SELECT *', 'SELECT COUNT(*) as total');
-  const { total } = db.prepare(countSql).get(params);
+/**
+ * Lay lich su bai dang voi filter (phan trang theo DONG)
+ */
+function getPostHistory({ limit = 50, offset = 0, ...filters } = {}) {
+  const { where, params } = buildHistoryWhere(filters);
 
-  sql += ' ORDER BY timestamp DESC LIMIT @limit OFFSET @offset';
-  params.limit = limit;
-  params.offset = offset;
+  const { total } = db.prepare('SELECT COUNT(*) as total FROM post_logs' + where).get(params);
 
-  const rows = db.prepare(sql).all(params).map(r => ({
-    ...r,
-    images: r.images ? safeParseJson(r.images) : [],
-  }));
+  const rows = db.prepare('SELECT * FROM post_logs' + where + ' ORDER BY timestamp DESC LIMIT @limit OFFSET @offset')
+    .all({ ...params, limit, offset })
+    .map(r => ({ ...r, images: r.images ? safeParseJson(r.images) : [] }));
 
   return { total, rows };
+}
+
+/**
+ * Lay lich su phan trang theo PHIEN (session) — thay vi tra toan bo dong ve client
+ * roi gom+phan trang o do (nang, de treo khi nhieu bai). Server gom phien roi CHI tra
+ * ve cac dong thuoc trang phien yeu cau. Logic gom trung khop client:
+ *   - cung batch_id, HOAC
+ *   - cung message + cung image_count + cach anchor < 10 phut.
+ * Vi cac dong sap theo timestamp DESC va phien la day lien tuc, trang phien = mot lat
+ * cat lien tuc cua danh sach dong → dung LIMIT/OFFSET theo dong (khong can IN nhieu id).
+ */
+function getPostHistorySessions({ sessionPage = 0, sessionSize = 10, ...filters } = {}) {
+  const { where, params } = buildHistoryWhere(filters);
+
+  // Doc cot toi thieu cua TOAN BO dong khop filter (cuc bo, nhanh) de gom phien.
+  const lite = db.prepare('SELECT id, timestamp, batch_id, message, image_count FROM post_logs' + where + ' ORDER BY timestamp DESC').all(params);
+  const total = lite.length;
+
+  const TEN_MIN = 10 * 60 * 1000;
+  const groups = [];
+  let cur = null, idx = 0;
+  for (const r of lite) {
+    const merge = cur && (
+      (cur.anchor.batch_id && r.batch_id && cur.anchor.batch_id === r.batch_id) ||
+      (cur.anchor.message && r.message && cur.anchor.message === r.message &&
+        (cur.anchor.image_count || 0) === (r.image_count || 0) &&
+        Math.abs(new Date(r.timestamp).getTime() - new Date(cur.anchor.timestamp).getTime()) < TEN_MIN)
+    );
+    if (merge) { cur.count++; }
+    else { cur = { anchor: r, count: 1, rowStart: idx }; groups.push(cur); }
+    idx++;
+  }
+  const totalSessions = groups.length;
+
+  const start = Math.max(0, sessionPage * sessionSize);
+  const pageGroups = groups.slice(start, start + sessionSize);
+  const rowStart = pageGroups.length ? pageGroups[0].rowStart : 0;
+  const rowCount = pageGroups.reduce((s, g) => s + g.count, 0);
+
+  const rows = rowCount > 0
+    ? db.prepare('SELECT * FROM post_logs' + where + ' ORDER BY timestamp DESC LIMIT @limit OFFSET @offset')
+        .all({ ...params, limit: rowCount, offset: rowStart })
+        .map(r => ({ ...r, images: r.images ? safeParseJson(r.images) : [] }))
+    : [];
+
+  return { total, totalSessions, sessionPage, sessionSize, rows };
 }
 
 function safeParseJson(str) {
@@ -411,4 +459,4 @@ function getByProfileStats({ profile, platform, target, groupId, from, to } = {}
   return db.prepare(sql).all(params);
 }
 
-module.exports = { logPost, insertPendingPost, completePendingPost, completePendingByJobId, completePostById, markRetryWaiting, failRetryWaiting, getRetryWaiting, getPendingPosts, cleanupStalePending, markTimedOutPending, getPostHistory, getStatistics, getDailyByProfile, getByProfileStats, deleteById, deleteByIds, deleteByFilter, updateWebsiteByIds };
+module.exports = { logPost, insertPendingPost, completePendingPost, completePendingByJobId, completePostById, markRetryWaiting, failRetryWaiting, getRetryWaiting, getPendingPosts, cleanupStalePending, markTimedOutPending, getPostHistory, getPostHistorySessions, getStatistics, getDailyByProfile, getByProfileStats, deleteById, deleteByIds, deleteByFilter, updateWebsiteByIds };

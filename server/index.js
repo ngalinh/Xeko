@@ -1568,16 +1568,27 @@ app.get('/api/schedule-image/:id/:index', (req, res) => {
 
 // === Post History & Statistics API ===
 app.get('/api/post-history', (req, res) => {
-  const { profile, platform, target, groupId, success, from, to, search, limit, offset } = req.query;
+  const { profile, platform, target, groupId, success, from, to, search, limit, offset, sessionPage, sessionSize } = req.query;
   try {
-    const result = postLogger.getPostHistory({
+    const filters = {
       profile, platform, target, groupId: groupId || undefined,
       success: success !== undefined && success !== '' ? success : undefined,
       from, to,
       search: search || undefined,
-      limit: parseInt(limit) || 50,
-      offset: parseInt(offset) || 0,
-    });
+    };
+    // sessionSize có mặt → phân trang theo PHIÊN ở server (nhẹ payload, dùng cho Kho content).
+    // Không có → giữ hành vi cũ: phân trang theo dòng (limit/offset).
+    const result = (sessionSize !== undefined)
+      ? postLogger.getPostHistorySessions({
+          ...filters,
+          sessionPage: parseInt(sessionPage) || 0,
+          sessionSize: Math.min(100, Math.max(1, parseInt(sessionSize) || 10)),
+        })
+      : postLogger.getPostHistory({
+          ...filters,
+          limit: parseInt(limit) || 50,
+          offset: parseInt(offset) || 0,
+        });
     res.json({ ...result, pending: postLogger.getPendingPosts() });
   } catch (e) {
     res.status(500).json({ error: e.message });
