@@ -11449,6 +11449,9 @@
     let _loadDashHistoryVersion = 0; // version guard để cancel concurrent loadDashHistory calls
     let _dashPendingPollTimer = null; // auto-refresh khi có pending rows
     let _dashHasPendingSeed = false;  // có lịch seeding đang chạy/sắp chạy → cần auto-refresh cột Seeding
+    // Ảnh chụp danh sách Kho content ở "xem mặc định" (trang 1, không lọc) — để lần sau vào
+    // là HIỆN NGAY (không chớp skeleton, không kẹt), rồi refresh nền. Giống trang mặc định cũ.
+    let _contentSnapshot = null;
 
     function _startDashPendingPoll() {
       if (_dashPendingPollTimer) return;
@@ -11897,6 +11900,27 @@
       }
     }
 
+    // Nạp sẵn (pre-warm) ảnh chụp danh sách Kho content trong nền ngay sau khi khởi động,
+    // để khi bấm vào Kho content là hiện NGAY (không chớp skeleton, không kẹt). Render vào
+    // bảng lịch sử (đang bị ẩn ở chế độ Dashboard nên không ảnh hưởng UI), rồi lưu snapshot.
+    async function _prewarmKhoContent() {
+      try {
+        if (_contentSnapshot) return;                 // đã có (vd user đã vào Kho content)
+        if (window.dashViewMode === 'content') return; // đang ở Kho content rồi
+        const _prev = window.dashViewMode;
+        window.dashViewMode = 'content';
+        try { await loadDashHistory({ noSkeleton: true, noAnimation: true }); }
+        finally {
+          // Nếu user đã tự chuyển sang Kho content trong lúc pre-warm thì GIỮ nguyên,
+          // đừng ghi đè dashViewMode (tránh làm lệch trạng thái trang).
+          const _el = document.getElementById('pageDashboard');
+          if (!(_el && _el.getAttribute('data-view') === 'content')) {
+            window.dashViewMode = _prev || 'dashboard';
+          }
+        }
+      } catch {}
+    }
+
     // ===== Dashboard Chart =====
     let _dashChart = null;
     let _chartType = 'bar';
@@ -12119,7 +12143,7 @@
       } catch { return ''; }
     }
 
-    async function loadDashHistory({ noSkeleton = false, noAnimation = false, _retry = 0 } = {}) {
+    async function loadDashHistory({ noSkeleton = false, noAnimation = false, _retry = 0, _healTry = 0 } = {}) {
       const myVersion = ++_loadDashHistoryVersion;
       const profiles = getMselValues('msel-profile');
       const platforms = getMselValues('msel-platform');
@@ -12161,6 +12185,11 @@
         params.set('limit', DASH_FETCH_CAP);
         params.set('offset', 0);
       }
+      // "Xem mặc định" của Kho content = trang 1, không lọc/tìm kiếm — đúng trạng thái khi
+      // bấm vào Kho content. Chỉ ảnh-chụp / khôi-phục ở trạng thái này để không bị lệch.
+      const _isDefaultContentView = _serverPaged && dashPage === 0 && !search
+        && profiles.length === 0 && platforms.length === 0 && targets.length === 0
+        && groupIds.length === 0 && statuses.length === 0 && !from && !to;
 
       // Params for stats (no limit/offset, no success filter since schedules aren't in DB)
       const statsParams = new URLSearchParams();
@@ -12173,10 +12202,18 @@
       if (from) statsParams.set('from', from + 'T00:00:00.000Z');
       if (to) statsParams.set('to', to + 'T23:59:59.999Z');
 
-      // Skeleton placeholder while fetching (bỏ qua nếu đã update DOM trực tiếp).
-      // Chèn dòng "Đang đăng" (từ client state) LÊN TRÊN skeleton để người dùng thấy
-      // bài đang đăng ngay khi vào Kho content, kể cả lúc danh sách còn đang tải.
-      if (!noSkeleton) {
+      // Kho content "luôn tải sẵn": nếu đã có ảnh chụp lần trước (xem mặc định) thì HIỆN
+      // NGAY ảnh đó thay vì skeleton, rồi refresh nền → không chớp skeleton, và nếu fetch
+      // lỗi (server bận) thì danh sách này vẫn ở nguyên (giống trang mặc định cũ).
+      if (!noSkeleton && _isDefaultContentView && _contentSnapshot) {
+        // Dòng "đang đăng" MỚI (từ client) ở trên + phần lịch sử đã lưu → thấy ngay cả bài
+        // vừa đăng lẫn danh sách cũ, không chớp skeleton, không kẹt nếu fetch lỗi.
+        document.getElementById('dashHistoryBody').innerHTML = _pendingLiveRowsHtml() + (_contentSnapshot.body || '');
+        const _pgEl = document.getElementById('dashPagination');
+        if (_pgEl) _pgEl.innerHTML = _contentSnapshot.pagination || '';
+        window._dashRows = _contentSnapshot.dashRows || [];
+        window._seedRowInfo = _contentSnapshot.seedRowInfo || {};
+      } else if (!noSkeleton) {
         document.getElementById('dashHistoryBody').innerHTML = _pendingLiveRowsHtml() + Array(5).fill(
           '<tr style="border-bottom:1px solid #f3f4f6;">' +
           '<td style="padding:10px 10px;"><div class="dash-skel" style="width:32px;height:14px;"></div></td>' +
@@ -12436,6 +12473,7 @@
         let histRows = showHistory ? (data.rows || []) : [];
         const activeRepostHtml = showHistory ? (repostHtml + pendingDbHtml) : '';
         let _sessionCount = 0; // số phiên đăng (dòng STT) sau khi gom — dùng cho phân trang
+        let _histOnlyHtml = ''; // phần lịch sử (không gồm dòng live) — để lưu snapshot Kho content
 
         // Server-paged (Kho content): số phiên do server đếm; các dòng trả về ĐÃ đúng trang
         // hiện tại nên KHÔNG cắt lại ở client. Nếu trang hiện tại vượt quá tổng số phiên
@@ -12882,15 +12920,19 @@
           const _pageStart = dashPage * dashLimit;
           const pagedGroups = _serverPaged ? groups : groups.slice(_pageStart, _pageStart + dashLimit);
           const liveHtml = dashPage === 0 ? (activeRepostHtml + schedHtml) : '';
-          tbody.innerHTML = liveHtml + pagedGroups.map((g, gi) => {
+          // Tách riêng phần LỊCH SỬ (không gồm dòng live "đang đăng"/lịch) để lưu snapshot;
+          // khi khôi phục sẽ ghép LẠI dòng live MỚI ở trên → không mất "đang đăng" của bài mới.
+          _histOnlyHtml = pagedGroups.map((g, gi) => {
             const stt = _pageStart + gi + 1;
             return g.rows.length > 1 ? renderGroup(g, stt) : renderSingleRow(g.rows[0], g.indices[0], stt);
           }).join('');
+          tbody.innerHTML = liveHtml + _histOnlyHtml;
           if (!noAnimation) _animateTableRows(tbody);
         } else {
           window._dashRows = [];
           const fallbackHtml = activeRepostHtml + schedHtml;
-          tbody.innerHTML = fallbackHtml || '<tr><td colspan="10" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
+          _histOnlyHtml = '<tr><td colspan="10" style="padding:24px; text-align:center; color:#999;">Chưa có lịch sử bài đăng</td></tr>';
+          tbody.innerHTML = fallbackHtml || _histOnlyHtml;
           if (!noAnimation) _animateTableRows(tbody);
         }
 
@@ -12919,6 +12961,19 @@
         } else {
           paginationEl.innerHTML = '';
         }
+
+        // Lưu ảnh chụp danh sách Kho content ở "xem mặc định" để lần sau vào là hiện ngay
+        // (luôn tải sẵn). Chỉ lưu PHẦN LỊCH SỬ (không gồm dòng live) — khi khôi phục sẽ ghép
+        // dòng "đang đăng" MỚI ở trên. Chỉ lưu khi render thành công ở trạng thái mặc định.
+        if (_isDefaultContentView) {
+          _contentSnapshot = {
+            body: _histOnlyHtml,
+            pagination: paginationEl ? paginationEl.innerHTML : '',
+            dashRows: window._dashRows,
+            seedRowInfo: window._seedRowInfo,
+            ts: Date.now(),
+          };
+        }
       } catch (e) {
         console.error('History error:', e);
         // Chỉ xử lý khi call này vẫn là mới nhất (tránh ghi đè kết quả của call sau).
@@ -12934,22 +12989,32 @@
           await new Promise(r => setTimeout(r, _backoff));
           return loadDashHistory({ noSkeleton: true, noAnimation: true, _retry: (_retry || 0) + 1 });
         }
-        // Đã thử lại vẫn lỗi → chỉ can thiệp khi đang là skeleton (lần tải mới), không xoá
-        // danh sách cũ đang hiển thị của một lần refresh nền.
+        // Đã thử lại vẫn lỗi → chỉ can thiệp khi đang ở trạng thái tải mới (skeleton) HOẶC
+        // đang trong vòng tự-phục-hồi (self-heal). KHÔNG xoá danh sách cũ đang hiển thị của
+        // một lần refresh nền. Dùng marker [data-dash-loading] để vòng self-heal tiếp tục
+        // được (retry dùng noSkeleton nên không còn .dash-skel để bám vào).
         const tb = document.getElementById('dashHistoryBody');
-        if (tb && tb.querySelector('.dash-skel')) {
+        const _canHeal = tb && (tb.querySelector('.dash-skel') || tb.querySelector('[data-dash-loading]'));
+        if (_canHeal) {
           const liveHtml = _pendingLiveRowsHtml();
           // Có bài đang đăng dở (chatbot/repost) → server đang bận, danh sách sẽ tải được
           // khi server rảnh. KHÔNG báo lỗi "cứng"; giữ dòng "Đang đăng" + báo nhẹ và TỰ
-          // THỬ LẠI nền cho tới khi tải được (self-heal), tránh kẹt ở "Không tải được".
+          // THỬ LẠI nền MỖI 4s cho tới khi tải được (self-heal), tránh kẹt.
           const _hasInflight = (typeof getPendingJobs === 'function'
               && getPendingJobs().some(j => j && (Date.now() - (j.ts || 0) <= 30 * 60 * 1000)))
             || (typeof _activeRepostJobs !== 'undefined' && _activeRepostJobs.length > 0);
           if (_hasInflight) {
-            tb.innerHTML = liveHtml + '<tr><td colspan="10" style="padding:20px 12px; text-align:center; color:#94a3b8; font-size:13px;"><svg style="width:13px;height:13px;vertical-align:-2px;margin-right:5px;" class="badge-pulse" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng bài — danh sách sẽ hiện lại ngay khi xong…</td></tr>';
+            tb.innerHTML = liveHtml + '<tr data-dash-loading="1"><td colspan="10" style="padding:20px 12px; text-align:center; color:#94a3b8; font-size:13px;"><svg style="width:13px;height:13px;vertical-align:-2px;margin-right:5px;" class="badge-pulse" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng bài — danh sách sẽ hiện lại ngay khi xong…</td></tr>';
             setTimeout(() => { if (myVersion === _loadDashHistoryVersion) loadDashHistory({ noSkeleton: true, noAnimation: true }); }, 4000);
           } else {
-            tb.innerHTML = liveHtml + '<tr><td colspan="10" style="padding:24px 12px; text-align:center; color:#94a3b8; font-size:13px;">Không tải được danh sách. Vui lòng thử lại.</td></tr>';
+            // Không có bài đăng dở nhưng vẫn tải lỗi → thử lại nền vài lần rồi mới báo lỗi
+            // cứng, tránh kẹt vĩnh viễn nếu chỉ là hiccup ngắn của server.
+            if ((_healTry || 0) < 5) {
+              tb.innerHTML = liveHtml + '<tr data-dash-loading="1"><td colspan="10" style="padding:20px 12px; text-align:center; color:#94a3b8; font-size:13px;"><svg style="width:13px;height:13px;vertical-align:-2px;margin-right:5px;" class="badge-pulse" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang tải danh sách…</td></tr>';
+              setTimeout(() => { if (myVersion === _loadDashHistoryVersion) loadDashHistory({ noSkeleton: true, noAnimation: true, _healTry: (_healTry || 0) + 1 }); }, 3000);
+            } else {
+              tb.innerHTML = liveHtml + '<tr><td colspan="10" style="padding:24px 12px; text-align:center; color:#94a3b8; font-size:13px;">Không tải được danh sách. Vui lòng thử lại.</td></tr>';
+            }
           }
         }
       }
@@ -14955,6 +15020,11 @@
           }
           if (typeof switchPage === 'function') {
             switchPage('dashboard');
+          }
+          // Nạp sẵn Kho content trong nền (sau khi Dashboard tải xong) để lần đầu bấm vào
+          // là hiện ngay — "luôn tải sẵn" như trang mặc định.
+          if (typeof _prewarmKhoContent === 'function') {
+            setTimeout(() => { _prewarmKhoContent(); }, 2500);
           }
         } catch (_) {}
       };
