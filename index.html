@@ -13661,7 +13661,10 @@
       submitBtn.textContent = '🔄 Repost';
       editBtn.disabled = false;
       closeRepostModal();
-      loadDashHistory();
+      // noSkeleton: giữ nguyên danh sách đang hiển thị trong lúc fetch — tránh bảng
+      // bị "trắng" (skeleton) rồi mới hiện lại sau khi repost. Dòng "Đang đăng" của
+      // job repost vẫn được chèn vào khi render xong (giống các refresh khác).
+      loadDashHistory({ noSkeleton: true });
 
       // 4. Poll background – giống main post flow:
       //    - Có pendingLogId: completePendingPost đã được gọi bởi server khi done
