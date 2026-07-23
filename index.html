@@ -7627,6 +7627,8 @@
     // "Đăng bài tiếp" → hỏi link cho bài mới TRƯỚC khi gõ nội dung (nhất quán với
     // bài đầu). Giữ nguyên kênh đã chọn + mọi nội dung/ảnh đang soạn dở (nếu có).
     function continueNextPost() {
+      // Bài mới → xoá link của bài trước để ô nhập trống, tránh dính link cũ.
+      currentWebsite = '';
       // Nếu đang lên lịch thì tiếp tục theo luồng lịch (đã tự qua bước link).
       if (postMode === 'schedule') { startScheduleCompose(); return; }
       _autoPostAfterLink = false;
@@ -8190,6 +8192,8 @@
 
     function startScheduleCompose() {
       postMode = 'schedule';
+      // Bài lên lịch mới → ô nhập link trống, không giữ link bài trước.
+      currentWebsite = '';
       _autoPostAfterLink = false;
       _needLinkBeforePost = false;
       const summaryText = buildChannelSummary(window._channelSelection)
