@@ -12064,6 +12064,61 @@
     // Số ngày ranh giới giữa Dashboard (gần đây) và Kho lưu trữ (cũ)
     const ARCHIVE_DAYS = 7;
 
+    // Signal có timeout để fetch không "treo" mãi (fetch mặc định không có timeout) —
+    // server bận chạy Playwright ngay sau khi đăng có thể giữ kết nối lâu → skeleton kẹt.
+    function _dashFetchSignal(ms = 20000) {
+      try { return (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(ms) : undefined; }
+      catch { return undefined; }
+    }
+
+    // Dựng nhanh các dòng "Đang đăng" từ danh sách job đang chờ lưu ở client
+    // (getPendingJobs — gồm cả bài từ chatbot lẫn repost). Dùng để hiển thị NGAY khi
+    // vào Kho content lúc danh sách còn đang tải (server bận sau khi đăng), không cần
+    // đợi fetch nặng xong. Khi fetch xong, loadDashHistory render lại từ DB (nguồn thật)
+    // sẽ thay các dòng này.
+    function _pendingLiveRowsHtml() {
+      try {
+        if (typeof getPendingJobs !== 'function') return '';
+        const now = Date.now();
+        const jobs = getPendingJobs().filter(j => j && (now - (j.ts || 0) <= 30 * 60 * 1000));
+        if (!jobs.length) return '';
+        const pad = n => String(n).padStart(2, '0');
+        return jobs.map(j => {
+          const isZalo = (j.kind === 'zalo');
+          const platform = isZalo ? 'zalo' : 'facebook';
+          const acc = j.profileName || j.profile || j.account || '-';
+          const msg = j.message ? (j.message.length > 60 ? j.message.slice(0, 60) + '…' : j.message) : '(đang đăng…)';
+          let noiDang;
+          if (j.ch) {
+            const pl = j.ch.platform === 'zalo' ? 'Zalo' : 'FB';
+            const tg = j.ch.type === 'group' ? 'Group' : 'Profile';
+            noiDang = escapeHtml(`${pl} - ${tg}`);
+          } else if (isZalo) {
+            noiDang = escapeHtml('Zalo' + (j.groupName ? ' - ' + j.groupName : ' - Group'));
+          } else if (j.label) {
+            noiDang = j.label; // đã là chuỗi HTML do app tạo (vd "Group FB <strong>...</strong>")
+          } else {
+            noiDang = 'FB';
+          }
+          const d = new Date(j.ts || now);
+          const t = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+          const dt = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+          return `<tr data-live-pending="1" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
+            <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
+            <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(msg)}</td>
+            <td style="padding:8px 12px; color:#bbb;">—</td>
+            <td style="padding:8px 12px; text-align:left; color:#cbd5e1;">—</td>
+            <td style="padding:8px 12px; font-size:12px;"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${escapeHtml(String(acc))}</span></div></td>
+            <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${noiDang}</div></div></td>
+            <td style="padding:8px 12px; vertical-align:middle;"><div style="line-height:1.3;"><div style="font-size:12px;">${t}</div><div style="font-size:11px; color:#6b7280;">${dt}</div></div></td>
+            <td style="padding:8px 12px; text-align:center;"><span class="badge-pulse" style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span></td>
+            <td style="padding:8px 12px; text-align:center; color:#cbd5e1;">—</td>
+            <td></td>
+          </tr>`;
+        }).join('');
+      } catch { return ''; }
+    }
+
     async function loadDashHistory({ noSkeleton = false, noAnimation = false, _retry = 0 } = {}) {
       const myVersion = ++_loadDashHistoryVersion;
       const profiles = getMselValues('msel-profile');
@@ -12110,9 +12165,11 @@
       if (from) statsParams.set('from', from + 'T00:00:00.000Z');
       if (to) statsParams.set('to', to + 'T23:59:59.999Z');
 
-      // Skeleton placeholder while fetching (bỏ qua nếu đã update DOM trực tiếp)
+      // Skeleton placeholder while fetching (bỏ qua nếu đã update DOM trực tiếp).
+      // Chèn dòng "Đang đăng" (từ client state) LÊN TRÊN skeleton để người dùng thấy
+      // bài đang đăng ngay khi vào Kho content, kể cả lúc danh sách còn đang tải.
       if (!noSkeleton) {
-        document.getElementById('dashHistoryBody').innerHTML = Array(5).fill(
+        document.getElementById('dashHistoryBody').innerHTML = _pendingLiveRowsHtml() + Array(5).fill(
           '<tr style="border-bottom:1px solid #f3f4f6;">' +
           '<td style="padding:10px 10px;"><div class="dash-skel" style="width:32px;height:14px;"></div></td>' +
           '<td style="padding:10px 12px;"><div class="dash-skel" style="width:75%;height:14px;"></div></td>' +
@@ -12133,11 +12190,11 @@
         // nặng) để giảm tải và loại bớt 1 điểm có thể fail khiến cả danh sách không tải được.
         const _skipByProfile = (window.dashViewMode === 'content');
         const [schedRes, histRes, byProfileRes, seedSumRes, seedSchedRes] = await Promise.all([
-          fetch(BASE_URL + '/api/schedules?_t=' + _t, {cache: 'no-store'}).catch(() => null),
-          fetch(BASE_URL + '/api/post-history?' + params.toString() + '&_t=' + _t, {cache: 'no-store'}).catch(() => null),
-          _skipByProfile ? Promise.resolve(null) : fetch(BASE_URL + '/api/statistics/by-profile?' + statsParams.toString() + '&_t=' + _t, {cache: 'no-store'}).catch(() => null),
-          fetch(BASE_URL + '/api/seed-logs/summary?_t=' + _t, {cache: 'no-store'}).catch(() => null),
-          fetch(BASE_URL + '/api/seed-schedules?_t=' + _t, {cache: 'no-store'}).catch(() => null),
+          fetch(BASE_URL + '/api/schedules?_t=' + _t, {cache: 'no-store', signal: _dashFetchSignal()}).catch(() => null),
+          fetch(BASE_URL + '/api/post-history?' + params.toString() + '&_t=' + _t, {cache: 'no-store', signal: _dashFetchSignal()}).catch(() => null),
+          _skipByProfile ? Promise.resolve(null) : fetch(BASE_URL + '/api/statistics/by-profile?' + statsParams.toString() + '&_t=' + _t, {cache: 'no-store', signal: _dashFetchSignal()}).catch(() => null),
+          fetch(BASE_URL + '/api/seed-logs/summary?_t=' + _t, {cache: 'no-store', signal: _dashFetchSignal()}).catch(() => null),
+          fetch(BASE_URL + '/api/seed-schedules?_t=' + _t, {cache: 'no-store', signal: _dashFetchSignal()}).catch(() => null),
         ]);
         // Nếu có call mới hơn đang chờ render, bỏ qua call này
         if (myVersion !== _loadDashHistoryVersion) return;
@@ -12854,10 +12911,11 @@
           return loadDashHistory({ noSkeleton: true, noAnimation: true, _retry: (_retry || 0) + 1 });
         }
         // Đã thử lại vẫn lỗi → chỉ hiện thông báo khi đang là skeleton (lần tải mới),
-        // không xoá danh sách cũ đang hiển thị của một lần refresh nền.
+        // không xoá danh sách cũ đang hiển thị của một lần refresh nền. Vẫn giữ các dòng
+        // "Đang đăng" (nếu có) phía trên để người dùng biết bài vẫn đang được xử lý.
         const tb = document.getElementById('dashHistoryBody');
         if (tb && tb.querySelector('.dash-skel')) {
-          tb.innerHTML = '<tr><td colspan="10" style="padding:24px 12px; text-align:center; color:#94a3b8; font-size:13px;">Không tải được danh sách. Vui lòng thử lại.</td></tr>';
+          tb.innerHTML = _pendingLiveRowsHtml() + '<tr><td colspan="10" style="padding:24px 12px; text-align:center; color:#94a3b8; font-size:13px;">Không tải được danh sách. Vui lòng thử lại.</td></tr>';
         }
       }
     }
@@ -13163,6 +13221,7 @@
     // ===== Repost Modal =====
     let _repostEditMode = false;
     let _repostImages = [];
+    let _repostWebsite = ''; // link sản phẩm kế thừa từ bài gốc để đăng kèm khi repost
     let _repostExpandedCats = new Set(); // các phân loại FB group đang được xổ ra trong modal repost
     let _repostSelectedChannels = []; // array of channel options
 
@@ -13372,6 +13431,9 @@
       _repostExpandedCats = new Set(); // mỗi lần mở: thu gọn hết các nhóm phân loại
       _repostImages = (Array.isArray(row.images) ? row.images : [])
         .map(u => u.startsWith('/uploads/') ? '/api/image/' + u.slice('/uploads/'.length) : u);
+      // Kế thừa luôn LINK SẢN PHẨM của bài gốc để repost đăng kèm link (trước đây bị bỏ
+      // sót nên bài repost mất link). Tài khoản/nơi đăng vẫn do user chọn lại.
+      _repostWebsite = row.website || '';
 
       // Repost CHỈ kế thừa NỘI DUNG (message + ảnh) của bài gốc. Tài khoản và
       // NƠI ĐĂNG do user CHỌN LẠI — KHÔNG pre-select kênh/tài khoản gốc. Trước
@@ -13590,6 +13652,8 @@
     function _buildRepostFormData(message, resolvedImages) {
       const formData = new FormData();
       formData.append('message', message);
+      // Đăng kèm link sản phẩm kế thừa từ bài gốc (giống luồng đăng thường).
+      if (_repostWebsite) formData.append('website', _repostWebsite);
       for (const img of resolvedImages) formData.append('images', img.blob, img.name);
       return formData;
     }
@@ -13680,6 +13744,7 @@
         job.profileName = profileName;
         job.timeLabel = timeLabel;
         job.message = message;
+        job.website = _repostWebsite;
         // Có pendingLogId → DB pending row đã tồn tại, auto-poll 4s xử lý dashboard
         // Không có pendingLogId → dùng in-memory tracker (fallback)
         if (!job.pendingLogId) {
@@ -13737,7 +13802,7 @@
               <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
               <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${_msgShort}</td>
               <td style="padding:8px 12px; color:#bbb;">—</td>
-              <td style="padding:8px 12px; text-align:left; color:#cbd5e1;">—</td>
+              ${_repostWebsite ? `<td style="padding:8px 12px; text-align:left;"><a href="${escapeHtml(/^https?:\/\//i.test(_repostWebsite) ? _repostWebsite : 'https://' + _repostWebsite.replace(/^\/+/, ''))}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="display:inline-flex; align-items:center; gap:3px; color:#2563eb; text-decoration:none; font-size:12px; font-weight:600;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Link</a></td>` : `<td style="padding:8px 12px; text-align:left; color:#cbd5e1;">—</td>`}
               <td style="padding:8px 12px; font-size:12px;"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(ch.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${escapeHtml(profileName || '-')}</span></div></td>
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${targetLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(String(groupId))}</div>`}</div></td>
               <td style="padding:8px 12px; vertical-align:middle;"><div style="line-height:1.3;"><div style="font-size:12px;">${escapeHtml(_tPart)}</div><div style="font-size:11px; color:#6b7280;">${escapeHtml(_dPart)}</div></div></td>
