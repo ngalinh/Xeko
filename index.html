@@ -4115,18 +4115,18 @@
 
   <div class="chat-area" id="chatArea"></div>
 
+  <div class="image-preview" id="imagePreview">
+    <div id="previewImages" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+    <span class="image-count" id="imageCount"></span>
+    <button class="clear-btn" onclick="clearImages()">Xoá ảnh</button>
+  </div>
+
   <div class="link-bar" id="linkBar">
     <span class="link-bar-icon"><svg class="xi" aria-hidden="true"><use href="#ic-link"/></svg></span>
     <input type="text" id="msgLinkInput" list="msgLinkList" placeholder="Dán link sản phẩm (không bắt buộc)" autocomplete="off" spellcheck="false"
       onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('msgInput').focus();}">
     <datalist id="msgLinkList"></datalist>
     <span class="link-bar-tail" aria-hidden="true"><span class="btn-icon"></span><span class="btn-icon"></span></span>
-  </div>
-
-  <div class="image-preview" id="imagePreview">
-    <div id="previewImages" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-    <span class="image-count" id="imageCount"></span>
-    <button class="clear-btn" onclick="clearImages()">Xoá ảnh</button>
   </div>
 
   <div class="input-area" id="inputArea">
