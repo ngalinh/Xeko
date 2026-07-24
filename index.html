@@ -478,15 +478,17 @@
       border-top: 1px solid #eee;
     }
     .image-preview.show { display: flex; }
-    /* Ô nhập link sản phẩm ngay trên khung soạn nội dung (thay bước hỏi link riêng) */
+    /* Ô nhập link sản phẩm ngay trên khung soạn nội dung (thay bước hỏi link riêng).
+       Chỉ hiện ở bước soạn bài (thêm class .show), ẩn ở welcome/chọn kênh. */
     .link-bar {
-      display: flex;
+      display: none;
       align-items: center;
       gap: 8px;
       padding: 7px 12px;
       background: #f0f9ff;
       border-top: 1px solid #e5eefb;
     }
+    .link-bar.show { display: flex; }
     .link-bar-icon { font-size: 14px; line-height: 1; flex-shrink: 0; }
     .link-bar input[type="text"] {
       flex: 1;
@@ -6482,6 +6484,7 @@
       _needLinkBeforePost = false;
       _autoPostAfterLink = false;
       refreshLinkDatalist();
+      updateLinkBarVisibility();
       try {
         const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), {cache: 'no-store'});
         const data = await parseJson(res);
@@ -6528,6 +6531,7 @@
         currentProfileName = _profileDisplayNames[profile.key] || profile.name || data.name || profile.key;
         updateHeaderProfile(currentProfileName);
         step = 'mode';
+        updateLinkBarVisibility();
         addBot(
           `<strong>${currentProfileName}</strong> sẵn sàng rồi! Đăng kiểu nào?`,
           [
@@ -6543,6 +6547,7 @@
     // ===== STEP 2: Chọn Profile =====
     async function showProfileSelect() {
       step = 'profile';
+      updateLinkBarVisibility();
       addUser('Chọn Profile');
       try {
         const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), {cache: 'no-store'});
@@ -6591,6 +6596,7 @@
           ]
         );
         step = 'mode';
+        updateLinkBarVisibility();
       })
       .catch(e => addBot(botSystemError('đặt profile', e)));
     }
@@ -6769,6 +6775,7 @@
       chat.appendChild(row);
       chat.scrollTop = chat.scrollHeight;
       step = 'target';
+      updateLinkBarVisibility();
     }
 
     function togglePlatform(pid, platform, isChecked) {
@@ -7604,10 +7611,17 @@
       currentWebsite = '';
     }
 
+    // Ô link chỉ hiện khi đang ở bước soạn bài; ẩn ở welcome/chọn profile/chọn kênh...
+    function updateLinkBarVisibility() {
+      const bar = document.getElementById('linkBar');
+      if (bar) bar.classList.toggle('show', step === 'compose');
+    }
+
     // Hiện lời nhắc soạn nội dung (bước compose). Link sản phẩm nhập trực tiếp ở
     // ô phía trên khung soạn — không còn bước hỏi link riêng.
     function proceedToCompose() {
       step = 'compose';
+      updateLinkBarVisibility();
       _needLinkBeforePost = false;
       // Bắt đầu soạn bài → ô link để trống, đổ lại gợi ý link đã dùng.
       resetComposeLink();
@@ -8243,6 +8257,7 @@
       chat.appendChild(row);
       chat.scrollTop = chat.scrollHeight;
       step = 'schedule-time';
+      updateLinkBarVisibility();
     }
 
     async function submitSchedule(formId) {
@@ -10936,6 +10951,7 @@
       currentTarget = null;
       postMode = 'now';
       step = 'welcome';
+      updateLinkBarVisibility();
       currentWebsite = '';
       _needLinkBeforePost = false;
       _autoPostAfterLink = false;
