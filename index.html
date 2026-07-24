@@ -511,6 +511,9 @@
     }
     .link-bar input[type="text"]::placeholder { color: #9DBBE4; }
     .link-bar input[type="text"]:focus { border-color: #93C5FD; background: #fff; }
+    /* Chừa chỗ bên phải đúng bằng cụm nút emoji + gửi để ô link ngắn bằng ô nội dung.
+       Dùng chính .btn-icon (ẩn) nên tự khớp mọi kích thước nút theo skin/mobile. */
+    .link-bar-tail { display: flex; gap: 6px; flex-shrink: 0; visibility: hidden; pointer-events: none; }
     [data-theme="dark"] .link-bar-icon { color: #6B8FA8; }
     [data-theme="dark"] .link-bar input[type="text"] { background: #1c2b38; border-color: #2d4255; color: #e0e0e0; }
     [data-theme="dark"] .link-bar input[type="text"]::placeholder { color: #5f7d95; }
@@ -1183,6 +1186,7 @@
       /* Link bar canh theo input-area trên mobile */
       .link-bar { padding: 6px 8px 0; gap: 5px; }
       .link-bar-icon { width: 38px; }
+      .link-bar-tail { gap: 5px; }
       .link-bar input[type="text"] { padding: 9px 13px; }
 
       /* Prevent iOS auto-zoom on focus: text inputs/textarea must be >= 16px on mobile.
@@ -4116,6 +4120,7 @@
     <input type="text" id="msgLinkInput" list="msgLinkList" placeholder="Dán link sản phẩm (không bắt buộc)" autocomplete="off" spellcheck="false"
       onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('msgInput').focus();}">
     <datalist id="msgLinkList"></datalist>
+    <span class="link-bar-tail" aria-hidden="true"><span class="btn-icon"></span><span class="btn-icon"></span></span>
   </div>
 
   <div class="image-preview" id="imagePreview">
