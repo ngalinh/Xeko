@@ -25,10 +25,33 @@ const completePendingWithGroupStmt = db.prepare(
    WHERE id=@id AND success=-1`
 );
 
+// === Cache lich su (trong bo nho) ===
+// getPostHistory / getPostHistorySessions quet TOAN BO bang post_logs moi lan goi (gom
+// phien o JS). Khi co bai dang dang, frontend auto-poll moi 4s + nhieu nhan vien cung mo
+// Kho content -> hang loat lan quet toan bang giong het nhau lam server qua tai, request
+// >12s -> danh sach ket o "Dang tai danh sach...". Cache theo "generation": moi lan GHI
+// DB thi tang gen + xoa cache, nen doc trung nhau trong khoang khong co ghi la tra tuc
+// thi (khong quet lai). Dong "Dang dang" (pending) lay tuoi rieng o route nen khong bi cu.
+// TTL la luoi an toan phong truong hop co ghi tu tien trinh khac (bounded staleness).
+let _histGen = 1;
+const _HIST_TTL_MS = 5000;
+const _histCache = new Map();
+function _bustHistoryCache() { _histGen++; _histCache.clear(); }
+function _cachedHistory(key, compute) {
+  const now = Date.now();
+  const hit = _histCache.get(key);
+  if (hit && hit.gen === _histGen && (now - hit.ts) < _HIST_TTL_MS) return hit.value;
+  const value = compute();
+  if (_histCache.size > 200) _histCache.clear(); // chan phinh bo nho
+  _histCache.set(key, { gen: _histGen, ts: now, value });
+  return value;
+}
+
 /**
  * Ghi log 1 bai dang
  */
 function logPost({ profile, profileName, platform, target, groupName, groupId, message, imageCount, success, error, postUrl, source, images, batchId, jobId, website }) {
+  _bustHistoryCache();
   return insertStmt.run({
     timestamp: new Date().toISOString(),
     profile: profile || 'unknown',
@@ -51,6 +74,7 @@ function logPost({ profile, profileName, platform, target, groupName, groupId, m
 }
 
 function insertPendingPost({ profile, profileName, platform, target, groupName, groupId, message, imageCount, source, images, batchId, jobId, website }) {
+  _bustHistoryCache();
   const result = insertPendingStmt.run({
     timestamp: new Date().toISOString(),
     profile: profile || 'unknown',
@@ -71,6 +95,7 @@ function insertPendingPost({ profile, profileName, platform, target, groupName, 
 }
 
 function completePendingPost(id, { success, error, postUrl, groupName, profile, profileName } = {}) {
+  _bustHistoryCache();
   if (groupName !== undefined) {
     return completePendingWithGroupStmt.run({ id, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null, groupName: groupName || null, profile: profile || '', profileName: profileName || '' });
   }
@@ -78,6 +103,7 @@ function completePendingPost(id, { success, error, postUrl, groupName, profile, 
 }
 
 function completePendingByJobId(jobId, { success, error, postUrl, profile, profileName } = {}) {
+  _bustHistoryCache();
   return db.prepare(
     `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl,
        profile=COALESCE(NULLIF(@profile,''), profile),
@@ -102,6 +128,7 @@ const completeByIdWithGroupStmt = db.prepare(
    WHERE id=@id`
 );
 function completePostById(id, { success, error, postUrl, groupName, profile, profileName } = {}) {
+  _bustHistoryCache();
   if (groupName !== undefined) {
     return completeByIdWithGroupStmt.run({ id, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null, groupName: groupName || null, profile: profile || '', profileName: profileName || '' });
   }
@@ -114,6 +141,7 @@ const markRetryWaitingStmt = db.prepare(
   `UPDATE post_logs SET success=2, error=@error, retry_at=@retryAt, retry_count=@retryCount WHERE id=@id`
 );
 function markRetryWaiting(id, { error, retryAt, retryCount } = {}) {
+  _bustHistoryCache();
   return markRetryWaitingStmt.run({ id, error: error || null, retryAt: retryAt || null, retryCount: retryCount || 0 });
 }
 
@@ -124,6 +152,7 @@ const failRetryWaitingStmt = db.prepare(
   `UPDATE post_logs SET success=0, error=@error, retry_at=NULL WHERE id=@id AND success=2`
 );
 function failRetryWaiting(id, error) {
+  _bustHistoryCache();
   return failRetryWaitingStmt.run({ id, error: error || 'Tự đăng lại thất bại' });
 }
 
@@ -141,12 +170,14 @@ function getPendingPosts() {
 }
 
 function cleanupStalePending() {
+  _bustHistoryCache();
   const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
   db.prepare('DELETE FROM post_logs WHERE success = -1 AND timestamp < ?').run(cutoff);
 }
 
 // Mark pending posts older than maxAgeMs as failed (timeout) instead of leaving them stuck
 function markTimedOutPending(maxAgeMs = 10 * 60 * 1000) {
+  _bustHistoryCache();
   const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
   db.prepare(`UPDATE post_logs SET success=0, error='Timeout - không xác nhận được kết quả' WHERE success=-1 AND timestamp < ?`).run(cutoff);
 }
@@ -217,15 +248,17 @@ function buildHistoryWhere({ profile, platform, target, groupId, success, from, 
  * Lay lich su bai dang voi filter (phan trang theo DONG)
  */
 function getPostHistory({ limit = 50, offset = 0, ...filters } = {}) {
-  const { where, params } = buildHistoryWhere(filters);
+  return _cachedHistory('h:' + JSON.stringify({ limit, offset, ...filters }), () => {
+    const { where, params } = buildHistoryWhere(filters);
 
-  const { total } = db.prepare('SELECT COUNT(*) as total FROM post_logs' + where).get(params);
+    const { total } = db.prepare('SELECT COUNT(*) as total FROM post_logs' + where).get(params);
 
-  const rows = db.prepare('SELECT * FROM post_logs' + where + ' ORDER BY timestamp DESC LIMIT @limit OFFSET @offset')
-    .all({ ...params, limit, offset })
-    .map(r => ({ ...r, images: r.images ? safeParseJson(r.images) : [] }));
+    const rows = db.prepare('SELECT * FROM post_logs' + where + ' ORDER BY timestamp DESC LIMIT @limit OFFSET @offset')
+      .all({ ...params, limit, offset })
+      .map(r => ({ ...r, images: r.images ? safeParseJson(r.images) : [] }));
 
-  return { total, rows };
+    return { total, rows };
+  });
 }
 
 /**
@@ -238,6 +271,11 @@ function getPostHistory({ limit = 50, offset = 0, ...filters } = {}) {
  * cat lien tuc cua danh sach dong → dung LIMIT/OFFSET theo dong (khong can IN nhieu id).
  */
 function getPostHistorySessions({ sessionPage = 0, sessionSize = 10, ...filters } = {}) {
+  return _cachedHistory('s:' + JSON.stringify({ sessionPage, sessionSize, ...filters }), () =>
+    _computePostHistorySessions({ sessionPage, sessionSize, ...filters }));
+}
+
+function _computePostHistorySessions({ sessionPage = 0, sessionSize = 10, ...filters } = {}) {
   const { where, params } = buildHistoryWhere(filters);
 
   // Doc cot toi thieu cua TOAN BO dong khop filter (cuc bo, nhanh) de gom phien.
@@ -389,11 +427,13 @@ function getDailyByProfile({ days = 30, from, to } = {}) {
 }
 
 function deleteById(id) {
+  _bustHistoryCache();
   return db.prepare('DELETE FROM post_logs WHERE id = ?').run(id);
 }
 
 function deleteByIds(ids) {
   if (!ids || ids.length === 0) return { changes: 0 };
+  _bustHistoryCache();
   const placeholders = ids.map(() => '?').join(',');
   return db.prepare(`DELETE FROM post_logs WHERE id IN (${placeholders})`).run(ids);
 }
@@ -402,12 +442,14 @@ function deleteByIds(ids) {
 // website rỗng → set null (xoá link).
 function updateWebsiteByIds(ids, website) {
   if (!ids || ids.length === 0) return { changes: 0 };
+  _bustHistoryCache();
   const w = (website != null && String(website).trim()) ? String(website).trim() : null;
   const placeholders = ids.map(() => '?').join(',');
   return db.prepare(`UPDATE post_logs SET website = ? WHERE id IN (${placeholders})`).run(w, ...ids);
 }
 
 function deleteByFilter({ profile, success, from, to } = {}) {
+  _bustHistoryCache();
   let sql = 'DELETE FROM post_logs WHERE 1=1';
   const params = {};
   if (profile) { sql += ' AND profile = @profile'; params.profile = profile; }
