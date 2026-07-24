@@ -7966,8 +7966,11 @@
                   jobId: zd.jobId,
                   groupName: g.name,
                   account: zaloAccount,
+                  message,
+                  imageCount: (filesToUpload || []).length,
                   pendingLogId: zd.pendingLogId || null,
                 });
+                _setPendingJobThumbs(zd.jobId, filesToUpload);
                 // Nếu có pendingLogId → DB là source of truth, không cần in-memory tracker
                 // Nếu không → dùng in-memory tracker (fallback)
                 if (!zd.pendingLogId) {
@@ -8032,7 +8035,8 @@
           if (initial.jobId) {
             // Đã báo gộp 1 dòng ở trên; ở đây chỉ chạy ngầm + cập nhật Dashboard.
             // Save jobId de resume khi PWA reload giua chung
-            pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: targetLabel });
+            pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: targetLabel, message, imageCount: (filesToUpload || []).length });
+            _setPendingJobThumbs(initial.jobId, filesToUpload);
             // DB pending row pre-inserted → remove from in-memory tracker, DB is now source of truth
             if (initial.pendingLogId) {
               _activePostJob.pendingLogId = initial.pendingLogId;
@@ -8086,7 +8090,8 @@
             const gLabel = getFbGroupDisplayName(gid);
             let cd;
             if (initial.jobId) {
-              pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `Group FB <strong>${gLabel}</strong>` });
+              pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `Group FB <strong>${gLabel}</strong>`, message, imageCount: (filesToUpload || []).length });
+              _setPendingJobThumbs(initial.jobId, filesToUpload);
               try { cd = await pollJob(initial.jobId); }
               catch (e) { cd = null; if (!e.confirmedFail) unconfirmedCount += 1; }
               finally { removePendingJob(initial.jobId); }
@@ -8119,7 +8124,8 @@
             const initial = await parseJson(pr);
             const pName = (channelsData.fbPages || []).find(x => x.key === pageItem.key)?.name || pageItem.id;
             if (initial.jobId) {
-              pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `FB Page <strong>${pName}</strong>` });
+              pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `FB Page <strong>${pName}</strong>`, message, imageCount: (filesToUpload || []).length });
+              _setPendingJobThumbs(initial.jobId, filesToUpload);
               let pd;
               try { pd = await pollJob(initial.jobId); }
               catch (e) { pd = null; if (!e.confirmedFail) unconfirmedCount += 1; }
@@ -11293,7 +11299,17 @@
       list.push({ kind: job.kind || 'fb-chat', ...job, ts: Date.now() });
       setPendingJobs(list);
     }
+    // Thumbnail tạm (object URL) cho dòng "Đang đăng" — giữ trong bộ nhớ vì File không
+    // serialize được vào localStorage. Nhờ đó placeholder hiện ĐÚNG ảnh bài viết ngay,
+    // không phải chờ pending row của server. Thu hồi khi job xong (removePendingJob).
+    const _pendingJobThumbs = {};
+    function _setPendingJobThumbs(jobId, files) {
+      if (!jobId || !files || !files.length) return;
+      try { _pendingJobThumbs[jobId] = Array.from(files).map(f => URL.createObjectURL(f)); } catch {}
+    }
     function removePendingJob(jobId) {
+      const urls = _pendingJobThumbs[jobId];
+      if (urls) { urls.forEach(u => { try { URL.revokeObjectURL(u); } catch {} }); delete _pendingJobThumbs[jobId]; }
       setPendingJobs(getPendingJobs().filter(j => j.jobId !== jobId));
     }
 
@@ -12109,10 +12125,23 @@
           const d = new Date(j.ts || now);
           const t = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
           const dt = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+          // Ảnh: ưu tiên thumbnail tạm (object URL của chính ảnh vừa chọn) → thấy đúng ảnh
+          // ngay; nếu không có (vd sau reload) mà biết số ảnh thì hiện ô 🖼️ theo số lượng.
+          const _thumbs = _pendingJobThumbs[j.jobId] || [];
+          const _imgCount = j.imageCount || 0;
+          let imgCell;
+          if (_thumbs.length) {
+            const shown = _thumbs.slice(0, 4);
+            imgCell = `<div style="display:flex; flex-wrap:nowrap; gap:3px; align-items:center; overflow:hidden;">${shown.map(u => `<img src="${u}" style="width:40px; height:40px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;">`).join('')}${_thumbs.length > 4 ? `<span style="font-size:11px; color:#666;">+${_thumbs.length - 4}</span>` : ''}</div>`;
+          } else if (_imgCount > 0) {
+            imgCell = `<div style="display:flex; flex-wrap:nowrap; gap:3px; align-items:center; overflow:hidden;">${Array.from({length: Math.min(_imgCount, 4)}).map(() => '<span style="display:inline-flex; flex-shrink:0; width:40px; height:40px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:14px;">🖼️</span>').join('')}${_imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${_imgCount - 4}</span>` : ''}</div>`;
+          } else {
+            imgCell = '<span style="color:#bbb;">—</span>';
+          }
           return `<tr data-live-pending="1" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
             <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
             <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(msg)}</td>
-            <td style="padding:8px 12px; color:#bbb;">—</td>
+            <td style="padding:8px 12px;">${imgCell}</td>
             <td style="padding:8px 12px; text-align:left; color:#cbd5e1;">—</td>
             <td style="padding:8px 12px; font-size:12px;"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${escapeHtml(String(acc))}</span></div></td>
             <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${noiDang}</div></div></td>
