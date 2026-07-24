@@ -8027,6 +8027,14 @@
             }
             return target;
           })();
+          // Nhãn "Nơi đăng" gọn cho dòng "Đang đăng" — chỉ nơi đăng, KHÔNG kèm tên tài khoản
+          // (tên tài khoản đã hiển thị ở cột Tài khoản). Khớp style bảng lịch sử "FB - Profile".
+          const placeLabel = (() => {
+            if (!target || target === 'personal' || target === 'all') return 'FB - Profile';
+            if (target === 'personal-share-groups') return 'FB - Profile + Groups';
+            if (target === 'group' || target === 'shortcut') return 'FB - Group';
+            return 'FB';
+          })();
 
           const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: formData });
           const initial = await parseJson(res);
@@ -8035,7 +8043,7 @@
           if (initial.jobId) {
             // Đã báo gộp 1 dòng ở trên; ở đây chỉ chạy ngầm + cập nhật Dashboard.
             // Save jobId de resume khi PWA reload giua chung
-            pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: targetLabel, message, imageCount: (filesToUpload || []).length });
+            pushPendingJob({ jobId: initial.jobId, profile: currentProfile, profileName: currentProfileName, label: placeLabel, message, imageCount: (filesToUpload || []).length });
             _setPendingJobThumbs(initial.jobId, filesToUpload);
             // DB pending row pre-inserted → remove from in-memory tracker, DB is now source of truth
             if (initial.pendingLogId) {
@@ -8090,7 +8098,7 @@
             const gLabel = getFbGroupDisplayName(gid);
             let cd;
             if (initial.jobId) {
-              pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `Group FB <strong>${gLabel}</strong>`, message, imageCount: (filesToUpload || []).length });
+              pushPendingJob({ jobId: initial.jobId, profile: currentProfile, profileName: currentProfileName, label: `FB - Group (${gLabel})`, message, imageCount: (filesToUpload || []).length });
               _setPendingJobThumbs(initial.jobId, filesToUpload);
               try { cd = await pollJob(initial.jobId); }
               catch (e) { cd = null; if (!e.confirmedFail) unconfirmedCount += 1; }
@@ -8124,7 +8132,7 @@
             const initial = await parseJson(pr);
             const pName = (channelsData.fbPages || []).find(x => x.key === pageItem.key)?.name || pageItem.id;
             if (initial.jobId) {
-              pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `FB Page <strong>${pName}</strong>`, message, imageCount: (filesToUpload || []).length });
+              pushPendingJob({ jobId: initial.jobId, profile: currentProfile, profileName: currentProfileName, label: `FB - Page (${pName})`, message, imageCount: (filesToUpload || []).length });
               _setPendingJobThumbs(initial.jobId, filesToUpload);
               let pd;
               try { pd = await pollJob(initial.jobId); }
@@ -12339,10 +12347,15 @@
           const isPersonal = ch.type !== 'group';
           const [tPart = '-', dPart = ''] = (job.timeLabel || '').split(' ');
           const timeStacked = `<div style="line-height:1.3;"><div style="font-size:12px;">${tPart}</div><div style="font-size:11px; color:#6b7280;">${dPart}</div></div>`;
+          // Ảnh repost: dùng thumbnail tạm (object URL) đã lưu theo jobId khi submit repost.
+          const _rThumbs = _pendingJobThumbs[job.jobId || job.zaloJobId] || [];
+          const _rImgCell = _rThumbs.length
+            ? `<div style="display:flex; flex-wrap:nowrap; gap:3px; align-items:center; overflow:hidden;">${_rThumbs.slice(0, 4).map(u => `<img src="${u}" style="width:40px; height:40px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;">`).join('')}${_rThumbs.length > 4 ? `<span style="font-size:11px; color:#666;">+${_rThumbs.length - 4}</span>` : ''}</div>`
+            : '<span style="color:#bbb;">—</span>';
           return `<tr id="${job.tempId}" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
             <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
             <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msgShort}</td>
-            <td style="padding:8px 12px; color:#bbb;">—</td>
+            <td style="padding:8px 12px;">${_rImgCell}</td>
             ${linkCell(job.website)}
             <td style="padding:8px 12px; font-size:12px;" title="${String(job.profileName||'').replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(ch.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${job.profileName}</span></div></td>
             <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${targetLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${String(groupId).replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
@@ -13870,8 +13883,10 @@
             profileName,
             timeLabel,
             message,
+            imageCount: resolvedImages.length,
             ch: job.ch,
           });
+          _setPendingJobThumbs(job.jobId, resolvedImages.map(r => r.blob));
         } else if (job.zaloJobId) {
           pushPendingJob({
             kind: 'zalo',
@@ -13879,8 +13894,11 @@
             tempId: job.tempId,
             groupName: job.ch.name || '',
             account: job.ch.zaloAccount || '',
+            message,
+            imageCount: resolvedImages.length,
             pendingLogId: job.pendingLogId || null,
           });
+          _setPendingJobThumbs(job.zaloJobId, resolvedImages.map(r => r.blob));
         }
       });
 
