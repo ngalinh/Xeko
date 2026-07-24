@@ -478,6 +478,32 @@
       border-top: 1px solid #eee;
     }
     .image-preview.show { display: flex; }
+    /* Ô nhập link sản phẩm ngay trên khung soạn nội dung (thay bước hỏi link riêng).
+       Chỉ hiện ở bước soạn bài (thêm class .show), ẩn ở welcome/chọn kênh. */
+    .link-bar {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      background: #f0f9ff;
+      border-top: 1px solid #e5eefb;
+    }
+    .link-bar.show { display: flex; }
+    .link-bar-icon { font-size: 14px; line-height: 1; flex-shrink: 0; }
+    .link-bar input[type="text"] {
+      flex: 1;
+      min-width: 0;
+      padding: 7px 13px;
+      border-radius: 999px;
+      border: 1px solid #dbeafe;
+      background: #fff;
+      color: #1e293b;
+      font-size: 13px;
+      outline: none;
+    }
+    .link-bar input[type="text"]:focus { border-color: #93C5FD; }
+    [data-theme="dark"] .link-bar { background: #16202b; border-top-color: #223247; }
+    [data-theme="dark"] .link-bar input[type="text"] { background: #243340; border-color: #2d4255; color: #e0e0e0; }
     .preview-item { position: relative; display: inline-block; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
     .preview-item:active { cursor: grabbing; }
     .preview-item img {
@@ -4069,6 +4095,13 @@
 
   <div class="chat-area" id="chatArea"></div>
 
+  <div class="link-bar" id="linkBar">
+    <span class="link-bar-icon">🔗</span>
+    <input type="text" id="msgLinkInput" list="msgLinkList" placeholder="Link sản phẩm (không bắt buộc) — dán vào đây, gửi bài là tự kèm" autocomplete="off" spellcheck="false"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('msgInput').focus();}">
+    <datalist id="msgLinkList"></datalist>
+  </div>
+
   <div class="image-preview" id="imagePreview">
     <div id="previewImages" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
     <span class="image-count" id="imageCount"></span>
@@ -5449,11 +5482,9 @@
     let _totalProfiles = 0;
     let currentTarget = null;
     let selectedFiles = [];
-    let step = 'welcome'; // welcome -> profile -> target -> website -> compose
-    let currentWebsite = '';   // link sản phẩm cho lượt đăng hiện tại (bước sau khi chọn kênh)
-    let _websiteStepId = 0;
-    // Mỗi bài đăng đều hỏi lại link: sau khi đăng 1 bài, bài kế cần nhập/xác nhận
-    // link trước khi gửi. _autoPostAfterLink = đăng luôn sau khi chốt link ở bước đó.
+    let step = 'welcome'; // welcome -> profile -> target -> compose
+    let currentWebsite = '';   // link sản phẩm của bài đang soạn (đọc từ ô 🔗 khung soạn)
+    // Giữ lại cho tương thích với các nhánh cũ; luồng link giờ nhập trực tiếp ở khung soạn.
     let _needLinkBeforePost = false;
     let _autoPostAfterLink = false;
 
@@ -6452,6 +6483,8 @@
       currentWebsite = '';
       _needLinkBeforePost = false;
       _autoPostAfterLink = false;
+      refreshLinkDatalist();
+      updateLinkBarVisibility();
       try {
         const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), {cache: 'no-store'});
         const data = await parseJson(res);
@@ -6498,6 +6531,7 @@
         currentProfileName = _profileDisplayNames[profile.key] || profile.name || data.name || profile.key;
         updateHeaderProfile(currentProfileName);
         step = 'mode';
+        updateLinkBarVisibility();
         addBot(
           `<strong>${currentProfileName}</strong> sẵn sàng rồi! Đăng kiểu nào?`,
           [
@@ -6513,6 +6547,7 @@
     // ===== STEP 2: Chọn Profile =====
     async function showProfileSelect() {
       step = 'profile';
+      updateLinkBarVisibility();
       addUser('Chọn Profile');
       try {
         const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), {cache: 'no-store'});
@@ -6561,6 +6596,7 @@
           ]
         );
         step = 'mode';
+        updateLinkBarVisibility();
       })
       .catch(e => addBot(botSystemError('đặt profile', e)));
     }
@@ -6739,6 +6775,7 @@
       chat.appendChild(row);
       chat.scrollTop = chat.scrollHeight;
       step = 'target';
+      updateLinkBarVisibility();
     }
 
     function togglePlatform(pid, platform, isChecked) {
@@ -6977,9 +7014,9 @@
 
       currentTarget = target;
 
-      // Sau khi chọn kênh → bước nhập website sản phẩm, rồi mới soạn nội dung.
+      // Sau khi chọn kênh → vào thẳng bước soạn nội dung (link nhập ở ô 🔗 phía trên).
       window._composeSummaryText = summaryText;
-      showWebsiteStep();
+      proceedToCompose();
     }
 
     function showModeSelect() {
@@ -7005,9 +7042,9 @@
       if (target === 'allgroup') targetText = 'Asale + Tổng Kho';
       if (target === 'all') targetText = 'FB Profile + Asale + Tổng Kho';
 
-      // Sau khi chọn kênh → bước nhập website sản phẩm, rồi mới soạn nội dung.
+      // Sau khi chọn kênh → vào thẳng bước soạn nội dung (link nhập ở ô 🔗 phía trên).
       window._composeSummaryText = `<strong>${targetText}</strong>`;
-      showWebsiteStep();
+      proceedToCompose();
     }
 
 
@@ -7550,90 +7587,49 @@
       const filtered = list.filter(x => x.toLowerCase() !== lower);
       filtered.unshift(w);
       saveWebsiteList(filtered);
+      refreshLinkDatalist();
     }
 
-    // ===== Bước nhập website sản phẩm (sau khi chọn kênh, trước khi soạn nội dung) =====
-    function showWebsiteStep() {
-      disablePrevButtons();
-      step = 'website';
-      _websiteStepId++;
-      const wid = _websiteStepId;
-      const inputId = `websiteStepInput_${wid}`;
-      const listId = `websiteStepList_${wid}`;
-      const options = loadWebsiteList().map(w => `<option value="${escapeHtml(w)}"></option>`).join('');
-      const prefill = escapeHtml(currentWebsite || '');
-
-      const chat = document.getElementById('chatArea');
-      const rowEl = document.createElement('div');
-      rowEl.className = 'msg-row bot';
-      rowEl.innerHTML = `
-        <img class="msg-avatar" src="${BOT_AVATAR}" alt="Xeko">
-        <div class="msg-wrapper">
-          <div class="msg bot">
-            🔗 Nhập <strong>link sản phẩm</strong> cho bài này nha (chọn từ danh sách hoặc dán link mới):
-            <div style="margin-top:10px;">
-              <input type="text" id="${inputId}" list="${listId}" value="${prefill}" placeholder="vd: https://xeko.vn/san-pham" autocomplete="off" spellcheck="false"
-                onkeydown="if(event.key==='Enter'){event.preventDefault();confirmWebsiteStep('${inputId}');}"
-                style="width:100%; box-sizing:border-box; padding:9px 12px; border:1px solid #DBEAFE; border-radius:10px; font-size:14px; background:#f0f9ff; color:#1e293b; outline:none;">
-              <datalist id="${listId}">${options}</datalist>
-            </div>
-            <div class="msg-buttons" style="margin-top:12px;">
-              <button class="msg-btn primary" onclick="confirmWebsiteStep('${inputId}')">${xekoIcon('check')} Tiếp tục</button>
-              <button class="msg-btn secondary" onclick="skipWebsiteStep('${inputId}')">Bỏ qua</button>
-              <button class="msg-btn secondary" onclick="showTargetSelect()">${xekoIcon('back')} Đổi kênh</button>
-            </div>
-            <span class="msg-time">${now()}</span>
-          </div>
-        </div>`;
-      chat.appendChild(rowEl);
-      chat.scrollTop = chat.scrollHeight;
-      // focus ô nhập cho tiện gõ ngay
-      setTimeout(() => { const el = document.getElementById(inputId); if (el) el.focus(); }, 50);
+    // ===== Ô nhập link sản phẩm ngay trong khung soạn nội dung =====
+    // Đổ gợi ý (các link đã dùng) vào datalist của ô nhập link.
+    function refreshLinkDatalist() {
+      const dl = document.getElementById('msgLinkList');
+      if (!dl) return;
+      dl.innerHTML = loadWebsiteList().map(w => `<option value="${escapeHtml(w)}"></option>`).join('');
     }
 
-    function confirmWebsiteStep(inputId) {
-      const el = document.getElementById(inputId);
-      const w = el ? normalizeWebsite(el.value) : '';
-      if (!w) {
-        // Trống → coi như bỏ qua (website là metadata, không bắt buộc)
-        skipWebsiteStep(inputId);
-        return;
-      }
-      currentWebsite = w;
-      rememberWebsite(w);
-      disablePrevButtons();
-      addUser('🔗 Đã thêm link sản phẩm');
-      _finishWebsiteStep();
+    // Đọc + chuẩn hoá link đang nhập ở khung soạn (rỗng nếu không nhập).
+    function getComposeLink() {
+      const el = document.getElementById('msgLinkInput');
+      return el ? normalizeWebsite(el.value) : '';
     }
 
-    function skipWebsiteStep(inputId) {
+    // Xoá ô link (sau khi gửi bài / bắt đầu bài mới) để không dính link cũ.
+    function resetComposeLink() {
+      const el = document.getElementById('msgLinkInput');
+      if (el) el.value = '';
       currentWebsite = '';
-      disablePrevButtons();
-      addUser('Bỏ qua link');
-      _finishWebsiteStep();
     }
 
-    // Sau khi chốt link: nếu đang chờ đăng bài kế (chặn giữa lúc gửi) → đăng luôn
-    // với nội dung + ảnh đang soạn; nếu không → hiện lời nhắc soạn nội dung.
-    function _finishWebsiteStep() {
-      if (_autoPostAfterLink) {
-        _autoPostAfterLink = false;
-        step = 'compose';
-        sendMessage();
-        return;
-      }
-      proceedToCompose();
+    // Ô link chỉ hiện khi đang ở bước soạn bài; ẩn ở welcome/chọn profile/chọn kênh...
+    function updateLinkBarVisibility() {
+      const bar = document.getElementById('linkBar');
+      if (bar) bar.classList.toggle('show', step === 'compose');
     }
 
-    // Hiện lời nhắc soạn nội dung (bước compose) sau khi đã chốt link.
+    // Hiện lời nhắc soạn nội dung (bước compose). Link sản phẩm nhập trực tiếp ở
+    // ô phía trên khung soạn — không còn bước hỏi link riêng.
     function proceedToCompose() {
       step = 'compose';
-      // Vừa qua bước link → bài đầu tiên của lượt soạn này không phải hỏi lại.
+      updateLinkBarVisibility();
       _needLinkBeforePost = false;
+      // Bắt đầu soạn bài → ô link để trống, đổ lại gợi ý link đã dùng.
+      resetComposeLink();
+      refreshLinkDatalist();
       const summaryText = window._composeSummaryText || 'kênh đã chọn';
       const _hint = composeHintBox(postMode === 'schedule'
-        ? 'Soạn nội dung + thêm ảnh 📷, gửi để chọn giờ đăng nha!'
-        : 'Soạn nội dung + thêm ảnh 📷, gửi là xong nha!');
+        ? 'Soạn nội dung + thêm ảnh 📷 (link ở ô 🔗 phía trên), gửi để chọn giờ đăng nha!'
+        : 'Soạn nội dung + thêm ảnh 📷 (link ở ô 🔗 phía trên), gửi là xong nha!');
       const buttons = [];
       // Lên lịch thêm: giữ nút "Dùng lại nội dung vừa rồi" cho tiện.
       if (postMode === 'schedule') {
@@ -7646,12 +7642,10 @@
       addBot(`Sẽ đăng lên: ${summaryText}\n${_hint}`, buttons);
     }
 
-    // "Đăng bài tiếp" → hỏi link cho bài mới TRƯỚC khi gõ nội dung (nhất quán với
-    // bài đầu). Giữ nguyên kênh đã chọn + mọi nội dung/ảnh đang soạn dở (nếu có).
+    // "Đăng bài tiếp" → soạn nội dung cho bài mới. Giữ nguyên kênh đã chọn; ô link
+    // (🔗 phía trên khung soạn) được reset để không dính link bài trước.
     function continueNextPost() {
-      // Bài mới → xoá link của bài trước để ô nhập trống, tránh dính link cũ.
-      currentWebsite = '';
-      // Nếu đang lên lịch thì tiếp tục theo luồng lịch (đã tự qua bước link).
+      // Nếu đang lên lịch thì tiếp tục theo luồng lịch.
       if (postMode === 'schedule') { startScheduleCompose(); return; }
       _autoPostAfterLink = false;
       _needLinkBeforePost = false;
@@ -7659,7 +7653,7 @@
         || (currentTarget ? (TARGET_LABELS[currentTarget] || currentTarget) : null)
         || 'kênh đã chọn';
       window._composeSummaryText = summaryText;
-      showWebsiteStep();
+      proceedToCompose();
     }
 
     // ===== Gửi bài =====
@@ -7668,7 +7662,8 @@
         const _input = document.getElementById('msgInput');
         const _msg = _input.value.trim();
         if (!_msg && selectedFiles.length === 0) return;
-        const _website = currentWebsite || '';
+        const _website = getComposeLink();
+        if (_website) rememberWebsite(_website);
         window._schedulePendingMessage = _msg;
         window._schedulePendingFiles = [...selectedFiles];
         window._schedulePendingWebsite = _website;
@@ -7678,6 +7673,7 @@
         addUser(_msg, _photoUrls);
         resetMsgInput();
         clearImages();
+        resetComposeLink();
         showScheduleForm();
         return;
       }
@@ -7693,10 +7689,6 @@
       }
       if (step === 'target') {
         addBot('Bạn nhớ bấm ✓ <strong>Tiếp tục</strong> để xác nhận kênh đăng trước rồi gửi nội dung nha!');
-        return;
-      }
-      if (step === 'website') {
-        addBot('Bạn nhập <strong>link sản phẩm</strong> rồi bấm ✓ <strong>Tiếp tục</strong> (hoặc <strong>Bỏ qua</strong>) trước khi soạn nội dung nha!');
         return;
       }
       const zaloSelCheck = (window._channelSelection || {})[currentProfile] || { zalo: [] };
@@ -7724,18 +7716,9 @@
         target = 'shortcut';
       }
 
-      // Mỗi bài hỏi lại link: nếu vừa đăng bài trước đó → yêu cầu nhập/xác nhận
-      // link cho bài này trước khi gửi (giữ nguyên nội dung + ảnh đang soạn, đăng
-      // luôn sau khi chốt link). Bước link pre-fill link vừa dùng cho tiện.
-      if (_needLinkBeforePost) {
-        _needLinkBeforePost = false;
-        _autoPostAfterLink = true;
-        showWebsiteStep();
-        return;
-      }
-
-      // Link sản phẩm (metadata) — đã chọn/nhập ở bước "nhập link" sau khi chọn kênh.
-      const website = currentWebsite || '';
+      // Link sản phẩm (metadata) — lấy từ ô 🔗 phía trên khung soạn nội dung.
+      const website = getComposeLink();
+      if (website) rememberWebsite(website);
 
       // Snapshot toan bo context: bai trong hang cho khong bi anh huong khi user
       // doi profile/kenh hoac dinh kem anh moi cho bai tiep theo
@@ -7761,6 +7744,8 @@
       addUser(ctx.message, photoUrls);
       resetMsgInput();
       clearImages();
+      // Bài kế tiếp bắt đầu với ô link trống (không dính link bài vừa gửi).
+      resetComposeLink();
 
       // Xep hang: dang co bai chay thi bao da xep hang, worker chay tuan tu
       _postQueue.push(ctx);
@@ -7768,9 +7753,6 @@
         addBot(`${xekoIcon('clipboard')} Đã xếp hàng — còn <strong>${_postQueue.length}</strong> bài chờ. Xong bài này Xeko làm tiếp nha!`);
       }
       _processPostQueue();
-
-      // Bài kế tiếp phải nhập/xác nhận link lại trước khi gửi.
-      _needLinkBeforePost = true;
     }
 
     // Hang cho dang bai — chay tuan tu tung bai mot, cho phep user gui bai tiep theo.
@@ -8214,16 +8196,14 @@
 
     function startScheduleCompose() {
       postMode = 'schedule';
-      // Bài lên lịch mới → ô nhập link trống, không giữ link bài trước.
-      currentWebsite = '';
       _autoPostAfterLink = false;
       _needLinkBeforePost = false;
       const summaryText = buildChannelSummary(window._channelSelection)
         || (currentTarget ? (TARGET_LABELS[currentTarget] || currentTarget) : null)
         || 'kênh đã chọn';
-      // Vẫn qua bước nhập link sản phẩm trước khi soạn nội dung.
+      // Vào thẳng bước soạn nội dung (link nhập ở ô 🔗 phía trên khung soạn).
       window._composeSummaryText = summaryText;
-      showWebsiteStep();
+      proceedToCompose();
     }
 
     // Dùng lại nội dung + ảnh đã soạn lần trước, bỏ qua bước gõ lại
@@ -8277,6 +8257,7 @@
       chat.appendChild(row);
       chat.scrollTop = chat.scrollHeight;
       step = 'schedule-time';
+      updateLinkBarVisibility();
     }
 
     async function submitSchedule(formId) {
@@ -10970,6 +10951,7 @@
       currentTarget = null;
       postMode = 'now';
       step = 'welcome';
+      updateLinkBarVisibility();
       currentWebsite = '';
       _needLinkBeforePost = false;
       _autoPostAfterLink = false;
