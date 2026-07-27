@@ -7843,6 +7843,8 @@
         timeLabel: `${_pad(_now.getHours())}:${_pad(_now.getMinutes())}:${_pad(_now.getSeconds())} ${_pad(_now.getDate())}/${_pad(_now.getMonth()+1)}/${_now.getFullYear()}`,
         message: message,
         ch: { type: target === 'personal' ? 'personal' : 'group', id: groupId || '', key: '', name: '' },
+        imageThumbs: (filesToUpload || []).map(f => { try { return URL.createObjectURL(f); } catch { return null; } }).filter(Boolean),
+        imageCount: (filesToUpload || []).length,
       };
       // Only show FB tracker when there is an actual FB target to post to
       if (target) _activeRepostJobs.push(_activePostJob);
@@ -7999,7 +8001,9 @@
                 // Nếu có pendingLogId → DB là source of truth, không cần in-memory tracker
                 // Nếu không → dùng in-memory tracker (fallback)
                 if (!zd.pendingLogId) {
-                  const zTracker = { tempId: 'zalo-' + zd.jobId, profileName: zaloAccount, timeLabel: _zaloTimeLabel, message, ch: { type: 'group', platform: 'zalo', id: g.key, name: g.name } };
+                  const zTracker = { tempId: 'zalo-' + zd.jobId, profileName: zaloAccount, timeLabel: _zaloTimeLabel, message, ch: { type: 'group', platform: 'zalo', id: g.key, name: g.name },
+                    imageThumbs: (filesToUpload || []).map(f => { try { return URL.createObjectURL(f); } catch { return null; } }).filter(Boolean),
+                    imageCount: (filesToUpload || []).length };
                   _activeRepostJobs.push(zTracker);
                   _zaloTrackers.push(zTracker);
                   _refreshDashIfActive(false, true);
@@ -11337,6 +11341,21 @@
       if (urls) { urls.forEach(u => { try { URL.revokeObjectURL(u); } catch {} }); delete _pendingJobThumbs[jobId]; }
       setPendingJobs(getPendingJobs().filter(j => j.jobId !== jobId));
     }
+    // Ô ảnh cho dòng "Đang đăng" render từ tracker in-memory (_activeRepostJobs) — dùng
+    // job.imageThumbs (object URL / URL ảnh gốc khi repost) hoặc job.imageCount làm fallback,
+    // giống hệt cách _pendingLiveRowsHtml() dựng ô ảnh cho _pendingJobThumbs.
+    function _buildJobThumbsCell(job) {
+      const thumbs = (job && job.imageThumbs) || [];
+      const imgCount = (job && job.imageCount) || 0;
+      if (thumbs.length) {
+        const shown = thumbs.slice(0, 4);
+        return `<div style="display:flex; flex-wrap:nowrap; gap:3px; align-items:center; overflow:hidden;">${shown.map(u => `<img src="${u}" style="width:40px; height:40px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; display:block;">`).join('')}${thumbs.length > 4 ? `<span style="font-size:11px; color:#666;">+${thumbs.length - 4}</span>` : ''}</div>`;
+      }
+      if (imgCount > 0) {
+        return `<div style="display:flex; flex-wrap:nowrap; gap:3px; align-items:center; overflow:hidden;">${Array.from({length: Math.min(imgCount, 4)}).map(() => '<span style="display:inline-flex; flex-shrink:0; width:40px; height:40px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:4px; align-items:center; justify-content:center; font-size:14px;">🖼️</span>').join('')}${imgCount > 4 ? `<span style="font-size:11px; color:#666;">+${imgCount - 4}</span>` : ''}</div>`;
+      }
+      return '<span style="color:#bbb;">—</span>';
+    }
 
     async function resumePendingJobs() {
       const now = Date.now();
@@ -12389,8 +12408,8 @@
           const timeStacked = `<div style="line-height:1.3;"><div style="font-size:12px;">${tPart}</div><div style="font-size:11px; color:#6b7280;">${dPart}</div></div>`;
           return `<tr id="${job.tempId}" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
             <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
-            <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msgShort}</td>
-            <td style="padding:8px 12px; color:#bbb;">—</td>
+            <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${escapeHtml(msgShort)}</td>
+            <td style="padding:8px 12px;">${_buildJobThumbsCell(job)}</td>
             ${linkCell(job.website)}
             <td style="padding:8px 12px; font-size:12px;" title="${String(job.profileName||'').replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(ch.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${job.profileName}</span></div></td>
             <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${targetLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${String(groupId).replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
@@ -12439,7 +12458,7 @@
             const grpLabel = resolveGroupLabel(row.platform, row.group_id, row.group_name);
             return `<tr id="pending-log-${row.id}" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
               <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
-              <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msgShort}</td>
+              <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${escapeHtml(msgShort)}</td>
               <td style="padding:8px 12px;">${buildThumbs(row)}</td>
               ${linkCell(row.website, String(row.id))}
               <td style="padding:8px 12px; font-size:12px;" title="${String(row.profile_name || row.profile || '-').replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${row.profile_name || row.profile || '-'}</span></div></td>
@@ -12465,7 +12484,7 @@
             const grpLabel = resolveGroupLabel(row.platform, row.group_id, row.group_name);
             return `<tr id="pending-log-stale-${row.id}" style="border-bottom:1px solid #fde68a; background:#fffbeb; border-left:3px solid #f59e0b;">
               <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#92400e;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
-              <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msgShort}</td>
+              <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${escapeHtml(msgShort)}</td>
               <td style="padding:8px 12px;">${buildThumbs(row)}</td>
               ${linkCell(row.website, String(row.id))}
               <td style="padding:8px 12px; font-size:12px;" title="${String(row.profile_name || row.profile || '-').replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${row.profile_name || row.profile || '-'}</span></div></td>
@@ -12509,7 +12528,7 @@
           const schedPlatformLabel = sched.type === 'zalo' ? 'Zalo' : 'FB';
           return `<tr id="schedRow-${sched.id}" style="border-bottom:1px solid #EFF6FF; background:${rowBg}; border-left:3px solid #BFDBFE;">
             <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
-            <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${msg}</td>
+            <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${escapeHtml(msg)}</td>
             <td style="padding:8px 12px;">${thumbs}</td>
             ${linkCell(sched.website)}
             <td style="padding:8px 12px; font-size:12px;"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(sched.type)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${sched.profile_name || sched.profile || '-'}</span></div></td>
@@ -12817,7 +12836,7 @@
             const thumbs = buildThumbs(row);
             return `<tr id="dashRow-${row.id}" style="border-bottom:1px solid #f3f4f6; background:#fff;">
               <td style="padding:8px 10px;"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-id="${row.id}" onchange="onRowCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><span style="display:inline-block; width:10px; flex-shrink:0;"></span><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
-              <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div></td>
+              <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${escapeHtml(msg)}</div></td>
               <td style="padding:8px 12px;">${thumbs}</td>
               ${linkCell(row.website, String(row.id))}
               <td style="padding:8px 12px; font-size:12px;" title="${profileName.replace(/"/g,'&quot;')}"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(row.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${profileName}</span></div></td>
@@ -12913,7 +12932,7 @@
 
             const headerHtml = `<tr id="dashGroup-${groupKey}" data-group-key="${groupKey}" onclick="toggleBatchGroup('${groupKey}', event)" style="border-bottom:1px solid #f3f4f6; cursor:pointer; background:#fff;">
               <td style="padding:8px 10px;" onclick="event.stopPropagation()"><div style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-batch-ids="${idsAttr}" onchange="onBatchCheckbox(this)" style="cursor:pointer; width:14px; height:14px;"><svg class="caret" style="width:10px;height:10px;color:#6b7280;transition:transform .15s; cursor:pointer;" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" onclick="event.stopPropagation(); toggleBatchGroup('${groupKey}')"><polyline points="9 6 15 12 9 18"/></svg><span style="font-size:12px; color:#374151; font-weight:600;">${stt}</span></div></td>
-              <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${msg}</div></td>
+              <td style="padding:8px 12px; vertical-align:middle; cursor:default;" data-ctip="${ctipMsg}"><div style="font-size:12px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word;">${escapeHtml(msg)}</div></td>
               <td style="padding:8px 12px;">${thumbs}</td>
               ${linkCell(groupWebsite, group.rows.map(r => r.id).join(','))}
               <td style="padding:8px 12px; font-size:12px;" title="${accTitle}">${repAccountCell}</td>
@@ -13933,6 +13952,11 @@
         job.timeLabel = timeLabel;
         job.message = message;
         job.website = _repostWebsite;
+        job.imageThumbs = _repostImages.map(item => {
+          try { return item instanceof File ? URL.createObjectURL(item) : (item.startsWith('/') ? BASE_URL + item : item); }
+          catch { return null; }
+        }).filter(Boolean);
+        job.imageCount = _repostImages.length;
         // Có pendingLogId → DB pending row đã tồn tại, auto-poll 4s xử lý dashboard
         // Không có pendingLogId → dùng in-memory tracker (fallback)
         if (!job.pendingLogId) {
@@ -13989,7 +14013,7 @@
             return `<tr id="opt-${job.tempId}" data-optimistic-repost="1" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
               <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
               <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${_msgShort}</td>
-              <td style="padding:8px 12px; color:#bbb;">—</td>
+              <td style="padding:8px 12px;">${_buildJobThumbsCell(job)}</td>
               ${_repostWebsite ? `<td style="padding:8px 12px; text-align:left;"><a href="${escapeHtml(/^https?:\/\//i.test(_repostWebsite) ? _repostWebsite : 'https://' + _repostWebsite.replace(/^\/+/, ''))}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="display:inline-flex; align-items:center; gap:3px; color:#2563eb; text-decoration:none; font-size:12px; font-weight:600;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Link</a></td>` : `<td style="padding:8px 12px; text-align:left; color:#cbd5e1;">—</td>`}
               <td style="padding:8px 12px; font-size:12px;"><div style="display:flex;align-items:center;gap:4px;overflow:hidden;min-width:0;">${platBadge(ch.platform)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;">${escapeHtml(profileName || '-')}</span></div></td>
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${targetLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(String(groupId))}</div>`}</div></td>
