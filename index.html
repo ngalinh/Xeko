@@ -11471,6 +11471,26 @@
     // Ảnh chụp danh sách Kho content ở "xem mặc định" (trang 1, không lọc) — để lần sau vào
     // là HIỆN NGAY (không chớp skeleton, không kẹt), rồi refresh nền. Giống trang mặc định cũ.
     let _contentSnapshot = null;
+    // Bản dự phòng lưu ở localStorage — SỐNG QUA reload / đăng nhập lại trên cùng trình duyệt.
+    // Khi một phiên VỪA ĐĂNG NHẬP chưa kịp tải được (vd server đang bận đăng bài → fetch timeout),
+    // ta hiện ngay danh sách gần nhất từ đây thay vì kẹt "Đang tải danh sách…". _contentSnapshot
+    // (RAM, tải mới trong phiên) luôn được ưu tiên hơn bản localStorage này.
+    const _CONTENT_SNAP_LS_KEY = 'xeko_content_snapshot_v1';
+    const _CONTENT_SNAP_TTL_MS = 24 * 60 * 60 * 1000; // cũ hơn 1 ngày thì bỏ (tránh hiện dữ liệu quá cũ)
+    let _contentSnapshotLS = (function _loadContentSnapshotLS() {
+      try {
+        const raw = localStorage.getItem(_CONTENT_SNAP_LS_KEY);
+        if (!raw) return null;
+        const snap = JSON.parse(raw);
+        if (!snap || typeof snap.body !== 'string') return null;
+        if (snap.ts && (Date.now() - snap.ts) > _CONTENT_SNAP_TTL_MS) return null;
+        return snap;
+      } catch { return null; }
+    })();
+    function _persistContentSnapshot(snap) {
+      try { localStorage.setItem(_CONTENT_SNAP_LS_KEY, JSON.stringify(snap)); }
+      catch { /* quota/exceeded hoặc localStorage bị chặn — bỏ qua, snapshot RAM vẫn chạy */ }
+    }
 
     function _startDashPendingPoll() {
       if (_dashPendingPollTimer) return;
@@ -12237,14 +12257,17 @@
       // Kho content "luôn tải sẵn": nếu đã có ảnh chụp lần trước (xem mặc định) thì HIỆN
       // NGAY ảnh đó thay vì skeleton, rồi refresh nền → không chớp skeleton, và nếu fetch
       // lỗi (server bận) thì danh sách này vẫn ở nguyên (giống trang mặc định cũ).
-      if (!noSkeleton && _isDefaultContentView && _contentSnapshot) {
+      // Ưu tiên snapshot RAM (tải mới trong phiên); nếu chưa có (vd VỪA ĐĂNG NHẬP) thì dùng
+      // bản localStorage của lần trước → phiên mới cũng hiện ngay danh sách, không kẹt trắng.
+      const _snap = _contentSnapshot || _contentSnapshotLS;
+      if (!noSkeleton && _isDefaultContentView && _snap) {
         // Dòng "đang đăng" MỚI (từ client) ở trên + phần lịch sử đã lưu → thấy ngay cả bài
         // vừa đăng lẫn danh sách cũ, không chớp skeleton, không kẹt nếu fetch lỗi.
-        document.getElementById('dashHistoryBody').innerHTML = _pendingLiveRowsHtml() + (_contentSnapshot.body || '');
+        document.getElementById('dashHistoryBody').innerHTML = _pendingLiveRowsHtml() + (_snap.body || '');
         const _pgEl = document.getElementById('dashPagination');
-        if (_pgEl) _pgEl.innerHTML = _contentSnapshot.pagination || '';
-        window._dashRows = _contentSnapshot.dashRows || [];
-        window._seedRowInfo = _contentSnapshot.seedRowInfo || {};
+        if (_pgEl) _pgEl.innerHTML = _snap.pagination || '';
+        window._dashRows = _snap.dashRows || [];
+        window._seedRowInfo = _snap.seedRowInfo || {};
       } else if (!noSkeleton) {
         document.getElementById('dashHistoryBody').innerHTML = _pendingLiveRowsHtml() + Array(5).fill(
           '<tr style="border-bottom:1px solid #f3f4f6;">' +
@@ -13010,6 +13033,10 @@
             seedRowInfo: window._seedRowInfo,
             ts: Date.now(),
           };
+          // Lưu luôn xuống localStorage để phiên đăng nhập MỚI (chưa có snapshot RAM) vẫn có
+          // danh sách gần nhất mà hiện ngay, không kẹt "Đang tải danh sách…" khi server bận.
+          _contentSnapshotLS = _contentSnapshot;
+          _persistContentSnapshot(_contentSnapshot);
         }
       } catch (e) {
         console.error('History error:', e);
@@ -13047,12 +13074,17 @@
             // Không có bài đăng dở nhưng vẫn tải lỗi → thử lại nền vài lần rồi mới báo lỗi
             // cứng, tránh kẹt vĩnh viễn nếu chỉ là hiccup ngắn của server.
             if ((_healTry || 0) < 5) {
-              tb.innerHTML = liveHtml + '<tr data-dash-loading="1"><td colspan="10" style="padding:20px 12px; text-align:center; color:#94a3b8; font-size:13px;"><svg style="width:13px;height:13px;vertical-align:-2px;margin-right:5px;" class="badge-pulse" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang tải danh sách…</td></tr>';
+              tb.innerHTML = liveHtml + '<tr data-dash-loading="1"><td colspan="10" style="padding:20px 12px; text-align:center; color:#94a3b8; font-size:13px;"><svg style="width:13px;height:13px;vertical-align:-2px;margin-right:5px;" class="badge-pulse" aria-hidden="true"><use href="#ic-refresh"/></svg>Server đang bận — đang tải lại danh sách…</td></tr>';
               setTimeout(() => { if (myVersion === _loadDashHistoryVersion) loadDashHistory({ noSkeleton: true, noAnimation: true, _healTry: (_healTry || 0) + 1 }); }, 3000);
             } else {
               tb.innerHTML = liveHtml + '<tr><td colspan="10" style="padding:24px 12px; text-align:center; color:#94a3b8; font-size:13px;">Không tải được danh sách. Vui lòng thử lại.</td></tr>';
             }
           }
+        } else if (tb && _isDefaultContentView && !_contentSnapshot && _contentSnapshotLS && (_healTry || 0) < 8) {
+          // Phiên MỚI đang hiện danh sách dự phòng (localStorage) vì server bận: KHÔNG thay bằng
+          // spinner (giữ danh sách cho nhân viên xem), chỉ âm thầm thử lại nền tới khi tải được
+          // bản mới rồi thay tại chỗ → hết cảnh "kẹt trắng" mà vẫn tự cập nhật khi server rảnh.
+          setTimeout(() => { if (myVersion === _loadDashHistoryVersion) loadDashHistory({ noSkeleton: true, noAnimation: true, _healTry: (_healTry || 0) + 1 }); }, 4000);
         }
       }
     }
