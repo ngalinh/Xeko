@@ -4922,6 +4922,10 @@
               <label class="msel-option"><input type="checkbox" value="running" onchange="_mselChange('msel-status',this,'running')"><span>Đang đăng</span></label>
             </div>
           </div>
+          <button type="button" onclick="clearDashFilters()" title="Xóa toàn bộ bộ lọc về mặc định" style="padding:8px 14px; background:#fff; color:#6b7280; border:1px solid #ddd; border-radius:8px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; gap:5px; flex-shrink:0;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Xóa lọc
+          </button>
         </div>
       </div>
 
@@ -13117,6 +13121,21 @@
       } else {
         badge.style.display = 'none';
       }
+    }
+
+    // Xóa toàn bộ bộ lọc về mặc định (ô tìm kiếm, khoảng ngày, và các dropdown chọn nhiều)
+    // rồi tải lại danh sách từ trang 1. Không đóng panel để người dùng thấy trạng thái đã reset.
+    function clearDashFilters() {
+      const search = document.getElementById('dashFilterSearch');
+      if (search) search.value = '';
+      const from = document.getElementById('dashFilterFrom');
+      const to = document.getElementById('dashFilterTo');
+      if (from) from.value = '';
+      if (to) to.value = '';
+      if (typeof resetAllMsel === 'function') resetAllMsel();
+      if (typeof _updateDashFilterBadge === 'function') _updateDashFilterBadge();
+      dashPage = 0;
+      loadDashHistory();
     }
 
     function dashGoPage(page) {
