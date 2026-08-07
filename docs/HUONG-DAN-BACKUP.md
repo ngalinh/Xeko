@@ -1,19 +1,24 @@
 # HƯỚNG DẪN BACKUP XEKO — TÀI LIỆU ĐẦY ĐỦ
 
 > File này mô tả toàn bộ dữ liệu của Xeko, cách backup tự động, cách khôi phục, và cách
-> xử lý sự cố. Lưu file này **cùng thư mục** với các bản backup trên Google Drive
-> (`XekoBackups`) để sau này bất kỳ ai cũng đọc và làm lại được.
+> xử lý sự cố. Lưu file này **cùng thư mục** với các bản backup (`C:\xeko\backups`, và
+> trên Google Drive `XekoBackups` khi upload được bật lại) để sau này bất kỳ ai cũng đọc
+> và làm lại được.
 >
-> Cập nhật lần cuối: 2026-06-03
+> Cập nhật lần cuối: 2026-08-07 — **tạm dừng upload lên Google Drive**, backup hiện chỉ
+> lưu local tại `C:\xeko\backups` trên VPS Windows. Xem Mục 3 và Mục 4.
 
 ---
 
 ## 0. TÓM TẮT NHANH (TL;DR)
 
 - **Backup tự động:** mỗi **Chủ nhật 02:00 sáng**, VPS Windows tự gom toàn bộ dữ liệu Xeko
-  → nén → upload lên Google Drive thư mục `XekoBackups`.
+  → nén → **lưu vào `C:\xeko\backups`** trên chính VPS Windows đó.
+- **Upload Google Drive: đang TẠM DỪNG** (`$UploadToDrive = $false` trong script) —
+  không upload lên `XekoBackups` nữa cho tới khi có tài khoản/đích Drive (hoặc cloud
+  khác) mới.
 - **Mỗi bản:** 1 file `xeko-backup-YYYY-MM-DD_HHMM.zip` (~1GB), chứa ĐẦY ĐỦ mọi thứ cần để khôi phục.
-- **Giữ lại:** 8 tuần gần nhất (bản cũ hơn tự xoá).
+- **Giữ lại:** 8 tuần gần nhất (bản cũ hơn tự xoá khỏi `C:\xeko\backups`).
 - **Khi cần khôi phục:** xem Mục 5.
 
 ---
@@ -57,8 +62,9 @@ Xeko chạy trên 2 máy:
 Một số dữ liệu luôn tồn tại 2 bản nhờ cơ chế sync tự động khi LOCAL kết nối REMOTE:
 `user-permissions.json`, `channels.json`, `proxies.json`.
 
-### Lớp B — Backup hằng tuần lên Google Drive (lớp chính)
-Gom TẤT CẢ vào 1 gói `.zip` rồi upload Drive. Đây là lớp đầy đủ nhất.
+### Lớp B — Backup hằng tuần (lớp chính)
+Gom TẤT CẢ vào 1 gói `.zip`, lưu vào `C:\xeko\backups` trên VPS Windows.
+Upload lên Google Drive **đang tạm dừng** — xem hộp cập nhật ở đầu file.
 
 **Nội dung mỗi gói `xeko-backup-*.zip`:**
 | Thành phần | Lấy từ | Cách lấy |
@@ -77,18 +83,24 @@ Gom TẤT CẢ vào 1 gói `.zip` rồi upload Drive. Đây là lớp đầy đ�
 | Script | `C:\xeko\scripts\backup-to-gdrive.ps1` |
 | Chạy trên | VPS Windows LOCAL |
 | Lịch chạy | Task Scheduler "Xeko Weekly Backup" — Chủ nhật 02:00 |
-| Công cụ upload | `rclone` (remote tên `drive`) |
-| Thư mục đích | `drive:XekoBackups` trên Google Drive công ty |
-| Giữ lại | 8 tuần (`$KeepWeeks = 8`), bản cũ tự xoá |
+| Thư mục lưu local | `C:\xeko\backups` (`$LocalBackupDir`) |
+| Upload Google Drive | **TẠM DỪNG** (`$UploadToDrive = $false`) — bật lại khi có đích mới |
+| Công cụ upload (khi bật lại) | `rclone` (remote tên `drive`) |
+| Thư mục đích Drive (khi bật lại) | `drive:XekoBackups` |
+| Giữ lại | 8 tuần (`$KeepWeeks = 8`), bản cũ tự xoá khỏi `C:\xeko\backups` |
 | Key SSH lấy posts.db | `C:\Users\Administrator\.ssh\xeko_backup` |
-| Token Drive | `C:\Users\Administrator\AppData\Roaming\rclone\rclone.conf` |
+| Token Drive (khi bật lại) | `C:\Users\Administrator\AppData\Roaming\rclone\rclone.conf` |
 
 **Các lệnh kiểm tra / vận hành (PowerShell trên VPS Windows):**
 ```powershell
 # Chạy backup ngay (thủ công)
 powershell -NoProfile -ExecutionPolicy Bypass -File C:\xeko\scripts\backup-to-gdrive.ps1
 
-# Xem các bản backup trên Drive
+# Xem các bản backup local
+dir C:\xeko\backups
+
+# Bật lại upload Drive: mở backup-to-gdrive.ps1, đổi $UploadToDrive = $true
+# (và $RcloneRemote/$DriveFolder nếu đổi đích), rồi kiểm tra:
 rclone ls drive:XekoBackups
 
 # Xem / chạy thử / xoá lịch tự động
@@ -101,14 +113,18 @@ schtasks /Delete /TN "Xeko Weekly Backup" /F
 
 ## 5. KHÔI PHỤC DỮ LIỆU (RESTORE)
 
-### Bước 1 — Tải bản backup
-Trên máy Windows:
+### Bước 1 — Lấy bản backup
+Trên máy Windows, bản mới nhất nằm sẵn trong `C:\xeko\backups`:
 ```powershell
-# Xem danh sách, chọn bản mới nhất
+dir C:\xeko\backups
+```
+(Nếu upload Drive đã từng bật và bản cần khôi phục chỉ còn trên Drive:
+```powershell
 rclone ls drive:XekoBackups
-# Tải về (thay tên file)
 rclone copy "drive:XekoBackups/xeko-backup-YYYY-MM-DD_HHMM.zip" C:\restore\ --progress
 ```
+)
+
 Giải nén file `.zip` → có các thư mục `config\`, `playwright-data\`, file `.env`, `posts.db.gz`.
 
 ### Bước 2 — Khôi phục phần LOCAL (máy Windows)
@@ -182,12 +198,17 @@ schtasks /Create /TN "Xeko Weekly Backup" /TR "powershell -NoProfile -ExecutionP
 ---
 
 ## 8. GIỮ GÌN — ĐỪNG LÀM HỎNG BACKUP
-- **Giữ** file `rclone.conf` (`C:\Users\Administrator\AppData\Roaming\rclone\`) — chứa token Drive.
+- **Giữ** thư mục `C:\xeko\backups` — đây hiện là nơi DUY NHẤT chứa các bản backup
+  (upload Drive đang tạm dừng). Đảm bảo ổ đĩa chứa thư mục này còn đủ dung lượng và
+  có cơ chế sao lưu/kiểm tra định kỳ (vd: nhân bản sang máy khác) vì hiện không còn
+  bản sao off-site trên Drive.
 - **Giữ** SSH key `C:\Users\Administrator\.ssh\xeko_backup`.
-- **Đừng** thu hồi quyền rclone trong Tài khoản Google → Bảo mật → Ứng dụng bên thứ ba.
-- Đổi mật khẩu Google → có thể phải `rclone config` reconnect lại.
-- Log out Google khỏi Chrome **không ảnh hưởng** backup (rclone dùng token riêng).
+- Khi bật lại upload Drive: giữ file `rclone.conf`
+  (`C:\Users\Administrator\AppData\Roaming\rclone\`) — chứa token Drive; đừng thu hồi
+  quyền rclone trong Tài khoản Google → Bảo mật → Ứng dụng bên thứ ba; đổi mật khẩu
+  Google → có thể phải `rclone config` reconnect lại.
 
 ---
 
-*Hết. File này nên được lưu cùng thư mục `XekoBackups` trên Google Drive.*
+*Hết. File này nên được lưu cùng thư mục `C:\xeko\backups` (và `XekoBackups` trên
+Google Drive nếu/khi upload được bật lại).*

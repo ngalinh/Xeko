@@ -1,5 +1,5 @@
 <#
-  Xeko - Backup hằng tuần lên Google Drive (qua rclone)
+  Xeko - Backup hằng tuần (local, kèm tuỳ chọn upload Google Drive qua rclone)
   Chạy trên máy/VPS Windows LOCAL (nơi chạy local-server.js + trình duyệt Playwright).
 
   Gom các dữ liệu KHÔNG có backup nào khác:
@@ -25,15 +25,20 @@ $SshKey    = "$env:USERPROFILE\.ssh\xeko_backup"   # key SSH (OpenSSH) truy cậ
 $RemoteSsh = "vmadmin@103.140.249.232"             # user@host của server REMOTE
 $RemoteDb  = "/opt/dashboard-bot/data/bots/9a031e766d216717/server/data/posts.db"
 
-# --- Google Drive (rclone) ---
-$RcloneRemote = "drive"          # tên remote rclone đã cấu hình (rclone listremotes)
-$DriveFolder  = "XekoBackups"    # thư mục đích trên Google Drive
-$KeepWeeks    = 8                # giữ bản backup trong N tuần (cũ hơn sẽ bị xoá trên Drive)
+# --- Lưu local (luôn bật) ---
+$LocalBackupDir = "C:\xeko\backups"   # thư mục giữ các bản .zip trên máy LOCAL
+$KeepWeeks      = 8                   # giữ bản backup trong N tuần (cũ hơn sẽ bị xoá)
+
+# --- Google Drive (rclone) — TẠM DỪNG, chỉ lưu local cho tới khi có remote mới ---
+$UploadToDrive = $false          # đổi thành $true khi có đích Drive/cloud mới để bật lại upload
+$RcloneRemote  = "drive"         # tên remote rclone đã cấu hình (rclone listremotes)
+$DriveFolder   = "XekoBackups"   # thư mục đích trên Google Drive
 # ===============================================================================
 
 $ts    = Get-Date -Format "yyyy-MM-dd_HHmm"
 $stage = Join-Path $env:TEMP "xeko-backup-$ts"
 $zip   = Join-Path $env:TEMP "xeko-backup-$ts.zip"
+$finalZip = Join-Path $LocalBackupDir "xeko-backup-$ts.zip"
 
 function Log($m) { Write-Host ("[{0}] {1}" -f (Get-Date -Format "HH:mm:ss"), $m) }
 
@@ -86,16 +91,30 @@ try {
   if (Test-Path $zip) { Remove-Item $zip -Force }
   Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip -Force
 
-  # --- upload len Google Drive + don ban cu ---
-  Log "[5/5] Upload len Google Drive: ${RcloneRemote}:$DriveFolder"
-  & rclone copy $zip "${RcloneRemote}:$DriveFolder" --progress
-  if ($LASTEXITCODE -ne 0) { throw "rclone upload that bai (exit $LASTEXITCODE)" }
+  # --- luu vao thu muc local (luon lam, du co upload Drive hay khong) ---
+  Log "[5/5] Luu ban local -> $finalZip"
+  if (-not (Test-Path $LocalBackupDir)) { New-Item -ItemType Directory -Path $LocalBackupDir -Force | Out-Null }
+  Move-Item $zip $finalZip -Force
 
-  $minAge = "$($KeepWeeks * 7)d"
-  Log "Don ban backup cu hon $KeepWeeks tuan ($minAge)"
-  & rclone delete "${RcloneRemote}:$DriveFolder" --min-age $minAge --include "xeko-backup-*.zip"
+  Log "Don ban local cu hon $KeepWeeks tuan"
+  Get-ChildItem -Path $LocalBackupDir -Filter "xeko-backup-*.zip" |
+    Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7 * $KeepWeeks) } |
+    Remove-Item -Force
 
-  Log "HOAN TAT: xeko-backup-$ts.zip da len Drive."
+  # --- upload len Google Drive (dang tam dung) ---
+  if ($UploadToDrive) {
+    Log "Upload len Google Drive: ${RcloneRemote}:$DriveFolder"
+    & rclone copy $finalZip "${RcloneRemote}:$DriveFolder" --progress
+    if ($LASTEXITCODE -ne 0) { throw "rclone upload that bai (exit $LASTEXITCODE)" }
+
+    $minAge = "$($KeepWeeks * 7)d"
+    Log "Don ban backup cu hon $KeepWeeks tuan tren Drive ($minAge)"
+    & rclone delete "${RcloneRemote}:$DriveFolder" --min-age $minAge --include "xeko-backup-*.zip"
+
+    Log "HOAN TAT: xeko-backup-$ts.zip da luu local va len Drive."
+  } else {
+    Log "HOAN TAT: xeko-backup-$ts.zip da luu local ($LocalBackupDir). Upload Drive dang TAM DUNG (`$UploadToDrive = `$false)."
+  }
 }
 finally {
   if (Test-Path $stage) { Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue }
