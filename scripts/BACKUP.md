@@ -1,7 +1,13 @@
-# Backup Xeko lên Google Drive công ty
+# Backup Xeko (local, Google Drive đang TẠM DỪNG)
 
-Backup hằng tuần toàn bộ dữ liệu quan trọng của Xeko lên Google Drive, chạy trên
+Backup hằng tuần toàn bộ dữ liệu quan trọng của Xeko, chạy trên
 **máy/VPS Windows LOCAL** (nơi chạy `local-server.js` + trình duyệt Playwright).
+
+> **Cập nhật:** upload lên Google Drive công ty đang **tạm dừng** (`$UploadToDrive = $false`
+> trong script). Các bản backup vẫn được tạo và **giữ lại trên ổ đĩa local** tại
+> `C:\xeko\backups` (giữ 8 tuần gần nhất, tự dọn bản cũ) — không bị mất dữ liệu, chỉ là
+> chưa upload lên cloud. Khi có tài khoản/đích Drive (hoặc cloud khác) mới, đổi
+> `$UploadToDrive = $true` và cập nhật `$RcloneRemote`/`$DriveFolder` để bật lại upload.
 
 ## Dữ liệu được backup
 
@@ -47,12 +53,16 @@ $SshKey    = "$env:USERPROFILE\.ssh\xeko_backup"
 $RemoteSsh = "<SSH_USER>@<REMOTE_VPS_IP>"
 $RemoteDb  = "/opt/dashboard-bot/data/bots/<BOT_ID>/server/data/posts.db"
 
-$RcloneRemote = "drive"
-$DriveFolder  = "XekoBackups"
-$KeepWeeks    = 8
+$LocalBackupDir = "C:\xeko\backups"
+$KeepWeeks      = 8
+
+$UploadToDrive = $false   # $true khi có đích Drive/cloud mới
+$RcloneRemote  = "drive"
+$DriveFolder   = "XekoBackups"
 ```
 
-Đổi các giá trị nếu đường dẫn / IP / tên remote thay đổi.
+Đổi các giá trị nếu đường dẫn / IP / tên remote thay đổi. `$UploadToDrive` đang là
+`$false` → backup chỉ lưu local, không upload cloud.
 
 ---
 
@@ -61,11 +71,13 @@ $KeepWeeks    = 8
 ```
 powershell -NoProfile -ExecutionPolicy Bypass -File C:\xeko\scripts\backup-to-gdrive.ps1
 ```
-Theo dõi log `[1/5]...[5/5]`. Kiểm tra trên Drive:
+Theo dõi log `[1/5]...[5/5]`. Kiểm tra bản backup local:
 ```
-rclone ls drive:XekoBackups
+dir C:\xeko\backups
 ```
 → thấy `xeko-backup-YYYY-MM-DD_HHMM.zip` là OK (file zip này chứa cả `posts.db.gz` bên trong).
+Khi bật lại upload (`$UploadToDrive = $true`), kiểm tra thêm trên Drive bằng
+`rclone ls drive:XekoBackups`.
 
 ---
 
@@ -91,7 +103,7 @@ schtasks /Delete /TN "Xeko Weekly Backup" /F
 ---
 
 ## Khôi phục (restore)
-1. Tải file `.zip` mới nhất từ Drive, giải nén.
+1. Lấy file `.zip` mới nhất trong `C:\xeko\backups` (hoặc tải từ Drive nếu đã bật lại upload), giải nén.
 2. `config/`, `.env`, `playwright-data/` → copy đè vào thư mục `server` trên máy LOCAL.
 3. `posts.db.gz` → giải nén thành `posts.db`, đặt vào đúng đường dẫn trên REMOTE
    (`/opt/dashboard-bot/data/bots/<id>/server/data/posts.db`) **khi server REMOTE đang tắt**,
