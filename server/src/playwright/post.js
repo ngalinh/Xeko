@@ -1464,7 +1464,148 @@ async function postToGroup(groupId, message, imagePaths = []) {
   }
 }
 
-async function postToPage(pageId, message, imagePaths = []) {
+// =============================================================================
+// CHUYỂN IDENTITY SANG PAGE (Switch to Page) trước khi đăng.
+// ----------------------------------------------------------------------------
+// FB giờ đòi tài khoản đang "switch" toàn bộ session sang identity của Page đó
+// (menu avatar + mũi tên góc phải trên thanh nav) — chỉ vào đúng URL của Page
+// KHÔNG đủ, composer vẫn hiện dưới danh nghĩa cá nhân nếu chưa switch → dễ đăng
+// nhầm bên profile cá nhân thay vì Page. Trước đây bước này phải làm TAY 1 lần
+// rồi session nhớ (đúng lỗi hay gặp: "Chắc chắn đã switch sang page chưa?").
+// Ở đây tự động hoá: mở menu avatar → tìm đúng dòng tên Page → click → xác minh
+// composer đã đổi identity (hiện "{Tên Page} ơi, bạn đang nghĩ gì?"/"What's on
+// your mind, {Tên Page}?") trước khi mở popup tạo bài.
+// =============================================================================
+
+const IDENT_NORM = s => (s || '').normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
+
+// Composer top-of-feed hiện "{Tên identity} ơi, ...?" khi đang ở ĐÚNG identity đó
+// — dùng cụm "tên identity" + "nghĩ gì/on your mind" CÙNG 1 element làm dấu hiệu
+// tin cậy (tránh dương tính giả do tên Page xuất hiện đâu đó khác trên trang).
+async function waitComposerIdentityMatches(page, wantNorm, timeoutMs = 8000) {
+  try {
+    await page.waitForFunction((want) => {
+      const norm = s => (s || '').normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
+      const nodes = document.querySelectorAll('div[role="button"] span, div[role="button"]');
+      for (const el of nodes) {
+        const t = norm(el.textContent);
+        if (t.includes(want) && (t.includes('nghĩ gì') || t.includes('on your mind') || t.includes('viết gì'))) {
+          return true;
+        }
+      }
+      return false;
+    }, wantNorm, { timeout: timeoutMs });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Mở menu chuyển đổi tài khoản/Page (avatar + mũi tên góc phải trên cùng thanh nav).
+async function openIdentitySwitcherMenu(page) {
+  const selectors = [
+    '[aria-label="Tài khoản của bạn"]',
+    '[aria-label="Your profile"]',
+    '[aria-label="Xem thêm hồ sơ"]',
+    '[aria-label="See more profiles"]',
+    '[aria-label="Tài khoản"]',
+    '[aria-label="Account"]',
+    '[aria-label="Account Controls and Settings"]',
+    '[aria-label="Điều khiển và cài đặt tài khoản"]',
+  ];
+  for (const sel of selectors) {
+    try {
+      const el = await page.$(sel);
+      if (el) {
+        await el.click({ force: true });
+        logger.info(`[switch-identity] Mở menu tài khoản bằng: ${sel}`);
+        return true;
+      }
+    } catch { continue; }
+  }
+  // Dự phòng: nút cuối cùng có avatar (hình tròn) trong thanh điều hướng trên cùng
+  // (FB hay đổi aria-label của nút này giữa các bản UI).
+  const clickedFallback = await page.evaluate(() => {
+    const nav = document.querySelector('div[role="banner"]') || document.body;
+    const buttons = Array.from(nav.querySelectorAll('div[role="button"], a[role="link"]'));
+    for (let i = buttons.length - 1; i >= 0; i--) {
+      const btn = buttons[i];
+      const img = btn.querySelector('image, img');
+      const r = btn.getBoundingClientRect();
+      if (img && r.top < 80 && r.width > 0 && r.height > 0) {
+        btn.click();
+        return true;
+      }
+    }
+    return false;
+  }).catch(() => false);
+  if (clickedFallback) logger.info('[switch-identity] Mở menu tài khoản bằng fallback (avatar cuối thanh nav)');
+  return clickedFallback;
+}
+
+// Trong menu vừa mở, tìm & click đúng dòng có tên khớp identity cần chuyển sang.
+async function clickIdentityRow(page, wantNorm) {
+  return page.evaluate((want) => {
+    const norm = s => (s || '').normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
+    const all = document.querySelectorAll(
+      'div[role="menu"] *, div[role="dialog"] *, [role="listbox"] *, div[data-visualcompletion="ignore-dynamic"] *'
+    );
+    for (const el of all) {
+      if (el.children.length > 0) continue; // chỉ xét node lá (text trực tiếp)
+      const text = norm(el.textContent);
+      if (!text || text !== want) continue;
+      let clickable = el;
+      for (let i = 0; i < 8 && clickable; i++, clickable = clickable.parentElement) {
+        const role = clickable.getAttribute && clickable.getAttribute('role');
+        if (role === 'button' || role === 'link' || role === 'menuitem' || clickable.tagName === 'A') {
+          const r = clickable.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) { clickable.click(); return true; }
+        }
+      }
+      el.click();
+      return true;
+    }
+    return false;
+  }, wantNorm);
+}
+
+// Đảm bảo session đang ở ĐÚNG identity của Page trước khi đăng. Bỏ qua nếu không
+// truyền pageName (giữ hành vi cũ — caller tự đảm bảo đã switch sẵn), hoặc nếu
+// composer đã hiện đúng tên Page rồi (khỏi switch lại — đỡ thao tác dư khi đăng
+// liên tiếp nhiều bài cùng 1 Page trong 1 phiên).
+async function ensurePageIdentity(page, pageName) {
+  if (!pageName) return { switched: false, skipped: true };
+  const want = IDENT_NORM(pageName);
+
+  if (await waitComposerIdentityMatches(page, want, 1500)) {
+    logger.info(`[switch-identity] Đã ở đúng identity "${pageName}" — bỏ qua bước switch`);
+    return { switched: true, skipped: true };
+  }
+
+  logger.info(`[switch-identity] Đang chuyển sang Page "${pageName}"...`);
+  if (!(await openIdentitySwitcherMenu(page))) {
+    const shot = await saveDebugShot(page, 'debug-switch-open');
+    throw new Error(`Không mở được menu chuyển đổi tài khoản (avatar góc phải trên) để chuyển sang Page "${pageName}" (xem logs/${shot})`);
+  }
+  await randomDelay(700, 1200);
+
+  if (!(await clickIdentityRow(page, want))) {
+    const shot = await saveDebugShot(page, 'debug-switch-row');
+    await page.keyboard.press('Escape').catch(() => {});
+    throw new Error(`Không tìm thấy Page "${pageName}" trong menu chuyển đổi tài khoản — kiểm tra tên Page đúng chưa & tài khoản có đang quản lý Page này không (xem logs/${shot})`);
+  }
+
+  const ok = await waitComposerIdentityMatches(page, want, 10000);
+  if (!ok) {
+    const shot = await saveDebugShot(page, 'debug-switch-verify');
+    throw new Error(`Đã bấm chuyển sang Page "${pageName}" nhưng không xác nhận được identity đã đổi thành công (xem logs/${shot})`);
+  }
+  logger.info(`[switch-identity] ✓ Đã chuyển sang Page "${pageName}"`);
+  await randomDelay(500, 900);
+  return { switched: true, skipped: false };
+}
+
+async function postToPage(pageId, message, imagePaths = [], pageName = null) {
   const _profileKey = activeProfile;
   const browser = await getBrowser();
 
@@ -1479,6 +1620,8 @@ async function postToPage(pageId, message, imagePaths = []) {
     await page.goto(`https://www.facebook.com/${pageId}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await randomDelay(3000, 5000);
     await ensureLoggedIn(page);
+
+    await ensurePageIdentity(page, pageName);
 
     if (!(await openCreatePost(page, false))) {
       const shot = await saveDebugShot(page, 'debug-page-open');

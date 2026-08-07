@@ -15,6 +15,24 @@ function safeParseArray(s) {
   } catch { return []; }
 }
 
+// Tra tên hiển thị của Page theo pageId — dùng để tự động "switch to Page" trước
+// khi đăng (xem ensurePageIdentity trong playwright/post.js). Đọc cùng file
+// channels.json mà server/index.js dùng (quy ước path giống loadChannels() ở đó).
+const CHANNELS_FILE = process.env.XEKO_DATA_DIR
+  ? path.join(path.resolve(process.env.XEKO_DATA_DIR), 'data/channels.json')
+  : path.resolve(__dirname, '../../data/channels.json');
+
+function lookupPageName(pageId) {
+  try {
+    if (fs.existsSync(CHANNELS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(CHANNELS_FILE, 'utf8'));
+      const pg = (data.fbPages || []).find(p => String(p.id) === String(pageId));
+      return pg?.name || null;
+    }
+  } catch {}
+  return null;
+}
+
 // Persist temp images sang /data/uploads để history tham chiếu được lâu dài.
 // Mirror behavior với persistImages() trong server/index.js.
 const UPLOADS_DIR = path.resolve(__dirname, '../../../data/uploads');
@@ -215,7 +233,7 @@ async function executeSchedule(job) {
         result = { success: false, error: 'Group không tồn tại' };
       }
     } else if (job.target === 'page') {
-      result = await playwright.postToPage(job.groupId, job.message, job.imagePaths);
+      result = await playwright.postToPage(job.groupId, job.message, job.imagePaths, lookupPageName(job.groupId));
       postLogger.logPost({ profile: job.profile, profileName: job.profileName || job.profile, platform: 'facebook', target: 'page', groupId: job.groupId, message: job.message, imageCount: imgCount, images: imageUrls, success: result.success, error: result.error, postUrl: result.postUrl, source: 'schedule', website: job.website || null });
     } else if (job.target === 'all') {
       const config = require('../../config/default');
