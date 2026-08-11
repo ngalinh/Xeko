@@ -6916,7 +6916,7 @@
           return line(null, ch ? ch.name : c.id);
         });
         if (fbLines.length === 0 && zaloLines.length === 0) continue;
-        const pLabel = _profileDisplayNames[pKey] || pKey;
+        const pLabel = _profileDisplayNames[pKey] || (pKey === currentProfile && currentProfileName) || pKey;
         const blocks = [];
         if (fbLines.length) blocks.push(sectionLabel('fb', 'FACEBOOK', '#1877f2') + '<br>' + fbLines.join('<br>'));
         if (zaloLines.length) blocks.push(sectionLabel('zalo', 'ZALO', '#2563EB') + '<br>' + zaloLines.join('<br>'));
@@ -11253,6 +11253,10 @@
         chat.scrollTop = chat.scrollHeight;
         currentProfile = state.currentProfile || null;
         currentProfileName = state.currentProfileName || null;
+        // Backfill display-name map: sau reload _profileDisplayNames reset rỗng,
+        // nếu không bơm lại thì buildChannelSummary sẽ rơi về key (clone.linhduong)
+        // thay vì tên hiển thị (Linh Dương US).
+        if (currentProfile && currentProfileName) _profileDisplayNames[currentProfile] = currentProfileName;
         currentTarget = state.currentTarget || null;
         postMode = state.postMode || 'now';
         step = state.step || 'welcome';
