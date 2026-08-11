@@ -578,7 +578,8 @@ async function executePost({ profile, profileDisplayName, message, target, group
   }
 
   if (target === 'page') {
-    const r = await playwright.postToPage(groupId, message, imagePaths);
+    const pageInfo = (loadChannels().fbPages || []).find(p => String(p.id) === String(groupId));
+    const r = await playwright.postToPage(groupId, message, imagePaths, pageInfo?.name || null);
     incPostCount(profileKey);
     _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'page', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };

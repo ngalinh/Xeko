@@ -245,7 +245,8 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
 
       if (target === 'page') {
         if (!groupId) { setJobError(jobId, 'Thiếu pageId'); return; }
-        const result = await playwright.postToPage(groupId, message, imagePaths);
+        const pageInfo = (loadChannels().fbPages || []).find(p => String(p.id) === String(groupId));
+        const result = await playwright.postToPage(groupId, message, imagePaths, pageInfo?.name || null);
         setJobResult(jobId, { success: result.success, error: result.error, postUrl: result.postUrl });
         return;
       }
