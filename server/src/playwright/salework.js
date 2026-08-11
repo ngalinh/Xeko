@@ -951,6 +951,143 @@ async function _withAccountLock(key, fn) {
   }
 }
 
+// ============================================================================
+// PHIÊN BROWSER TÁI DÙNG THEO ACCOUNT (giữ trong 1 "batch" đăng)
+// ----------------------------------------------------------------------------
+// Cùng 1 account đăng nhiều group liên tiếp: thay vì đóng/mở browser + đăng nhập
+// + chọn account LẠI TỪ ĐẦU mỗi bài, ta GIỮ browser đã "ấm" (SPA đã load, đã đăng
+// nhập, đã chọn đúng account) và chỉ mở group kế tiếp. Nhờ vậy các bài sau ổn định
+// hơn (không cold-load, ít vấp "composer chưa hiện / bị đẩy về login").
+//
+// An toàn: hàng đợi (src/utils/zalo-queue.js) + _withAccountLock đã TUẦN TỰ HOÁ
+// mọi bài của cùng account → không bao giờ có 2 bài cùng account chạy song song,
+// nên cache 1 phiên/account KHÔNG gây xung đột userDataDir.
+//
+// Vòng đời: rảnh quá SESSION_IDLE_MS (account không có bài mới) → tự đóng để trả
+// RAM ("giữ trong 1 batch"). Lỗi khi đăng / phiên hỏng → huỷ phiên NGAY, bài đó
+// báo lỗi; bài kế của account sẽ tự mở phiên mới (không auto-relogin trong bài).
+// ============================================================================
+function _envNum(name, def) {
+  const v = Number(process.env[name]);
+  return Number.isFinite(v) && v >= 0 ? v : def;
+}
+// Rảnh bao lâu thì đóng phiên. Giữa 2 bài CÙNG account đã có GROUP delay (30–60s)
+// chống spam; idle phải LỚN HƠN khoảng đó thì phiên mới sống sót qua lúc chờ để bài
+// kế tái dùng được. Mặc định = GROUP_DELAY_MAX + 30s (đủ ôm trọn 1 batch), chỉnh
+// qua env ZALO_SESSION_IDLE_MS nếu muốn.
+const { GROUP_DELAY_MAX_MS } = require('../utils/post-delays');
+const SESSION_IDLE_MS = _envNum('ZALO_SESSION_IDLE_MS', GROUP_DELAY_MAX_MS + 30000);
+
+// Map<accountKey, { browser, page, proxySig, idleTimer }>
+const _sessions = new Map();
+
+function _proxySig(proxy) { return proxy ? String(proxy.server || '') : ''; }
+function _clearIdleTimer(s) { if (s && s.idleTimer) { clearTimeout(s.idleTimer); s.idleTimer = null; } }
+
+async function _closeSession(accountKey, reason) {
+  const s = _sessions.get(accountKey);
+  if (!s) return;
+  _sessions.delete(accountKey);
+  _clearIdleTimer(s);
+  logger.info(`[salework][session] Đóng phiên account=${accountKey} (${reason})`);
+  await Promise.race([s.page.close(), sleep(5000)]).catch(() => {});
+  await Promise.race([s.browser.close(), sleep(5000)]).catch(() => {});
+}
+
+// Phiên còn tái dùng được không: proxy KHÔNG đổi, context/page còn sống, và KHÔNG
+// bị đẩy về trang login (session ZaloCRM hết hạn giữa batch).
+async function _isSessionHealthy(s, proxy) {
+  try {
+    if (!s || _proxySig(proxy) !== s.proxySig) return false;
+    if (s.page.isClosed()) return false;
+    const b = s.browser.browser && s.browser.browser();
+    if (b && b.isConnected && !b.isConnected()) return false;
+    if (await isOnLoginPage(s.page)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Mở phiên MỚI: launch persistent context → /chat → chờ render → đăng nhập (nếu
+// hết hạn) → chọn đúng account. Trả về phiên ở trạng thái "đã sẵn sàng mở group".
+// Ném lỗi nếu không chọn được account (và tự dọn browser vừa mở để không rò).
+async function _openZaloSession({ accountKey, zaloAccountName, profilePath, proxy }) {
+  // Fingerprint riêng cho mỗi Zalo account (namespace 'zalo:' để tránh va FB)
+  const { userAgent, viewport } = getProfileDeviceFingerprint(`zalo:${accountKey || zaloAccountName}`);
+  const browser = await safeLaunchPersistentContext(profilePath, {
+    headless: false,
+    slowMo: 500,
+    viewport,
+    userAgent,
+    args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
+    ...(proxy ? { proxy } : {}),
+  });
+  try {
+    const page = await browser.newPage();
+
+    await page.goto(ZALO_CHAT_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    // Chờ SPA dựng xong UI (nút tài khoản/ô tìm kiếm/ô mật khẩu) thay vì sleep
+    // cứng — mạng/proxy chậm thì chờ đủ lâu, nhanh thì đi tiếp ngay.
+    if (!(await waitForChatReady(page))) {
+      logger.warn('[salework] Trang chat chưa render rõ sau khi mở — vẫn thử tiếp');
+    }
+    await sleep(1000); // 1 nhịp cho Vue settle sau khi phần tử đầu tiên hiện
+    await screenshot(page, '01-loaded');
+
+    // Session hết hạn → basso đẩy về trang đăng nhập. TỰ đăng nhập lại nếu đã cấu
+    // hình; chưa cấu hình / thất bại → ensureLoggedIn ném lỗi rõ ràng cho admin.
+    await ensureLoggedIn(page, accountKey, zaloAccountName);
+
+    const accountOk = await selectZaloAccount(page, zaloAccountName);
+    await screenshot(page, '02-account-selected');
+    // HUỶ nếu không chọn được đúng tài khoản — thà báo lỗi rõ còn hơn âm thầm đăng
+    // nhầm bằng tài khoản mặc định ("Tất cả tài khoản").
+    if (!accountOk) {
+      throw new Error(`Không chọn được tài khoản "${zaloAccountName}" trên ZaloCRM (ô vẫn ở "Tất cả tài khoản" hoặc chọn nhầm). Đã huỷ đăng để tránh đăng nhầm tài khoản — mở lại ZaloCRM kiểm tra danh sách tài khoản đã kết nối.`);
+    }
+    return { browser, page, proxySig: _proxySig(proxy) };
+  } catch (e) {
+    // Dọn browser vừa mở rồi ném lại — không để rò tiến trình Chromium.
+    await Promise.race([browser.close(), sleep(5000)]).catch(() => {});
+    throw e;
+  }
+}
+
+// Lấy phiên cho account: tái dùng nếu còn "khoẻ", ngược lại mở mới.
+async function _acquireSession({ accountKey, zaloAccountName, profilePath, proxy }) {
+  const existing = _sessions.get(accountKey);
+  if (existing) {
+    _clearIdleTimer(existing); // đang có bài mới → huỷ hẹn đóng
+    if (await _isSessionHealthy(existing, proxy)) {
+      logger.info(`[salework][session] Tái dùng phiên account=${accountKey} (browser đã ấm)`);
+      return existing;
+    }
+    await _closeSession(accountKey, 'phiên cũ không còn hợp lệ (login/đổi proxy/đóng)');
+  }
+  const opened = await _openZaloSession({ accountKey, zaloAccountName, profilePath, proxy });
+  const session = { ...opened, idleTimer: null };
+  _sessions.set(accountKey, session);
+  return session;
+}
+
+// Hẹn tự đóng phiên nếu account rảnh (không có bài mới) quá SESSION_IDLE_MS.
+function _scheduleIdleClose(accountKey) {
+  const s = _sessions.get(accountKey);
+  if (!s) return;
+  _clearIdleTimer(s);
+  s.idleTimer = setTimeout(() => {
+    _closeSession(accountKey, `rảnh > ${SESSION_IDLE_MS}ms`).catch(() => {});
+  }, SESSION_IDLE_MS);
+  if (s.idleTimer.unref) s.idleTimer.unref(); // đừng giữ process sống chỉ vì timer này
+}
+
+// Đóng TẤT CẢ phiên đang giữ (gọi khi tắt server).
+async function closeAllZaloSessions() {
+  const keys = Array.from(_sessions.keys());
+  await Promise.all(keys.map(k => _closeSession(k, 'tắt server')));
+}
+
 async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message, imagePaths }) {
   return _withAccountLock(accountKey || zaloAccountName, () =>
     _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, message, imagePaths })
@@ -980,66 +1117,23 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
     }
   }
 
-  // Fingerprint riêng cho mỗi Zalo account (namespace 'zalo:' để tránh va FB)
-  const { userAgent, viewport } = getProfileDeviceFingerprint(`zalo:${accountKey || zaloAccountName}`);
-  const browser = await safeLaunchPersistentContext(profilePath, {
-    headless: false,
-    slowMo: 500,
-    viewport,
-    userAgent,
-    args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
-    ...(proxy ? { proxy } : {}),
-  });
-
-  const page = await browser.newPage();
-
-  // Dọn dẹp browser CHẠY NỀN (fire-and-forget) — không bao giờ chặn việc trả
-  // kết quả. Trước đây finally await page.close()/browser.close() có thể treo
-  // (dù có Promise.race) → promise postToZaloGroup không resolve → local-server
-  // không set job 'done' → cloud poll mãi 'processing' → frontend kẹt "Đang đăng".
-  // Tách cleanup ra để lỗi đóng browser không ảnh hưởng tới việc báo kết quả.
-  let cleaned = false;
   let normalizedImageFiles = []; // file .zalo.jpg do chuẩn hoá tạo ra → dọn khi xong
-  const cleanup = () => {
-    if (cleaned) return;
-    cleaned = true;
-    // Dọn ảnh JPEG chuẩn hoá tạm (upload đã xong khi tới đây). File gốc do
-    // local-server quản lý vòng đời, không đụng ở đây.
-    for (const f of normalizedImageFiles) { try { fs.unlinkSync(f); } catch {} }
-    Promise.race([page.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {})
-      .then(() => Promise.race([browser.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {}))
-      .then(() => logger.info('[salework] Đã đóng browser'))
-      .catch(() => {});
-  };
 
+  // Lấy phiên browser: TÁI DÙNG nếu account vừa đăng bài trước đó & phiên còn khoẻ,
+  // ngược lại MỞ MỚI (launch + login + chọn account). Lỗi mở phiên (không login /
+  // không chọn được account) → báo lỗi bài này luôn; browser vừa mở đã được dọn.
+  let session;
   try {
     logger.info(`[salework] === account=${zaloAccountName}, group=${groupName} ===`);
+    session = await _acquireSession({ accountKey, zaloAccountName, profilePath, proxy });
+  } catch (e) {
+    logger.error(`[salework] Mở phiên thất bại: ${e.message}`);
+    return { success: false, error: e.message };
+  }
 
-    await page.goto(ZALO_CHAT_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    // Chờ SPA dựng xong UI (nút tài khoản/ô tìm kiếm/ô mật khẩu) thay vì sleep
-    // cứng — mạng/proxy chậm thì chờ đủ lâu, nhanh thì đi tiếp ngay. Không chờ
-    // được cũng vẫn thử (bước chọn tài khoản/ô soạn phía sau tự kiểm tra lại).
-    if (!(await waitForChatReady(page))) {
-      logger.warn('[salework] Trang chat chưa render rõ sau khi mở — vẫn thử tiếp');
-    }
-    await sleep(1000); // 1 nhịp cho Vue settle sau khi phần tử đầu tiên hiện
-    await screenshot(page, '01-loaded');
+  const page = session.page;
 
-    // Session hết hạn → basso đẩy về trang đăng nhập. TỰ đăng nhập lại nếu đã cấu
-    // hình thông tin (BASSO_ZALO_USERNAME/PASSWORD hoặc crmUsername/crmPassword);
-    // chưa cấu hình / tự login thất bại → ensureLoggedIn ném lỗi rõ ràng cho admin.
-    // KHÔNG để rơi xuống "không chọn được tài khoản" (sai nguyên nhân).
-    await ensureLoggedIn(page, accountKey, zaloAccountName);
-
-    const accountOk = await selectZaloAccount(page, zaloAccountName);
-    await screenshot(page, '02-account-selected');
-
-    // HUỶ đăng nếu không chọn được đúng tài khoản — thà báo lỗi rõ ràng còn hơn
-    // âm thầm đăng nhầm bằng tài khoản mặc định ("Tất cả tài khoản" → Basso…).
-    if (!accountOk) {
-      throw new Error(`Không chọn được tài khoản "${zaloAccountName}" trên ZaloCRM (ô vẫn ở "Tất cả tài khoản" hoặc chọn nhầm). Đã huỷ đăng để tránh đăng nhầm tài khoản — mở lại ZaloCRM kiểm tra danh sách tài khoản đã kết nối.`);
-    }
-
+  try {
     if (!(await searchAndClickGroup(page, groupName))) {
       throw new Error(`Không tìm thấy nhóm "${groupName}" trên ZaloCRM — kiểm tra lại tên nhóm có đúng không, hoặc tài khoản "${zaloAccountName}" có nằm trong nhóm này không.`);
     }
@@ -1071,19 +1165,28 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
     // định dạng/khổ (vd webp) thành FILE đính kèm ("hình cuối chuyển thành file").
     let sendImagePaths = imagePaths;
     if (imagePaths && imagePaths.length > 0) {
-      sendImagePaths = await normalizeImagesForZalo(browser, imagePaths);
+      sendImagePaths = await normalizeImagesForZalo(session.browser, imagePaths);
       normalizedImageFiles = sendImagePaths.filter((p, i) => p !== imagePaths[i]);
     }
 
     await sendMessage(page, message, sendImagePaths);
 
     logger.info(`[salework] Đã đăng lên "${groupName}" qua "${zaloAccountName}"`);
-    cleanup(); // chạy nền, không await — trả kết quả ngay
+    // KHÔNG đóng browser — GIỮ phiên "ấm" để bài kế cùng account tái dùng (khỏi
+    // login/chọn account lại). Rảnh quá SESSION_IDLE_MS thì idle timer tự đóng.
+    _scheduleIdleClose(accountKey);
+    // Dọn ảnh JPEG chuẩn hoá tạm (upload đã xong khi tới đây). File gốc do
+    // local-server quản lý vòng đời, không đụng ở đây.
+    for (const f of normalizedImageFiles) { try { fs.unlinkSync(f); } catch {} }
     return { success: true };
   } catch (e) {
     logger.error(`[salework] Lỗi: ${e.message}`);
     try { await screenshot(page, '99-error'); } catch {}
-    cleanup(); // chạy nền, không await
+    // Phiên có thể đã hỏng (page treo / bị đẩy về login giữa batch) → HUỶ phiên
+    // ngay, báo lỗi bài này. Bài kế của account sẽ tự mở phiên mới — không thử
+    // auto-relogin ngay trong bài đang lỗi.
+    await _closeSession(accountKey, `lỗi khi đăng: ${e.message}`).catch(() => {});
+    for (const f of normalizedImageFiles) { try { fs.unlinkSync(f); } catch {} }
     return { success: false, error: e.message };
   }
 }
@@ -1091,4 +1194,5 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
 module.exports = {
   postToZaloGroup, getSaleworkProfile, ZALO_LOGIN_URL, ZALO_CHAT_URL,
   getCrmCredentials, performCrmLogin, ensureLoggedIn,
+  closeAllZaloSessions,
 };

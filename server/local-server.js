@@ -1139,5 +1139,6 @@ app.listen(PORT, () => {
 
 process.on('SIGINT', async () => {
   await playwright.closeBrowser();
+  await salework.closeAllZaloSessions().catch(() => {});
   process.exit(0);
 });
