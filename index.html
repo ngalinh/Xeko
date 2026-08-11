@@ -3644,13 +3644,26 @@
     <div class="sidebar-logo">
       <svg width="34" height="34" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" alt="Xeko">
         <defs>
-          <linearGradient id="xekoLogoGrad1" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#5EE5DD"/>
-            <stop offset="100%" stop-color="#1E40AF"/>
+          <linearGradient id="xekoLogoBright" x1="0.1" y1="0" x2="0.8" y2="1">
+            <stop offset="0%" stop-color="#3DD9FF"/>
+            <stop offset="60%" stop-color="#00C8E8"/>
+            <stop offset="100%" stop-color="#00FFB8"/>
+          </linearGradient>
+          <linearGradient id="xekoLogoDim" x1="0" y1="0" x2="1" y2="0.8">
+            <stop offset="0%" stop-color="#1565C0"/>
+            <stop offset="100%" stop-color="#0D3F90"/>
+          </linearGradient>
+          <linearGradient id="xekoLogoBg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#0F1E30"/>
+            <stop offset="100%" stop-color="#0A1525"/>
           </linearGradient>
         </defs>
-        <rect width="100" height="100" rx="22" fill="#1F1B7A"/>
-        <path d="M28 28 L72 72 M72 28 L28 72" stroke="url(#xekoLogoGrad1)" stroke-width="14" stroke-linecap="round"/>
+        <rect width="100" height="100" fill="url(#xekoLogoBg)"/>
+        <polygon points="46,49 54,43 20,9 10,16" fill="url(#xekoLogoBright)"/>
+        <polygon points="46,49 54,43 90,9 80,16" fill="url(#xekoLogoDim)"/>
+        <polygon points="46,57 54,51 10,84 20,91" fill="url(#xekoLogoBright)"/>
+        <polygon points="46,57 54,51 80,84 90,91" fill="url(#xekoLogoDim)"/>
+        <polygon points="46,49 54,43 60,50 54,57 46,57 40,50" fill="#0A1828" opacity="0.35"/>
       </svg>
       <span>Xeko</span>
     </div>
@@ -6274,7 +6287,7 @@
       }
     }
 
-    const BOT_AVATAR = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5EE5DD"/><stop offset="100%" stop-color="#1E40AF"/></linearGradient></defs><rect width="100" height="100" rx="22" fill="#1F1B7A"/><path d="M28 28 L72 72 M72 28 L28 72" stroke="url(#g)" stroke-width="14" stroke-linecap="round"/></svg>');
+    const BOT_AVATAR = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="xb" x1="0.1" y1="0" x2="0.8" y2="1"><stop offset="0%" stop-color="#3DD9FF"/><stop offset="60%" stop-color="#00C8E8"/><stop offset="100%" stop-color="#00FFB8"/></linearGradient><linearGradient id="xd" x1="0" y1="0" x2="1" y2="0.8"><stop offset="0%" stop-color="#1565C0"/><stop offset="100%" stop-color="#0D3F90"/></linearGradient><linearGradient id="xbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0F1E30"/><stop offset="100%" stop-color="#0A1525"/></linearGradient></defs><rect width="100" height="100" fill="url(#xbg)"/><polygon points="46,49 54,43 20,9 10,16" fill="url(#xb)"/><polygon points="46,49 54,43 90,9 80,16" fill="url(#xd)"/><polygon points="46,57 54,51 10,84 20,91" fill="url(#xb)"/><polygon points="46,57 54,51 80,84 90,91" fill="url(#xd)"/><polygon points="46,49 54,43 60,50 54,57 46,57 40,50" fill="#0A1828" opacity="0.35"/></svg>');
 
     /** Return inline SVG icon markup referencing the sprite. */
     function xekoIcon(name, cls = 'xi') {
