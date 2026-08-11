@@ -4605,7 +4605,10 @@
           </div>
         </div>
         <input type="file" id="contentImgInput" accept="image/*" multiple style="display:none;" onchange="handleContentImages(this)">
-        <span style="font-size:12px; color:#aaa; display:block; margin-top:4px;" id="contentImgCount"></span>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:4px;">
+          <span style="font-size:12px; color:#aaa;" id="contentImgCount"></span>
+          <button type="button" id="contentImgClearBtn" onclick="clearAllContentImages()" style="display:none; font-size:12px; color:#ef4444; background:none; border:none; cursor:pointer; padding:0; text-decoration:underline;">Xoá tất cả</button>
+        </div>
       </div>
 
       <div style="display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap; align-items:flex-start;">
@@ -8987,6 +8990,13 @@
       preview._existingUrls = existingUrls;
       const hint = document.getElementById('contentDropHint');
       if (hint) hint.style.display = total ? 'none' : 'block';
+      const clearBtn = document.getElementById('contentImgClearBtn');
+      if (clearBtn) clearBtn.style.display = total ? 'inline' : 'none';
+    }
+
+    function clearAllContentImages() {
+      _contentNewImages = [];
+      renderContentImgPreview([]);
     }
 
     function removeContentExistingImg(idx) {
