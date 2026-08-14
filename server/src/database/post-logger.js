@@ -36,7 +36,31 @@ const completePendingWithGroupStmt = db.prepare(
 let _histGen = 1;
 const _HIST_TTL_MS = 5000;
 const _histCache = new Map();
-function _bustHistoryCache() { _histGen++; _histCache.clear(); }
+
+// Sau khi cache bi xoa (co ghi DB), chu dong tinh lai TRUOC view Kho content
+// mac dinh (khong filter, trang 1) trong nen — thay vi de nguoi dung dau tien
+// mo Kho content phai ganh chi phi quet toan bang ngay trong request cua ho
+// (chinh la nguyen nhan "Server dang ban" khi vua dang bai xong). Debounce vi
+// 1 phien dang (vd dang nhieu kenh) co the ghi DB nhieu lan lien tiep -> chi
+// tinh lai 1 lan sau khi "yen" thay vi quet lai sau moi lan ghi.
+const _DEFAULT_SESSION_SIZE = 20;
+const _PREWARM_DEBOUNCE_MS = 400;
+let _prewarmTimer = null;
+function _schedulePrewarmDefaultView() {
+  if (_prewarmTimer) clearTimeout(_prewarmTimer);
+  _prewarmTimer = setTimeout(() => {
+    _prewarmTimer = null;
+    try { getPostHistorySessions({ sessionPage: 0, sessionSize: _DEFAULT_SESSION_SIZE }); }
+    catch { /* best-effort, khong lam gian doan luong ghi */ }
+  }, _PREWARM_DEBOUNCE_MS);
+  if (_prewarmTimer.unref) _prewarmTimer.unref();
+}
+
+function _bustHistoryCache() {
+  _histGen++;
+  _histCache.clear();
+  _schedulePrewarmDefaultView();
+}
 function _cachedHistory(key, compute) {
   const now = Date.now();
   const hit = _histCache.get(key);
