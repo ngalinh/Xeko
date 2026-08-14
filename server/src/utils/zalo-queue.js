@@ -15,6 +15,13 @@
  * việc "chốt giờ bắt đầu" qua mọi account rồi giãn ≥ profileDelay so với lần bắt
  * đầu gần nhất của bất kỳ account nào.
  *
+ * Vì các account chạy song song, mỗi account mở 1 cửa sổ Chromium riêng
+ * (headless: false) — nếu đăng dồn dập nhiều account cùng lúc (vd "đăng tất cả"),
+ * số cửa sổ chạy chồng nhau có thể tăng không giới hạn, ngốn hết CPU của máy chạy
+ * Playwright và khiến các request khác (vd API danh sách bài đăng) bị đói CPU,
+ * phản hồi rất chậm/timeout dù bản thân code không hề bị "treo". Giới hạn số
+ * account chạy đồng thời (semaphore) để chặn tình trạng này.
+ *
  * Cấu hình delay: xem src/utils/post-delays.js (chỉnh qua env).
  */
 
@@ -34,6 +41,22 @@ const chains = new Map();
 // Cổng giãn cách TOÀN CỤC giữa các account khác nhau (lệch thời điểm bắt đầu).
 let globalGate = Promise.resolve();
 let globalLastStartAt = 0;
+
+// --- Giới hạn số account chạy Chromium ĐỒNG THỜI (semaphore) ---
+// Mặc định 3: đủ để nhiều account chồng lịch nhau (staggered start) mà không mở
+// quá nhiều cửa sổ Chromium cùng lúc làm máy quá tải. Chỉnh qua env nếu máy khoẻ hơn.
+const MAX_CONCURRENT = Math.max(1, Number(process.env.ZALO_MAX_CONCURRENT) || 3);
+let _running = 0;
+const _waiters = [];
+function _acquireSlot() {
+  if (_running < MAX_CONCURRENT) { _running++; return Promise.resolve(); }
+  return new Promise(resolve => _waiters.push(resolve));
+}
+function _releaseSlot() {
+  const next = _waiters.shift();
+  if (next) next();
+  else _running = Math.max(0, _running - 1);
+}
 
 /**
  * Serialize việc "chốt thời điểm bắt đầu" qua mọi account, rồi đảm bảo cách lần
@@ -83,8 +106,15 @@ function enqueue(accountKey, fn) {
     }
     // 2) Lệch thời điểm bắt đầu giữa các account KHÁC nhau (cổng toàn cục).
     await passGlobalStagger();
+    // 3) Giới hạn số cửa sổ Chromium chạy đồng thời — chờ tới khi có "chỗ trống"
+    //    thay vì mở thêm cửa sổ mới vô hạn (chống đói CPU cho cả máy).
+    await _acquireSlot();
     chain.lastStartAt = Date.now();
-    return fn();
+    try {
+      return await fn();
+    } finally {
+      _releaseSlot();
+    }
   });
 
   // tail nuốt lỗi để 1 post fail không chặn cả hàng đợi; caller vẫn nhận lỗi qua `run`.
