@@ -1685,6 +1685,33 @@ app.post('/api/pending/:id/cancel', (req, res) => {
   }
 });
 
+// Dừng cùng lúc TẤT CẢ bài "Đang đăng" của 1 tài khoản (profile) — dùng khi phát hiện nội
+// dung sai giữa lúc đăng nhiều nơi bằng cùng 1 tài khoản. Cùng phạm vi quyền như endpoint
+// /:id/cancel ở trên: chỉ dừng được tài khoản mà người bấm đang được cấp quyền sử dụng.
+app.post('/api/pending/cancel-by-profile', (req, res) => {
+  const profile = typeof req.body?.profile === 'string' ? req.body.profile.trim() : '';
+  if (!profile) return res.status(400).json({ error: 'Thiếu profile' });
+  try {
+    const allowed = permissions.getAllowedProfileKeys(req.user.email);
+    if (allowed !== null && !allowed.includes(profile)) {
+      return res.status(403).json({ error: 'Bạn không có quyền dừng bài đăng của tài khoản này' });
+    }
+    const rows = postLogger.getPendingPosts().filter(r => r.profile === profile);
+    let updated = 0;
+    for (const row of rows) {
+      cancelledPendingIds.add(row.id);
+      const result = postLogger.completePendingPost(row.id, {
+        success: false,
+        error: 'Đã dừng theo yêu cầu người dùng',
+      });
+      if (result?.changes) updated++;
+    }
+    res.json({ updated, total: rows.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.delete('/api/post-history', (req, res) => {
   const { profile, success, from, to } = req.query;
   try {
