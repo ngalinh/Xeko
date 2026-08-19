@@ -12435,7 +12435,7 @@
         // Lookup: FB group/page ID → tên (từ danh sách kênh đã lưu)
         const fbGroupIdToName = {};
         (channelsData.fbGroups || []).forEach(g => { if (g.id) fbGroupIdToName[g.id] = g.name; });
-        (channelsData.fbPages || []).forEach(g => { if (g.id) fbGroupIdToName[g.id] = `📄 ${g.name}`; });
+        (channelsData.fbPages || []).forEach(g => { if (g.id) fbGroupIdToName[g.id] = g.name; });
         function resolveGroupLabel(platform, groupId, groupName) {
           if (platform === 'zalo') return groupName || groupId || '-';
           if (groupId && fbGroupIdToName[groupId]) return fbGroupIdToName[groupId];
@@ -12836,7 +12836,7 @@
 
           const noiDangLabel = (row) => {
             const platform = row.platform === 'zalo' ? 'Zalo' : 'FB';
-            const target = row.target === 'personal' ? 'Profile' : row.target === 'group' ? 'Group' : (row.target === 'personal-share-groups' || row.target === 'personal+groups') ? 'Profile + Groups' : (row.target || (row.platform === 'zalo' ? 'Group' : ''));
+            const target = row.target === 'personal' ? 'Profile' : row.target === 'group' ? 'Group' : row.target === 'page' ? 'Page' : (row.target === 'personal-share-groups' || row.target === 'personal+groups') ? 'Profile + Groups' : (row.target || (row.platform === 'zalo' ? 'Group' : ''));
             return target ? `${platform} - ${target}` : platform;
           };
           const postLinkIcon = (url) => url ? `<a href="${String(url).replace(/"/g,'&quot;')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Mở bài đăng" style="color:#3B82F6; text-decoration:none; flex-shrink:0; display:inline-flex; align-items:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : '';
