@@ -1747,7 +1747,16 @@ async function postToPage(pageId, message, imagePaths = [], pageName = null) {
     ]);
     const profile = getActiveProfile();
     logger.info(`Đăng bài lên page ${pageId} (${profile.name})...`);
-    await page.goto(`https://www.facebook.com/${pageId}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    // Vào News Feed chính (KHÔNG vào thẳng URL riêng của Page) để switch + đăng — trang
+    // "Quản lý trang" (giao diện professional dashboard khi vào facebook.com/{pageId} với
+    // quyền admin) có DOM composer khác hẳn (input/textarea placeholder thay vì text node)
+    // khiến openCreatePost không click được. News Feed là màn hình ĐÃ CHỨNG MINH hoạt động
+    // đúng: sau khi switch, composer hiện "{Tên Page} ơi, ...?"/"What's on your mind,
+    // {Tên Page}?" và bài đăng vẫn lên đúng Page vì cả session đang "active as" Page đó.
+    await page.goto(
+      pageName ? 'https://www.facebook.com/' : `https://www.facebook.com/${pageId}`,
+      { waitUntil: 'domcontentloaded', timeout: 60000 }
+    );
     await randomDelay(3000, 5000);
     await ensureLoggedIn(page);
 
