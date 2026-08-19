@@ -1501,6 +1501,49 @@ async function waitComposerIdentityMatches(page, wantNorm, timeoutMs = 8000) {
   }
 }
 
+// FB hiện toast xác nhận NGAY sau khi switch — "Đã chuyển sang {Tên}" / "Bạn đang
+// hoạt động dưới tên {Tên} trên Facebook." (kèm nút "Hoàn tác"), hoặc bản tiếng Anh
+// "You're now active as {Tên}" / "Switched to {Tên}". Đây là tín hiệu RIÊNG cho lúc
+// vừa switch xong — độc lập với composer, nên bắt được cả trường hợp
+// waitComposerIdentityMatches không khớp (xem bên dưới).
+async function waitIdentitySwitchToast(page, wantNorm, timeoutMs = 8000) {
+  try {
+    await page.waitForFunction((want) => {
+      const norm = s => (s || '').normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
+      const nodes = document.querySelectorAll('div, span');
+      for (const el of nodes) {
+        if (el.children.length > 4) continue; // chỉ xét node gần lá (toast text ngắn)
+        const t = norm(el.textContent);
+        if (!t.includes(want)) continue;
+        if (t.includes('đã chuyển sang') || t.includes('hoạt động dưới tên')
+          || t.includes('switched to') || t.includes('now active as') || t.includes("you're active as")) {
+          return true;
+        }
+      }
+      return false;
+    }, wantNorm, { timeout: timeoutMs });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Chờ tín hiệu ĐẦU TIÊN trong danh sách trả về true (không phải cái đầu tiên
+// SETTLE — 1 tín hiệu resolve false không được phép "thắng" tín hiệu kia còn
+// đang chờ). Trả false khi TẤT CẢ đều false/hết giờ.
+function raceForTrue(promises) {
+  return new Promise((resolve) => {
+    let remaining = promises.length;
+    for (const p of promises) {
+      p.then((v) => {
+        if (v) { resolve(true); return; }
+        remaining -= 1;
+        if (remaining === 0) resolve(false);
+      });
+    }
+  });
+}
+
 // Mở menu chuyển đổi tài khoản/Page (avatar + mũi tên góc phải trên cùng thanh nav).
 async function openIdentitySwitcherMenu(page) {
   const selectors = [
@@ -1595,7 +1638,17 @@ async function ensurePageIdentity(page, pageName) {
     throw new Error(`Không tìm thấy Page "${pageName}" trong menu chuyển đổi tài khoản — kiểm tra tên Page đúng chưa & tài khoản có đang quản lý Page này không (xem logs/${shot})`);
   }
 
-  const ok = await waitComposerIdentityMatches(page, want, 10000);
+  // Xác minh bằng CẢ 2 tín hiệu chạy song song, thắng ngay khi 1 trong 2 khớp:
+  //  - toast switch: chắc chắn có khi postToPage vào thẳng URL Page riêng (giao
+  //    diện "Quản lý trang" — lúc này composer chỉ hiện "Bạn đang nghĩ gì?" KHÔNG
+  //    kèm tên Page, nên waitComposerIdentityMatches một mình sẽ KHÔNG BAO GIỜ khớp
+  //    ở màn hình này dù switch đã thành công thật — đây là lỗi thực tế đã gặp).
+  //  - composer: vẫn hữu ích khi postToPage/flow khác chạy trên News Feed chính,
+  //    nơi composer hiện kèm tên identity.
+  const ok = await raceForTrue([
+    waitIdentitySwitchToast(page, want, 10000),
+    waitComposerIdentityMatches(page, want, 10000),
+  ]);
   if (!ok) {
     const shot = await saveDebugShot(page, 'debug-switch-verify');
     throw new Error(`Đã bấm chuyển sang Page "${pageName}" nhưng không xác nhận được identity đã đổi thành công (xem logs/${shot})`);
