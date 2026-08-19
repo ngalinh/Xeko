@@ -1660,11 +1660,21 @@ app.post('/api/pending/:id/timeout', (req, res) => {
 // hẳn, không đăng nữa. Nếu bài đã bắt đầu thao tác trên trình duyệt thì không thể ngắt giữa
 // chừng — chỉ đánh dấu "Đã dừng" trong lịch sử ngay lập tức, còn thao tác thực tế trên nền
 // tảng (Facebook/Zalo) vẫn có thể tiếp tục chạy tới khi xong.
+// Danh sách "Đang đăng" hiện chung cho mọi nhân viên (không lọc theo người tạo), nên chỉ
+// cho phép dừng bài dùng profile mà chính người bấm đang được cấp quyền sử dụng — tránh
+// 1 nhân viên lỡ tay dừng bài của đồng nghiệp đang dùng profile họ không có quyền.
 app.post('/api/pending/:id/cancel', (req, res) => {
   const id = Number(req.params.id);
   if (!id) return res.status(400).json({ error: 'ID không hợp lệ' });
-  cancelledPendingIds.add(id);
   try {
+    const allowed = permissions.getAllowedProfileKeys(req.user.email);
+    if (allowed !== null) {
+      const row = postLogger.getPendingPosts().find(r => r.id === id);
+      if (row && !allowed.includes(row.profile)) {
+        return res.status(403).json({ error: 'Bạn không có quyền dừng bài đăng của tài khoản này' });
+      }
+    }
+    cancelledPendingIds.add(id);
     const result = postLogger.completePendingPost(id, {
       success: false,
       error: 'Đã dừng theo yêu cầu người dùng',

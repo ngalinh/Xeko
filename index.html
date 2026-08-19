@@ -11598,9 +11598,19 @@
     // tác trên trình duyệt thì không thể ngắt giữa chừng — vẫn đánh dấu "Đã dừng" ngay ở
     // đây, nhưng thao tác thật trên nền tảng có thể vẫn tiếp tục chạy tới khi xong.
     async function _stopPendingDbRow(id, trId) {
+      let res;
       try {
-        await fetch(`${BASE_URL}/api/pending/${id}/cancel`, { method: 'POST' });
-      } catch {}
+        res = await fetch(`${BASE_URL}/api/pending/${id}/cancel`, { method: 'POST' });
+      } catch {
+        alert('Không kết nối được server, thử lại.');
+        return;
+      }
+      if (!res.ok) {
+        let msg = 'Không dừng được bài đăng này.';
+        try { const j = await res.json(); if (j?.error) msg = j.error; } catch {}
+        alert(msg);
+        return;
+      }
       const el = document.getElementById(trId);
       if (el) el.remove();
       const sid = String(id);
