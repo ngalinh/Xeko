@@ -13506,16 +13506,20 @@
     }
 
     function _getAccountGroups(profileKey) {
-      const pCh = (channelsData.profileChannels || {})[profileKey] || { fbGroups: [], zaloGroups: [] };
+      const pCh = (channelsData.profileChannels || {})[profileKey] || { fbGroups: [], fbPages: [], zaloGroups: [] };
       const fbGroups = (pCh.fbGroups || [])
         .map(k => (channelsData.fbGroups || []).find(g => g.key === k))
         .filter(Boolean)
-        .map(g => ({ ...g, _platform: 'fb' }));
+        .map(g => ({ ...g, _platform: 'fb', _kind: 'group' }));
+      const fbPages = (pCh.fbPages || [])
+        .map(k => (channelsData.fbPages || []).find(g => g.key === k))
+        .filter(Boolean)
+        .map(g => ({ ...g, _platform: 'fb', _kind: 'page' }));
       const zaloGroups = (pCh.zaloGroups || [])
         .map(k => (channelsData.zaloGroups || []).find(g => g.key === k))
         .filter(Boolean)
         .map(g => ({ ...g, _platform: 'zalo', _zaloAccount: pCh.zaloAccount || '' }));
-      return [...fbGroups, ...zaloGroups];
+      return [...fbGroups, ...fbPages, ...zaloGroups];
     }
 
     function _renderRepostChannelList() {
@@ -13523,14 +13527,17 @@
       const groups = _getAccountGroups(profileKey);
       const options = [
         { type: 'personal', platform: 'fb', label: `${xekoIcon('home')} Profile`, sub: '' },
-        ...groups.map(g => ({
-          type: 'group', platform: g._platform,
-          key: g.key, id: g.id, name: g.name,
-          category: g._platform === 'fb' ? ((g.category || '').trim() || 'Chưa phân loại') : '',
-          zaloAccount: g._zaloAccount || '',
-          label: (g._platform === 'zalo' ? xekoIcon('chat') + ' ' : xekoIcon('users') + ' ') + (g.name || g.key),
-          sub: g._platform === 'zalo' ? 'Zalo' : (g.id || ''),
-        }))
+        ...groups.map(g => {
+          const isPage = g._kind === 'page';
+          return {
+            type: isPage ? 'page' : 'group', platform: g._platform,
+            key: g.key, id: g.id, name: g.name,
+            category: (g._platform === 'fb' && !isPage) ? ((g.category || '').trim() || 'Chưa phân loại') : '',
+            zaloAccount: g._zaloAccount || '',
+            label: (isPage ? xekoIcon('file') + ' ' : g._platform === 'zalo' ? xekoIcon('chat') + ' ' : xekoIcon('users') + ' ') + (g.name || g.key),
+            sub: g._platform === 'zalo' ? 'Zalo' : (g.id || ''),
+          };
+        })
       ];
 
       // Bổ sung các kênh ĐANG được chọn nhưng KHÔNG thuộc danh sách nhóm của tài
@@ -13550,7 +13557,9 @@
           zaloAccount: ch.zaloAccount || '',
           label: ch.type === 'personal'
             ? `${xekoIcon('home')} Profile`
-            : (ch.platform === 'zalo' ? xekoIcon('chat') + ' ' : xekoIcon('users') + ' ') + (ch.name || ch.key || ''),
+            : ch.type === 'page'
+              ? `${xekoIcon('file')} ${ch.name || ch.key || ''}`
+              : (ch.platform === 'zalo' ? xekoIcon('chat') + ' ' : xekoIcon('users') + ' ') + (ch.name || ch.key || ''),
           sub: ch.platform === 'zalo' ? (ch.zaloAccount ? 'Zalo · ' + ch.zaloAccount : 'Zalo') : (ch.id || ''),
         });
       }
@@ -13586,6 +13595,11 @@
       [...fbByCat.entries()]
         .sort((a, b) => a[0].localeCompare(b[0], 'vi'))
         .forEach(([name, idxs]) => sections.push({ key: 'fb:' + name, name: xekoIcon('users') + ' ' + name, idxs }));
+      const pageIdxs = options
+        .map((o, i) => ({ o, i }))
+        .filter(x => x.o.type === 'page')
+        .map(x => x.i);
+      if (pageIdxs.length) sections.push({ key: 'page', name: xekoIcon('file') + ' FB Page', idxs: pageIdxs });
       const zaloIdxs = options
         .map((o, i) => ({ o, i }))
         .filter(x => x.o.type === 'group' && x.o.platform === 'zalo' && x.o.category !== '__orphan__')
@@ -13689,6 +13703,7 @@
       if (_repostSelectedChannels.length === 1) {
         const ch = _repostSelectedChannels[0];
         if (ch.type === 'personal') return `${xekoIcon('home')} Profile`;
+        if (ch.type === 'page') return `${xekoIcon('file')} ${ch.name || ch.key || ''}`;
         return (ch.platform === 'zalo' ? xekoIcon('chat') + ' ' : xekoIcon('users') + ' ') + (ch.name || ch.key || '');
       }
       return `${_repostSelectedChannels.length} kênh đã chọn`;
@@ -13983,8 +13998,8 @@
             const isAsync = !!(d.jobId && d.processing);
             jobs.push({ ch, zaloJobId: isAsync ? d.jobId : null, pendingLogId: d.pendingLogId || null, done: !isAsync, ok: isAsync ? undefined : !!d.success });
           } else {
-            fd.append('target', ch.type === 'group' ? 'group' : 'personal');
-            if (ch.type === 'group') fd.append('groupId', ch.id || ch.key || '');
+            fd.append('target', ch.type === 'group' ? 'group' : ch.type === 'page' ? 'page' : 'personal');
+            if (ch.type === 'group' || ch.type === 'page') fd.append('groupId', ch.id || ch.key || '');
             fd.append('profile', profile);
             fd.append('profileDisplayName', profileName);
             const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: fd });
