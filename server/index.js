@@ -424,6 +424,12 @@ setInterval(() => postLogger.markTimedOutPending(10 * 60 * 1000), 10 * 60 * 1000
 // Browser POST /api/post → trả ngay {jobId}, rồi polling /api/job/:id.
 const postJobs = new Map();
 
+// pendingLogId của các bài user bấm "Dừng" khi còn đang chờ trong hàng đợi (chưa chạy tới
+// Playwright). Job kiểm tra Set này ngay trước khi thực thi để bỏ qua, không đăng nữa.
+// Nếu bài đã bắt đầu chạy trình duyệt thì không có cách nào ngắt giữa chừng — trường hợp đó
+// Set này không còn tác dụng, thao tác trên nền tảng vẫn tiếp tục chạy tới khi xong.
+const cancelledPendingIds = new Set();
+
 function createJob() {
   const id = crypto.randomBytes(8).toString('hex');
   postJobs.set(id, { status: 'pending', createdAt: Date.now() });
@@ -720,6 +726,11 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
     const tQueued = Date.now();
 
     queuePost(() => {
+      // Bài đã bị bấm "Dừng" trong lúc còn chờ ở hàng đợi → bỏ qua hẳn, không gọi Playwright.
+      if (cancelledPendingIds.delete(pendingLogId)) {
+        logger.info(`[job ${jobId}] đã bị dừng trước khi chạy — bỏ qua, không đăng`);
+        return Promise.resolve({ success: false, error: 'Đã dừng theo yêu cầu người dùng', cancelled: true });
+      }
       const tStart = Date.now();
       logger.info(`[job ${jobId}] start (waited ${tStart - tQueued}ms in queue) — profile=${profile || '(active)'}, target=${targetDesc}`);
       return executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId, jobId, website })
@@ -1637,6 +1648,26 @@ app.post('/api/pending/:id/timeout', (req, res) => {
     const result = postLogger.completePendingPost(Number(req.params.id), {
       success: false,
       error: 'Timeout - không xác nhận được kết quả',
+    });
+    res.json({ updated: result?.changes || 0 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Nút "Dừng" trên dashboard khi bài đang ở trạng thái "Đang đăng".
+// Nếu bài còn đang chờ tới lượt trong hàng đợi đăng (chưa chạy Playwright) thì sẽ bị bỏ qua
+// hẳn, không đăng nữa. Nếu bài đã bắt đầu thao tác trên trình duyệt thì không thể ngắt giữa
+// chừng — chỉ đánh dấu "Đã dừng" trong lịch sử ngay lập tức, còn thao tác thực tế trên nền
+// tảng (Facebook/Zalo) vẫn có thể tiếp tục chạy tới khi xong.
+app.post('/api/pending/:id/cancel', (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID không hợp lệ' });
+  cancelledPendingIds.add(id);
+  try {
+    const result = postLogger.completePendingPost(id, {
+      success: false,
+      error: 'Đã dừng theo yêu cầu người dùng',
     });
     res.json({ updated: result?.changes || 0 });
   } catch (e) {
