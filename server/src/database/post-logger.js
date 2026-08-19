@@ -254,16 +254,24 @@ function buildHistoryWhere({ profile, platform, target, groupId, success, from, 
   }
   if (search !== undefined && search !== null && String(search).trim() !== '') {
     // Tim kiem theo tu khoa tren toan bo du lieu (truoc khi phan trang),
-    // de bai viet khop keyword hien thi du dang o trang nao
-    const term = String(search).trim();
-    params.search = '%' + term.replace(/[\\%_]/g, '\\$&') + '%';
-    sql += ` AND (
-      message LIKE @search ESCAPE '\\'
-      OR group_name LIKE @search ESCAPE '\\'
-      OR group_id LIKE @search ESCAPE '\\'
-      OR profile_name LIKE @search ESCAPE '\\'
-      OR profile LIKE @search ESCAPE '\\'
-    )`;
+    // de bai viet khop keyword hien thi du dang o trang nao.
+    // Tach chuoi tim kiem thanh tung tu va AND lai voi nhau (moi tu chi can khop o BAT KY cot nao,
+    // khong nhat thiet phai nam lien nhau/dung thu tu nhu chuoi goc) — tranh viec go nhieu tu
+    // roi khong tim thay vi noi dung thuc te khong chua dung nguyen van ca cum.
+    // So khop qua LOWER_VN (Unicode-aware) de khong phan biet hoa/thuong voi ky tu co dau tieng Viet.
+    const words = String(search).trim().split(/\s+/).filter(Boolean);
+    const clauses = words.map((w, i) => {
+      const key = `search${i}`;
+      params[key] = '%' + w.toLowerCase().replace(/[\\%_]/g, '\\$&') + '%';
+      return `(
+        LOWER_VN(message) LIKE @${key} ESCAPE '\\'
+        OR LOWER_VN(group_name) LIKE @${key} ESCAPE '\\'
+        OR LOWER_VN(group_id) LIKE @${key} ESCAPE '\\'
+        OR LOWER_VN(profile_name) LIKE @${key} ESCAPE '\\'
+        OR LOWER_VN(profile) LIKE @${key} ESCAPE '\\'
+      )`;
+    });
+    sql += ' AND ' + clauses.join(' AND ');
   }
   return { where: sql, params };
 }
