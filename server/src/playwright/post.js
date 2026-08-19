@@ -229,7 +229,84 @@ async function openCreatePost(page, isGroup = false) {
         '[aria-label*="viết gì"]',
       ];
 
-  return await tryClick(page, selectors, 'Mở popup tạo bài');
+  if (await tryClick(page, selectors, 'Mở popup tạo bài')) return true;
+
+  // Dự phòng: trên trang "Quản lý trang" (Page dashboard/professional layout — đúng
+  // màn hình postToPage luôn vào thẳng), ô "Bạn đang nghĩ gì?" đôi khi là input/textarea
+  // thật với placeholder, KHÔNG phải text node trong span/div[role=button] như News Feed
+  // thường — tryClick (dựa vào :has-text()/textContent) không bắt được placeholder.
+  if (await clickComposerByPlaceholder(page)) {
+    logger.info('Mở popup tạo bài (fallback: input/textarea placeholder)');
+    return true;
+  }
+
+  // Cả 2 cách đều fail — dump chẩn đoán DOM thật (tag/role/placeholder/aria-label/html)
+  // ra log để vá đúng selector theo DOM thật lần sau, thay vì đoán mù qua screenshot.
+  await _diagComposerNotFound(page);
+  return false;
+}
+
+// Click ô soạn theo `placeholder`/`aria-label` của input/textarea/contenteditable —
+// bổ sung cho tryClick vốn chỉ quét text node của div[role=button]/span/[aria-label].
+async function clickComposerByPlaceholder(page) {
+  return page.evaluate(() => {
+    const norm = s => (s || '').normalize('NFC').toLowerCase();
+    const targets = ['nghĩ gì', 'on your mind', 'viết gì'];
+    const fields = document.querySelectorAll('input, textarea, [contenteditable="true"]');
+    for (const el of fields) {
+      const ph = norm(el.getAttribute('placeholder') || el.getAttribute('aria-label') || '');
+      if (!ph || !targets.some(t => ph.includes(t))) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      el.scrollIntoView({ block: 'center' });
+      el.click();
+      el.focus();
+      return true;
+    }
+    return false;
+  });
+}
+
+// Khi KHÔNG mở được popup tạo bài bằng cả 2 cách trên: quét toàn trang tìm phần tử có
+// text/placeholder/aria-label chứa "nghĩ gì"/"on your mind"/"viết gì", log tag/role/html
+// của tối đa 6 phần tử nghi vấn — cho biết chính xác DOM thật trông thế nào để vá
+// selector đúng, thay vì phải đoán lại qua ảnh chụp màn hình.
+async function _diagComposerNotFound(page) {
+  try {
+    const diag = await page.evaluate(() => {
+      const norm = s => (s || '').normalize('NFC').toLowerCase();
+      const targets = ['nghĩ gì', 'on your mind', 'viết gì'];
+      const out = [];
+      const all = document.querySelectorAll('body *');
+      for (const el of all) {
+        if (out.length >= 6) break;
+        const txt = norm(el.textContent || '').slice(0, 60);
+        const ph = norm((el.getAttribute && (el.getAttribute('placeholder') || el.getAttribute('aria-label'))) || '');
+        const isLeaf = el.children.length === 0;
+        if (!isLeaf && !ph) continue; // chỉ log node lá theo text, hoặc node bất kỳ có placeholder/aria-label
+        if (!targets.some(t => txt.includes(t) || ph.includes(t))) continue;
+        out.push({
+          tag: el.tagName,
+          role: el.getAttribute && el.getAttribute('role'),
+          placeholder: el.getAttribute && el.getAttribute('placeholder'),
+          ariaLabel: el.getAttribute && el.getAttribute('aria-label'),
+          text: (el.textContent || '').trim().slice(0, 60),
+          html: (el.outerHTML || '').replace(/\s+/g, ' ').slice(0, 220),
+        });
+      }
+      return out;
+    });
+    if (diag.length) {
+      logger.warn(`[openCreatePost][diag] Không click được nhưng tìm thấy ${diag.length} phần tử nghi vấn:`);
+      diag.forEach((d, i) => logger.warn(
+        `  [${i + 1}] tag=${d.tag} role=${d.role || ''} placeholder="${d.placeholder || ''}" ariaLabel="${d.ariaLabel || ''}" text="${d.text}"\n      html=${d.html}`
+      ));
+    } else {
+      logger.warn('[openCreatePost][diag] Không tìm thấy phần tử nào chứa "nghĩ gì"/"on your mind"/"viết gì" trên trang.');
+    }
+  } catch (e) {
+    logger.warn(`[openCreatePost][diag] lỗi khi chẩn đoán: ${e.message}`);
+  }
 }
 
 // Nhập text vào contenteditable: clipboard paste → execCommand → keyboard.type
