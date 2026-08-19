@@ -11593,6 +11593,61 @@
       }
     }
 
+    // Nút "⏹ Dừng" trên bài đang "Đang đăng": nếu bài còn đang chờ trong hàng đợi (chưa
+    // đăng lên nền tảng) thì server sẽ bỏ qua hẳn, không đăng nữa. Nếu bài đã bắt đầu thao
+    // tác trên trình duyệt thì không thể ngắt giữa chừng — vẫn đánh dấu "Đã dừng" ngay ở
+    // đây, nhưng thao tác thật trên nền tảng có thể vẫn tiếp tục chạy tới khi xong.
+    async function _stopPendingDbRow(id, trId) {
+      let res;
+      try {
+        res = await fetch(`${BASE_URL}/api/pending/${id}/cancel`, { method: 'POST' });
+      } catch {
+        alert('Không kết nối được server, thử lại.');
+        return;
+      }
+      if (!res.ok) {
+        let msg = 'Không dừng được bài đăng này.';
+        try { const j = await res.json(); if (j?.error) msg = j.error; } catch {}
+        alert(msg);
+        return;
+      }
+      const el = document.getElementById(trId);
+      if (el) el.remove();
+      const sid = String(id);
+      _dismissedPendingIds.add(sid);
+      const info = _pendingLogProgressRows[sid];
+      if (info?.progressRow) {
+        morphBot(info.progressRow, `⏹️ Group Zalo <strong>${info.groupName}</strong>: đã dừng từ Dashboard.`, 'warning');
+        delete _pendingLogProgressRows[sid];
+      }
+    }
+
+    // "Dừng tất cả" bài đang đăng của CÙNG 1 tài khoản trong 1 lần bấm — hiện khi tài khoản
+    // đó có từ 2 bài "Đang đăng" trở lên (vd. đang đăng nhiều nơi cùng lúc, phát hiện sai
+    // nội dung giữa chừng). Tải lại bảng lịch sử sau khi xong thay vì tự xoá từng dòng, vì
+    // không biết trước server đã dừng được bao nhiêu dòng trong số đó.
+    async function _stopAllPendingForProfile(profile) {
+      if (!confirm(`Dừng tất cả bài đang đăng của tài khoản "${profile}"?`)) return;
+      let res;
+      try {
+        res = await fetch(`${BASE_URL}/api/pending/cancel-by-profile`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profile }),
+        });
+      } catch {
+        alert('Không kết nối được server, thử lại.');
+        return;
+      }
+      if (!res.ok) {
+        let msg = 'Không dừng được các bài đăng này.';
+        try { const j = await res.json(); if (j?.error) msg = j.error; } catch {}
+        alert(msg);
+        return;
+      }
+      loadDashHistory({ noSkeleton: true, noAnimation: true });
+    }
+
     function _updateDashRowDone(tempId, success) {
       const row = document.getElementById(tempId);
       if (!row) return false;
@@ -12442,6 +12497,10 @@
         const _allPendingDbRows = (data.pending || []);
         const _pendingDbRows = _allPendingDbRows.filter(row => (_now - new Date(row.timestamp).getTime()) < _PENDING_STALE_MS);
         const _stalePendingRows = _allPendingDbRows.filter(row => (_now - new Date(row.timestamp).getTime()) >= _PENDING_STALE_MS);
+        // Đếm số bài "Đang đăng" theo từng tài khoản — dùng để hiện link "Dừng tất cả (N)"
+        // khi 1 tài khoản có từ 2 bài trở lên đang chạy cùng lúc.
+        const _pendingProfileCounts = {};
+        _allPendingDbRows.forEach(r => { _pendingProfileCounts[r.profile] = (_pendingProfileCounts[r.profile] || 0) + 1; });
         const pendingDbHtml = [
           ..._pendingDbRows.map(row => {
             const msgShort = row.message ? (row.message.length > 60 ? row.message.substring(0, 60) + '…' : row.message) : '-';
@@ -12456,6 +12515,10 @@
             const tgtLabel = tgt === 'personal' ? 'Profile' : tgt === 'group' ? 'Group' : tgt === 'page' ? 'Page' : tgt === 'personal+groups' ? 'Profile+Groups' : tgt;
             const isPersonal = tgt === 'personal';
             const grpLabel = resolveGroupLabel(row.platform, row.group_id, row.group_name);
+            const _profileCount = _pendingProfileCounts[row.profile] || 0;
+            const stopAllLink = _profileCount > 1
+              ? `<br><a href="javascript:void(0)" onclick="_stopAllPendingForProfile('${String(row.profile || '').replace(/'/g, "\\'")}')" title="Dừng tất cả ${_profileCount} bài đang đăng của tài khoản này" style="font-size:10px;color:#dc2626;text-decoration:underline;">Dừng tất cả (${_profileCount})</a>`
+              : '';
             return `<tr id="pending-log-${row.id}" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
               <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
               <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;" data-ctip="${ctipMsg}">${escapeHtml(msgShort)}</td>
@@ -12465,7 +12528,7 @@
               <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${tgtLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${grpLabel}</div>`}</div></td>
               <td style="padding:8px 12px; vertical-align:middle;">${timeStacked}</td>
               <td style="padding:8px 12px; text-align:center;"><span class="badge-pulse" style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span></td>
-              <td style="padding:8px 12px; text-align:center;"><button onclick="_dismissPendingDbRow(${row.id},'pending-log-${row.id}')" title="Bỏ qua / Đánh dấu đã xử lý" style="background:none;border:1px solid #d1d5db;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;color:#6b7280;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">✕ Bỏ qua</button></td>
+              <td style="padding:8px 12px; text-align:center;"><button onclick="_stopPendingDbRow(${row.id},'pending-log-${row.id}')" title="Dừng bài đăng này (bài chưa chạy sẽ bị huỷ, không đăng nữa)" style="background:none;border:1px solid #fca5a5;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;color:#dc2626;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='none'">⏹ Dừng</button>${stopAllLink}</td>
               <td style="padding:8px 12px; text-align:center; color:#cbd5e1;">—</td>
             </tr>`;
           }),

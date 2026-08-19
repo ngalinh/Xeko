@@ -424,6 +424,12 @@ setInterval(() => postLogger.markTimedOutPending(10 * 60 * 1000), 10 * 60 * 1000
 // Browser POST /api/post → trả ngay {jobId}, rồi polling /api/job/:id.
 const postJobs = new Map();
 
+// pendingLogId của các bài user bấm "Dừng" khi còn đang chờ trong hàng đợi (chưa chạy tới
+// Playwright). Job kiểm tra Set này ngay trước khi thực thi để bỏ qua, không đăng nữa.
+// Nếu bài đã bắt đầu chạy trình duyệt thì không có cách nào ngắt giữa chừng — trường hợp đó
+// Set này không còn tác dụng, thao tác trên nền tảng vẫn tiếp tục chạy tới khi xong.
+const cancelledPendingIds = new Set();
+
 function createJob() {
   const id = crypto.randomBytes(8).toString('hex');
   postJobs.set(id, { status: 'pending', createdAt: Date.now() });
@@ -720,6 +726,11 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
     const tQueued = Date.now();
 
     queuePost(() => {
+      // Bài đã bị bấm "Dừng" trong lúc còn chờ ở hàng đợi → bỏ qua hẳn, không gọi Playwright.
+      if (cancelledPendingIds.delete(pendingLogId)) {
+        logger.info(`[job ${jobId}] đã bị dừng trước khi chạy — bỏ qua, không đăng`);
+        return Promise.resolve({ success: false, error: 'Đã dừng theo yêu cầu người dùng', cancelled: true });
+      }
       const tStart = Date.now();
       logger.info(`[job ${jobId}] start (waited ${tStart - tQueued}ms in queue) — profile=${profile || '(active)'}, target=${targetDesc}`);
       return executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId, jobId, website })
@@ -1639,6 +1650,63 @@ app.post('/api/pending/:id/timeout', (req, res) => {
       error: 'Timeout - không xác nhận được kết quả',
     });
     res.json({ updated: result?.changes || 0 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Nút "Dừng" trên dashboard khi bài đang ở trạng thái "Đang đăng".
+// Nếu bài còn đang chờ tới lượt trong hàng đợi đăng (chưa chạy Playwright) thì sẽ bị bỏ qua
+// hẳn, không đăng nữa. Nếu bài đã bắt đầu thao tác trên trình duyệt thì không thể ngắt giữa
+// chừng — chỉ đánh dấu "Đã dừng" trong lịch sử ngay lập tức, còn thao tác thực tế trên nền
+// tảng (Facebook/Zalo) vẫn có thể tiếp tục chạy tới khi xong.
+// Danh sách "Đang đăng" hiện chung cho mọi nhân viên (không lọc theo người tạo), nên chỉ
+// cho phép dừng bài dùng profile mà chính người bấm đang được cấp quyền sử dụng — tránh
+// 1 nhân viên lỡ tay dừng bài của đồng nghiệp đang dùng profile họ không có quyền.
+app.post('/api/pending/:id/cancel', (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID không hợp lệ' });
+  try {
+    const allowed = permissions.getAllowedProfileKeys(req.user.email);
+    if (allowed !== null) {
+      const row = postLogger.getPendingPosts().find(r => r.id === id);
+      if (row && !allowed.includes(row.profile)) {
+        return res.status(403).json({ error: 'Bạn không có quyền dừng bài đăng của tài khoản này' });
+      }
+    }
+    cancelledPendingIds.add(id);
+    const result = postLogger.completePendingPost(id, {
+      success: false,
+      error: 'Đã dừng theo yêu cầu người dùng',
+    });
+    res.json({ updated: result?.changes || 0 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Dừng cùng lúc TẤT CẢ bài "Đang đăng" của 1 tài khoản (profile) — dùng khi phát hiện nội
+// dung sai giữa lúc đăng nhiều nơi bằng cùng 1 tài khoản. Cùng phạm vi quyền như endpoint
+// /:id/cancel ở trên: chỉ dừng được tài khoản mà người bấm đang được cấp quyền sử dụng.
+app.post('/api/pending/cancel-by-profile', (req, res) => {
+  const profile = typeof req.body?.profile === 'string' ? req.body.profile.trim() : '';
+  if (!profile) return res.status(400).json({ error: 'Thiếu profile' });
+  try {
+    const allowed = permissions.getAllowedProfileKeys(req.user.email);
+    if (allowed !== null && !allowed.includes(profile)) {
+      return res.status(403).json({ error: 'Bạn không có quyền dừng bài đăng của tài khoản này' });
+    }
+    const rows = postLogger.getPendingPosts().filter(r => r.profile === profile);
+    let updated = 0;
+    for (const row of rows) {
+      cancelledPendingIds.add(row.id);
+      const result = postLogger.completePendingPost(row.id, {
+        success: false,
+        error: 'Đã dừng theo yêu cầu người dùng',
+      });
+      if (result?.changes) updated++;
+    }
+    res.json({ updated, total: rows.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

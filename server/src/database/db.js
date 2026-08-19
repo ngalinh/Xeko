@@ -16,6 +16,11 @@ const db = new Database(DB_PATH);
 // WAL mode cho performance tot hon
 db.pragma('journal_mode = WAL');
 
+// Ham LOWER cua SQLite chi ha hoa dung cho ASCII (bo qua ky tu co dau tieng Viet).
+// Dang ky ham rieng dung String.prototype.toLowerCase() cua JS (Unicode-aware)
+// de dung trong cac truy van tim kiem khong phan biet hoa/thuong voi tieng Viet co dau.
+db.function('LOWER_VN', (text) => (text == null ? null : String(text).toLowerCase()));
+
 // Tao bang post_logs
 db.exec(`
   CREATE TABLE IF NOT EXISTS post_logs (
