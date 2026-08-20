@@ -380,6 +380,10 @@ app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res)
 
 // ===== ĐĂNG ZALO =====
 const zaloJobs = new Map(); // jobId → { status, success, error }
+// jobId bị dừng từ nút "⏹ Dừng" trên Dashboard (cloud gọi xuống qua endpoint cancel bên
+// dưới). salework.postToZaloGroup() kiểm tra Set này qua shouldCancel() ngay trước mỗi lần
+// bấm Gửi để chặn KỊP — kể cả khi job vẫn đang chờ trong zaloQueue/account lock.
+const cancelledZaloJobIds = new Set();
 
 app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   const { profile, zaloAccountName, groupName, message } = req.body;
@@ -452,18 +456,29 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   // Xếp hàng theo account: tuần tự hoá (tránh xung đột profile browser) + tự
   // giãn cách ≥ MIN_INTERVAL giữa 2 post cùng account (chống Zalo flag spam).
   zaloQueue.enqueue(`zalo:${accountKey || accountName}`, () =>
-    salework.postToZaloGroup({ zaloAccountName: accountName, accountKey, groupName, message: message || '', imagePaths: jobImagePaths }))
+    salework.postToZaloGroup({ zaloAccountName: accountName, accountKey, groupName, message: message || '', imagePaths: jobImagePaths, shouldCancel: () => cancelledZaloJobIds.has(jobId) }))
     .then(result => {
       cleanupJob();
-      zaloJobs.set(jobId, { status: 'done', success: result.success, error: result.error || null, completedAt: Date.now() });
-      if (!result.success) logger.error(`[zalo/post] Thất bại "${groupName}": ${result.error}`);
+      zaloJobs.set(jobId, { status: 'done', success: result.success, error: result.error || null, cancelled: !!result.cancelled, completedAt: Date.now() });
+      if (result.cancelled) logger.info(`[zalo/post] Đã dừng theo yêu cầu người dùng: "${groupName}"`);
+      else if (!result.success) logger.error(`[zalo/post] Thất bại "${groupName}": ${result.error}`);
       else logger.info(`[zalo/post] Thành công: ${groupName}`);
     })
     .catch(err => {
       cleanupJob();
       zaloJobs.set(jobId, { status: 'done', success: false, error: err.message, completedAt: Date.now() });
       logger.error(`[zalo/post] Exception: ${err.message}`);
-    });
+    })
+    .finally(() => cancelledZaloJobIds.delete(jobId));
+});
+
+// Nút "⏹ Dừng" trên Dashboard (cloud) gọi xuống endpoint này để dừng đúng job Zalo đang
+// chạy trên máy local — cloud và local là 2 process/máy khác nhau nên không share được
+// state cancel trong bộ nhớ, phải forward qua HTTP. Chỉ đánh dấu cờ; job kiểm tra cờ này
+// ngay trước mỗi lần bấm Gửi (xem sendMessage() trong salework.js) để dừng kịp.
+app.post('/api/zalo/job/:jobId/cancel', (req, res) => {
+  cancelledZaloJobIds.add(req.params.jobId);
+  res.json({ ok: true });
 });
 
 app.get('/api/zalo/status/:jobId', (req, res) => {

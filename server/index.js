@@ -1687,6 +1687,24 @@ app.post('/api/pending/:id/timeout', (req, res) => {
   }
 });
 
+// Bài Zalo chạy Playwright trên máy LOCAL (process/máy khác server cloud này) nên
+// cancelledPendingIds ở đây không tới được job đang chạy bên đó — phải forward yêu cầu
+// Dừng qua HTTP để local-server.js đánh dấu job, kịp chặn TRƯỚC lần bấm Gửi kế tiếp (xem
+// cancelledZaloJobIds trong local-server.js + shouldCancel trong salework.js). Fire-and-
+// forget: không chặn phản hồi Dừng cho người bấm — DB row đã được đánh dấu "Đã dừng"
+// ngay phía trên dù local có nhận được tín hiệu hay không.
+function _forwardZaloCancel(row) {
+  if (!row || row.platform !== 'zalo' || !row.job_id) return;
+  const LOCAL_URL = getLocalUrl();
+  if (!LOCAL_URL) return;
+  getFetch()
+    .then(fetchFn => fetchFn(`${LOCAL_URL}/api/zalo/job/${row.job_id}/cancel`, {
+      method: 'POST',
+      headers: { 'x-api-key': LOCAL_API_KEY },
+    }))
+    .catch(e => logger.warn(`[zalo cancel] forward tới local lỗi: ${e.message}`));
+}
+
 // Nút "Dừng" trên dashboard khi bài đang ở trạng thái "Đang đăng".
 // Nếu bài còn đang chờ tới lượt trong hàng đợi đăng (chưa chạy Playwright) thì sẽ bị bỏ qua
 // hẳn, không đăng nữa. Nếu bài đã bắt đầu thao tác trên trình duyệt thì không thể ngắt giữa
@@ -1699,14 +1717,13 @@ app.post('/api/pending/:id/cancel', (req, res) => {
   const id = Number(req.params.id);
   if (!id) return res.status(400).json({ error: 'ID không hợp lệ' });
   try {
+    const row = postLogger.getPendingPosts().find(r => r.id === id);
     const allowed = permissions.getAllowedProfileKeys(req.user.email);
-    if (allowed !== null) {
-      const row = postLogger.getPendingPosts().find(r => r.id === id);
-      if (row && !allowed.includes(row.profile)) {
-        return res.status(403).json({ error: 'Bạn không có quyền dừng bài đăng của tài khoản này' });
-      }
+    if (allowed !== null && row && !allowed.includes(row.profile)) {
+      return res.status(403).json({ error: 'Bạn không có quyền dừng bài đăng của tài khoản này' });
     }
     cancelledPendingIds.add(id);
+    _forwardZaloCancel(row);
     const result = postLogger.completePendingPost(id, {
       success: false,
       error: 'Đã dừng theo yêu cầu người dùng',
@@ -1732,6 +1749,7 @@ app.post('/api/pending/cancel-by-profile', (req, res) => {
     let updated = 0;
     for (const row of rows) {
       cancelledPendingIds.add(row.id);
+      _forwardZaloCancel(row);
       const result = postLogger.completePendingPost(row.id, {
         success: false,
         error: 'Đã dừng theo yêu cầu người dùng',
