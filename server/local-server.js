@@ -123,6 +123,10 @@ app.post('/api/profile', (req, res) => {
 
 // ===== ASYNC JOB QUEUE (tránh proxy timeout khi Playwright chạy lâu) =====
 const postJobs = new Map();
+// jobId bị dừng từ nút "⏹ Dừng" trên Dashboard — cloud (server/index.js, playwright-proxy.js)
+// gọi xuống qua endpoint cancel bên dưới vì Playwright FB thực sự chạy Ở ĐÂY (máy local),
+// tách process với cloud nên không share được state cancel trong bộ nhớ.
+const cancelledFbJobIds = new Set();
 
 function createJob() {
   const id = crypto.randomBytes(8).toString('hex');
@@ -149,6 +153,15 @@ app.get('/api/job/:id', (req, res) => {
   const job = postJobs.get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job không tồn tại hoặc đã hết hạn' });
   res.json(job);
+});
+
+// Nút "⏹ Dừng" trên Dashboard (cloud) gọi xuống đây để dừng đúng job FB đang chạy trên
+// máy local. Chỉ đánh dấu cờ; job kiểm tra cờ này ngay trước mỗi lần bấm "Đăng" thật (xem
+// shouldCancel trong src/playwright/post.js) để dừng kịp — dùng chung 1 endpoint cho cả
+// job FB single-target lẫn multi-target (all/allgroup) vì đều cùng 1 jobId ở local này.
+app.post('/api/job/:jobId/cancel', (req, res) => {
+  cancelledFbJobIds.add(req.params.jobId);
+  res.json({ ok: true });
 });
 
 // ===== ĐĂNG BÀI FACEBOOK =====
@@ -198,20 +211,25 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
     }
   }, 9 * 60 * 1000);
 
+  const shouldCancel = () => cancelledFbJobIds.has(jobId);
+
   (async () => {
     try {
       const cfg = require('./config/default');
 
       if (target === 'all') {
         const results = [];
-        logger.info('Đăng lên FB cá nhân...');
-        const r = await playwright.postToPersonal(message, imagePaths);
-        results.push({ target: 'FB Cá nhân', success: r.success, error: r.error, postUrl: r.postUrl });
-        await new Promise(r => setTimeout(r, groupDelayMs()));
+        if (!shouldCancel()) {
+          logger.info('Đăng lên FB cá nhân...');
+          const r = await playwright.postToPersonal(message, imagePaths, shouldCancel);
+          results.push({ target: 'FB Cá nhân', success: r.success, error: r.error, postUrl: r.postUrl });
+          await new Promise(r => setTimeout(r, groupDelayMs()));
+        }
         const groups = Object.values(cfg.groups);
         for (const group of groups) {
+          if (shouldCancel()) { logger.info(`[job ${jobId}] đã bị dừng — bỏ qua các group còn lại`); break; }
           logger.info(`Đăng lên ${group.name}...`);
-          const gr = await playwright.postToGroup(group.id, message, imagePaths);
+          const gr = await playwright.postToGroup(group.id, message, imagePaths, shouldCancel);
           results.push({ target: group.name, success: gr.success, error: gr.error, postUrl: gr.postUrl });
           if (groups.indexOf(group) < groups.length - 1) {
             await new Promise(r => setTimeout(r, groupDelayMs()));
@@ -225,7 +243,8 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
         const groups = Object.values(cfg.groups);
         const results = [];
         for (const group of groups) {
-          const gr = await playwright.postToGroup(group.id, message, imagePaths);
+          if (shouldCancel()) { logger.info(`[job ${jobId}] đã bị dừng — bỏ qua các group còn lại`); break; }
+          const gr = await playwright.postToGroup(group.id, message, imagePaths, shouldCancel);
           results.push({ target: group.name, success: gr.success, error: gr.error, postUrl: gr.postUrl });
           if (groups.indexOf(group) < groups.length - 1) {
             await new Promise(r => setTimeout(r, groupDelayMs()));
@@ -238,28 +257,28 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
       if (target === 'shortcut' || target === 'group') {
         const gId = target === 'shortcut' ? cfg.groups[groupId]?.id : groupId;
         if (!gId) { setJobError(jobId, `Group "${groupId}" không tồn tại`); return; }
-        const result = await playwright.postToGroup(gId, message, imagePaths);
-        setJobResult(jobId, { success: result.success, error: result.error, postUrl: result.postUrl });
+        const result = await playwright.postToGroup(gId, message, imagePaths, shouldCancel);
+        setJobResult(jobId, { success: result.success, error: result.error, postUrl: result.postUrl, cancelled: !!result.cancelled });
         return;
       }
 
       if (target === 'page') {
         if (!groupId) { setJobError(jobId, 'Thiếu pageId'); return; }
         const pageInfo = (loadChannels().fbPages || []).find(p => String(p.id) === String(groupId));
-        const result = await playwright.postToPage(groupId, message, imagePaths, pageInfo?.name || null);
-        setJobResult(jobId, { success: result.success, error: result.error, postUrl: result.postUrl });
+        const result = await playwright.postToPage(groupId, message, imagePaths, pageInfo?.name || null, shouldCancel);
+        setJobResult(jobId, { success: result.success, error: result.error, postUrl: result.postUrl, cancelled: !!result.cancelled });
         return;
       }
 
       if (target === 'personal-share-groups') {
         if (groupKeywords.length === 0) {
-          const r = await playwright.postToPersonal(message, imagePaths);
-          setJobResult(jobId, { success: r.success, error: r.error, postUrl: r.postUrl });
+          const r = await playwright.postToPersonal(message, imagePaths, shouldCancel);
+          setJobResult(jobId, { success: r.success, error: r.error, postUrl: r.postUrl, cancelled: !!r.cancelled });
           return;
         }
         // Swap sang quickPostToPersonalAndGroups (đã verified work) thay cho
         // postPersonalAndShareToGroups cũ (unstable). Hỗ trợ "Đăng nhanh FB" mode.
-        const r = await playwright.quickPostToPersonalAndGroups(message, imagePaths, groupKeywords);
+        const r = await playwright.quickPostToPersonalAndGroups(message, imagePaths, groupKeywords, shouldCancel);
         setJobResult(jobId, {
           success: r.success,
           error: r.error,
@@ -268,18 +287,20 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
           missedGroups: r.missedGroups || [],
           partialSuccess: r.partialSuccess === true,
           steps: r.steps,
+          cancelled: !!r.cancelled,
         });
         return;
       }
 
       // Mặc định: đăng cá nhân
-      const result = await playwright.postToPersonal(message, imagePaths);
-      setJobResult(jobId, { success: result.success, error: result.error, postUrl: result.postUrl });
+      const result = await playwright.postToPersonal(message, imagePaths, shouldCancel);
+      setJobResult(jobId, { success: result.success, error: result.error, postUrl: result.postUrl, cancelled: !!result.cancelled });
 
     } catch (error) {
       logger.error(`Lỗi job ${jobId}: ${error.message}`);
       setJobError(jobId, error.message);
     } finally {
+      cancelledFbJobIds.delete(jobId);
       clearTimeout(_jobTimeoutId);
       cleanupFiles(imagePaths);
     }
