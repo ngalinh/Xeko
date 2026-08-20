@@ -8065,7 +8065,7 @@
           if (initial.jobId) {
             // Đã báo gộp 1 dòng ở trên; ở đây chỉ chạy ngầm + cập nhật Dashboard.
             // Save jobId de resume khi PWA reload giua chung
-            pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: targetLabel, message, imageCount: (filesToUpload || []).length });
+            pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: targetLabel, message, imageCount: (filesToUpload || []).length, pendingLogId: initial.pendingLogId || null });
             _setPendingJobThumbs(initial.jobId, filesToUpload);
             // Lưu jobId để dòng "Đang đăng" (khi không có pending DB row — vd target=all/
             // allgroup) vẫn hiện được nút "⏹ Dừng" trong repostHtml bên dưới.
@@ -8123,7 +8123,7 @@
             const gLabel = getFbGroupDisplayName(gid);
             let cd;
             if (initial.jobId) {
-              pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `Group FB <strong>${gLabel}</strong>`, message, imageCount: (filesToUpload || []).length });
+              pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `Group FB <strong>${gLabel}</strong>`, message, imageCount: (filesToUpload || []).length, pendingLogId: initial.pendingLogId || null });
               _setPendingJobThumbs(initial.jobId, filesToUpload);
               try { cd = await pollJob(initial.jobId); }
               catch (e) { cd = null; if (!e.confirmedFail) unconfirmedCount += 1; }
@@ -8157,7 +8157,7 @@
             const initial = await parseJson(pr);
             const pName = (channelsData.fbPages || []).find(x => x.key === pageItem.key)?.name || pageItem.id;
             if (initial.jobId) {
-              pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `FB Page <strong>${pName}</strong>`, message, imageCount: (filesToUpload || []).length });
+              pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: `FB Page <strong>${pName}</strong>`, message, imageCount: (filesToUpload || []).length, pendingLogId: initial.pendingLogId || null });
               _setPendingJobThumbs(initial.jobId, filesToUpload);
               let pd;
               try { pd = await pollJob(initial.jobId); }
@@ -12285,7 +12285,17 @@
           } else {
             imgCell = '<span style="color:#bbb;">—</span>';
           }
-          return `<tr data-live-pending="1" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
+          // Nút "⏹ Dừng": ưu tiên pendingLogId (đã có DB pending row → dừng qua
+          // /api/pending/:id/cancel, giống dòng "Đang đăng" thật ở loadDashHistory). Nếu chỉ
+          // có jobId (vd job all/allgroup, hoặc Zalo lúc chưa kịp tạo pending row) thì dừng
+          // qua /api/job/:id/cancel. Placeholder này tự mất khi loadDashHistory tải xong dữ
+          // liệu thật (không cần tự xoá dòng ở đây).
+          const stopBtnHtml = j.pendingLogId
+            ? `<button onclick="_stopPendingDbRow(${j.pendingLogId}, 'live-pj-${j.jobId}')" title="Dừng bài đăng này (bài chưa chạy sẽ bị huỷ, không đăng nữa)" style="background:none;border:1px solid #fca5a5;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;color:#dc2626;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='none'">⏹ Dừng</button>`
+            : (j.jobId
+              ? `<button onclick="_stopRepostJob('${j.jobId}', this)" title="Dừng bài đăng này (nơi đang đăng dở sẽ đăng xong, các nơi sau sẽ bị huỷ)" style="background:none;border:1px solid #fca5a5;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;color:#dc2626;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='none'">⏹ Dừng</button>`
+              : '<span style="color:#cbd5e1;">—</span>');
+          return `<tr id="live-pj-${j.jobId}" data-live-pending="1" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
             <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
             <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(msg)}</td>
             <td style="padding:8px 12px;">${imgCell}</td>
@@ -12294,7 +12304,7 @@
             <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${noiDang}</div></div></td>
             <td style="padding:8px 12px; vertical-align:middle;"><div style="line-height:1.3;"><div style="font-size:12px;">${t}</div><div style="font-size:11px; color:#6b7280;">${dt}</div></div></td>
             <td style="padding:8px 12px; text-align:center;"><span class="badge-pulse" style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span></td>
-            <td style="padding:8px 12px; text-align:center; color:#cbd5e1;">—</td>
+            <td style="padding:8px 12px; text-align:center;">${stopBtnHtml}</td>
             <td></td>
           </tr>`;
         }).join('');
@@ -14078,6 +14088,7 @@
             timeLabel,
             message,
             ch: job.ch,
+            pendingLogId: job.pendingLogId || null,
           });
         } else if (job.zaloJobId) {
           pushPendingJob({
