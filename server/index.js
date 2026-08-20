@@ -430,6 +430,16 @@ const postJobs = new Map();
 // Set này không còn tác dụng, thao tác trên nền tảng vẫn tiếp tục chạy tới khi xong.
 const cancelledPendingIds = new Set();
 
+// Cho job "Đăng tất cả" / "Đăng tất cả Group" (target=all/allgroup): 1 job này đăng tuần tự
+// nhiều group trong CÙNG 1 request, không pre-insert pending DB row theo từng group nên
+// không dùng được cơ chế cancelledPendingIds ở trên. jobId bị dừng sẽ được thêm vào Set này;
+// vòng lặp trong executePost() kiểm tra trước khi đăng lên group KẾ TIẾP để dừng sớm — group
+// đang đăng dở (đã bắt đầu thao tác trình duyệt) vẫn đăng xong bình thường.
+const cancelledJobIds = new Set();
+// jobId → profile key, chỉ dùng để permission-scope endpoint hủy job all/allgroup ở dưới
+// (giống cancelledPendingIds nhưng job này không có DB row để tra profile).
+const jobProfileMap = new Map();
+
 function createJob() {
   const id = crypto.randomBytes(8).toString('hex');
   postJobs.set(id, { status: 'pending', createdAt: Date.now() });
@@ -527,6 +537,9 @@ async function executePost({ profile, profileDisplayName, message, target, group
   // Đăng lên cá nhân + tất cả group (multi-target, không dùng pendingLogId)
   if (target === 'all') {
     const results = [];
+    // Bấm "⏹ Dừng" trên Dashboard giữa lúc đang đăng nhiều nơi → dừng NGAY trước bài đầu
+    // tiên (chưa gọi Playwright).
+    if (_jobId && cancelledJobIds.has(_jobId)) return { results, cancelled: true };
     if (getPostCount(profileKey) < config.posting.maxPostsPerDay) {
       logger.info('Đang đăng lên FB cá nhân...');
       const r = await playwright.postToPersonal(message, imagePaths);
@@ -538,6 +551,10 @@ async function executePost({ profile, profileDisplayName, message, target, group
 
     const groups = Object.values(config.groups);
     for (const group of groups) {
+      // Kiểm tra trước khi đăng lên group KẾ TIẾP — group đang đăng dở (đã bắt đầu thao
+      // tác trình duyệt ở lượt trước) không thể ngắt giữa chừng, nhưng các group CHƯA tới
+      // lượt sẽ bị bỏ qua hẳn khi phát hiện đã bị dừng.
+      if (_jobId && cancelledJobIds.has(_jobId)) { logger.info(`[job ${_jobId}] đã bị dừng — bỏ qua các group còn lại`); break; }
       if (getPostCount(profileKey) >= config.posting.maxPostsPerDay) break;
       logger.info(`Đang đăng lên ${group.name}...`);
       const r = await playwright.postToGroup(group.id, message, imagePaths);
@@ -555,6 +572,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
     const groups = Object.values(config.groups);
     const results = [];
     for (const group of groups) {
+      if (_jobId && cancelledJobIds.has(_jobId)) { logger.info(`[job ${_jobId}] đã bị dừng — bỏ qua các group còn lại`); break; }
       if (getPostCount(profileKey) >= config.posting.maxPostsPerDay) break;
       logger.info(`Đang đăng lên ${group.name}...`);
       const r = await playwright.postToGroup(group.id, message, imagePaths);
@@ -748,6 +766,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
 
   // Multi-target jobs (all / allgroup): không pre-insert, dùng in-memory _activeRepostJobs như cũ
   const jobId = createJob();
+  jobProfileMap.set(jobId, _gateProfileKey);
   res.json({ jobId, status: 'pending' });
 
   const targetDesc = target === 'group' ? `group:${groupId}` : (target || 'personal');
@@ -758,7 +777,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   queuePost(() => {
     const tStart = Date.now();
     logger.info(`[job ${jobId}] start (waited ${tStart - tQueued}ms in queue) — profile=${profile || '(active)'}, target=${targetDesc}`);
-    return executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, website })
+    return executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, jobId, website })
       .finally(() => logger.info(`[job ${jobId}] done in ${Date.now() - tStart}ms`));
   })
     .then(result => setJobResult(jobId, result))
@@ -766,7 +785,11 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
       logger.error(`[job ${jobId}] FAILED: ${error.message}`);
       setJobError(jobId, error.message);
     })
-    .finally(() => cleanupFiles(imagePaths));
+    .finally(() => {
+      cancelledJobIds.delete(jobId);
+      jobProfileMap.delete(jobId);
+      cleanupFiles(imagePaths);
+    });
 });
 
 app.get('/api/job/:id', (req, res) => {
@@ -1707,6 +1730,33 @@ app.post('/api/pending/cancel-by-profile', (req, res) => {
       if (result?.changes) updated++;
     }
     res.json({ updated, total: rows.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Nút "⏹ Dừng" cho job "Đăng tất cả" / "Đăng tất cả Group" (target=all/allgroup) — job này
+// đăng tuần tự nhiều group trong CÙNG 1 request nên không có pending DB row riêng từng group
+// để dùng /api/pending/:id/cancel ở trên. Đánh dấu jobId bị dừng vào cancelledJobIds; group
+// đang đăng dở (đã bắt đầu thao tác trình duyệt) vẫn đăng xong, các group CHƯA tới lượt sẽ
+// bị bỏ qua. Cùng phạm vi quyền: chỉ dừng được job dùng profile mà người bấm đang có quyền.
+app.post('/api/job/:id/cancel', (req, res) => {
+  const id = req.params.id;
+  if (!id) return res.status(400).json({ error: 'ID không hợp lệ' });
+  const job = postJobs.get(id);
+  if (!job || job.status !== 'pending') {
+    return res.status(404).json({ error: 'Job không tồn tại hoặc đã xong' });
+  }
+  try {
+    const allowed = permissions.getAllowedProfileKeys(req.user.email);
+    if (allowed !== null) {
+      const jobProfile = jobProfileMap.get(id);
+      if (jobProfile == null || !allowed.includes(jobProfile)) {
+        return res.status(403).json({ error: 'Bạn không có quyền dừng bài đăng của tài khoản này' });
+      }
+    }
+    cancelledJobIds.add(id);
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
