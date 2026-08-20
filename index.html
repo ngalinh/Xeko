@@ -8067,6 +8067,9 @@
             // Save jobId de resume khi PWA reload giua chung
             pushPendingJob({ jobId: initial.jobId, profile: currentProfile, label: targetLabel, message, imageCount: (filesToUpload || []).length });
             _setPendingJobThumbs(initial.jobId, filesToUpload);
+            // Lưu jobId để dòng "Đang đăng" (khi không có pending DB row — vd target=all/
+            // allgroup) vẫn hiện được nút "⏹ Dừng" trong repostHtml bên dưới.
+            _activePostJob.jobId = initial.jobId;
             // DB pending row pre-inserted → remove from in-memory tracker, DB is now source of truth
             if (initial.pendingLogId) {
               _activePostJob.pendingLogId = initial.pendingLogId;
@@ -11623,6 +11626,30 @@
       }
     }
 
+    // Nút "⏹ Dừng" cho job "Đăng tất cả" / "Đăng tất cả Group" (target=all/allgroup) — job
+    // này đăng tuần tự nhiều nơi trong CÙNG 1 request, không có pending DB row riêng từng
+    // nơi nên dùng endpoint /api/job/:id/cancel riêng thay vì /api/pending/:id/cancel. Nơi
+    // đang đăng dở (đã bắt đầu thao tác trình duyệt) vẫn đăng xong; các nơi CHƯA tới lượt sẽ
+    // bị bỏ qua.
+    async function _stopRepostJob(jobId, btn) {
+      if (btn) { btn.disabled = true; btn.textContent = 'Đang dừng…'; }
+      let res;
+      try {
+        res = await fetch(`${BASE_URL}/api/job/${jobId}/cancel`, { method: 'POST' });
+      } catch {
+        alert('Không kết nối được server, thử lại.');
+        if (btn) { btn.disabled = false; btn.textContent = '⏹ Dừng'; }
+        return;
+      }
+      if (!res.ok) {
+        let msg = 'Không dừng được bài đăng này.';
+        try { const j = await res.json(); if (j?.error) msg = j.error; } catch {}
+        alert(msg);
+        if (btn) { btn.disabled = false; btn.textContent = '⏹ Dừng'; }
+        return;
+      }
+    }
+
     // "Dừng tất cả" bài đang đăng của CÙNG 1 tài khoản trong 1 lần bấm — hiện khi tài khoản
     // đó có từ 2 bài "Đang đăng" trở lên (vd. đang đăng nhiều nơi cùng lúc, phát hiện sai
     // nội dung giữa chừng). Tải lại bảng lịch sử sau khi xong thay vì tự xoá từng dòng, vì
@@ -12471,7 +12498,7 @@
             <td style="padding:8px 12px;"><div style="line-height:1.3;"><div style="font-size:12px;">${platformLabel} - ${targetLabel}</div>${isPersonal ? '' : `<div style="font-size:11px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${String(groupId).replace(/"/g,'&quot;')}">${groupId}</div>`}</div></td>
             <td style="padding:8px 12px; vertical-align:middle;">${timeStacked}</td>
             <td style="padding:8px 12px; text-align:center;"><span class="badge-pulse" style="background:#DBEAFE; color:#3B82F6; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;"><svg style="width:11px;height:11px;vertical-align:-1px;margin-right:3px;" aria-hidden="true"><use href="#ic-refresh"/></svg>Đang đăng</span></td>
-            <td style="padding:8px 12px; text-align:center; color:#cbd5e1;">—</td>
+            <td style="padding:8px 12px; text-align:center;">${job.jobId ? `<button onclick="_stopRepostJob('${job.jobId}', this)" title="Dừng bài đăng này (nơi đang đăng dở sẽ đăng xong, các nơi sau sẽ bị huỷ)" style="background:none;border:1px solid #fca5a5;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;color:#dc2626;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='none'">⏹ Dừng</button>` : '<span style="color:#cbd5e1;">—</span>'}</td>
             <td></td>
           </tr>`;
         }).join('');
