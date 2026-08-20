@@ -1118,6 +1118,16 @@ async function selectGroupCheckbox(page, keyword) {
   return null;
 }
 
+// Điểm cuối cùng còn ngăn được bài SAI nội dung lên thật: kiểm tra "⏹ Dừng" ngay TRƯỚC khi
+// bấm nút Đăng. Mọi bước trước đó (mở dialog, đính ảnh, nhập text) tuy đã chạy trên trình
+// duyệt nhưng CHƯA submit nên chưa "lộ" ra ngoài — đóng dialog lại (không bấm Đăng) coi như
+// chưa đăng gì, khác hẳn lúc post đã bấm Đăng thì không có cách rút lại.
+async function _abortIfCancelled(page, shouldCancel) {
+  if (typeof shouldCancel !== 'function' || !shouldCancel()) return false;
+  try { await page.keyboard.press('Escape'); } catch {}
+  return true;
+}
+
 async function submitPost(page) {
   // Phải attach listener TRƯỚC khi click — response GraphQL về sau vài trăm ms
   const listener = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
@@ -1307,7 +1317,7 @@ async function recoverPostUrlFromProfile(page, message) {
  * Chụp screenshot bài viết của profile đang active
  */
 
-async function postToPersonal(message, imagePaths = []) {
+async function postToPersonal(message, imagePaths = [], shouldCancel = null) {
   const _profileKey = activeProfile;
   const t0 = Date.now();
   const profileSnap = getActiveProfile();
@@ -1362,6 +1372,11 @@ async function postToPersonal(message, imagePaths = []) {
     }
     await randomDelay(600, 1200);
 
+    if (await _abortIfCancelled(page, shouldCancel)) {
+      logger.info(`${tag} đã bị dừng theo yêu cầu người dùng — không bấm Đăng`);
+      return { success: false, error: 'Đã dừng theo yêu cầu người dùng', cancelled: true };
+    }
+
     const tSubmit = Date.now();
     const result = await submitPost(page);
     if (!result.success) {
@@ -1397,7 +1412,7 @@ async function postToPersonal(message, imagePaths = []) {
 // Đăng bài cá nhân + đồng thời chia sẻ lên nhiều nhóm trong cùng 1 lần đăng,
 // dùng tính năng "Chia sẻ lên nhóm" trong dialog "Cài đặt bài viết" của FB.
 // groupKeywords: mảng tên nhóm (substring, case-insensitive). FB giới hạn 9.
-async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywords = []) {
+async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywords = [], shouldCancel = null) {
   const _profileKey = activeProfile;
   const t0 = Date.now();
   const profileSnap = getActiveProfile();
@@ -1406,7 +1421,7 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
   logger.info(`${tag} bắt đầu (msg=${message ? `${message.length} ký tự` : '∅'}, ảnh=${imagePaths.length}, nhóm=${kwList.length})`);
 
   if (kwList.length === 0) {
-    return await postToPersonal(message, imagePaths);
+    return await postToPersonal(message, imagePaths, shouldCancel);
   }
 
   const browser = await getBrowser();
@@ -1439,6 +1454,11 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
     }
     await randomDelay(600, 1200);
 
+    if (await _abortIfCancelled(page, shouldCancel)) {
+      logger.info(`${tag} đã bị dừng theo yêu cầu người dùng — không bấm Đăng`);
+      return { success: false, error: 'Đã dừng theo yêu cầu người dùng', cancelled: true };
+    }
+
     const result = await submitPostAndShareGroups(page, kwList);
     if (!result.success) {
       const hint = (!message && imagePaths.length > 0)
@@ -1459,7 +1479,7 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
   }
 }
 
-async function postToGroup(groupId, message, imagePaths = []) {
+async function postToGroup(groupId, message, imagePaths = [], shouldCancel = null) {
   const _profileKey = activeProfile;
   const browser = await getBrowser();
 
@@ -1519,6 +1539,11 @@ async function postToGroup(groupId, message, imagePaths = []) {
       }
     }
     await randomDelay(1000, 2000);
+
+    if (await _abortIfCancelled(page, shouldCancel)) {
+      logger.info(`[postToGroup ${groupId}] đã bị dừng theo yêu cầu người dùng — không bấm Đăng`);
+      return { success: false, error: 'Đã dừng theo yêu cầu người dùng', cancelled: true };
+    }
 
     // Nhấn Đăng
     const result = await submitPost(page);
@@ -1735,7 +1760,7 @@ async function ensurePageIdentity(page, pageName) {
   return { switched: true, skipped: false };
 }
 
-async function postToPage(pageId, message, imagePaths = [], pageName = null) {
+async function postToPage(pageId, message, imagePaths = [], pageName = null, shouldCancel = null) {
   const _profileKey = activeProfile;
   const browser = await getBrowser();
 
@@ -1778,6 +1803,11 @@ async function postToPage(pageId, message, imagePaths = [], pageName = null) {
       if (!(await typeMessage(page, message))) throw new Error(funMsg.errTypeContent());
     }
     await randomDelay(1000, 2000);
+
+    if (await _abortIfCancelled(page, shouldCancel)) {
+      logger.info(`[postToPage ${pageId}] đã bị dừng theo yêu cầu người dùng — không bấm Đăng`);
+      return { success: false, error: 'Đã dừng theo yêu cầu người dùng', cancelled: true };
+    }
 
     const result = await submitPost(page);
     if (!result.success) {

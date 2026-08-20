@@ -489,8 +489,17 @@ async function executePost({ profile, profileDisplayName, message, target, group
 
   if (!batchId) batchId = crypto.randomUUID();
 
+  // Truyền xuống playwright để kiểm tra NGAY TRƯỚC khi bấm nút Đăng thật trên Facebook —
+  // đây là điểm cuối cùng còn ngăn được bài SAI nội dung lên thật (mở dialog/nhập ảnh/nhập
+  // text vẫn chạy hết vì chưa lộ ra ngoài, chỉ chặn đúng lúc submit).
+  const shouldCancel = () => (pendingLogId != null && cancelledPendingIds.has(pendingLogId))
+    || (_jobId != null && cancelledJobIds.has(_jobId));
+
   // Helper: dùng completePendingPost nếu có pendingLogId, fallback về job_id, rồi mới logPost
   const _doLog = (logArgs, result, groupName) => {
+    // Job có pendingLogId đã bị dừng: DB row được endpoint /api/pending/:id/cancel đánh dấu
+    // "Đã dừng" NGAY lúc bấm nút, không cần (và không nên) ghi đè/log thêm ở đây.
+    if (result && result.cancelled && pendingLogId != null) return;
     // Gắn website (metadata) vào mọi bản ghi mới. Với single-target (pendingLogId)
     // website đã lưu sẵn ở pending row nên completePendingPost giữ nguyên.
     if (website != null && logArgs && logArgs.website === undefined) logArgs.website = website;
@@ -542,7 +551,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
     if (_jobId && cancelledJobIds.has(_jobId)) return { results, cancelled: true };
     if (getPostCount(profileKey) < config.posting.maxPostsPerDay) {
       logger.info('Đang đăng lên FB cá nhân...');
-      const r = await playwright.postToPersonal(message, imagePaths);
+      const r = await playwright.postToPersonal(message, imagePaths, shouldCancel);
       incPostCount(profileKey);
       postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId, website });
       results.push({ target: 'FB Cá nhân', success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
@@ -557,7 +566,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
       if (_jobId && cancelledJobIds.has(_jobId)) { logger.info(`[job ${_jobId}] đã bị dừng — bỏ qua các group còn lại`); break; }
       if (getPostCount(profileKey) >= config.posting.maxPostsPerDay) break;
       logger.info(`Đang đăng lên ${group.name}...`);
-      const r = await playwright.postToGroup(group.id, message, imagePaths);
+      const r = await playwright.postToGroup(group.id, message, imagePaths, shouldCancel);
       incPostCount(profileKey);
       postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId, website });
       results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
@@ -575,7 +584,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
       if (_jobId && cancelledJobIds.has(_jobId)) { logger.info(`[job ${_jobId}] đã bị dừng — bỏ qua các group còn lại`); break; }
       if (getPostCount(profileKey) >= config.posting.maxPostsPerDay) break;
       logger.info(`Đang đăng lên ${group.name}...`);
-      const r = await playwright.postToGroup(group.id, message, imagePaths);
+      const r = await playwright.postToGroup(group.id, message, imagePaths, shouldCancel);
       incPostCount(profileKey);
       postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId, website });
       results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error });
@@ -588,14 +597,14 @@ async function executePost({ profile, profileDisplayName, message, target, group
 
   if (target === 'shortcut') {
     const group = config.groups[groupId];
-    const r = await playwright.postToGroup(group.id, message, imagePaths);
+    const r = await playwright.postToGroup(group.id, message, imagePaths, shouldCancel);
     incPostCount(profileKey);
     _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
   }
 
   if (target === 'group') {
-    const r = await playwright.postToGroup(groupId, message, imagePaths);
+    const r = await playwright.postToGroup(groupId, message, imagePaths, shouldCancel);
     incPostCount(profileKey);
     _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
@@ -603,7 +612,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
 
   if (target === 'page') {
     const pageInfo = (loadChannels().fbPages || []).find(p => String(p.id) === String(groupId));
-    const r = await playwright.postToPage(groupId, message, imagePaths, pageInfo?.name || null);
+    const r = await playwright.postToPage(groupId, message, imagePaths, pageInfo?.name || null, shouldCancel);
     incPostCount(profileKey);
     _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'page', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
     return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
@@ -614,12 +623,12 @@ async function executePost({ profile, profileDisplayName, message, target, group
     const keywords = Array.isArray(groupKeywords) ? groupKeywords : [];
     if (keywords.length === 0) {
       // Không có nhóm → fallback đăng cá nhân thường
-      const r = await playwright.postToPersonal(message, imagePaths);
+      const r = await playwright.postToPersonal(message, imagePaths, shouldCancel);
       incPostCount(profileKey);
       _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
       return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
     }
-    const r = await playwright.postPersonalAndShareToGroups(message, imagePaths, keywords);
+    const r = await playwright.postPersonalAndShareToGroups(message, imagePaths, keywords, shouldCancel);
     incPostCount(profileKey);
     const sharedGroupNames = Array.isArray(r.sharedGroups) ? r.sharedGroups : [];
     const missedGroupNames = Array.isArray(r.missedGroups) ? r.missedGroups : [];
@@ -629,7 +638,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
   }
 
   // personal (default)
-  const r = await playwright.postToPersonal(message, imagePaths);
+  const r = await playwright.postToPersonal(message, imagePaths, shouldCancel);
   incPostCount(profileKey);
   _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
   return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error };
@@ -1678,6 +1687,24 @@ app.post('/api/pending/:id/timeout', (req, res) => {
   }
 });
 
+// Bài Zalo chạy Playwright trên máy LOCAL (process/máy khác server cloud này) nên
+// cancelledPendingIds ở đây không tới được job đang chạy bên đó — phải forward yêu cầu
+// Dừng qua HTTP để local-server.js đánh dấu job, kịp chặn TRƯỚC lần bấm Gửi kế tiếp (xem
+// cancelledZaloJobIds trong local-server.js + shouldCancel trong salework.js). Fire-and-
+// forget: không chặn phản hồi Dừng cho người bấm — DB row đã được đánh dấu "Đã dừng"
+// ngay phía trên dù local có nhận được tín hiệu hay không.
+function _forwardZaloCancel(row) {
+  if (!row || row.platform !== 'zalo' || !row.job_id) return;
+  const LOCAL_URL = getLocalUrl();
+  if (!LOCAL_URL) return;
+  getFetch()
+    .then(fetchFn => fetchFn(`${LOCAL_URL}/api/zalo/job/${row.job_id}/cancel`, {
+      method: 'POST',
+      headers: { 'x-api-key': LOCAL_API_KEY },
+    }))
+    .catch(e => logger.warn(`[zalo cancel] forward tới local lỗi: ${e.message}`));
+}
+
 // Nút "Dừng" trên dashboard khi bài đang ở trạng thái "Đang đăng".
 // Nếu bài còn đang chờ tới lượt trong hàng đợi đăng (chưa chạy Playwright) thì sẽ bị bỏ qua
 // hẳn, không đăng nữa. Nếu bài đã bắt đầu thao tác trên trình duyệt thì không thể ngắt giữa
@@ -1690,14 +1717,13 @@ app.post('/api/pending/:id/cancel', (req, res) => {
   const id = Number(req.params.id);
   if (!id) return res.status(400).json({ error: 'ID không hợp lệ' });
   try {
+    const row = postLogger.getPendingPosts().find(r => r.id === id);
     const allowed = permissions.getAllowedProfileKeys(req.user.email);
-    if (allowed !== null) {
-      const row = postLogger.getPendingPosts().find(r => r.id === id);
-      if (row && !allowed.includes(row.profile)) {
-        return res.status(403).json({ error: 'Bạn không có quyền dừng bài đăng của tài khoản này' });
-      }
+    if (allowed !== null && row && !allowed.includes(row.profile)) {
+      return res.status(403).json({ error: 'Bạn không có quyền dừng bài đăng của tài khoản này' });
     }
     cancelledPendingIds.add(id);
+    _forwardZaloCancel(row);
     const result = postLogger.completePendingPost(id, {
       success: false,
       error: 'Đã dừng theo yêu cầu người dùng',
@@ -1723,6 +1749,7 @@ app.post('/api/pending/cancel-by-profile', (req, res) => {
     let updated = 0;
     for (const row of rows) {
       cancelledPendingIds.add(row.id);
+      _forwardZaloCancel(row);
       const result = postLogger.completePendingPost(row.id, {
         success: false,
         error: 'Đã dừng theo yêu cầu người dùng',

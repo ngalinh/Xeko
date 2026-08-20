@@ -743,9 +743,20 @@ async function attachImages(page, imagePaths) {
   return uploaded;
 }
 
-async function sendMessage(page, message, imagePaths = []) {
+async function sendMessage(page, message, imagePaths = [], shouldCancel = null) {
   logger.info(`[basso] Gửi: "${message?.substring(0, 30)}" + ${imagePaths.length} ảnh`);
   let sentAny = false;
+
+  // Điểm cuối cùng còn ngăn được tin SAI nội dung lên thật: kiểm tra "⏹ Dừng" ngay TRƯỚC
+  // mỗi lần bấm Gửi (ảnh và text là 2 tin nhắn RIÊNG, bấm Gửi lần nào là tin đó lên thật
+  // ngay lần đó — không có bước "soạn xong chờ xác nhận" như dialog Facebook). Đính ảnh/
+  // nhập text trước đó vẫn chạy vì chưa lộ ra ngoài (mới là preview trong ô soạn).
+  const _throwIfCancelled = () => {
+    if (typeof shouldCancel !== 'function' || !shouldCancel()) return;
+    const err = new Error('Đã dừng theo yêu cầu người dùng');
+    err.cancelled = true;
+    throw err;
+  };
 
   // KIỂM TRA FILE ẢNH CÒN TỒN TẠI (bắt lỗi "đăng nhiều kênh 1 phiên bị mất hình"):
   // khi 1 lượt đăng đẩy cùng bộ ảnh tới nhiều group/kênh, file tạm có thể bị dọn
@@ -781,6 +792,7 @@ async function sendMessage(page, message, imagePaths = []) {
     // mốc để xác minh ảnh THẬT SỰ vào hội thoại sau khi gửi.
     const before = await _imageThreadState(page).catch(() => ({ http: 0, threadBlob: 0, composerBlob: 0 }));
     logger.info(`[basso][verify] trước khi gửi ảnh: ${JSON.stringify(before)}`);
+    _throwIfCancelled();
     if (await clickSend(page)) { sentAny = true; logger.info('[basso] Đã bấm gửi tin ảnh'); }
     else throw new Error('Đính được ảnh nhưng không bấm gửi được tin ảnh.');
     // QUAN TRỌNG (lỗi Zalo-specific): bấm Gửi xong, basso CÒN đang upload ảnh lên
@@ -813,6 +825,7 @@ async function sendMessage(page, message, imagePaths = []) {
     } catch (e) {
       logger.error(`[basso] Không nhập được nội dung: ${e.message}`);
     }
+    _throwIfCancelled();
     if (await clickSend(page)) { sentAny = true; logger.info('[basso] Đã gửi tin text'); }
   }
 
@@ -951,13 +964,19 @@ async function _withAccountLock(key, fn) {
   }
 }
 
-async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message, imagePaths }) {
+async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message, imagePaths, shouldCancel = null }) {
   return _withAccountLock(accountKey || zaloAccountName, () =>
-    _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, message, imagePaths })
+    _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, message, imagePaths, shouldCancel })
   );
 }
 
-async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, message, imagePaths }) {
+async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, message, imagePaths, shouldCancel = null }) {
+  // Job có thể đã chờ khá lâu trong hàng đợi account/zaloQueue trước khi tới đây — kiểm
+  // tra "⏹ Dừng" ngay đầu, trước khi tốn công mở trình duyệt.
+  if (typeof shouldCancel === 'function' && shouldCancel()) {
+    return { success: false, error: 'Đã dừng theo yêu cầu người dùng', cancelled: true };
+  }
+
   const profilePath = getSaleworkProfile(accountKey);
 
   if (!fs.existsSync(profilePath)) {
@@ -1075,16 +1094,17 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
       normalizedImageFiles = sendImagePaths.filter((p, i) => p !== imagePaths[i]);
     }
 
-    await sendMessage(page, message, sendImagePaths);
+    await sendMessage(page, message, sendImagePaths, shouldCancel);
 
     logger.info(`[salework] Đã đăng lên "${groupName}" qua "${zaloAccountName}"`);
     cleanup(); // chạy nền, không await — trả kết quả ngay
     return { success: true };
   } catch (e) {
-    logger.error(`[salework] Lỗi: ${e.message}`);
+    if (e.cancelled) logger.info(`[salework] Đã bị dừng theo yêu cầu người dùng — không gửi`);
+    else logger.error(`[salework] Lỗi: ${e.message}`);
     try { await screenshot(page, '99-error'); } catch {}
     cleanup(); // chạy nền, không await
-    return { success: false, error: e.message };
+    return { success: false, error: e.message, cancelled: !!e.cancelled };
   }
 }
 
