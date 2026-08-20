@@ -1125,6 +1125,10 @@ async function selectGroupCheckbox(page, keyword) {
 async function _abortIfCancelled(page, shouldCancel) {
   if (typeof shouldCancel !== 'function' || !shouldCancel()) return false;
   try { await page.keyboard.press('Escape'); } catch {}
+  // Đóng tab NGAY thay vì để browser.close() ở finally tự dọn — nếu dialog "Cài đặt bài
+  // viết" còn nội dung chưa lưu, FB có thể chặn beforeunload khiến context.close() bị
+  // treo tới hết 10s race timeout (đúng lỗi "đóng trình duyệt rất lâu" sau khi Dừng).
+  try { await page.close(); } catch {}
   return true;
 }
 
@@ -1320,6 +1324,7 @@ async function recoverPostUrlFromProfile(page, message) {
 async function postToPersonal(message, imagePaths = [], shouldCancel = null) {
   const _profileKey = activeProfile;
   const t0 = Date.now();
+  let _wasCancelled = false;
   const profileSnap = getActiveProfile();
   const tag = `[postToPersonal ${profileSnap.name}]`;
   logger.info(`${tag} bắt đầu (msg=${message ? `${message.length} ký tự` : '∅'}, ảnh=${imagePaths.length})`);
@@ -1373,6 +1378,7 @@ async function postToPersonal(message, imagePaths = [], shouldCancel = null) {
     await randomDelay(600, 1200);
 
     if (await _abortIfCancelled(page, shouldCancel)) {
+      _wasCancelled = true;
       logger.info(`${tag} đã bị dừng theo yêu cầu người dùng — không bấm Đăng`);
       return { success: false, error: 'Đã dừng theo yêu cầu người dùng', cancelled: true };
     }
@@ -1402,7 +1408,8 @@ async function postToPersonal(message, imagePaths = [], shouldCancel = null) {
     logger.error(`${tag} FAIL sau ${Date.now() - t0}ms: ${error.message}`);
     return { success: false, error: error.message };
   } finally {
-    await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
+    // Đã dừng trước khi bấm Đăng → không có gì để FB xử lý, khỏi chờ stay-alive.
+    if (!_wasCancelled) await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
     const _ctx = browsers[_profileKey];
     browsers[_profileKey] = null; // xóa cache ngay để lần sau launch browser mới
     await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
@@ -1415,6 +1422,7 @@ async function postToPersonal(message, imagePaths = [], shouldCancel = null) {
 async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywords = [], shouldCancel = null) {
   const _profileKey = activeProfile;
   const t0 = Date.now();
+  let _wasCancelled = false;
   const profileSnap = getActiveProfile();
   const tag = `[postPersonalAndShareToGroups ${profileSnap.name}]`;
   const kwList = (groupKeywords || []).filter(Boolean);
@@ -1455,6 +1463,7 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
     await randomDelay(600, 1200);
 
     if (await _abortIfCancelled(page, shouldCancel)) {
+      _wasCancelled = true;
       logger.info(`${tag} đã bị dừng theo yêu cầu người dùng — không bấm Đăng`);
       return { success: false, error: 'Đã dừng theo yêu cầu người dùng', cancelled: true };
     }
@@ -1472,7 +1481,7 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
     logger.error(`${tag} FAIL sau ${Date.now() - t0}ms: ${error.message}`);
     return { success: false, error: error.message };
   } finally {
-    await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
+    if (!_wasCancelled) await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
     const _ctx = browsers[_profileKey];
     browsers[_profileKey] = null;
     await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
