@@ -986,7 +986,7 @@ async function shareToGroupsInSettings(page, keywords) {
 // Submit flow RIÊNG cho path share-to-group — tách hẳn submitPost của postToPersonal
 // để không ảnh hưởng đăng riêng lẻ. Click Tiếp → Cài đặt bài viết → Chia sẻ lên nhóm
 // → tick group → Xong → Đăng.
-async function submitPostAndShareGroups(page, keywords) {
+async function submitPostAndShareGroups(page, keywords, shouldCancel = null) {
   const listener = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
 
   await page.evaluate(() => {
@@ -1015,7 +1015,15 @@ async function submitPostAndShareGroups(page, keywords) {
   const shareResult = await shareToGroupsInSettings(page, keywords);
   logger.info(`submitPostAndShareGroups: shared ${shareResult.selected.length}/${keywords.length}${shareResult.missed.length ? ` (miss: ${shareResult.missed.join(', ')})` : ''}`);
 
-  // Bước 3: click "Đăng" để post
+  // Bước 3: click "Đăng" để post — kiểm tra "⏹ Dừng" ngay trước bước submit THẬT này
+  // (bước 1-2 ở trên có thể mất nhiều giây, đủ để người dùng kịp phát hiện gõ sai và bấm
+  // Dừng trước khi tới đây).
+  if (typeof shouldCancel === 'function' && shouldCancel()) {
+    logger.info('submitPostAndShareGroups: đã bị dừng theo yêu cầu người dùng — không bấm Đăng');
+    try { await page.keyboard.press('Escape'); } catch {}
+    return { success: false, cancelled: true, sharedGroups: shareResult.selected, missedGroups: shareResult.missed };
+  }
+
   await page.evaluate(() => {
     document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
   });
@@ -1125,10 +1133,14 @@ async function selectGroupCheckbox(page, keyword) {
 async function _abortIfCancelled(page, shouldCancel) {
   if (typeof shouldCancel !== 'function' || !shouldCancel()) return false;
   try { await page.keyboard.press('Escape'); } catch {}
+  // Đóng tab NGAY thay vì để browser.close() ở finally tự dọn — nếu dialog "Cài đặt bài
+  // viết" còn nội dung chưa lưu, FB có thể chặn beforeunload khiến context.close() bị
+  // treo tới hết 10s race timeout (đúng lỗi "đóng trình duyệt rất lâu" sau khi Dừng).
+  try { await page.close(); } catch {}
   return true;
 }
 
-async function submitPost(page) {
+async function submitPost(page, shouldCancel = null) {
   // Phải attach listener TRƯỚC khi click — response GraphQL về sau vài trăm ms
   const listener = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
 
@@ -1211,6 +1223,17 @@ async function submitPost(page) {
   let success = false;
   let lastClick = null;
   for (let i = 0; i < 6; i++) {
+    // Kiểm tra "⏹ Dừng" NGAY TRƯỚC mỗi lần bấm — QUAN TRỌNG nhất ở vòng lặp NÀY: sau khi
+    // bấm "Tiếp" ở lần trước, người dùng đang đứng ở màn "Cài đặt bài viết" (đúng lúc dễ
+    // phát hiện gõ sai nội dung nhất) — lần bấm "Đăng" kế tiếp mới là submit THẬT. Trước
+    // đây checkpoint chỉ nằm ở NGOÀI submitPost() (trước khi gọi hàm này lần đầu) nên nếu
+    // bấm Dừng sau khi submitPost() đã bắt đầu chạy (thường chỉ 1-2s sau khi gõ xong) thì
+    // vẫn cứ đăng — vòng lặp bên trong không có cách nào biết mà dừng lại.
+    if (typeof shouldCancel === 'function' && shouldCancel()) {
+      logger.info(`submitPost: đã bị dừng theo yêu cầu người dùng ở lần ${i + 1} — không bấm tiếp`);
+      try { await page.keyboard.press('Escape'); } catch {}
+      return { success: false, cancelled: true };
+    }
     const clicked = await clickPostButton();
     if (clicked) lastClick = clicked;
     logger.info(`submitPost: lần ${i + 1} bấm "Đăng"${clicked ? ` (${clicked})` : ' — KHÔNG thấy nút'}`);
@@ -1320,6 +1343,7 @@ async function recoverPostUrlFromProfile(page, message) {
 async function postToPersonal(message, imagePaths = [], shouldCancel = null) {
   const _profileKey = activeProfile;
   const t0 = Date.now();
+  let _wasCancelled = false;
   const profileSnap = getActiveProfile();
   const tag = `[postToPersonal ${profileSnap.name}]`;
   logger.info(`${tag} bắt đầu (msg=${message ? `${message.length} ký tự` : '∅'}, ảnh=${imagePaths.length})`);
@@ -1373,12 +1397,17 @@ async function postToPersonal(message, imagePaths = [], shouldCancel = null) {
     await randomDelay(600, 1200);
 
     if (await _abortIfCancelled(page, shouldCancel)) {
+      _wasCancelled = true;
       logger.info(`${tag} đã bị dừng theo yêu cầu người dùng — không bấm Đăng`);
       return { success: false, error: 'Đã dừng theo yêu cầu người dùng', cancelled: true };
     }
 
     const tSubmit = Date.now();
-    const result = await submitPost(page);
+    const result = await submitPost(page, shouldCancel);
+    if (result.cancelled) {
+      _wasCancelled = true;
+      return { success: false, error: 'Đã dừng theo yêu cầu người dùng', cancelled: true };
+    }
     if (!result.success) {
       // FB reject phổ biến nhất với clone account: đăng ảnh không kèm caption.
       // Đổi error chung "Thôi xong!" thành hướng dẫn cụ thể để user biết phải làm gì.
@@ -1402,7 +1431,8 @@ async function postToPersonal(message, imagePaths = [], shouldCancel = null) {
     logger.error(`${tag} FAIL sau ${Date.now() - t0}ms: ${error.message}`);
     return { success: false, error: error.message };
   } finally {
-    await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
+    // Đã dừng trước khi bấm Đăng → không có gì để FB xử lý, khỏi chờ stay-alive.
+    if (!_wasCancelled) await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
     const _ctx = browsers[_profileKey];
     browsers[_profileKey] = null; // xóa cache ngay để lần sau launch browser mới
     await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
@@ -1415,6 +1445,7 @@ async function postToPersonal(message, imagePaths = [], shouldCancel = null) {
 async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywords = [], shouldCancel = null) {
   const _profileKey = activeProfile;
   const t0 = Date.now();
+  let _wasCancelled = false;
   const profileSnap = getActiveProfile();
   const tag = `[postPersonalAndShareToGroups ${profileSnap.name}]`;
   const kwList = (groupKeywords || []).filter(Boolean);
@@ -1455,11 +1486,16 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
     await randomDelay(600, 1200);
 
     if (await _abortIfCancelled(page, shouldCancel)) {
+      _wasCancelled = true;
       logger.info(`${tag} đã bị dừng theo yêu cầu người dùng — không bấm Đăng`);
       return { success: false, error: 'Đã dừng theo yêu cầu người dùng', cancelled: true };
     }
 
-    const result = await submitPostAndShareGroups(page, kwList);
+    const result = await submitPostAndShareGroups(page, kwList, shouldCancel);
+    if (result.cancelled) {
+      _wasCancelled = true;
+      return { success: false, error: 'Đã dừng theo yêu cầu người dùng', cancelled: true };
+    }
     if (!result.success) {
       const hint = (!message && imagePaths.length > 0)
         ? 'FB không cho đăng bài chỉ có ảnh không text. Bạn thêm caption rồi đăng lại nha!'
@@ -1472,7 +1508,7 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
     logger.error(`${tag} FAIL sau ${Date.now() - t0}ms: ${error.message}`);
     return { success: false, error: error.message };
   } finally {
-    await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
+    if (!_wasCancelled) await randomDelay(2000, 3000); // stay-alive: đợi FB xử lý xong trước khi đóng tab
     const _ctx = browsers[_profileKey];
     browsers[_profileKey] = null;
     await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});
@@ -1546,7 +1582,10 @@ async function postToGroup(groupId, message, imagePaths = [], shouldCancel = nul
     }
 
     // Nhấn Đăng
-    const result = await submitPost(page);
+    const result = await submitPost(page, shouldCancel);
+    if (result.cancelled) {
+      return { success: false, error: 'Đã dừng theo yêu cầu người dùng', cancelled: true };
+    }
     if (!result.success) {
       const hint = (!message && imagePaths.length > 0)
         ? 'FB không cho đăng bài chỉ có ảnh không text. Bạn thêm caption (vài dòng nội dung) rồi đăng lại nha!'
@@ -1809,7 +1848,10 @@ async function postToPage(pageId, message, imagePaths = [], pageName = null, sho
       return { success: false, error: 'Đã dừng theo yêu cầu người dùng', cancelled: true };
     }
 
-    const result = await submitPost(page);
+    const result = await submitPost(page, shouldCancel);
+    if (result.cancelled) {
+      return { success: false, error: 'Đã dừng theo yêu cầu người dùng', cancelled: true };
+    }
     if (!result.success) {
       const hint = (!message && imagePaths.length > 0)
         ? 'FB không cho đăng bài chỉ có ảnh không text. Bạn thêm caption (vài dòng nội dung) rồi đăng lại nha!'
@@ -2509,7 +2551,16 @@ async function _qpPickOneGroup(page, keyword) {
 // Cũng phân biệt "Lưu" (button bên cạnh) — aria-label đã tách rõ.
 // Verify: chờ dialog "Cài đặt bài viết" và "Tạo bài viết" đều biến mất (post xong).
 // Bắt postUrl từ GraphQL listener (reuse listenForPostUrl, đã proven).
-async function qpStep6Submit(page, steps) {
+async function qpStep6Submit(page, steps, shouldCancel = null) {
+  // Kiểm tra "⏹ Dừng" NGAY TRƯỚC bước submit THẬT — các bước 1-5 trước đó (mở composer,
+  // nhập nội dung, chọn nhóm...) có thể mất nhiều giây, đủ để người dùng kịp phát hiện gõ
+  // sai và bấm Dừng trước khi tới đây.
+  if (typeof shouldCancel === 'function' && shouldCancel()) {
+    await _qpLog(steps, 'Step 6: đã bị dừng theo yêu cầu người dùng — không bấm Đăng');
+    try { await page.keyboard.press('Escape'); } catch {}
+    return { success: false, cancelled: true, error: 'Đã dừng theo yêu cầu người dùng' };
+  }
+
   // Listener phải attach TRƯỚC khi click — response GraphQL về sau vài trăm ms
   const listener = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
 
@@ -2717,9 +2768,10 @@ async function _qpCloseShareGroupsDialog(page) {
   }
 }
 
-async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywords = []) {
+async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywords = [], shouldCancel = null) {
   const _profileKey = activeProfile;
   const t0 = Date.now();
+  let _wasCancelled = false;
   const profileSnap = getActiveProfile();
   const tag = `[quickPost ${profileSnap.name}]`;
   const steps = [];
@@ -2768,7 +2820,8 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
       if (!step4ok) {
         // FALLBACK 1: vẫn ở "Cài đặt bài viết" → click "Đăng" để post personal-only
         await _qpLog(steps, '⚠ Step 4 fail → fallback đăng cá nhân không share group');
-        const submit = await qpStep6Submit(page, steps);
+        const submit = await qpStep6Submit(page, steps, shouldCancel);
+        _wasCancelled = !!submit.cancelled;
         logger.info(`${tag} fallback personal-only (+${Date.now() - t0}ms)`);
         return {
           success: submit.success,
@@ -2777,6 +2830,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
           missedGroups: keywords,
           partialSuccess: submit.success,
           steps,
+          cancelled: !!submit.cancelled,
           error: submit.success ? undefined : (submit.error || 'Step 4 fail và fallback Đăng cũng fail'),
         };
       }
@@ -2794,7 +2848,8 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
           return { success: false, error: `Step 5 fail và không close được "Chọn nhóm" để fallback (screenshot=${shot})`, steps, missedGroups: pick.missed };
         }
         await randomDelay(600, 1000);
-        const submit = await qpStep6Submit(page, steps);
+        const submit = await qpStep6Submit(page, steps, shouldCancel);
+        _wasCancelled = !!submit.cancelled;
         logger.info(`${tag} fallback personal-only sau step5 fail (+${Date.now() - t0}ms)`);
         return {
           success: submit.success,
@@ -2803,13 +2858,15 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
           missedGroups: pick.missed,
           partialSuccess: submit.success,
           steps,
+          cancelled: !!submit.cancelled,
           error: submit.success ? undefined : (submit.error || 'Step 5 fail và fallback Đăng cũng fail'),
         };
       }
       await randomDelay(600, 1000);
 
       // Happy path: ticked some groups → step 6 Đăng (full flow)
-      const submit = await qpStep6Submit(page, steps);
+      const submit = await qpStep6Submit(page, steps, shouldCancel);
+      _wasCancelled = !!submit.cancelled;
       logger.info(`${tag} done (+${Date.now() - t0}ms)`);
       return {
         success: submit.success,
@@ -2818,6 +2875,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
         missedGroups: pick.missed,
         partialSuccess: submit.success && pick.missed.length > 0,  // partial nếu missed some groups
         steps,
+        cancelled: !!submit.cancelled,
         error: submit.success ? undefined : (submit.error || 'Step 6 fail'),
       };
     }
@@ -2830,12 +2888,14 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
     }
     await randomDelay(800, 1500);
 
-    const submit = await qpStep6Submit(page, steps);
+    const submit = await qpStep6Submit(page, steps, shouldCancel);
+    _wasCancelled = !!submit.cancelled;
     logger.info(`${tag} done personal-only (+${Date.now() - t0}ms)`);
     return {
       success: submit.success,
       postUrl: submit.postUrl,
       steps,
+      cancelled: !!submit.cancelled,
       error: submit.success ? undefined : (submit.error || 'Step 6 fail'),
     };
   } catch (e) {
@@ -2843,7 +2903,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
     const shot = await _qpScreenshot(page, 'exception');
     return { success: false, error: `${e.message} (screenshot=${shot})`, steps };
   } finally {
-    await randomDelay(2000, 3000);
+    if (!_wasCancelled) await randomDelay(2000, 3000);
     const _ctx = browsers[_profileKey];
     browsers[_profileKey] = null;
     await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});

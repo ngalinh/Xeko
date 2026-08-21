@@ -165,11 +165,38 @@ async function pollZaloLocalJob(jobId, maxWaitMs = 10 * 60 * 1000) {
   throw new Error('Quá 10 phút chưa xong — kiểm tra Zalo tay.');
 }
 
+// Job Playwright FB thực sự chạy trên máy LOCAL (process khác cloud), nên nút "⏹ Dừng"
+// bấm ở dashboard (cloud) chỉ đánh dấu được state cancel trong bộ nhớ CLOUD — phải forward
+// sang local qua HTTP thì job đang chạy bên đó mới biết mà dừng. pollLocalJob() là nơi
+// duy nhất còn "sống" xuyên suốt vòng đời job ở phía cloud nên đảm nhận việc forward này:
+// mỗi lần poll (~1.5s/lần) kiểm tra shouldCancel(), thấy true thì gọi 1 lần (không lặp lại)
+// POST {LOCAL_URL}/api/job/:id/cancel rồi tiếp tục poll bình thường tới khi local báo done.
+async function _forwardCancelToLocal(jobId) {
+  try {
+    const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL;
+    if (!LOCAL_URL) return;
+    const fetch = await getFetch();
+    await fetch(`${LOCAL_URL}/api/job/${jobId}/cancel`, {
+      method: 'POST',
+      headers: { 'x-api-key': API_KEY },
+      signal: AbortSignal.timeout(10000),
+    });
+    console.log(`[playwright-proxy] đã forward cancel job=${jobId} xuống local`);
+  } catch (e) {
+    console.error(`[playwright-proxy] forward cancel job=${jobId} lỗi: ${e.message}`);
+  }
+}
+
 // Poll /api/job/:id trên máy local cho đến khi xong
-async function pollLocalJob(jobId, maxWaitMs = 10 * 60 * 1000) {
+async function pollLocalJob(jobId, maxWaitMs = 10 * 60 * 1000, shouldCancel = null) {
   const start = Date.now();
+  let _cancelSent = false;
   while (Date.now() - start < maxWaitMs) {
     await new Promise(r => setTimeout(r, 1500));
+    if (!_cancelSent && typeof shouldCancel === 'function' && shouldCancel()) {
+      _cancelSent = true;
+      _forwardCancelToLocal(jobId); // fire-and-forget, không chặn poll
+    }
     try {
       const LOCAL_URL = process.env.PLAYWRIGHT_LOCAL_URL;
       if (!LOCAL_URL) throw new Error('Local server chưa kết nối');
@@ -191,25 +218,25 @@ async function pollLocalJob(jobId, maxWaitMs = 10 * 60 * 1000) {
   throw new Error('Quá 10 phút chưa xong — kiểm tra FB/Zalo tay.');
 }
 
-async function postToPersonal(message, imagePaths = []) {
+async function postToPersonal(message, imagePaths = [], shouldCancel = null) {
   const res = await callLocal('POST', '/api/post', { message, target: 'personal' }, imagePaths);
-  if (res.jobId) return pollLocalJob(res.jobId);
+  if (res.jobId) return pollLocalJob(res.jobId, undefined, shouldCancel);
   return res;
 }
 
-async function postToGroup(groupId, message, imagePaths = []) {
+async function postToGroup(groupId, message, imagePaths = [], shouldCancel = null) {
   const res = await callLocal('POST', '/api/post', { message, target: 'group', groupId }, imagePaths);
-  if (res.jobId) return pollLocalJob(res.jobId);
+  if (res.jobId) return pollLocalJob(res.jobId, undefined, shouldCancel);
   return res;
 }
 
-async function postToPage(pageId, message, imagePaths = []) {
+async function postToPage(pageId, message, imagePaths = [], shouldCancel = null) {
   const res = await callLocal('POST', '/api/post', { message, target: 'page', groupId: pageId }, imagePaths);
-  if (res.jobId) return pollLocalJob(res.jobId);
+  if (res.jobId) return pollLocalJob(res.jobId, undefined, shouldCancel);
   return res;
 }
 
-async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywords = []) {
+async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywords = [], shouldCancel = null) {
   // groupKeywords là array → serialize qua JSON khi đi multipart
   const res = await callLocal(
     'POST',
@@ -217,12 +244,12 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
     { message, target: 'personal-share-groups', groupKeywords: JSON.stringify(groupKeywords) },
     imagePaths
   );
-  if (res.jobId) return pollLocalJob(res.jobId);
+  if (res.jobId) return pollLocalJob(res.jobId, undefined, shouldCancel);
   return res;
 }
 
 // Quick Post v2 — async job pattern (tránh tunnel timeout khi test > 1-2 phút)
-async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywords = []) {
+async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywords = [], shouldCancel = null) {
   if (!_activeProfile) throw new Error('Chưa chọn profile!');
   const res = await callLocal(
     'POST',
@@ -230,7 +257,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
     { profile: _activeProfile, message, groupKeywords: JSON.stringify(groupKeywords || []) },
     imagePaths
   );
-  if (res.jobId) return pollLocalJob(res.jobId);
+  if (res.jobId) return pollLocalJob(res.jobId, undefined, shouldCancel);
   return res;
 }
 
