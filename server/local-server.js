@@ -161,6 +161,7 @@ app.get('/api/job/:id', (req, res) => {
 // job FB single-target lẫn multi-target (all/allgroup) vì đều cùng 1 jobId ở local này.
 app.post('/api/job/:jobId/cancel', (req, res) => {
   cancelledFbJobIds.add(req.params.jobId);
+  logger.info(`[job ${req.params.jobId}] nhận lệnh Dừng từ cloud`);
   res.json({ ok: true });
 });
 

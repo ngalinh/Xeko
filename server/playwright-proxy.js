@@ -181,6 +181,7 @@ async function _forwardCancelToLocal(jobId) {
       headers: { 'x-api-key': API_KEY },
       signal: AbortSignal.timeout(10000),
     });
+    console.log(`[playwright-proxy] đã forward cancel job=${jobId} xuống local`);
   } catch (e) {
     console.error(`[playwright-proxy] forward cancel job=${jobId} lỗi: ${e.message}`);
   }
