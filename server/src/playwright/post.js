@@ -1799,6 +1799,34 @@ async function ensurePageIdentity(page, pageName) {
   return { switched: true, skipped: false };
 }
 
+// Sau khi đăng bài lên PAGE (chỉ Page, không phải cá nhân/nhóm), FB hay tự bật popup
+// gợi ý "Chat trực tiếp với khách hàng" — thêm nút "Gửi tin nhắn" vào bài vừa đăng,
+// với 2 lựa chọn "Lúc khác"/"Thêm nút" ("Not now"/"Add button"). Bot không được tự ý
+// bật tính năng này (quyết định kinh doanh của người dùng) nên luôn bấm "Lúc khác" để
+// bỏ qua — không xử lý thì popup cứ treo đó chờ 1 cú click thủ công. Không thấy popup
+// trong thời gian chờ ngắn thì bỏ qua luôn, không chặn kết quả đăng bài đã thành công.
+async function dismissAddButtonPrompt(page) {
+  try {
+    const dialog = page.locator('div[role="dialog"]')
+      .filter({ hasText: /Chat trực tiếp với khách hàng|Chat directly with customers|Thêm nút vào bài viết|Add a button to your post/i });
+    const appeared = await dialog.first().waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false);
+    if (!appeared) return false;
+    for (const lbl of ['Lúc khác', 'Not now']) {
+      const btn = dialog.first().getByRole('button', { name: lbl, exact: true }).first();
+      if (await btn.count().catch(() => 0)) {
+        await btn.click({ force: true, timeout: 2500 }).catch(() => {});
+        logger.info(`[dismissAddButtonPrompt] Đã bấm "${lbl}" để bỏ qua gợi ý thêm nút`);
+        return true;
+      }
+    }
+    await page.keyboard.press('Escape').catch(() => {});
+    return true;
+  } catch (e) {
+    logger.warn(`dismissAddButtonPrompt: ${e.message}`);
+    return false;
+  }
+}
+
 async function postToPage(pageId, message, imagePaths = [], pageName = null, shouldCancel = null) {
   const _profileKey = activeProfile;
   const browser = await getBrowser();
@@ -1860,6 +1888,7 @@ async function postToPage(pageId, message, imagePaths = [], pageName = null, sho
     }
 
     logger.info(`Đã đăng bài page ${pageId} thành công!${result.postUrl ? ` postUrl=${result.postUrl}` : ''}`);
+    await dismissAddButtonPrompt(page);
     return { success: true, target: `page:${pageId}`, postUrl: result.postUrl || null };
   } catch (error) {
     logger.error(`Lỗi postToPage(${pageId}): ${error.message}`);
