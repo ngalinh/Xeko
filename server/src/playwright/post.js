@@ -3927,4 +3927,40 @@ async function postComment({ postUrl, message, imagePaths, profile }) {
   }
 }
 
-module.exports = { setProfile, profileExists, getActiveProfile, postToPersonal, postToGroup, postToPage, postPersonalAndShareToGroups, quickPostToPersonalAndGroups, scrapePost, closeBrowser, postComment };
+// Đăng lại TỰ ĐỘNG (tối đa 1 lần) khi bước "check lại" (verifyPostDisplayed) phát hiện
+// ảnh/text KHÔNG hiển thị trên bài vừa đăng — khác retry-queue.js (chỉ retry khi bị
+// rate-limit 429), đây là retry NGAY vì FB báo "đăng thành công" nhưng nội dung hiển thị
+// sai/thiếu. Giới hạn 1 lần vì verify có thể dương tính giả (mbasic không đọc kịp) — retry
+// vô hạn sẽ spam bài trùng khi FB thật sự có vấn đề dai dẳng.
+const VERIFY_RETRY_MAX = 1;
+function _needsVerifyRetry(result) {
+  const v = result && result.verified;
+  return !!(result && result.success && !result.cancelled && v && v.checked &&
+    (v.textOk === false || v.imagesOk === false));
+}
+function _withVerifyRetry(fn) {
+  return async (...args) => {
+    let result = await fn(...args);
+    let attempt = 0;
+    while (_needsVerifyRetry(result) && attempt < VERIFY_RETRY_MAX) {
+      attempt++;
+      const missing = [result.verified.textOk === false && 'text', result.verified.imagesOk === false && 'ảnh'].filter(Boolean).join(' & ');
+      logger.warn(`[${fn.name}] Check lại thấy ${missing} CHƯA hiển thị trên bài vừa đăng (postUrl=${result.postUrl}) — tự động đăng lại (lần ${attempt}/${VERIFY_RETRY_MAX})...`);
+      const previousPostUrl = result.postUrl || null;
+      result = await fn(...args);
+      result.verifyRetried = attempt;
+      result.previousPostUrl = previousPostUrl;
+    }
+    return result;
+  };
+}
+
+module.exports = {
+  setProfile, profileExists, getActiveProfile,
+  postToPersonal: _withVerifyRetry(postToPersonal),
+  postToGroup: _withVerifyRetry(postToGroup),
+  postToPage: _withVerifyRetry(postToPage),
+  postPersonalAndShareToGroups: _withVerifyRetry(postPersonalAndShareToGroups),
+  quickPostToPersonalAndGroups: _withVerifyRetry(quickPostToPersonalAndGroups),
+  scrapePost, closeBrowser, postComment,
+};

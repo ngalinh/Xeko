@@ -554,7 +554,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
       const r = await playwright.postToPersonal(message, imagePaths, shouldCancel);
       incPostCount(profileKey);
       postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId, website });
-      results.push({ target: 'FB Cá nhân', success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified });
+      results.push({ target: 'FB Cá nhân', success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified, verifyRetried: r.verifyRetried, previousPostUrl: r.previousPostUrl });
       await new Promise(res => setTimeout(res, groupDelayMs()));
     }
 
@@ -569,7 +569,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
       const r = await playwright.postToGroup(group.id, message, imagePaths, shouldCancel);
       incPostCount(profileKey);
       postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId, website });
-      results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified });
+      results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified, verifyRetried: r.verifyRetried, previousPostUrl: r.previousPostUrl });
       if (groups.indexOf(group) < groups.length - 1) {
         await new Promise(res => setTimeout(res, groupDelayMs()));
       }
@@ -587,7 +587,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
       const r = await playwright.postToGroup(group.id, message, imagePaths, shouldCancel);
       incPostCount(profileKey);
       postLogger.logPost({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId, website });
-      results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified });
+      results.push({ target: group.name, success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified, verifyRetried: r.verifyRetried, previousPostUrl: r.previousPostUrl });
       if (groups.indexOf(group) < groups.length - 1) {
         await new Promise(res => setTimeout(res, groupDelayMs()));
       }
@@ -600,14 +600,14 @@ async function executePost({ profile, profileDisplayName, message, target, group
     const r = await playwright.postToGroup(group.id, message, imagePaths, shouldCancel);
     incPostCount(profileKey);
     _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupName: group.name, groupId: group.id, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
-    return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified };
+    return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified, verifyRetried: r.verifyRetried, previousPostUrl: r.previousPostUrl };
   }
 
   if (target === 'group') {
     const r = await playwright.postToGroup(groupId, message, imagePaths, shouldCancel);
     incPostCount(profileKey);
     _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'group', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
-    return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified };
+    return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified, verifyRetried: r.verifyRetried, previousPostUrl: r.previousPostUrl };
   }
 
   if (target === 'page') {
@@ -615,7 +615,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
     const r = await playwright.postToPage(groupId, message, imagePaths, pageInfo?.name || null, shouldCancel);
     incPostCount(profileKey);
     _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'page', groupId, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
-    return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified };
+    return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified, verifyRetried: r.verifyRetried, previousPostUrl: r.previousPostUrl };
   }
 
   // personal + chia sẻ lên nhóm trong 1 bài đăng
@@ -626,7 +626,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
       const r = await playwright.postToPersonal(message, imagePaths, shouldCancel);
       incPostCount(profileKey);
       _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
-      return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified };
+      return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified, verifyRetried: r.verifyRetried, previousPostUrl: r.previousPostUrl };
     }
     const r = await playwright.postPersonalAndShareToGroups(message, imagePaths, keywords, shouldCancel);
     incPostCount(profileKey);
@@ -634,14 +634,14 @@ async function executePost({ profile, profileDisplayName, message, target, group
     const missedGroupNames = Array.isArray(r.missedGroups) ? r.missedGroups : [];
     const groupNameVal = (sharedGroupNames.length || missedGroupNames.length) ? JSON.stringify({ ok: sharedGroupNames, miss: missedGroupNames }) : null;
     _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'personal+groups', groupName: groupNameVal, message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r, groupNameVal);
-    return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified, sharedGroups: sharedGroupNames, missedGroups: missedGroupNames };
+    return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified, verifyRetried: r.verifyRetried, previousPostUrl: r.previousPostUrl, sharedGroups: sharedGroupNames, missedGroups: missedGroupNames };
   }
 
   // personal (default)
   const r = await playwright.postToPersonal(message, imagePaths, shouldCancel);
   incPostCount(profileKey);
   _doLog({ profile: profileKey, profileName, platform: 'facebook', target: 'personal', message, imageCount: imagePaths.length, success: r.success, error: r.error, postUrl: r.postUrl, source: 'web', images: imageUrls, batchId }, r);
-  return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified };
+  return { success: r.success, postUrl: r.postUrl, screenshot: !!r.screenshot, error: r.error, verified: r.verified, verifyRetried: r.verifyRetried, previousPostUrl: r.previousPostUrl };
 }
 
 // Runner cho retry-queue: dựng lại executePost từ record đã lưu để đăng lại.

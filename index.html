@@ -7879,20 +7879,25 @@
       // Bước check lại sau khi đăng: server đã mở lại bài (bản mbasic) để xác nhận
       // ẢNH/TEXT thực sự hiển thị (xem verifyPostDisplayed ở server/src/playwright/post.js).
       // Đăng "thành công" (dialog đóng + có postUrl) nhưng FB có thể âm thầm rớt ảnh/text
-      // → báo ngay cho user biết để mở bài kiểm tra tay, thay vì im lặng.
+      // → server đã TỰ ĐỘNG đăng lại 1 lần (xem _withVerifyRetry); ở đây chỉ báo cho user
+      // biết kết quả cuối, kèm cảnh báo bài trùng nếu đã đăng lại (bài cũ vẫn còn trên FB).
       const _surfaceVerifyWarning = (resp) => {
         if (!resp) return;
         const list = Array.isArray(resp.results) ? resp.results : [resp];
         for (const r of list) {
           const v = r && r.verified;
+          const tgt = r && r.target ? `<strong>${r.target}</strong> ` : '';
+          if (r && r.verifyRetried) {
+            const oldLink = r.previousPostUrl ? ` <a href="${r.previousPostUrl}" target="_blank">bài cũ</a>` : '';
+            addBot(`🔁 Bài ${tgt}check lại thấy thiếu ảnh/text nên Xeko đã tự đăng lại. Bạn kiểm tra xem có bị trùng bài không nha — nếu có thì xoá bớt${oldLink}!`);
+          }
           if (!v || !v.checked) continue;
           const bad = [];
           if (v.textOk === false) bad.push('text');
           if (v.imagesOk === false) bad.push('ảnh');
           if (!bad.length) continue;
-          const tgt = r.target ? `<strong>${r.target}</strong> ` : '';
           const link = r.postUrl ? ` <a href="${r.postUrl}" target="_blank">🔗 Xem bài</a>` : '';
-          addBot(`⚠️ Bài ${tgt}đăng xong nhưng check lại thấy ${bad.join(' & ')} có thể CHƯA hiển thị. Bạn mở bài kiểm tra tay giúp nha!${link}`);
+          addBot(`⚠️ Bài ${tgt}đăng xong nhưng check lại (kể cả sau khi tự đăng lại) vẫn thấy ${bad.join(' & ')} có thể CHƯA hiển thị. Bạn mở bài kiểm tra tay giúp nha!${link}`);
         }
       };
 

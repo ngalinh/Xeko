@@ -223,7 +223,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
         if (!shouldCancel()) {
           logger.info('Đăng lên FB cá nhân...');
           const r = await playwright.postToPersonal(message, imagePaths, shouldCancel);
-          results.push({ target: 'FB Cá nhân', success: r.success, error: r.error, postUrl: r.postUrl, verified: r.verified });
+          results.push({ target: 'FB Cá nhân', success: r.success, error: r.error, postUrl: r.postUrl, verified: r.verified, verifyRetried: r.verifyRetried, previousPostUrl: r.previousPostUrl });
           await new Promise(r => setTimeout(r, groupDelayMs()));
         }
         const groups = Object.values(cfg.groups);
@@ -231,7 +231,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
           if (shouldCancel()) { logger.info(`[job ${jobId}] đã bị dừng — bỏ qua các group còn lại`); break; }
           logger.info(`Đăng lên ${group.name}...`);
           const gr = await playwright.postToGroup(group.id, message, imagePaths, shouldCancel);
-          results.push({ target: group.name, success: gr.success, error: gr.error, postUrl: gr.postUrl, verified: gr.verified });
+          results.push({ target: group.name, success: gr.success, error: gr.error, postUrl: gr.postUrl, verified: gr.verified, verifyRetried: gr.verifyRetried, previousPostUrl: gr.previousPostUrl });
           if (groups.indexOf(group) < groups.length - 1) {
             await new Promise(r => setTimeout(r, groupDelayMs()));
           }
@@ -246,7 +246,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
         for (const group of groups) {
           if (shouldCancel()) { logger.info(`[job ${jobId}] đã bị dừng — bỏ qua các group còn lại`); break; }
           const gr = await playwright.postToGroup(group.id, message, imagePaths, shouldCancel);
-          results.push({ target: group.name, success: gr.success, error: gr.error, postUrl: gr.postUrl, verified: gr.verified });
+          results.push({ target: group.name, success: gr.success, error: gr.error, postUrl: gr.postUrl, verified: gr.verified, verifyRetried: gr.verifyRetried, previousPostUrl: gr.previousPostUrl });
           if (groups.indexOf(group) < groups.length - 1) {
             await new Promise(r => setTimeout(r, groupDelayMs()));
           }
@@ -259,7 +259,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
         const gId = target === 'shortcut' ? cfg.groups[groupId]?.id : groupId;
         if (!gId) { setJobError(jobId, `Group "${groupId}" không tồn tại`); return; }
         const result = await playwright.postToGroup(gId, message, imagePaths, shouldCancel);
-        setJobResult(jobId, { success: result.success, error: result.error, postUrl: result.postUrl, verified: result.verified, cancelled: !!result.cancelled });
+        setJobResult(jobId, { success: result.success, error: result.error, postUrl: result.postUrl, verified: result.verified, verifyRetried: result.verifyRetried, previousPostUrl: result.previousPostUrl, cancelled: !!result.cancelled });
         return;
       }
 
@@ -267,14 +267,14 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
         if (!groupId) { setJobError(jobId, 'Thiếu pageId'); return; }
         const pageInfo = (loadChannels().fbPages || []).find(p => String(p.id) === String(groupId));
         const result = await playwright.postToPage(groupId, message, imagePaths, pageInfo?.name || null, shouldCancel);
-        setJobResult(jobId, { success: result.success, error: result.error, postUrl: result.postUrl, verified: result.verified, cancelled: !!result.cancelled });
+        setJobResult(jobId, { success: result.success, error: result.error, postUrl: result.postUrl, verified: result.verified, verifyRetried: result.verifyRetried, previousPostUrl: result.previousPostUrl, cancelled: !!result.cancelled });
         return;
       }
 
       if (target === 'personal-share-groups') {
         if (groupKeywords.length === 0) {
           const r = await playwright.postToPersonal(message, imagePaths, shouldCancel);
-          setJobResult(jobId, { success: r.success, error: r.error, postUrl: r.postUrl, verified: r.verified, cancelled: !!r.cancelled });
+          setJobResult(jobId, { success: r.success, error: r.error, postUrl: r.postUrl, verified: r.verified, verifyRetried: r.verifyRetried, previousPostUrl: r.previousPostUrl, cancelled: !!r.cancelled });
           return;
         }
         // Swap sang quickPostToPersonalAndGroups (đã verified work) thay cho
@@ -285,6 +285,8 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
           error: r.error,
           postUrl: r.postUrl,
           verified: r.verified,
+          verifyRetried: r.verifyRetried,
+          previousPostUrl: r.previousPostUrl,
           sharedGroups: r.sharedGroups != null ? r.sharedGroups : groupKeywords.length,
           missedGroups: r.missedGroups || [],
           partialSuccess: r.partialSuccess === true,
@@ -296,7 +298,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
 
       // Mặc định: đăng cá nhân
       const result = await playwright.postToPersonal(message, imagePaths, shouldCancel);
-      setJobResult(jobId, { success: result.success, error: result.error, postUrl: result.postUrl, verified: result.verified, cancelled: !!result.cancelled });
+      setJobResult(jobId, { success: result.success, error: result.error, postUrl: result.postUrl, verified: result.verified, verifyRetried: result.verifyRetried, previousPostUrl: result.previousPostUrl, cancelled: !!result.cancelled });
 
     } catch (error) {
       logger.error(`Lỗi job ${jobId}: ${error.message}`);
