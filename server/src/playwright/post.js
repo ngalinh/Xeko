@@ -1336,6 +1336,68 @@ async function recoverPostUrlFromProfile(page, message) {
   return null;
 }
 
+// Sau khi đăng, "check lại": mở đúng URL bài viết (bản mbasic — nhẹ, không cần render
+// JS phức tạp) để xác nhận ẢNH và TEXT đã THỰC SỰ hiển thị trên bài, tránh trường hợp
+// submitPost() báo "thành công" (dialog đóng + bắt được postUrl) nhưng FB âm thầm rớt
+// ảnh (đúng bug đã thấy: chọn nhầm input video → ảnh không hiện) hoặc rớt text (lỗi
+// paste). Dùng LẠI trang đang mở của phiên đăng (đã login, đỡ tốn tab mới). KHÔNG throw
+// — bài đã đăng xong, lỗi ở bước kiểm tra không nên biến bài đăng thành công thành lỗi.
+async function verifyPostDisplayed(page, postUrl, { message, imagePaths } = {}) {
+  const wantText = !!(message && message.trim());
+  const wantImages = !!(imagePaths && imagePaths.length > 0);
+  if (!postUrl || (!wantText && !wantImages)) return { checked: false };
+
+  const tag = '[verifyPostDisplayed]';
+  try {
+    const mbasic = await fetchMbasic(page, postUrl, tag);
+    if (!mbasic) {
+      logger.warn(`${tag} không đọc lại được bài để kiểm tra (postUrl=${postUrl}) — bỏ qua`);
+      return { checked: false };
+    }
+
+    const result = { checked: true };
+    const norm = s => (s || '').replace(/\s+/g, ' ').trim();
+
+    if (wantText) {
+      // So khớp NỚI LỎNG: chuẩn hoá khoảng trắng, lấy đoạn ĐẦU message làm mỏ neo —
+      // FB có thể cắt bớt cuối bài ("Xem thêm") nên không so khớp nguyên văn 100%.
+      const wantSnippet = norm(message).slice(0, 25);
+      result.textOk = wantSnippet.length > 0 && norm(mbasic.text).includes(wantSnippet);
+      if (!result.textOk) {
+        logger.warn(`${tag} ⚠️ TEXT CHƯA THẤY hiển thị trên bài đã đăng — postUrl=${postUrl}`);
+      } else {
+        logger.info(`${tag} ✅ Text đã hiển thị đúng trên bài`);
+      }
+    }
+
+    if (wantImages) {
+      result.imagesOk = mbasic.images.length > 0;
+      result.imageCountSeen = mbasic.images.length;
+      if (!result.imagesOk) {
+        logger.warn(`${tag} ⚠️ ẢNH CHƯA THẤY hiển thị trên bài đã đăng (cần ${imagePaths.length}) — postUrl=${postUrl}`);
+      } else if (mbasic.images.length < imagePaths.length) {
+        logger.warn(`${tag} ⚠️ Chỉ thấy ${mbasic.images.length}/${imagePaths.length} ảnh hiển thị trên bài — postUrl=${postUrl}`);
+      } else {
+        logger.info(`${tag} ✅ Ảnh đã hiển thị đúng trên bài (${mbasic.images.length}/${imagePaths.length})`);
+      }
+    }
+
+    return result;
+  } catch (e) {
+    logger.warn(`${tag} lỗi khi kiểm tra lại bài (postUrl=${postUrl}): ${e.message}`);
+    return { checked: false, error: e.message };
+  }
+}
+
+// Gắn kết quả verifyPostDisplayed vào object trả về của các hàm postTo* — chỉ kiểm tra
+// khi bài đăng thành công VÀ có postUrl (không có link thì không biết mở đâu để soi lại).
+async function attachVerification(page, message, imagePaths, result) {
+  if (result && result.success && result.postUrl) {
+    result.verified = await verifyPostDisplayed(page, result.postUrl, { message, imagePaths });
+  }
+  return result;
+}
+
 /**
  * Chụp screenshot bài viết của profile đang active
  */
@@ -1426,7 +1488,7 @@ async function postToPersonal(message, imagePaths = [], shouldCancel = null) {
       if (postUrl) logger.info(`${tag} ✅ vớt được link từ trang cá nhân: ${postUrl}`);
       else logger.warn(`${tag} vẫn không lấy được link sau khi đọc trang cá nhân`);
     }
-    return { success: true, target: 'personal', postUrl };
+    return await attachVerification(page, message, imagePaths, { success: true, target: 'personal', postUrl });
   } catch (error) {
     logger.error(`${tag} FAIL sau ${Date.now() - t0}ms: ${error.message}`);
     return { success: false, error: error.message };
@@ -1503,7 +1565,7 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
       throw new Error(`${hint} (xem logs/${result.screenshot || 'debug-share-submit-failed.png'})`);
     }
     logger.info(`${tag} xong (${Date.now() - t0}ms) ✅ shared=${Array.isArray(result.sharedGroups) ? result.sharedGroups.length : 0}/${kwList.length}${result.postUrl ? ` postUrl=${result.postUrl}` : ''}`);
-    return { success: true, target: 'personal+groups', postUrl: result.postUrl || null, groups: kwList, sharedGroups: result.sharedGroups, missedGroups: result.missedGroups };
+    return await attachVerification(page, message, imagePaths, { success: true, target: 'personal+groups', postUrl: result.postUrl || null, groups: kwList, sharedGroups: result.sharedGroups, missedGroups: result.missedGroups });
   } catch (error) {
     logger.error(`${tag} FAIL sau ${Date.now() - t0}ms: ${error.message}`);
     return { success: false, error: error.message };
@@ -1594,7 +1656,7 @@ async function postToGroup(groupId, message, imagePaths = [], shouldCancel = nul
     }
 
     logger.info(`Đã đăng bài group ${groupId} thành công!${result.postUrl ? ` postUrl=${result.postUrl}` : ''}`);
-    return { success: true, target: `group:${groupId}`, postUrl: result.postUrl || null };
+    return await attachVerification(page, message, imagePaths, { success: true, target: `group:${groupId}`, postUrl: result.postUrl || null });
   } catch (error) {
     logger.error(`Lỗi: ${error.message}`);
     return { success: false, error: error.message };
@@ -1889,7 +1951,7 @@ async function postToPage(pageId, message, imagePaths = [], pageName = null, sho
 
     logger.info(`Đã đăng bài page ${pageId} thành công!${result.postUrl ? ` postUrl=${result.postUrl}` : ''}`);
     await dismissAddButtonPrompt(page);
-    return { success: true, target: `page:${pageId}`, postUrl: result.postUrl || null };
+    return await attachVerification(page, message, imagePaths, { success: true, target: `page:${pageId}`, postUrl: result.postUrl || null });
   } catch (error) {
     logger.error(`Lỗi postToPage(${pageId}): ${error.message}`);
     return { success: false, error: error.message };
@@ -2852,7 +2914,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
         const submit = await qpStep6Submit(page, steps, shouldCancel);
         _wasCancelled = !!submit.cancelled;
         logger.info(`${tag} fallback personal-only (+${Date.now() - t0}ms)`);
-        return {
+        return await attachVerification(page, message, imagePaths, {
           success: submit.success,
           postUrl: submit.postUrl,
           sharedGroups: [],
@@ -2861,7 +2923,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
           steps,
           cancelled: !!submit.cancelled,
           error: submit.success ? undefined : (submit.error || 'Step 4 fail và fallback Đăng cũng fail'),
-        };
+        });
       }
       await randomDelay(500, 1000);
 
@@ -2880,7 +2942,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
         const submit = await qpStep6Submit(page, steps, shouldCancel);
         _wasCancelled = !!submit.cancelled;
         logger.info(`${tag} fallback personal-only sau step5 fail (+${Date.now() - t0}ms)`);
-        return {
+        return await attachVerification(page, message, imagePaths, {
           success: submit.success,
           postUrl: submit.postUrl,
           sharedGroups: [],
@@ -2889,7 +2951,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
           steps,
           cancelled: !!submit.cancelled,
           error: submit.success ? undefined : (submit.error || 'Step 5 fail và fallback Đăng cũng fail'),
-        };
+        });
       }
       await randomDelay(600, 1000);
 
@@ -2897,7 +2959,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
       const submit = await qpStep6Submit(page, steps, shouldCancel);
       _wasCancelled = !!submit.cancelled;
       logger.info(`${tag} done (+${Date.now() - t0}ms)`);
-      return {
+      return await attachVerification(page, message, imagePaths, {
         success: submit.success,
         postUrl: submit.postUrl,
         sharedGroups: pick.selected,
@@ -2906,7 +2968,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
         steps,
         cancelled: !!submit.cancelled,
         error: submit.success ? undefined : (submit.error || 'Step 6 fail'),
-      };
+      });
     }
 
     // Nhánh chỉ đăng cá nhân: vẫn phải qua "Tiếp" → "Cài đặt bài viết" → "Đăng"
@@ -2920,13 +2982,13 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
     const submit = await qpStep6Submit(page, steps, shouldCancel);
     _wasCancelled = !!submit.cancelled;
     logger.info(`${tag} done personal-only (+${Date.now() - t0}ms)`);
-    return {
+    return await attachVerification(page, message, imagePaths, {
       success: submit.success,
       postUrl: submit.postUrl,
       steps,
       cancelled: !!submit.cancelled,
       error: submit.success ? undefined : (submit.error || 'Step 6 fail'),
-    };
+    });
   } catch (e) {
     logger.error(`${tag} exception: ${e.message}`);
     const shot = await _qpScreenshot(page, 'exception');

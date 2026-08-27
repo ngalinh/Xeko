@@ -7876,6 +7876,26 @@
         }
       };
 
+      // Bước check lại sau khi đăng: server đã mở lại bài (bản mbasic) để xác nhận
+      // ẢNH/TEXT thực sự hiển thị (xem verifyPostDisplayed ở server/src/playwright/post.js).
+      // Đăng "thành công" (dialog đóng + có postUrl) nhưng FB có thể âm thầm rớt ảnh/text
+      // → báo ngay cho user biết để mở bài kiểm tra tay, thay vì im lặng.
+      const _surfaceVerifyWarning = (resp) => {
+        if (!resp) return;
+        const list = Array.isArray(resp.results) ? resp.results : [resp];
+        for (const r of list) {
+          const v = r && r.verified;
+          if (!v || !v.checked) continue;
+          const bad = [];
+          if (v.textOk === false) bad.push('text');
+          if (v.imagesOk === false) bad.push('ảnh');
+          if (!bad.length) continue;
+          const tgt = r.target ? `<strong>${r.target}</strong> ` : '';
+          const link = r.postUrl ? ` <a href="${r.postUrl}" target="_blank">🔗 Xem bài</a>` : '';
+          addBot(`⚠️ Bài ${tgt}đăng xong nhưng check lại thấy ${bad.join(' & ')} có thể CHƯA hiển thị. Bạn mở bài kiểm tra tay giúp nha!${link}`);
+        }
+      };
+
       const _refreshDashIfActive = (resetPage = false, noSkeleton = false) => {
         const dashPg = document.getElementById('pageDashboard');
         if (dashPg && dashPg.classList.contains('active') && typeof loadDashHistory === 'function') {
@@ -8100,6 +8120,7 @@
             _surfaceFbError(initial);
           }
           successCount += countSuccess(data);
+          _surfaceVerifyWarning(data);
         }
         // Da gui xong request chinh (ke ca khong co target FB) → nha hang doi.
         markSubmitted();
@@ -8133,6 +8154,7 @@
               _surfaceFbError(initial);
             }
             if (cd && cd.success) successCount += 1;
+            _surfaceVerifyWarning(cd);
           } catch (ce) {
             // Submit lỗi (mạng/proxy) → chưa chắc fail, không spam chat. Dashboard là sự thật.
             unconfirmedCount += 1;
@@ -8164,8 +8186,10 @@
               catch (e) { pd = null; if (!e.confirmedFail) unconfirmedCount += 1; }
               finally { removePendingJob(initial.jobId); }
               if (pd && pd.success) successCount += 1;
+              _surfaceVerifyWarning(pd);
             } else if (initial.success) {
               successCount += 1;
+              _surfaceVerifyWarning(initial);
             } else {
               _surfaceFbError(initial);
             }
