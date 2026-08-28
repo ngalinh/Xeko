@@ -965,7 +965,8 @@ async function waitImageSent(page, expected = 1, before = null) {
   }
 
   // (2) Ảnh THẬT SỰ vào hội thoại: số ảnh thread tăng ≥ need. Upload ảnh lên Zalo
-  // chậm → chờ tới 45s. Đây là điều kiện QUYẾT ĐỊNH có được gửi text hay không.
+  // chậm (đặc biệt nhiều ảnh + proxy chậm) → chờ tới 75s. Đây là điều kiện QUYẾT
+  // ĐỊNH có được gửi text hay không.
   let inThread = false;
   try {
     await page.waitForFunction(({ base, need }) => {
@@ -987,16 +988,30 @@ async function waitImageSent(page, expected = 1, before = null) {
         else if ((s.startsWith('blob:') || s.startsWith('data:')) && !inComposer(img)) threadBlob++;
       }
       return (http - base.http) >= need || (threadBlob - base.threadBlob) >= need;
-    }, { base, need }, { timeout: 45000 });
+    }, { base, need }, { timeout: 75000 });
     inThread = true;
   } catch {
-    logger.warn(`[basso] waitImageSent: KHÔNG thấy đủ ${need} ảnh xuất hiện trong hội thoại sau 45s`);
+    logger.warn(`[basso] waitImageSent: KHÔNG thấy đủ ${need} ảnh xuất hiện trong hội thoại sau 75s — kiểm tra lại lần cuối`);
   }
 
   // Chờ network rảnh để upload lên Zalo hoàn tất trước khi caller đóng browser.
   await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
   await sleep(1500);
   const after = await _imageThreadState(page).catch(() => base);
+  // QUAN TRỌNG (fix false-negative): waitForFunction ở trên có thể timeout ĐÚNG
+  // NGAY TRƯỚC KHI ảnh kịp lên hội thoại (đặc biệt basso/Zalo xử lý xong ngay sau
+  // mốc 75s) — trước đây `after` chỉ dùng để LOG chứ không dùng để xét lại kết quả,
+  // khiến ảnh ĐÃ THỰC SỰ gửi thành công vẫn bị báo "Failed" (ảnh có trong hội thoại
+  // nhưng hệ thống không nhận ra). Ở đây chấm lại lần cuối bằng snapshot `after`
+  // (đã có thêm ~21.5s từ networkidle+sleep) trước khi kết luận thất bại.
+  if (!inThread) {
+    const httpUp = after.http - base.http;
+    const threadUp = after.threadBlob - base.threadBlob;
+    if (httpUp >= need || threadUp >= need) {
+      inThread = true;
+      logger.info(`[basso] waitImageSent: ảnh đã lên hội thoại ở lần kiểm tra CUỐI (httpUp=${httpUp}, threadUp=${threadUp}) — coi là gửi thành công.`);
+    }
+  }
   logger.info(`[basso][verify] sau khi gửi ảnh: ${JSON.stringify(after)} (previewLeft=${previewLeft}, inThread=${inThread})`);
   return inThread;
 }
