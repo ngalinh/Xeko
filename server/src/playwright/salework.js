@@ -780,53 +780,105 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null) 
   // THỨ TỰ (theo yêu cầu): GỬI ẢNH TRƯỚC thành 1 tin riêng, RỒI GỬI TEXT thành tin riêng.
 
   // ----- 1. ẢNH: đính rồi gửi -----
+  // Thử tối đa 2 lần TOÀN BỘ chuỗi (đính → bấm Gửi → xác minh vào hội thoại). Nếu
+  // cả 2 lần đều fail thì HUỶ LUÔN toàn bộ tin nhắn — KHÔNG gửi text nữa. Có ảnh
+  // mà thiếu ảnh đăng thành công thì thà không đăng gì còn hơn đăng thiếu hình.
   if (imagePaths.length > 0) {
-    const uploaded = await attachImages(page, imagePaths);
-    // KHÔNG đăng thiếu hình: có ảnh mà đính KHÔNG ĐỦ (thiếu/không vào được) thì BÁO
-    // LỖI để đăng lại, thay vì âm thầm chỉ gửi text (chính là "rớt hình" ở group sau).
-    if (!uploaded) {
-      throw new Error(`Không đính đủ ${imagePaths.length} ảnh (file input/menu/paste đều fail hoặc đính thiếu sau 2 lần thử) — đã huỷ để tránh đăng thiếu hình. Thử đăng lại.`);
+    let imageOk = false;
+    let lastImageError = null;
+    for (let attempt = 1; attempt <= 2 && !imageOk; attempt++) {
+      if (attempt > 1) {
+        logger.warn(`[basso] Gửi ảnh lần ${attempt - 1} thất bại (${lastImageError?.message}) — thử lại lần ${attempt}...`);
+        await sleep(1500);
+      }
+      try {
+        const uploaded = await attachImages(page, imagePaths);
+        // Đính KHÔNG ĐỦ (thiếu/không vào được) → coi là fail của lượt này, để vòng
+        // lặp thử lại thay vì âm thầm chỉ gửi text (chính là "rớt hình" ở group sau).
+        if (!uploaded) {
+          throw new Error(`Không đính đủ ${imagePaths.length} ảnh (file input/menu/paste đều fail hoặc đính thiếu sau 2 lần thử)`);
+        }
+        // Chụp trạng thái ảnh TRONG HỘI THOẠI ngay TRƯỚC khi bấm Gửi (lúc này ảnh mới
+        // chỉ là preview blob trong ô soạn, CHƯA có bong bóng ảnh trong thread). Dùng làm
+        // mốc để xác minh ảnh THẬT SỰ vào hội thoại sau khi gửi.
+        const before = await _imageThreadState(page).catch(() => ({ http: 0, threadBlob: 0, composerBlob: 0 }));
+        logger.info(`[basso][verify] trước khi gửi ảnh (lần ${attempt}): ${JSON.stringify(before)}`);
+        _throwIfCancelled();
+        if (await clickSend(page)) { logger.info('[basso] Đã bấm gửi tin ảnh'); }
+        else throw new Error('Đính được ảnh nhưng không bấm gửi được tin ảnh.');
+        // QUAN TRỌNG (lỗi Zalo-specific): bấm Gửi xong, basso CÒN đang upload ảnh lên
+        // Zalo (chậm hơn text rất nhiều). Trước đây chỉ sleep 1500ms rồi caller đóng
+        // browser ngay → upload bị cắt giữa chừng → group KHÔNG nhận ảnh dù đã báo gửi.
+        // SIẾT XÁC MINH: chỉ dựa "preview rời ô soạn" là CHƯA đủ — basso có thể xoá
+        // preview nhưng upload FAIL (group rỗng), rồi ta vẫn gửi text → "chỉ gửi text".
+        // waitImageSent giờ đòi ảnh THẬT SỰ xuất hiện trong hội thoại (số ảnh thread
+        // tăng ≥ số ảnh cần) mới coi là gửi được.
+        const imageSent = await waitImageSent(page, imagePaths.length, before);
+        if (!imageSent) {
+          throw new Error('Đã bấm Gửi nhưng ảnh KHÔNG xuất hiện trong hội thoại sau khi chờ (preview rời ô soạn nhưng bong bóng ảnh không lên)');
+        }
+        imageOk = true;
+        sentAny = true;
+      } catch (e) {
+        if (e.cancelled) throw e; // người dùng bấm Dừng — không thử lại
+        lastImageError = e;
+        logger.error(`[basso] Gửi ảnh lần ${attempt} lỗi: ${e.message}`);
+      }
     }
-    // Chụp trạng thái ảnh TRONG HỘI THOẠI ngay TRƯỚC khi bấm Gửi (lúc này ảnh mới
-    // chỉ là preview blob trong ô soạn, CHƯA có bong bóng ảnh trong thread). Dùng làm
-    // mốc để xác minh ảnh THẬT SỰ vào hội thoại sau khi gửi.
-    const before = await _imageThreadState(page).catch(() => ({ http: 0, threadBlob: 0, composerBlob: 0 }));
-    logger.info(`[basso][verify] trước khi gửi ảnh: ${JSON.stringify(before)}`);
-    _throwIfCancelled();
-    if (await clickSend(page)) { sentAny = true; logger.info('[basso] Đã bấm gửi tin ảnh'); }
-    else throw new Error('Đính được ảnh nhưng không bấm gửi được tin ảnh.');
-    // QUAN TRỌNG (lỗi Zalo-specific): bấm Gửi xong, basso CÒN đang upload ảnh lên
-    // Zalo (chậm hơn text rất nhiều). Trước đây chỉ sleep 1500ms rồi caller đóng
-    // browser ngay → upload bị cắt giữa chừng → group KHÔNG nhận ảnh dù đã báo gửi.
-    // SIẾT XÁC MINH: chỉ dựa "preview rời ô soạn" là CHƯA đủ — basso có thể xoá
-    // preview nhưng upload FAIL (group rỗng), rồi ta vẫn gửi text → "chỉ gửi text".
-    // waitImageSent giờ đòi ảnh THẬT SỰ xuất hiện trong hội thoại (số ảnh thread
-    // tăng ≥ số ảnh cần) mới coi là gửi được; không thì DỪNG, KHÔNG gửi text.
-    const imageSent = await waitImageSent(page, imagePaths.length, before);
-    if (!imageSent) {
-      throw new Error('Đã bấm Gửi nhưng ảnh KHÔNG xuất hiện trong hội thoại sau khi chờ (preview rời ô soạn nhưng bong bóng ảnh không lên) — đã HUỶ, KHÔNG gửi text để tránh đăng thiếu hình. Thử đăng lại.');
+    if (!imageOk) {
+      throw new Error(`Gửi ảnh thất bại sau 2 lần thử (${lastImageError?.message}) — đã HUỶ, KHÔNG gửi text để tránh đăng thiếu hình. Thử đăng lại.`);
     }
   }
 
   // ----- 2. TEXT: nhập vào textarea.msg-textarea rồi gửi -----
   // textarea bind Vue v-model → fill() set value + bắn 'input' để BẬT nút Gửi.
   // KHÔNG gõ Enter (Enter chỉ xuống dòng). Dispatch thêm input/change cho chắc.
+  // Thử tối đa 2 lần: bấm Gửi xong mà ô soạn KHÔNG rỗng lại (= tin chưa thật sự
+  // rời ô soạn/hiển thị) thì nhập lại & bấm Gửi lần nữa trước khi báo lỗi.
   if (message) {
-    const ta = page.locator('textarea.msg-textarea, textarea[placeholder*="Nhập tin nhắn"], textarea:visible').first();
-    try {
-      await ta.click({ timeout: 5000 });
-      await ta.fill(message);
-      await ta.evaluate((el, val) => {
-        el.value = val;
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-      }, message);
-      logger.info('[basso] Đã nhập nội dung tin nhắn');
-    } catch (e) {
-      logger.error(`[basso] Không nhập được nội dung: ${e.message}`);
+    let textOk = false;
+    let lastTextError = null;
+    for (let attempt = 1; attempt <= 2 && !textOk; attempt++) {
+      if (attempt > 1) {
+        logger.warn(`[basso] Gửi text lần ${attempt - 1} thất bại (${lastTextError?.message}) — thử lại lần ${attempt}...`);
+        await sleep(1500);
+      }
+      try {
+        const ta = page.locator('textarea.msg-textarea, textarea[placeholder*="Nhập tin nhắn"], textarea:visible').first();
+        await ta.click({ timeout: 5000 });
+        await ta.fill(message);
+        await ta.evaluate((el, val) => {
+          el.value = val;
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        }, message);
+        logger.info('[basso] Đã nhập nội dung tin nhắn');
+        _throwIfCancelled();
+        if (!(await clickSend(page))) {
+          throw new Error('Không bấm gửi được tin text.');
+        }
+        // Xác minh tin ĐÃ RỜI Ô SOẠN (Zalo tự xoá nội dung ô soạn khi gửi thành
+        // công) — bấm Gửi mà ô soạn vẫn còn nguyên nội dung = tin CHƯA thật sự
+        // hiển thị/gửi đi, cần nhập & gửi lại thay vì coi như xong.
+        const cleared = await page.waitForFunction(() => {
+          const el = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
+          return !el || el.value.trim() === '';
+        }, { timeout: 8000 }).then(() => true).catch(() => false);
+        if (!cleared) {
+          throw new Error('Đã bấm Gửi nhưng tin text KHÔNG hiển thị/rời khỏi ô soạn sau khi chờ.');
+        }
+        textOk = true;
+        sentAny = true;
+        logger.info('[basso] Đã gửi tin text');
+      } catch (e) {
+        if (e.cancelled) throw e; // người dùng bấm Dừng — không thử lại
+        lastTextError = e;
+        logger.error(`[basso] Gửi text lần ${attempt} lỗi: ${e.message}`);
+      }
     }
-    _throwIfCancelled();
-    if (await clickSend(page)) { sentAny = true; logger.info('[basso] Đã gửi tin text'); }
+    if (!textOk) {
+      throw new Error(`Gửi text thất bại sau 2 lần thử (${lastTextError?.message}) — đã HUỶ. Thử đăng lại.`);
+    }
   }
 
   if (!sentAny) {
@@ -834,9 +886,10 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null) 
   }
 
   // Lắng đọng lần cuối TRƯỚC khi caller đóng browser: tin cuối (ảnh/text) có thể
-  // vẫn đang lên server. Đóng browser sớm = mất tin. Chờ network rảnh + 1 nhịp.
+  // vẫn đang lên server. Đóng browser sớm = mất tin. Chờ network rảnh + nghỉ dài
+  // hơn hẳn trước đây (2s → 5s) để chắc chắn mọi request cuối đã hoàn tất.
   await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
-  await sleep(2000);
+  await sleep(5000);
   return true;
 }
 
@@ -847,8 +900,26 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null) 
 //     (basso hiển thị lạc quan bằng chính blob trước khi swap sang URL CDN).
 //   - http        : ảnh URL http(s) hiển thị (lịch sử chat + ảnh vừa gửi sau khi lên CDN).
 // Khu soạn = tổ tiên gần nhất của textarea mà cũng chứa nút Gửi (giống attachImages).
+// Lấy URL "nguồn" thật của 1 phần tử ảnh — không chỉ <img src/currentSrc> mà còn:
+//  - data-src/data-original: ảnh lazy-load (src rỗng/placeholder tới khi cuộn vào view).
+//  - CSS background-image: bong bóng ảnh nhiều tấm (mosaic) basso hay dựng bằng div nền
+//    thay vì thẻ <img> thật — đếm theo <img> thôi thì ảnh ĐÃ HIỆN RÕ trên màn hình vẫn
+//    không được tính, khiến hệ thống báo "chưa xác nhận" dù ảnh đã lên hội thoại thật.
+// Dùng CHUNG 1 định nghĩa (đưa vào page.evaluate mỗi lần vì browser context không gọi
+// được hàm Node) để 3 chỗ đếm ảnh (preview rời ô soạn / ảnh vào hội thoại / snapshot)
+// khớp nhau tuyệt đối, tránh lệch tiêu chí.
+const _IMG_SRC_OF_SRC = `function(el) {
+  if (el.tagName === 'IMG') {
+    return el.currentSrc || el.src || el.getAttribute('data-src') || el.getAttribute('data-original') || '';
+  }
+  const bg = getComputedStyle(el).backgroundImage || '';
+  const m = bg.match(/url\\(["']?([^"')]+)["']?\\)/);
+  return m ? m[1] : '';
+}`;
+
 async function _imageThreadState(page) {
-  return page.evaluate(() => {
+  return page.evaluate(({ srcOfSrc }) => {
+    const srcOf = new Function('return ' + srcOfSrc)();
     const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
     let root = ta;
     if (ta) {
@@ -860,16 +931,16 @@ async function _imageThreadState(page) {
     const inComposer = (el) => !!(root && root.contains(el));
     const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 24 && r.height > 24; };
     let http = 0, threadBlob = 0, composerBlob = 0;
-    for (const img of document.querySelectorAll('img')) {
-      if (!visible(img)) continue;
-      const s = img.currentSrc || img.src || '';
+    for (const el of document.querySelectorAll('img, [style*="background-image"]')) {
+      if (!visible(el)) continue;
+      const s = srcOf(el);
       if (s.startsWith('http')) http++;
       else if (s.startsWith('blob:') || s.startsWith('data:')) {
-        if (inComposer(img)) composerBlob++; else threadBlob++;
+        if (inComposer(el)) composerBlob++; else threadBlob++;
       }
     }
     return { http, threadBlob, composerBlob };
-  });
+  }, { srcOfSrc: _IMG_SRC_OF_SRC });
 }
 
 // Chờ + XÁC MINH ảnh ĐÃ VÀO HỘI THOẠI thật sự, không chỉ "đã bấm Gửi" hay "preview
@@ -886,10 +957,12 @@ async function waitImageSent(page, expected = 1, before = null) {
   const base = before || { http: 0, threadBlob: 0, composerBlob: 0 };
   const need = Math.max(1, expected);
 
-  // (1) Preview rời ô soạn (không chặn kết quả, chỉ để log & chờ nhẹ).
+  // (1) Preview rời ô soạn (không chặn kết quả, chỉ để log & chờ nhẹ). Rút ngắn
+  // còn 10s — chỉ cần tín hiệu nhanh là basso đã nhận lệnh gửi, không cần chờ lâu.
   let previewLeft = true;
   try {
-    await page.waitForFunction(() => {
+    await page.waitForFunction(({ srcOfSrc }) => {
+      const srcOf = new Function('return ' + srcOfSrc)();
       const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
       if (!ta) return true;
       let root = ta;
@@ -897,25 +970,27 @@ async function waitImageSent(page, expected = 1, before = null) {
         root = root.parentElement;
         if (root.querySelector('button.send-btn')) break;
       }
-      for (const img of root.querySelectorAll('img')) {
-        const s = img.currentSrc || img.src || '';
+      for (const el of root.querySelectorAll('img, [style*="background-image"]')) {
+        const s = srcOf(el);
         if (s.startsWith('blob:') || s.startsWith('data:')) {
-          const r = img.getBoundingClientRect();
+          const r = el.getBoundingClientRect();
           if (r.width > 12 && r.height > 12) return false;
         }
       }
       return true;
-    }, { timeout: 30000 });
+    }, { srcOfSrc: _IMG_SRC_OF_SRC }, { timeout: 10000 });
   } catch {
     previewLeft = false;
-    logger.warn('[basso] waitImageSent: preview ảnh CHƯA rời ô soạn sau 30s');
+    logger.warn('[basso] waitImageSent: preview ảnh CHƯA rời ô soạn sau 10s');
   }
 
-  // (2) Ảnh THẬT SỰ vào hội thoại: số ảnh thread tăng ≥ need. Upload ảnh lên Zalo
-  // chậm → chờ tới 45s. Đây là điều kiện QUYẾT ĐỊNH có được gửi text hay không.
+  // (2) Ảnh THẬT SỰ vào hội thoại: số ảnh thread tăng ≥ need. RÚT NGẮN còn 15s
+  // (trước đây 75s quá lâu, làm chậm cả loạt bài đăng) — không cần chờ lâu vì có
+  // bước xác nhận cuối bên dưới bù lại các ca lên chậm.
   let inThread = false;
   try {
-    await page.waitForFunction(({ base, need }) => {
+    await page.waitForFunction(({ base, need, srcOfSrc }) => {
+      const srcOf = new Function('return ' + srcOfSrc)();
       const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
       let root = ta;
       if (ta) {
@@ -927,23 +1002,33 @@ async function waitImageSent(page, expected = 1, before = null) {
       const inComposer = (el) => !!(root && root.contains(el));
       const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 24 && r.height > 24; };
       let http = 0, threadBlob = 0;
-      for (const img of document.querySelectorAll('img')) {
-        if (!visible(img)) continue;
-        const s = img.currentSrc || img.src || '';
+      for (const el of document.querySelectorAll('img, [style*="background-image"]')) {
+        if (!visible(el)) continue;
+        const s = srcOf(el);
         if (s.startsWith('http')) http++;
-        else if ((s.startsWith('blob:') || s.startsWith('data:')) && !inComposer(img)) threadBlob++;
+        else if ((s.startsWith('blob:') || s.startsWith('data:')) && !inComposer(el)) threadBlob++;
       }
       return (http - base.http) >= need || (threadBlob - base.threadBlob) >= need;
-    }, { base, need }, { timeout: 45000 });
+    }, { base, need, srcOfSrc: _IMG_SRC_OF_SRC }, { timeout: 15000 });
     inThread = true;
   } catch {
-    logger.warn(`[basso] waitImageSent: KHÔNG thấy đủ ${need} ảnh xuất hiện trong hội thoại sau 45s`);
+    logger.warn(`[basso] waitImageSent: KHÔNG thấy đủ ${need} ảnh xuất hiện trong hội thoại sau 15s — kiểm tra lại lần cuối rồi cho gửi text`);
   }
 
-  // Chờ network rảnh để upload lên Zalo hoàn tất trước khi caller đóng browser.
-  await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
-  await sleep(1500);
+  // Chờ network rảnh (rút ngắn) rồi chấm lại lần CUỐI bằng snapshot thật (dùng
+  // CHUNG bộ nhận diện ảnh với bước (2) — kể cả ảnh dạng background-image) trước
+  // khi cho phép gửi text ngay, không chờ lâu thêm nữa.
+  await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
+  await sleep(1000);
   const after = await _imageThreadState(page).catch(() => base);
+  if (!inThread) {
+    const httpUp = after.http - base.http;
+    const threadUp = after.threadBlob - base.threadBlob;
+    if (httpUp >= need || threadUp >= need) {
+      inThread = true;
+      logger.info(`[basso] waitImageSent: ảnh đã lên hội thoại ở lần kiểm tra CUỐI (httpUp=${httpUp}, threadUp=${threadUp}) — coi là gửi thành công.`);
+    }
+  }
   logger.info(`[basso][verify] sau khi gửi ảnh: ${JSON.stringify(after)} (previewLeft=${previewLeft}, inThread=${inThread})`);
   return inThread;
 }
@@ -1025,7 +1110,11 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
     // Dọn ảnh JPEG chuẩn hoá tạm (upload đã xong khi tới đây). File gốc do
     // local-server quản lý vòng đời, không đụng ở đây.
     for (const f of normalizedImageFiles) { try { fs.unlinkSync(f); } catch {} }
-    Promise.race([page.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {})
+    // Chờ thêm một nhịp TRƯỚC khi đóng trình duyệt — không đóng vội ngay khi vừa
+    // gửi xong, để có thời gian xác nhận trực quan trên màn hình (headless: false)
+    // và tránh cắt ngang bất kỳ request nào của Zalo còn sót lại.
+    sleep(4000)
+      .then(() => Promise.race([page.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {}))
       .then(() => Promise.race([browser.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {}))
       .then(() => logger.info('[salework] Đã đóng browser'))
       .catch(() => {});
