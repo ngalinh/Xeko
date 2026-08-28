@@ -781,9 +781,8 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null) 
 
   // ----- 1. ẢNH: đính rồi gửi -----
   // Thử tối đa 2 lần TOÀN BỘ chuỗi (đính → bấm Gửi → xác minh vào hội thoại). Nếu
-  // cả 2 lần đều fail thì KHÔNG huỷ toàn bộ tin nhắn nữa — bỏ qua ảnh và vẫn tiếp
-  // tục gửi text, tránh mất luôn cả text chỉ vì ảnh trục trặc (group vẫn nhận được
-  // nội dung, tốt hơn là không gửi gì).
+  // cả 2 lần đều fail thì HUỶ LUÔN toàn bộ tin nhắn — KHÔNG gửi text nữa. Có ảnh
+  // mà thiếu ảnh đăng thành công thì thà không đăng gì còn hơn đăng thiếu hình.
   if (imagePaths.length > 0) {
     let imageOk = false;
     let lastImageError = null;
@@ -827,29 +826,59 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null) 
       }
     }
     if (!imageOk) {
-      logger.error(`[basso] Gửi ảnh thất bại sau 2 lần thử (${lastImageError?.message}) — bỏ qua ảnh, tiếp tục gửi text.`);
+      throw new Error(`Gửi ảnh thất bại sau 2 lần thử (${lastImageError?.message}) — đã HUỶ, KHÔNG gửi text để tránh đăng thiếu hình. Thử đăng lại.`);
     }
   }
 
   // ----- 2. TEXT: nhập vào textarea.msg-textarea rồi gửi -----
   // textarea bind Vue v-model → fill() set value + bắn 'input' để BẬT nút Gửi.
   // KHÔNG gõ Enter (Enter chỉ xuống dòng). Dispatch thêm input/change cho chắc.
+  // Thử tối đa 2 lần: bấm Gửi xong mà ô soạn KHÔNG rỗng lại (= tin chưa thật sự
+  // rời ô soạn/hiển thị) thì nhập lại & bấm Gửi lần nữa trước khi báo lỗi.
   if (message) {
-    const ta = page.locator('textarea.msg-textarea, textarea[placeholder*="Nhập tin nhắn"], textarea:visible').first();
-    try {
-      await ta.click({ timeout: 5000 });
-      await ta.fill(message);
-      await ta.evaluate((el, val) => {
-        el.value = val;
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-      }, message);
-      logger.info('[basso] Đã nhập nội dung tin nhắn');
-    } catch (e) {
-      logger.error(`[basso] Không nhập được nội dung: ${e.message}`);
+    let textOk = false;
+    let lastTextError = null;
+    for (let attempt = 1; attempt <= 2 && !textOk; attempt++) {
+      if (attempt > 1) {
+        logger.warn(`[basso] Gửi text lần ${attempt - 1} thất bại (${lastTextError?.message}) — thử lại lần ${attempt}...`);
+        await sleep(1500);
+      }
+      try {
+        const ta = page.locator('textarea.msg-textarea, textarea[placeholder*="Nhập tin nhắn"], textarea:visible').first();
+        await ta.click({ timeout: 5000 });
+        await ta.fill(message);
+        await ta.evaluate((el, val) => {
+          el.value = val;
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        }, message);
+        logger.info('[basso] Đã nhập nội dung tin nhắn');
+        _throwIfCancelled();
+        if (!(await clickSend(page))) {
+          throw new Error('Không bấm gửi được tin text.');
+        }
+        // Xác minh tin ĐÃ RỜI Ô SOẠN (Zalo tự xoá nội dung ô soạn khi gửi thành
+        // công) — bấm Gửi mà ô soạn vẫn còn nguyên nội dung = tin CHƯA thật sự
+        // hiển thị/gửi đi, cần nhập & gửi lại thay vì coi như xong.
+        const cleared = await page.waitForFunction(() => {
+          const el = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
+          return !el || el.value.trim() === '';
+        }, { timeout: 8000 }).then(() => true).catch(() => false);
+        if (!cleared) {
+          throw new Error('Đã bấm Gửi nhưng tin text KHÔNG hiển thị/rời khỏi ô soạn sau khi chờ.');
+        }
+        textOk = true;
+        sentAny = true;
+        logger.info('[basso] Đã gửi tin text');
+      } catch (e) {
+        if (e.cancelled) throw e; // người dùng bấm Dừng — không thử lại
+        lastTextError = e;
+        logger.error(`[basso] Gửi text lần ${attempt} lỗi: ${e.message}`);
+      }
     }
-    _throwIfCancelled();
-    if (await clickSend(page)) { sentAny = true; logger.info('[basso] Đã gửi tin text'); }
+    if (!textOk) {
+      throw new Error(`Gửi text thất bại sau 2 lần thử (${lastTextError?.message}) — đã HUỶ. Thử đăng lại.`);
+    }
   }
 
   if (!sentAny) {
@@ -857,9 +886,10 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null) 
   }
 
   // Lắng đọng lần cuối TRƯỚC khi caller đóng browser: tin cuối (ảnh/text) có thể
-  // vẫn đang lên server. Đóng browser sớm = mất tin. Chờ network rảnh + 1 nhịp.
+  // vẫn đang lên server. Đóng browser sớm = mất tin. Chờ network rảnh + nghỉ dài
+  // hơn hẳn trước đây (2s → 5s) để chắc chắn mọi request cuối đã hoàn tất.
   await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
-  await sleep(2000);
+  await sleep(5000);
   return true;
 }
 
@@ -1048,7 +1078,11 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
     // Dọn ảnh JPEG chuẩn hoá tạm (upload đã xong khi tới đây). File gốc do
     // local-server quản lý vòng đời, không đụng ở đây.
     for (const f of normalizedImageFiles) { try { fs.unlinkSync(f); } catch {} }
-    Promise.race([page.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {})
+    // Chờ thêm một nhịp TRƯỚC khi đóng trình duyệt — không đóng vội ngay khi vừa
+    // gửi xong, để có thời gian xác nhận trực quan trên màn hình (headless: false)
+    // và tránh cắt ngang bất kỳ request nào của Zalo còn sót lại.
+    sleep(4000)
+      .then(() => Promise.race([page.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {}))
       .then(() => Promise.race([browser.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {}))
       .then(() => logger.info('[salework] Đã đóng browser'))
       .catch(() => {});
