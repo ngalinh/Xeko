@@ -780,31 +780,54 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null) 
   // THỨ TỰ (theo yêu cầu): GỬI ẢNH TRƯỚC thành 1 tin riêng, RỒI GỬI TEXT thành tin riêng.
 
   // ----- 1. ẢNH: đính rồi gửi -----
+  // Thử tối đa 2 lần TOÀN BỘ chuỗi (đính → bấm Gửi → xác minh vào hội thoại). Nếu
+  // cả 2 lần đều fail thì KHÔNG huỷ toàn bộ tin nhắn nữa — bỏ qua ảnh và vẫn tiếp
+  // tục gửi text, tránh mất luôn cả text chỉ vì ảnh trục trặc (group vẫn nhận được
+  // nội dung, tốt hơn là không gửi gì).
   if (imagePaths.length > 0) {
-    const uploaded = await attachImages(page, imagePaths);
-    // KHÔNG đăng thiếu hình: có ảnh mà đính KHÔNG ĐỦ (thiếu/không vào được) thì BÁO
-    // LỖI để đăng lại, thay vì âm thầm chỉ gửi text (chính là "rớt hình" ở group sau).
-    if (!uploaded) {
-      throw new Error(`Không đính đủ ${imagePaths.length} ảnh (file input/menu/paste đều fail hoặc đính thiếu sau 2 lần thử) — đã huỷ để tránh đăng thiếu hình. Thử đăng lại.`);
+    let imageOk = false;
+    let lastImageError = null;
+    for (let attempt = 1; attempt <= 2 && !imageOk; attempt++) {
+      if (attempt > 1) {
+        logger.warn(`[basso] Gửi ảnh lần ${attempt - 1} thất bại (${lastImageError?.message}) — thử lại lần ${attempt}...`);
+        await sleep(1500);
+      }
+      try {
+        const uploaded = await attachImages(page, imagePaths);
+        // Đính KHÔNG ĐỦ (thiếu/không vào được) → coi là fail của lượt này, để vòng
+        // lặp thử lại thay vì âm thầm chỉ gửi text (chính là "rớt hình" ở group sau).
+        if (!uploaded) {
+          throw new Error(`Không đính đủ ${imagePaths.length} ảnh (file input/menu/paste đều fail hoặc đính thiếu sau 2 lần thử)`);
+        }
+        // Chụp trạng thái ảnh TRONG HỘI THOẠI ngay TRƯỚC khi bấm Gửi (lúc này ảnh mới
+        // chỉ là preview blob trong ô soạn, CHƯA có bong bóng ảnh trong thread). Dùng làm
+        // mốc để xác minh ảnh THẬT SỰ vào hội thoại sau khi gửi.
+        const before = await _imageThreadState(page).catch(() => ({ http: 0, threadBlob: 0, composerBlob: 0 }));
+        logger.info(`[basso][verify] trước khi gửi ảnh (lần ${attempt}): ${JSON.stringify(before)}`);
+        _throwIfCancelled();
+        if (await clickSend(page)) { logger.info('[basso] Đã bấm gửi tin ảnh'); }
+        else throw new Error('Đính được ảnh nhưng không bấm gửi được tin ảnh.');
+        // QUAN TRỌNG (lỗi Zalo-specific): bấm Gửi xong, basso CÒN đang upload ảnh lên
+        // Zalo (chậm hơn text rất nhiều). Trước đây chỉ sleep 1500ms rồi caller đóng
+        // browser ngay → upload bị cắt giữa chừng → group KHÔNG nhận ảnh dù đã báo gửi.
+        // SIẾT XÁC MINH: chỉ dựa "preview rời ô soạn" là CHƯA đủ — basso có thể xoá
+        // preview nhưng upload FAIL (group rỗng), rồi ta vẫn gửi text → "chỉ gửi text".
+        // waitImageSent giờ đòi ảnh THẬT SỰ xuất hiện trong hội thoại (số ảnh thread
+        // tăng ≥ số ảnh cần) mới coi là gửi được.
+        const imageSent = await waitImageSent(page, imagePaths.length, before);
+        if (!imageSent) {
+          throw new Error('Đã bấm Gửi nhưng ảnh KHÔNG xuất hiện trong hội thoại sau khi chờ (preview rời ô soạn nhưng bong bóng ảnh không lên)');
+        }
+        imageOk = true;
+        sentAny = true;
+      } catch (e) {
+        if (e.cancelled) throw e; // người dùng bấm Dừng — không thử lại
+        lastImageError = e;
+        logger.error(`[basso] Gửi ảnh lần ${attempt} lỗi: ${e.message}`);
+      }
     }
-    // Chụp trạng thái ảnh TRONG HỘI THOẠI ngay TRƯỚC khi bấm Gửi (lúc này ảnh mới
-    // chỉ là preview blob trong ô soạn, CHƯA có bong bóng ảnh trong thread). Dùng làm
-    // mốc để xác minh ảnh THẬT SỰ vào hội thoại sau khi gửi.
-    const before = await _imageThreadState(page).catch(() => ({ http: 0, threadBlob: 0, composerBlob: 0 }));
-    logger.info(`[basso][verify] trước khi gửi ảnh: ${JSON.stringify(before)}`);
-    _throwIfCancelled();
-    if (await clickSend(page)) { sentAny = true; logger.info('[basso] Đã bấm gửi tin ảnh'); }
-    else throw new Error('Đính được ảnh nhưng không bấm gửi được tin ảnh.');
-    // QUAN TRỌNG (lỗi Zalo-specific): bấm Gửi xong, basso CÒN đang upload ảnh lên
-    // Zalo (chậm hơn text rất nhiều). Trước đây chỉ sleep 1500ms rồi caller đóng
-    // browser ngay → upload bị cắt giữa chừng → group KHÔNG nhận ảnh dù đã báo gửi.
-    // SIẾT XÁC MINH: chỉ dựa "preview rời ô soạn" là CHƯA đủ — basso có thể xoá
-    // preview nhưng upload FAIL (group rỗng), rồi ta vẫn gửi text → "chỉ gửi text".
-    // waitImageSent giờ đòi ảnh THẬT SỰ xuất hiện trong hội thoại (số ảnh thread
-    // tăng ≥ số ảnh cần) mới coi là gửi được; không thì DỪNG, KHÔNG gửi text.
-    const imageSent = await waitImageSent(page, imagePaths.length, before);
-    if (!imageSent) {
-      throw new Error('Đã bấm Gửi nhưng ảnh KHÔNG xuất hiện trong hội thoại sau khi chờ (preview rời ô soạn nhưng bong bóng ảnh không lên) — đã HUỶ, KHÔNG gửi text để tránh đăng thiếu hình. Thử đăng lại.');
+    if (!imageOk) {
+      logger.error(`[basso] Gửi ảnh thất bại sau 2 lần thử (${lastImageError?.message}) — bỏ qua ảnh, tiếp tục gửi text.`);
     }
   }
 
