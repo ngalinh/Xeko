@@ -1139,13 +1139,26 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
     // KHÔNG để rơi xuống "không chọn được tài khoản" (sai nguyên nhân).
     await ensureLoggedIn(page, accountKey, zaloAccountName);
 
-    const accountOk = await selectZaloAccount(page, zaloAccountName);
+    let accountOk = await selectZaloAccount(page, zaloAccountName);
     await screenshot(page, '02-account-selected');
 
-    // HUỶ đăng nếu không chọn được đúng tài khoản — thà báo lỗi rõ ràng còn hơn
-    // âm thầm đăng nhầm bằng tài khoản mặc định ("Tất cả tài khoản" → Basso…).
+    // Chưa chọn được đúng tài khoản → RELOAD + thử lại MỘT lần trước khi huỷ —
+    // dropdown tài khoản có thể chưa dựng kịp ngay sau khi vào trang (proxy/mạng
+    // chậm). Vẫn thất bại sau khi thử lại mới huỷ đăng: thà báo lỗi rõ ràng còn
+    // hơn âm thầm đăng nhầm bằng tài khoản mặc định ("Tất cả tài khoản" → Basso…).
     if (!accountOk) {
-      throw new Error(`Không chọn được tài khoản "${zaloAccountName}" trên ZaloCRM (ô vẫn ở "Tất cả tài khoản" hoặc chọn nhầm). Đã huỷ đăng để tránh đăng nhầm tài khoản — mở lại ZaloCRM kiểm tra danh sách tài khoản đã kết nối.`);
+      logger.warn(`[salework] Không chọn được tài khoản "${zaloAccountName}" — reload trang & thử lại`);
+      await page.goto(ZALO_CHAT_URL, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
+      if (!(await waitForChatReady(page))) {
+        logger.warn('[salework] Trang chat chưa render rõ sau khi reload — vẫn thử tiếp');
+      }
+      await sleep(1000);
+      accountOk = await selectZaloAccount(page, zaloAccountName);
+      await screenshot(page, '02b-account-selected-retry');
+    }
+
+    if (!accountOk) {
+      throw new Error(`Không chọn được tài khoản "${zaloAccountName}" trên ZaloCRM (ô vẫn ở "Tất cả tài khoản" hoặc chọn nhầm) sau khi đã thử lại. Đã huỷ đăng để tránh đăng nhầm tài khoản — mở lại ZaloCRM kiểm tra danh sách tài khoản đã kết nối.`);
     }
 
     if (!(await searchAndClickGroup(page, groupName))) {
