@@ -1,48 +1,53 @@
-# Tự động deploy Xeko runner lên VPS
+# Tự động deploy Xeko runner lên VPS Windows
 
-Workflow `.github/workflows/deploy-vps.yml` deploy đúng commit mới nhất của nhánh `main` lên self-hosted runner và khởi động lại tiến trình PM2 `xeko-runner`.
+Workflow `.github/workflows/deploy-vps.yml` deploy commit mới của nhánh `main` lên GitHub Actions self-hosted runner Windows và reload PM2 process `xeko-runner`.
 
-## Chuẩn bị một lần trên VPS
+## Phần mềm cần cài
 
-1. Tạo user riêng cho GitHub Actions runner. User này phải sở hữu thư mục deploy và không nên có quyền `sudo` trong workflow.
-2. Gắn các label cho runner: `self-hosted`, `Linux`, `X64`, `vps`.
-3. Cài Git, Node.js, npm, PM2, curl, flock và các thư viện hệ thống của Playwright.
-4. Tạo thư mục và cấp quyền cho user runner:
+- Windows Server 2016 trở lên, Windows 10 hoặc Windows 11 64-bit.
+- Git for Windows.
+- Node.js 22 LTS và npm.
+- PM2 cùng tiện ích tự khởi động trên Windows:
 
-   ```bash
-   sudo mkdir -p /srv/xeko
-   sudo chown -R <runner-user>:<runner-user> /srv/xeko
-   ```
+  ```powershell
+  npm install --global pm2 pm2-windows-startup
+  pm2-startup install
+  ```
 
-5. Sau lần workflow đầu tiên (workflow sẽ clone source rồi dừng vì chưa có secret), tạo `/srv/xeko/.env` từ `server/.env.example` và điền giá trị production.
-6. Cài thư viện hệ thống Playwright một lần nếu VPS chưa có:
+- GitHub Actions self-hosted runner được đăng ký với custom label `vps`.
 
-   ```bash
-   cd /srv/xeko/server
-   sudo npx playwright install-deps chromium
-   ```
+Workflow tự chạy `npx playwright install chromium`; không cần cài Chromium thủ công.
 
-7. Cho PM2 tự phục hồi sau reboot bằng `pm2 startup`, sau đó chạy lệnh mà PM2 in ra. Workflow sẽ tự gọi `pm2 save` sau mỗi deploy.
+## Đăng ký GitHub Actions runner
 
-## Biến GitHub tùy chọn
+Vì Xeko và mi là hai repository cá nhân, cách đơn giản nhất là cài hai runner instance trong hai thư mục khác nhau, cùng Windows user:
 
-Trong repository Settings → Actions → Variables:
+- `C:\actions-runner-xeko` đăng ký tại repository Xeko.
+- `C:\actions-runner-mi` đăng ký tại repository mi.
 
-- `XEKO_DEPLOY_DIR`: mặc định `/srv/xeko`.
-- `XEKO_HEALTHCHECK_URL`: mặc định `http://127.0.0.1:3001/health`.
+Trong từng repository mở Settings → Actions → Runners → New self-hosted runner, chọn Windows/x64 và chạy đúng các lệnh GitHub sinh ra. Khi chạy `config.cmd`, thêm label `vps`. Hai runner phải có đủ labels `self-hosted`, `Windows`, `X64`, `vps`.
 
-## Cách hoạt động
+Nếu Playwright chạy headed (`HEADLESS=false`), khởi động runner tương tác bằng `run.cmd` trong Windows user đang đăng nhập. Không chạy runner hoặc PM2 trong Session 0 vì cửa sổ Chrome không hiển thị được. Muốn tự bật sau reboot, cấu hình auto-login và Task Scheduler với lựa chọn “Run only when user is logged on”.
 
-Mỗi push/merge vào `main` sẽ:
+## Thư mục ứng dụng
 
-1. Khóa deploy chung trên VPS để Xeko và mi không restart PM2 đồng thời.
-2. Fetch đúng commit GitHub yêu cầu và checkout vào thư mục cố định.
-3. Giữ nguyên các file không được Git theo dõi như `.env` và dữ liệu/profile Playwright.
-4. Chạy `npm ci`, cài đúng phiên bản Chromium, rồi reload `xeko-runner` bằng PM2.
-5. Chỉ báo thành công khi endpoint health check phản hồi HTTP 2xx.
+Tạo thư mục:
 
-Có thể chạy lại thủ công từ Actions → Deploy Xeko runner to VPS → Run workflow.
+```powershell
+New-Item -ItemType Directory -Force C:\apps\xeko
+```
 
-## Lưu ý an toàn
+User chạy GitHub runner phải có quyền Modify trên thư mục này. Lần workflow đầu tiên sẽ clone source rồi dừng an toàn nếu thiếu secret. Sau đó tạo `C:\apps\xeko\.env` từ `server\.env.example` và điền cấu hình production, rồi chạy lại workflow.
 
-Code được merge vào `main` có thể thực thi trên VPS. Nên bật branch protection/review cho `main`, dùng runner user riêng, không đưa secret vào repository và không cấp `sudo` không mật khẩu cho runner.
+Nếu Xeko đang nằm ở thư mục khác, đặt repository variable `XEKO_DEPLOY_DIR` thành đường dẫn hiện tại để không tạo bản chạy thứ hai. Health check mặc định là `http://127.0.0.1:3001/health`; thay bằng `XEKO_HEALTHCHECK_URL` nếu port khác.
+
+Sau lần deploy thành công:
+
+```powershell
+pm2 save
+pm2 status
+```
+
+## Lưu ý
+
+Hai workflow dùng chung file lock trong `%TEMP%` để không deploy Xeko và mi đồng thời. File `.env`, profile Playwright và dữ liệu không được Git theo dõi sẽ được giữ nguyên qua các lần deploy.
