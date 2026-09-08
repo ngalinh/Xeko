@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: 'xeko-runner',
+      name: 'xeko-local',
       script: 'start.js',
       cwd: __dirname,
       exec_mode: 'fork',

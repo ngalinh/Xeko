@@ -1,6 +1,6 @@
 # Tự động deploy Xeko runner lên VPS Windows
 
-Workflow `.github/workflows/deploy-vps.yml` deploy commit mới của nhánh `main` lên GitHub Actions self-hosted runner Windows và reload PM2 process `xeko-runner`.
+Workflow `.github/workflows/deploy-vps.yml` deploy commit mới của nhánh `main` lên GitHub Actions self-hosted runner Windows và reload PM2 process `xeko-local`.
 
 ## Phần mềm cần cài
 
@@ -31,13 +31,13 @@ Nếu Playwright chạy headed (`HEADLESS=false`), khởi động runner tương
 
 ## Thư mục ứng dụng
 
-Tạo thư mục:
+Thư mục hiện tại:
 
 ```powershell
-New-Item -ItemType Directory -Force C:\apps\xeko
+New-Item -ItemType Directory -Force C:\xeko
 ```
 
-User chạy GitHub runner phải có quyền Modify trên thư mục này. Lần workflow đầu tiên sẽ clone source rồi dừng an toàn nếu thiếu secret. Sau đó tạo `C:\apps\xeko\.env` từ `server\.env.example` và điền cấu hình production, rồi chạy lại workflow.
+User chạy GitHub runner phải có quyền Modify trên thư mục này. Lần workflow đầu tiên sẽ clone source rồi dừng an toàn nếu thiếu secret. Sau đó tạo `C:\xeko\.env` từ `server\.env.example` và điền cấu hình production, rồi chạy lại workflow.
 
 Nếu Xeko đang nằm ở thư mục khác, đặt repository variable `XEKO_DEPLOY_DIR` thành đường dẫn hiện tại để không tạo bản chạy thứ hai. Health check mặc định là `http://127.0.0.1:3001/health`; thay bằng `XEKO_HEALTHCHECK_URL` nếu port khác.
 

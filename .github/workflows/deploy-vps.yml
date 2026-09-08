@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  APP_DIR: ${{ vars.XEKO_DEPLOY_DIR || 'C:\apps\xeko' }}
+  APP_DIR: ${{ vars.XEKO_DEPLOY_DIR || 'C:\xeko' }}
   HEALTHCHECK_URL: ${{ vars.XEKO_HEALTHCHECK_URL || 'http://127.0.0.1:3001/health' }}
 
 jobs:
@@ -98,7 +98,7 @@ jobs:
 
             Push-Location $env:APP_DIR
             try {
-              pm2 startOrReload ecosystem.config.js --only xeko-runner --update-env
+              pm2 startOrReload ecosystem.config.js --only xeko-local --update-env
               if ($LASTEXITCODE -ne 0) { throw "PM2 reload failed with exit code $LASTEXITCODE" }
               pm2 save
               if ($LASTEXITCODE -ne 0) { throw "PM2 save failed with exit code $LASTEXITCODE" }
