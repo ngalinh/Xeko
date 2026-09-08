@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  APP_DIR: ${{ vars.XEKO_DEPLOY_DIR || 'C:\apps\xeko' }}
+  APP_DIR: ${{ vars.XEKO_DEPLOY_DIR || 'C:\xeko' }}
   HEALTHCHECK_URL: ${{ vars.XEKO_HEALTHCHECK_URL || 'http://127.0.0.1:3001/health' }}
 
 jobs:
