@@ -1,6 +1,6 @@
 # Tự động deploy Xeko runner lên VPS Windows
 
-Workflow `.github/workflows/deploy-vps.yml` deploy commit mới của nhánh `main` lên GitHub Actions self-hosted runner Windows và reload PM2 process `xeko-runner`.
+Workflow `.github/workflows/deploy-vps.yml` deploy commit mới của nhánh `main` lên GitHub Actions self-hosted runner Windows và reload PM2 process `xeko-local`.
 
 ## Phần mềm cần cài
 
@@ -31,7 +31,7 @@ Nếu Playwright chạy headed (`HEADLESS=false`), khởi động runner tương
 
 ## Thư mục ứng dụng
 
-Tạo thư mục:
+Thư mục hiện tại:
 
 ```powershell
 New-Item -ItemType Directory -Force C:\apps\xeko
