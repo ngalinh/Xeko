@@ -358,7 +358,78 @@ async function waitForChatReady(page, timeout = 20000) {
   }
 }
 
+/**
+ * Bấm 1 tab trên thanh lọc .filter-bar của zalo.basso.vn theo VỊ TRÍ (đáng tin nhất). DOM thật:
+ * các nút .filter-btn KHÔNG có class/id cố định — aria-describedby là id tooltip ĐỘNG, icon là
+ * <svg> chung không có class. Thứ tự ổn định: [0] Thư, [1] Chưa đọc, [2] Cá nhân, [3] Nhóm...
+ * Nút đang chọn có class .filter-active -> dùng để XÁC MINH và BỎ QUA nếu đã đúng tab (bấm lại nút
+ * đang active có thể làm BỎ chọn). Dự phòng: hover đọc tooltip theo nhãn, rồi selector đoán.
+ * @param {number} index vị trí nút (0-based) cần bấm (Cá nhân=2, Nhóm=3)
+ */
+async function clickFilterTab(page, wantLabel, index, guessSelectors = []) {
+  const want = String(wantLabel).toLowerCase();
+  const shotName = `02d-tab-${want.replace(/\s+/g, '-')}`;
+  const isActive = (btn) => btn.evaluate((el) => el.classList.contains('filter-active')).catch(() => false);
+  const btns = page.locator('.filter-bar .filter-btn');
+  await btns.nth(index).waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+  const n = await btns.count().catch(() => 0);
+
+  // (1) CHÍNH — theo VỊ TRÍ + xác minh .filter-active. Đã active sẵn -> THÔI (không bấm lại kẻo bỏ chọn).
+  if (index != null && n > index) {
+    const btn = btns.nth(index);
+    try {
+      if (await isActive(btn)) { await screenshot(page, shotName); return true; }
+      await btn.scrollIntoViewIfNeeded({ timeout: 1500 }).catch(() => {});
+      await btn.click({ timeout: 3000 });
+      await sleep(700);
+      if (await isActive(btn)) { await screenshot(page, shotName); return true; }
+    } catch { /* rơi xuống dự phòng */ }
+  }
+
+  // (2) DỰ PHÒNG — hover từng nút đọc tooltip qua aria-describedby, bấm nút khớp nhãn + xác minh.
+  for (let i = 0; i < n; i += 1) {
+    const btn = btns.nth(i);
+    try {
+      await btn.hover({ timeout: 1500 });
+      await sleep(250);
+      const label = await btn.evaluate((el) => {
+        const id = el.getAttribute('aria-describedby');
+        const tip = id ? document.getElementById(id) : null;
+        return (tip ? tip.textContent : '').normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
+      }).catch(() => '');
+      if (label && label.includes(want)) {
+        if (await isActive(btn)) { await screenshot(page, shotName); return true; }
+        await btn.click({ timeout: 3000 });
+        await sleep(700);
+        if (await isActive(btn)) { await screenshot(page, shotName); return true; }
+      }
+    } catch { /* thử nút kế */ }
+  }
+
+  // (3) Fallback selector đoán — phòng khi DOM đổi hoàn toàn.
+  for (const sel of guessSelectors) {
+    const loc = page.locator(sel).first();
+    try {
+      if (!(await loc.count().catch(() => 0))) continue;
+      if (await isActive(loc)) { await screenshot(page, shotName); return true; }
+      await loc.click({ timeout: 3000 });
+      await sleep(700);
+      if (await isActive(loc)) { await screenshot(page, shotName); return true; }
+    } catch { /* thử selector kế */ }
+  }
+  return false;
+}
+
+// Bấm tab "Nhóm" (icon 2 người) — .filter-btn thứ 4 (index 3) trên .filter-bar của zalo.basso.vn.
+const clickGroupTab = (page) => clickFilterTab(page, 'nhóm', 3,
+  ['[aria-label*="nhóm" i]', '[title*="nhóm" i]', 'button:has(.mdi-account-group)', 'button:has(.mdi-account-multiple)']);
+
 async function searchAndClickGroup(page, groupName) {
+  // Chọn tab Nhóm trước khi tìm tên, kể cả khi mở lại hội thoại sau reload.
+  if (!(await clickGroupTab(page))) {
+    throw new Error('Không chọn được tab Nhóm trên ZaloCRM — đã huỷ đăng.');
+  }
+
   logger.info(`[salework] Tìm nhóm: ${groupName}`);
 
   const searchInput = await page.$('input[placeholder*="Tìm kiếm"], input[placeholder*="tìm kiếm"], input[placeholder*="Search"]');
