@@ -781,11 +781,17 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null) 
   // Một album chỉ được submit một lần. Không quan sát đủ ảnh trên DOM không
   // đồng nghĩa gửi thất bại (upload chậm, album thu gọn, ảnh đổi blob → CDN).
   if (imagePaths.length > 0) {
+    const attachmentBaseline = await _imageThreadState(page);
     const uploaded = await attachImages(page, imagePaths);
     if (!uploaded) {
       throw new Error('Chưa xác nhận đủ ảnh trong bản nháp — đã dừng trước khi Gửi để tránh đính trùng.');
     }
     const before = await _imageThreadState(page);
+    // Preview Basso có thể nằm ngoài ancestor chứa nút Gửi. Theo dõi các URL
+    // local vừa xuất hiện sau đính ảnh, độc lập vị trí DOM.
+    const oldLocal = new Set([...(attachmentBaseline.threadSources || []), ...(attachmentBaseline.composerSources || [])]);
+    before.pendingSources = [...(before.threadSources || []), ...(before.composerSources || [])]
+      .filter(src => /^(blob:|data:)/.test(src) && !oldLocal.has(src));
     logger.info(`[basso][verify] trước khi gửi ảnh: ${JSON.stringify(before)}`);
     _throwIfCancelled();
     if (!(await clickSend(page))) {
@@ -819,7 +825,7 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null) 
         await sleep(1500);
       }
       try {
-        const ta = page.locator('textarea.msg-textarea, textarea[placeholder*="Nhập tin nhắn"], textarea:visible').first();
+        const ta = page.locator('textarea.msg-textarea:visible, textarea[placeholder*="Nhập tin nhắn"]:visible, textarea:visible').first();
         await ta.click({ timeout: 5000 });
         await ta.fill(message);
         await ta.evaluate((el, val) => {
@@ -838,7 +844,7 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null) 
         const cleared = await page.waitForFunction(() => {
           const el = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
           return !el || el.value.trim() === '';
-        }, { timeout: 8000 }).then(() => true).catch(() => false);
+        }, null, { timeout: 8000 }).then(() => true).catch(() => false);
         if (!cleared) {
           throw new Error('Đã bấm Gửi nhưng tin text KHÔNG hiển thị/rời khỏi ô soạn sau khi chờ.');
         }
@@ -868,34 +874,12 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null) 
   return true;
 }
 
-// Đếm ảnh liên quan tới việc gửi, tách theo VỊ TRÍ để phân biệt "đang soạn" và "đã
-// vào hội thoại":
-//   - composerBlob: ảnh blob/data hiển thị TRONG ô soạn = preview ảnh CHƯA gửi.
-//   - threadBlob  : ảnh blob/data hiển thị NGOÀI ô soạn = bong bóng ảnh vừa gửi
-//     (basso hiển thị lạc quan bằng chính blob trước khi swap sang URL CDN).
-//   - http        : ảnh URL http(s) NGOÀI ô soạn (lịch sử + ảnh vừa lên CDN).
-// Khu soạn = tổ tiên gần nhất của textarea mà cũng chứa nút Gửi (giống attachImages).
-// Lấy URL "nguồn" thật của 1 phần tử ảnh — không chỉ <img src/currentSrc> mà còn:
-//  - data-src/data-original: ảnh lazy-load (src rỗng/placeholder tới khi cuộn vào view).
-//  - CSS background-image: bong bóng ảnh nhiều tấm (mosaic) basso hay dựng bằng div nền
-//    thay vì thẻ <img> thật — đếm theo <img> thôi thì ảnh ĐÃ HIỆN RÕ trên màn hình vẫn
-//    không được tính, khiến hệ thống báo "chưa xác nhận" dù ảnh đã lên hội thoại thật.
-// Dùng CHUNG 1 định nghĩa (đưa vào page.evaluate mỗi lần vì browser context không gọi
-// được hàm Node) để 3 chỗ đếm ảnh (preview rời ô soạn / ảnh vào hội thoại / snapshot)
-// khớp nhau tuyệt đối, tránh lệch tiêu chí.
-const _IMG_SRC_OF_SRC = `function(el) {
-  if (el.tagName === 'IMG') {
-    return el.currentSrc || el.src || el.getAttribute('data-src') || el.getAttribute('data-original') || '';
-  }
-  const bg = getComputedStyle(el).backgroundImage || '';
-  const m = bg.match(/url\\(["']?([^"')]+)["']?\\)/);
-  return m ? m[1] : '';
-}`;
-
+// Snapshot khu soạn và nguồn ảnh để nhận diện ảnh mới ngay cả khi chat virtualized
+// thay ảnh cũ bằng ảnh mới mà tổng số phần tử không tăng. Không dùng new Function.
 async function _imageThreadState(page) {
-  return page.evaluate(({ srcOfSrc }) => {
-    const srcOf = new Function('return ' + srcOfSrc)();
-    const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
+  return page.evaluate(() => {
+    const ta = [...document.querySelectorAll('textarea.msg-textarea, textarea')]
+      .find(el => el.getBoundingClientRect().width > 0);
     let root = ta;
     if (ta) {
       for (let i = 0; i < 8 && root.parentElement; i++) {
@@ -903,109 +887,58 @@ async function _imageThreadState(page) {
         if (root.querySelector('button.send-btn')) break;
       }
     }
-    const inComposer = (el) => !!(root && root.contains(el));
-    const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 24 && r.height > 24; };
+    const threadSources = [], composerSources = [];
     let http = 0, threadBlob = 0, composerBlob = 0;
-    for (const el of document.querySelectorAll('img, [style*="background-image"]')) {
-      if (!visible(el)) continue;
-      const s = srcOf(el);
-      if (s.startsWith('http') && !inComposer(el)) http++;
-      else if (s.startsWith('blob:') || s.startsWith('data:')) {
-        if (inComposer(el)) composerBlob++; else threadBlob++;
+    for (const el of document.querySelectorAll('img, [style*="background-image"], .v-image__image')) {
+      const r = el.getBoundingClientRect();
+      if (r.width <= 12 || r.height <= 12) continue;
+      const bg = el.tagName === 'IMG' ? '' : getComputedStyle(el).backgroundImage || '';
+      const match = bg.match(/url\(["']?([^"')]+)["']?\)/);
+      const s = el.tagName === 'IMG'
+        ? el.currentSrc || el.src || el.getAttribute('data-src') || el.getAttribute('data-original') || ''
+        : match ? match[1] : '';
+      if (!/^(https?:|blob:|data:)/.test(s)) continue;
+      if (root && root.contains(el)) {
+        composerSources.push(s);
+        if (/^(blob:|data:)/.test(s)) composerBlob++;
+      } else {
+        threadSources.push(s);
+        if (/^https?:/.test(s)) http++; else threadBlob++;
       }
     }
-    return { http, threadBlob, composerBlob };
-  }, { srcOfSrc: _IMG_SRC_OF_SRC });
+    return { http, threadBlob, composerBlob, threadSources, composerSources, composerPresent: !!ta };
+  });
 }
 
-// Chờ + XÁC MINH ảnh ĐÃ VÀO HỘI THOẠI thật sự, không chỉ "đã bấm Gửi" hay "preview
-// rời ô soạn". Hai bước:
-//   (1) preview blob rời ô soạn (basso đã nhận lệnh gửi & xoá preview).
-//   (2) Có ảnh mới trong hội thoại so với trước khi Gửi là được gửi tiếp text.
-//       Không đòi đủ mọi ảnh: album có thể thu gọn hoặc còn đang tải từng ảnh.
-// Bước (2) là điểm mới: trước đây preview rời ô soạn là coi như xong, nhưng basso có
-// thể xoá preview rồi upload FAIL → group rỗng, ta vẫn gửi text ("chỉ gửi text thôi").
-// Trả về:
-//   - true  = ảnh đã lên hội thoại → được phép gửi text.
-//   - false = hết giờ chờ mà ảnh KHÔNG lên hội thoại → caller DỪNG, không gửi text.
+// Không bắt buộc tổng ảnh tăng. Bản nháp đã có ảnh trước click và được CRM xóa
+// sau click là tín hiệu được phép chuyển sang text, không phải bảo đảm giao hàng.
+function _imageDeliveryReady(before, after) {
+  if (!after.composerPresent || after.composerSources.length) return false;
+  const oldSources = new Set(before.threadSources);
+  const newImage = after.threadSources.some(src => !oldSources.has(src));
+  const draftCleared = before.composerSources.length > 0;
+  const remaining = new Set([...after.threadSources, ...after.composerSources]);
+  const detachedPreviewsCleared = before.pendingSources?.length > 0 &&
+    before.pendingSources.every(src => !remaining.has(src));
+  return newImage || draftCleared || detachedPreviewsCleared;
+}
+
 async function waitImageSent(page, expected = 1, before = null) {
-  const base = before || { http: 0, threadBlob: 0, composerBlob: 0 };
-  const need = 1;
-
-  // (1) Preview rời ô soạn (không chặn kết quả, chỉ để log & chờ nhẹ). Rút ngắn
-  // còn 10s — chỉ cần tín hiệu nhanh là basso đã nhận lệnh gửi, không cần chờ lâu.
-  let previewLeft = true;
-  try {
-    await page.waitForFunction(({ srcOfSrc }) => {
-      const srcOf = new Function('return ' + srcOfSrc)();
-      const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
-      if (!ta) return true;
-      let root = ta;
-      for (let i = 0; i < 8 && root.parentElement; i++) {
-        root = root.parentElement;
-        if (root.querySelector('button.send-btn')) break;
-      }
-      for (const el of root.querySelectorAll('img, [style*="background-image"]')) {
-        const s = srcOf(el);
-        if (s.startsWith('blob:') || s.startsWith('data:')) {
-          const r = el.getBoundingClientRect();
-          if (r.width > 12 && r.height > 12) return false;
-        }
-      }
+  if (!before) return false;
+  // Chờ composer trống trước khi gửi text để không gửi kèm lại ảnh còn trong draft.
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const after = await _imageThreadState(page).catch(e => {
+      logger.warn(`[basso][verify] Không đọc được trạng thái: ${e.message}`);
+      return null;
+    });
+    if (after && _imageDeliveryReady(before, after)) {
+      logger.info(`[basso][verify] Bản nháp ảnh đã trống; chuyển sang text (album=${expected}, threadImages=${after.threadSources.length})`);
       return true;
-    }, { srcOfSrc: _IMG_SRC_OF_SRC }, { timeout: 10000 });
-  } catch {
-    previewLeft = false;
-    logger.warn('[basso] waitImageSent: preview ảnh CHƯA rời ô soạn sau 10s');
-  }
-
-  // (2) Ảnh THẬT SỰ vào hội thoại: số ảnh thread tăng ≥ need. RÚT NGẮN còn 15s
-  // (trước đây 75s quá lâu, làm chậm cả loạt bài đăng) — không cần chờ lâu vì có
-  // bước xác nhận cuối bên dưới bù lại các ca lên chậm.
-  let inThread = false;
-  try {
-    await page.waitForFunction(({ base, need, srcOfSrc }) => {
-      const srcOf = new Function('return ' + srcOfSrc)();
-      const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
-      let root = ta;
-      if (ta) {
-        for (let i = 0; i < 8 && root.parentElement; i++) {
-          root = root.parentElement;
-          if (root.querySelector('button.send-btn')) break;
-        }
-      }
-      const inComposer = (el) => !!(root && root.contains(el));
-      const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 24 && r.height > 24; };
-      let http = 0, threadBlob = 0;
-      for (const el of document.querySelectorAll('img, [style*="background-image"]')) {
-        if (!visible(el)) continue;
-        const s = srcOf(el);
-        if (s.startsWith('http') && !inComposer(el)) http++;
-        else if ((s.startsWith('blob:') || s.startsWith('data:')) && !inComposer(el)) threadBlob++;
-      }
-      return (http + threadBlob - base.http - base.threadBlob) >= need;
-    }, { base, need, srcOfSrc: _IMG_SRC_OF_SRC }, { timeout: 15000 });
-    inThread = true;
-  } catch {
-    logger.warn('[basso] waitImageSent: chưa thấy ảnh mới sau 15s — kiểm tra lần cuối, không tự gửi lại');
-  }
-
-  // Chờ network rảnh (rút ngắn) rồi chấm lại lần CUỐI bằng snapshot thật (dùng
-  // CHUNG bộ nhận diện ảnh với bước (2) — kể cả ảnh dạng background-image) trước
-  // khi cho phép gửi text ngay, không chờ lâu thêm nữa.
-  await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
-  await sleep(1000);
-  const after = await _imageThreadState(page).catch(() => base);
-  if (!inThread) {
-    const httpUp = after.http - base.http;
-    const threadUp = after.threadBlob - base.threadBlob;
-    if (httpUp + threadUp >= need) {
-      inThread = true;
-      logger.info(`[basso] waitImageSent: ảnh đã lên hội thoại ở lần kiểm tra CUỐI (httpUp=${httpUp}, threadUp=${threadUp}) — coi là gửi thành công.`);
     }
+    await sleep(500);
   }
-  logger.info(`[basso][verify] sau khi gửi ảnh: ${JSON.stringify(after)} (previewLeft=${previewLeft}, inThread=${inThread})`);
-  return inThread;
+  logger.warn('[basso][verify] Chưa xác nhận composer ảnh đã trống sau 30s; không gửi lại album');
+  return false;
 }
 
 const _accountLocks = new Map();

@@ -22,6 +22,19 @@ function harness() {
   return context;
 }
 
+test('snapshot reads detached blob previews without dynamic Function evaluation', async () => {
+  const c = harness();
+  c.Function = () => { throw new Error('CSP blocks unsafe-eval'); };
+  const img = { tagName: 'IMG', src: 'blob:preview', getBoundingClientRect: () => ({width: 100, height: 100}) };
+  const root = { querySelector: () => ({}), contains: () => false };
+  const ta = { parentElement: root, getBoundingClientRect: () => ({width: 100, height: 45}) };
+  c.document = { querySelectorAll: sel => sel.startsWith('textarea') ? [ta] : [img] };
+  const state = await c._imageThreadState({ evaluate: async fn => fn() });
+  assert.equal(state.threadSources[0], 'blob:preview');
+  assert.equal(state.composerPresent, true);
+  assert.equal(state.composerSources.length, 0);
+});
+
 for (const outcome of ['timeout', 'exception', 'success']) {
   test('album submits once on verification ' + outcome, async () => {
     const c = harness();
@@ -83,54 +96,43 @@ for (const failsDuringSet of [false, true]) {
   });
 }
 
-for (const count of [1, 4]) {
-test('new images allow caption without requiring full album: visible pairs=' + count, async () => {
-  const c = harness();
-  const images = [
-    ...Array.from({ length: count }, () => ({ tagName: 'IMG', src: 'https://cdn/photo', composer: false })),
-    ...Array.from({ length: count }, () => ({ tagName: 'IMG', src: 'blob:photo', composer: false })),
-    { tagName: 'IMG', src: 'https://cdn/preview', composer: true },
-  ].map(img => ({ ...img, getBoundingClientRect: () => ({ width: 100, height: 100 }) }));
-  const root = { querySelector: () => ({}), contains: el => el.composer, querySelectorAll: () => [] };
-  const textarea = { parentElement: root };
-  c.document = { querySelector: () => textarea, querySelectorAll: () => images };
-  const page = {
-    evaluate: async (fn, args) => fn(args),
-    waitForFunction: async (fn, args) => assert.equal(fn(args), true),
-    waitForLoadState: async () => {},
-  };
-  const before = { http: 0, threadBlob: 0, composerBlob: 8 };
-  assert.equal(await c.waitImageSent(page, 8, before), true);
-  const state = await c._imageThreadState(page);
-  assert.equal(state.http, count);
-  assert.equal(state.threadBlob, count);
-});
-}
-
-for (const newImage of [true, false]) {
-test('album then caption only if a new image is observed: ' + newImage, async () => {
-  const c = harness();
-  const events = [];
-  c.attachImages = async () => { events.push('attach'); return true; };
-  c._imageThreadState = async () => ({ http: 5 + (events.includes('send') && newImage ? 1 : 0), threadBlob: 0, composerBlob: 0 });
-  c.clickSend = async () => { events.push('send'); return true; };
-  const field = { waitFor: async () => {}, click: async () => {},
-    fill: async () => events.push('caption'), evaluate: async () => {} };
-  const page = {
-    locator: () => ({ first: () => field }),
-    // Exercise final verification snapshot after the DOM wait times out.
-    waitForFunction: async () => {
-      if (!events.includes('caption')) throw new Error('DOM wait timeout');
-    },
-    waitForLoadState: async () => {},
-  };
-  const run = c.sendMessage(page, 'caption', Array(8).fill('photo.jpg'));
-  if (newImage) {
-    await run;
-    assert.deepEqual(events, ['attach', 'send', 'caption', 'send']);
-  } else {
-    await assert.rejects(run, e => e.deliveryUnknown === true);
-    assert.deepEqual(events, ['attach', 'send']);
-  }
-});
+// Production log: seven newly attached blob previews are outside the composer.
+// Their disappearance after Send must allow the caption even with unchanged HTTP count.
+for (const scenario of ['detached-previews', 'virtualized-image', 'draft-cleared', 'unchanged', 'draft-remains', 'missing-composer']) {
+  test('image-to-caption transition: ' + scenario, async () => {
+    const c = harness();
+    const events = [];
+    const base = { http: 83, threadBlob: 0, composerBlob: 0,
+      threadSources: ['https://cdn/old'], composerSources: [], composerPresent: true };
+    const pending = Array.from({length: 7}, (_, i) => 'blob:pending-' + i);
+    const attached = { ...base, threadBlob: 7, threadSources: [...base.threadSources, ...pending] };
+    let after = { ...base };
+    if (scenario === 'virtualized-image') {
+      attached.threadSources = ['https://cdn/old'];
+      after.threadSources = ['https://cdn/new'];
+    }
+    if (scenario === 'draft-cleared') {
+      attached.threadSources = base.threadSources;
+      attached.composerSources = pending;
+    }
+    if (scenario === 'unchanged') after = attached;
+    if (scenario === 'draft-remains') after.composerSources = pending;
+    if (scenario === 'missing-composer') after.composerPresent = false;
+    let snapshots = 0;
+    c._imageThreadState = async () => ++snapshots === 1 ? base : snapshots === 2 ? attached : after;
+    c.attachImages = async () => { events.push('attach'); return true; };
+    c.clickSend = async () => { events.push('send'); return true; };
+    const field = { waitFor: async () => {}, click: async () => {},
+      fill: async () => events.push('caption'), evaluate: async () => {} };
+    const page = { locator: () => ({ first: () => field }),
+      waitForFunction: async () => {}, waitForLoadState: async () => {} };
+    const run = c.sendMessage(page, 'caption', Array(7).fill('photo.jpg'));
+    if (['unchanged', 'draft-remains', 'missing-composer'].includes(scenario)) {
+      await assert.rejects(run, e => e.deliveryUnknown === true);
+      assert.deepEqual(events, ['attach', 'send']);
+    } else {
+      await run;
+      assert.deepEqual(events, ['attach', 'send', 'caption', 'send']);
+    }
+  });
 }
