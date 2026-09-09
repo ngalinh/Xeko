@@ -431,27 +431,23 @@ async function searchAndClickGroup(page, groupName) {
 }
 
 // Bấm nút Gửi (.send-btn) — Playwright tự chờ tới khi hết disabled (nút bật khi
-// ô soạn có nội dung/ảnh). Fallback nút theo chữ "Gửi". Trả false nếu không bấm được.
+// ô soạn có nội dung/ảnh). Chọn fallback TRƯỚC click; không click lần nữa khi
+// Playwright báo lỗi vì sự kiện click có thể đã tới CRM.
 async function clickSend(page) {
   await randomDelay(500, 1000);
-  try {
-    await page.locator('button.send-btn').first().click({ timeout: 8000 });
-    logger.info('[basso] Click nút Gửi (.send-btn)');
+  for (const sel of ['button.send-btn', 'button:has-text("Gửi")', 'button:has-text("Send")']) {
+    const btn = page.locator(sel).first();
+    if (!(await btn.count())) continue;
+    try {
+      await btn.click({ timeout: 8000 });
+    } catch (e) {
+      const err = new Error(`Chưa xác nhận được thao tác Gửi: ${e.message}. Có thể tin đã được gửi; kiểm tra nhóm trước khi đăng lại.`);
+      err.deliveryUnknown = true;
+      throw err;
+    }
+    logger.info(`[basso] Click nút Gửi (${sel})`);
     await randomDelay(1500, 2400);
     return true;
-  } catch (e) {
-    logger.warn(`[basso] Click .send-btn lỗi/vẫn disabled: ${e.message}`);
-  }
-  for (const sel of ['button:has-text("Gửi")', 'button:has-text("Send")']) {
-    try {
-      const btn = page.locator(sel).first();
-      if (await btn.count() && await btn.isEnabled().catch(() => false)) {
-        await btn.click({ timeout: 5000 });
-        logger.info(`[basso] Click nút Gửi (${sel})`);
-        await randomDelay(1500, 2400);
-        return true;
-      }
-    } catch {}
   }
   return false;
 }
@@ -625,15 +621,19 @@ async function attachImages(page, imagePaths) {
   };
 
   // CÁCH TRUSTED: input[type=file] sẵn có; rồi .ic-violet → menu "Hình ảnh" → filechooser.
+  let attachmentAttempted = false;
   const viaFileInput = async () => {
     for (const input of await page.$$('input[type="file"]')) {
       try {
+        attachmentAttempted = true;
         await input.setInputFiles(imagePaths);
-        // Input "mù" có thể là ô upload khác (avatar…). Có ÍT NHẤT 1 ảnh mới trong
-        // 5s = ĐÚNG input khu soạn → chốt input này rồi đòi ĐỦ số ảnh (20s, upload
-        // nhiều ảnh chậm); không ảnh nào vào thì thử input/menu khác (tránh dán đè).
-        if (await imageAttached(1, 5000)) return await imageAttached(expected, 20000);
-      } catch {}
+        // Chờ xác minh đủ ảnh. Kể cả khi không thấy preview, không đưa cùng
+        // bộ file vào input/menu khác vì lượt này có thể vẫn đang xử lý.
+        return await imageAttached(expected, 20000);
+      } catch (e) {
+        logger.warn(`[basso] Đính ảnh chưa xác nhận: ${e.message}`);
+        return false;
+      }
     }
     try {
       const attach = page.locator('button.ic-violet').first();
@@ -654,7 +654,11 @@ async function attachImages(page, imagePaths) {
           ]);
         }
       }
-      if (chooser) { await chooser.setFiles(imagePaths); return await imageAttached(expected, 20000); }
+      if (chooser) {
+        attachmentAttempted = true;
+        await chooser.setFiles(imagePaths);
+        return await imageAttached(expected, 20000);
+      }
     } catch (e) {
       logger.error(`[basso] Đính ảnh (menu) lỗi: ${e.message}`);
     }
@@ -696,16 +700,10 @@ async function attachImages(page, imagePaths) {
     return false;
   };
 
-  // Thử tối đa 2 vòng: mỗi vòng ưu tiên cách TRUSTED (file input/menu), rồi tới paste.
-  let uploaded = false;
-  for (let attempt = 1; attempt <= 2 && !uploaded; attempt++) {
-    uploaded = await viaFileInput();
-    if (!uploaded) uploaded = await viaPaste();
-    if (!uploaded && attempt < 2) {
-      logger.warn(`[basso] Đính ảnh lần ${attempt} thất bại — thử lại...`);
-      await sleep(1500);
-    }
-  }
+  // Chỉ dùng paste nếu CHƯA đưa file vào CRM. Timeout/lỗi sau setFiles không
+  // chứng minh bản nháp rỗng; đính lại có thể cộng thêm cả album vào bản nháp.
+  let uploaded = await viaFileInput();
+  if (!uploaded && !attachmentAttempted) uploaded = await viaPaste();
 
   if (uploaded) {
     logger.info(`[basso] Đã đính đủ ${imagePaths.length} ảnh (đã xác minh đúng số lượng)`);
@@ -714,7 +712,7 @@ async function attachImages(page, imagePaths) {
     // nhưng salework vẫn tưởng thành công. Chờ network rảnh để upload hoàn tất.
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
   } else {
-    logger.warn(`[basso] CHƯA đính đủ ${imagePaths.length} ảnh sau 2 lần thử — file input/menu/paste đều fail hoặc đính thiếu`);
+    logger.warn(`[basso] CHƯA xác nhận đủ ${imagePaths.length} ảnh — dừng, không đính chồng ảnh`);
   }
 
   // CHẨN ĐOÁN (1 dòng log): số ảnh blob/http + cấu trúc khu soạn — để biết ảnh có
@@ -780,54 +778,31 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null) 
   // THỨ TỰ (theo yêu cầu): GỬI ẢNH TRƯỚC thành 1 tin riêng, RỒI GỬI TEXT thành tin riêng.
 
   // ----- 1. ẢNH: đính rồi gửi -----
-  // Thử tối đa 2 lần TOÀN BỘ chuỗi (đính → bấm Gửi → xác minh vào hội thoại). Nếu
-  // cả 2 lần đều fail thì HUỶ LUÔN toàn bộ tin nhắn — KHÔNG gửi text nữa. Có ảnh
-  // mà thiếu ảnh đăng thành công thì thà không đăng gì còn hơn đăng thiếu hình.
+  // Một album chỉ được submit một lần. Không quan sát đủ ảnh trên DOM không
+  // đồng nghĩa gửi thất bại (upload chậm, album thu gọn, ảnh đổi blob → CDN).
   if (imagePaths.length > 0) {
-    let imageOk = false;
-    let lastImageError = null;
-    for (let attempt = 1; attempt <= 2 && !imageOk; attempt++) {
-      if (attempt > 1) {
-        logger.warn(`[basso] Gửi ảnh lần ${attempt - 1} thất bại (${lastImageError?.message}) — thử lại lần ${attempt}...`);
-        await sleep(1500);
-      }
-      try {
-        const uploaded = await attachImages(page, imagePaths);
-        // Đính KHÔNG ĐỦ (thiếu/không vào được) → coi là fail của lượt này, để vòng
-        // lặp thử lại thay vì âm thầm chỉ gửi text (chính là "rớt hình" ở group sau).
-        if (!uploaded) {
-          throw new Error(`Không đính đủ ${imagePaths.length} ảnh (file input/menu/paste đều fail hoặc đính thiếu sau 2 lần thử)`);
-        }
-        // Chụp trạng thái ảnh TRONG HỘI THOẠI ngay TRƯỚC khi bấm Gửi (lúc này ảnh mới
-        // chỉ là preview blob trong ô soạn, CHƯA có bong bóng ảnh trong thread). Dùng làm
-        // mốc để xác minh ảnh THẬT SỰ vào hội thoại sau khi gửi.
-        const before = await _imageThreadState(page).catch(() => ({ http: 0, threadBlob: 0, composerBlob: 0 }));
-        logger.info(`[basso][verify] trước khi gửi ảnh (lần ${attempt}): ${JSON.stringify(before)}`);
-        _throwIfCancelled();
-        if (await clickSend(page)) { logger.info('[basso] Đã bấm gửi tin ảnh'); }
-        else throw new Error('Đính được ảnh nhưng không bấm gửi được tin ảnh.');
-        // QUAN TRỌNG (lỗi Zalo-specific): bấm Gửi xong, basso CÒN đang upload ảnh lên
-        // Zalo (chậm hơn text rất nhiều). Trước đây chỉ sleep 1500ms rồi caller đóng
-        // browser ngay → upload bị cắt giữa chừng → group KHÔNG nhận ảnh dù đã báo gửi.
-        // SIẾT XÁC MINH: chỉ dựa "preview rời ô soạn" là CHƯA đủ — basso có thể xoá
-        // preview nhưng upload FAIL (group rỗng), rồi ta vẫn gửi text → "chỉ gửi text".
-        // waitImageSent giờ đòi ảnh THẬT SỰ xuất hiện trong hội thoại (số ảnh thread
-        // tăng ≥ số ảnh cần) mới coi là gửi được.
-        const imageSent = await waitImageSent(page, imagePaths.length, before);
-        if (!imageSent) {
-          throw new Error('Đã bấm Gửi nhưng ảnh KHÔNG xuất hiện trong hội thoại sau khi chờ (preview rời ô soạn nhưng bong bóng ảnh không lên)');
-        }
-        imageOk = true;
-        sentAny = true;
-      } catch (e) {
-        if (e.cancelled) throw e; // người dùng bấm Dừng — không thử lại
-        lastImageError = e;
-        logger.error(`[basso] Gửi ảnh lần ${attempt} lỗi: ${e.message}`);
-      }
+    const uploaded = await attachImages(page, imagePaths);
+    if (!uploaded) {
+      throw new Error('Chưa xác nhận đủ ảnh trong bản nháp — đã dừng trước khi Gửi để tránh đính trùng.');
     }
-    if (!imageOk) {
-      throw new Error(`Gửi ảnh thất bại sau 2 lần thử (${lastImageError?.message}) — đã HUỶ, KHÔNG gửi text để tránh đăng thiếu hình. Thử đăng lại.`);
+    const before = await _imageThreadState(page);
+    logger.info(`[basso][verify] trước khi gửi ảnh: ${JSON.stringify(before)}`);
+    _throwIfCancelled();
+    if (!(await clickSend(page))) {
+      throw new Error('Không tìm thấy nút Gửi ảnh — chưa gửi.');
     }
+    let imageSent = false;
+    try {
+      imageSent = await waitImageSent(page, imagePaths.length, before);
+    } catch (e) {
+      logger.warn(`[basso] Xác minh ảnh lỗi: ${e.message}`);
+    }
+    if (!imageSent) {
+      const err = new Error('Đã bấm Gửi ảnh nhưng chưa xác nhận được kết quả. Có thể album đã lên nhóm; không tự gửi lại album hoặc gửi text. Kiểm tra nhóm trước khi đăng lại.');
+      err.deliveryUnknown = true;
+      throw err;
+    }
+    sentAny = true;
   }
 
   // ----- 2. TEXT: nhập vào textarea.msg-textarea rồi gửi -----
@@ -871,7 +846,7 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null) 
         sentAny = true;
         logger.info('[basso] Đã gửi tin text');
       } catch (e) {
-        if (e.cancelled) throw e; // người dùng bấm Dừng — không thử lại
+        if (e.cancelled || e.deliveryUnknown) throw e;
         lastTextError = e;
         logger.error(`[basso] Gửi text lần ${attempt} lỗi: ${e.message}`);
       }
@@ -898,7 +873,7 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null) 
 //   - composerBlob: ảnh blob/data hiển thị TRONG ô soạn = preview ảnh CHƯA gửi.
 //   - threadBlob  : ảnh blob/data hiển thị NGOÀI ô soạn = bong bóng ảnh vừa gửi
 //     (basso hiển thị lạc quan bằng chính blob trước khi swap sang URL CDN).
-//   - http        : ảnh URL http(s) hiển thị (lịch sử chat + ảnh vừa gửi sau khi lên CDN).
+//   - http        : ảnh URL http(s) NGOÀI ô soạn (lịch sử + ảnh vừa lên CDN).
 // Khu soạn = tổ tiên gần nhất của textarea mà cũng chứa nút Gửi (giống attachImages).
 // Lấy URL "nguồn" thật của 1 phần tử ảnh — không chỉ <img src/currentSrc> mà còn:
 //  - data-src/data-original: ảnh lazy-load (src rỗng/placeholder tới khi cuộn vào view).
@@ -934,7 +909,7 @@ async function _imageThreadState(page) {
     for (const el of document.querySelectorAll('img, [style*="background-image"]')) {
       if (!visible(el)) continue;
       const s = srcOf(el);
-      if (s.startsWith('http')) http++;
+      if (s.startsWith('http') && !inComposer(el)) http++;
       else if (s.startsWith('blob:') || s.startsWith('data:')) {
         if (inComposer(el)) composerBlob++; else threadBlob++;
       }
@@ -947,7 +922,7 @@ async function _imageThreadState(page) {
 // rời ô soạn". Hai bước:
 //   (1) preview blob rời ô soạn (basso đã nhận lệnh gửi & xoá preview).
 //   (2) SIẾT: bong bóng ảnh THẬT SỰ xuất hiện trong hội thoại — số ảnh trong thread
-//       tăng ≥ số ảnh cần (http tăng khi lên CDN, HOẶC có ảnh blob mới NGOÀI ô soạn).
+//       tăng ≥ số ảnh cần (cộng ảnh HTTP và blob NGOÀI ô soạn).
 // Bước (2) là điểm mới: trước đây preview rời ô soạn là coi như xong, nhưng basso có
 // thể xoá preview rồi upload FAIL → group rỗng, ta vẫn gửi text ("chỉ gửi text thôi").
 // Trả về:
@@ -1005,14 +980,14 @@ async function waitImageSent(page, expected = 1, before = null) {
       for (const el of document.querySelectorAll('img, [style*="background-image"]')) {
         if (!visible(el)) continue;
         const s = srcOf(el);
-        if (s.startsWith('http')) http++;
+        if (s.startsWith('http') && !inComposer(el)) http++;
         else if ((s.startsWith('blob:') || s.startsWith('data:')) && !inComposer(el)) threadBlob++;
       }
-      return (http - base.http) >= need || (threadBlob - base.threadBlob) >= need;
+      return (http + threadBlob - base.http - base.threadBlob) >= need;
     }, { base, need, srcOfSrc: _IMG_SRC_OF_SRC }, { timeout: 15000 });
     inThread = true;
   } catch {
-    logger.warn(`[basso] waitImageSent: KHÔNG thấy đủ ${need} ảnh xuất hiện trong hội thoại sau 15s — kiểm tra lại lần cuối rồi cho gửi text`);
+      logger.warn(`[basso] waitImageSent: chưa thấy đủ ${need} ảnh sau 15s — kiểm tra lần cuối, không tự gửi lại`);
   }
 
   // Chờ network rảnh (rút ngắn) rồi chấm lại lần CUỐI bằng snapshot thật (dùng
@@ -1024,7 +999,7 @@ async function waitImageSent(page, expected = 1, before = null) {
   if (!inThread) {
     const httpUp = after.http - base.http;
     const threadUp = after.threadBlob - base.threadBlob;
-    if (httpUp >= need || threadUp >= need) {
+    if (httpUp + threadUp >= need) {
       inThread = true;
       logger.info(`[basso] waitImageSent: ảnh đã lên hội thoại ở lần kiểm tra CUỐI (httpUp=${httpUp}, threadUp=${threadUp}) — coi là gửi thành công.`);
     }
