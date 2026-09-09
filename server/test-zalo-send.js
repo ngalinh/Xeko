@@ -83,11 +83,12 @@ for (const failsDuringSet of [false, true]) {
   });
 }
 
-test('mixed CDN and blob images confirm a complete album, excluding composer HTTP previews', async () => {
+for (const count of [1, 4]) {
+test('new images allow caption without requiring full album: visible pairs=' + count, async () => {
   const c = harness();
   const images = [
-    ...Array.from({ length: 4 }, () => ({ tagName: 'IMG', src: 'https://cdn/photo', composer: false })),
-    ...Array.from({ length: 4 }, () => ({ tagName: 'IMG', src: 'blob:photo', composer: false })),
+    ...Array.from({ length: count }, () => ({ tagName: 'IMG', src: 'https://cdn/photo', composer: false })),
+    ...Array.from({ length: count }, () => ({ tagName: 'IMG', src: 'blob:photo', composer: false })),
     { tagName: 'IMG', src: 'https://cdn/preview', composer: true },
   ].map(img => ({ ...img, getBoundingClientRect: () => ({ width: 100, height: 100 }) }));
   const root = { querySelector: () => ({}), contains: el => el.composer, querySelectorAll: () => [] };
@@ -101,6 +102,35 @@ test('mixed CDN and blob images confirm a complete album, excluding composer HTT
   const before = { http: 0, threadBlob: 0, composerBlob: 8 };
   assert.equal(await c.waitImageSent(page, 8, before), true);
   const state = await c._imageThreadState(page);
-  assert.equal(state.http, 4);
-  assert.equal(state.threadBlob, 4);
+  assert.equal(state.http, count);
+  assert.equal(state.threadBlob, count);
 });
+}
+
+for (const newImage of [true, false]) {
+test('album then caption only if a new image is observed: ' + newImage, async () => {
+  const c = harness();
+  const events = [];
+  c.attachImages = async () => { events.push('attach'); return true; };
+  c._imageThreadState = async () => ({ http: 5 + (events.includes('send') && newImage ? 1 : 0), threadBlob: 0, composerBlob: 0 });
+  c.clickSend = async () => { events.push('send'); return true; };
+  const field = { waitFor: async () => {}, click: async () => {},
+    fill: async () => events.push('caption'), evaluate: async () => {} };
+  const page = {
+    locator: () => ({ first: () => field }),
+    // Exercise final verification snapshot after the DOM wait times out.
+    waitForFunction: async () => {
+      if (!events.includes('caption')) throw new Error('DOM wait timeout');
+    },
+    waitForLoadState: async () => {},
+  };
+  const run = c.sendMessage(page, 'caption', Array(8).fill('photo.jpg'));
+  if (newImage) {
+    await run;
+    assert.deepEqual(events, ['attach', 'send', 'caption', 'send']);
+  } else {
+    await assert.rejects(run, e => e.deliveryUnknown === true);
+    assert.deepEqual(events, ['attach', 'send']);
+  }
+});
+}

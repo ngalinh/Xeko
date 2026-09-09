@@ -921,8 +921,8 @@ async function _imageThreadState(page) {
 // Chờ + XÁC MINH ảnh ĐÃ VÀO HỘI THOẠI thật sự, không chỉ "đã bấm Gửi" hay "preview
 // rời ô soạn". Hai bước:
 //   (1) preview blob rời ô soạn (basso đã nhận lệnh gửi & xoá preview).
-//   (2) SIẾT: bong bóng ảnh THẬT SỰ xuất hiện trong hội thoại — số ảnh trong thread
-//       tăng ≥ số ảnh cần (cộng ảnh HTTP và blob NGOÀI ô soạn).
+//   (2) Có ảnh mới trong hội thoại so với trước khi Gửi là được gửi tiếp text.
+//       Không đòi đủ mọi ảnh: album có thể thu gọn hoặc còn đang tải từng ảnh.
 // Bước (2) là điểm mới: trước đây preview rời ô soạn là coi như xong, nhưng basso có
 // thể xoá preview rồi upload FAIL → group rỗng, ta vẫn gửi text ("chỉ gửi text thôi").
 // Trả về:
@@ -930,7 +930,7 @@ async function _imageThreadState(page) {
 //   - false = hết giờ chờ mà ảnh KHÔNG lên hội thoại → caller DỪNG, không gửi text.
 async function waitImageSent(page, expected = 1, before = null) {
   const base = before || { http: 0, threadBlob: 0, composerBlob: 0 };
-  const need = Math.max(1, expected);
+  const need = 1;
 
   // (1) Preview rời ô soạn (không chặn kết quả, chỉ để log & chờ nhẹ). Rút ngắn
   // còn 10s — chỉ cần tín hiệu nhanh là basso đã nhận lệnh gửi, không cần chờ lâu.
@@ -987,7 +987,7 @@ async function waitImageSent(page, expected = 1, before = null) {
     }, { base, need, srcOfSrc: _IMG_SRC_OF_SRC }, { timeout: 15000 });
     inThread = true;
   } catch {
-      logger.warn(`[basso] waitImageSent: chưa thấy đủ ${need} ảnh sau 15s — kiểm tra lần cuối, không tự gửi lại`);
+    logger.warn('[basso] waitImageSent: chưa thấy ảnh mới sau 15s — kiểm tra lần cuối, không tự gửi lại');
   }
 
   // Chờ network rảnh (rút ngắn) rồi chấm lại lần CUỐI bằng snapshot thật (dùng
