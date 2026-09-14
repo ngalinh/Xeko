@@ -1729,6 +1729,12 @@
       /* Hide bottom nav completely — tiles replace it */
       .mobile-bottom-nav { display: none !important; }
       .main-content { padding-bottom: 0 !important; }
+      .dash-2col { grid-template-columns: minmax(0, 1fr); }
+      .dash-card-pro { min-width: 0; }
+      #chartFilterHeader > div:first-child { flex-wrap: wrap; gap: 8px; }
+      #chartFilterInner { display: grid !important; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+      #chartFilterInner #chartFrom, #chartFilterInner #chartTo { width: 100% !important; min-width: 0 !important; }
+      #chartFilterInner #chartDays { grid-column: 1 / -1; width: 100%; min-height: 36px; }
 
       /* Show home page when active */
       #pageMobileHome.active {
@@ -3468,6 +3474,87 @@
     [data-theme="dark"] .guide-err .ge-msg { color:#fca5a5; }
     [data-theme="dark"] .guide-err .ge-fix { color:#c4c4d8; }
     [data-theme="dark"] .guide-err .ge-fix strong { color:#86efac; }
+    /* Responsive navigation and account controls */
+    .main-content, .header-info { min-width: 0; }
+    .header { position: relative; z-index: 20; flex-shrink: 0; }
+    .header-info { flex: 1; }
+    .sidebar-nav { min-height: 0; overflow-y: auto; }
+    .sidebar-footer { flex-shrink: 0; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+    .sidebar-toggle {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      width: 100%; min-height: 44px; border: 0; border-radius: 12px;
+      background: var(--xk-primary-soft-2, #dbeafe); color: var(--xk-primary-d, #1e40af);
+      font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .sidebar-toggle:hover { filter: brightness(.97); }
+    .account-control { position: relative; margin-left: auto; flex-shrink: 0; }
+    .account-trigger {
+      display: flex; align-items: center; gap: 9px; padding: 6px 8px;
+      min-height: 44px; border: 0; border-radius: 14px; background: transparent;
+      color: var(--xk-sky-text, #172554); font: inherit; text-align: left; cursor: pointer;
+    }
+    .account-trigger:hover, .account-trigger[aria-expanded="true"] { background: rgba(59,130,246,.1); }
+    #currentUserAvatar {
+      width: 36px; height: 36px; border-radius: 50%; background: #3b82f6; color: white;
+      display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700;
+    }
+    .account-summary { min-width: 0; max-width: 210px; }
+    #currentUserEmail { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #currentUserRole { font-size: 11px; color: var(--xk-sky-text-muted, #64748b); }
+    .account-menu {
+      position: absolute; top: calc(100% + 8px); right: 0; width: 260px;
+      max-width: calc(100vw - 32px); padding: 8px; border: 1px solid #dbeafe;
+      border-radius: 14px; background: #fff; color: #172554;
+      box-shadow: 0 12px 32px rgba(15,23,42,.16); z-index: 30;
+    }
+    .account-menu[hidden] { display: none; }
+    .account-menu-identity { display: none; padding: 10px; border-bottom: 1px solid #e2e8f0; overflow-wrap: anywhere; }
+    .account-menu-identity small { display: block; margin-top: 4px; color: #64748b; }
+    .account-action {
+      display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px;
+      padding: 10px; border: 0; border-radius: 8px; background: transparent;
+      color: inherit; font: inherit; font-size: 14px; text-align: left; text-decoration: none; cursor: pointer;
+    }
+    .account-action:hover { background: #eff6ff; }
+    .account-action small { display: block; font-size: 11px; color: #64748b; margin-top: 3px; }
+    .account-action-danger { color: #dc2626; }
+    .account-error { font-size: 12px; color: #dc2626; padding: 8px 10px; }
+    .sidebar-toggle:focus-visible, .account-trigger:focus-visible, .account-action:focus-visible,
+    .sidebar-item:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+    [data-theme="dark"] .account-menu { background: #16172b; color: #e2e8f0; border-color: #334155; }
+    [data-theme="dark"] .account-action:hover { background: #1e293b; }
+    [data-theme="dark"] .account-action-danger { color: #f87171; }
+    @media (min-width: 769px) {
+      .sidebar { transition: width .2s ease, min-width .2s ease; }
+      .sidebar.sidebar-collapsed { width: 72px; min-width: 72px; }
+      .sidebar-collapsed .sidebar-logo { padding: 20px 0; justify-content: center; }
+      .sidebar-collapsed .sidebar-logo > span, .sidebar-collapsed .nav-label,
+      .sidebar-collapsed .sidebar-toggle-label { display: none; }
+      .sidebar-collapsed .sidebar-nav { padding: 8px; }
+      .sidebar-collapsed .sidebar-item { justify-content: center; padding: 10px 0; gap: 0; }
+      .sidebar-collapsed .sidebar-footer { padding-left: 12px; padding-right: 12px; }
+      .sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
+    }
+    @media (max-width: 768px) {
+      .sidebar { width: min(280px, 85vw); min-width: 0; }
+      .sidebar:not(.sidebar-open) { visibility: hidden; }
+      .sidebar.sidebar-open { visibility: visible; }
+      .header { gap: 6px; padding: 10px 12px; flex-wrap: wrap; }
+      .header > .header-emoji { display: none !important; }
+      .header-info { flex: 1; }
+      .header-info h1 { font-size: 16px !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .header-info > span { display: none; }
+      .account-control { order: 3; }
+      .header > button:not(.mobile-hamburger) { order: 4; }
+      .account-summary { display: none; }
+      .account-menu-identity { display: block; }
+      .account-trigger { gap: 6px; padding: 4px; }
+      #currentUserAvatar { width: 32px; height: 32px; }
+      .mobile-bottom-nav { display: none !important; }
+      .main-content { padding-bottom: 0 !important; }
+    }
+    @media (prefers-reduced-motion: reduce) { .sidebar { transition: none !important; } }
+
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
@@ -3637,10 +3724,10 @@
     </defs>
   </svg>
 
-  <div class="mobile-overlay" id="mobileOverlay" onclick="closeSidebar()"></div>
+  <div class="mobile-overlay" id="mobileOverlay" onclick="closeSidebar(true)"></div>
 
   <!-- Sidebar -->
-  <div class="sidebar">
+  <div class="sidebar" id="appSidebar" aria-label="Menu điều hướng">
     <div class="sidebar-logo">
       <svg width="34" height="34" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" alt="Xeko">
         <defs>
@@ -3655,39 +3742,46 @@
       <span>Xeko</span>
     </div>
     <div class="sidebar-nav">
-      <button class="sidebar-item active" onclick="switchPage('dashboard')" id="navDashboard">
-        <span class="icon"><svg class="xi"><use href="#ic-dash"/></svg></span> Dashboard
+      <button class="sidebar-item active" onclick="switchPage('dashboard')" id="navDashboard" title="Dashboard" aria-label="Dashboard">
+        <span class="icon"><svg class="xi"><use href="#ic-dash"/></svg></span> <span class="nav-label">Dashboard</span>
       </button>
-      <button class="sidebar-item" onclick="switchPage('post')" id="navPost">
-        <span class="icon"><svg class="xi"><use href="#ic-post"/></svg></span> Đăng bài
+      <button class="sidebar-item" onclick="switchPage('post')" id="navPost" title="Đăng bài" aria-label="Đăng bài">
+        <span class="icon"><svg class="xi"><use href="#ic-post"/></svg></span> <span class="nav-label">Đăng bài</span>
       </button>
-      <button class="sidebar-item" onclick="switchPage('content')" id="navContent">
-        <span class="icon"><svg class="xi"><use href="#ic-book"/></svg></span> Kho content
+      <button class="sidebar-item" onclick="switchPage('content')" id="navContent" title="Kho content" aria-label="Kho content">
+        <span class="icon"><svg class="xi"><use href="#ic-book"/></svg></span> <span class="nav-label">Kho content</span>
       </button>
-      <button class="sidebar-item" onclick="switchPage('session')" id="navSession">
-        <span class="icon"><svg class="xi"><use href="#ic-users"/></svg></span> Quản lý tài khoản
+      <button class="sidebar-item" onclick="switchPage('session')" id="navSession" title="Quản lý tài khoản" aria-label="Quản lý tài khoản">
+        <span class="icon"><svg class="xi"><use href="#ic-users"/></svg></span> <span class="nav-label">Quản lý tài khoản</span>
       </button>
-      <button class="sidebar-item" onclick="switchPage('permissions')" id="navPermissions" style="display:none;">
-        <span class="icon"><svg class="xi"><use href="#ic-key"/></svg></span> Phân quyền
+      <button class="sidebar-item" onclick="switchPage('permissions')" id="navPermissions" style="display:none;" title="Phân quyền" aria-label="Phân quyền">
+        <span class="icon"><svg class="xi"><use href="#ic-key"/></svg></span> <span class="nav-label">Phân quyền</span>
       </button>
-      <button class="sidebar-item" onclick="switchPage('spy')" id="navSpy">
-        <span class="icon"><svg class="xi"><use href="#ic-search"/></svg></span> Lấy nội dung
+      <button class="sidebar-item" onclick="switchPage('spy')" id="navSpy" title="Lấy nội dung" aria-label="Lấy nội dung">
+        <span class="icon"><svg class="xi"><use href="#ic-search"/></svg></span> <span class="nav-label">Lấy nội dung</span>
       </button>
-      <button class="sidebar-item" onclick="switchPage('guide')" id="navGuide">
-        <span class="icon"><svg class="xi"><use href="#ic-info"/></svg></span> HDSD
+      <button class="sidebar-item" onclick="switchPage('guide')" id="navGuide" title="HDSD" aria-label="HDSD">
+        <span class="icon"><svg class="xi"><use href="#ic-info"/></svg></span> <span class="nav-label">HDSD</span>
       </button>
     </div>
     <div class="sidebar-footer">
-      <div id="currentUserBox" style="display:none; padding:10px 12px; background:#f0f9ff; border-radius:10px; font-size:12px;">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <div style="width:28px; height:28px; border-radius:50%; background:#3B82F6; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;" id="currentUserAvatar">?</div>
-          <div style="flex:1; min-width:0;">
-            <div id="currentUserEmail" style="font-weight:600; color:#3B82F6; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">-</div>
-            <div id="currentUserRole" style="color:#888; font-size:11px;">-</div>
-          </div>
-          <button onclick="goBackXeko()" title="Quay lại" aria-label="Quay lại" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:#fff;border:none;border-radius:999px;cursor:pointer;color:#1E3A8A;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,0.05);"><svg class="xi" style="width:15px;height:15px;"><use href="#ic-back"/></svg></button>
-        </div>
-      </div>
+      <button type="button" class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" aria-controls="appSidebar" aria-expanded="true" aria-label="Thu gọn sidebar">
+        <svg class="xi" aria-hidden="true"><use href="#ic-back"/></svg><span class="sidebar-toggle-label">Thu gọn</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="currentUserBox" class="account-control" style="display:none;">
+    <button type="button" id="accountTrigger" class="account-trigger" onclick="toggleAccountMenu()" aria-expanded="false" aria-controls="accountMenu" aria-label="Menu tài khoản">
+      <span id="currentUserAvatar" aria-hidden="true">?</span>
+      <span class="account-summary"><span id="currentUserEmail" style="display:block;">-</span><span id="currentUserRole" style="display:block;">-</span></span>
+      <svg class="xi xi-sm" aria-hidden="true" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+    <div id="accountMenu" class="account-menu" hidden>
+      <div class="account-menu-identity"><strong id="accountMenuEmail"></strong><small id="accountMenuRole"></small></div>
+      <a class="account-action" href="https://ai.basso.vn/">
+        <svg class="xi" aria-hidden="true"><use href="#ic-back"/></svg><span>Trở về<small>ai.basso.vn</small></span>
+      </a>
     </div>
   </div>
 
@@ -8520,19 +8614,94 @@
       }
     }
 
+    // Desktop icon rail and mobile drawer deliberately keep separate state.
+    const navigationMobile = window.matchMedia('(max-width: 768px)');
+    let sidebarOpener = null;
+    function syncSidebarControls() {
+      const sidebar = document.querySelector('.sidebar');
+      const collapsed = !navigationMobile.matches && sidebar.classList.contains('sidebar-collapsed');
+      const open = sidebar.classList.contains('sidebar-open');
+      const toggle = document.getElementById('sidebarToggle');
+      toggle.setAttribute('aria-expanded', String(navigationMobile.matches ? open : !collapsed));
+      toggle.setAttribute('aria-label', collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar');
+      toggle.title = collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar';
+      document.querySelectorAll('.mobile-hamburger').forEach(button => {
+        button.setAttribute('aria-expanded', String(open));
+        button.setAttribute('aria-controls', 'appSidebar');
+      });
+      sidebar.inert = navigationMobile.matches && !open;
+    }
     function toggleSidebar() {
       const sidebar = document.querySelector('.sidebar');
-      const overlay = document.getElementById('mobileOverlay');
-      sidebar.classList.toggle('sidebar-open');
-      overlay.classList.toggle('show');
+      closeAccountMenu();
+      if (navigationMobile.matches) {
+        if (sidebar.classList.contains('sidebar-open')) { closeSidebar(true); return; }
+        sidebarOpener = document.activeElement;
+        sidebar.classList.add('sidebar-open');
+        document.getElementById('mobileOverlay').classList.add('show');
+        document.querySelector('.main-content').inert = true;
+        syncSidebarControls();
+        sidebar.querySelector('.sidebar-item.active, .sidebar-item').focus();
+      } else {
+        sidebar.classList.toggle('sidebar-collapsed');
+        try { localStorage.setItem('xeko-sidebar-collapsed', String(sidebar.classList.contains('sidebar-collapsed'))); } catch (_) {}
+        syncSidebarControls();
+      }
     }
-
-    function closeSidebar() {
+    function closeSidebar(restoreFocus = false) {
       const sidebar = document.querySelector('.sidebar');
-      const overlay = document.getElementById('mobileOverlay');
+      const wasOpen = sidebar.classList.contains('sidebar-open');
       sidebar.classList.remove('sidebar-open');
-      overlay.classList.remove('show');
+      document.getElementById('mobileOverlay').classList.remove('show');
+      document.querySelector('.main-content').inert = false;
+      syncSidebarControls();
+      if (wasOpen && restoreFocus && sidebarOpener?.isConnected) sidebarOpener.focus();
     }
+    function closeAccountMenu(restoreFocus = false) {
+      document.getElementById('accountMenu').hidden = true;
+      document.getElementById('accountTrigger').setAttribute('aria-expanded', 'false');
+      if (restoreFocus) document.getElementById('accountTrigger').focus();
+    }
+    function toggleAccountMenu() {
+      const menu = document.getElementById('accountMenu');
+      const open = menu.hidden;
+      menu.hidden = !open;
+      document.getElementById('accountTrigger').setAttribute('aria-expanded', String(open));
+      document.getElementById('accountMenuEmail').textContent = document.getElementById('currentUserEmail').textContent;
+      document.getElementById('accountMenuRole').textContent = document.getElementById('currentUserRole').textContent;
+    }
+    function mountAccountControl() {
+      closeAccountMenu();
+      const header = document.querySelector('.page.active > .header');
+      if (header) header.appendChild(document.getElementById('currentUserBox'));
+    }
+    document.addEventListener('click', event => {
+      if (!event.target.closest('#currentUserBox')) closeAccountMenu();
+    });
+    document.addEventListener('focusin', event => {
+      if (!event.target.closest('#currentUserBox')) closeAccountMenu();
+    });
+    document.addEventListener('keydown', event => {
+      const sidebar = document.querySelector('.sidebar');
+      if (event.key === 'Escape') {
+        if (!document.getElementById('accountMenu').hidden) closeAccountMenu(true);
+        if (sidebar.classList.contains('sidebar-open')) closeSidebar(true);
+      }
+      if (event.key === 'Tab' && navigationMobile.matches && sidebar.classList.contains('sidebar-open')) {
+        const buttons = [...sidebar.querySelectorAll('button')].filter(button => !button.disabled && button.getClientRects().length);
+        const first = buttons[0], last = buttons[buttons.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
+    });
+    navigationMobile.addEventListener('change', () => { closeSidebar(); closeAccountMenu(); });
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        document.querySelector('.sidebar').classList.toggle('sidebar-collapsed', localStorage.getItem('xeko-sidebar-collapsed') === 'true');
+      } catch (_) {}
+      syncSidebarControls();
+      mountAccountControl();
+    });
 
 
     function switchPage(pg) {
@@ -8557,6 +8726,7 @@
       if (target) {
         document.getElementById(target.page).classList.add('active');
         if (target.nav) document.getElementById(target.nav).classList.add('active');
+        mountAccountControl();
       }
 
       // Dashboard (chỉ thống kê) vs Kho content (toàn bộ bài đã đăng) — dùng chung trang pageDashboard
@@ -8599,6 +8769,7 @@
       if (mobileBtn) mobileBtn.classList.add('active');
       // Close sidebar if open
       closeSidebar();
+      if (navigationMobile.matches) document.querySelector('.page.active .mobile-hamburger')?.focus();
     }
 
     function switchDashTab() {
@@ -15002,13 +15173,6 @@
       if (navPerm) navPerm.style.display = user.isXekoAdmin ? '' : 'none';
     }
 
-    function goBackXeko() {
-      if (window.history.length > 1) {
-        window.history.back();
-      } else {
-        window.location.href = '/';
-      }
-    }
 
     // ====== Tab Phân quyền ======
     let _allProfilesCache = [];
