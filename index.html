@@ -3502,17 +3502,17 @@
     #currentUserEmail { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #currentUserRole { font-size: 11px; color: var(--xk-sky-text-muted, #64748b); }
     .account-menu {
-      position: absolute; top: calc(100% + 8px); right: 0; width: 260px;
-      max-width: calc(100vw - 32px); padding: 8px; border: 1px solid #dbeafe;
-      border-radius: 14px; background: #fff; color: #172554;
+      position: absolute; top: calc(100% + 6px); right: 0; width: 180px;
+      max-width: calc(100vw - 32px); padding: 4px; border: 1px solid #dbeafe;
+      border-radius: 10px; background: #fff; color: #172554;
       box-shadow: 0 12px 32px rgba(15,23,42,.16); z-index: 30;
     }
     .account-menu[hidden] { display: none; }
     .account-menu-identity { display: none; padding: 10px; border-bottom: 1px solid #e2e8f0; overflow-wrap: anywhere; }
     .account-menu-identity small { display: block; margin-top: 4px; color: #64748b; }
     .account-action {
-      display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px;
-      padding: 10px; border: 0; border-radius: 8px; background: transparent;
+      display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px;
+      padding: 6px 8px; border: 0; border-radius: 8px; background: transparent;
       color: inherit; font: inherit; font-size: 14px; text-align: left; text-decoration: none; cursor: pointer;
     }
     .account-action:hover { background: #eff6ff; }
@@ -3547,6 +3547,7 @@
       .account-control { order: 3; }
       .header > button:not(.mobile-hamburger) { order: 4; }
       .account-summary { display: none; }
+      .account-menu { width: 220px; }
       .account-menu-identity { display: block; }
       .account-trigger { gap: 6px; padding: 4px; }
       #currentUserAvatar { width: 32px; height: 32px; }
