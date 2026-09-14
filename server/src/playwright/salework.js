@@ -1122,4 +1122,3 @@ module.exports = {
   postToZaloGroup, getSaleworkProfile, ZALO_LOGIN_URL, ZALO_CHAT_URL,
   getCrmCredentials, performCrmLogin, ensureLoggedIn,
 };
-
