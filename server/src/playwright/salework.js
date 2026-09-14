@@ -230,7 +230,7 @@ const ACC_NORM = s => (s || '').normalize('NFC').replace(/\s+/g, ' ').trim().toL
 // Dropdown danh sách tài khoản đang hiển thị chưa? (chỉ v-list của dropdown này
 // mới có .acc-tick — danh sách hội thoại không có → không bị nhầm).
 async function accountListVisible(page) {
-  return page.locator('.v-list:has(.acc-tick)').first().isVisible().catch(() => false);
+  return page.locator('.acc-pick-menu .v-list:visible').first().isVisible().catch(() => false);
 }
 
 // Mở dropdown chọn tài khoản. Nút mở hiển thị nhãn span.acc-btn-text ("Tất cả
@@ -238,13 +238,13 @@ async function accountListVisible(page) {
 // tra list đã hiện chưa, thử vài selector phòng khi DOM đổi. False nếu không mở được.
 async function openAccountDropdown(page) {
   if (await accountListVisible(page)) return true;
-  const tries = ['.acc-btn-text', '.acc-btn', '[class*="acc-btn"]', '[aria-haspopup="menu"]', '[aria-haspopup]'];
+  const tries = ['.chat-panel-left .acc-btn'];
   for (const sel of tries) {
     const loc = page.locator(sel).first();
     if (!(await loc.count().catch(() => 0))) continue;
     try { await loc.click({ timeout: 3000, force: true }); } catch { continue; }
     // Chờ list tài khoản hiện (thay sleep cứng) — render sớm thì đi tiếp ngay.
-    await page.locator('.v-list:has(.acc-tick)').first()
+    await page.locator('.acc-pick-menu .v-list:visible').first()
       .waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
     if (await accountListVisible(page)) {
       logger.info(`[basso] Mở dropdown tài khoản bằng: ${sel}`);
@@ -261,7 +261,9 @@ async function readAccountRows(page) {
   return page.evaluate(() => {
     const norm = s => (s || '').normalize('NFC').replace(/\s+/g, ' ').trim();
     const rows = [];
-    Array.from(document.querySelectorAll('.v-list .v-list-item')).forEach((el, i) => {
+    Array.from(document.querySelectorAll('.acc-pick-menu .v-list-item')).forEach((el, i) => {
+      const rect = el.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
       el.setAttribute('data-xeko-idx', String(i));
       const tick = el.querySelector('.acc-tick');
       if (!tick) return;                       // dòng "Tất cả Zalo" — bỏ qua
@@ -277,7 +279,7 @@ async function readAccountRows(page) {
 }
 
 async function clickAccountRowByIdx(page, idx) {
-  const loc = page.locator(`.v-list-item[data-xeko-idx="${idx}"]`).first();
+  const loc = page.locator(`.acc-pick-menu .v-list-item[data-xeko-idx="${idx}"]`).first();
   try { await loc.scrollIntoViewIfNeeded({ timeout: 2000 }); } catch {}
   await loc.click({ timeout: 4000 });
   await sleep(500);
@@ -286,6 +288,9 @@ async function clickAccountRowByIdx(page, idx) {
 async function selectZaloAccount(page, accountName) {
   logger.info(`[basso] Chọn tài khoản: ${accountName}`);
   const want = ACC_NORM(accountName);
+  if (!want) return false;
+  const closeSearch = page.locator('.chat-panel-left').getByRole('button', { name: 'Đóng', exact: true });
+  if (await closeSearch.isVisible().catch(() => false)) await closeSearch.click();
 
   if (!(await openAccountDropdown(page))) {
     logger.error('[basso] Không mở được dropdown chọn tài khoản');
@@ -293,13 +298,14 @@ async function selectZaloAccount(page, accountName) {
   }
   // Chờ có ít nhất 1 dòng tài khoản render thay vì sleep cứng (vòng lặp bên dưới
   // vẫn tự đọc lại nhiều lần nếu list còn dựng dở).
-  await page.locator('.v-list .v-list-item').first()
+  await page.locator('.acc-pick-menu .v-list-item:visible').first()
     .waitFor({ state: 'visible', timeout: 4000 }).catch(() => {});
 
   // Hội tụ về trạng thái mong muốn: mỗi vòng sửa ĐÚNG 1 việc rồi đọc lại (vì click
   // làm Vue re-render → phải re-mark data-xeko-idx). Tối đa 8 vòng cho an toàn.
   for (let pass = 0; pass < 8; pass++) {
     const rows = await readAccountRows(page);
+    if (rows.filter(r => ACC_NORM(r.title) === want).length > 1) return false;
     const target = rows.find(r => ACC_NORM(r.title) === want);
     if (!target) {
       // Có thể list chưa render xong ở vòng đầu — chờ rồi thử lại vài lần.
@@ -307,15 +313,16 @@ async function selectZaloAccount(page, accountName) {
       logger.error(`[basso] Không thấy tài khoản "${accountName}" trong danh sách. Có: ${JSON.stringify(rows.map(r => r.title))}`);
       return false;
     }
+    // Select the target first so toggling off the old account never selects all.
+    if (!target.on) {
+      logger.info(`[basso] Tick tài khoản: "${target.title}"`);
+      await clickAccountRowByIdx(page, target.idx);
+      continue;
+    }
     const wrongOn = rows.find(r => r.on && r.idx !== target.idx);
     if (wrongOn) {                               // còn tài khoản KHÁC đang chọn → bỏ tick
       logger.info(`[basso] Bỏ tick tài khoản thừa: "${wrongOn.title}"`);
       await clickAccountRowByIdx(page, wrongOn.idx);
-      continue;
-    }
-    if (!target.on) {                            // tài khoản cần đăng chưa tick → tick
-      logger.info(`[basso] Tick tài khoản: "${target.title}"`);
-      await clickAccountRowByIdx(page, target.idx);
       continue;
     }
     break;                                       // target "on" + không thừa → xong
@@ -327,13 +334,15 @@ async function selectZaloAccount(page, accountName) {
 
   // Đóng dropdown để bước tìm nhóm đọc đúng danh sách hội thoại đã lọc.
   await page.keyboard.press('Escape').catch(() => {});
-  await page.click('body', { position: { x: 700, y: 400 }, force: true }).catch(() => {});
+  if (await accountListVisible(page)) {
+    await page.locator('.acc-btn-text').first().click({ timeout: 3000 }).catch(() => {});
+  }
   // Chờ dropdown ĐÓNG hẳn (list biến mất) thay vì sleep cứng — để bước tìm nhóm
   // không bị overlay dropdown che, đọc đúng danh sách hội thoại đã lọc.
-  await page.locator('.v-list:has(.acc-tick)').first()
+  await page.locator('.acc-pick-menu .v-list:visible').first()
     .waitFor({ state: 'hidden', timeout: 4000 }).catch(() => {});
 
-  if (ok) {
+  if (ok && !(await accountListVisible(page))) {
     logger.info(`[basso] ✓ Xác minh đã chọn đúng tài khoản: ${accountName}`);
     return true;
   }
@@ -358,71 +367,58 @@ async function waitForChatReady(page, timeout = 20000) {
   }
 }
 
-async function searchAndClickGroup(page, groupName) {
+const { findExactGroupRow, readConversationTarget, assertConversationTarget,
+  selectGroupFilter, isGroupSearchResponse, verifySearchResults } = require('./zalo-target');
+
+async function searchAndClickGroup(page, groupName, accountName) {
   logger.info(`[salework] Tìm nhóm: ${groupName}`);
+  await selectGroupFilter(page);
+  logger.info('[basso][target] Đã chọn loại Nhóm');
 
   const searchInput = await page.$('input[placeholder*="Tìm kiếm"], input[placeholder*="tìm kiếm"], input[placeholder*="Search"]');
+  if (!searchInput) return false;
   if (searchInput) {
     await searchInput.fill('');
-    await searchInput.fill(groupName);
-    // Chờ danh sách hội thoại lọc theo từ khoá tải xong (network rảnh) thay vì
-    // sleep cứng — group tải chậm qua proxy yếu vẫn kịp hiện trước khi tìm hàng.
-    await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
+    const [response] = await Promise.all([
+      page.waitForResponse(r => isGroupSearchResponse(r, groupName), { timeout: 20000 }),
+      searchInput.fill(groupName),
+    ]);
+    if (!response.ok()) throw new Error(`Tải danh sách nhóm thất bại: HTTP ${response.status()}`);
+    const conversationId = verifySearchResults(await response.json(),
+      new URL(response.url()).searchParams.get('accountId'), { groupName, accountName });
+    logger.info(`[basso][target] Tìm kiếm đã tải xong: account="${accountName}", group="${groupName}", conversation=${conversationId}`);
   }
 
   await screenshot(page, '03-search-filled');
 
-  // Dùng page.evaluate để lấy tọa độ (1 round-trip), rồi page.mouse.click()
-  // để fire đầy đủ pointer events mà Vue.js yêu cầu.
-  const findRect = () => page.evaluate((name) => {
-    const norm = s => s.normalize('NFC').trim();
-    const normName = norm(name);
-
-    // Contact row trong Salework luôn có kích thước hợp lý: rộng >150px, cao 30-200px
-    const isRow = (r) => r.width > 150 && r.height > 30 && r.height < 200
-                      && r.top >= 0 && r.top < window.innerHeight;
-
-    // Pass 1: selector có class liên quan đến conversation/contact/item
-    const pass1 = document.querySelectorAll(
-      '[class*="conversation"], [class*="contact"], [class*="chat"], ' +
-      '[class*="list-item"], [class*="message-item"], li, a[href]'
-    );
-    for (const el of pass1) {
-      if (!norm(el.textContent || '').includes(normName)) continue;
-      const r = el.getBoundingClientRect();
-      if (isRow(r)) return { x: r.left + r.width / 2, y: r.top + r.height / 2, src: 'pass1' };
-    }
-
-    // Pass 2: bất kỳ div/li nào có kích thước trông như một hàng danh sách
-    const pass2 = document.querySelectorAll('div, li');
-    for (const el of pass2) {
-      if (!norm(el.textContent || '').includes(normName)) continue;
-      const r = el.getBoundingClientRect();
-      if (isRow(r)) return { x: r.left + r.width / 2, y: r.top + r.height / 2, src: 'pass2' };
-    }
-    return null;
-  }, groupName);
+  // Mark one exact sidebar match; never click a substring match or chat history.
+  const findRect = () => page.evaluate(findExactGroupRow, groupName);
 
   // Poll tối đa ~10s cho hàng nhóm xuất hiện: kết quả tìm kiếm có thể render
   // trễ (proxy/mạng chậm) — thay vì đọc DOM đúng 1 lần rồi báo "không tìm thấy"
   // oan, thử lại từng nhịp tới khi hàng hiện rồi mới click.
   let rect = null;
   for (let i = 0; i < 10 && !rect; i++) {
-    rect = await findRect();
+    const match = await findRect();
+    if (match.count > 1) throw new Error(`Có nhiều hội thoại trùng tên "${groupName}". Đã dừng để tránh chọn nhầm.`);
+    rect = match.count === 1 ? match : null;
     if (!rect) await sleep(1000);
   }
 
   await screenshot(page, '03b-before-click');
 
   if (rect) {
-    logger.info(`[salework] [${rect.src}] Click (${Math.round(rect.x)}, ${Math.round(rect.y)}) cho: ${groupName}`);
-    await page.mouse.click(rect.x, rect.y);
+    logger.info(`[salework] Chọn nhóm khớp chính xác: ${groupName}`);
+    await page.locator('[data-xeko-group-target="true"]').click({ timeout: 4000 });
     // Chờ hội thoại mở THẬT (ô soạn hiện) thay vì sleep cứng — click xong Vue cần
     // dựng khung chat; proxy chậm thì chờ đủ, nhanh thì đi tiếp ngay. Không hiện
     // cũng không sao: ensureComposerReady ở caller sẽ reload + mở lại group.
     await page.locator('textarea.msg-textarea, textarea[placeholder*="Nhập tin nhắn"]')
       .first().waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
     await screenshot(page, '03c-after-click');
+    await page.waitForFunction(readConversationTarget, { groupName, accountName }, { timeout: 15000 });
+    await assertConversationTarget(page, { groupName, accountName });
+    logger.info(`[basso][target] Đã xác minh hội thoại: account="${accountName}", group="${groupName}"`);
     return true;
   }
 
@@ -433,11 +429,12 @@ async function searchAndClickGroup(page, groupName) {
 // Bấm nút Gửi (.send-btn) — Playwright tự chờ tới khi hết disabled (nút bật khi
 // ô soạn có nội dung/ảnh). Chọn fallback TRƯỚC click; không click lần nữa khi
 // Playwright báo lỗi vì sự kiện click có thể đã tới CRM.
-async function clickSend(page) {
+async function clickSend(page, verifyTarget) {
   await randomDelay(500, 1000);
   for (const sel of ['button.send-btn', 'button:has-text("Gửi")', 'button:has-text("Send")']) {
     const btn = page.locator(sel).first();
     if (!(await btn.count())) continue;
+    await verifyTarget();
     try {
       await btn.click({ timeout: 8000 });
     } catch (e) {
@@ -741,7 +738,8 @@ async function attachImages(page, imagePaths) {
   return uploaded;
 }
 
-async function sendMessage(page, message, imagePaths = [], shouldCancel = null) {
+async function sendMessage(page, message, imagePaths = [], shouldCancel = null, verifyTarget) {
+  await verifyTarget();
   logger.info(`[basso] Gửi: "${message?.substring(0, 30)}" + ${imagePaths.length} ảnh`);
   let sentAny = false;
 
@@ -794,7 +792,7 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null) 
       .filter(src => /^(blob:|data:)/.test(src) && !oldLocal.has(src));
     logger.info(`[basso][verify] trước khi gửi ảnh: ${JSON.stringify(before)}`);
     _throwIfCancelled();
-    if (!(await clickSend(page))) {
+    if (!(await clickSend(page, verifyTarget))) {
       throw new Error('Không tìm thấy nút Gửi ảnh — chưa gửi.');
     }
     let imageSent = false;
@@ -835,7 +833,7 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null) 
         }, message);
         logger.info('[basso] Đã nhập nội dung tin nhắn');
         _throwIfCancelled();
-        if (!(await clickSend(page))) {
+        if (!(await clickSend(page, verifyTarget))) {
           throw new Error('Không bấm gửi được tin text.');
         }
         // Xác minh tin ĐÃ RỜI Ô SOẠN (Zalo tự xoá nội dung ô soạn khi gửi thành
@@ -853,6 +851,7 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null) 
         logger.info('[basso] Đã gửi tin text');
       } catch (e) {
         if (e.cancelled || e.deliveryUnknown) throw e;
+        if (e.targetMismatch) throw e;
         lastTextError = e;
         logger.error(`[basso] Gửi text lần ${attempt} lỗi: ${e.message}`);
       }
@@ -1069,7 +1068,7 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
       throw new Error(`Không chọn được tài khoản "${zaloAccountName}" trên ZaloCRM (ô vẫn ở "Tất cả tài khoản" hoặc chọn nhầm) sau khi đã thử lại. Đã huỷ đăng để tránh đăng nhầm tài khoản — mở lại ZaloCRM kiểm tra danh sách tài khoản đã kết nối.`);
     }
 
-    if (!(await searchAndClickGroup(page, groupName))) {
+    if (!(await searchAndClickGroup(page, groupName, zaloAccountName))) {
       throw new Error(`Không tìm thấy nhóm "${groupName}" trên ZaloCRM — kiểm tra lại tên nhóm có đúng không, hoặc tài khoản "${zaloAccountName}" có nằm trong nhóm này không.`);
     }
     await screenshot(page, '04-group-selected');
@@ -1087,7 +1086,7 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
       if (!(await selectZaloAccount(page, zaloAccountName))) {
         throw new Error(`Không chọn được tài khoản "${zaloAccountName}" sau khi reload — đã huỷ đăng.`);
       }
-      if (!(await searchAndClickGroup(page, groupName))) {
+      if (!(await searchAndClickGroup(page, groupName, zaloAccountName))) {
         throw new Error(`Không tìm thấy nhóm "${groupName}" sau khi reload — đã huỷ đăng.`);
       }
       if (!(await ensureComposerReady(page, 20000))) {
@@ -1104,7 +1103,8 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
       normalizedImageFiles = sendImagePaths.filter((p, i) => p !== imagePaths[i]);
     }
 
-    await sendMessage(page, message, sendImagePaths, shouldCancel);
+    await sendMessage(page, message, sendImagePaths, shouldCancel, () =>
+      assertConversationTarget(page, { groupName, accountName: zaloAccountName }));
 
     logger.info(`[salework] Đã đăng lên "${groupName}" qua "${zaloAccountName}"`);
     cleanup(); // chạy nền, không await — trả kết quả ngay
