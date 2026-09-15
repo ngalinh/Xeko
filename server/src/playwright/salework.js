@@ -886,7 +886,7 @@ async function _imageThreadState(page) {
         if (root.querySelector('button.send-btn')) break;
       }
     }
-    const threadSources = [], composerSources = [];
+    const threadSources = [], composerSources = [], deliveredSources = [];
     let http = 0, threadBlob = 0, composerBlob = 0;
     for (const el of document.querySelectorAll('img, [style*="background-image"], .v-image__image')) {
       const r = el.getBoundingClientRect();
@@ -902,41 +902,52 @@ async function _imageThreadState(page) {
         if (/^(blob:|data:)/.test(s)) composerBlob++;
       } else {
         threadSources.push(s);
+        // Only loaded remote images inside the message thread count as delivery.
+        // Local previews and sidebar avatars cannot confirm a sent album.
+        if (/^https?:/.test(s) && el.tagName === 'IMG' &&
+            el.complete && el.naturalWidth > 0 &&
+            el.closest('.chat-messages-area')) deliveredSources.push(s);
         if (/^https?:/.test(s)) http++; else threadBlob++;
       }
     }
-    return { http, threadBlob, composerBlob, threadSources, composerSources, composerPresent: !!ta };
+    return { http, threadBlob, composerBlob, threadSources, composerSources, deliveredSources, composerPresent: !!ta };
   });
 }
 
-// Không bắt buộc tổng ảnh tăng. Bản nháp đã có ảnh trước click và được CRM xóa
-// sau click là tín hiệu được phép chuyển sang text, không phải bảo đảm giao hàng.
-function _imageDeliveryReady(before, after) {
+// Clearing the draft only acknowledges submission, not image delivery.
+function _imageDeliveryReady(before, after, expected = 1) {
   if (!after.composerPresent || after.composerSources.length) return false;
-  const oldSources = new Set(before.threadSources);
-  const newImage = after.threadSources.some(src => !oldSources.has(src));
-  const draftCleared = before.composerSources.length > 0;
-  const remaining = new Set([...after.threadSources, ...after.composerSources]);
-  const detachedPreviewsCleared = before.pendingSources?.length > 0 &&
-    before.pendingSources.every(src => !remaining.has(src));
-  return newImage || draftCleared || detachedPreviewsCleared;
+  const oldSources = new Set(before.threadSources || []);
+  const newSources = new Set((after.deliveredSources || [])
+    .filter(src => !oldSources.has(src)));
+  return newSources.size >= expected;
 }
 
 async function waitImageSent(page, expected = 1, before = null) {
   if (!before) return false;
-  // Chờ composer trống trước khi gửi text để không gửi kèm lại ảnh còn trong draft.
-  for (let attempt = 0; attempt < 60; attempt++) {
+  // Allow slow uploads/rendering for 60s and require 2s of stable evidence.
+  let stableSamples = 0;
+  let previousSources = '';
+  for (let attempt = 0; attempt < 120; attempt++) {
     const after = await _imageThreadState(page).catch(e => {
       logger.warn(`[basso][verify] Không đọc được trạng thái: ${e.message}`);
       return null;
     });
-    if (after && _imageDeliveryReady(before, after)) {
-      logger.info(`[basso][verify] Bản nháp ảnh đã trống; chuyển sang text (album=${expected}, threadImages=${after.threadSources.length})`);
-      return true;
+    if (after && _imageDeliveryReady(before, after, expected)) {
+      const sources = JSON.stringify([...new Set(after.deliveredSources)].sort());
+      stableSamples = sources === previousSources ? stableSamples + 1 : 1;
+      previousSources = sources;
+      if (stableSamples >= 5) {
+        logger.info(`[basso][verify] Đã thấy đủ ${expected} ảnh mới tải xong, ổn định 2s; chuyển sang text`);
+        return true;
+      }
+    } else {
+      stableSamples = 0;
+      previousSources = '';
     }
     await sleep(500);
   }
-  logger.warn('[basso][verify] Chưa xác nhận composer ảnh đã trống sau 30s; không gửi lại album');
+  logger.warn(`[basso][verify] Chưa thấy đủ ${expected} ảnh mới tải xong sau 60s; không gửi text hoặc gửi lại album`);
   return false;
 }
 
