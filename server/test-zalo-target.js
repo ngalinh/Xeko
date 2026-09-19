@@ -31,6 +31,8 @@ test('exact account and group selection in a browser', async () => {
     await page.locator('#list .conv-row').last().evaluate(el => el.remove());
     assert.equal(await page.evaluate(readConversationTarget, target), true);
     await assertConversationTarget(page, target);
+    await page.locator('#account').evaluate(el => { el.textContent = ' Linh  Duong US '; });
+    assert.equal(await page.evaluate(readConversationTarget, target), true);
     await page.locator('#account').evaluate(el => { el.textContent = 'Linh Thao Us Authentic'; });
     await assert.rejects(assertConversationTarget(page, target), error => error.targetMismatch === true);
     await page.locator('#account').evaluate(el => { el.textContent = 'Linh Duong Us'; });
@@ -89,6 +91,7 @@ test('every send checks target again, and a mismatch never clicks', async () => 
     require: id => {
       if (id === 'path' || id === 'fs') return require(id);
       if (id === './zalo-target') return require('./src/playwright/zalo-target');
+      if (id.endsWith('/zalo-profile-lifecycle')) return require('./src/utils/zalo-profile-lifecycle');
       if (id.endsWith('/logger')) return { info() {}, warn() {}, error() {} };
       if (id.endsWith('/delay')) return { randomDelay: async () => {}, sleep: async () => {} };
       return {};

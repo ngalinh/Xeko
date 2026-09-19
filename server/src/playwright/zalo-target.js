@@ -21,7 +21,7 @@ function readConversationTarget({ groupName, accountName }) {
   return !loading && composer && headers.length === 1 && selected.length === 1 &&
     norm(selected[0].querySelector('.conv-name')?.textContent) === norm(groupName) &&
     norm(headers[0].querySelector('.thread-name')?.textContent) === norm(groupName) &&
-    norm(headers[0].querySelector('.thread-sub')?.textContent) === norm(accountName);
+    norm(headers[0].querySelector('.thread-sub')?.textContent).toLowerCase() === norm(accountName).toLowerCase();
 }
 
 async function selectGroupFilter(page) {
@@ -53,7 +53,7 @@ function verifySearchResults(data, accountId, target) {
   const matches = (data.conversations || []).filter(conv => conv.threadType === 'group' &&
     normalize(conv.contact?.fullName) === normalize(target.groupName) &&
     String(conv.zaloAccount?.id) === accountId &&
-    normalize(conv.zaloAccount?.displayName) === normalize(target.accountName));
+    normalize(conv.zaloAccount?.displayName).toLowerCase() === normalize(target.accountName).toLowerCase());
   if (matches.length !== 1) throw new Error(`Không có đúng một nhóm "${target.groupName}" của "${target.accountName}" trong kết quả tìm kiếm. Đã dừng.`);
   return matches[0].id;
 }
