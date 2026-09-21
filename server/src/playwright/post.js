@@ -44,9 +44,11 @@ function getActiveProfile() {
   return activeProfileData;
 }
 
-async function getBrowser() {
-  const profile = getActiveProfile();
-  const key = activeProfile;
+async function getBrowser(profileKey) {
+  const key = profileKey || activeProfile;
+  const profile = profileKey
+    ? { name: profileKey, userDataDir: path.resolve(__dirname, '../../playwright-data', profileKey) }
+    : getActiveProfile();
 
   // If a launch is already in progress for this profile, wait for it instead of launching a second instance
   if (launching[key]) {
@@ -3865,4 +3867,4 @@ async function postComment({ postUrl, message, imagePaths, profile }) {
   }
 }
 
-module.exports = { setProfile, profileExists, getActiveProfile, postToPersonal, postToGroup, postToPage, postPersonalAndShareToGroups, quickPostToPersonalAndGroups, scrapePost, closeBrowser, postComment };
+module.exports = { getBrowser, setProfile, profileExists, getActiveProfile, postToPersonal, postToGroup, postToPage, postPersonalAndShareToGroups, quickPostToPersonalAndGroups, scrapePost, closeBrowser, postComment };
