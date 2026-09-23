@@ -1,38 +1,55 @@
-# Luồng tuyển CTV qua Facebook cá nhân
+# Tuyển CTV: quy trình 3 bước có duyệt
 
-## Sử dụng
+Vào **Tuyển CTV** trong menu Xeko hoặc `/ctv.html`. Không có chế độ AI đánh giá rồi tự gửi. Mỗi chiến dịch lưu danh sách, kết quả AI, bản xem trước và thời điểm/người duyệt từng bước.
 
-Vào **Tuyển CTV** trong menu Xeko (hoặc `/ctv.html`). Nhập TXT/CSV có link Facebook hoặc dán danh sách, chọn Facebook cá nhân đã đăng nhập, sửa lời mời và tạo chiến dịch. Danh sách tối đa 100 link; link hồ sơ được chuẩn hóa và gộp trùng. Các trường khác trong CSV chưa được nhập vào hệ thống; tên dùng để cá nhân hóa lấy từ hồ sơ.
+## 1. Nhập danh sách khách hàng
 
-- **Chỉ AI đánh giá:** kiểm tra danh sách và lưu kết quả, không gửi.
-- **AI đánh giá → tự gửi:** kiểm tra từng hồ sơ, gửi ngay cho hồ sơ đạt; bỏ qua hồ sơ thiếu dữ liệu. Bấm **Bắt đầu chiến dịch** sau khi xem lại chế độ và danh sách. Tin nhắn của chiến dịch được giữ nguyên theo thời điểm tạo.
-- **Dừng:** dừng trước bước gửi hoặc trước hồ sơ tiếp theo. Tin đã gửi không được thu hồi.
+Chọn Facebook cá nhân đã đăng nhập, đặt tên chiến dịch, dán dữ liệu hoặc nhập TXT/CSV có link. Bấm **Kiểm tra danh sách** để xem số link hợp lệ, link trùng được gộp và link bị loại cùng lý do. Chỉ link hồ sơ trực tiếp được nhận; tối đa 100 link mỗi lần. Các cột khác trong CSV chưa được nhập; tên khách lấy từ hồ sơ.
 
-AI dùng Gemini giống tính năng tạo nội dung hiện có trong repo. Đặt `GEMINI_API_KEY` trong môi trường **máy thực thi Playwright** (local server nếu dùng mô hình cloud/local). Không đưa key vào trình duyệt. Node.js 18+ cần thiết cho fetch và AbortSignal.timeout. Giữ nguyên cấu hình `LOCAL_API_KEY`, xác thực Basso và phân quyền tài khoản hiện có.
+Bước nhập chỉ tạo kết quả kiểm tra. Chưa mở Facebook, chưa gọi AI. Bấm **Duyệt danh sách & chạy AI** mới cho phép xử lý các link hợp lệ. Danh sách và tài khoản được giữ cố định theo chiến dịch; muốn đổi danh sách thì tạo chiến dịch mới.
 
-## Điều kiện đánh giá và gửi
+## 2. AI đánh giá
 
-1. Mở link hồ sơ trực tiếp trong phiên Facebook được chọn. Link bài viết, nhóm, link chia sẻ và URL ngoài Facebook bị từ chối.
-2. Đọc tên, dấu hiệu hồ sơ cá nhân/Fanpage và tối đa 10 bài đang được render (mỗi bài tối đa 6.000 ký tự). Bản đầu chưa cuộn toàn bộ lịch sử, đọc chữ trong ảnh hay mở hồ sơ khóa.
-3. Gửi các nội dung nhìn thấy này tới Gemini để phân loại hồ sơ, seller US, điểm tin cậy và trích dẫn. Nội dung Facebook được coi là dữ liệu, không phải chỉ dẫn cho AI.
-4. Chỉ đạt khi AI đánh giá `personal`, `sellerUS=yes`, độ tin cậy ≥ 0,85, có trích dẫn đối chiếu được với dữ liệu đầu vào, đồng thời có dấu hiệu hồ sơ cá nhân và bài bán hàng nói rõ phục vụ thị trường Mỹ. Điểm AI là ước lượng của mô hình, không phải xác suất đã được hiệu chuẩn. Không dùng tên, quốc tịch, sắc tộc, tiếng Anh, nơi ở hay USD làm bằng chứng seller US. Người mua hàng Mỹ về Việt Nam không mặc nhiên là seller phục vụ khách tại Mỹ.
-5. Lấy ID người nhận từ link hồ sơ số hoặc link Message của chính hồ sơ. Nếu không lấy được ID thì chuyển kiểm tra thủ công. Không đoán ID từ tên.
-6. Mở hội thoại theo ID, kiểm tra URL và link hồ sơ trong tiêu đề, xác minh ô soạn duy nhất và không có bản nháp. Điền mẫu với `{name}` rồi gửi một lần.
-7. Chỉ ghi `sent` khi xuất hiện thêm tin đúng nội dung với nhãn Sent/Delivered tương ứng. Nếu thiếu tín hiệu xác nhận, ghi `unconfirmed`, dừng chiến dịch và không tự thử lại.
+AI phân loại hồ sơ cá nhân/Fanpage, dấu hiệu bán hàng cho thị trường Mỹ, điểm tin cậy, lý do và trích dẫn. UI hiển thị tiến độ và kết quả từng khách. Khi xong, chiến dịch dừng ở trạng thái **Chờ duyệt kết quả AI**; không gửi bất kỳ tin nào.
 
-Giao diện Facebook/Messenger thay đổi theo tài khoản và ngôn ngữ. Bản này hỗ trợ các dấu hiệu tiếng Việt/Anh và cố ý dừng khi không khớp. Cần thử trên tài khoản kiểm thử trước khi vận hành thực tế; chưa có kiểm thử gửi trực tiếp lên Facebook trong lần phát triển này.
+Chọn các khách đủ điều kiện, đọc bằng chứng rồi bấm **Duyệt N khách & sang bước 3**. Khách thiếu bằng chứng, chưa xác minh ID hoặc đã có dấu gửi trước sẽ không chọn được. Nếu hai link cùng một ID Facebook, chỉ duyệt một link. Khi dừng/lỗi AI, có thể duyệt phần kết quả đã xử lý; các hồ sơ chưa xử lý không được chọn. Chạy lại phần còn lại bằng chiến dịch mới.
 
-## Lưu trữ và chống trùng
+Tiêu chí: AI đánh giá `personal`, `sellerUS=yes`, confidence ≥ 0,85; có trích dẫn khớp nội dung đầu vào; đồng thời phải có dấu hiệu profile cá nhân và bài bán hàng nói rõ phục vụ thị trường Mỹ. Điểm mô hình không phải xác suất đã hiệu chuẩn. Không suy luận thị trường từ tên, quốc tịch, sắc tộc, nơi ở, tiếng Anh hoặc USD. Mua hàng Mỹ về Việt Nam không mặc nhiên là bán hàng cho khách ở Mỹ.
 
-Chiến dịch và dấu lần gửi lưu ở `data/.ctv/campaigns.json` trong `XEKO_DATA_DIR` (mặc định root repo). Thư mục dot được Express static mặc định bỏ qua. Không cấu hình static server để phục vụ thư mục này. Dữ liệu chỉ trả qua API có xác thực và theo chủ chiến dịch; phía cloud kiểm tra quyền tài khoản trước khi chuyển tới local.
+## 3. Gửi tin nhắn hàng loạt
 
-Đánh dấu người nhận **trước** thao tác Enter và ghi file bằng rename. Dấu này dùng chung các chiến dịch/tài khoản gửi trong cùng worker. Mất kết nối sau gửi hoặc khởi động lại không khiến tự gửi lại. Một chiến dịch chỉ được bắt đầu một lần; muốn chạy lại các hồ sơ chưa gửi, tạo chiến dịch mới. Bản đầu chưa có chức năng xác nhận thủ công và tiếp tục chiến dịch bị gián đoạn. Không xóa dấu chống trùng khi chưa kiểm tra Messenger.
+Soạn lời mời, dùng `{name}` để chèn tên. Bấm **Tạo bản xem trước** để xem nội dung chính xác cho từng khách đã duyệt. Kiểm tra danh sách/nội dung, đánh dấu xác nhận, rồi bấm **Duyệt & gửi N tin nhắn**. Gửi lần lượt, có kết quả từng khách và nút dừng.
 
-Triển khai **một tiến trình worker cho mỗi thư mục dữ liệu**; JSON store không dùng cho nhiều worker ghi đồng thời. Dùng lại browser của Xeko nhưng mở tab riêng; không chạy các chức năng đóng browser/đổi phiên tài khoản trong lúc chiến dịch chạy. Đóng phiên giữa chừng sẽ làm chiến dịch dừng cần xử lý.
+Sửa nội dung phải tạo và duyệt bản xem trước mới. **Chọn lại khách** quay về bước 2 và hủy bản xem trước cũ. Server kiểm tra token bản xem trước và các chốt duyệt, không chỉ ẩn nút trên UI. Sau khi duyệt gửi, không đổi nội dung/người nhận trong chiến dịch đó.
+
+Trước Enter, worker xác minh ID người nhận, URL và link hồ sơ ở tiêu đề hội thoại, ô soạn duy nhất và không có bản nháp. Lưu dấu chống trùng trước khi gửi. Chỉ ghi `sent` khi thấy tin mới đúng nội dung cùng dấu Sent/Delivered. Nếu không xác nhận được, ghi `unconfirmed`, dừng và không tự gửi lại. Nút dừng không thu hồi tin đã gửi.
+
+## Cấu hình và vận hành
+
+- Đặt `GEMINI_API_KEY` trên máy thực thi Playwright. Nếu dùng cloud/local, key cần trên local worker. Gemini hiện dùng `gemini-2.5-flash`, giống tính năng AI hiện có trong repo. Nội dung nhìn thấy trên profile được gửi đến Gemini để đánh giá.
+- Node.js 18+; giữ cấu hình `LOCAL_API_KEY`, đăng nhập Basso và phân quyền tài khoản. API cloud kiểm tra quyền trên tài khoản lưu trong chiến dịch trước mọi thao tác.
+- Dữ liệu lưu ở `data/.ctv/campaigns.json` trong `XEKO_DATA_DIR` hoặc root repo mặc định. Không public thư mục dot này qua static server. Chạy một worker ghi dữ liệu cho mỗi thư mục.
+- Chỉ đọc tối đa 10 bài đang render (6.000 ký tự/bài), chưa cuộn toàn bộ lịch sử hoặc OCR hình ảnh. Selector hỗ trợ dấu hiệu tiếng Việt/Anh và dừng khi không xác minh được. Không chạy chức năng đóng browser/đổi phiên tài khoản cùng lúc.
+- Trạng thái duyệt và bản xem trước sống qua reload/restart. Job đang chạy khi worker restart chuyển thành `interrupted`; không tự tiếp tục gửi. Chưa có tính năng tiếp tục batch đã bị gián đoạn. Chiến dịch tạo bằng phiên bản cũ chỉ được xem; endpoint `/start` cũ đã bị vô hiệu hóa.
+- UI tự thử lại khi tải tiến độ gặp lỗi, đối chiếu trạng thái sau lỗi thao tác và bỏ qua phản hồi của chiến dịch đã chuyển khỏi. Không tự phát lại yêu cầu gửi.
+
+## API chuyển bước
+
+`POST /api/ctv/campaigns` nhận `{name, profile, urls}` và chỉ tạo `import_review`.
+
+| Thao tác | Dữ liệu | Kết quả |
+|---|---|---|
+| `POST /:id/approve-import` | `{}` | Duyệt bước 1, chạy AI, dừng tại `analysis_review` |
+| `POST /:id/approve-analysis` | `{leadIds}` | Duyệt tập khách đạt, chuyển `message_review` |
+| `POST /:id/review-analysis` | `{}` | Chọn lại khách, hủy preview |
+| `POST /:id/prepare-messages` | `{template}` | Tạo từng tin nhắn và token preview, chưa gửi |
+| `POST /:id/send` | `{previewToken}` | Duyệt đúng preview và xếp hàng gửi |
+| `POST /:id/stop` | `{}` | Yêu cầu dừng trước thao tác gửi/hồ sơ tiếp theo |
+
+Các đường dẫn `/:id/...` đều thuộc `/api/ctv/campaigns`. Yêu cầu duyệt bước 1 lặp lại không chạy lại AI; yêu cầu gửi cùng token lặp lại không gửi lại.
 
 ## Kiểm thử
 
-Chạy từ root repo: `node --test server/test-ctv.js`.
-Các ca kiểm thử dùng dữ liệu giả, không gọi Gemini thật và không gửi tin Facebook: URL sai, điều kiện thị trường US, AI thiếu bằng chứng/sai schema/độ tin cậy thấp, chế độ chỉ đánh giá, chống trùng, dừng, lỗi sau gửi, khởi động lại và phân quyền.
+Chạy `node --test server/test-ctv.js` từ root repo. 15 ca dùng adapter giả: chốt duyệt ở API, chỉ gửi tập đã chọn, token hết hiệu lực, chống trùng/idempotency, hủy, restart, quyền tài khoản và dữ liệu nhập. UI được thử trên preview dùng server quy trình thật với adapter AI/Facebook mô phỏng; đã kiểm tra chuyển 3 bước, khóa gửi khi sửa nội dung và bố cục mobile.
 
-Trước khi triển khai: đăng nhập Facebook bằng tài khoản cá nhân trong Quản lý tài khoản; chạy chế độ chỉ đánh giá trên hồ sơ kiểm thử; kiểm tra kết quả và bằng chứng; sau đó kiểm thử một lời mời trên người nhận kiểm thử đã thống nhất. Không bật chạy hàng loạt khi selector chưa được xác minh trên phiên thực tế.
+Chưa gọi Gemini hay gửi Facebook thật trong quá trình phát triển. Trước triển khai cần kiểm thử selector bằng tài khoản và người nhận thử nghiệm. Không coi preview mô phỏng là kiểm chứng khả năng gửi trên mọi giao diện Messenger.
