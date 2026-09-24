@@ -1,5 +1,7 @@
 (() => {
   'use strict';
+  // Keep requests inside this Xeko instance, including /b/<bot-id>/ deployments.
+  const BASE_URL = window.location.pathname.replace(/\/[^/]*$/, '');
   const $ = id => document.getElementById(id);
   const closeMenu = () => { $('xekoSidebar').classList.remove('open'); $('xekoMenu').setAttribute('aria-expanded','false'); $('xekoMenu').setAttribute('aria-label','Mở menu Xeko'); };
   $('xekoMenu').onclick = () => {
@@ -36,7 +38,7 @@
   async function api(url, method = 'GET', body) {
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 20000);
     try {
-      const response = await fetch(url, { method, signal: controller.signal, headers: { 'Content-Type':'application/json' }, ...(body !== undefined ? { body:JSON.stringify(body) } : {}) });
+      const response = await fetch(BASE_URL + url, { method, signal: controller.signal, headers: { 'Content-Type':'application/json' }, ...(body !== undefined ? { body:JSON.stringify(body) } : {}) });
       const data = await response.json().catch(() => null);
       if (!response.ok || !data) { const e = new Error(data?.error || `Không tải được dữ liệu (HTTP ${response.status})`); e.status = response.status; throw e; }
       return data;
