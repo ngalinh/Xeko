@@ -1,3 +1,12 @@
+// Profile keys are existing directory names, including Vietnamese and spaces.
+// Preserve the exact key while rejecting path separators and special entries.
+function validProfileKey(value) {
+  return typeof value === 'string' && value.trim().length > 0
+    && Buffer.byteLength(value, 'utf8') <= 255
+    && value !== '.' && value !== '..'
+    && !/[\/\\\x00-\x1f\x7f]/.test(value);
+}
+
 const RESERVED = new Set(['groups', 'pages', 'watch', 'reel', 'reels', 'marketplace', 'share', 'stories', 'events', 'login', 'checkpoint', 'messages', 'me', 'settings', 'photo.php', 'permalink.php', 'story.php']);
 
 function profileUrl(value) {
@@ -40,4 +49,4 @@ function renderMessage(template, name) {
   return template.trim().replaceAll('{name}', () => String(name || 'bạn').slice(0,100));
 }
 
-module.exports = { profileUrl, recipientId, classify, renderMessage };
+module.exports = { validProfileKey, profileUrl, recipientId, classify, renderMessage };

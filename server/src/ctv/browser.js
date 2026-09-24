@@ -1,4 +1,4 @@
-const { profileUrl, recipientId } = require('./rules');
+const { validProfileKey, profileUrl, recipientId } = require('./rules');
 const { evaluateProfile } = require('./ai');
 
 async function assertSession(page) {
@@ -81,7 +81,7 @@ function createBrowserAdapter() {
   const playwright = require('../playwright/post');
   return {
     async withPage(profile, callback) {
-      if (!/^[a-zA-Z0-9_-]+$/.test(profile) || !playwright.profileExists(profile)) throw new Error('Tài khoản Facebook không tồn tại');
+      if (!validProfileKey(profile) || !playwright.profileExists(profile)) throw new Error('Tài khoản Facebook không tồn tại');
       const browser = await playwright.getBrowser(profile);
       const page = await browser.newPage();
       try { return await callback(page); } finally { await page.close().catch(() => {}); }

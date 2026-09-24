@@ -109,3 +109,22 @@ test('API enforces gates even when called without the UI and disables old /start
   }
   const unauth=response();await handler({path:'/api/ctv/campaigns',method:'GET',headers:{}},unauth);assert.equal(unauth.code,401);assert.equal(sent.length,0);
 });
+
+test('import preserves account keys with Vietnamese, spaces and punctuation', t => {
+  const {s} = setup(t);
+  for (const profile of ['Linh Thảo US', 'Linh Thảo US'.normalize('NFD'), 'linh.thao', 'legacy_123-test']) {
+    const c = s.create({...input(), profile}, 'owner');
+    assert.equal(c.profile, profile);
+    assert.equal(c.state, 'import_review');
+  }
+});
+test('import rejects missing, malformed and unsafe account keys', t => {
+  const {s} = setup(t);
+  for (const profile of [undefined, null, '']) {
+    assert.throws(() => s.create({...input(), profile}, 'owner'), /Cần chọn tài khoản Facebook/);
+  }
+  for (const profile of [' ', '.', '..', '../other', '/tmp/account', 'a\\b', 'a\u0000b', 'a\nb', 123, {}, ['test'], 'a'.repeat(256)]) {
+    assert.throws(() => s.create({...input(), profile}, 'owner'), /Mã tài khoản Facebook không hợp lệ/);
+  }
+  assert.equal(s.data.campaigns.length, 0);
+});
