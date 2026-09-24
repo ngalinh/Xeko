@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { profileUrl, renderMessage } = require('./rules');
+const { validProfileKey, profileUrl, renderMessage } = require('./rules');
 const ACTIVE = ['analysis_queued', 'analyzing', 'send_queued', 'sending'];
 const fail = message => { const e = new Error(message); e.status = 409; throw e; };
 
@@ -39,7 +39,8 @@ class CtvService {
   }
   view(c) { return { ...c, leads: c.leads.map(l => ({ ...l, blockedReason: this.reasonBlocked(l) })) }; }
   create(input, owner) {
-    if (!/^[a-zA-Z0-9_-]{1,100}$/.test(input.profile || '')) throw new Error('Cần chọn tài khoản Facebook');
+    if (input.profile == null || input.profile === '') throw new Error('Cần chọn tài khoản Facebook');
+    if (!validProfileKey(input.profile)) throw new Error('Mã tài khoản Facebook không hợp lệ');
     if (!Array.isArray(input.urls) || !input.urls.length || input.urls.length > 100) throw new Error('Mỗi đợt nhận từ 1 đến 100 link');
     const urls = new Set(), rejected = []; let duplicateCount = 0;
     for (const value of input.urls) {
