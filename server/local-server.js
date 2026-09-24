@@ -104,6 +104,8 @@ function cleanupFiles(files) {
   }
 }
 
+require('./src/ctv/routes').mountCtv(app);
+
 // ===== PROFILE =====
 app.post('/api/profile', (req, res) => {
   const { profile } = req.body;

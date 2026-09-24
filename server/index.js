@@ -72,7 +72,7 @@ app.use(async (req, res, next) => {
 
   // Static: chặn truy cập index.html khi chưa login → redirect về trang login basso.vn
   // (file css/js khác không cần auth — đỡ phá UX của trang login)
-  const needsGate = req.path === '/' || req.path === '/index.html' || req.path.endsWith('/index.html');
+  const needsGate = req.path === '/' || req.path === '/index.html' || req.path === '/ctv.html' || req.path.endsWith('/index.html');
   if (!needsGate) return next();
   const user = await auth.verifyBassoSession(req.headers.cookie || '');
   if (!user) {
@@ -380,6 +380,9 @@ function cleanupFiles(files) {
     try { fs.unlinkSync(f); } catch {}
   }
 }
+
+// ===== CTV: import links → AI qualification → personal Messenger invitation =====
+require('./src/ctv/routes').mountCtv(app, { remote: true, getLocalUrl, apiKey: LOCAL_API_KEY, permissions });
 
 // ===== API =====
 
