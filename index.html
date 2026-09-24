@@ -104,6 +104,8 @@
       width: 100%;
       text-align: left;
     }
+    #navCtv .icon { flex-shrink: 0; }
+    #navCtv .nav-label { min-width: 0; white-space: normal; }
     .sidebar-item:hover {
       background: #f0f9ff;
       color: #3B82F6;
@@ -3760,7 +3762,7 @@
       <button class="sidebar-item" onclick="switchPage('spy')" id="navSpy" title="Lấy nội dung" aria-label="Lấy nội dung">
         <span class="icon"><svg class="xi"><use href="#ic-search"/></svg></span> <span class="nav-label">Lấy nội dung</span>
       </button>
-      <button class="sidebar-item" onclick="location.href=BASE_URL+'/ctv.html'" id="navCtv" title="Tuyển CTV" aria-label="Tuyển CTV"><span aria-hidden="true">✉</span><span class="nav-label">Tuyển CTV</span></button>
+      <button class="sidebar-item" onclick="location.href=BASE_URL+'/ctv.html'" id="navCtv" title="Gửi tin nhắn hàng loạt" aria-label="Gửi tin nhắn hàng loạt"><span class="icon"><svg class="xi" aria-hidden="true"><use href="#ic-send"/></svg></span> <span class="nav-label">Gửi tin nhắn hàng loạt</span></button>
       <button class="sidebar-item" onclick="switchPage('guide')" id="navGuide" title="HDSD" aria-label="HDSD">
         <span class="icon"><svg class="xi"><use href="#ic-info"/></svg></span> <span class="nav-label">HDSD</span>
       </button>

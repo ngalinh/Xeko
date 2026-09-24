@@ -80,7 +80,7 @@
   function renderHistory() {
     $('campaigns').replaceChildren();
     for (const c of [...campaigns].sort((a,b) => b.createdAt.localeCompare(a.createdAt))) {
-      const b = element('button', c.name || 'Chiến dịch CTV', c.id === selected?.id ? 'active' : '');
+      const b = element('button', c.name || 'Chiến dịch gửi tin nhắn hàng loạt', c.id === selected?.id ? 'active' : '');
       b.append(element('small',`${new Date(c.createdAt).toLocaleDateString('vi-VN')} · ${c.leads.length} khách · ${labels[c.state] || c.state}`));
       b.disabled = busy; b.onclick = () => choose(c.id); $('campaigns').append(b);
     }
@@ -93,13 +93,13 @@
     if (c.state === 'analysis_review') picks = new Set([...picks].filter(id => c.leads.some(l => l.id === id && canPick(l))));
     else picks = new Set(c.approvals?.analysis?.leadIds || []);
     campaigns = [...campaigns.filter(x => x.id !== c.id), c]; renderHistory();
-    $('currentName').textContent = c.name || 'Chiến dịch CTV'; $('currentProfile').textContent = `Tài khoản: ${accountName(c.profile)}`;
+    $('currentName').textContent = c.name || 'Chiến dịch gửi tin nhắn hàng loạt'; $('currentProfile').textContent = `Tài khoản: ${accountName(c.profile)}`;
     $('currentState').textContent = labels[c.state] || c.state;
     const a = c.approvals || {}, modern = c.workflowVersion === 2;
     if (!modern) notice('Chiến dịch phiên bản cũ chỉ được xem. Tạo chiến dịch mới để dùng quy trình 3 bước có duyệt.',true);
     show('importForm',false);show('importResult',true);
     stats('importStats',[['Link hợp lệ',c.leads.length,'good'],['Link trùng đã gộp',c.duplicateCount || 0],['Link bị loại',c.rejected?.length || 0,'warn']]);
-    $('importContext').textContent = `${c.name || 'Chiến dịch CTV'} · ${accountName(c.profile)} · Danh sách đã lưu cố định cho chiến dịch này.`;
+    $('importContext').textContent = `${c.name || 'Chiến dịch gửi tin nhắn hàng loạt'} · ${accountName(c.profile)} · Danh sách đã lưu cố định cho chiến dịch này.`;
     $('importList').replaceChildren(...c.leads.map(l => { const li=element('li');li.append(link(l.url));return li;}));
     $('rejectedList').replaceChildren(...(c.rejected || []).map(r => element('p',`${r.value} — ${r.reason}`,'warning')));
     if (reset) $('importDetails').open = c.state === 'import_review';

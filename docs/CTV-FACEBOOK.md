@@ -1,6 +1,6 @@
-# Tuyển CTV: quy trình 3 bước có duyệt
+# Gửi tin nhắn hàng loạt: quy trình 3 bước có duyệt
 
-Vào **Tuyển CTV** trong menu Xeko. Nếu Xeko chạy trên platform tại `https://ai.basso.vn/b/<bot-id>/`, trang CTV nằm tại `https://ai.basso.vn/b/<bot-id>/ctv.html`; không mở `https://ai.basso.vn/ctv.html` vì đó là gốc của platform. Khi Xeko chạy trực tiếp ở gốc một domain, dùng `/ctv.html` như trước. Không có chế độ AI đánh giá rồi tự gửi. Mỗi chiến dịch lưu danh sách, kết quả AI, bản xem trước và thời điểm/người duyệt từng bước.
+Vào **Gửi tin nhắn hàng loạt** trong menu Xeko. Nếu Xeko chạy trên platform tại `https://ai.basso.vn/b/<bot-id>/`, trang gửi tin nhắn hàng loạt nằm tại `https://ai.basso.vn/b/<bot-id>/ctv.html`; không mở `https://ai.basso.vn/ctv.html` vì đó là gốc của platform. Khi Xeko chạy trực tiếp ở gốc một domain, dùng `/ctv.html` như trước. Không có chế độ AI đánh giá rồi tự gửi. Mỗi chiến dịch lưu danh sách, kết quả AI, bản xem trước và thời điểm/người duyệt từng bước.
 
 ## 1. Nhập danh sách khách hàng
 
@@ -18,7 +18,7 @@ Tiêu chí: AI đánh giá `personal`, `sellerUS=yes`, confidence ≥ 0,85; có 
 
 ## 3. Gửi tin nhắn hàng loạt
 
-Soạn lời mời, dùng `{name}` để chèn tên. Bấm **Tạo bản xem trước** để xem nội dung chính xác cho từng khách đã duyệt. Kiểm tra danh sách/nội dung, đánh dấu xác nhận, rồi bấm **Duyệt & gửi N tin nhắn**. Gửi lần lượt, có kết quả từng khách và nút dừng.
+Soạn tin nhắn, dùng `{name}` để chèn tên. Bấm **Tạo bản xem trước** để xem nội dung chính xác cho từng khách đã duyệt. Kiểm tra danh sách/nội dung, đánh dấu xác nhận, rồi bấm **Duyệt & gửi N tin nhắn**. Gửi lần lượt, có kết quả từng khách và nút dừng.
 
 Sửa nội dung phải tạo và duyệt bản xem trước mới. **Chọn lại khách** quay về bước 2 và hủy bản xem trước cũ. Server kiểm tra token bản xem trước và các chốt duyệt, không chỉ ẩn nút trên UI. Sau khi duyệt gửi, không đổi nội dung/người nhận trong chiến dịch đó.
 
