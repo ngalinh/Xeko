@@ -1,6 +1,6 @@
 # Tuyển CTV: quy trình 3 bước có duyệt
 
-Vào **Tuyển CTV** trong menu Xeko hoặc `/ctv.html`. Không có chế độ AI đánh giá rồi tự gửi. Mỗi chiến dịch lưu danh sách, kết quả AI, bản xem trước và thời điểm/người duyệt từng bước.
+Vào **Tuyển CTV** trong menu Xeko. Nếu Xeko chạy trên platform tại `https://ai.basso.vn/b/<bot-id>/`, trang CTV nằm tại `https://ai.basso.vn/b/<bot-id>/ctv.html`; không mở `https://ai.basso.vn/ctv.html` vì đó là gốc của platform. Khi Xeko chạy trực tiếp ở gốc một domain, dùng `/ctv.html` như trước. Không có chế độ AI đánh giá rồi tự gửi. Mỗi chiến dịch lưu danh sách, kết quả AI, bản xem trước và thời điểm/người duyệt từng bước.
 
 ## 1. Nhập danh sách khách hàng
 
