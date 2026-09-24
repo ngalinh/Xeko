@@ -1,6 +1,13 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
+  const closeMenu = () => { $('xekoSidebar').classList.remove('open'); $('xekoMenu').setAttribute('aria-expanded','false'); $('xekoMenu').setAttribute('aria-label','Mở menu Xeko'); };
+  $('xekoMenu').onclick = () => {
+    const open = $('xekoSidebar').classList.toggle('open');
+    $('xekoMenu').setAttribute('aria-expanded',String(open));
+    $('xekoMenu').setAttribute('aria-label',open?'Đóng menu Xeko':'Mở menu Xeko');
+  };
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMenu();}});
   const ACTIVE = ['analysis_queued','analyzing','send_queued','sending'];
   const labels = { import_review:'Chờ duyệt danh sách',analysis_queued:'Chờ chạy AI',analyzing:'AI đang đánh giá',analysis_review:'Chờ duyệt kết quả AI',message_review:'Chờ duyệt tin nhắn',send_queued:'Chờ gửi',sending:'Đang gửi',completed:'Hoàn tất',cancelled:'Đã dừng',interrupted:'Bị gián đoạn',needs_attention:'Cần xử lý',pending:'Chờ đánh giá',checking:'Đang đánh giá',qualified:'Đạt',review:'Cần kiểm tra',duplicate:'Đã liên hệ',sent:'Đã gửi',unconfirmed:'Chưa xác nhận gửi',done:'Hoàn tất',draft:'Bản cũ',failed:'Lỗi' };
   const defaultTemplate = $('template').value;
