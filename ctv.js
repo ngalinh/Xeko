@@ -7,6 +7,20 @@
   let selected = null, epoch = 0, timer = null, busy = false, uncertain = false, retries = 0;
   let picks = new Set(), accounts = [], campaigns = [];
   const show = (id, visible) => { $(id).hidden = !visible; };
+  let viewedStep = 1;
+  function viewStep(n) {
+    viewedStep = n;
+    for (let i=1;i<=3;i++) {
+      show(`step${i}`,i===n);
+      $(`nav${i}`).classList.toggle('viewing',i===n);
+      $(`nav${i}`).setAttribute('aria-expanded',String(i===n));
+    }
+  }
+  for(let n=1;n<=3;n++) {
+    $(`nav${n}`).setAttribute('aria-controls',`step${n}`);
+    $(`nav${n}`).onclick=e=>{e.preventDefault();viewStep(n);};
+  }
+  viewStep(1);
   const element = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
   const urlsFrom = text => text.match(/https?:\/\/[^\s,"'<>]+/gi) || [];
   const canPick = l => l.assessment?.eligible && !l.blockedReason;
@@ -130,6 +144,7 @@
     $('navStatus1').textContent=a.import?'Đã duyệt danh sách':'Chờ bạn duyệt';
     $('navStatus2').textContent=a.analysis?'Đã duyệt kết quả':analyzing?'Đang đánh giá':hasAnalysis?'Chờ bạn duyệt':'Chờ duyệt bước 1';
     $('navStatus3').textContent=a.send?(labels[c.state] || c.state):hasMessages?'Soạn & duyệt tin nhắn':'Chờ duyệt bước 2';
+    viewStep(reset ? step : viewedStep);
     updateControls(); schedule();
   }
   function schedule() {
@@ -150,7 +165,7 @@
   async function action(name,body={}) {
     if(!selected || busy || uncertain)return;
     const id=selected.id,version=epoch;busy=true;clearTimeout(timer);updateControls();notice();
-    try{const c=await api(`/api/ctv/campaigns/${id}/${name}`,'POST',body);if(epoch!==version)return;uncertain=false;$('confirmSend').checked=false;render(c);if(name==='approve-import')$('step2').scrollIntoView({behavior:'smooth'});if(name==='approve-analysis')$('step3').scrollIntoView({behavior:'smooth'});if(name==='review-analysis')$('step2').scrollIntoView({behavior:'smooth'});}
+    try{const c=await api(`/api/ctv/campaigns/${id}/${name}`,'POST',body);if(epoch!==version)return;uncertain=false;$('confirmSend').checked=false;render(c);if(name==='approve-import'||name==='review-analysis')viewStep(2);if(name==='approve-analysis')viewStep(3);}
     catch(e){if(epoch!==version)return;notice(e.message,true);uncertain=true;await sync(id,version);}
     finally{busy=false;updateControls();schedule();}
   }
@@ -173,12 +188,12 @@
   $('sendButton').onclick=()=>{if(!$('sendButton').disabled)action('send',{previewToken:selected.messagePreview.token});};
   $('stopAnalysis').onclick=$('stopSending').onclick=()=>action('stop');
   $('refresh').onclick=()=>sync();
-  $('newCampaign').onclick=()=>{if(busy)return;epoch++;clearTimeout(timer);selected=null;uncertain=false;picks.clear();notice();
+  $('newCampaign').onclick=()=>{if(busy)return;epoch++;clearTimeout(timer);selected=null;uncertain=false;picks.clear();notice();viewStep(1);
     show('importForm',true);show('importResult',false);show('analysisEmpty',true);show('analysisResult',false);show('messageEmpty',true);show('messageResult',false);
     $('campaignName').value='';$('urls').value='';$('file').value='';$('fileName').textContent='Hoặc dán dữ liệu vào ô phía trên';$('urls').oninput();$('template').value=defaultTemplate;$('confirmSend').checked=false;
     $('currentName').textContent='Chưa có chiến dịch';$('currentProfile').textContent='Chọn tài khoản ở bước 1.';$('currentState').textContent='Chờ nhập dữ liệu';$('connection').textContent='';
     for(let n=1;n<=3;n++){$(`status${n}`).textContent=n===1?'Chưa nhập':'Đang khóa';$(`status${n}`).className='badge';$(`nav${n}`).className='step-link'+(n===1?' active':'');$(`nav${n}`).removeAttribute('aria-current');}
-    $('nav1').setAttribute('aria-current','step');$('navStatus1').textContent='Chờ nhập dữ liệu';$('navStatus2').textContent='Chờ duyệt bước 1';$('navStatus3').textContent='Chờ duyệt bước 2';renderHistory();updateControls();$('step1').scrollIntoView({behavior:'smooth'});
+    $('nav1').setAttribute('aria-current','step');$('navStatus1').textContent='Chờ nhập dữ liệu';$('navStatus2').textContent='Chờ duyệt bước 1';$('navStatus3').textContent='Chờ duyệt bước 2';renderHistory();updateControls();viewStep(1);$('step1').scrollIntoView({behavior:'smooth'});
   };
   (async()=>{
     const results=await Promise.allSettled([api('/api/accounts'),api('/api/ctv/campaigns')]);
