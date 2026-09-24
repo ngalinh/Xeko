@@ -50,7 +50,7 @@ class CtvService {
       } catch (e) { rejected.push({ value: String(value).slice(0,2000), reason: e.message }); }
     }
     const c = { id: crypto.randomUUID(), workflowVersion: 2, owner, profile: input.profile,
-      name: String(input.name || 'Chiến dịch CTV').trim().slice(0,100), createdAt: new Date().toISOString(),
+      name: String(input.name || 'Chiến dịch gửi tin nhắn hàng loạt').trim().slice(0,100), createdAt: new Date().toISOString(),
       state: 'import_review', cancelled: false, importedCount: input.urls.length, duplicateCount, rejected, approvals: {},
       leads: [...urls].map(url => ({ id: crypto.randomUUID(), url, state: 'pending' })) };
     this.data.campaigns.push(c); this.save(); return c;
