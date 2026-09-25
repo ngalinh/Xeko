@@ -469,6 +469,11 @@ async function normalizeImagesForFb(page, imagePaths) {
 // bạn lên"), rồi luôn dọn file .fb.jpg tạm sau khi đính xong (kể cả khi lỗi/throw).
 async function attachImages(page, imagePaths) {
   if (!imagePaths || imagePaths.length === 0) return true;
+  for (const file of imagePaths) {
+    if (!fs.existsSync(file) || !fs.statSync(file).isFile() || fs.statSync(file).size === 0) {
+      throw new Error(`Ảnh không tồn tại hoặc rỗng: ${path.basename(file)}; đã dừng đăng bài.`);
+    }
+  }
   const { paths, temps } = await normalizeImagesForFb(page, imagePaths);
   try {
     return await _attachImagesImpl(page, paths);
@@ -477,201 +482,81 @@ async function attachImages(page, imagePaths) {
   }
 }
 
+const pendingImageChecks = new WeakMap();
+
+async function verifyImagesBeforeSubmit(page) {
+  const check = pendingImageChecks.get(page);
+  if (!check) return; // text-only post
+  try {
+    await require('./fb-image-guard').waitForImages(check.composer, check.expected, check.baseline);
+  } catch (e) {
+    const shot = await saveDebugShot(page, 'debug-upload-incomplete');
+    throw new Error(`${e.message} (xem logs/${shot})`);
+  }
+}
+
 async function _attachImagesImpl(page, imagePaths) {
   if (!imagePaths || imagePaths.length === 0) return true;
-
-  logger.info(`Đính kèm ${imagePaths.length} ảnh...`);
-  let uploaded = false;
-  let uploadMethod = '';
-
-  // Tìm nút Ảnh/Video trong popup
-  const photoSelectors = [
-    'div[aria-label="Ảnh/video"]',
-    'div[aria-label="Photo/video"]',
-    'div[aria-label="Ảnh/Video"]',
-  ];
-
-  // Cách 1: Click nút Ảnh/Video để FB render input[type=file], sau đó dùng setInputFiles.
-  // Filechooser event không đáng tin (timeout 20s) — click để mở UI ảnh rồi tìm input trực tiếp.
-  await (async () => {
-    await randomDelay(300, 700);
-    for (const sel of photoSelectors) {
-      try {
-        const el = await page.$(sel);
-        if (el) {
-          await el.click({ force: true });
-          logger.info(`Click nút ảnh: ${sel}`);
-          return;
-        }
-      } catch { continue; }
-    }
-    const icons = await page.$$('div[role="dialog"] div[role="button"]');
-    for (const icon of icons) {
-      const label = await icon.getAttribute('aria-label');
-      if (label && (label.includes('nh') || label.includes('hoto') || label.includes('ideo'))) {
-        await icon.click({ force: true });
-        logger.info(`Click icon ảnh: ${label}`);
-        return;
-      }
-    }
-  })();
-  await randomDelay(800, 1500); // chờ FB render input sau khi click
-
-  // Cách 2: Tìm input[type=file] trực tiếp.
-  // FB render nhiều input file ẩn với accept khác nhau (input ảnh, input video, input combo).
-  // Phải phân biệt rõ: nếu nhét ảnh vào input "video đứng đầu" → FB coi file là video/tài liệu,
-  // ảnh KHÔNG hiện trong bài (render thành icon tài liệu). Vì thế chấm điểm phải ưu tiên
-  // input nhận ảnh + cho chọn nhiều ảnh + có "image" đứng đầu accept; phạt input video-first.
-  const candidates = await page.$$('input[type="file"]');
-  const scored = [];
-  for (const input of candidates) {
-    const accept = ((await input.getAttribute('accept')) || '').toLowerCase();
-    const multiple = (await input.getAttribute('multiple')) !== null;
-    const acceptList = accept.trim();
-    let score = 0;
-    if (accept.includes('image')) score += 3;        // bắt buộc: input phải nhận ảnh
-    if (multiple) score += 2;                         // input soạn ảnh thật của FB cho chọn nhiều ảnh
-    if (acceptList.startsWith('image')) score += 2;   // ưu tiên input "ảnh đứng đầu"
-    if (acceptList.startsWith('video')) score -= 3;   // input "video đứng đầu" → FB hay coi file là video/tài liệu
-    if (!acceptList) score -= 1;                      // input không khai báo accept → chung chung, tránh
-    scored.push({ input, score, accept, multiple });
+  const { waitForImages } = require('./fb-image-guard');
+  // Only use the active text composer. Ambiguous/missing dialogs must fail closed.
+  const composers = page.locator('div[role="dialog"]:visible')
+    .filter({ has: page.locator('[contenteditable="true"][role="textbox"]') });
+  if (await composers.count() !== 1) {
+    throw new Error('Không xác định được cửa sổ soạn bài để đính ảnh; đã dừng đăng bài.');
   }
-  scored.sort((a, b) => b.score - a.score);
+  const composer = composers.first();
+  const baseline = await composer.locator('img').evaluateAll(imgs =>
+    imgs.map(img => img.currentSrc || img.getAttribute('src') || ''));
+  const photoButton = composer.locator(
+    '[role="button"][aria-label="Ảnh/video"], [role="button"][aria-label="Ảnh/Video"], ' +
+    '[role="button"][aria-label="Photo/video"], [role="button"][aria-label="Photo/Video"]'
+  ).first();
 
-  for (const { input, score, accept, multiple } of scored) {
-    try {
-      await input.setInputFiles(imagePaths);
-      uploaded = true;
-      uploadMethod = `direct input score=${score} accept="${accept}" multiple=${multiple}`;
-      logger.info(`Upload ${imagePaths.length} ảnh thành công (${uploadMethod})`);
-      break;
-    } catch (e) {
-      logger.warn(`Direct input score=${score} fail: ${e.message}`);
-      continue;
+  const findInput = async () => {
+    const inputs = await composer.locator('input[type="file"]').elementHandles();
+    const eligible = [];
+    for (const input of inputs) {
+      const accept = ((await input.getAttribute('accept')) || '').toLowerCase().trim();
+      const multiple = (await input.getAttribute('multiple')) !== null;
+      // Never fall through to video-only, generic, or unrelated page inputs.
+      if (!accept.includes('image') || (imagePaths.length > 1 && !multiple)) continue;
+      eligible.push({ input, score: (accept.startsWith('image') ? 2 : 0) + (multiple ? 1 : 0) });
     }
-  }
+    eligible.sort((a, b) => b.score - a.score);
+    return eligible[0]?.input;
+  };
 
-  // Cách 3: Fallback filechooser (nếu direct input thất bại)
-  if (!uploaded) {
-    try {
-      const [fileChooser] = await Promise.all([
-        page.waitForEvent('filechooser', { timeout: 8000 }),
-        (async () => {
-          for (const sel of photoSelectors) {
-            try {
-              const el = await page.$(sel);
-              if (el) { await el.click({ force: true }); return; }
-            } catch { continue; }
-          }
-        })(),
-      ]);
-      await fileChooser.setFiles(imagePaths);
-      uploaded = true;
-      uploadMethod = 'filechooser-fallback';
-      logger.info(`Upload ${imagePaths.length} ảnh thành công (filechooser-fallback)`);
-    } catch (e) {
-      logger.error(`Filechooser fallback failed: ${e.message}`);
-    }
-  }
-
-  if (!uploaded) {
-    logger.error('KHÔNG UPLOAD ĐƯỢC ẢNH!');
-    // Trả tên ảnh (string truthy) thay vì false → caller phân biệt fail bằng
-    // `!== true` và nhúng tên ảnh duy nhất vào thông báo lỗi.
-    return await saveDebugShot(page, 'debug-upload');
-  }
-
-  // Verify: chờ FB render preview. Smart wait: resolve ngay khi thumbnail xuất hiện,
-  // tối đa 4s — nhanh hơn flat delay 3-6s khi FB render sớm.
-  await page.waitForFunction((n) => {
-    const dialog = document.querySelector('div[role="dialog"]');
-    if (!dialog) return true; // dialog đóng rồi thì khỏi chờ
-    let count = 0;
-    for (const img of dialog.querySelectorAll('img')) {
-      const src = img.getAttribute('src') || '';
-      if (src.startsWith('blob:') || src.startsWith('data:')) count++;
-    }
-    return count >= n;
-  }, Math.max(1, imagePaths.length), { timeout: 4000 }).catch(() => {});
-  // Verify cho MỌI trường hợp (kể cả 1 ảnh): nếu không thấy thumbnail ảnh nào nghĩa là
-  // FB có thể đã coi file là video/tài liệu (chọn nhầm input) → ảnh sẽ không hiện trong bài.
-  let thumbCount = -1;
   try {
-    thumbCount = await page.evaluate(() => {
-      const dialog = document.querySelector('div[role="dialog"]');
-      if (!dialog) return -1;
-      const imgs = dialog.querySelectorAll('img');
-      let count = 0;
-      for (const img of imgs) {
-        const src = img.getAttribute('src') || '';
-        // FB preview ảnh dạng blob: hoặc data: URL trước khi upload xong.
-        if (src.startsWith('blob:') || src.startsWith('data:')) count++;
-      }
-      return count;
-    });
-    if (thumbCount === 0) {
-      logger.warn(`Không thấy thumbnail ảnh nào sau upload (method=${uploadMethod}) — FB có thể đã coi file là video/tài liệu, ảnh sẽ KHÔNG hiện. Kiểm tra input đã chọn.`);
-      await page.screenshot({ path: path.resolve(__dirname, `../../logs/debug-upload-noimg-${Date.now()}.png`) }).catch(() => {});
-    } else if (thumbCount > 0 && thumbCount < imagePaths.length) {
-      logger.warn(`Chỉ thấy ${thumbCount}/${imagePaths.length} thumbnail (method=${uploadMethod}) — FB có thể đã nuốt mất ảnh`);
-      await page.screenshot({ path: path.resolve(__dirname, `../../logs/debug-upload-mismatch-${Date.now()}.png`) }).catch(() => {});
-    } else if (thumbCount >= imagePaths.length) {
-      logger.info(`Verify OK: ${thumbCount} thumbnail trong dialog`);
-    }
-  } catch (e) {
-    logger.warn(`Không count được thumbnail: ${e.message}`);
-  }
-
-  // Đủ thumbnail = FB đã nhận ảnh OK → happy path, KHỎI soi banner lỗi (không thêm độ trễ).
-  // CHỈ khi thumbnail THIẾU mới kiểm tra FB có TỪ CHỐI ảnh không. FB đôi khi NHẬN file nhưng
-  // TỪ CHỐI xử lý → hiện banner "Không thể tải file của bạn lên" và KHOÁ nút "Tiếp".
-  // attachImages cũ vẫn trả true → flow đi tiếp rồi chết ở bước bấm "Tiếp" (báo nhầm
-  // "Step 3 fail" khó hiểu). Ở đây phát hiện đúng nguyên nhân + thử đính lại ảnh, nếu FB vẫn
-  // từ chối thì throw lỗi RÕ RÀNG (account bị hạn chế đăng ảnh / ảnh sai định dạng).
-  if (thumbCount < imagePaths.length) {
-    const isRejected = async () => page.evaluate(() => {
-      const dialog = document.querySelector('div[role="dialog"]');
-      if (!dialog) return false;
-      // "." khớp mọi biến thể dấu nháy (couldn't / couldn’t).
-      return /Không thể tải file|couldn.t upload|Unable to upload|could not be uploaded/i
-        .test(dialog.textContent || '');
-    }).catch(() => false);
-
-    // FB render banner lỗi sau ~1-2s → chờ ngắn rồi mới soi.
-    await randomDelay(1200, 1800);
-
-    for (let attempt = 1; attempt <= 2 && (await isRejected()); attempt++) {
-      logger.warn(`FB từ chối ảnh (banner "Không thể tải file") — thử đính lại lần ${attempt}/2...`);
-      // Đính lại: chọn input điểm cao nhất rồi setInputFiles lần nữa (retry upload).
-      try {
-        const inputs = await page.$$('input[type="file"]');
-        let best = null, bestScore = -Infinity;
-        for (const input of inputs) {
-          const accept = ((await input.getAttribute('accept')) || '').toLowerCase().trim();
-          const multiple = (await input.getAttribute('multiple')) !== null;
-          let s = 0;
-          if (accept.includes('image')) s += 3;
-          if (multiple) s += 2;
-          if (accept.startsWith('image')) s += 2;
-          if (accept.startsWith('video')) s -= 3;
-          if (s > bestScore) { best = input; bestScore = s; }
+    let input = await findInput();
+    if (input) {
+      await input.setInputFiles(imagePaths);
+    } else {
+      // Some Facebook layouts keep the hidden file input outside the dialog.
+      // In that case use only the chooser emitted by THIS composer's photo button.
+      const chooserPromise = page.waitForEvent('filechooser', { timeout: 8000 }).catch(() => null);
+      await photoButton.click({ timeout: 5000 });
+      const chooser = await chooserPromise;
+      if (chooser) {
+        if (imagePaths.length > 1 && !chooser.isMultiple()) {
+          throw new Error('Ô chọn ảnh không hỗ trợ đủ số ảnh yêu cầu.');
         }
-        if (best) await best.setInputFiles(imagePaths);
-      } catch (e) {
-        logger.warn(`Đính lại ảnh lần ${attempt} lỗi: ${e.message}`);
+        await chooser.setFiles(imagePaths);
+      } else {
+        input = await findInput();
+        if (!input) throw new Error('Không tìm thấy ô tải ảnh trong cửa sổ soạn bài.');
+        await input.setInputFiles(imagePaths);
       }
-      await randomDelay(1500, 2500); // chờ FB xử lý lại rồi vòng sau soi banner tiếp
     }
-
-    if (await isRejected()) {
-      logger.error('FB TỪ CHỐI ẢNH sau khi thử lại — account có thể bị hạn chế đăng ảnh / ảnh sai định dạng.');
-      const shot = await saveDebugShot(page, 'debug-upload-rejected');
-      // Throw để báo RÕ đến UI thay vì trả true rồi chết ở bước "Tiếp" (→ "Step 3 fail" khó hiểu).
-      throw new Error(`${funMsg.errUploadRejected()} (xem logs/${shot})`);
-    }
+    // setInputFiles only selects local files; it is NOT an upload success signal.
+    // Caption is typed AFTER attachment; do not require an enabled submit button yet.
+    await waitForImages(composer, imagePaths.length, baseline, { requireReadyButton: false });
+    pendingImageChecks.set(page, { composer, expected: imagePaths.length, baseline });
+    logger.info(`Đã xác nhận đủ ${imagePaths.length} ảnh xem trước, không còn tiến trình tải`);
+    return true;
+  } catch (e) {
+    const shot = await saveDebugShot(page, 'debug-upload-incomplete');
+    throw new Error(`${e.message} (xem logs/${shot})`);
   }
-
-  return uploaded;
 }
 
 // Nhận diện URL permalink bài viết FB ở MỌI dạng. Trang/Nhóm trả URL dạng
@@ -989,6 +874,7 @@ async function shareToGroupsInSettings(page, keywords) {
 // để không ảnh hưởng đăng riêng lẻ. Click Tiếp → Cài đặt bài viết → Chia sẻ lên nhóm
 // → tick group → Xong → Đăng.
 async function submitPostAndShareGroups(page, keywords, shouldCancel = null) {
+  await verifyImagesBeforeSubmit(page);
   const listener = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
 
   await page.evaluate(() => {
@@ -1143,6 +1029,7 @@ async function _abortIfCancelled(page, shouldCancel) {
 }
 
 async function submitPost(page, shouldCancel = null) {
+  await verifyImagesBeforeSubmit(page);
   // Phải attach listener TRƯỚC khi click — response GraphQL về sau vài trăm ms
   const listener = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
 
@@ -2001,6 +1888,7 @@ async function qpStep2FillContent(page, steps, message, imagePaths) {
 // scroll dialog BOTTOM (theo flow cũ submitPost) → phase 1 aria-label, phase 2 text exact.
 // Có Tab+Enter fallback (theo flow cũ) khi click thường fail.
 async function qpStep3ClickNext(page, steps) {
+  await verifyImagesBeforeSubmit(page);
   // Scroll tất cả dialog xuống BOTTOM trước khi tìm button submit (theo flow cũ submitPost)
   await page.evaluate(() => {
     document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
