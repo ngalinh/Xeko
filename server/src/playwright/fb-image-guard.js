@@ -31,7 +31,9 @@ async function waitForImages(composer, expected, baseline, options = {}) {
   while (now() < deadline) {
     state = await composer.evaluate(readImageState, baseline);
     if (state.rejected) throw new Error('Facebook từ chối tải ảnh; đã dừng đăng bài.');
-    if (state.count === expected && !state.busy && (!requireReadyButton || state.readyButton)) {
+    // A successful full-batch selection is sufficient even with collapsed +N previews.
+    const attached = options.selectedCount === expected || state.count === expected;
+    if (attached && !state.busy && (!requireReadyButton || state.readyButton)) {
       if (readySince === null) readySince = now();
       if (now() - readySince >= stableMs) return true;
     } else {
@@ -39,7 +41,7 @@ async function waitForImages(composer, expected, baseline, options = {}) {
     }
     await pause(300);
   }
-  throw new Error(`Chưa xác nhận đủ ${expected} ảnh tải xong (thấy ${state.count}, busy=${state.busy}, readyButton=${state.readyButton}); đã dừng để tránh đăng thiếu hình.`);
+  throw new Error(`Chưa xác nhận đủ ${expected} ảnh tải xong (đã chọn ${options.selectedCount ?? "chưa xác nhận"}, preview=${state.count}, busy=${state.busy}, readyButton=${state.readyButton}); đã dừng để tránh đăng thiếu hình.`);
 }
 
 module.exports = { readImageState, waitForImages };

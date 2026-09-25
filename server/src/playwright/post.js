@@ -469,7 +469,7 @@ async function verifyImagesBeforeSubmit(page) {
   const check = pendingImageChecks.get(page);
   if (!check) return; // text-only post
   try {
-    await require('./fb-image-guard').waitForImages(check.composer, check.expected, check.baseline);
+    await require('./fb-image-guard').waitForImages(check.composer, check.expected, check.baseline, { selectedCount: check.selectedCount });
   } catch (e) {
     const shot = await saveDebugShot(page, 'debug-upload-incomplete');
     throw new Error(`${e.message} (xem logs/${shot})`);
@@ -527,10 +527,10 @@ async function _attachImagesImpl(page, imagePaths) {
         await input.setInputFiles(imagePaths);
       }
     }
-    // Selection is not upload success. Let the caption step run while previews load;
-    // every submit path must still pass verifyImagesBeforeSubmit before clicking.
-    pendingImageChecks.set(page, { composer, expected: imagePaths.length, baseline });
-    logger.info(`Đã chọn ${imagePaths.length} ảnh; tiếp tục nhập caption, kiểm tra ảnh trước khi đăng`);
+    // setInputFiles/setFiles resolved for the entire batch. Facebook may collapse
+    // previews into a +N tile; wait for readiness, not one thumbnail per file.
+    pendingImageChecks.set(page, { composer, expected: imagePaths.length, baseline, selectedCount: imagePaths.length });
+    logger.info(`Đã chọn ${imagePaths.length} ảnh thành công; tiếp tục nhập caption, chờ Facebook sẵn sàng để đi tiếp`);
     return true;
   } catch (e) {
     const shot = await saveDebugShot(page, 'debug-upload-incomplete');

@@ -130,7 +130,11 @@ test('upload selection stays scoped and prefers image-first multiple input', asy
   });
   const { page } = fakeComposer([input('video/*', true), input('image/*', true)]);
   let readyChecks = 0;
-  const flow = loadAttachmentFlow(async () => { readyChecks++; return true; });
+  const flow = loadAttachmentFlow(async (composer, expected, baseline, options) => {
+    assert.equal(expected, 2);
+    assert.equal(options.selectedCount, 2);
+    readyChecks++; return true;
+  });
   assert.equal(await flow.attach(page, ['one.jpg', 'two.jpg']), true);
   assert.equal(readyChecks, 0, 'caption must not wait on the upload guard');
   await flow.verify(page);
@@ -186,4 +190,38 @@ test('quick-post reaches caption before a failed image guard can stop submit', a
   assert.deepEqual(events, ['caption']);
   await assert.rejects(flow.verify(page), /missing preview/);
   assert.deepEqual(events, ['caption', 'verify-images']);
+});
+
+
+test('seven selected files can continue with five collapsed previews', async () => {
+  let tick = 0;
+  assert.equal(await waitForImages({ evaluate: async () => ({ ...ready, count: 5 }) }, 7, [], {
+    selectedCount: 7, stableMs: 600, timeoutMs: 3000,
+    now: () => tick, pause: async ms => { tick += ms; },
+  }), true);
+});
+
+test('confirmed selection still waits for Facebook readiness and rejects upload errors', async t => {
+  for (const state of [{ ...ready, busy: true }, { ...ready, readyButton: false },
+    { ...ready, rejected: true }]) {
+    await t.test(JSON.stringify(state), async () => {
+      await assert.rejects(scenario([state], { selectedCount: 2 }).run(), /đã dừng/);
+    });
+  }
+});
+
+test('partial selection cannot bypass incomplete previews', async () => {
+  await assert.rejects(scenario([{ ...ready, count: 1 }], { selectedCount: 1 }).run(), /đã dừng/);
+});
+
+test('failed selection cannot record a successful attachment', async () => {
+  const { page } = fakeComposer([{
+    getAttribute: async name => name === 'accept' ? 'image/*' : '',
+    setInputFiles: async () => { throw new Error('selection failed'); },
+  }]);
+  let checks = 0;
+  const flow = loadAttachmentFlow(async () => { checks++; });
+  await assert.rejects(flow.attach(page, ['one.jpg']), /selection failed/);
+  await flow.verify(page);
+  assert.equal(checks, 0);
 });
