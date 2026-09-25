@@ -838,11 +838,8 @@ async function shareToGroupsInSettings(page, keywords) {
   }
 
   await randomDelay(500, 1000);
-  if (!(await clickXongInShareDialog(page))) {
-    logger.warn('shareToGroups: không click được "Xong" — fallback Enter');
-    await page.keyboard.press('Enter');
-  } else {
-    logger.info('shareToGroups: click "Xong" OK');
+  if (!(await _qpCloseShareGroupsDialog(page))) {
+    throw new Error('Không đóng được popup chọn nhóm bằng nút X — chưa bấm Đăng');
   }
   await randomDelay(1500, 2500);
 
@@ -861,24 +858,7 @@ async function submitPostAndShareGroups(page, keywords, shouldCancel = null) {
   });
   await randomDelay(1000, 1500);
 
-  // Bước 1: click "Tiếp" để vào "Cài đặt bài viết". KHÔNG fallback "Đăng" — sẽ skip
-  // mất bước chọn nhóm.
-  const step1 = await tryClick(page, [
-    'div[aria-label="Tiếp"]',
-    'div[aria-label="Next"]',
-  ], 'Bước 1 - Tiếp');
-
-  if (!step1) {
-    logger.warn('submitPostAndShareGroups: không click được "Tiếp" — fallback Tab+Enter');
-    for (let i = 0; i < 5; i++) {
-      await page.keyboard.press('Tab');
-      await randomDelay(200, 400);
-    }
-    await page.keyboard.press('Enter');
-  }
-  await randomDelay(1000, 2000);
-
-  // Bước 2: trong "Cài đặt bài viết", click "Chia sẻ lên nhóm" → tick group → Xong
+  // Chọn nhóm trực tiếp trong trình soạn bài.
   const shareResult = await shareToGroupsInSettings(page, keywords);
   logger.info(`submitPostAndShareGroups: shared ${shareResult.selected.length}/${keywords.length}${shareResult.missed.length ? ` (miss: ${shareResult.missed.join(', ')})` : ''}`);
 
@@ -1779,8 +1759,8 @@ async function closeBrowser() {
 
 // =============================================================================
 // QUICK POST v2 — flow đăng nhanh build lại từ đầu theo UI FB mới (2026)
-// Flow: Tạo bài viết → nhập text + ảnh → Tiếp → Cài đặt bài viết →
-//       Chia sẻ lên nhóm → tick groups → Xong → Đăng
+// Flow: Tạo bài viết → thêm ảnh/video → nhập nội dung →
+//       Chia sẻ lên nhóm → tick groups → đóng popup bằng X → Đăng
 // Mỗi step có log + screenshot debug khi fail. KHÔNG dùng chung helper với flow cũ.
 // =============================================================================
 
@@ -1987,7 +1967,7 @@ async function qpStep3ClickNext(page, steps) {
   }
 }
 
-// --- Step 4: trong "Cài đặt bài viết" click row "Chia sẻ lên nhóm" ---
+// --- Step 4: trong trình soạn bài click "Chia sẻ lên nhóm" ---
 // Row title là <span> exact text "Chia sẻ lên nhóm". Element clickable ở 1-10 cấp
 // parent, chấp nhận role=button | role=listitem | <button> | tabindex="0".
 // Fallback: click span trực tiếp (đôi khi FB bubble handler).
@@ -2114,11 +2094,11 @@ async function qpStep4OpenShareToGroups(page, steps) {
   }
 }
 
-// --- Step 5: tick group theo keyword + click "Xong" ---
+// --- Step 5: tick group theo keyword + đóng popup bằng X ---
 // Checkbox: native input[type="checkbox"] (FB UI mới) HOẶC [role="checkbox"] (UI cũ).
 // Match keyword: exact text priority → substring fallback.
 // Lazy-load: scroll dialog 400px/lần, max 30 attempts.
-// Xong: aria-label="Xong" primary, walk-up text fallback (pattern step 3).
+// Đóng popup bằng nút X sau khi tick nhóm.
 async function qpStep5PickGroups(page, steps, keywords) {
   const selected = [];
   const missed = [];
@@ -2136,90 +2116,16 @@ async function qpStep5PickGroups(page, steps, keywords) {
   }
 
   if (selected.length === 0) {
-    await _qpLog(steps, 'Step 5: không tick được group nào → skip "Xong"');
+    await _qpLog(steps, 'Step 5: không tick được group nào → quay về trình soạn bài');
     return { selected: [], missed };
   }
 
-  // Click "Xong" — scope vào dialog chứa "Chọn nhóm" (không phải last dialog)
-  await randomDelay(300, 600);
-  let xongVia = null;
-  const shareDialog = page.locator('div[role="dialog"]').filter({ hasText: 'Chọn nhóm' }).first();
-
-  // A. aria-label exact trong share dialog
-  for (const lbl of ['Xong', 'Done']) {
-    try {
-      await shareDialog.locator(`[aria-label="${lbl}"]`).first().click({ force: true, timeout: 3000 });
-      xongVia = `aria-label="${lbl}"`;
-      break;
-    } catch (_) {}
-  }
-
-  // B. getByRole(button, name=Xong) trong share dialog
-  if (!xongVia) {
-    for (const lbl of ['Xong', 'Done']) {
-      try {
-        await shareDialog.getByRole('button', { name: lbl, exact: true }).first().click({ force: true, timeout: 3000 });
-        xongVia = `getByRole(button,${lbl})`;
-        break;
-      } catch (_) {}
-    }
-  }
-
-  // C. Fallback: walk-up exact text trong share dialog
-  if (!xongVia) {
-    const ok = await page.evaluate(() => {
-      const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
-      let dialog = null;
-      for (const cand of ds) {
-        const t = cand.textContent || '';
-        if (t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')) {
-          dialog = cand; break;
-        }
-      }
-      if (!dialog) return false;
-      for (const s of dialog.querySelectorAll('span')) {
-        const t = (s.textContent || '').trim();
-        if (t !== 'Xong' && t !== 'Done') continue;
-        let el = s;
-        for (let i = 0; i < 8 && el.parentElement; i++) {
-          el = el.parentElement;
-          if (el.getAttribute('role') === 'button') {
-            const r = el.getBoundingClientRect();
-            if (r.width === 0 || r.height === 0) continue;
-            el.scrollIntoView({ block: 'center' });
-            el.click();
-            return true;
-          }
-        }
-      }
-      return false;
-    });
-    if (ok) xongVia = 'walk-up text→role=button';
-  }
-
-  if (!xongVia) {
-    const shot = await _qpScreenshot(page, 'step5-xong-fail');
-    await _qpLog(steps, `Step 5: KHÔNG click được "Xong" (screenshot=${shot})`);
-    return { selected, missed };
-  }
-  await _qpLog(steps, `Step 5: click "Xong" OK (${xongVia})`);
-
-  // Verify: dialog "Chọn nhóm" đóng (không còn dialog nào chứa "Chọn nhóm")
-  try {
-    await page.waitForFunction(() => {
-      const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
-      for (const d of ds) {
-        const t = d.textContent || '';
-        if (t.includes('Chọn nhóm') || t.includes('Choose groups')) return false;  // vẫn còn dialog "Chọn nhóm"
-      }
-      return true;  // dialog "Chọn nhóm" đã đóng
-    }, { timeout: 8000 });
-    await _qpLog(steps, 'Step 5: verify OK — dialog "Chọn nhóm" đã đóng');
-  } catch {
-    await _qpLog(steps, 'Step 5: clicked "Xong" nhưng dialog "Chọn nhóm" vẫn mở — tiếp tục thử step 6');
-  }
-
-  return { selected, missed };
+  // UI mới lưu lựa chọn khi đóng popup bằng nút X.
+  const closed = await _qpCloseShareGroupsDialog(page);
+  await _qpLog(steps, closed
+    ? 'Step 5: đã đóng popup chọn nhóm bằng nút X'
+    : 'Step 5: không đóng được popup chọn nhóm — dừng trước khi Đăng');
+  return { selected, missed, closed };
 }
 
 // Tick 1 group theo keyword với exact-match priority + substring fallback + scroll lazy-load.
@@ -2459,26 +2365,26 @@ async function qpStep6Submit(page, steps, shouldCancel = null) {
     return { success: false, cancelled: true, error: 'Đã dừng theo yêu cầu người dùng' };
   }
 
-  // Listener phải attach TRƯỚC khi click — response GraphQL về sau vài trăm ms
-  const listener = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
-
-  // Early-exit: nếu dialog đã đóng hết (FB submit nhanh / Tab+Enter ở step trước đã post)
-  // → bài đã đăng thành công, không cần tìm nút "Đăng" nữa.
-  const alreadyDone = await page.evaluate(() => {
-    const dialogs = document.querySelectorAll('div[role="dialog"]');
-    for (const d of dialogs) {
-      const t = d.textContent || '';
-      if (t.includes('Cài đặt bài viết') || t.includes('Post settings') ||
-          t.includes('Tạo bài viết') || t.includes('Create post') || t.includes('Create Post')) return false;
+  // Không bấm Đăng khi popup chọn nhóm vẫn mở, kể cả nhánh fallback.
+  const groupDialog = page.locator('[role="dialog"]:visible, [role="alertdialog"]:visible, [aria-modal="true"]:visible')
+    .filter({ hasText: /Chọn nhóm|Choose groups?/i }).last();
+  if (await groupDialog.isVisible()) {
+    if (!(await _qpCloseShareGroupsDialog(page))) {
+      return { success: false, error: 'Không đóng được popup chọn nhóm bằng nút X — chưa bấm Đăng' };
     }
-    return true;
-  });
-  if (alreadyDone) {
-    await _qpLog(steps, 'Step 6: dialog đã đóng trước khi click "Đăng" — bài đã được gửi ở bước trước');
-    listener.arm();
-    const postUrl = await listener.promise;
-    return { success: true, postUrl: postUrl || null };
   }
+  const composer = page.locator('[role="dialog"]:visible')
+    .filter({ hasText: /Tạo bài viết|Create post|Cài đặt bài viết|Post settings/i }).first();
+  if (!(await composer.isVisible())) {
+    return { success: false, error: 'Không thấy trình soạn bài — chưa xác nhận bài đã đăng' };
+  }
+  await verifyImagesBeforeSubmit(page);
+  if (typeof shouldCancel === 'function' && shouldCancel()) {
+    return { success: false, cancelled: true, error: 'Đã dừng theo yêu cầu người dùng' };
+  }
+
+  // Listener phải attach TRƯỚC khi click.
+  const listener = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
 
   // Scroll tất cả dialog xuống BOTTOM (theo flow cũ submitPost) — submit button ở cuối
   await page.evaluate(() => {
@@ -2488,7 +2394,7 @@ async function qpStep6Submit(page, steps, shouldCancel = null) {
 
   // Scope vào dialog "Cài đặt bài viết" (chứa "Đăng" button + "Lưu" button)
   // FB modal portal có thể stack DOM khác thứ tự — không dùng last dialog
-  const settingsDialog = page.locator('div[role="dialog"]').filter({ hasText: 'Cài đặt bài viết' }).first();
+  const settingsDialog = page.locator('div[role="dialog"]').filter({ hasText: /Tạo bài viết|Create post|Cài đặt bài viết|Post settings/i }).first();
 
   let clickedVia = null;
 
@@ -2629,41 +2535,24 @@ async function qpStep6Submit(page, steps, shouldCancel = null) {
  * @param {string[]} groupKeywords  Để rỗng = không share group (sẽ click "Đăng" luôn).
  * @returns {Promise<{success: boolean, postUrl?: string, sharedGroups?: number, missedGroups?: string[], steps: string[], error?: string}>}
  */
-// Helper: close share-groups dialog ("Chọn nhóm") để quay về "Cài đặt bài viết"
-// Dùng khi step 4/5 fail và cần fallback sang đăng cá nhân không share group.
+// Đóng popup chọn nhóm bằng nút X và xác minh đã quay về trình soạn bài.
 async function _qpCloseShareGroupsDialog(page) {
-  const dialog = page.locator('div[role="dialog"]').filter({ hasText: 'Chọn nhóm' }).first();
-  // Method 1: click back arrow trong dialog (aria-label Quay lại/Back)
-  for (const lbl of ['Quay lại', 'Back']) {
+  const dialog = page.locator('[role="dialog"]:visible, [role="alertdialog"]:visible, [aria-modal="true"]:visible')
+    .filter({ hasText: /Chọn nhóm|Choose groups?/i }).last();
+  for (const label of ['Đóng', 'Close']) {
+    const button = dialog.getByRole('button', { name: label, exact: true }).first();
+    if (!(await button.isVisible().catch(() => false))) continue;
     try {
-      await dialog.locator(`[aria-label="${lbl}"]`).first().click({ force: true, timeout: 2000 });
-      break;
-    } catch (_) {}
-  }
-  // Verify dialog "Chọn nhóm" đã đóng
-  try {
-    await page.waitForFunction(() => {
-      const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
-      for (const d of ds) {
-        if ((d.textContent || '').includes('Chọn nhóm')) return false;
-      }
-      return true;
-    }, { timeout: 3000 });
-    return true;
-  } catch {
-    // Method 2: Escape key (fallback)
-    await page.keyboard.press('Escape');
-    try {
-      await page.waitForFunction(() => {
-        const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
-        for (const d of ds) {
-          if ((d.textContent || '').includes('Chọn nhóm')) return false;
-        }
-        return true;
-      }, { timeout: 2000 });
+      await button.click({ timeout: 3000 });
+      await dialog.waitFor({ state: 'hidden', timeout: 8000 });
+      // Chỉ tiếp tục khi đã quay về trình soạn bài.
+      await page.locator('[role="dialog"]:visible')
+        .filter({ hasText: /Tạo bài viết|Create post|Cài đặt bài viết|Post settings/i })
+        .first().waitFor({ state: 'visible', timeout: 5000 });
       return true;
     } catch { return false; }
   }
+  return false;
 }
 
 async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywords = [], shouldCancel = null) {
@@ -2702,16 +2591,10 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
     }
     await randomDelay(600, 1000);
 
-    // Nhánh có share group: Tiếp → Chia sẻ lên nhóm → tick → Xong → Đăng
+    // Nhánh có share group: Chia sẻ lên nhóm → tick → đóng popup bằng X → Đăng
     // FALLBACK an toàn: nếu step 4/5 fail (chưa post), tự click "Đăng" để post
     // cá nhân thay vì để mất luôn cả bài cá nhân.
     if (wantShare) {
-      if (!(await qpStep3ClickNext(page, steps))) {
-        const shot = await _qpScreenshot(page, 'step3-fail');
-        return { success: false, error: `Step 3 fail (screenshot=${shot})`, steps };
-      }
-      await randomDelay(800, 1500);
-
       // Step 4: open share-groups dialog
       const step4ok = await qpStep4OpenShareToGroups(page, steps);
 
@@ -2762,6 +2645,10 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
       }
       await randomDelay(600, 1000);
 
+      if (!pick.closed) {
+        return { success: false, error: 'Không đóng được popup chọn nhóm bằng nút X', steps, missedGroups: pick.missed };
+      }
+
       // Happy path: ticked some groups → step 6 Đăng (full flow)
       const submit = await qpStep6Submit(page, steps, shouldCancel);
       _wasCancelled = !!submit.cancelled;
@@ -2778,14 +2665,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
       };
     }
 
-    // Nhánh chỉ đăng cá nhân: vẫn phải qua "Tiếp" → "Cài đặt bài viết" → "Đăng"
-    // (FB UI mới không còn nút "Đăng" thẳng ở modal "Tạo bài viết", chỉ có "Tiếp")
-    if (!(await qpStep3ClickNext(page, steps))) {
-      const shot = await _qpScreenshot(page, 'step3-personal-fail');
-      return { success: false, error: `Step 3 (personal) fail (screenshot=${shot})`, steps };
-    }
-    await randomDelay(800, 1500);
-
+    // Chỉ đăng cá nhân: bấm Đăng ngay trong trình soạn bài.
     const submit = await qpStep6Submit(page, steps, shouldCancel);
     _wasCancelled = !!submit.cancelled;
     logger.info(`${tag} done personal-only (+${Date.now() - t0}ms)`);
