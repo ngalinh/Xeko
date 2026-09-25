@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
-const { inspect, readProfileSnapshot, collectProfilePosts } = require('./src/ctv/browser');
+const { inspect, readProfileSnapshot, collectProfilePosts, readPostMedia } = require('./src/ctv/browser');
 
 function snapshot({level = 1, hidden = false, friend = true, text = '', article = false} = {}) {
   const element = (innerText, extra = {}) => ({innerText, getClientRects: () => [1], getAttribute: () => null, ...extra});
@@ -57,30 +57,50 @@ test('blocked profile remains ineligible and redirects remain rejected', async (
 test('reads bio beneath the profile header', () => {
   assert.equal(snapshot({text: 'Nhận order sản phẩm từ website Mỹ'}).bio, 'Nhận order sản phẩm từ website Mỹ');
 });
-test('scrolls and accumulates five distinct sales posts across virtualized batches', async () => {
-  let scrolls = 0;
+function mediaPage(batches, images = []) {
+  let scrolls = 0, expanded = 0;
   const page = {
     url: () => 'https://www.facebook.com/123',
-    locator: () => ({count: async () => 0}),
     waitForTimeout: async () => {},
-    evaluate: async fn => {
-      if (fn.toString().includes('scrollBy')) { scrolls++; return; }
-      return ['Nhật ký hôm nay', 'Bán sản phẩm Amazon.com số ' + scrolls];
+    evaluate: async () => { scrolls++; },
+    locator: selector => selector.startsWith('input') ? {count: async () => 0} : {
+      count: async () => batches(scrolls).length,
+      nth: i => ({
+        isVisible: async () => true,
+        getByRole: () => ({count: async () => 1, nth: () => ({click: async () => { expanded++; }})}),
+        evaluate: async () => batches(scrolls)[i],
+        locator: () => ({count: async () => images.length, nth: j => ({
+          evaluate: async () => images[j] !== 'small', isVisible: async () => true,
+          screenshot: async () => { if (images[j] === 'broken') throw Error('detached'); return Buffer.from(images[j]); },
+        })}),
+      }),
     },
   };
-  const result = await collectProfilePosts(page, {bio: 'Bio', posts: ['Bán sản phẩm Amazon.com số 0']});
+  return {page, scrolls: () => scrolls, expanded: () => expanded};
+}
+test('scrolls and accumulates five distinct captions across virtualized batches', async () => {
+  const mock = mediaPage(n => ['Nhật ký hôm nay', 'Bán sản phẩm Amazon.com số ' + n]);
+  const result = await collectProfilePosts(mock.page, {bio: 'Bio'});
   assert.equal(result.posts.length, 5);
-  assert.equal(scrolls, 4);
+  assert.equal(mock.scrolls(), 4);
   assert.equal(result.bio, 'Bio');
 });
-test('bounds scrolling when posts are unavailable or repeated', async () => {
-  let scrolls = 0;
-  const page = {
-    url: () => 'https://www.facebook.com/123', locator: () => ({count: async () => 0}),
-    waitForTimeout: async () => {},
-    evaluate: async fn => { if (fn.toString().includes('scrollBy')) { scrolls++; return; } return ['Bán một sản phẩm']; },
-  };
-  const result = await collectProfilePosts(page, {posts: ['Bán một sản phẩm']});
-  assert.equal(scrolls, 12);
+test('bounds scrolling and deduplicates repeated captions', async () => {
+  const mock = mediaPage(() => ['Bán một sản phẩm']);
+  const result = await collectProfilePosts(mock.page, {});
+  assert.equal(mock.scrolls(), 12);
   assert.equal(result.posts.length, 1);
+});
+test('expands captions, skips avatars and broken images, captures at most two photos', async () => {
+  const mock = mediaPage(() => ['Bán sản phẩm'], ['small','broken','photo1','photo2','photo3']);
+  const result = await readPostMedia(mock.page);
+  assert.equal(mock.expanded(), 1);
+  assert.equal(result[0].caption, 'Bán sản phẩm');
+  assert.deepEqual(result[0].images.map(i => Buffer.from(i.data, 'base64').toString()), ['photo1','photo2']);
+});
+test('retains photo-only posts as supplementary context', async () => {
+  const mock = mediaPage(() => [''], ['photo']);
+  const result = await collectProfilePosts(mock.page, {});
+  assert.equal(result.postMedia.length, 1);
+  assert.equal(result.postMedia[0].images.length, 1);
 });

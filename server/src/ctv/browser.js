@@ -35,23 +35,62 @@ function readProfileSnapshot() {
   return false;
 }
 
+// Read caption and image pixels before virtualized feed entries disappear.
+async function readPostMedia(page) {
+  const articles = page.locator(':is([role="main"], main, #content, #m_basic) :is([role="article"], article)');
+  const records = [];
+  for (let i = 0, count = Math.min(await articles.count(), 10); i < count; i++) {
+    const article = articles.nth(i);
+    if (!await article.isVisible()) continue;
+    const more = article.getByRole('button', { name: /^(Xem thêm|See more)$/i });
+    for (let j = 0, n = Math.min(await more.count(), 3); j < n; j++) {
+      try { await more.nth(j).click({ timeout: 1000 }); } catch {}
+    }
+    const caption = await article.evaluate(e => {
+      const bodies = [...e.querySelectorAll('[data-ad-preview="message"], [data-ad-comet-preview="message"]')];
+      return (bodies.length ? bodies.map(b => b.innerText || '').join('\n') : e.innerText || '').trim().slice(0,6000);
+    });
+    const images = [];
+    const candidates = article.locator('img');
+    for (let j = 0, n = Math.min(await candidates.count(), 12); j < n && images.length < 2; j++) {
+      const img = candidates.nth(j);
+      try {
+        const usable = await img.evaluate(e => e.complete && e.naturalWidth >= 150 && e.naturalHeight >= 150 && e.getBoundingClientRect().width >= 120 && e.getBoundingClientRect().height >= 120);
+        if (!usable || !await img.isVisible()) continue;
+        const bytes = await img.screenshot({ type: 'jpeg', quality: 65, timeout: 2500 });
+        if (bytes.length <= 750000) images.push({ mimeType: 'image/jpeg', data: bytes.toString('base64') });
+      } catch {} // A missing image must not discard the caption.
+    }
+    if (caption || images.length) records.push({ caption, images });
+  }
+  return records;
+}
+
 // Collect across scrolls because Facebook may virtualize older feed entries.
 async function collectProfilePosts(page, snapshot) {
-  const posts = new Set((snapshot.posts || []).filter(isSalesPost));
-  for (let step = 0; step < 12 && posts.size < 5; step++) {
+  const posts = new Map();
+  for (let step = 0; step <= 12; step++) {
+    await assertSession(page);
+    const batch = await readPostMedia(page);
+    for (const post of batch) {
+      if (!isSalesPost(post.caption) && !post.images.length) continue;
+      const key = post.caption || post.images[0].data;
+      if (!posts.has(key) && posts.size >= 20 && isSalesPost(post.caption)) {
+        const supplementary = [...posts].find(([, value]) => !isSalesPost(value.caption));
+        if (supplementary) posts.delete(supplementary[0]);
+      }
+      if ((!posts.has(key) && posts.size < 20) || (posts.has(key) && posts.get(key).images.length < post.images.length)) posts.set(key, post);
+    }
+    if ([...posts.values()].filter(p => isSalesPost(p.caption)).length >= 5 || step === 12) break;
     await page.evaluate(() => {
       const articles = [...document.querySelectorAll(':is([role="main"], main, #content, #m_basic) :is([role="article"], article)')];
       articles.at(-1)?.scrollIntoView({ block: 'end' });
       window.scrollBy(0, Math.max(600, window.innerHeight * 0.8));
     });
     await page.waitForTimeout(1500);
-    await assertSession(page);
-    const batch = await page.evaluate(() => [...document.querySelectorAll(':is([role="main"], main, #content, #m_basic) :is([role="article"], article)')]
-      .filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden')
-      .map(e => (e.innerText || '').trim().slice(0,6000)));
-    for (const post of batch) if (isSalesPost(post)) posts.add(post);
   }
-  return { ...snapshot, posts: [...posts].slice(0,5) };
+  const selected = [...posts.values()].sort((a,b) => Number(isSalesPost(b.caption)) - Number(isSalesPost(a.caption))).slice(0,5);
+  return { ...snapshot, posts: selected.map(p => p.caption), postMedia: selected };
 }
 
 async function inspect(page, url) {
@@ -139,4 +178,4 @@ function createBrowserAdapter() {
     inspect, send,
   };
 }
-module.exports = { createBrowserAdapter, inspect, send, readProfileSnapshot, collectProfilePosts };
+module.exports = { createBrowserAdapter, inspect, send, readProfileSnapshot, collectProfilePosts, readPostMedia };
