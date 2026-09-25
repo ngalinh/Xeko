@@ -47,6 +47,16 @@ test('AI must ground evidence and pass confidence and DOM gates',async()=>{
       return response(good)();
     };
     await evaluateProfile(snapshot,capture);
+    const imageSnapshot = {...snapshot, postMedia: [{caption: snapshot.posts[0], images: [{mimeType:'image/jpeg',data:'cGhvdG8='}]}]};
+    const visualResult = await evaluateProfile(imageSnapshot, async (url, options) => {
+      const parts = JSON.parse(options.body).contents[0].parts;
+      assert.equal(JSON.parse(parts[0].text).postMedia, undefined);
+      assert.match(parts[1].text, /Bài viết 1, caption:/);
+      assert.deepEqual(parts[2], {inline_data:{mime_type:'image/jpeg',data:'cGhvdG8='}});
+      return response({...good,evidence:['Chữ tự suy đoán từ hình ảnh']})();
+    });
+    assert.equal(visualResult.reviewedImageCount, 1);
+    assert.equal(visualResult.eligible, false);
     await assert.rejects(()=>evaluateProfile(snapshot,response({...good,confidence:'high'})));
   }finally{if(old===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=old;}
 });

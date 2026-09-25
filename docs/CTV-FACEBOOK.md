@@ -16,6 +16,8 @@ Chọn các khách đủ điều kiện, đọc bằng chứng rồi bấm **Duy
 
 Tiêu chí: AI đánh giá `personal`, `sellerUS=yes`, confidence ≥ 0,85; có trích dẫn khớp nội dung đầu vào; đồng thời phải có dấu hiệu profile cá nhân, đọc ít nhất 3 bài bán hàng và bằng chứng sản phẩm gắn với website Mỹ trong bio/bài viết. Điểm mô hình không phải xác suất đã hiệu chuẩn. Không suy luận thị trường từ tên, quốc tịch, sắc tộc, nơi ở, tiếng Anh hoặc USD. Sản phẩm mua từ website Mỹ về bán tại Việt Nam vẫn phù hợp; không yêu cầu khách mua ở Mỹ. Kết quả thiếu phiên bản `us-website-products-v2` được đánh dấu tiêu chí cũ và không được duyệt gửi. Cần cập nhật cả web và Xeko worker, sau đó tạo chiến dịch mới để đánh giá lại; kết quả đã lưu không tự đổi.
 
+AI chỉ dựa trên nội dung profile, chưa truy cập website Mỹ để xác minh. Dưới 3 bài bán hàng sẽ báo thiếu dữ liệu và không đủ điều kiện duyệt.
+
 ## 3. Gửi tin nhắn hàng loạt
 
 Soạn tin nhắn, dùng `{name}` để chèn tên. Bấm **Tạo bản xem trước** để xem nội dung chính xác cho từng khách đã duyệt. Kiểm tra danh sách/nội dung, đánh dấu xác nhận, rồi bấm **Duyệt & gửi N tin nhắn**. Gửi lần lượt, có kết quả từng khách và nút dừng.
@@ -29,7 +31,8 @@ Trước Enter, worker xác minh ID người nhận, URL và link hồ sơ ở t
 - Đặt `GEMINI_API_KEY` trên máy thực thi Playwright. Nếu dùng cloud/local, key cần trên local worker. Gemini hiện dùng `gemini-2.5-flash`, giống tính năng AI hiện có trong repo. Nội dung nhìn thấy trên profile được gửi đến Gemini để đánh giá.
 - Node.js 18+; giữ cấu hình `LOCAL_API_KEY`, đăng nhập Basso và phân quyền tài khoản. API cloud kiểm tra quyền trên tài khoản lưu trong chiến dịch trước mọi thao tác.
 - Dữ liệu lưu ở `data/.ctv/campaigns.json` trong `XEKO_DATA_DIR` hoặc root repo mặc định. Không public thư mục dot này qua static server. Chạy một worker ghi dữ liệu cho mỗi thư mục.
-- Đọc bio dưới ảnh đại diện, cuộn tối đa 12 lần để thu thập tối đa 5 bài bán hàng (6.000 ký tự/bài); dưới 3 bài là chưa đủ dữ liệu. Chưa OCR hình ảnh hoặc xác minh website bên ngoài. Giữ lại và tái sử dụng một tab kiểm tra riêng cho mỗi tài khoản, kể cả khi AI lỗi, để xem hồ sơ cuối; không tự đóng tab rồi quay về `about:blank`. Selector hỗ trợ dấu hiệu tiếng Việt/Anh và dừng khi không xác minh được. Không chạy chức năng đóng browser/đổi phiên tài khoản cùng lúc.
+- Đọc phần giới thiệu dưới tiêu đề profile và cuộn tối đa 12 lượt để thu thập tối đa 5 bài bán hàng khác nhau (6.000 ký tự/bài). Mở “Xem thêm”/“See more” trong bài, đọc caption và chụp tối đa 2 ảnh đã tải mỗi bài (tối đa 5 bài) để gửi Gemini đọc chữ và nhận diện sản phẩm. Bỏ qua ảnh nhỏ và ảnh không tải được; không mở album hoặc cuộn toàn bộ lịch sử. Bài chỉ có ảnh được dùng làm ngữ cảnh, chưa được tính vào ngưỡng 3 bài bán hàng có caption. Bằng chứng duyệt vẫn phải khớp caption/bio. Selector hỗ trợ dấu hiệu tiếng Việt/Anh và dừng khi không xác minh được. Không chạy chức năng đóng browser/đổi phiên tài khoản cùng lúc.
+- Giữ lại và tái sử dụng một tab kiểm tra riêng cho mỗi tài khoản, kể cả khi AI lỗi, để xem hồ sơ cuối; không tự đóng tab rồi quay về `about:blank`. Chưa xác minh website bên ngoài.
 - Trạng thái duyệt và bản xem trước sống qua reload/restart. Job đang chạy khi worker restart chuyển thành `interrupted`; không tự tiếp tục gửi. Chưa có tính năng tiếp tục batch đã bị gián đoạn. Chiến dịch tạo bằng phiên bản cũ chỉ được xem; endpoint `/start` cũ đã bị vô hiệu hóa.
 - UI tự thử lại khi tải tiến độ gặp lỗi, đối chiếu trạng thái sau lỗi thao tác và bỏ qua phản hồi của chiến dịch đã chuyển khỏi. Không tự phát lại yêu cầu gửi.
 
