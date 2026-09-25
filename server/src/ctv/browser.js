@@ -1,4 +1,4 @@
-const { validProfileKey, profileUrl, recipientId } = require('./rules');
+const { validProfileKey, profileUrl, recipientId, isSalesPost } = require('./rules');
 const { evaluateProfile } = require('./ai');
 
 async function assertSession(page) {
@@ -23,13 +23,35 @@ function readProfileSnapshot() {
     const pageEvidence = /Page transparency|Tính minh bạch của Trang|Độ minh bạch của Trang/i.test(text);
     // Secondary headings alone may be feed/navigation titles, not profile names.
     if (!blocked && (!name || (!heading.matches('h1, [aria-level="1"]') && !personalEvidence && !pageEvidence))) continue;
+    const intro = main.cloneNode(true);
+    intro.querySelectorAll('[role="article"], article, [role="feed"], [role="navigation"], nav').forEach(e => e.remove());
     return {
+      bio: (intro.innerText || intro.textContent || '').trim().slice(0,8000),
       name, blocked, pageEvidence, personalEvidence,
-      posts: [...main.querySelectorAll('[role="article"]')].filter(visible).slice(0,10).map(e => e.innerText.slice(0,6000)),
+      posts: [...main.querySelectorAll('[role="article"], article')].filter(visible).slice(0,10).map(e => e.innerText.slice(0,6000)),
       messageLinks: [...main.querySelectorAll('a[href]')].filter(visible).filter(e => /^(Message|Nhắn tin)$/i.test((e.getAttribute('aria-label') || e.innerText || '').trim())).map(e => e.href),
     };
   }
   return false;
+}
+
+// Collect across scrolls because Facebook may virtualize older feed entries.
+async function collectProfilePosts(page, snapshot) {
+  const posts = new Set((snapshot.posts || []).filter(isSalesPost));
+  for (let step = 0; step < 12 && posts.size < 5; step++) {
+    await page.evaluate(() => {
+      const articles = [...document.querySelectorAll(':is([role="main"], main, #content, #m_basic) :is([role="article"], article)')];
+      articles.at(-1)?.scrollIntoView({ block: 'end' });
+      window.scrollBy(0, Math.max(600, window.innerHeight * 0.8));
+    });
+    await page.waitForTimeout(1500);
+    await assertSession(page);
+    const batch = await page.evaluate(() => [...document.querySelectorAll(':is([role="main"], main, #content, #m_basic) :is([role="article"], article)')]
+      .filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden')
+      .map(e => (e.innerText || '').trim().slice(0,6000)));
+    for (const post of batch) if (isSalesPost(post)) posts.add(post);
+  }
+  return { ...snapshot, posts: [...posts].slice(0,5) };
 }
 
 async function inspect(page, url) {
@@ -51,6 +73,8 @@ async function inspect(page, url) {
   await assertSession(page);
   const actual = profileUrl(page.url());
   if (actual !== target) throw new Error('Link chuyển sang hồ sơ khác; hãy kiểm tra và nhập lại link chính xác');
+  if (!snapshot.blocked) snapshot = await collectProfilePosts(page, snapshot);
+  if (profileUrl(page.url()) !== target) throw new Error('Link chuyển sang hồ sơ khác khi đọc bài viết');
   const ids = new Set();
   const directId = recipientId(actual);
   if (directId) ids.add(directId);
@@ -115,4 +139,4 @@ function createBrowserAdapter() {
     inspect, send,
   };
 }
-module.exports = { createBrowserAdapter, inspect, send, readProfileSnapshot };
+module.exports = { createBrowserAdapter, inspect, send, readProfileSnapshot, collectProfilePosts };

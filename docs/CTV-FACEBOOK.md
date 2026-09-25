@@ -10,11 +10,11 @@ Bước nhập chỉ tạo kết quả kiểm tra. Chưa mở Facebook, chưa g�
 
 ## 2. AI đánh giá
 
-AI phân loại hồ sơ cá nhân/Fanpage, dấu hiệu bán hàng cho thị trường Mỹ, điểm tin cậy, lý do và trích dẫn. UI hiển thị tiến độ và kết quả từng khách. Khi xong, chiến dịch dừng ở trạng thái **Chờ duyệt kết quả AI**; không gửi bất kỳ tin nào.
+AI phân loại hồ sơ cá nhân/Fanpage, dấu hiệu bán sản phẩm có trên website Mỹ, điểm tin cậy, lý do và trích dẫn. UI hiển thị tiến độ và kết quả từng khách. Khi xong, chiến dịch dừng ở trạng thái **Chờ duyệt kết quả AI**; không gửi bất kỳ tin nào.
 
 Chọn các khách đủ điều kiện, đọc bằng chứng rồi bấm **Duyệt N khách & sang bước 3**. Khách thiếu bằng chứng, chưa xác minh ID hoặc đã có dấu gửi trước sẽ không chọn được. Nếu hai link cùng một ID Facebook, chỉ duyệt một link. Khi dừng/lỗi AI, có thể duyệt phần kết quả đã xử lý; các hồ sơ chưa xử lý không được chọn. Chạy lại phần còn lại bằng chiến dịch mới.
 
-Tiêu chí: AI đánh giá `personal`, `sellerUS=yes`, confidence ≥ 0,85; có trích dẫn khớp nội dung đầu vào; đồng thời phải có dấu hiệu profile cá nhân và bài bán hàng nói rõ phục vụ thị trường Mỹ. Điểm mô hình không phải xác suất đã hiệu chuẩn. Không suy luận thị trường từ tên, quốc tịch, sắc tộc, nơi ở, tiếng Anh hoặc USD. Mua hàng Mỹ về Việt Nam không mặc nhiên là bán hàng cho khách ở Mỹ.
+Tiêu chí: AI đánh giá `personal`, `sellerUS=yes`, confidence ≥ 0,85; có trích dẫn khớp nội dung đầu vào; đồng thời phải có dấu hiệu profile cá nhân và đọc được ít nhất 3 bài bán hàng khác nhau. Điểm mô hình không phải xác suất đã hiệu chuẩn. Đọc bio và cuộn tìm tối đa 5 bài bán hàng để đánh giá sản phẩm có bán trên website Mỹ, kể cả seller bán lại cho khách Việt Nam. Không suy luận từ tên, quốc tịch, sắc tộc, nơi ở, tiếng Anh hoặc USD. AI chỉ dựa trên nội dung profile, chưa truy cập website Mỹ để xác minh. Dưới 3 bài bán hàng sẽ báo thiếu dữ liệu và không đủ điều kiện duyệt.
 
 ## 3. Gửi tin nhắn hàng loạt
 
@@ -29,7 +29,7 @@ Trước Enter, worker xác minh ID người nhận, URL và link hồ sơ ở t
 - Đặt `GEMINI_API_KEY` trên máy thực thi Playwright. Nếu dùng cloud/local, key cần trên local worker. Gemini hiện dùng `gemini-2.5-flash`, giống tính năng AI hiện có trong repo. Nội dung nhìn thấy trên profile được gửi đến Gemini để đánh giá.
 - Node.js 18+; giữ cấu hình `LOCAL_API_KEY`, đăng nhập Basso và phân quyền tài khoản. API cloud kiểm tra quyền trên tài khoản lưu trong chiến dịch trước mọi thao tác.
 - Dữ liệu lưu ở `data/.ctv/campaigns.json` trong `XEKO_DATA_DIR` hoặc root repo mặc định. Không public thư mục dot này qua static server. Chạy một worker ghi dữ liệu cho mỗi thư mục.
-- Chỉ đọc tối đa 10 bài đang render (6.000 ký tự/bài), chưa cuộn toàn bộ lịch sử hoặc OCR hình ảnh. Selector hỗ trợ dấu hiệu tiếng Việt/Anh và dừng khi không xác minh được. Không chạy chức năng đóng browser/đổi phiên tài khoản cùng lúc.
+- Đọc phần giới thiệu dưới tiêu đề profile và cuộn tối đa 12 lượt để thu thập tối đa 5 bài bán hàng khác nhau (6.000 ký tự/bài). Chưa mở rộng nội dung “Xem thêm”, chưa OCR hình ảnh và không cuộn toàn bộ lịch sử. Selector hỗ trợ dấu hiệu tiếng Việt/Anh và dừng khi không xác minh được. Không chạy chức năng đóng browser/đổi phiên tài khoản cùng lúc.
 - Trạng thái duyệt và bản xem trước sống qua reload/restart. Job đang chạy khi worker restart chuyển thành `interrupted`; không tự tiếp tục gửi. Chưa có tính năng tiếp tục batch đã bị gián đoạn. Chiến dịch tạo bằng phiên bản cũ chỉ được xem; endpoint `/start` cũ đã bị vô hiệu hóa.
 - UI tự thử lại khi tải tiến độ gặp lỗi, đối chiếu trạng thái sau lỗi thao tác và bỏ qua phản hồi của chiến dịch đã chuyển khỏi. Không tự phát lại yêu cầu gửi.
 

@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
-const { inspect, readProfileSnapshot } = require('./src/ctv/browser');
+const { inspect, readProfileSnapshot, collectProfilePosts } = require('./src/ctv/browser');
 
 function snapshot({level = 1, hidden = false, friend = true, text = '', article = false} = {}) {
   const element = (innerText, extra = {}) => ({innerText, getClientRects: () => [1], getAttribute: () => null, ...extra});
@@ -9,7 +9,7 @@ function snapshot({level = 1, hidden = false, friend = true, text = '', article 
     getClientRects: () => hidden ? [] : [1], closest: () => article ? {} : null,
     matches: () => level === 1,
   });
-  const root = element(text, {querySelectorAll(selector) {
+  const root = element(text, {cloneNode: () => ({innerText: text, querySelectorAll: () => []}), querySelectorAll(selector) {
     if (selector.startsWith('h1')) return [heading];
     if (selector.includes('button')) return friend ? [element('Thêm bạn bè')] : [];
     return [];
@@ -51,4 +51,36 @@ test('blocked profile remains ineligible and redirects remain rejected', async (
   const result = await inspect(pageMock({timeout: false}), 'https://facebook.com/123');
   assert.equal(result.eligible, false);
   await assert.rejects(inspect(pageMock({timeout: false, actual: 'https://www.facebook.com/456'}), 'https://facebook.com/123'), /hồ sơ khác/);
+});
+
+
+test('reads bio beneath the profile header', () => {
+  assert.equal(snapshot({text: 'Nhận order sản phẩm từ website Mỹ'}).bio, 'Nhận order sản phẩm từ website Mỹ');
+});
+test('scrolls and accumulates five distinct sales posts across virtualized batches', async () => {
+  let scrolls = 0;
+  const page = {
+    url: () => 'https://www.facebook.com/123',
+    locator: () => ({count: async () => 0}),
+    waitForTimeout: async () => {},
+    evaluate: async fn => {
+      if (fn.toString().includes('scrollBy')) { scrolls++; return; }
+      return ['Nhật ký hôm nay', 'Bán sản phẩm Amazon.com số ' + scrolls];
+    },
+  };
+  const result = await collectProfilePosts(page, {bio: 'Bio', posts: ['Bán sản phẩm Amazon.com số 0']});
+  assert.equal(result.posts.length, 5);
+  assert.equal(scrolls, 4);
+  assert.equal(result.bio, 'Bio');
+});
+test('bounds scrolling when posts are unavailable or repeated', async () => {
+  let scrolls = 0;
+  const page = {
+    url: () => 'https://www.facebook.com/123', locator: () => ({count: async () => 0}),
+    waitForTimeout: async () => {},
+    evaluate: async fn => { if (fn.toString().includes('scrollBy')) { scrolls++; return; } return ['Bán một sản phẩm']; },
+  };
+  const result = await collectProfilePosts(page, {posts: ['Bán một sản phẩm']});
+  assert.equal(scrolls, 12);
+  assert.equal(result.posts.length, 1);
 });
