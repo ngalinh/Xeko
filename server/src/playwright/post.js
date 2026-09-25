@@ -2094,11 +2094,11 @@ async function qpStep4OpenShareToGroups(page, steps) {
   }
 }
 
-// --- Step 5: tick group theo keyword + đóng popup bằng X ---
+// --- Step 5: tick group theo keyword + bấm Xong ---
 // Checkbox: native input[type="checkbox"] (FB UI mới) HOẶC [role="checkbox"] (UI cũ).
 // Match keyword: exact text priority → substring fallback.
 // Lazy-load: scroll dialog 400px/lần, max 30 attempts.
-// Đóng popup bằng nút X sau khi tick nhóm.
+// Bấm Xong để xác nhận các nhóm đã tick.
 async function qpStep5PickGroups(page, steps, keywords) {
   const selected = [];
   const missed = [];
@@ -2120,11 +2120,11 @@ async function qpStep5PickGroups(page, steps, keywords) {
     return { selected: [], missed };
   }
 
-  // UI mới lưu lựa chọn khi đóng popup bằng nút X.
-  const closed = await _qpCloseShareGroupsDialog(page);
+  // Xác nhận lựa chọn bằng Xong trước khi quay về trình soạn bài.
+  const closed = await _qpCloseShareGroupsDialog(page, true);
   await _qpLog(steps, closed
-    ? 'Step 5: đã đóng popup chọn nhóm bằng nút X'
-    : 'Step 5: không đóng được popup chọn nhóm — dừng trước khi Đăng');
+    ? 'Step 5: đã bấm Xong để xác nhận nhóm'
+    : 'Step 5: không xác nhận được nhóm bằng Xong — dừng trước khi Đăng');
   return { selected, missed, closed };
 }
 
@@ -2535,11 +2535,12 @@ async function qpStep6Submit(page, steps, shouldCancel = null) {
  * @param {string[]} groupKeywords  Để rỗng = không share group (sẽ click "Đăng" luôn).
  * @returns {Promise<{success: boolean, postUrl?: string, sharedGroups?: number, missedGroups?: string[], steps: string[], error?: string}>}
  */
-// Đóng popup chọn nhóm bằng nút X và xác minh đã quay về trình soạn bài.
-async function _qpCloseShareGroupsDialog(page) {
+// Xong xác nhận nhóm; Đóng chỉ dùng để hủy khi không tick được nhóm nào.
+// Luôn xác minh đã quay về trình soạn bài trước khi tiếp tục.
+async function _qpCloseShareGroupsDialog(page, confirmSelection = false) {
   const dialog = page.locator('[role="dialog"]:visible, [role="alertdialog"]:visible, [aria-modal="true"]:visible')
     .filter({ hasText: /Chọn nhóm|Choose groups?/i }).last();
-  for (const label of ['Đóng', 'Close']) {
+  for (const label of (confirmSelection ? ['Xong', 'Done'] : ['Đóng', 'Close'])) {
     const button = dialog.getByRole('button', { name: label, exact: true }).first();
     if (!(await button.isVisible().catch(() => false))) continue;
     try {
@@ -2591,7 +2592,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
     }
     await randomDelay(600, 1000);
 
-    // Nhánh có share group: Chia sẻ lên nhóm → tick → đóng popup bằng X → Đăng
+    // Nhánh có share group: Chia sẻ lên nhóm → tick → Xong → Đăng
     // FALLBACK an toàn: nếu step 4/5 fail (chưa post), tự click "Đăng" để post
     // cá nhân thay vì để mất luôn cả bài cá nhân.
     if (wantShare) {
@@ -2646,7 +2647,7 @@ async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywo
       await randomDelay(600, 1000);
 
       if (!pick.closed) {
-        return { success: false, error: 'Không đóng được popup chọn nhóm bằng nút X', steps, missedGroups: pick.missed };
+        return { success: false, error: 'Không xác nhận được nhóm bằng nút Xong', steps, missedGroups: pick.missed };
       }
 
       // Happy path: ticked some groups → step 6 Đăng (full flow)
