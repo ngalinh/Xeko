@@ -104,3 +104,27 @@ test('retains photo-only posts as supplementary context', async () => {
   assert.equal(result.postMedia.length, 1);
   assert.equal(result.postMedia[0].images.length, 1);
 });
+
+ test('inspection retains and reuses its own page after success or AI failure', async () => {
+  const { createBrowserAdapter } = require('./src/ctv/browser');
+  let created = 0;
+  const context = {newPage: async () => {
+    created++;
+    let closed = false;
+    return {isClosed: () => closed, context: () => context, close: async () => {closed = true;}};
+  }};
+  const adapter = createBrowserAdapter({profileExists: () => true, getBrowser: async () => context});
+  const page = await adapter.withPage('test', async p => p, {keepOpen:true});
+  assert.equal(page.isClosed(),false);
+  await assert.rejects(adapter.withPage('test', async p => {
+    assert.equal(p,page); throw new Error('AI failed');
+  }, {keepOpen:true}), /AI failed/);
+  assert.equal(page.isClosed(),false);
+  assert.equal(created,1);
+  await page.close();
+  const next = await adapter.withPage('test', async p => p, {keepOpen:true});
+  assert.notEqual(next,page);
+  const sending = await adapter.withPage('test', async p => p);
+  assert.equal(sending.isClosed(),true);
+  assert.equal(next.isClosed(),false);
+ });

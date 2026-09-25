@@ -11,7 +11,7 @@ const input = urls => ({profile:'test',name:'Test workflow',urls:urls || ['https
 function setup(t, overrides = {}) {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'xeko-ctv-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
   const sent=[],inspected=[];
-  const browser={withPage:async(p,fn)=>fn({}),inspect:async(_,url)=>{inspected.push(url);return {url,actualUrl:url,name:'Khách '+recipientId(url),eligible:true,recipientId:recipientId(url)};},send:async(_,a,m,reserve)=>{reserve();sent.push({id:a.recipientId,message:m});return {state:'sent'};},...overrides};
+  const browser={withPage:async(p,fn)=>fn({}),inspect:async(_,url)=>{inspected.push(url);return {url,actualUrl:url,name:'Khách '+recipientId(url),criteriaVersion:'us-website-products-v2',eligible:true,recipientId:recipientId(url)};},send:async(_,a,m,reserve)=>{reserve();sent.push({id:a.recipientId,message:m});return {state:'sent'};},...overrides};
   const s=new CtvService({file:path.join(dir,'campaigns.json'),browser,pause:async()=>{}});
   return {s,sent,inspected,browser,dir};
 }
@@ -149,3 +149,14 @@ test('import rejects missing, malformed and unsafe account keys', t => {
   }
   assert.equal(s.data.campaigns.length, 0);
 });
+
+ test('old criteria cannot approve recipients or send an existing preview', async t => {
+  const {s,sent}=setup(t); const c=await analyzed(s);
+  const token=prepared(s,c);
+  delete c.leads[0].assessment.criteriaVersion;
+  assert.match(s.reasonBlocked(c.leads[0]), /tiêu chí cũ/);
+  assert.throws(()=>s.sendApproved(c.id,'owner',token));
+  s.reviewAnalysis(c.id,'owner');
+  assert.throws(()=>s.approveAnalysis(c.id,'owner',[c.leads[0].id]));
+  assert.equal(sent.length,0);
+ });

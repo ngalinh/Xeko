@@ -2,7 +2,7 @@ const { classify } = require('./rules');
 
 async function evaluateProfile(snapshot, fetchFn = fetch) {
   const base = classify(snapshot);
-  if (snapshot.blocked) return base;
+  if (snapshot.blocked) return { ...base, criteriaVersion: 'us-website-products-v2', reviewedPostCount: 0 };
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('Chưa cấu hình GEMINI_API_KEY trên máy chạy Playwright');
   const { postMedia = [], ...textSnapshot } = snapshot;
