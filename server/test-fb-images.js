@@ -132,9 +132,10 @@ test('upload selection stays scoped and prefers image-first multiple input', asy
   let readyChecks = 0;
   const flow = loadAttachmentFlow(async () => { readyChecks++; return true; });
   assert.equal(await flow.attach(page, ['one.jpg', 'two.jpg']), true);
+  assert.equal(readyChecks, 0, 'caption must not wait on the upload guard');
   await flow.verify(page);
   assert.deepEqual(chosen, [{ accept: 'image/*', files: ['one.jpg', 'two.jpg'] }]);
-  assert.equal(readyChecks, 2);
+  assert.equal(readyChecks, 1);
 });
 test('video-only input cannot be used as successful image attachment', async () => {
   let selections = 0;
@@ -151,12 +152,38 @@ test('lost images after caption stop submit; text-only posts bypass image checks
     getAttribute: async name => name === 'accept' ? 'image/*' : '',
     setInputFiles: async () => {},
   }]);
-  let calls = 0;
   const flow = loadAttachmentFlow(async () => {
-    if (++calls > 1) throw new Error('missing preview');
-    return true;
+    throw new Error('missing preview');
   });
   await flow.verify({});
   await flow.attach(page, ['one.jpg']);
   await assert.rejects(flow.verify(page), /missing preview/);
+});
+
+test('quick-post reaches caption before a failed image guard can stop submit', async () => {
+  const { page } = fakeComposer([{
+    getAttribute: async name => name === 'accept' ? 'image/*' : '',
+    setInputFiles: async () => {},
+  }]);
+  const events = [];
+  const flow = loadAttachmentFlow(async () => {
+    events.push('verify-images');
+    throw new Error('missing preview');
+  });
+  const source = fs.readFileSync(path.join(__dirname, 'src/playwright/post.js'), 'utf8');
+  const start = source.indexOf('async function qpStep2FillContent(');
+  const end = source.indexOf('async function qpStep3ClickNext(', start);
+  const context = {
+    attachImages: flow.attach,
+    typeMessage: async () => { events.push('caption'); return true; },
+    randomDelay: async () => {},
+    _qpLog: async () => {},
+    _qpScreenshot: async () => 'test.png',
+    module: { exports: {} },
+  };
+  vm.runInNewContext(source.slice(start, end) + '\nmodule.exports = qpStep2FillContent;', context);
+  assert.equal(await context.module.exports(page, [], 'caption', ['one.jpg']), true);
+  assert.deepEqual(events, ['caption']);
+  await assert.rejects(flow.verify(page), /missing preview/);
+  assert.deepEqual(events, ['caption', 'verify-images']);
 });
