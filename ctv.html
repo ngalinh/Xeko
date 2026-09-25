@@ -87,7 +87,7 @@
 
       <section class="panel" id="step2" aria-labelledby="title2">
         <div class="panel-heading"><div class="title-row"><span class="number">02</span><div><h2 id="title2">AI đánh giá</h2><p class="muted">Đọc bằng chứng, chọn khách đạt và duyệt chuyển tiếp.</p></div></div><span class="badge" id="status2">Đang khóa</span></div>
-        <div id="analysisEmpty" class="empty"><span class="empty-icon">✦</span><h3>AI sẽ đánh giá sau khi bạn duyệt bước 1</h3><p>Profile cá nhân · Dấu hiệu seller thị trường Mỹ · Bằng chứng từ bài đăng</p><span class="muted">Kết quả đánh giá luôn dừng để bạn duyệt. Không tự gửi tin.</span></div>
+        <div id="analysisEmpty" class="empty"><span class="empty-icon">✦</span><h3>AI sẽ đánh giá sau khi bạn duyệt bước 1</h3><p>Profile cá nhân · Bio dưới ảnh đại diện · 3–5 bài bán hàng · Sản phẩm trên website Mỹ</p><span class="muted">Kết quả đánh giá luôn dừng để bạn duyệt. Không tự gửi tin.</span></div>
         <div id="analysisResult" hidden>
           <div class="progress-row"><p id="analysisProgress"></p><button id="stopAnalysis" class="secondary" hidden>Dừng đánh giá</button></div><progress id="analysisBar" max="100" value="0" aria-label="Tiến độ AI đánh giá"></progress>
           <div id="analysisStats" class="stats"></div><p id="analysisWarning" class="warning" hidden></p>
@@ -113,7 +113,7 @@
     </div>
     <aside>
       <section class="panel overview"><p class="eyebrow">CHIẾN DỊCH ĐANG XEM</p><h2 id="currentName">Chưa có chiến dịch</h2><p id="currentProfile" class="muted">Chọn tài khoản ở bước 1.</p><span id="currentState" class="badge">Chờ nhập dữ liệu</span><div class="rule"></div><p class="muted">Mỗi bước đều có kết quả và thao tác duyệt riêng. Không chuyển bước tự động.</p><button id="refresh" class="secondary" disabled>↻ Cập nhật trạng thái</button><p id="connection" class="muted" aria-live="polite"></p></section>
-      <section class="panel criteria"><p class="eyebrow">TIÊU CHÍ AI ĐÁNH GIÁ</p><ul><li><strong>Facebook cá nhân</strong><span>Xác định loại hồ sơ của khách.</span></li><li><strong>Có hoạt động bán hàng</strong><span>Tìm dấu hiệu sản phẩm và chào bán.</span></li><li><strong>Hướng đến thị trường Mỹ</strong><span>Đối chiếu bằng chứng trên hồ sơ, bài đăng.</span></li></ul><p class="hint">Thiếu bằng chứng → cần kiểm tra lại trước khi chọn gửi.</p></section>
+      <section class="panel criteria"><p class="eyebrow">TIÊU CHÍ AI ĐÁNH GIÁ</p><ul><li><strong>Facebook cá nhân</strong><span>Xác định loại hồ sơ của khách.</span></li><li><strong>Có hoạt động bán hàng</strong><span>Đọc bio dưới ảnh đại diện và cuộn xem 3–5 bài bán hàng.</span></li><li><strong>Sản phẩm có bán trên website Mỹ</strong><span>Đối chiếu sản phẩm, website Mỹ trong bio và bài bán hàng; không xét thị trường người mua.</span></li></ul><p class="hint">Thiếu bằng chứng → cần kiểm tra lại trước khi chọn gửi.</p></section>
       <section class="panel history"><h2>Lịch sử chiến dịch</h2><div id="campaigns"><p class="muted">Đang tải…</p></div></section>
     </aside>
   </div>
