@@ -5,26 +5,52 @@ async function assertSession(page) {
   if (/\/(login|checkpoint|challenge|two_step_verification)(?:[/?]|$)/i.test(new URL(page.url()).pathname) || await page.locator('input[type="password"]').count()) throw new Error('Cần đăng nhập hoặc xử lý checkpoint trong Quản lý tài khoản');
 }
 
+// Runs inside the page, both while waiting and when collecting the snapshot.
+function readProfileSnapshot() {
+  const visible = e => !!e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden';
+  const roots = [...document.querySelectorAll('[role="main"], main, #content, #m_basic')].filter(visible);
+  for (const main of roots) {
+    const text = main.innerText || '';
+    const blocked = /locked (?:their |this )?profile|đã khóa trang cá nhân|nội dung này hiện không|content isn't available/i.test(text) ? 'Hồ sơ bị khóa hoặc không xem được' : '';
+    const headings = [...main.querySelectorAll('h1, [role="heading"][aria-level="1"], h2, [role="heading"][aria-level="2"]')]
+      .filter(e => visible(e) && !e.closest('[role="article"], article, [role="dialog"], [role="navigation"], nav'));
+    const heading = headings.find(e => e.matches('h1, [aria-level="1"]') && e.innerText.trim())
+      || headings.find(e => e.innerText.trim());
+    const name = heading?.innerText.trim() || '';
+    const controls = [...main.querySelectorAll('[role="button"], button, a')].filter(visible)
+      .map(e => (e.getAttribute('aria-label') || e.innerText || '').trim());
+    const personalEvidence = controls.some(t => /^(Add friend|Friends|Cancel request|Thêm bạn bè|Bạn bè|Hủy lời mời)$/i.test(t));
+    const pageEvidence = /Page transparency|Tính minh bạch của Trang|Độ minh bạch của Trang/i.test(text);
+    // Secondary headings alone may be feed/navigation titles, not profile names.
+    if (!blocked && (!name || (!heading.matches('h1, [aria-level="1"]') && !personalEvidence && !pageEvidence))) continue;
+    return {
+      name, blocked, pageEvidence, personalEvidence,
+      posts: [...main.querySelectorAll('[role="article"]')].filter(visible).slice(0,10).map(e => e.innerText.slice(0,6000)),
+      messageLinks: [...main.querySelectorAll('a[href]')].filter(visible).filter(e => /^(Message|Nhắn tin)$/i.test((e.getAttribute('aria-label') || e.innerText || '').trim())).map(e => e.href),
+    };
+  }
+  return false;
+}
+
 async function inspect(page, url) {
   const target = profileUrl(url);
   await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await assertSession(page);
-  await page.locator('[role="main"] h1').first().waitFor({ state: 'visible', timeout: 15000 });
+  let handle;
+  let snapshot;
+  try {
+    handle = await page.waitForFunction(readProfileSnapshot, null, { timeout: 30000 });
+    snapshot = await handle.jsonValue();
+  } catch (error) {
+    await assertSession(page);
+    if (error.name !== 'TimeoutError') throw error;
+    throw new Error('Không đọc được tên hồ sơ Facebook sau 30 giây. Trang có thể chưa tải xong hoặc dùng bố cục chưa được hỗ trợ; hãy kiểm tra hồ sơ trong Quản lý tài khoản.');
+  } finally {
+    if (handle) await handle.dispose();
+  }
+  await assertSession(page);
   const actual = profileUrl(page.url());
   if (actual !== target) throw new Error('Link chuyển sang hồ sơ khác; hãy kiểm tra và nhập lại link chính xác');
-  const snapshot = await page.evaluate(() => {
-    const main = document.querySelector('[role="main"]');
-    const text = main?.innerText || '';
-    const controls = [...(main?.querySelectorAll('[role="button"],a') || [])].map(e => (e.getAttribute('aria-label') || e.innerText || '').trim());
-    return {
-      name: main?.querySelector('h1')?.innerText.trim() || '',
-      blocked: /locked (?:their |this )?profile|đã khóa trang cá nhân|nội dung này hiện không|content isn't available/i.test(text) ? 'Hồ sơ bị khóa hoặc không xem được' : '',
-      pageEvidence: /Page transparency|Tính minh bạch của Trang|Độ minh bạch của Trang/i.test(text),
-      personalEvidence: controls.some(t => /^(Add friend|Friends|Cancel request|Thêm bạn bè|Bạn bè|Hủy lời mời)$/i.test(t)),
-      posts: [...(main?.querySelectorAll('[role="article"]') || [])].slice(0,10).map(e => e.innerText.slice(0,6000)),
-      messageLinks: [...(main?.querySelectorAll('a[href]') || [])].filter(e => /^(Message|Nhắn tin)$/i.test((e.getAttribute('aria-label') || e.innerText || '').trim())).map(e => e.href),
-    };
-  });
   const ids = new Set();
   const directId = recipientId(actual);
   if (directId) ids.add(directId);
@@ -89,4 +115,4 @@ function createBrowserAdapter() {
     inspect, send,
   };
 }
-module.exports = { createBrowserAdapter, inspect, send };
+module.exports = { createBrowserAdapter, inspect, send, readProfileSnapshot };
