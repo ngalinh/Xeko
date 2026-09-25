@@ -126,7 +126,8 @@
       customer.append(link(l.url,l.assessment?.name || l.url)); customer.dataset.label='Khách hàng';
       analysis.dataset.label='AI đánh giá'; result.dataset.label='Kết quả';
       const v=l.assessment;
-      if(v){analysis.append(element('p',`${v.type==='personal'?'Cá nhân':v.type==='page'?'Fanpage':'Chưa rõ loại'} · Seller US: ${v.sellerUS==='yes'?'Có':v.sellerUS==='no'?'Không':'Chưa rõ'}${typeof v.confidence==='number'?' · '+Math.round(v.confidence*100)+'%':''}`),element('p',v.reason || ''));
+      if(v){analysis.append(element('p',`${v.type==='personal'?'Cá nhân':v.type==='page'?'Fanpage':'Chưa rõ loại'} · ${v.criteriaVersion==='us-website-products-v2'?'Sản phẩm trên website Mỹ':'Thị trường Mỹ (tiêu chí cũ)'}: ${v.sellerUS==='yes'?'Có':v.sellerUS==='no'?'Không':'Chưa rõ'}${typeof v.confidence==='number'?' · '+Math.round(v.confidence*100)+'%':''}`),element('p',v.reason || ''));
+        if(Number.isInteger(v.reviewedPostCount))analysis.append(element('p',`Đã đọc ${v.reviewedPostCount} bài bán hàng`,'muted'));
         if(v.evidence?.length){const d=element('details');d.append(element('summary',`Xem ${v.evidence.length} bằng chứng`));v.evidence.forEach(q=>d.append(element('blockquote',q)));analysis.append(d);}
         if(v.gateReason&&!v.eligible)analysis.append(element('p',v.gateReason,'muted'));
       }else analysis.append(element('p',l.error || 'Chưa có kết quả','muted'));

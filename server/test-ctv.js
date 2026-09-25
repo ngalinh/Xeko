@@ -23,8 +23,8 @@ test('canonical URLs reject external, non-profile and malformed links',()=>{
   assert.equal(profileUrl('https://m.facebook.com/Example/?ref=x'),'https://www.facebook.com/example');assert.equal(recipientId('https://facebook.com/profile.php?id=123&ref=x'),'123');
   for(const url of ['https://facebook.com.evil.test/a','http://facebook.com/a','https://facebook.com/groups/a','https://facebook.com/a/posts/1','https://facebook.com/share/1','https://facebook.com:8080/a','https://u:p@facebook.com/a','https://facebook.com/profile.php?id=x'])assert.throws(()=>profileUrl(url));
 });
-const snapshot={personalEvidence:true,pageEvidence:false,posts:['Our shop has stock. Shipping to USA. Order today.']};
-test('qualification requires sales and US evidence, not currency or residence',()=>{
+const snapshot={personalEvidence:true,pageEvidence:false,bio:'Nhận order từ Amazon.com về Việt Nam',posts:['Nhận order máy pha cà phê từ Amazon.com về Việt Nam.', 'Bán giày từ website Mỹ nike.com, nhận đặt hàng.', 'Chốt đơn mỹ phẩm từ sephora.com Mỹ.']};
+test('qualification requires at least three sales posts, independent of buyer market',()=>{
   assert.equal(classify(snapshot).eligible,true);
   for(const s of [{...snapshot,blocked:'locked'},{...snapshot,pageEvidence:true},{...snapshot,personalEvidence:false},{...snapshot,posts:['I live in USA.','Order today for $20.']},{...snapshot,posts:['Nhận order hàng Mỹ về Việt Nam']}])assert.equal(classify(s).eligible,false);
   assert.throws(()=>renderMessage('Chào {brand}','A'));assert.equal(renderMessage('Chào {name}','$&'),'Chào $&');
@@ -32,10 +32,21 @@ test('qualification requires sales and US evidence, not currency or residence',(
 test('AI must ground evidence and pass confidence and DOM gates',async()=>{
   const old=process.env.GEMINI_API_KEY;process.env.GEMINI_API_KEY='test-only';
   const response=result=>async()=>({ok:true,json:async()=>({candidates:[{content:{parts:[{text:JSON.stringify(result)}]}}]})});
-  const good={profileType:'personal',sellerUS:'yes',confidence:.95,reason:'Bán cho Mỹ',evidence:[snapshot.posts[0]]};
+  const good={profileType:'personal',sellerUS:'yes',confidence:.95,reason:'Bán sản phẩm trên website Mỹ cho khách Việt Nam',evidence:[snapshot.posts[0]]};
   try{assert.equal((await evaluateProfile(snapshot,response(good))).eligible,true);
     for(const patch of [{evidence:['fabricated seller US evidence']},{confidence:.7}])assert.equal((await evaluateProfile(snapshot,response({...good,...patch}))).eligible,false);
     assert.equal((await evaluateProfile({...snapshot,pageEvidence:true},response(good))).eligible,false);
+    assert.equal((await evaluateProfile({...snapshot,posts:snapshot.posts.slice(0,2)},response(good))).eligible,false);
+    assert.equal((await evaluateProfile(snapshot,response({...good,sellerUS:'unknown'}))).eligible,false);
+    assert.equal((await evaluateProfile(snapshot,response({...good,evidence:[snapshot.bio]}))).eligible,true);
+    const capture = async (url, options) => {
+      const payload = JSON.parse(options.body);
+      assert.match(payload.systemInstruction.parts[0].text, /không phải thị trường khách hàng Mỹ/);
+      assert.match(payload.systemInstruction.parts[0].text, /Ít hơn 3 bài bán hàng: unknown/);
+      assert.equal(JSON.parse(payload.contents[0].parts[0].text).bio, snapshot.bio);
+      return response(good)();
+    };
+    await evaluateProfile(snapshot,capture);
     await assert.rejects(()=>evaluateProfile(snapshot,response({...good,confidence:'high'})));
   }finally{if(old===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=old;}
 });
