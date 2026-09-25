@@ -39,7 +39,7 @@ async function waitForImages(composer, expected, baseline, options = {}) {
     }
     await pause(300);
   }
-  throw new Error(`Chưa xác nhận đủ ${expected} ảnh tải xong (thấy ${state.count}); đã dừng để tránh đăng thiếu hình.`);
+  throw new Error(`Chưa xác nhận đủ ${expected} ảnh tải xong (thấy ${state.count}, busy=${state.busy}, readyButton=${state.readyButton}); đã dừng để tránh đăng thiếu hình.`);
 }
 
 module.exports = { readImageState, waitForImages };

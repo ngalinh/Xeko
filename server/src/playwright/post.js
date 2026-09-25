@@ -330,48 +330,23 @@ async function pasteText(page, message) {
 
 async function typeMessage(page, message) {
   if (!message) return true;
-
-  await page.evaluate(() => {
-    document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = 0);
-  });
-  await randomDelay(500, 1000);
-
-  const selectors = [
-    'div[contenteditable="true"][role="textbox"]',
-    'div[contenteditable="true"][aria-label*="mind"]',
-    'div[contenteditable="true"][aria-label*="nghĩ"]',
-  ];
-
-  for (const selector of selectors) {
-    try {
-      const editors = await page.$$(selector);
-      for (const editor of editors) {
-        const isVisible = await editor.isVisible();
-        if (!isVisible) continue;
-        await editor.scrollIntoViewIfNeeded();
-        await randomDelay(300, 600);
-        await editor.click({ force: true });
-        await randomDelay(300, 500);
-        await pasteText(page, message);
-        logger.info('Đã nhập nội dung bài viết');
-        return true;
-      }
-    } catch {
-      continue;
-    }
-  }
-
   try {
-    const placeholder = await page.$('div[role="dialog"] span:has-text("nghĩ gì")');
-    if (placeholder) {
-      await placeholder.click({ force: true });
-      await randomDelay(300, 500);
-      await pasteText(page, message);
-      return true;
+    const composers = page.locator('div[role="dialog"]:visible')
+      .filter({ has: page.locator('[contenteditable="true"][role="textbox"]') });
+    const editors = composers.locator('[contenteditable="true"][role="textbox"]:visible');
+    await editors.first().waitFor({ state: 'visible', timeout: 5000 });
+    if (await composers.count() !== 1 || await editors.count() !== 1) {
+      throw new Error('Không xác định được duy nhất ô caption trong cửa sổ soạn bài.');
     }
-  } catch {}
-
-  return false;
+    const ok = await require('./fb-caption').fillComposerCaption(page, editors.first(), message);
+    if (!ok) throw new Error('Caption trong ô soạn không khớp nội dung cần đăng.');
+    logger.info('Đã kiểm tra caption trong cửa sổ soạn bài');
+    return true;
+  } catch (e) {
+    const shot = await saveDebugShot(page, 'debug-caption');
+    logger.warn(`Không nhập được caption: ${e.message} (xem logs/${shot})`);
+    return false;
+  }
 }
 
 // FB web composer (giống Zalo) TỪ CHỐI một số định dạng ảnh — điển hình WEBP và HEIC/HEIF
@@ -497,7 +472,6 @@ async function verifyImagesBeforeSubmit(page) {
 
 async function _attachImagesImpl(page, imagePaths) {
   if (!imagePaths || imagePaths.length === 0) return true;
-  const { waitForImages } = require('./fb-image-guard');
   // Only use the active text composer. Ambiguous/missing dialogs must fail closed.
   const composers = page.locator('div[role="dialog"]:visible')
     .filter({ has: page.locator('[contenteditable="true"][role="textbox"]') });
@@ -547,11 +521,10 @@ async function _attachImagesImpl(page, imagePaths) {
         await input.setInputFiles(imagePaths);
       }
     }
-    // setInputFiles only selects local files; it is NOT an upload success signal.
-    // Caption is typed AFTER attachment; do not require an enabled submit button yet.
-    await waitForImages(composer, imagePaths.length, baseline, { requireReadyButton: false });
+    // Selection is not upload success. Let the caption step run while previews load;
+    // every submit path must still pass verifyImagesBeforeSubmit before clicking.
     pendingImageChecks.set(page, { composer, expected: imagePaths.length, baseline });
-    logger.info(`Đã xác nhận đủ ${imagePaths.length} ảnh xem trước, không còn tiến trình tải`);
+    logger.info(`Đã chọn ${imagePaths.length} ảnh; tiếp tục nhập caption, kiểm tra ảnh trước khi đăng`);
     return true;
   } catch (e) {
     const shot = await saveDebugShot(page, 'debug-upload-incomplete');
