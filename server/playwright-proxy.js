@@ -55,17 +55,16 @@ async function callLocal(method, endpoint, data = null, files = []) {
       }
     }
 
-    // Thêm file. Nếu file KHÔNG tồn tại thì trước đây bỏ qua ÂM THẦM → bài có thể
-    // đăng thiếu hình mà không ai biết. Giờ log cảnh báo để còn truy được nguyên nhân.
+    // Validate the entire batch before sending anything: never silently drop images.
     for (const filePath of files) {
-      if (fs.existsSync(filePath)) {
-        form.append('images', fs.createReadStream(filePath), {
-          filename: path.basename(filePath),
-          contentType: 'image/jpeg',
-        });
-      } else {
-        console.warn(`[playwright-proxy] BỎ QUA ảnh không tồn tại: ${filePath} (bài có thể thiếu hình)`);
+      if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile() || fs.statSync(filePath).size === 0) {
+        throw new Error(`Ảnh không tồn tại hoặc rỗng: ${path.basename(filePath)}; đã dừng đăng bài.`);
       }
+    }
+    for (const filePath of files) {
+      form.append('images', fs.createReadStream(filePath), {
+        filename: path.basename(filePath),
+      });
     }
 
     // Buffer toàn bộ multipart để có Content-Length chính xác.
