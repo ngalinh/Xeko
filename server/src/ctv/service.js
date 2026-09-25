@@ -31,6 +31,7 @@ class CtvService {
     return c;
   }
   reasonBlocked(lead) {
+    if (lead.assessment && lead.assessment.criteriaVersion !== 'us-website-products-v2') return 'Kết quả dùng tiêu chí cũ. Hãy tạo chiến dịch mới và chạy AI lại trên worker đã cập nhật.';
     if (!lead.assessment?.eligible) return 'AI chưa đánh giá đạt';
     const id = lead.assessment.recipientId;
     if (!/^\d+$/.test(id || '')) return 'Chưa xác minh được ID người nhận';
@@ -73,7 +74,7 @@ class CtvService {
       if (c.cancelled) break;
       lead.state = 'checking'; this.save();
       try {
-        lead.assessment = await this.browser.withPage(c.profile, page => this.browser.inspect(page, lead.url));
+        lead.assessment = await this.browser.withPage(c.profile, page => this.browser.inspect(page, lead.url), { keepOpen: true });
         lead.state = lead.assessment.eligible ? 'qualified' : 'review'; this.save();
       } catch (e) {
         lead.state = 'review'; lead.error = e.message; c.state = 'analysis_review'; c.error = e.message; this.save(); return;

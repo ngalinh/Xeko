@@ -32,7 +32,7 @@
   viewStep(1);
   const element = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
   const urlsFrom = text => text.match(/https?:\/\/[^\s,"'<>]+/gi) || [];
-  const canPick = l => l.assessment?.eligible && !l.blockedReason;
+  const canPick = l => l.assessment?.criteriaVersion === 'us-website-products-v2' && l.assessment?.eligible && !l.blockedReason;
   const accountName = key => accounts.find(a => a.key === key)?.name || key;
   function notice(message = '', error = false) { $('notice').textContent = message; $('notice').className = 'notice' + (error ? ' error' : ''); show('notice', !!message); }
   async function api(url, method = 'GET', body) {
@@ -127,6 +127,7 @@
       analysis.dataset.label='AI đánh giá'; result.dataset.label='Kết quả';
       const v=l.assessment;
       if(v){analysis.append(element('p',`${v.type==='personal'?'Cá nhân':v.type==='page'?'Fanpage':'Chưa rõ loại'} · ${v.criteriaVersion==='us-website-products-v2'?'Sản phẩm trên website Mỹ':'Thị trường Mỹ (tiêu chí cũ)'}: ${v.sellerUS==='yes'?'Có':v.sellerUS==='no'?'Không':'Chưa rõ'}${typeof v.confidence==='number'?' · '+Math.round(v.confidence*100)+'%':''}`),element('p',v.reason || ''));
+        if(v.criteriaVersion!=='us-website-products-v2')analysis.append(element('p','Kết quả dùng tiêu chí cũ. Hãy cập nhật Xeko worker, tạo chiến dịch mới và chạy AI lại để đánh giá sản phẩm có bán trên website Mỹ.','warn'));
         if(Number.isInteger(v.reviewedPostCount))analysis.append(element('p',`Đã đọc ${v.reviewedPostCount} bài bán hàng`,'muted'));
         if(v.evidence?.length){const d=element('details');d.append(element('summary',`Xem ${v.evidence.length} bằng chứng`));v.evidence.forEach(q=>d.append(element('blockquote',q)));analysis.append(d);}
         if(v.gateReason&&!v.eligible)analysis.append(element('p',v.gateReason,'muted'));
