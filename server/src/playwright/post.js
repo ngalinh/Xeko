@@ -1,6 +1,7 @@
 const { safeLaunchPersistentContext } = require('../utils/playwright-launch');
 const path = require('path');
 const fs = require('fs');
+const { randomUUID } = require('crypto');
 const config = require('../../config/default');
 const logger = require('../utils/logger');
 const { randomDelay, humanType } = require('../utils/delay');
@@ -368,7 +369,7 @@ function _fbImageIsRisky(p) {
 }
 
 // Trả { paths, temps }: paths = mảng đường dẫn dùng để đính (cùng độ dài với imagePaths),
-// temps = các file .fb.jpg mới tạo mà caller phải dọn sau khi đính xong.
+// temps = các file .fb.jpg riêng cho lần upload, giữ đến khi trang đóng.
 async function normalizeImagesForFb(page, imagePaths) {
   if (!imagePaths || imagePaths.length === 0) return { paths: imagePaths, temps: [] };
   // Không có ảnh rủi ro → khỏi mở scratch page cho nhanh (đa số bài chỉ có JPEG chuẩn).
@@ -424,7 +425,7 @@ async function normalizeImagesForFb(page, imagePaths) {
         out.push(src);
         continue;
       }
-      const dest = src.replace(/\.[^.]+$/, '') + '.fb.jpg';
+      const dest = path.join(path.dirname(src), `${path.basename(src)}.${randomUUID()}.fb.jpg`);
       fs.writeFileSync(dest, Buffer.from(jpegB64, 'base64'));
       out.push(dest);
       temps.push(dest);
@@ -440,8 +441,8 @@ async function normalizeImagesForFb(page, imagePaths) {
   return { paths: out, temps };
 }
 
-// Wrapper: chuẩn hoá ảnh rủi ro về JPEG TRƯỚC khi đính (tránh banner "Không thể tải file của
-// bạn lên"), rồi luôn dọn file .fb.jpg tạm sau khi đính xong (kể cả khi lỗi/throw).
+// setInputFiles/preview không đảm bảo Facebook đã đọc xong file trên đĩa.
+// Giữ file chuyển đổi đến lúc đóng trang, kể cả attach thất bại một phần.
 async function attachImages(page, imagePaths) {
   if (!imagePaths || imagePaths.length === 0) return true;
   for (const file of imagePaths) {
@@ -450,11 +451,16 @@ async function attachImages(page, imagePaths) {
     }
   }
   const { paths, temps } = await normalizeImagesForFb(page, imagePaths);
-  try {
-    return await _attachImagesImpl(page, paths);
-  } finally {
+  const cleanup = () => {
     for (const t of temps) { try { fs.unlinkSync(t); } catch {} }
+  };
+  if (temps.length) page.once('close', cleanup);
+  // Trang có thể đã đóng trong lúc scratch page đang chuyển đổi ảnh.
+  if (page.isClosed()) {
+    cleanup();
+    throw new Error('Trang đăng bài đã đóng trước khi đính ảnh');
   }
+  return await _attachImagesImpl(page, paths);
 }
 
 const pendingImageChecks = new WeakMap();
