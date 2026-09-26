@@ -1,5 +1,5 @@
 /* Xeko PWA service worker */
-const VERSION = 'xeko-pwa-v30';
+const VERSION = 'xeko-pwa-v31';
 const SHELL_CACHE = `shell-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
@@ -80,6 +80,13 @@ self.addEventListener('fetch', (event) => {
   // Navigations: bypass HTTP cache hoàn toàn — tránh browser serve stale index.html
   // sau deploy dù server đã gửi no-store (request gốc vẫn có thể dùng memory cache).
   if (isNavigation(request)) {
+    event.respondWith(fetch(new Request(request, { cache: 'no-store' })));
+    return;
+  }
+
+  // Unversioned application code must never come from an old runtime/HTTP cache.
+  // This also covers deployments under /b/<id>/ and URLs with query strings.
+  if (/\.(?:js|mjs|css)$/.test(url.pathname)) {
     event.respondWith(fetch(new Request(request, { cache: 'no-store' })));
     return;
   }
