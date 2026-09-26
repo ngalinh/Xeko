@@ -28,6 +28,8 @@ Trước Enter, worker xác minh ID người nhận, URL và link hồ sơ ở t
 
 ## Cấu hình và vận hành
 
+- Cửa sổ Facebook dùng kích thước nội dung theo cửa sổ thực tế và yêu cầu Chromium mở tối đa. Nếu hệ điều hành không tự phóng to, có thể phóng to thủ công; giao diện sẽ co giãn theo cửa sổ. Sau khi cập nhật worker, đóng cửa sổ Facebook cũ khi không có tác vụ đang chạy rồi mở lại tài khoản để áp dụng.
+
 - Đặt `GEMINI_API_KEY` trên máy thực thi Playwright. Nếu dùng cloud/local, key cần trên local worker. Gemini hiện dùng `gemini-2.5-flash`, giống tính năng AI hiện có trong repo. Nội dung nhìn thấy trên profile được gửi đến Gemini để đánh giá.
 - Node.js 18+; giữ cấu hình `LOCAL_API_KEY`, đăng nhập Basso và phân quyền tài khoản. API cloud kiểm tra quyền trên tài khoản lưu trong chiến dịch trước mọi thao tác.
 - Dữ liệu lưu ở `data/.ctv/campaigns.json` trong `XEKO_DATA_DIR` hoặc root repo mặc định. Không public thư mục dot này qua static server. Chạy một worker ghi dữ liệu cho mỗi thư mục.
