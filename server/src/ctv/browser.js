@@ -66,6 +66,27 @@ async function readPostMedia(page) {
   return records;
 }
 
+// Runs in the page: Facebook can scroll a nested feed instead of the window.
+function scrollProfileFeed() {
+  const visible = e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden';
+  const roots = [...document.querySelectorAll('[role="main"], main, #content, #m_basic')].filter(visible);
+  const articles = roots.flatMap(root => [...root.querySelectorAll('[role="article"], article')]).filter(visible);
+  const anchor = articles.at(-1) || roots[0];
+  const candidates = [];
+  for (let node = anchor; node; node = node.parentElement) candidates.push(node);
+  for (const root of roots) candidates.push(root, ...root.querySelectorAll('*'));
+  const scroller = candidates.find(e => visible(e)
+    && /^(auto|scroll)$/.test(getComputedStyle(e).overflowY)
+    && e.scrollHeight > e.clientHeight + 1
+    && e.scrollTop + e.clientHeight < e.scrollHeight - 1)
+    || document.scrollingElement;
+  if (!scroller) return { moved: false };
+  const before = scroller.scrollTop;
+  // Do not jump to an off-screen article: advance one viewport to load the feed.
+  scroller.scrollTop = before + Math.max(600, scroller.clientHeight * 0.8);
+  return { moved: scroller.scrollTop > before };
+}
+
 // Collect across scrolls because Facebook may virtualize older feed entries.
 async function collectProfilePosts(page, snapshot) {
   const posts = new Map();
@@ -82,11 +103,12 @@ async function collectProfilePosts(page, snapshot) {
       if ((!posts.has(key) && posts.size < 20) || (posts.has(key) && posts.get(key).images.length < post.images.length)) posts.set(key, post);
     }
     if ([...posts.values()].filter(p => isSalesPost(p.caption)).length >= 5 || step === 12) break;
-    await page.evaluate(() => {
-      const articles = [...document.querySelectorAll(':is([role="main"], main, #content, #m_basic) :is([role="article"], article)')];
-      articles.at(-1)?.scrollIntoView({ block: 'end' });
-      window.scrollBy(0, Math.max(600, window.innerHeight * 0.8));
-    });
+    const progress = await page.evaluate(scrollProfileFeed);
+    if (progress && !progress.moved) {
+      // Allow delayed feed content to mount before another attempt.
+      await page.waitForTimeout(1500);
+      await page.evaluate(scrollProfileFeed);
+    }
     await page.waitForTimeout(1500);
   }
   const selected = [...posts.values()].sort((a,b) => Number(isSalesPost(b.caption)) - Number(isSalesPost(a.caption))).slice(0,5);
@@ -184,4 +206,4 @@ function createBrowserAdapter(playwright = require('../playwright/post')) {
     inspect, send,
   };
 }
-module.exports = { createBrowserAdapter, inspect, send, readProfileSnapshot, collectProfilePosts, readPostMedia };
+module.exports = { createBrowserAdapter, inspect, send, readProfileSnapshot, collectProfilePosts, readPostMedia, scrollProfileFeed };

@@ -128,3 +128,35 @@ test('retains photo-only posts as supplementary context', async () => {
   assert.equal(sending.isClosed(),true);
   assert.equal(next.isClosed(),false);
  });
+
+function scrollingFixture({ nested = false, atEnd = false } = {}) {
+  const { scrollProfileFeed } = require('./src/ctv/browser');
+  const element = (extra = {}) => ({getClientRects: () => [1], overflowY: 'visible',
+    scrollTop: 0, scrollHeight: 3000, clientHeight: 800, querySelectorAll: () => [], ...extra});
+  const windowRoot = element();
+  const root = element({overflowY: nested ? 'auto' : 'visible', parentElement: windowRoot});
+  if (atEnd) root.scrollTop = 2200;
+  const article = element({parentElement: root});
+  root.querySelectorAll = selector => selector === '*' ? [article] : [article];
+  const result = vm.runInNewContext(`(${scrollProfileFeed.toString()})()`, {
+    document: {querySelectorAll: () => [root], scrollingElement: windowRoot},
+    getComputedStyle: e => ({visibility: 'visible', overflowY: e.overflowY}),
+  });
+  return {result, root, windowRoot};
+}
+test('scrolls nested Facebook feed instead of the stationary window', () => {
+  const {result, root, windowRoot} = scrollingFixture({nested: true});
+  assert.equal(result.moved, true);
+  assert.equal(root.scrollTop, 640);
+  assert.equal(windowRoot.scrollTop, 0);
+});
+test('uses document scrolling for ordinary profile layouts', () => {
+  const {result, windowRoot} = scrollingFixture();
+  assert.equal(result.moved, true);
+  assert.equal(windowRoot.scrollTop, 640);
+});
+test('continues through outer scroller when inner feed reaches its end', () => {
+  const {root, windowRoot} = scrollingFixture({nested: true, atEnd: true});
+  assert.equal(root.scrollTop, 2200);
+  assert.equal(windowRoot.scrollTop, 640);
+});
