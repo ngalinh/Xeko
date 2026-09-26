@@ -98,13 +98,14 @@ async function getBrowser(profileKey) {
           }
         }
 
-        const { userAgent, viewport } = getProfileDeviceFingerprint(key);
+        const { userAgent } = getProfileDeviceFingerprint(key);
         const ctx = await safeLaunchPersistentContext(userDataDir, {
           headless: false,
           slowMo: config.playwright.slowMo,
-          viewport,
+          // Follow the actual window size instead of clipping a fixed viewport.
+          viewport: null,
           userAgent,
-          args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
+          args: ['--disable-blink-features=AutomationControlled', '--no-sandbox', '--start-maximized'],
           permissions: ['clipboard-read', 'clipboard-write'],
           ...(proxy ? { proxy } : {}),
         });
