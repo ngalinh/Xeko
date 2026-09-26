@@ -33,6 +33,7 @@
   const element = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
   const urlsFrom = text => text.match(/https?:\/\/[^\s,"'<>]+/gi) || [];
   const canPick = l => l.assessment?.criteriaVersion === 'us-website-products-v2' && l.assessment?.eligible && !l.blockedReason;
+  const canRetry = c => c?.workflowVersion === 2 && c.approvals?.import && !c.approvals.send && ['analysis_review','message_review','interrupted','needs_attention'].includes(c.state);
   const accountName = key => accounts.find(a => a.key === key)?.name || key;
   function notice(message = '', error = false) { $('notice').textContent = message; $('notice').className = 'notice' + (error ? ' error' : ''); show('notice', !!message); }
   async function api(url, method = 'GET', body) {
@@ -54,6 +55,7 @@
     $('importButton').disabled = !!c || busy || !accounts.length;
     $('newCampaign').disabled = busy;
     $('refresh').disabled = !c || busy;
+    $('retryAnalysis').disabled = !unlocked || !canRetry(c);
     $('approveImport').disabled = !unlocked || !modern || c.state !== 'import_review' || !c.leads.length;
     $('selectAll').disabled = !unlocked || !modern || c.state !== 'analysis_review';
     const eligible = c?.leads.filter(canPick) || [];
@@ -75,14 +77,20 @@
     $('messageLength').textContent = `${$('template').value.length}/2000`;
     if (editing) $('previewHint').textContent = !c.messagePreview ? 'Tạo bản xem trước để kiểm tra từng người nhận và tin nhắn.' : fresh ? 'Đây là nội dung sẽ được gửi. Duyệt bên dưới để bắt đầu.' : 'Nội dung đã thay đổi. Hãy tạo lại bản xem trước trước khi duyệt gửi.';
     else if (c?.approvals?.send) $('previewHint').textContent = 'Nội dung đã duyệt gửi được lưu cố định bên dưới.';
-    for (const button of $('campaigns').querySelectorAll('button')) button.disabled = busy;
+    for (const button of $('campaigns').querySelectorAll('button')) button.disabled = busy || (button.dataset.deleteState && ACTIVE.concat(['running','queued']).includes(button.dataset.deleteState));
   }
   function renderHistory() {
     $('campaigns').replaceChildren();
     for (const c of [...campaigns].sort((a,b) => b.createdAt.localeCompare(a.createdAt))) {
       const b = element('button', c.name || 'Chiến dịch gửi tin nhắn hàng loạt', c.id === selected?.id ? 'active' : '');
       b.append(element('small',`${new Date(c.createdAt).toLocaleDateString('vi-VN')} · ${c.leads.length} khách · ${labels[c.state] || c.state}`));
-      b.disabled = busy; b.onclick = () => choose(c.id); $('campaigns').append(b);
+      b.disabled = busy; b.onclick = () => choose(c.id);
+      const row = element('div', undefined, 'campaign-row'), remove = element('button','Xoá','secondary');
+      remove.dataset.deleteState = c.state;
+      remove.setAttribute('aria-label', `Xoá chiến dịch ${c.name}`);
+      remove.disabled = busy || ACTIVE.concat(['running','queued']).includes(c.state);
+      remove.onclick = () => deleteCampaign(c);
+      row.append(b, remove); $('campaigns').append(row);
     }
     if (!campaigns.length) $('campaigns').append(element('p','Chưa có chiến dịch.','muted'));
   }
@@ -116,6 +124,7 @@
     $('analysisBar').max = c.leads.length || 1; $('analysisBar').value = checked;
     stats('analysisStats',[['AI đánh giá đạt',c.leads.filter(l=>l.assessment?.eligible).length,'good'],['Có thể chọn gửi',c.leads.filter(canPick).length],['Cần kiểm tra',c.leads.filter(l=>l.state==='review').length,'warn']]);
     show('analysisWarning',!!c.error && !a.analysis);$('analysisWarning').textContent = c.error || '';
+    show('retryAnalysis',!!canRetry(c));
     show('stopAnalysis',analyzing);show('approveAnalysis',modern && c.state === 'analysis_review');
     $('analysisApproval').textContent = approvalText(a.analysis,'Khách chưa đạt hoặc chưa rõ người nhận sẽ không được chuyển sang gửi.');
     $('analysisRows').replaceChildren();
@@ -127,7 +136,7 @@
       analysis.dataset.label='AI đánh giá'; result.dataset.label='Kết quả';
       const v=l.assessment;
       if(v){analysis.append(element('p',`${v.type==='personal'?'Cá nhân':v.type==='page'?'Fanpage':'Chưa rõ loại'} · ${v.criteriaVersion==='us-website-products-v2'?'Sản phẩm trên website Mỹ':'Thị trường Mỹ (tiêu chí cũ)'}: ${v.sellerUS==='yes'?'Có':v.sellerUS==='no'?'Không':'Chưa rõ'}${typeof v.confidence==='number'?' · '+Math.round(v.confidence*100)+'%':''}`),element('p',v.reason || ''));
-        if(v.criteriaVersion!=='us-website-products-v2')analysis.append(element('p','Kết quả dùng tiêu chí cũ. Hãy cập nhật Xeko worker, tạo chiến dịch mới và chạy AI lại để đánh giá sản phẩm có bán trên website Mỹ.','warn'));
+        if(v.criteriaVersion!=='us-website-products-v2')analysis.append(element('p','Kết quả dùng tiêu chí cũ. Hãy cập nhật Xeko worker, bấm Thử lại AI để đánh giá sản phẩm có bán trên website Mỹ.','warn'));
         if(Number.isInteger(v.reviewedPostCount))analysis.append(element('p',`Đã đọc ${v.reviewedPostCount} bài viết${Number.isInteger(v.reviewedImageCount) ? ` · ${v.reviewedImageCount} ảnh` : ''}`,'muted'));
         if(v.evidence?.length){const d=element('details');d.append(element('summary',`Xem ${v.evidence.length} bằng chứng`));v.evidence.forEach(q=>d.append(element('blockquote',q)));analysis.append(d);}
         if(v.gateReason&&!v.eligible)analysis.append(element('p',v.gateReason,'muted'));
@@ -173,10 +182,23 @@
     try{const c=await api(`/api/ctv/campaigns/${id}`);if(epoch!==version)return;uncertain=false;notice();render(c,true);}
     catch(e){notice(e.message,true);}finally{busy=false;updateControls();schedule();}
   }
+  async function deleteCampaign(c) {
+    if (busy || !window.confirm(`Xoá chiến dịch “${c.name}”? Không thể khôi phục. Lịch sử chống gửi trùng vẫn được giữ.`)) return;
+    busy=true; clearTimeout(timer); updateControls(); notice();
+    try {
+      await api(`/api/ctv/campaigns/${c.id}/delete`, 'POST', {});
+      campaigns=campaigns.filter(item=>item.id!==c.id);
+      busy=false;
+      if(selected?.id===c.id) $('newCampaign').onclick();
+      else renderHistory();
+      notice('Đã xoá chiến dịch.');
+    } catch(e) { notice(e.message,true); }
+    finally { busy=false; updateControls(); schedule(); }
+  }
   async function action(name,body={}) {
     if(!selected || busy || uncertain)return;
     const id=selected.id,version=epoch;busy=true;clearTimeout(timer);updateControls();notice();
-    try{const c=await api(`/api/ctv/campaigns/${id}/${name}`,'POST',body);if(epoch!==version)return;uncertain=false;$('confirmSend').checked=false;render(c);if(name==='approve-import'||name==='review-analysis')viewStep(2);if(name==='approve-analysis')viewStep(3);}
+    try{const c=await api(`/api/ctv/campaigns/${id}/${name}`,'POST',body);if(epoch!==version)return;uncertain=false;$('confirmSend').checked=false;render(c);if(name==='approve-import'||name==='review-analysis'||name==='retry-analysis')viewStep(2);if(name==='approve-analysis')viewStep(3);}
     catch(e){if(epoch!==version)return;notice(e.message,true);uncertain=true;await sync(id,version);}
     finally{busy=false;updateControls();schedule();}
   }
@@ -189,6 +211,7 @@
     try{const c=await api('/api/ctv/campaigns','POST',{name:$('campaignName').value,profile:$('profile').value,urls});epoch++;uncertain=false;render(c,true);}
     catch(e){notice(e.message,true);}finally{busy=false;updateControls();schedule();}
   };
+  $('retryAnalysis').onclick=()=>{if(canRetry(selected) && window.confirm('Đọc lại tất cả profile và đánh giá lại bằng AI? Kết quả cũ và bản duyệt tin nhắn sẽ được bỏ; bạn cần duyệt lại trước khi gửi.')){picks.clear();action('retry-analysis');}};
   $('approveImport').onclick=()=>action('approve-import');
   $('selectAll').onchange=()=>{picks=$('selectAll').checked?new Set(selected.leads.filter(canPick).map(l=>l.id)):new Set();for(const box of $('analysisRows').querySelectorAll('input'))box.checked=picks.has(box.value);updateControls();};
   $('approveAnalysis').onclick=()=>action('approve-analysis',{leadIds:[...picks]});
@@ -200,7 +223,7 @@
   $('stopAnalysis').onclick=$('stopSending').onclick=()=>action('stop');
   $('refresh').onclick=()=>sync();
   $('newCampaign').onclick=()=>{if(busy)return;epoch++;clearTimeout(timer);selected=null;uncertain=false;picks.clear();notice();viewStep(1);
-    show('importForm',true);show('importResult',false);show('analysisEmpty',true);show('analysisResult',false);show('messageEmpty',true);show('messageResult',false);
+    show('importForm',true);show('importResult',false);show('analysisEmpty',true);show('analysisResult',false);show('retryAnalysis',false);show('messageEmpty',true);show('messageResult',false);
     $('campaignName').value='';$('urls').value='';$('file').value='';$('fileName').textContent='Hoặc dán dữ liệu vào ô phía trên';$('urls').oninput();$('template').value=defaultTemplate;$('confirmSend').checked=false;
     $('currentName').textContent='Chưa có chiến dịch';$('currentProfile').textContent='Chọn tài khoản ở bước 1.';$('currentState').textContent='Chờ nhập dữ liệu';$('connection').textContent='';
     for(let n=1;n<=3;n++){$(`status${n}`).textContent=n===1?'Chưa nhập':'Đang khóa';$(`status${n}`).className='badge';$(`nav${n}`).className='step-link'+(n===1?' active':'');$(`nav${n}`).removeAttribute('aria-current');}

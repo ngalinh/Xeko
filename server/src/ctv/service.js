@@ -68,6 +68,24 @@ class CtvService {
     c.approvals.import = { by: owner, at: new Date().toISOString() };
     c.state = 'analysis_queued'; this.save(); this.enqueue(c, () => this.analyze(c)); return c;
   }
+  retryAnalysis(id, owner) {
+    const c = this.staged(id, owner);
+    if (!c.approvals.import || c.approvals.send || !['analysis_review', 'message_review', 'interrupted', 'needs_attention'].includes(c.state)) fail('Chỉ thử lại đánh giá khi đã dừng và chưa duyệt gửi');
+    delete c.approvals.analysis; delete c.messagePreview; delete c.error;
+    c.cancelled = false;
+    for (const lead of c.leads) {
+      delete lead.assessment; delete lead.error; delete lead.message;
+      lead.state = 'pending';
+    }
+    c.state = 'analysis_queued'; this.save(); this.enqueue(c, () => this.analyze(c)); return c;
+  }
+  deleteCampaign(id, owner) {
+    const c = this.get(id, owner);
+    if (ACTIVE.includes(c.state) || ['running', 'queued'].includes(c.state)) fail('Hãy dừng chiến dịch và chờ xử lý xong trước khi xoá');
+    this.data.campaigns = this.data.campaigns.filter(item => item.id !== c.id);
+    // Keep recipient reservations even after removing campaign history.
+    this.save(); return c;
+  }
   async analyze(c) {
     c.state = 'analyzing'; this.save();
     for (const lead of c.leads) {

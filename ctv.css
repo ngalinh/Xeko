@@ -26,3 +26,5 @@ main{max-width:1440px;padding:24px;margin:0 auto}.page-heading h1{font-size:22px
 
 .xeko-nav-item .nav-icon{flex-shrink:0}
 .xeko-nav-item>span:last-child{min-width:0;overflow-wrap:anywhere}
+
+.campaign-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center}#campaigns .campaign-row .secondary{color:#a43232;padding:8px;box-shadow:none}

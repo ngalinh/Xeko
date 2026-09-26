@@ -116,7 +116,7 @@ test('AI failure exposes review without generating messages; legacy workflows ar
 });
 function response(){return {code:200,status(n){this.code=n;return this;},json(d){this.data=d;return this;}};}
 test('cloud checks stored profile permission on every new action, ignoring body spoofing',async()=>{
-  for(const action of ['approve-import','approve-analysis','review-analysis','prepare-messages','send','stop']){
+  for(const action of ['approve-import','approve-analysis','review-analysis','prepare-messages','send','stop','retry-analysis','delete']){
     let handler,calls=0;
     mountCtv({all:(p,h)=>handler=h},{remote:true,getLocalUrl:()=> 'https://worker.invalid',permissions:{getAllowedProfileKeys:()=>['allowed']},fetchFn:async()=>{calls++;return {ok:true,json:async()=>({profile:'forbidden'})};}});
     const res=response();await handler({path:`/api/ctv/campaigns/abc/${action}`,method:'POST',body:{profile:'allowed'},user:{email:'owner'},headers:{}},res);
@@ -160,3 +160,49 @@ test('import rejects missing, malformed and unsafe account keys', t => {
   assert.throws(()=>s.approveAnalysis(c.id,'owner',[c.leads[0].id]));
   assert.equal(sent.length,0);
  });
+
+
+test('retry clears stale results and approvals, rereads profiles and never sends', async t => {
+  const {s, inspected, sent}=setup(t); const c=await analyzed(s);
+  const token=prepared(s,c); c.leads[0].error='old error'; c.error='old failure'; c.cancelled=true;
+  s.retryAnalysis(c.id,'owner');
+  assert.equal(c.state,'analysis_queued'); assert.equal(c.cancelled,false);
+  assert.equal(c.approvals.analysis,undefined); assert.equal(c.messagePreview,undefined);
+  assert.equal(c.leads[0].assessment,undefined); assert.equal(c.leads[0].error,undefined);
+  assert.throws(()=>s.retryAnalysis(c.id,'owner'));
+  assert.throws(()=>s.deleteCampaign(c.id,'owner'));
+  assert.throws(()=>s.sendApproved(c.id,'owner',token));
+  await settle(s); assert.equal(inspected.length,4); assert.equal(sent.length,0);
+  assert.equal(c.state,'analysis_review'); assert.equal(c.error,undefined);
+});
+test('failed and interrupted analysis can retry, but sent campaigns cannot', async t => {
+  const {s,browser}=setup(t,{inspect:async()=>{throw new Error('AI unavailable');}});
+  const c=await analyzed(s); assert.ok(c.error);
+  browser.inspect=async()=>({eligible:false,criteriaVersion:'us-website-products-v2'});
+  c.state='interrupted'; s.retryAnalysis(c.id,'owner'); await settle(s);
+  assert.equal(c.error,undefined); assert.equal(c.leads[0].error,undefined);
+  c.approvals.send={token:'sent'};
+  assert.throws(()=>s.retryAnalysis(c.id,'owner'));
+});
+test('delete is owner scoped and persists removal without clearing send reservations', async t => {
+  const {s,browser,dir}=setup(t); const c=await analyzed(s);
+  s.sendApproved(c.id,'owner',prepared(s,c)); await settle(s);
+  assert.throws(()=>s.deleteCampaign(c.id,'other'));
+  assert.throws(()=>s.retryAnalysis(c.id,'other'));
+  s.deleteCampaign(c.id,'owner'); assert.throws(()=>s.get(c.id,'owner'));
+  const restored=new CtvService({file:path.join(dir,'campaigns.json'),browser});
+  assert.equal(restored.data.campaigns.length,0); assert.ok(restored.data.reservations['123']);
+  const d=await analyzed(restored);
+  assert.throws(()=>restored.approveAnalysis(d.id,'owner',[d.leads[0].id]));
+});
+test('retry and delete API actions enforce ownership and state', async t => {
+  const {s}=setup(t); const c=await analyzed(s); let handler;
+  mountCtv({all:(p,h)=>handler=h},{service:s});
+  const request=async(action,owner='owner')=>{const res=response();await handler({path:`/api/ctv/campaigns/${c.id}/${action}`,method:'POST',body:{},headers:{'x-ctv-owner':owner}},res);return res;};
+  assert.equal((await request('retry-analysis','other')).code,404);
+  assert.equal((await request('delete','other')).code,404);
+  assert.equal((await request('retry-analysis')).code,202);
+  await settle(s);
+  assert.equal((await request('delete')).code,200);
+  assert.equal((await request('delete')).code,404);
+});
