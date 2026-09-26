@@ -286,68 +286,79 @@ async function clickAccountRowByIdx(page, idx) {
 }
 
 async function selectZaloAccount(page, accountName) {
-  logger.info(`[basso] Chọn tài khoản: ${accountName}`);
   const want = ACC_NORM(accountName);
-  if (!want) return false;
+  const fail = reason => { throw new Error('Không chọn được tài khoản "' + accountName + '": ' + reason); };
+  if (!want) fail('tên tài khoản trống');
   const closeSearch = page.locator('.chat-panel-left').getByRole('button', { name: 'Đóng', exact: true });
   if (await closeSearch.isVisible().catch(() => false)) await closeSearch.click();
+  if (!(await openAccountDropdown(page))) fail('không mở được danh sách tài khoản');
 
-  if (!(await openAccountDropdown(page))) {
-    logger.error('[basso] Không mở được dropdown chọn tài khoản');
-    return false;
-  }
-  // Chờ có ít nhất 1 dòng tài khoản render thay vì sleep cứng (vòng lặp bên dưới
-  // vẫn tự đọc lại nhiều lần nếu list còn dựng dở).
-  await page.locator('.acc-pick-menu .v-list-item:visible').first()
-    .waitFor({ state: 'visible', timeout: 4000 }).catch(() => {});
-
-  // Hội tụ về trạng thái mong muốn: mỗi vòng sửa ĐÚNG 1 việc rồi đọc lại (vì click
-  // làm Vue re-render → phải re-mark data-xeko-idx). Tối đa 8 vòng cho an toàn.
-  for (let pass = 0; pass < 8; pass++) {
-    const rows = await readAccountRows(page);
-    if (rows.filter(r => ACC_NORM(r.title) === want).length > 1) return false;
-    const target = rows.find(r => ACC_NORM(r.title) === want);
-    if (!target) {
-      // Có thể list chưa render xong ở vòng đầu — chờ rồi thử lại vài lần.
-      if (pass < 2) { await sleep(700); continue; }
-      logger.error(`[basso] Không thấy tài khoản "${accountName}" trong danh sách. Có: ${JSON.stringify(rows.map(r => r.title))}`);
-      return false;
-    }
-    // Select the target first so toggling off the old account never selects all.
-    if (!target.on) {
-      logger.info(`[basso] Tick tài khoản: "${target.title}"`);
-      await clickAccountRowByIdx(page, target.idx);
-      continue;
-    }
-    const wrongOn = rows.find(r => r.on && r.idx !== target.idx);
-    if (wrongOn) {                               // còn tài khoản KHÁC đang chọn → bỏ tick
-      logger.info(`[basso] Bỏ tick tài khoản thừa: "${wrongOn.title}"`);
-      await clickAccountRowByIdx(page, wrongOn.idx);
-      continue;
-    }
-    break;                                       // target "on" + không thừa → xong
+  // Wait for the requested account, not just the first (possibly "all") row.
+  let rows = [];
+  const deadline = Date.now() + 10000;
+  do {
+    rows = await readAccountRows(page);
+    if (rows.some(r => ACC_NORM(r.title) === want)) break;
+    await sleep(250);
+  } while (Date.now() < deadline);
+  if (!rows.some(r => ACC_NORM(r.title) === want)) {
+    fail('không thấy trong danh sách đã tải. Có: ' + JSON.stringify(rows.map(r => r.title)));
   }
 
-  // READ-BACK xác minh: CHỈ đúng 1 tài khoản "on" và đó là tài khoản cần đăng.
-  const onRows = (await readAccountRows(page)).filter(r => r.on).map(r => r.title);
-  const ok = onRows.length === 1 && ACC_NORM(onRows[0]) === want;
-
-  // Đóng dropdown để bước tìm nhóm đọc đúng danh sách hội thoại đã lọc.
+  // One click per state transition; wait for Vue to reflect it before another click.
+  const maxChanges = rows.length + 2;
+  for (let pass = 0; pass < maxChanges; pass++) {
+    rows = await readAccountRows(page);
+    const matches = rows.filter(r => ACC_NORM(r.title) === want);
+    if (matches.length !== 1) fail('tên tài khoản bị thiếu hoặc trùng trong danh sách');
+    const target = matches[0];
+    const change = !target.on ? target : rows.find(r => r.on && r.idx !== target.idx);
+    if (!change) break;
+    await clickAccountRowByIdx(page, change.idx);
+    const changedBy = Date.now() + 5000;
+    let updated = false;
+    do {
+      const current = await readAccountRows(page);
+      const matching = current.filter(r => r.title === change.title);
+      if (matching.length === 1 && matching[0].on !== change.on) { updated = true; break; }
+      await sleep(200);
+    } while (Date.now() < changedBy);
+    if (!updated) fail('trạng thái chọn không cập nhật sau khi bấm "' + change.title + '"');
+  }
+  const selected = (await readAccountRows(page)).filter(r => r.on).map(r => r.title);
+  if (selected.length !== 1 || ACC_NORM(selected[0]) !== want) {
+    fail('chưa chọn duy nhất tài khoản yêu cầu. Đang chọn: ' + JSON.stringify(selected));
+  }
   await page.keyboard.press('Escape').catch(() => {});
-  if (await accountListVisible(page)) {
-    await page.locator('.acc-btn-text').first().click({ timeout: 3000 }).catch(() => {});
-  }
-  // Chờ dropdown ĐÓNG hẳn (list biến mất) thay vì sleep cứng — để bước tìm nhóm
-  // không bị overlay dropdown che, đọc đúng danh sách hội thoại đã lọc.
-  await page.locator('.acc-pick-menu .v-list:visible').first()
-    .waitFor({ state: 'hidden', timeout: 4000 }).catch(() => {});
+  if (await accountListVisible(page)) await page.locator('.acc-btn-text').first().click({ timeout: 3000 });
+  await page.locator('.acc-pick-menu .v-list:visible').first().waitFor({ state: 'hidden', timeout: 4000 });
+  logger.info('[basso] Đã chọn duy nhất tài khoản: ' + accountName);
+  return true;
+}
 
-  if (ok && !(await accountListVisible(page))) {
-    logger.info(`[basso] ✓ Xác minh đã chọn đúng tài khoản: ${accountName}`);
-    return true;
+// Only retry preparation, before attaching or sending anything.
+async function prepareZaloTarget(page, accountKey, accountName, groupName, shouldCancel) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    if (shouldCancel?.()) {
+      throw Object.assign(new Error('Đã dừng theo yêu cầu người dùng'), { cancelled: true });
+    }
+    try {
+      await page.goto(ZALO_CHAT_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      if (!(await waitForChatReady(page))) throw new Error('Trang ZaloCRM chưa tải xong giao diện');
+      await ensureLoggedIn(page, accountKey, accountName);
+      await selectZaloAccount(page, accountName);
+      if (!(await searchAndClickGroup(page, groupName, accountName))) {
+        throw new Error('Không tìm thấy nhóm "' + groupName + '" của "' + accountName + '"');
+      }
+      await assertConversationTarget(page, { groupName, accountName });
+      return;
+    } catch (e) {
+      if (e.cancelled) throw e;
+      await screenshot(page, 'target-attempt-' + attempt);
+      logger.warn('[basso][target] Lần ' + attempt + ': ' + e.message);
+      if (attempt === 2) throw new Error('Không mở được nhóm sau 2 lần thử, chưa gửi bài: ' + e.message);
+    }
   }
-  logger.error(`[basso] ✗ Không chọn đúng tài khoản "${accountName}" — đang "on": ${JSON.stringify(onRows)}`);
-  return false;
 }
 
 // Chờ SPA chat dựng xong giao diện sau khi goto: nút chọn tài khoản HOẶC ô tìm
@@ -940,26 +951,13 @@ async function waitImageSent(page, expected = 1, before = null) {
   return false;
 }
 
-const _accountLocks = new Map();
+const { createProfileLifecycle } = require('../utils/zalo-profile-lifecycle');
+const profileLifecycle = createProfileLifecycle();
 
-async function _withAccountLock(key, fn) {
-  const prev = _accountLocks.get(key) || Promise.resolve();
-  let release;
-  const next = new Promise(r => { release = r; });
-  _accountLocks.set(key, next);
-  await prev;
-  try {
-    return await fn();
-  } finally {
-    _accountLocks.delete(key);
-    release();
-  }
-}
-
-async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message, imagePaths, shouldCancel = null }) {
-  return _withAccountLock(accountKey || zaloAccountName, () =>
-    _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, message, imagePaths, shouldCancel })
-  );
+async function postToZaloGroup(args) {
+  const accountKey = args.accountKey || args.zaloAccountName;
+  return profileLifecycle.run(getSaleworkProfile(accountKey), () =>
+    _postToZaloGroupImpl({ ...args, accountKey }));
 }
 
 async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, message, imagePaths, shouldCancel = null }) {
@@ -1002,98 +1000,12 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
     ...(proxy ? { proxy } : {}),
   });
 
-  const page = await browser.newPage();
-
-  // Dọn dẹp browser CHẠY NỀN (fire-and-forget) — không bao giờ chặn việc trả
-  // kết quả. Trước đây finally await page.close()/browser.close() có thể treo
-  // (dù có Promise.race) → promise postToZaloGroup không resolve → local-server
-  // không set job 'done' → cloud poll mãi 'processing' → frontend kẹt "Đang đăng".
-  // Tách cleanup ra để lỗi đóng browser không ảnh hưởng tới việc báo kết quả.
-  let cleaned = false;
-  let normalizedImageFiles = []; // file .zalo.jpg do chuẩn hoá tạo ra → dọn khi xong
-  const cleanup = () => {
-    if (cleaned) return;
-    cleaned = true;
-    // Dọn ảnh JPEG chuẩn hoá tạm (upload đã xong khi tới đây). File gốc do
-    // local-server quản lý vòng đời, không đụng ở đây.
-    for (const f of normalizedImageFiles) { try { fs.unlinkSync(f); } catch {} }
-    // Chờ thêm một nhịp TRƯỚC khi đóng trình duyệt — không đóng vội ngay khi vừa
-    // gửi xong, để có thời gian xác nhận trực quan trên màn hình (headless: false)
-    // và tránh cắt ngang bất kỳ request nào của Zalo còn sót lại.
-    sleep(4000)
-      .then(() => Promise.race([page.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {}))
-      .then(() => Promise.race([browser.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {}))
-      .then(() => logger.info('[salework] Đã đóng browser'))
-      .catch(() => {});
-  };
-
+  let page;
+  let normalizedImageFiles = [];
   try {
-    logger.info(`[salework] === account=${zaloAccountName}, group=${groupName} ===`);
-
-    await page.goto(ZALO_CHAT_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    // Chờ SPA dựng xong UI (nút tài khoản/ô tìm kiếm/ô mật khẩu) thay vì sleep
-    // cứng — mạng/proxy chậm thì chờ đủ lâu, nhanh thì đi tiếp ngay. Không chờ
-    // được cũng vẫn thử (bước chọn tài khoản/ô soạn phía sau tự kiểm tra lại).
-    if (!(await waitForChatReady(page))) {
-      logger.warn('[salework] Trang chat chưa render rõ sau khi mở — vẫn thử tiếp');
-    }
-    await sleep(1000); // 1 nhịp cho Vue settle sau khi phần tử đầu tiên hiện
-    await screenshot(page, '01-loaded');
-
-    // Session hết hạn → basso đẩy về trang đăng nhập. TỰ đăng nhập lại nếu đã cấu
-    // hình thông tin (BASSO_ZALO_USERNAME/PASSWORD hoặc crmUsername/crmPassword);
-    // chưa cấu hình / tự login thất bại → ensureLoggedIn ném lỗi rõ ràng cho admin.
-    // KHÔNG để rơi xuống "không chọn được tài khoản" (sai nguyên nhân).
-    await ensureLoggedIn(page, accountKey, zaloAccountName);
-
-    let accountOk = await selectZaloAccount(page, zaloAccountName);
-    await screenshot(page, '02-account-selected');
-
-    // Chưa chọn được đúng tài khoản → RELOAD + thử lại MỘT lần trước khi huỷ —
-    // dropdown tài khoản có thể chưa dựng kịp ngay sau khi vào trang (proxy/mạng
-    // chậm). Vẫn thất bại sau khi thử lại mới huỷ đăng: thà báo lỗi rõ ràng còn
-    // hơn âm thầm đăng nhầm bằng tài khoản mặc định ("Tất cả tài khoản" → Basso…).
-    if (!accountOk) {
-      logger.warn(`[salework] Không chọn được tài khoản "${zaloAccountName}" — reload trang & thử lại`);
-      await page.goto(ZALO_CHAT_URL, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
-      if (!(await waitForChatReady(page))) {
-        logger.warn('[salework] Trang chat chưa render rõ sau khi reload — vẫn thử tiếp');
-      }
-      await sleep(1000);
-      accountOk = await selectZaloAccount(page, zaloAccountName);
-      await screenshot(page, '02b-account-selected-retry');
-    }
-
-    if (!accountOk) {
-      throw new Error(`Không chọn được tài khoản "${zaloAccountName}" trên ZaloCRM (ô vẫn ở "Tất cả tài khoản" hoặc chọn nhầm) sau khi đã thử lại. Đã huỷ đăng để tránh đăng nhầm tài khoản — mở lại ZaloCRM kiểm tra danh sách tài khoản đã kết nối.`);
-    }
-
-    if (!(await searchAndClickGroup(page, groupName, zaloAccountName))) {
-      throw new Error(`Không tìm thấy nhóm "${groupName}" trên ZaloCRM — kiểm tra lại tên nhóm có đúng không, hoặc tài khoản "${zaloAccountName}" có nằm trong nhóm này không.`);
-    }
-    await screenshot(page, '04-group-selected');
-
-    // XÁC MINH ô soạn tin đã hiện (= hội thoại group đã mở & trang đã render thật).
-    // Trang basso load chậm/treo qua proxy yếu → textarea CHƯA render; trước đây
-    // code vẫn lao vào đính ảnh rồi báo nhầm "đính ảnh thất bại" (diag composer="",
-    // httpImgs thấp) — thực chất là TRANG CHƯA LOAD. Ở đây nếu ô soạn chưa hiện thì
-    // RELOAD + chọn lại tài khoản + mở lại group MỘT lần để vượt qua lần load chậm
-    // tạm thời; vẫn không có thì báo lỗi ĐÚNG nguyên nhân (proxy/mạng) để đăng lại.
-    if (!(await ensureComposerReady(page, 15000))) {
-      logger.warn(`[salework] Ô soạn tin chưa hiện sau khi mở "${groupName}" — reload trang & mở lại group`);
-      await page.goto(ZALO_CHAT_URL, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
-      await sleep(3000);
-      if (!(await selectZaloAccount(page, zaloAccountName))) {
-        throw new Error(`Không chọn được tài khoản "${zaloAccountName}" sau khi reload — đã huỷ đăng.`);
-      }
-      if (!(await searchAndClickGroup(page, groupName, zaloAccountName))) {
-        throw new Error(`Không tìm thấy nhóm "${groupName}" sau khi reload — đã huỷ đăng.`);
-      }
-      if (!(await ensureComposerReady(page, 20000))) {
-        throw new Error(`Mở hội thoại nhóm "${groupName}" thất bại — trang chat chưa load (proxy/mạng chậm). Đã huỷ để tránh đăng thiếu hình. Kiểm tra proxy/kết nối rồi đăng lại.`);
-      }
-      await screenshot(page, '04b-group-reopened');
-    }
+    page = await browser.newPage();
+    logger.info('[salework] account=' + zaloAccountName + ', group=' + groupName);
+    await prepareZaloTarget(page, accountKey, zaloAccountName, groupName, shouldCancel);
 
     // Chuẩn hoá ảnh về JPEG đồng nhất TRƯỚC khi gửi để Zalo không biến ảnh khác
     // định dạng/khổ (vd webp) thành FILE đính kèm ("hình cuối chuyển thành file").
@@ -1107,14 +1019,18 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
       assertConversationTarget(page, { groupName, accountName: zaloAccountName }));
 
     logger.info(`[salework] Đã đăng lên "${groupName}" qua "${zaloAccountName}"`);
-    cleanup(); // chạy nền, không await — trả kết quả ngay
     return { success: true };
   } catch (e) {
     if (e.cancelled) logger.info(`[salework] Đã bị dừng theo yêu cầu người dùng — không gửi`);
     else logger.error(`[salework] Lỗi: ${e.message}`);
     try { await screenshot(page, '99-error'); } catch {}
-    cleanup(); // chạy nền, không await
     return { success: false, error: e.message, cancelled: !!e.cancelled };
+  } finally {
+    // Closing the context also closes its pages. Keep the profile reserved until
+    // close completes; a timeout reports promptly but prevents a competing launch.
+    try { await profileLifecycle.close(profilePath, browser); }
+    catch (e) { logger.warn('[salework] ' + e.message); }
+    for (const file of normalizedImageFiles) { try { fs.unlinkSync(file); } catch {} }
   }
 }
 

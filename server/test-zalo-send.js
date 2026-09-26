@@ -9,6 +9,7 @@ function harness() {
   const context = vm.createContext({
     require(name) {
       if (name === 'path') return path;
+      if (name.endsWith('/zalo-profile-lifecycle')) return require('./src/utils/zalo-profile-lifecycle');
       if (name === 'fs') return { existsSync: () => true, statSync: () => ({ size: 10 }) };
       if (name.endsWith('/logger')) return { info() {}, warn() {}, error() {} };
       if (name.endsWith('/delay')) return { randomDelay: noop, sleep: noop };
@@ -19,6 +20,8 @@ function harness() {
   });
   vm.runInContext(fs.readFileSync(path.join(__dirname, 'src/playwright/salework.js'), 'utf8'), context);
   vm.runInContext('screenshot = async () => {};', context);
+  // Supply the mandatory target guard in these isolated send tests.
+  vm.runInContext('const originalSendMessage = sendMessage; sendMessage = (page, message, images, cancel) => originalSendMessage(page, message, images, cancel, async () => {});', context);
   return context;
 }
 
@@ -73,7 +76,7 @@ test('ambiguous click never falls back to another send button', async () => {
     count: async () => 1,
     click: async () => { clicks++; throw new Error('timeout after dispatch'); },
   }) }) };
-  await assert.rejects(c.clickSend(page), e => e.deliveryUnknown === true);
+  await assert.rejects(c.clickSend(page, async () => {}), e => e.deliveryUnknown === true);
   assert.equal(clicks, 1);
 });
 
