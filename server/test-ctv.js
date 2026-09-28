@@ -116,7 +116,7 @@ test('AI failure exposes review without generating messages; legacy workflows ar
 });
 function response(){return {code:200,status(n){this.code=n;return this;},json(d){this.data=d;return this;}};}
 test('cloud checks stored profile permission on every new action, ignoring body spoofing',async()=>{
-  for(const action of ['approve-import','approve-analysis','review-analysis','prepare-messages','send','stop','retry-analysis','delete']){
+  for(const action of ['approve-import','approve-analysis','review-analysis','prepare-messages','send','stop','retry-analysis','delete','skip-lead']){
     let handler,calls=0;
     mountCtv({all:(p,h)=>handler=h},{remote:true,getLocalUrl:()=> 'https://worker.invalid',permissions:{getAllowedProfileKeys:()=>['allowed']},fetchFn:async()=>{calls++;return {ok:true,json:async()=>({profile:'forbidden'})};}});
     const res=response();await handler({path:`/api/ctv/campaigns/abc/${action}`,method:'POST',body:{profile:'allowed'},user:{email:'owner'},headers:{}},res);
@@ -205,4 +205,47 @@ test('retry and delete API actions enforce ownership and state', async t => {
   await settle(s);
   assert.equal((await request('delete')).code,200);
   assert.equal((await request('delete')).code,404);
+});
+
+
+test('skip persists, blocks approval and is excluded from retries and sending', async t => {
+  const {s, browser, inspected, sent} = setup(t);
+  const c = await analyzed(s);
+  const [skip, keep] = c.leads;
+  skip.assessment.eligible = false;
+  s.skipLead(c.id, 'owner', skip.id);
+  s.skipLead(c.id, 'owner', skip.id);
+  assert.equal(skip.state, 'skipped');
+  assert.equal(skip.skippedBy, 'owner');
+  assert.ok(skip.skippedAt);
+  const restored = new CtvService({file:s.file,browser,pause:async()=>{}});
+  assert.equal(restored.get(c.id,'owner').leads[0].state,'skipped');
+  skip.assessment.eligible = true;
+  assert.throws(()=>s.approveAnalysis(c.id,'owner',[skip.id]));
+  s.retryAnalysis(c.id,'owner'); await settle(s);
+  assert.equal(skip.state,'skipped');
+  assert.equal(inspected.filter(url=>url===skip.url).length,1);
+  s.approveAnalysis(c.id,'owner',[keep.id]);
+  s.prepareMessages(c.id,'owner','Chào {name}');
+  s.sendApproved(c.id,'owner',c.messagePreview.token); await settle(s);
+  assert.deepEqual(sent.map(item=>item.id),[keep.assessment.recipientId]);
+});
+
+test('skip API checks owner, lead and review stage and rejects qualified profiles', async t => {
+  const {s} = setup(t); const c = await analyzed(s);
+  const lead = c.leads[0];
+  assert.throws(()=>s.skipLead(c.id,'other',lead.id));
+  assert.throws(()=>s.skipLead(c.id,'owner','missing'));
+  assert.throws(()=>s.skipLead(c.id,'owner',lead.id));
+  lead.assessment.eligible=false;
+  let handler; mountCtv({all:(p,h)=>handler=h},{service:s});
+  const res=response();
+  await handler({path:`/api/ctv/campaigns/${c.id}/skip-lead`,method:'POST',body:{leadId:lead.id},headers:{'x-ctv-owner':'owner'}},res);
+  assert.equal(res.code,200); assert.equal(res.data.leads[0].state,'skipped');
+  for(const state of ['analyzing','message_review','send_queued','sending','completed']) {
+    c.state=state; assert.throws(()=>s.skipLead(c.id,'owner',lead.id));
+  }
+  c.state='analysis_review'; c.leads[1].assessment.eligible=false;
+  s.skipLead(c.id,'owner',c.leads[1].id);
+  assert.throws(()=>s.retryAnalysis(c.id,'owner'),/Tất cả hồ sơ/);
 });

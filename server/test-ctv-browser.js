@@ -160,3 +160,34 @@ test('continues through outer scroller when inner feed reaches its end', () => {
   assert.equal(root.scrollTop, 2200);
   assert.equal(windowRoot.scrollTop, 640);
 });
+
+ test('keeps readable captions without sales keywords or accessible images', async () => {
+  const mock = mediaPage(() => ['Bộ sưu tập mới hôm nay', 'Một ngày vui']);
+  const result = await collectProfilePosts(mock.page, {});
+  assert.deepEqual(result.posts, ['Bộ sưu tập mới hôm nay', 'Một ngày vui']);
+  assert.equal(result.postMedia.length, 2);
+ });
+
+ test('expands remaining see-more buttons after earlier buttons disappear', async () => {
+  const mock = mediaPage(() => ['Caption đầy đủ']);
+  const locate = mock.page.locator;
+  let remaining = 2;
+  mock.page.locator = selector => {
+    const result = locate(selector);
+    if (selector.startsWith('input')) return result;
+    const nth = result.nth;
+    result.nth = index => {
+      const article = nth(index);
+      article.getByRole = () => ({count: async () => remaining, nth: i => ({
+        click: async () => {
+          if (i >= remaining) throw Error('button disappeared');
+          remaining--;
+        },
+      })});
+      return article;
+    };
+    return result;
+  };
+  await readPostMedia(mock.page);
+  assert.equal(remaining, 0);
+ });

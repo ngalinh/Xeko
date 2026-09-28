@@ -1,4 +1,4 @@
-const { classify } = require('./rules');
+const { classify, isSalesPost } = require('./rules');
 
 const responseSchema = {
   type: 'OBJECT',
@@ -43,6 +43,20 @@ function readAssessment(body) {
 async function evaluateProfile(snapshot, fetchFn = fetch) {
   const base = classify(snapshot);
   if (snapshot.blocked) return { ...base, criteriaVersion: 'us-website-products-v2', reviewedPostCount: 0 };
+  // No post content means collection failed or the feed is unavailable.
+  // Do not ask the model to infer a seller assessment from the bio alone.
+  const hasCaption = (snapshot.posts || []).some(p => typeof p === 'string' && p.trim());
+  const hasMedia = (snapshot.postMedia || []).slice(0,5).some(post =>
+    String(post.caption || '').trim() || (post.images || []).slice(0,2).some(image =>
+      image.mimeType === 'image/jpeg' && typeof image.data === 'string'
+      && image.data.length > 0 && image.data.length <= 1000000));
+  if (!hasCaption && !hasMedia) return {
+    type: base.type, sellerUS: 'unknown', confidence: null, evidence: [], eligible: false,
+    reason: 'Chưa đủ dữ liệu: chưa đọc được bài viết và ảnh để đánh giá. Hãy thử lại bước đọc profile.',
+    gateReason: 'Chưa thu thập được nội dung bài viết; chưa thực hiện đánh giá AI.',
+    reviewedPostCount: 0, reviewedImageCount: 0, salesPostCount: 0,
+    insufficientData: true, criteriaVersion: 'us-website-products-v2',
+  };
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('Chưa cấu hình GEMINI_API_KEY trên máy chạy Playwright');
   const { postMedia = [], ...textSnapshot } = snapshot;
@@ -74,7 +88,20 @@ async function evaluateProfile(snapshot, fetchFn = fetch) {
     if (attempt === 1) throw new Error(result.error.message + ' (đã tự thử lại 1 lần)');
   }
   const evidence = ai.evidence.filter(e => typeof e === 'string' && e.trim().length >= 12 && [snapshot.bio || '', ...(snapshot.posts || [])].some(p => p.includes(e))).slice(0,3);
-  const eligible = base.eligible && ai.profileType === 'personal' && ai.sellerUS === 'yes' && ai.confidence >= 0.85 && evidence.length > 0;
-  return { type: ai.profileType, sellerUS: ai.sellerUS, confidence: ai.confidence, evidence, eligible, reason: ai.reason.slice(0,1000), gateReason: !eligible ? base.reason : '', reviewedPostCount: (snapshot.posts || []).length, reviewedImageCount: imageCount, criteriaVersion: 'us-website-products-v2', model: 'gemini-2.5-flash' };
+  const salesPostCount = new Set((snapshot.posts || []).filter(isSalesPost)).size;
+  const insufficientData = salesPostCount < 3;
+  // Enforce the data requirement even when the model ignores its instruction.
+  // Missing evidence is not evidence that the product is absent from US sites.
+  if (insufficientData || evidence.length === 0) {
+    ai.sellerUS = 'unknown';
+    ai.confidence = null;
+    ai.reason = insufficientData
+      ? ((snapshot.posts || []).length === 0
+        ? 'Chưa đủ dữ liệu: chưa đọc được bài viết và ảnh để đánh giá. Hãy thử lại bước đọc profile.'
+        : `Chưa đủ dữ liệu: đọc được ${(snapshot.posts || []).length} bài viết, chỉ ${salesPostCount}/3 bài có dấu hiệu bán hàng trong caption; cần kiểm tra thêm caption và ảnh.`)
+      : 'Chưa đủ bằng chứng trích dẫn từ bio hoặc bài viết để kết luận sản phẩm có bán trên website Mỹ.';
+  }
+  const eligible = !insufficientData && base.eligible && ai.profileType === 'personal' && ai.sellerUS === 'yes' && ai.confidence >= 0.85 && evidence.length > 0;
+  return { type: ai.profileType, sellerUS: ai.sellerUS, confidence: ai.confidence, evidence, eligible, reason: ai.reason.slice(0,1000), gateReason: !eligible ? base.reason : '', reviewedPostCount: (snapshot.posts || []).length, salesPostCount, insufficientData, reviewedImageCount: imageCount, criteriaVersion: 'us-website-products-v2', model: 'gemini-2.5-flash' };
 }
 module.exports = { evaluateProfile };

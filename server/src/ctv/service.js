@@ -31,6 +31,7 @@ class CtvService {
     return c;
   }
   reasonBlocked(lead) {
+    if (lead.state === 'skipped') return 'Đã bỏ qua trong chiến dịch này';
     if (lead.assessment && lead.assessment.criteriaVersion !== 'us-website-products-v2') return 'Kết quả dùng tiêu chí cũ. Hãy tạo chiến dịch mới và chạy AI lại trên worker đã cập nhật.';
     if (!lead.assessment?.eligible) return 'AI chưa đánh giá đạt';
     const id = lead.assessment.recipientId;
@@ -71,9 +72,11 @@ class CtvService {
   retryAnalysis(id, owner) {
     const c = this.staged(id, owner);
     if (!c.approvals.import || c.approvals.send || !['analysis_review', 'message_review', 'interrupted', 'needs_attention'].includes(c.state)) fail('Chỉ thử lại đánh giá khi đã dừng và chưa duyệt gửi');
+    if (c.leads.every(l => l.state === 'skipped')) fail('Tất cả hồ sơ đã được bỏ qua');
     delete c.approvals.analysis; delete c.messagePreview; delete c.error;
     c.cancelled = false;
     for (const lead of c.leads) {
+      if (lead.state === 'skipped') continue;
       delete lead.assessment; delete lead.error; delete lead.message;
       lead.state = 'pending';
     }
@@ -90,6 +93,7 @@ class CtvService {
     c.state = 'analyzing'; this.save();
     for (const lead of c.leads) {
       if (c.cancelled) break;
+      if (lead.state === 'skipped') continue;
       lead.state = 'checking'; this.save();
       try {
         lead.assessment = await this.browser.withPage(c.profile, page => this.browser.inspect(page, lead.url), { keepOpen: true });
@@ -101,6 +105,17 @@ class CtvService {
     }
     // Always stop at review. Analysis cannot call the message adapter.
     c.state = 'analysis_review'; this.save();
+  }
+  skipLead(id, owner, leadId) {
+    const c = this.staged(id, owner);
+    if (c.state !== 'analysis_review' || c.approvals.send) fail('Chỉ bỏ qua hồ sơ khi đang duyệt kết quả AI');
+    const lead = c.leads.find(l => l.id === leadId);
+    if (!lead) fail('Không tìm thấy hồ sơ trong chiến dịch');
+    if (lead.state === 'skipped') return c;
+    if (!['review', 'qualified'].includes(lead.state) || !this.reasonBlocked(lead)) fail('Chỉ bỏ qua hồ sơ đã đánh giá nhưng chưa đủ điều kiện gửi');
+    lead.state = 'skipped';
+    lead.skippedBy = owner; lead.skippedAt = new Date().toISOString();
+    this.save(); return c;
   }
   approveAnalysis(id, owner, leadIds) {
     const c = this.staged(id, owner);

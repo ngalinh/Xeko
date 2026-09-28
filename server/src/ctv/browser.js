@@ -37,14 +37,19 @@ function readProfileSnapshot() {
 
 // Read caption and image pixels before virtualized feed entries disappear.
 async function readPostMedia(page) {
-  const articles = page.locator(':is([role="main"], main, #content, #m_basic) :is([role="article"], article)');
+  // Prefer complete post containers; fall back to caption blocks only when
+  // Facebook omits article semantics. Never treat the whole feed as one post.
+  const roots = ':is([role="main"], main, #content, #m_basic)';
+  const containers = ':is([role="article"], article, [data-pagelet^="FeedUnit"], [role="feed"] > div)';
+  const captions = ':is([data-ad-preview="message"], [data-ad-comet-preview="message"])';
+  const articles = page.locator(`${roots} ${containers}:not(:has(${containers})):visible, ${roots} ${captions}:not(${containers} ${captions}):visible`);
   const records = [];
   for (let i = 0, count = Math.min(await articles.count(), 10); i < count; i++) {
     const article = articles.nth(i);
     if (!await article.isVisible()) continue;
     const more = article.getByRole('button', { name: /^(Xem thêm|See more)$/i });
     for (let j = 0, n = Math.min(await more.count(), 3); j < n; j++) {
-      try { await more.nth(j).click({ timeout: 1000 }); } catch {}
+      try { await more.nth(0).click({ timeout: 1000 }); } catch {}
     }
     const caption = await article.evaluate(e => {
       const bodies = [...e.querySelectorAll('[data-ad-preview="message"], [data-ad-comet-preview="message"]')];
@@ -94,7 +99,6 @@ async function collectProfilePosts(page, snapshot) {
     await assertSession(page);
     const batch = await readPostMedia(page);
     for (const post of batch) {
-      if (!isSalesPost(post.caption) && !post.images.length) continue;
       const key = post.caption || post.images[0].data;
       if (!posts.has(key) && posts.size >= 20 && isSalesPost(post.caption)) {
         const supplementary = [...posts].find(([, value]) => !isSalesPost(value.caption));

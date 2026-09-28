@@ -11,7 +11,7 @@
   };
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMenu();}});
   const ACTIVE = ['analysis_queued','analyzing','send_queued','sending'];
-  const labels = { import_review:'Chờ duyệt danh sách',analysis_queued:'Chờ chạy AI',analyzing:'AI đang đánh giá',analysis_review:'Chờ duyệt kết quả AI',message_review:'Chờ duyệt tin nhắn',send_queued:'Chờ gửi',sending:'Đang gửi',completed:'Hoàn tất',cancelled:'Đã dừng',interrupted:'Bị gián đoạn',needs_attention:'Cần xử lý',pending:'Chờ đánh giá',checking:'Đang đánh giá',qualified:'Đạt',review:'Cần kiểm tra',duplicate:'Đã liên hệ',sent:'Đã gửi',unconfirmed:'Chưa xác nhận gửi',done:'Hoàn tất',draft:'Bản cũ',failed:'Lỗi' };
+  const labels = { import_review:'Chờ duyệt danh sách',analysis_queued:'Chờ chạy AI',analyzing:'AI đang đánh giá',analysis_review:'Chờ duyệt kết quả AI',message_review:'Chờ duyệt tin nhắn',send_queued:'Chờ gửi',sending:'Đang gửi',completed:'Hoàn tất',cancelled:'Đã dừng',interrupted:'Bị gián đoạn',needs_attention:'Cần xử lý',skipped:'Đã bỏ qua',pending:'Chờ đánh giá',checking:'Đang đánh giá',qualified:'Đạt',review:'Cần kiểm tra',duplicate:'Đã liên hệ',sent:'Đã gửi',unconfirmed:'Chưa xác nhận gửi',done:'Hoàn tất',draft:'Bản cũ',failed:'Lỗi' };
   const defaultTemplate = $('template').value;
   let selected = null, epoch = 0, timer = null, busy = false, uncertain = false, retries = 0;
   let picks = new Set(), accounts = [], campaigns = [];
@@ -32,8 +32,8 @@
   viewStep(1);
   const element = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
   const urlsFrom = text => text.match(/https?:\/\/[^\s,"'<>]+/gi) || [];
-  const canPick = l => l.assessment?.criteriaVersion === 'us-website-products-v2' && l.assessment?.eligible && !l.blockedReason;
-  const canRetry = c => c?.workflowVersion === 2 && c.approvals?.import && !c.approvals.send && ['analysis_review','message_review','interrupted','needs_attention'].includes(c.state);
+  const canPick = l => l.state !== 'skipped' && l.assessment?.criteriaVersion === 'us-website-products-v2' && l.assessment?.eligible && !l.blockedReason;
+  const canRetry = c => c?.workflowVersion === 2 && c.approvals?.import && c.leads.some(l => l.state !== 'skipped') && !c.approvals.send && ['analysis_review','message_review','interrupted','needs_attention'].includes(c.state);
   const accountName = key => accounts.find(a => a.key === key)?.name || key;
   function notice(message = '', error = false) { $('notice').textContent = message; $('notice').className = 'notice' + (error ? ' error' : ''); show('notice', !!message); }
   async function api(url, method = 'GET', body) {
@@ -65,6 +65,7 @@
     $('approveAnalysis').textContent = `Duyệt ${picks.size} khách & sang bước 3 →`;
     $('approveAnalysis').disabled = !unlocked || !modern || c.state !== 'analysis_review' || !picks.size;
     for (const box of $('analysisRows').querySelectorAll('input')) box.disabled = !unlocked || !modern || c.state !== 'analysis_review' || !eligible.some(l => l.id === box.value);
+    for (const button of $('analysisRows').querySelectorAll('button')) button.disabled = !unlocked || !modern || c.state !== 'analysis_review';
     const editing = modern && c.state === 'message_review';
     $('template').disabled = !editing || !unlocked;
     $('prepareMessages').disabled = !editing || !unlocked || !$('template').value.trim();
@@ -122,7 +123,7 @@
     const checked = c.leads.filter(l => l.assessment || l.error).length;
     $('analysisProgress').textContent = `${checked}/${c.leads.length} hồ sơ đã xử lý${c.cancelled && c.state === 'analysis_review' ? ' · Đã dừng theo yêu cầu' : ''}`;
     $('analysisBar').max = c.leads.length || 1; $('analysisBar').value = checked;
-    stats('analysisStats',[['AI đánh giá đạt',c.leads.filter(l=>l.assessment?.eligible).length,'good'],['Có thể chọn gửi',c.leads.filter(canPick).length],['Cần kiểm tra',c.leads.filter(l=>l.state==='review').length,'warn']]);
+    stats('analysisStats',[['AI đánh giá đạt',c.leads.filter(l=>l.assessment?.eligible).length,'good'],['Có thể chọn gửi',c.leads.filter(canPick).length],['Cần kiểm tra',c.leads.filter(l=>l.state==='review').length,'warn'],['Đã bỏ qua',c.leads.filter(l=>l.state==='skipped').length]]);
     show('analysisWarning',!!c.error && !a.analysis);$('analysisWarning').textContent = c.error || '';
     show('retryAnalysis',!!canRetry(c));
     show('stopAnalysis',analyzing);show('approveAnalysis',modern && c.state === 'analysis_review');
@@ -137,12 +138,19 @@
       const v=l.assessment;
       if(v){analysis.append(element('p',`${v.type==='personal'?'Cá nhân':v.type==='page'?'Fanpage':'Chưa rõ loại'} · ${v.criteriaVersion==='us-website-products-v2'?'Sản phẩm trên website Mỹ':'Thị trường Mỹ (tiêu chí cũ)'}: ${v.sellerUS==='yes'?'Có':v.sellerUS==='no'?'Không':'Chưa rõ'}${typeof v.confidence==='number'?' · '+Math.round(v.confidence*100)+'%':''}`),element('p',v.reason || ''));
         if(v.criteriaVersion!=='us-website-products-v2')analysis.append(element('p','Kết quả dùng tiêu chí cũ. Hãy cập nhật Xeko worker, bấm Thử lại AI để đánh giá sản phẩm có bán trên website Mỹ.','warn'));
+        if(Number.isInteger(v.salesPostCount))analysis.append(element('p',`${v.salesPostCount} bài có dấu hiệu bán hàng trong caption`,'muted'));
         if(Number.isInteger(v.reviewedPostCount))analysis.append(element('p',`Đã đọc ${v.reviewedPostCount} bài viết${Number.isInteger(v.reviewedImageCount) ? ` · ${v.reviewedImageCount} ảnh` : ''}`,'muted'));
         if(v.evidence?.length){const d=element('details');d.append(element('summary',`Xem ${v.evidence.length} bằng chứng`));v.evidence.forEach(q=>d.append(element('blockquote',q)));analysis.append(d);}
         if(v.gateReason&&!v.eligible)analysis.append(element('p',v.gateReason,'muted'));
       }else analysis.append(element('p',l.error || 'Chưa có kết quả','muted'));
       result.append(badge(labels[l.state] || l.state,canPick(l)?'good':l.state==='review'?'warn':''));
       if(v?.eligible && l.blockedReason && !a.send)result.append(element('p',l.blockedReason,'muted'));
+      if(modern && c.state === 'analysis_review' && ['review','qualified'].includes(l.state) && l.blockedReason) {
+        const skip = element('button','Bỏ qua','secondary');
+        skip.setAttribute('aria-label',`Bỏ qua ${v?.name || l.url}`);
+        skip.onclick=()=>action('skip-lead',{leadId:l.id});
+        result.append(skip);
+      }
       row.append(chooseCell,customer,analysis,result);$('analysisRows').append(row);
     }
     const hasMessages=!!a.analysis;
@@ -211,7 +219,7 @@
     try{const c=await api('/api/ctv/campaigns','POST',{name:$('campaignName').value,profile:$('profile').value,urls});epoch++;uncertain=false;render(c,true);}
     catch(e){notice(e.message,true);}finally{busy=false;updateControls();schedule();}
   };
-  $('retryAnalysis').onclick=()=>{if(canRetry(selected) && window.confirm('Đọc lại tất cả profile và đánh giá lại bằng AI? Kết quả cũ và bản duyệt tin nhắn sẽ được bỏ; bạn cần duyệt lại trước khi gửi.')){picks.clear();action('retry-analysis');}};
+  $('retryAnalysis').onclick=()=>{if(canRetry(selected) && window.confirm('Đọc lại các profile chưa bỏ qua và đánh giá lại bằng AI? Kết quả cũ và bản duyệt tin nhắn sẽ được bỏ; bạn cần duyệt lại trước khi gửi.')){picks.clear();action('retry-analysis');}};
   $('approveImport').onclick=()=>action('approve-import');
   $('selectAll').onchange=()=>{picks=$('selectAll').checked?new Set(selected.leads.filter(canPick).map(l=>l.id)):new Set();for(const box of $('analysisRows').querySelectorAll('input'))box.checked=picks.has(box.value);updateControls();};
   $('approveAnalysis').onclick=()=>action('approve-analysis',{leadIds:[...picks]});

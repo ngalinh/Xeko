@@ -12,6 +12,8 @@ Bước nhập chỉ tạo kết quả kiểm tra. Chưa mở Facebook, chưa g�
 
 AI phân loại hồ sơ cá nhân/Fanpage, bằng chứng sản phẩm có bán trên website Mỹ, điểm tin cậy, lý do và trích dẫn. UI hiển thị tiến độ và kết quả từng khách. Khi xong, chiến dịch dừng ở trạng thái **Chờ duyệt kết quả AI**; không gửi bất kỳ tin nào.
 
+Nút **Bỏ qua** ở kết quả hồ sơ chưa đủ điều kiện gửi lưu trạng thái **Đã bỏ qua** trong chiến dịch. Hồ sơ này không được duyệt gửi và không được quét lại khi bấm **Thử lại AI**; kết quả cũ vẫn được giữ để đối chiếu.
+
 Chọn các khách đủ điều kiện, đọc bằng chứng rồi bấm **Duyệt N khách & sang bước 3**. Khách thiếu bằng chứng, chưa xác minh ID hoặc đã có dấu gửi trước sẽ không chọn được. Nếu hai link cùng một ID Facebook, chỉ duyệt một link. Khi dừng/lỗi AI, có thể duyệt phần kết quả đã xử lý; các hồ sơ chưa xử lý không được chọn. Chạy lại phần còn lại bằng chiến dịch mới.
 
 Tiêu chí: AI đánh giá `personal`, `sellerUS=yes`, confidence ≥ 0,85; có trích dẫn khớp nội dung đầu vào; đồng thời phải có dấu hiệu profile cá nhân, đọc ít nhất 3 bài bán hàng và bằng chứng sản phẩm gắn với website Mỹ trong bio/bài viết. Điểm mô hình không phải xác suất đã hiệu chuẩn. Không suy luận thị trường từ tên, quốc tịch, sắc tộc, nơi ở, tiếng Anh hoặc USD. Sản phẩm mua từ website Mỹ về bán tại Việt Nam vẫn phù hợp; không yêu cầu khách mua ở Mỹ. Kết quả thiếu phiên bản `us-website-products-v2` được đánh dấu tiêu chí cũ và không được duyệt gửi. Cần cập nhật cả web và Xeko worker, sau đó tạo chiến dịch mới để đánh giá lại; kết quả đã lưu không tự đổi.
@@ -45,6 +47,7 @@ Trước Enter, worker xác minh ID người nhận, URL và link hồ sơ ở t
 | Thao tác | Dữ liệu | Kết quả |
 |---|---|---|
 | `POST /:id/approve-import` | `{}` | Duyệt bước 1, chạy AI, dừng tại `analysis_review` |
+| `POST /:id/skip-lead` | `{leadId}` | Bỏ qua hồ sơ không đủ điều kiện ở bước duyệt AI |
 | `POST /:id/approve-analysis` | `{leadIds}` | Duyệt tập khách đạt, chuyển `message_review` |
 | `POST /:id/review-analysis` | `{}` | Chọn lại khách, hủy preview |
 | `POST /:id/prepare-messages` | `{template}` | Tạo từng tin nhắn và token preview, chưa gửi |
@@ -58,3 +61,9 @@ Các đường dẫn `/:id/...` đều thuộc `/api/ctv/campaigns`. Yêu cầu 
 Chạy `node --test server/test-ctv.js` từ root repo. 15 ca dùng adapter giả: chốt duyệt ở API, chỉ gửi tập đã chọn, token hết hiệu lực, chống trùng/idempotency, hủy, restart, quyền tài khoản và dữ liệu nhập. UI được thử trên preview dùng server quy trình thật với adapter AI/Facebook mô phỏng; đã kiểm tra chuyển 3 bước, khóa gửi khi sửa nội dung và bố cục mobile.
 
 Chưa gọi Gemini hay gửi Facebook thật trong quá trình phát triển. Trước triển khai cần kiểm thử selector bằng tài khoản và người nhận thử nghiệm. Không coi preview mô phỏng là kiểm chứng khả năng gửi trên mọi giao diện Messenger.
+
+## Dữ liệu đọc profile và kết luận thiếu bằng chứng
+
+Bộ đọc hỗ trợ article, FeedUnit, phần tử trong feed và caption message dự phòng. Bài có caption vẫn được giữ dù không khớp từ khóa bán hàng và không lấy được ảnh. Caption dự phòng ngoài khung bài chỉ cung cấp chữ; không lấy ảnh lân cận vì có thể thuộc bài khác.
+
+Giao diện tách số bài/ảnh đã đọc khỏi số bài có dấu hiệu bán hàng trong caption. Dưới 3 bài có dấu hiệu bán hàng, backend buộc kết quả sản phẩm về “Chưa rõ”, không hiển thị phần trăm và không cho duyệt gửi dù AI trả “Có/Không · 100%”. Kết quả không có trích dẫn khớp dữ liệu cũng không được kết luận Có/Không. Bài bán hàng chỉ thể hiện qua ảnh vẫn cần kiểm tra thêm. Kết quả đã lưu cần bấm Thử lại AI sau khi cập nhật worker.
