@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const { inspect, readProfileSnapshot, collectProfilePosts, readPostMedia } = require('./src/ctv/browser');
 
-function snapshot({level = 1, hidden = false, friend = true, text = '', article = false} = {}) {
+function snapshot({level = 1, hidden = false, friend = true, text = '', article = false, feed = false} = {}) {
   const element = (innerText, extra = {}) => ({innerText, getClientRects: () => [1], getAttribute: () => null, ...extra});
   const heading = element('Linh Thảo', {
     getClientRects: () => hidden ? [] : [1], closest: () => article ? {} : null,
@@ -11,6 +11,7 @@ function snapshot({level = 1, hidden = false, friend = true, text = '', article 
   });
   const root = element(text, {cloneNode: () => ({innerText: text, querySelectorAll: () => []}), querySelectorAll(selector) {
     if (selector.startsWith('h1')) return [heading];
+    if (selector.startsWith('[role="feed"]')) return feed ? [element('Bài viết')] : [];
     if (selector.includes('button')) return friend ? [element('Thêm bạn bè')] : [];
     return [];
   }});
@@ -44,7 +45,7 @@ function pageMock({checkpoint = false, timeout = true, actual = 'https://www.fac
   };
 }
 test('timeout explains unreadable profile and rechecks delayed login prompts', async () => {
-  await assert.rejects(inspect(pageMock(), 'https://facebook.com/123'), /Không đọc được tên hồ sơ Facebook sau 30 giây/);
+  await assert.rejects(inspect(pageMock(), 'https://facebook.com/123'), /Chưa nhận diện được tiêu đề hoặc vùng bài viết Facebook sau 30 giây/);
   await assert.rejects(inspect(pageMock({checkpoint: true}), 'https://facebook.com/123'), /Cần đăng nhập/);
 });
 test('blocked profile remains ineligible and redirects remain rejected', async () => {
@@ -190,4 +191,32 @@ test('continues through outer scroller when inner feed reaches its end', () => {
   };
   await readPostMedia(mock.page);
   assert.equal(remaining, 0);
+ });
+
+ test('visible feed permits scanning without a readable name; navigation alone does not', () => {
+  assert.equal(snapshot({hidden: true, feed: true}).name, '');
+  assert.equal(snapshot({level: 2, friend: false, feed: true}).name, '');
+  assert.equal(snapshot({hidden: true, feed: false}), false);
+ });
+ test('closed tab reports actionable error before querying locators', async () => {
+  const page = pageMock();
+  page.isClosed = () => true;
+  page.locator = () => { throw Error('must not query closed page'); };
+  await assert.rejects(inspect(page, 'https://facebook.com/123'), /Tab Facebook đã đóng/);
+ });
+ test('original browser failure is not masked by session recheck', async () => {
+  const page = pageMock();
+  let calls = 0;
+  page.locator = () => { if (++calls > 1) throw Error('secondary locator error'); return {count: async () => 0}; };
+  page.waitForFunction = async () => { throw Error('browser disconnected'); };
+  await assert.rejects(inspect(page, 'https://facebook.com/123'), /browser disconnected/);
+ });
+ test('inspection reaches scrolling when feed is ready without a heading', async () => {
+  const mock = mediaPage(() => []);
+  mock.page.goto = async () => {};
+  mock.page.waitForFunction = async () => ({jsonValue: async () => ({name: '', messageLinks: [], bio: ''}), dispose: async () => {}});
+  const result = await inspect(mock.page, 'https://facebook.com/123');
+  assert.equal(mock.scrolls(), 12);
+  assert.equal(result.insufficientData, true);
+  assert.equal(result.eligible, false);
  });
