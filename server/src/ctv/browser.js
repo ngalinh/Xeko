@@ -7,7 +7,7 @@ async function assertSession(page) {
 }
 
 // Runs inside the page, both while waiting and when collecting the snapshot.
-function readProfileSnapshot() {
+function readProfileSnapshot(requireHeader = false) {
   const visible = e => !!e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden';
   const roots = [...document.querySelectorAll('[role="main"], main, #content, #m_basic')].filter(visible);
   for (const main of roots) {
@@ -27,6 +27,7 @@ function readProfileSnapshot() {
     const trustedName = name && (heading.matches('h1, [aria-level="1"]') || personalEvidence || pageEvidence) ? name : '';
     const feedReady = [...main.querySelectorAll('[role="feed"], [role="article"], article, [data-pagelet^="FeedUnit"], [data-ad-preview="message"], [data-ad-comet-preview="message"]')].some(visible);
     if (!blocked && !trustedName && !feedReady) continue;
+    if (requireHeader && !blocked && !trustedName) continue;
     const intro = main.cloneNode(true);
     intro.querySelectorAll('[role="article"], article, [role="feed"], [role="navigation"], nav').forEach(e => e.remove());
     // Read the visible header below the name and above the profile tabs,
@@ -151,15 +152,26 @@ async function inspect(page, url) {
   let handle;
   let snapshot;
   try {
-    handle = await page.waitForFunction(readProfileSnapshot, null, { timeout: 30000 });
+    handle = await page.waitForFunction(readProfileSnapshot, true, { timeout: 30000 });
     snapshot = await handle.jsonValue();
   } catch (error) {
     // Preserve browser/navigation failures instead of masking them with locator.count.
     if (error.name !== 'TimeoutError') throw error;
     await assertSession(page);
-    throw new Error('Chưa nhận diện được tiêu đề hoặc vùng bài viết Facebook sau 30 giây nên chưa thể cuộn quét. Trang có thể chưa tải xong hoặc dùng bố cục chưa được hỗ trợ; hãy kiểm tra hồ sơ trong Quản lý tài khoản.');
+    throw new Error('Chưa đọc được tên Facebook sau 30 giây nên chưa thể cuộn quét. Hãy kiểm tra vùng tên và bio ở đầu hồ sơ rồi thử lại.');
   } finally {
     if (handle) await handle.dispose();
+  }
+  if (!snapshot.blocked && !snapshot.name) throw new Error('Chưa đọc được tên Facebook; chưa cuộn xuống bài viết. Hãy thử lại khi vùng đầu hồ sơ tải xong.');
+  // Header text can mount after the name. Capture it before any feed scroll,
+  // retaining the saved header if Facebook temporarily unmounts the DOM.
+  for (let attempt = 0; !snapshot.blocked && !snapshot.headerBio && attempt < 4; attempt++) {
+    await page.waitForTimeout(750);
+    await assertSession(page);
+    const header = await page.evaluate(readProfileSnapshot, true);
+    if (header?.blocked) { snapshot = header; break; }
+    if (header?.name && header.name !== snapshot.name) throw new Error('Tên Facebook thay đổi khi đọc bio; hãy kiểm tra lại hồ sơ.');
+    if (header?.name) snapshot = { ...snapshot, ...header };
   }
   await assertSession(page);
   const actual = profileUrl(page.url());
@@ -177,7 +189,7 @@ async function inspect(page, url) {
       if (match) ids.add(match[1]);
     } catch {}
   }
-  return { url: target, actualUrl: actual, name: snapshot.name, recipientId: ids.size === 1 ? [...ids][0] : null, checkedAt: new Date().toISOString(), ...await evaluateProfile(snapshot) };
+  return { url: target, actualUrl: actual, name: snapshot.name, bio: snapshot.headerBio || '', recipientId: ids.size === 1 ? [...ids][0] : null, checkedAt: new Date().toISOString(), ...await evaluateProfile(snapshot) };
 }
 
 async function send(page, lead, message, beforeSubmit, cancelled) {
