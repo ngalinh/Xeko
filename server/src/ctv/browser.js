@@ -9,23 +9,52 @@ async function assertSession(page) {
 // Runs inside the page, both while waiting and when collecting the snapshot.
 function readProfileSnapshot(requireHeader = false) {
   const visible = e => !!e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden';
+  const excluded = '[role="article"], article, [role="feed"], [role="dialog"], [role="navigation"], nav';
+  const sectionTitle = /^(Facebook|Thông tin cá nhân|Personal details|Intro|Giới thiệu|Công việc|Work|Posts|Bài viết|Photos|Ảnh|Friends|Bạn bè)$/i;
+  // Read nested spans, explicit line breaks and Facebook's image-based emoji.
+  const elementText = e => {
+    if (!e.childNodes) return (e.innerText || '').trim();
+    const read = node => {
+      if (node.nodeType === 3) return node.textContent;
+      if (node.nodeType !== 1 || !visible(node)) return '';
+      if (node.tagName === 'BR') return '\n';
+      if (node.tagName === 'IMG') return node.getAttribute('alt') || '';
+      if (node.matches('svg, script, style, [aria-hidden="true"]')) return '';
+      return [...node.childNodes].map(read).join('');
+    };
+    return [...e.childNodes].map(read).join('').trim();
+  };
   const roots = [...new Set([...document.querySelectorAll('[role="main"], main, #content, #m_basic'), document.body].filter(Boolean))].filter(visible);
+  let feedSnapshot = false;
   for (const main of roots) {
     const text = main.innerText || '';
     const blocked = /locked (?:their |this )?profile|đã khóa trang cá nhân|nội dung này hiện không|content isn't available/i.test(text) ? 'Hồ sơ bị khóa hoặc không xem được' : '';
-    const headings = [...main.querySelectorAll('h1, [role="heading"][aria-level="1"], h2, [role="heading"][aria-level="2"]')]
-      .filter(e => visible(e) && !e.closest('[role="article"], article, [role="feed"], [role="dialog"], [role="navigation"], nav')
-        && !/^(Facebook|Thông tin cá nhân|Personal details|Intro|Giới thiệu|Công việc|Work|Posts|Bài viết|Photos|Ảnh|Friends|Bạn bè)$/i.test(e.innerText.trim()));
-    const heading = headings.find(e => e.matches('h1, [aria-level="1"]') && e.innerText.trim())
-      || headings.find(e => e.innerText.trim() && e.getBoundingClientRect && [...main.querySelectorAll('[role="tab"], a')].some(tab =>
-        visible(tab) && /^(All|About|Tất cả|Giới thiệu)$/i.test((tab.innerText || '').trim())
-        && tab.getBoundingClientRect().top > e.getBoundingClientRect().bottom
-        && tab.getBoundingClientRect().top - e.getBoundingClientRect().bottom < 360));
-    const name = heading?.innerText.trim() || '';
+    const tabs = [...main.querySelectorAll('[role="tab"], a')].filter(e => visible(e)
+      && /^(All|About|Posts|Tất cả|Giới thiệu|Bài viết)$/i.test((e.innerText || '').trim()));
+    const aboveTabs = e => e.getBoundingClientRect && tabs.some(tab => {
+      const box = e.getBoundingClientRect(), tabBox = tab.getBoundingClientRect();
+      return tabBox.top > box.bottom && tabBox.top - box.bottom < 650;
+    });
+    const headings = [...main.querySelectorAll('h1, h2, h3, [role="heading"]')]
+      .filter(e => visible(e) && !e.closest(excluded) && !sectionTitle.test(e.innerText.trim()));
+    let heading = headings.find(e => e.matches('h1, [aria-level="1"]') && e.innerText.trim())
+      || headings.find(e => e.innerText.trim() && aboveTabs(e));
     const controls = [...main.querySelectorAll('[role="button"], button, a')].filter(visible)
       .map(e => (e.getAttribute('aria-label') || e.innerText || '').trim());
     const personalEvidence = controls.some(t => /^(Add friend|Friends|Cancel request|Thêm bạn bè|Bạn bè|Hủy lời mời)$/i.test(t));
     const pageEvidence = /Page transparency|Tính minh bạch của Trang|Độ minh bạch của Trang/i.test(text);
+    // Some layouts render the large profile title as a span, without a heading
+    // role. Require profile controls and tabs, and never use post/sidebar text.
+    if (!heading && (personalEvidence || pageEvidence)) {
+      const candidates = [...main.querySelectorAll('span[dir="auto"], div[dir="auto"]')].filter(e => {
+        const value = (e.innerText || '').trim();
+        return visible(e) && !e.closest(`${excluded}, [role="button"], button, [role="tab"]`)
+          && value && value.length <= 150 && !value.includes('\n') && !sectionTitle.test(value)
+          && aboveTabs(e) && parseFloat(getComputedStyle(e).fontSize) >= 24;
+      }).sort((a, b) => parseFloat(getComputedStyle(b).fontSize) - parseFloat(getComputedStyle(a).fontSize));
+      heading = candidates[0];
+    }
+    const name = heading?.innerText.trim() || '';
     // A visible feed can be read even when Facebook omits the profile heading.
     // Never promote a feed/post heading to a person's name.
     const trustedName = name && (heading.matches('h1, [aria-level="1"]') || personalEvidence || pageEvidence) ? name : '';
@@ -41,26 +70,41 @@ function readProfileSnapshot(requireHeader = false) {
         && /^(All|About|Posts|Tất cả|Giới thiệu|Bài viết)$/i.test((e.innerText || '').trim())
         && e.getBoundingClientRect().top >= titleBox.bottom);
       const bottom = tabs.length ? Math.min(...tabs.map(e => e.getBoundingClientRect().top)) : titleBox.bottom + 220;
+      const metadataRows = [...main.querySelectorAll('svg')].map(icon => {
+        let row = icon.parentElement;
+        while (row && row !== main && !(row.innerText || '').trim()) row = row.parentElement;
+        return row;
+      }).filter(row => {
+        if (!row || row === main) return false;
+        const box = row.getBoundingClientRect();
+        return box.top >= titleBox.bottom && box.bottom <= bottom && box.height <= 64;
+      });
       const lines = [...main.querySelectorAll('span, div, a')].filter(e => visible(e)
         && !e.closest('[role="article"], article, [role="feed"], [role="button"], button, [role="tab"], [role="navigation"], nav')
+        && !e.querySelector?.('svg, [role="list"], [role="listitem"]')
+        && !metadataRows.some(row => row.contains(e))
         )
-        .map(e => ({text:(e.childNodes ? [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('') : e.innerText || '').trim(), box:e.getBoundingClientRect()}))
+        .map(e => ({element: e, text: elementText(e), box:e.getBoundingClientRect()}))
         .filter(({text,box}) => text && box.top >= titleBox.bottom - 2 && box.bottom <= bottom
-          && box.left >= titleBox.left - 4
+          && box.left >= titleBox.left - 24
           && !/followers|following|người theo dõi|đang theo dõi/i.test(text)
           && !/^(Message|Nhắn tin|Follow|Theo dõi|Add friend|Thêm bạn bè|Search|Tìm kiếm)$/i.test(text))
+        .filter((line, _, all) => !all.some(other => other !== line && other.element.contains?.(line.element)))
         .sort((a,b) => a.box.top - b.box.top || a.box.left - b.box.left);
       headerBio = [...new Set(lines.map(line => line.text))].join('\n').slice(0,2000);
     }
-    return {
+    const result = {
       headerBio,
       bio: headerBio,
       name: trustedName, blocked, pageEvidence, personalEvidence, feedReady,
       posts: [...main.querySelectorAll('[role="article"], article')].filter(visible).slice(0,10).map(e => e.innerText.slice(0,6000)),
       messageLinks: [...main.querySelectorAll('a[href]')].filter(visible).filter(e => /^(Message|Nhắn tin)$/i.test((e.getAttribute('aria-label') || e.innerText || '').trim())).map(e => e.href),
     };
+    // A feed-only main can precede a separate profile header in the DOM.
+    if (trustedName || blocked) return result;
+    if (!feedSnapshot) feedSnapshot = result;
   }
-  return false;
+  return feedSnapshot;
 }
 
 // Read caption and image pixels before virtualized feed entries disappear.
