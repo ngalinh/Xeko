@@ -68,6 +68,8 @@ test('selection uses the selection gate, retaining legacy worker restrictions', 
   const canPick = vm.runInNewContext(source + ';canPick');
   const lead = {state:'qualified', assessment:{criteriaVersion:'us-website-products-v2',eligible:true}, blockedReason:'Missing ID',selectionBlockedReason:''};
   assert.equal(canPick(lead),true);
+  assert.equal(canPick({...lead,state:'review',assessment:{...lead.assessment,type:'page',eligible:false}}),true);
+  assert.equal(canPick({...lead,assessment:undefined}),false);
   assert.equal(canPick({...lead,selectionBlockedReason:'Already contacted'}),false);
   assert.equal(canPick({...lead,state:'skipped'}),false);
   assert.equal(canPick({...lead,selectionBlockedReason:undefined}),false);

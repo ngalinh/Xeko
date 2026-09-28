@@ -33,7 +33,7 @@ class CtvService {
   selectionBlocked(lead) {
     if (lead.state === 'skipped') return 'Đã bỏ qua trong chiến dịch này';
     if (lead.assessment && lead.assessment.criteriaVersion !== 'us-website-products-v2') return 'Kết quả dùng tiêu chí cũ. Hãy tạo chiến dịch mới và chạy AI lại trên worker đã cập nhật.';
-    if (!lead.assessment?.eligible) return 'AI chưa đánh giá đạt';
+    if (!lead.assessment) return 'Chưa có kết quả đánh giá';
     const id = lead.assessment.recipientId;
     if (id && this.data.reservations[id]) return 'Đã có lần gửi trước hoặc chưa rõ trạng thái gửi';
     return '';
@@ -41,6 +41,7 @@ class CtvService {
   reasonBlocked(lead) {
     const reason = this.selectionBlocked(lead);
     if (reason) return reason;
+    if (!lead.assessment.eligible) return 'Đã cho phép chọn thủ công, nhưng chưa đủ điều kiện gửi: ' + (lead.assessment.gateReason || 'AI chưa đánh giá đạt');
     if (!/^\d+$/.test(lead.assessment.recipientId || '')) return 'Chưa xác minh được ID người nhận. Có thể chọn và soạn tin, nhưng cần Thử lại AI để xác minh trước khi gửi.';
     return '';
   }
