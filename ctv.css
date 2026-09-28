@@ -59,3 +59,10 @@ main{max-width:1440px;padding:24px;margin:0 auto}.page-heading h1{font-size:22px
 .assessment-sections li:last-child{margin-bottom:0}
 .assessment-sections strong{font-weight:600;color:#344762}
 .assessment-sections span{white-space:pre-line}
+.seller-verdict{font-weight:600;color:#344762}
+.assessment-details summary{width:fit-content;color:var(--blue);font-weight:600}
+.assessment-details .collapse-label{display:none}
+.assessment-details[open] .expand-label{display:none}
+.assessment-details[open] .collapse-label{display:inline}
+.assessment-details .assessment-sections{margin-top:8px}
+td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-height:1.6}

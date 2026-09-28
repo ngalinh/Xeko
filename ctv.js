@@ -50,6 +50,24 @@
     }
     return list;
   }
+  function renderAssessmentPreview(v) {
+    const preview = element('div');
+    const seller = {yes:'Có',no:'Không'}[v.sellerUS] || 'Chưa đủ dữ liệu';
+    preview.append(element('p', 'Seller bán sản phẩm trên website Mỹ: ' + seller, 'seller-verdict'));
+    const details = element('details', undefined, 'assessment-details');
+    const summary = element('summary');
+    summary.append(element('span', 'Xem chi tiết', 'expand-label'), element('span', 'Thu gọn', 'collapse-label'));
+    details.append(summary, renderAssessment(v));
+    preview.append(details);
+    return preview;
+  }
+  function selectionExplanation(l) {
+    const v = l.assessment;
+    if (!v?.eligible && ['page','group'].includes(v?.type)) return v.type === 'page'
+      ? 'Không thể chọn: đây là Fanpage. Chiến dịch hiện chỉ cho chọn profile cá nhân, dù AI xác định có bán sản phẩm trên website Mỹ.'
+      : 'Không thể chọn: đây là Group. Chiến dịch hiện chỉ cho chọn profile cá nhân.';
+    return l.selectionBlockedReason || l.blockedReason || v?.gateReason || 'Hồ sơ chưa đủ điều kiện để chọn.';
+  }
   const urlsFrom = text => text.match(/https?:\/\/[^\s,"'<>]+/gi) || [];
   const canPick = l => l.state !== 'skipped' && l.assessment?.criteriaVersion === 'us-website-products-v2' && l.assessment?.eligible && !(l.selectionBlockedReason ?? l.blockedReason);
   const canRetry = c => c?.workflowVersion === 2 && c.approvals?.import && c.leads.some(l => l.state !== 'skipped') && !c.approvals.send && ['analysis_review','message_review','interrupted','needs_attention'].includes(c.state);
@@ -170,8 +188,16 @@
       customer.append(link(l.url,customerLabel(l.url))); customer.dataset.label='Khách hàng';
       analysis.dataset.label='AI đánh giá'; result.dataset.label='Kết quả';
       const v=l.assessment;
-      if(v) analysis.append(renderAssessment(v));
+      if(v) analysis.append(renderAssessmentPreview(v));
       else analysis.append(element('p',l.error || 'Chưa có kết quả','muted'));
+      if(v && !canPick(l)) {
+        const reason = selectionExplanation(l);
+        const note = element('p', reason, 'selection-explanation');
+        note.id = 'selection-reason-' + l.id;
+        cb.setAttribute('aria-describedby', note.id);
+        chooseCell.title = reason;
+        analysis.append(note);
+      }
       result.append(badge(l.state === 'qualified' && l.blockedReason ? 'AI đạt · Chưa sẵn sàng gửi' : labels[l.state] || l.state,canPick(l)?'good':l.state==='review'?'warn':''));
       if(v?.eligible && l.blockedReason && !a.send)result.append(element('p',l.blockedReason,'muted'));
       if(modern && c.state === 'analysis_review' && ['review','qualified'].includes(l.state) && l.blockedReason) {
