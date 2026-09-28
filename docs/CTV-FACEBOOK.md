@@ -4,7 +4,7 @@ Vào **Gửi tin nhắn hàng loạt** trong menu Xeko. Nếu Xeko chạy trên 
 
 ## 1. Nhập danh sách khách hàng
 
-Chọn Facebook cá nhân đã đăng nhập, đặt tên chiến dịch, dán dữ liệu hoặc nhập TXT/CSV có link. Bấm **Kiểm tra danh sách** để xem số link hợp lệ, link trùng được gộp và link bị loại cùng lý do. Chỉ link hồ sơ trực tiếp được nhận; tối đa 100 link mỗi lần. Các cột khác trong CSV chưa được nhập; tên khách lấy từ hồ sơ.
+Chọn Facebook cá nhân đã đăng nhập, đặt tên chiến dịch, dán dữ liệu hoặc nhập TXT/CSV có link. Bấm **Kiểm tra danh sách** để xem số link hợp lệ, link trùng được gộp và link bị loại cùng lý do. Chỉ link hồ sơ trực tiếp được nhận; tối đa 100 link mỗi lần. Các cột khác trong CSV chưa được nhập; nhãn khách hàng hiển thị phần đường dẫn Facebook (ví dụ `linhduongasale.auth`), link dạng `profile.php?id=...` hiển thị ID. Tên dùng trong biến `{name}` vẫn lấy từ hồ sơ.
 
 Bước nhập chỉ tạo kết quả kiểm tra. Chưa mở Facebook, chưa gọi AI. Bấm **Duyệt danh sách & chạy AI** mới cho phép xử lý các link hợp lệ. Danh sách và tài khoản được giữ cố định theo chiến dịch; muốn đổi danh sách thì tạo chiến dịch mới.
 
@@ -14,7 +14,7 @@ AI phân loại hồ sơ cá nhân/Fanpage, bằng chứng sản phẩm có bán
 
 Nút **Bỏ qua** ở kết quả hồ sơ chưa đủ điều kiện gửi lưu trạng thái **Đã bỏ qua** trong chiến dịch. Hồ sơ này không được duyệt gửi và không được quét lại khi bấm **Thử lại AI**; kết quả cũ vẫn được giữ để đối chiếu.
 
-Chọn các khách đủ điều kiện, đọc bằng chứng rồi bấm **Duyệt N khách & sang bước 3**. Khách thiếu bằng chứng, chưa xác minh ID hoặc đã có dấu gửi trước sẽ không chọn được. Nếu hai link cùng một ID Facebook, chỉ duyệt một link. Khi dừng/lỗi AI, có thể duyệt phần kết quả đã xử lý; các hồ sơ chưa xử lý không được chọn. Chạy lại phần còn lại bằng chiến dịch mới.
+Chọn các khách đủ điều kiện, đọc bằng chứng rồi bấm **Duyệt N khách & sang bước 3**. Khách thiếu bằng chứng hoặc đã có dấu gửi trước sẽ không chọn được. Khách AI đánh giá đạt nhưng chưa xác minh ID vẫn được chọn và chuyển sang bước soạn tin; hệ thống hiển thị lý do chưa sẵn sàng gửi và chặn tạo bản xem trước/gửi cho đến khi xác minh ID. Bấm Thử lại AI để xác minh lại, sau đó duyệt lại danh sách. Nếu hai link cùng một ID Facebook, chỉ duyệt một link. Khi dừng/lỗi AI, có thể duyệt phần kết quả đã xử lý; các hồ sơ chưa xử lý không được chọn. Chạy lại phần còn lại bằng chiến dịch mới.
 
 Tiêu chí: AI đánh giá `personal`, `sellerUS=yes`, confidence ≥ 0,85; có trích dẫn khớp nội dung đầu vào; đồng thời phải có dấu hiệu profile cá nhân, đọc ít nhất 3 bài bán hàng và bằng chứng sản phẩm gắn với website Mỹ trong bio/bài viết. Điểm mô hình không phải xác suất đã hiệu chuẩn. Không suy luận thị trường từ tên, quốc tịch, sắc tộc, nơi ở, tiếng Anh hoặc USD. Sản phẩm mua từ website Mỹ về bán tại Việt Nam vẫn phù hợp; không yêu cầu khách mua ở Mỹ. Kết quả thiếu phiên bản `us-website-products-v2` được đánh dấu tiêu chí cũ và không được duyệt gửi. Cần cập nhật cả web và Xeko worker, sau đó tạo chiến dịch mới để đánh giá lại; kết quả đã lưu không tự đổi.
 

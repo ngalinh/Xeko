@@ -32,7 +32,7 @@
   viewStep(1);
   const element = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
   const urlsFrom = text => text.match(/https?:\/\/[^\s,"'<>]+/gi) || [];
-  const canPick = l => l.state !== 'skipped' && l.assessment?.criteriaVersion === 'us-website-products-v2' && l.assessment?.eligible && !l.blockedReason;
+  const canPick = l => l.state !== 'skipped' && l.assessment?.criteriaVersion === 'us-website-products-v2' && l.assessment?.eligible && !(l.selectionBlockedReason ?? l.blockedReason);
   const canRetry = c => c?.workflowVersion === 2 && c.approvals?.import && c.leads.some(l => l.state !== 'skipped') && !c.approvals.send && ['analysis_review','message_review','interrupted','needs_attention'].includes(c.state);
   const accountName = key => accounts.find(a => a.key === key)?.name || key;
   function notice(message = '', error = false) { $('notice').textContent = message; $('notice').className = 'notice' + (error ? ' error' : ''); show('notice', !!message); }
@@ -48,6 +48,12 @@
   function badge(text, style = '') { return element('span', text, `badge ${style}`); }
   function stats(id, values) { $(id).replaceChildren(...values.map(([label, count, cls]) => { const s = element('div',undefined,`stat ${cls || ''}`);s.append(element('strong',String(count)),element('span',label));return s;})); }
   function link(url, name) { const a = element('a',name || url); a.href=url; a.target='_blank';a.rel='noopener noreferrer';return a; }
+  function customerLabel(value) {
+    try {
+      const url = new URL(value);
+      return url.pathname === '/profile.php' ? url.searchParams.get('id') || 'profile.php' : url.pathname.replace(/^\/+|\/+$/g, '') || value;
+    } catch { return value; }
+  }
   function approvalText(a, fallback) { return a ? `Đã duyệt lúc ${new Date(a.at).toLocaleString('vi-VN')}` : fallback; }
   function updateControls() {
     const c = selected, unlocked = !busy && !uncertain, modern = c?.workflowVersion === 2;
@@ -77,6 +83,15 @@
     for (const id of ['stopAnalysis','stopSending']) $(id).disabled = !unlocked || !!c?.cancelled;
     $('messageLength').textContent = `${$('template').value.length}/2000`;
     if (editing) $('previewHint').textContent = !c.messagePreview ? 'Tạo bản xem trước để kiểm tra từng người nhận và tin nhắn.' : fresh ? 'Đây là nội dung sẽ được gửi. Duyệt bên dưới để bắt đầu.' : 'Nội dung đã thay đổi. Hãy tạo lại bản xem trước trước khi duyệt gửi.';
+    if (editing) {
+      const blocked = c.leads.filter(l => c.approvals.analysis?.leadIds.includes(l.id) && l.blockedReason);
+      if (blocked.length) {
+        $('previewHint').textContent = blocked.map(l => `${customerLabel(l.url)}: ${l.blockedReason}`).join(' · ');
+        $('prepareMessages').disabled = true;
+        $('confirmSend').disabled = true;
+        $('sendButton').disabled = true;
+      }
+    }
     else if (c?.approvals?.send) $('previewHint').textContent = 'Nội dung đã duyệt gửi được lưu cố định bên dưới.';
     for (const button of $('campaigns').querySelectorAll('button')) button.disabled = busy || (button.dataset.deleteState && ACTIVE.concat(['running','queued']).includes(button.dataset.deleteState));
   }
@@ -109,7 +124,7 @@
     show('importForm',false);show('importResult',true);
     stats('importStats',[['Link hợp lệ',c.leads.length,'good'],['Link trùng đã gộp',c.duplicateCount || 0],['Link bị loại',c.rejected?.length || 0,'warn']]);
     $('importContext').textContent = `${c.name || 'Chiến dịch gửi tin nhắn hàng loạt'} · ${accountName(c.profile)} · Danh sách đã lưu cố định cho chiến dịch này.`;
-    $('importList').replaceChildren(...c.leads.map(l => { const li=element('li');li.append(link(l.url));return li;}));
+    $('importList').replaceChildren(...c.leads.map(l => { const li=element('li');li.append(link(l.url,customerLabel(l.url)));return li;}));
     $('rejectedList').replaceChildren(...(c.rejected || []).map(r => element('p',`${r.value} — ${r.reason}`,'warning')));
     if (reset) $('importDetails').open = c.state === 'import_review';
     $('importApproval').textContent = approvalText(a.import,'Chỉ các link hợp lệ bên trên sẽ được chuyển sang AI.');
@@ -123,7 +138,7 @@
     const checked = c.leads.filter(l => l.assessment || l.error).length;
     $('analysisProgress').textContent = `${checked}/${c.leads.length} hồ sơ đã xử lý${c.cancelled && c.state === 'analysis_review' ? ' · Đã dừng theo yêu cầu' : ''}`;
     $('analysisBar').max = c.leads.length || 1; $('analysisBar').value = checked;
-    stats('analysisStats',[['AI đánh giá đạt',c.leads.filter(l=>l.assessment?.eligible).length,'good'],['Có thể chọn gửi',c.leads.filter(canPick).length],['Cần kiểm tra',c.leads.filter(l=>l.state==='review').length,'warn'],['Đã bỏ qua',c.leads.filter(l=>l.state==='skipped').length]]);
+    stats('analysisStats',[['AI đánh giá đạt',c.leads.filter(l=>l.assessment?.eligible).length,'good'],['Có thể chọn soạn tin',c.leads.filter(canPick).length],['Cần kiểm tra',c.leads.filter(l=>l.state==='review').length,'warn'],['Đã bỏ qua',c.leads.filter(l=>l.state==='skipped').length]]);
     show('analysisWarning',!!c.error && !a.analysis);$('analysisWarning').textContent = c.error || '';
     show('retryAnalysis',!!canRetry(c));
     show('stopAnalysis',analyzing);show('approveAnalysis',modern && c.state === 'analysis_review');
@@ -131,9 +146,9 @@
     $('analysisRows').replaceChildren();
     for (const l of c.leads) {
       const row = element('tr'), chooseCell = element('td'), customer = element('td'), analysis = element('td'), result = element('td');
-      const cb=element('input');cb.type='checkbox';cb.value=l.id;cb.checked=picks.has(l.id);cb.setAttribute('aria-label',`Chọn ${l.assessment?.name || l.url}`);
+      const cb=element('input');cb.type='checkbox';cb.value=l.id;cb.checked=picks.has(l.id);cb.setAttribute('aria-label',`Chọn ${customerLabel(l.url)}`);
       cb.onchange=()=>{if(cb.checked)picks.add(l.id);else picks.delete(l.id);updateControls();};chooseCell.append(cb);
-      customer.append(link(l.url,l.assessment?.name || l.url)); customer.dataset.label='Khách hàng';
+      customer.append(link(l.url,customerLabel(l.url))); customer.dataset.label='Khách hàng';
       analysis.dataset.label='AI đánh giá'; result.dataset.label='Kết quả';
       const v=l.assessment;
       if(v){analysis.append(element('p',`${v.type==='personal'?'Cá nhân':v.type==='page'?'Fanpage':'Chưa rõ loại'} · ${v.criteriaVersion==='us-website-products-v2'?'Sản phẩm trên website Mỹ':'Thị trường Mỹ (tiêu chí cũ)'}: ${v.sellerUS==='yes'?'Có':v.sellerUS==='no'?'Không':'Chưa rõ'}${typeof v.confidence==='number'?' · '+Math.round(v.confidence*100)+'%':''}`),element('p',v.reason || ''));
@@ -143,7 +158,7 @@
         if(v.evidence?.length){const d=element('details');d.append(element('summary',`Xem ${v.evidence.length} bằng chứng`));v.evidence.forEach(q=>d.append(element('blockquote',q)));analysis.append(d);}
         if(v.gateReason&&!v.eligible)analysis.append(element('p',v.gateReason,'muted'));
       }else analysis.append(element('p',l.error || 'Chưa có kết quả','muted'));
-      result.append(badge(labels[l.state] || l.state,canPick(l)?'good':l.state==='review'?'warn':''));
+      result.append(badge(l.state === 'qualified' && l.blockedReason ? 'AI đạt · Chưa sẵn sàng gửi' : labels[l.state] || l.state,canPick(l)?'good':l.state==='review'?'warn':''));
       if(v?.eligible && l.blockedReason && !a.send)result.append(element('p',l.blockedReason,'muted'));
       if(modern && c.state === 'analysis_review' && ['review','qualified'].includes(l.state) && l.blockedReason) {
         const skip = element('button','Bỏ qua','secondary');
@@ -159,12 +174,12 @@
     $('status3').className='badge '+(c.state==='completed'?'good':hasMessages?'blue':'');
     $('recipientSummary').textContent=`${a.analysis?.leadIds.length || 0} khách đã duyệt · Gửi từ ${accountName(c.profile)}`;
     show('reviewSelection',c.state==='message_review');show('prepareMessages',c.state==='message_review');
-    $('messagePreviews').replaceChildren(...(c.messagePreview?.messages || []).map(m=>{const d=element('article',undefined,'message-card');d.append(element('h3',m.name),link(m.url),element('p',m.message));return d;}));
+    $('messagePreviews').replaceChildren(...(c.messagePreview?.messages || []).map(m=>{const d=element('article',undefined,'message-card');d.append(element('h3',customerLabel(m.url)),link(m.url),element('p',m.message));return d;}));
     show('sendApproval',c.state==='message_review' && !!c.messagePreview);
     show('sendResult',!!a.send);show('stopSending',['send_queued','sending'].includes(c.state));
     const sentLeads=c.leads.filter(l=>a.analysis?.leadIds.includes(l.id));
     stats('sendStats',[['Đã gửi',sentLeads.filter(l=>l.state==='sent').length,'good'],['Chưa xác nhận',sentLeads.filter(l=>l.state==='unconfirmed').length,'warn'],['Tổng đã duyệt',sentLeads.length]]);
-    $('sendRows').replaceChildren(...sentLeads.map(l=>{const row=element('div',undefined,'send-row'),info=element('div');info.append(link(l.url,l.assessment?.name));if(l.error)info.append(element('p',l.error,'muted'));row.append(info,badge(l.state==='qualified'?'Chờ gửi':labels[l.state] || l.state,l.state==='sent'?'good':l.state==='unconfirmed'?'warn':''));return row;}));
+    $('sendRows').replaceChildren(...sentLeads.map(l=>{const row=element('div',undefined,'send-row'),info=element('div');info.append(link(l.url,customerLabel(l.url)));if(l.error)info.append(element('p',l.error,'muted'));row.append(info,badge(l.state==='qualified'?'Chờ gửi':labels[l.state] || l.state,l.state==='sent'?'good':l.state==='unconfirmed'?'warn':''));return row;}));
     $('sendNote').textContent=c.error || (c.cancelled?'Đã yêu cầu dừng; tin đã gửi không thể thu hồi tại đây.':'Chỉ ghi đã gửi khi Messenger xác nhận. Tin chưa rõ trạng thái không được tự gửi lại.');
     for(let n=1;n<=3;n++){$(`nav${n}`).className='step-link';$(`nav${n}`).removeAttribute('aria-current');}
     const step=a.analysis?3:a.import?2:1;$(`nav${step}`).classList.add('active');$(`nav${step}`).setAttribute('aria-current','step');

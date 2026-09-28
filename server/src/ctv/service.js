@@ -30,16 +30,21 @@ class CtvService {
     if (c.workflowVersion !== 2) fail('Chiến dịch cũ chỉ được xem. Hãy tạo chiến dịch mới theo quy trình 3 bước.');
     return c;
   }
-  reasonBlocked(lead) {
+  selectionBlocked(lead) {
     if (lead.state === 'skipped') return 'Đã bỏ qua trong chiến dịch này';
     if (lead.assessment && lead.assessment.criteriaVersion !== 'us-website-products-v2') return 'Kết quả dùng tiêu chí cũ. Hãy tạo chiến dịch mới và chạy AI lại trên worker đã cập nhật.';
     if (!lead.assessment?.eligible) return 'AI chưa đánh giá đạt';
     const id = lead.assessment.recipientId;
-    if (!/^\d+$/.test(id || '')) return 'Chưa xác minh được ID người nhận';
-    if (this.data.reservations[id]) return 'Đã có lần gửi trước hoặc chưa rõ trạng thái gửi';
+    if (id && this.data.reservations[id]) return 'Đã có lần gửi trước hoặc chưa rõ trạng thái gửi';
     return '';
   }
-  view(c) { return { ...c, leads: c.leads.map(l => ({ ...l, blockedReason: this.reasonBlocked(l) })) }; }
+  reasonBlocked(lead) {
+    const reason = this.selectionBlocked(lead);
+    if (reason) return reason;
+    if (!/^\d+$/.test(lead.assessment.recipientId || '')) return 'Chưa xác minh được ID người nhận. Có thể chọn và soạn tin, nhưng cần Thử lại AI để xác minh trước khi gửi.';
+    return '';
+  }
+  view(c) { return { ...c, leads: c.leads.map(l => ({ ...l, selectionBlockedReason: this.selectionBlocked(l), blockedReason: this.reasonBlocked(l) })) }; }
   create(input, owner) {
     if (input.profile == null || input.profile === '') throw new Error('Cần chọn tài khoản Facebook');
     if (!validProfileKey(input.profile)) throw new Error('Mã tài khoản Facebook không hợp lệ');
@@ -124,8 +129,8 @@ class CtvService {
     const unique = [...new Set(leadIds)], recipientIds = new Set();
     for (const id of unique) {
       const lead = c.leads.find(l => l.id === id);
-      if (!lead || this.reasonBlocked(lead)) fail('Danh sách có khách chưa đủ điều kiện hoặc đã được liên hệ');
-      if (recipientIds.has(lead.assessment.recipientId)) fail('Hai link cùng một người nhận. Chỉ chọn một link cho mỗi khách.');
+      if (!lead || this.selectionBlocked(lead)) fail('Danh sách có khách chưa đủ điều kiện hoặc đã được liên hệ');
+      if (lead.assessment.recipientId && recipientIds.has(lead.assessment.recipientId)) fail('Hai link cùng một người nhận. Chỉ chọn một link cho mỗi khách.');
       recipientIds.add(lead.assessment.recipientId);
     }
     c.approvals.analysis = { by: owner, at: new Date().toISOString(), leadIds: unique };
@@ -144,7 +149,8 @@ class CtvService {
     renderMessage(template, 'bạn');
     const messages = c.approvals.analysis.leadIds.map(id => {
       const l = c.leads.find(l => l.id === id);
-      if (this.reasonBlocked(l)) fail('Một khách đã được liên hệ trong chiến dịch khác. Hãy chọn lại.');
+      const blocked = this.reasonBlocked(l);
+      if (blocked) fail(blocked);
       return { leadId: id, recipientId: l.assessment.recipientId, name: l.assessment.name || 'bạn', url: l.url, message: renderMessage(template, l.assessment.name) };
     });
     c.template = template.trim(); c.messagePreview = { token: crypto.randomUUID(), createdAt: new Date().toISOString(), messages };
