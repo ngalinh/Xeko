@@ -2,6 +2,7 @@ const { validProfileKey, profileUrl, recipientId, isSalesPost } = require('./rul
 const { evaluateProfile } = require('./ai');
 
 async function assertSession(page) {
+  if (page.isClosed?.()) throw new Error('Tab Facebook đã đóng trước khi quét bài viết; hãy mở lại tài khoản và bấm Thử lại AI');
   if (/\/(login|checkpoint|challenge|two_step_verification)(?:[/?]|$)/i.test(new URL(page.url()).pathname) || await page.locator('input[type="password"]').count()) throw new Error('Cần đăng nhập hoặc xử lý checkpoint trong Quản lý tài khoản');
 }
 
@@ -21,13 +22,16 @@ function readProfileSnapshot() {
       .map(e => (e.getAttribute('aria-label') || e.innerText || '').trim());
     const personalEvidence = controls.some(t => /^(Add friend|Friends|Cancel request|Thêm bạn bè|Bạn bè|Hủy lời mời)$/i.test(t));
     const pageEvidence = /Page transparency|Tính minh bạch của Trang|Độ minh bạch của Trang/i.test(text);
-    // Secondary headings alone may be feed/navigation titles, not profile names.
-    if (!blocked && (!name || (!heading.matches('h1, [aria-level="1"]') && !personalEvidence && !pageEvidence))) continue;
+    // A visible feed can be read even when Facebook omits the profile heading.
+    // Never promote a feed/post heading to a person's name.
+    const trustedName = name && (heading.matches('h1, [aria-level="1"]') || personalEvidence || pageEvidence) ? name : '';
+    const feedReady = [...main.querySelectorAll('[role="feed"], [role="article"], article, [data-pagelet^="FeedUnit"], [data-ad-preview="message"], [data-ad-comet-preview="message"]')].some(visible);
+    if (!blocked && !trustedName && !feedReady) continue;
     const intro = main.cloneNode(true);
     intro.querySelectorAll('[role="article"], article, [role="feed"], [role="navigation"], nav').forEach(e => e.remove());
     return {
       bio: (intro.innerText || intro.textContent || '').trim().slice(0,8000),
-      name, blocked, pageEvidence, personalEvidence,
+      name: trustedName, blocked, pageEvidence, personalEvidence,
       posts: [...main.querySelectorAll('[role="article"], article')].filter(visible).slice(0,10).map(e => e.innerText.slice(0,6000)),
       messageLinks: [...main.querySelectorAll('a[href]')].filter(visible).filter(e => /^(Message|Nhắn tin)$/i.test((e.getAttribute('aria-label') || e.innerText || '').trim())).map(e => e.href),
     };
@@ -129,9 +133,10 @@ async function inspect(page, url) {
     handle = await page.waitForFunction(readProfileSnapshot, null, { timeout: 30000 });
     snapshot = await handle.jsonValue();
   } catch (error) {
-    await assertSession(page);
+    // Preserve browser/navigation failures instead of masking them with locator.count.
     if (error.name !== 'TimeoutError') throw error;
-    throw new Error('Không đọc được tên hồ sơ Facebook sau 30 giây. Trang có thể chưa tải xong hoặc dùng bố cục chưa được hỗ trợ; hãy kiểm tra hồ sơ trong Quản lý tài khoản.');
+    await assertSession(page);
+    throw new Error('Chưa nhận diện được tiêu đề hoặc vùng bài viết Facebook sau 30 giây nên chưa thể cuộn quét. Trang có thể chưa tải xong hoặc dùng bố cục chưa được hỗ trợ; hãy kiểm tra hồ sơ trong Quản lý tài khoản.');
   } finally {
     if (handle) await handle.dispose();
   }
