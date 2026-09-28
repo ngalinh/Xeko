@@ -138,6 +138,7 @@
       const v=l.assessment;
       if(v){analysis.append(element('p',`${v.type==='personal'?'Cá nhân':v.type==='page'?'Fanpage':'Chưa rõ loại'} · ${v.criteriaVersion==='us-website-products-v2'?'Sản phẩm trên website Mỹ':'Thị trường Mỹ (tiêu chí cũ)'}: ${v.sellerUS==='yes'?'Có':v.sellerUS==='no'?'Không':'Chưa rõ'}${typeof v.confidence==='number'?' · '+Math.round(v.confidence*100)+'%':''}`),element('p',v.reason || ''));
         if(v.criteriaVersion!=='us-website-products-v2')analysis.append(element('p','Kết quả dùng tiêu chí cũ. Hãy cập nhật Xeko worker, bấm Thử lại AI để đánh giá sản phẩm có bán trên website Mỹ.','warn'));
+        if(Number.isInteger(v.salesPostCount))analysis.append(element('p',`${v.salesPostCount} bài có dấu hiệu bán hàng trong caption`,'muted'));
         if(Number.isInteger(v.reviewedPostCount))analysis.append(element('p',`Đã đọc ${v.reviewedPostCount} bài viết${Number.isInteger(v.reviewedImageCount) ? ` · ${v.reviewedImageCount} ảnh` : ''}`,'muted'));
         if(v.evidence?.length){const d=element('details');d.append(element('summary',`Xem ${v.evidence.length} bằng chứng`));v.evidence.forEach(q=>d.append(element('blockquote',q)));analysis.append(d);}
         if(v.gateReason&&!v.eligible)analysis.append(element('p',v.gateReason,'muted'));

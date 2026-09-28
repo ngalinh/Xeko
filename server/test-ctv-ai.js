@@ -71,3 +71,47 @@ test('recovered response still requires grounded evidence', async t => {
   const m = mock(t, [candidate(''), candidate(JSON.stringify({ ...good, evidence: ['fabricated product evidence'] }))]);
   assert.equal((await evaluateProfile(snapshot, m.fetch)).eligible, false);
 });
+
+for (const sellerUS of ['yes', 'no']) {
+  for (const posts of [[], snapshot.posts.slice(0,2), ['Một ngày vui']]) {
+    test(`insufficient posts override confident ${sellerUS} assessment (${posts.length})`, async t => {
+      const m = mock(t, [candidate(JSON.stringify({ ...good, sellerUS, confidence: 1 }))]);
+      const result = await evaluateProfile({ ...snapshot, posts }, m.fetch);
+      assert.equal(result.sellerUS, 'unknown');
+      assert.equal(result.confidence, null);
+      assert.equal(result.eligible, false);
+      assert.equal(result.insufficientData, true);
+      assert.equal(result.reviewedPostCount, posts.length);
+      assert.match(result.reason, /Chưa đủ dữ liệu/);
+    });
+  }
+}
+test('ungrounded negative result is unknown even with enough posts', async t => {
+  const m = mock(t, [candidate(JSON.stringify({ ...good, sellerUS: 'no', confidence: 1, evidence: ['invented statement'] }))]);
+  const result = await evaluateProfile(snapshot, m.fetch);
+  assert.equal(result.sellerUS, 'unknown');
+  assert.equal(result.confidence, null);
+  assert.equal(result.eligible, false);
+});
+
+ test('empty collection never calls Gemini or infers a result from bio alone', async () => {
+  const result = await evaluateProfile({ personalEvidence: true,
+    bio: 'Chuyên săn sale hàng nội địa Hàn Quốc', posts: ['  '], postMedia: [] },
+    async () => { throw new Error('Gemini must not be called'); });
+  assert.equal(result.sellerUS, 'unknown');
+  assert.equal(result.confidence, null);
+  assert.equal(result.reviewedPostCount, 0);
+  assert.equal(result.reviewedImageCount, 0);
+  assert.deepEqual(result.evidence, []);
+  assert.equal(result.eligible, false);
+ });
+ test('photo-only collection still sends images to Gemini but stays ineligible', async t => {
+  const m = mock(t, [valid]);
+  const result = await evaluateProfile({ ...snapshot, posts: [''], postMedia: [
+    { caption: '', images: [{ mimeType: 'image/jpeg', data: 'aW1hZ2U=' }] },
+  ] }, m.fetch);
+  assert.equal(m.calls.length, 1);
+  assert.equal(result.reviewedImageCount, 1);
+  assert.equal(result.sellerUS, 'unknown');
+  assert.equal(result.eligible, false);
+ });

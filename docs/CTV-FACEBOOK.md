@@ -61,3 +61,9 @@ Các đường dẫn `/:id/...` đều thuộc `/api/ctv/campaigns`. Yêu cầu 
 Chạy `node --test server/test-ctv.js` từ root repo. 15 ca dùng adapter giả: chốt duyệt ở API, chỉ gửi tập đã chọn, token hết hiệu lực, chống trùng/idempotency, hủy, restart, quyền tài khoản và dữ liệu nhập. UI được thử trên preview dùng server quy trình thật với adapter AI/Facebook mô phỏng; đã kiểm tra chuyển 3 bước, khóa gửi khi sửa nội dung và bố cục mobile.
 
 Chưa gọi Gemini hay gửi Facebook thật trong quá trình phát triển. Trước triển khai cần kiểm thử selector bằng tài khoản và người nhận thử nghiệm. Không coi preview mô phỏng là kiểm chứng khả năng gửi trên mọi giao diện Messenger.
+
+## Dữ liệu đọc profile và kết luận thiếu bằng chứng
+
+Bộ đọc hỗ trợ article, FeedUnit, phần tử trong feed và caption message dự phòng. Bài có caption vẫn được giữ dù không khớp từ khóa bán hàng và không lấy được ảnh. Caption dự phòng ngoài khung bài chỉ cung cấp chữ; không lấy ảnh lân cận vì có thể thuộc bài khác.
+
+Giao diện tách số bài/ảnh đã đọc khỏi số bài có dấu hiệu bán hàng trong caption. Dưới 3 bài có dấu hiệu bán hàng, backend buộc kết quả sản phẩm về “Chưa rõ”, không hiển thị phần trăm và không cho duyệt gửi dù AI trả “Có/Không · 100%”. Kết quả không có trích dẫn khớp dữ liệu cũng không được kết luận Có/Không. Bài bán hàng chỉ thể hiện qua ảnh vẫn cần kiểm tra thêm. Kết quả đã lưu cần bấm Thử lại AI sau khi cập nhật worker.
