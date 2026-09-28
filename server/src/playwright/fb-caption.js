@@ -1,4 +1,5 @@
 'use strict';
+const { withClipboard } = require('../utils/clipboard-queue');
 
 const normalizeCaption = text => (text || '').replace(/\r\n?/g, '\n').replace(/\u00a0/g, ' ').trim();
 
@@ -15,18 +16,20 @@ async function fillComposerCaption(page, editor, message) {
   await editor.scrollIntoViewIfNeeded();
   if (await matches()) return true;
   try {
-    await page.evaluate(async text => {
-      let timer;
-      try {
-        await Promise.race([
-          navigator.clipboard.writeText(text),
-          new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Clipboard timeout')), 1500); }),
-        ]);
-      } finally { clearTimeout(timer); }
-    }, message);
-    await editor.click();
-    await editor.press('ControlOrMeta+a');
-    await editor.press('ControlOrMeta+v');
+    await withClipboard(async () => {
+      await page.evaluate(async text => {
+        let timer;
+        try {
+          await Promise.race([
+            navigator.clipboard.writeText(text),
+            new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Clipboard timeout')), 1500); }),
+          ]);
+        } finally { clearTimeout(timer); }
+      }, message);
+      await editor.click();
+      await editor.press('ControlOrMeta+a');
+      await editor.press('ControlOrMeta+v');
+    });
     if (await confirm()) return true;
   } catch { /* Clipboard permissions or paste can fail; replace in the same editor. */ }
 
