@@ -9,14 +9,18 @@ async function assertSession(page) {
 // Runs inside the page, both while waiting and when collecting the snapshot.
 function readProfileSnapshot(requireHeader = false) {
   const visible = e => !!e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden';
-  const roots = [...document.querySelectorAll('[role="main"], main, #content, #m_basic')].filter(visible);
+  const roots = [...new Set([...document.querySelectorAll('[role="main"], main, #content, #m_basic'), document.body].filter(Boolean))].filter(visible);
   for (const main of roots) {
     const text = main.innerText || '';
     const blocked = /locked (?:their |this )?profile|đã khóa trang cá nhân|nội dung này hiện không|content isn't available/i.test(text) ? 'Hồ sơ bị khóa hoặc không xem được' : '';
     const headings = [...main.querySelectorAll('h1, [role="heading"][aria-level="1"], h2, [role="heading"][aria-level="2"]')]
-      .filter(e => visible(e) && !e.closest('[role="article"], article, [role="dialog"], [role="navigation"], nav'));
+      .filter(e => visible(e) && !e.closest('[role="article"], article, [role="feed"], [role="dialog"], [role="navigation"], nav')
+        && !/^(Facebook|Thông tin cá nhân|Personal details|Intro|Giới thiệu|Công việc|Work|Posts|Bài viết|Photos|Ảnh|Friends|Bạn bè)$/i.test(e.innerText.trim()));
     const heading = headings.find(e => e.matches('h1, [aria-level="1"]') && e.innerText.trim())
-      || headings.find(e => e.innerText.trim());
+      || headings.find(e => e.innerText.trim() && e.getBoundingClientRect && [...main.querySelectorAll('[role="tab"], a')].some(tab =>
+        visible(tab) && /^(All|About|Tất cả|Giới thiệu)$/i.test((tab.innerText || '').trim())
+        && tab.getBoundingClientRect().top > e.getBoundingClientRect().bottom
+        && tab.getBoundingClientRect().top - e.getBoundingClientRect().bottom < 360));
     const name = heading?.innerText.trim() || '';
     const controls = [...main.querySelectorAll('[role="button"], button, a')].filter(visible)
       .map(e => (e.getAttribute('aria-label') || e.innerText || '').trim());
@@ -28,8 +32,6 @@ function readProfileSnapshot(requireHeader = false) {
     const feedReady = [...main.querySelectorAll('[role="feed"], [role="article"], article, [data-pagelet^="FeedUnit"], [data-ad-preview="message"], [data-ad-comet-preview="message"]')].some(visible);
     if (!blocked && !trustedName && !feedReady) continue;
     if (requireHeader && !blocked && !trustedName) continue;
-    const intro = main.cloneNode(true);
-    intro.querySelectorAll('[role="article"], article, [role="feed"], [role="navigation"], nav').forEach(e => e.remove());
     // Read the visible header below the name and above the profile tabs,
     // before scrolling can unmount it. Do not confuse post text with bio.
     let headerBio = '';
@@ -41,8 +43,8 @@ function readProfileSnapshot(requireHeader = false) {
       const bottom = tabs.length ? Math.min(...tabs.map(e => e.getBoundingClientRect().top)) : titleBox.bottom + 220;
       const lines = [...main.querySelectorAll('span, div, a')].filter(e => visible(e)
         && !e.closest('[role="article"], article, [role="feed"], [role="button"], button, [role="tab"], [role="navigation"], nav')
-        && ![...e.children].some(child => (child.innerText || '').trim()))
-        .map(e => ({text:(e.innerText || '').trim(), box:e.getBoundingClientRect()}))
+        )
+        .map(e => ({text:(e.childNodes ? [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('') : e.innerText || '').trim(), box:e.getBoundingClientRect()}))
         .filter(({text,box}) => text && box.top >= titleBox.bottom - 2 && box.bottom <= bottom
           && box.left >= titleBox.left - 4
           && !/followers|following|người theo dõi|đang theo dõi/i.test(text)
@@ -52,7 +54,7 @@ function readProfileSnapshot(requireHeader = false) {
     }
     return {
       headerBio,
-      bio: (intro.innerText || intro.textContent || '').trim().slice(0,8000),
+      bio: headerBio,
       name: trustedName, blocked, pageEvidence, personalEvidence,
       posts: [...main.querySelectorAll('[role="article"], article')].filter(visible).slice(0,10).map(e => e.innerText.slice(0,6000)),
       messageLinks: [...main.querySelectorAll('a[href]')].filter(visible).filter(e => /^(Message|Nhắn tin)$/i.test((e.getAttribute('aria-label') || e.innerText || '').trim())).map(e => e.href),
@@ -75,7 +77,8 @@ async function readPostMedia(page) {
     if (!await article.isVisible()) continue;
     const more = article.getByRole('button', { name: /^(Xem thêm|See more)$/i });
     for (let j = 0, n = Math.min(await more.count(), 3); j < n; j++) {
-      try { await more.nth(0).click({ timeout: 1000 }); } catch {}
+      // DOM click avoids Playwright scrolling back up to an old off-screen post.
+      try { await more.nth(0).evaluate(button => button.click(), undefined, { timeout: 1000 }); } catch {}
     }
     const caption = await article.evaluate(e => {
       const bodies = [...e.querySelectorAll('[data-ad-preview="message"], [data-ad-comet-preview="message"]')];
@@ -121,18 +124,21 @@ function scrollProfileFeed() {
 // Collect across scrolls because Facebook may virtualize older feed entries.
 async function collectProfilePosts(page, snapshot) {
   const posts = new Map();
+  let staleBatches = 0;
   for (let step = 0; step <= 12; step++) {
     await assertSession(page);
     const batch = await readPostMedia(page);
+    const before = posts.size;
     for (const post of batch) {
-      const key = post.caption || post.images[0].data;
+      const key = post.caption.replace(/\s+/g, ' ').trim() || post.images[0].data;
       if (!posts.has(key) && posts.size >= 20 && isSalesPost(post.caption)) {
         const supplementary = [...posts].find(([, value]) => !isSalesPost(value.caption));
         if (supplementary) posts.delete(supplementary[0]);
       }
       if ((!posts.has(key) && posts.size < 20) || (posts.has(key) && posts.get(key).images.length < post.images.length)) posts.set(key, post);
     }
-    if ([...posts.values()].filter(p => isSalesPost(p.caption)).length >= 5 || step === 12) break;
+    staleBatches = posts.size === before ? staleBatches + 1 : 0;
+    if ([...posts.values()].filter(p => isSalesPost(p.caption)).length >= 5 || staleBatches >= 3 || step === 12) break;
     const progress = await page.evaluate(scrollProfileFeed);
     if (progress && !progress.moved) {
       // Allow delayed feed content to mount before another attempt.
