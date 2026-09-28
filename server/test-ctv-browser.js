@@ -71,6 +71,7 @@ function pageMock({checkpoint = false, timeout = true, actual = 'https://www.fac
   let checks = 0;
   return {
     goto: async () => {}, url: () => actual,
+    evaluate: async () => false,
     locator: () => ({count: async () => checkpoint && ++checks > 1 ? 1 : 0}),
     waitForFunction: async () => {
       if (timeout) { const e = new Error('timeout'); e.name = 'TimeoutError'; throw e; }
@@ -279,3 +280,44 @@ test('continues through outer scroller when inner feed reaches its end', () => {
   await assert.rejects(inspect(mock.page, 'https://facebook.com/123'), /Chưa đọc được tên Facebook/);
   assert.equal(mock.scrolls(), 0);
  });
+
+test('header timeout scans a visible feed but blocks sending without a verified name', async t => {
+  const originalFetch = global.fetch, originalKey = process.env.GEMINI_API_KEY;
+  t.after(() => { global.fetch = originalFetch; if (originalKey === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = originalKey; });
+  process.env.GEMINI_API_KEY = 'test-only';
+  const captions = Array.from({length: 5}, (_, i) => `Bán túi mua từ Amazon.com mẫu ${i}`);
+  const mock = mediaPage(n => captions.slice(0, Math.min(n + 1, 5)));
+  mock.page.goto = async () => {};
+  mock.page.waitForFunction = async () => { const e = new Error('header timeout'); e.name = 'TimeoutError'; throw e; };
+  const evaluate = mock.page.evaluate;
+  mock.page.evaluate = async (fn, arg) => fn.name === 'readProfileSnapshot'
+    ? (arg ? false : {name: '', headerBio: '', personalEvidence: true, feedReady: true, messageLinks: []})
+    : evaluate(fn);
+  let calls = 0;
+  global.fetch = async (_, options) => {
+    calls++;
+    const input = JSON.parse(JSON.parse(options.body).contents[0].parts[0].text);
+    assert.deepEqual(input.posts, captions);
+    return {ok: true, json: async () => ({candidates: [{finishReason: 'STOP', content: {parts: [{text: JSON.stringify({profileType: 'personal', sellerUS: 'yes', confidence: 0.99, reason: 'Đủ bằng chứng', evidence: [captions[0]], bio: '', brands: [], captionAnalysis: 'Năm bài bán hàng'})}]}}]})};
+  };
+  const result = await inspect(mock.page, 'https://facebook.com/123');
+  assert.equal(mock.scrolls(), 4);
+  assert.equal(calls, 1);
+  assert.equal(result.reviewedPostCount, 5);
+  assert.equal(result.name, '');
+  assert.equal(result.eligible, false);
+  assert.match(result.gateReason, /chưa xác minh được tên Facebook/);
+});
+
+test('header timeout does not scan a feed redirected to another profile', async () => {
+  const mock = mediaPage(() => []);
+  mock.page.goto = async () => {};
+  mock.page.url = () => 'https://www.facebook.com/456';
+  mock.page.waitForFunction = async () => { const e = new Error('timeout'); e.name = 'TimeoutError'; throw e; };
+  mock.page.evaluate = async fn => {
+    assert.equal(fn.name, 'readProfileSnapshot');
+    return {name: '', headerBio: '', feedReady: true, messageLinks: []};
+  };
+  await assert.rejects(inspect(mock.page, 'https://facebook.com/123'), /hồ sơ khác/);
+  assert.equal(mock.scrolls(), 0);
+});
