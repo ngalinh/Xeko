@@ -53,7 +53,7 @@ function pageMock({checkpoint = false, timeout = true, actual = 'https://www.fac
   };
 }
 test('timeout explains unreadable profile and rechecks delayed login prompts', async () => {
-  await assert.rejects(inspect(pageMock(), 'https://facebook.com/123'), /Chưa nhận diện được tiêu đề hoặc vùng bài viết Facebook sau 30 giây/);
+  await assert.rejects(inspect(pageMock(), 'https://facebook.com/123'), /Chưa đọc được tên Facebook sau 30 giây/);
   await assert.rejects(inspect(pageMock({checkpoint: true}), 'https://facebook.com/123'), /Cần đăng nhập/);
 });
 test('blocked profile remains ineligible and redirects remain rejected', async () => {
@@ -223,12 +223,33 @@ test('continues through outer scroller when inner feed reaches its end', () => {
   page.waitForFunction = async () => { throw Error('browser disconnected'); };
   await assert.rejects(inspect(page, 'https://facebook.com/123'), /browser disconnected/);
  });
- test('inspection reaches scrolling when feed is ready without a heading', async () => {
+ test('delayed header bio is saved before scrolling the feed', async () => {
+  const mock = mediaPage(() => []);
+  const header = {name:'Lan Anh Trường',messageLinks:[],bio:'',headerBio:''};
+  mock.page.goto = async () => {};
+  mock.page.waitForFunction = async (_, requireHeader) => {
+    assert.equal(requireHeader,true);
+    return {jsonValue:async()=>header,dispose:async()=>{}};
+  };
+  const evaluate = mock.page.evaluate;
+  let headerReads = 0;
+  mock.page.evaluate = async (fn, arg) => {
+    if (fn.name === 'readProfileSnapshot') {
+      assert.equal(mock.scrolls(),0);assert.equal(arg,true);
+      return ++headerReads === 1 ? false : {...header,headerBio:'GROUP SĂN SALE\nDigital creator'};
+    }
+    assert.equal(headerReads,2);
+    return evaluate(fn);
+  };
+  const result = await inspect(mock.page,'https://facebook.com/123');
+  assert.equal(result.name,'Lan Anh Trường');
+  assert.equal(result.bio,'GROUP SĂN SALE\nDigital creator');
+  assert.ok(mock.scrolls() > 0);
+ });
+ test('inspection does not scroll before the profile name is captured', async () => {
   const mock = mediaPage(() => []);
   mock.page.goto = async () => {};
   mock.page.waitForFunction = async () => ({jsonValue: async () => ({name: '', messageLinks: [], bio: ''}), dispose: async () => {}});
-  const result = await inspect(mock.page, 'https://facebook.com/123');
-  assert.equal(mock.scrolls(), 12);
-  assert.equal(result.insufficientData, true);
-  assert.equal(result.eligible, false);
+  await assert.rejects(inspect(mock.page, 'https://facebook.com/123'), /Chưa đọc được tên Facebook/);
+  assert.equal(mock.scrolls(), 0);
  });
