@@ -515,7 +515,7 @@ async function executePost({ profile, profileDisplayName, message, target, group
           postLogId: pendingLogId,
           retryAfterMs: result.retryAfterMs,
           attempt,
-          args: { profile, profileDisplayName, message, target, groupId, groupKeywords, imageUrls, batchId, website },
+          args: { profile: profileKey, profileDisplayName, message, target, groupId, groupKeywords, imageUrls, batchId, website },
           imagePaths,
         });
         const hhmm = new Date(retryAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' });
@@ -765,7 +765,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
       logger.info(`[job ${jobId}] start (waited ${tStart - tQueued}ms in queue) — profile=${profile || '(active)'}, target=${targetDesc}`);
       return executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, pendingLogId, jobId, website })
         .finally(() => logger.info(`[job ${jobId}] done in ${Date.now() - tStart}ms`));
-    })
+    }, _gateProfileKey)
       .then(result => setJobResult(jobId, result))
       .catch(error => {
         logger.error(`[job ${jobId}] FAILED: ${error.message}`);
@@ -785,13 +785,13 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   logger.info(`[/api/post] queue job ${jobId} — profile=${profile || '(active)'}, target=${targetDesc}, images=${imagePaths.length}, batch=${batchId || '-'}`);
   const tQueued = Date.now();
 
-  // Chạy post qua serial queue — tránh race condition profile
+  // Serialize this account; other accounts can run concurrently.
   queuePost(() => {
     const tStart = Date.now();
     logger.info(`[job ${jobId}] start (waited ${tStart - tQueued}ms in queue) — profile=${profile || '(active)'}, target=${targetDesc}`);
     return executePost({ profile, profileDisplayName, message, target, groupId, groupKeywords, imagePaths, imageUrls, batchId, jobId, website })
       .finally(() => logger.info(`[job ${jobId}] done in ${Date.now() - tStart}ms`));
-  })
+  }, _gateProfileKey)
     .then(result => setJobResult(jobId, result))
     .catch(error => {
       logger.error(`[job ${jobId}] FAILED: ${error.message}`);
@@ -859,7 +859,7 @@ app.post('/api/fb-scrape', async (req, res) => {
   res.json({ jobId, status: 'pending' });
   logger.info(`[fb-scrape] job ${jobId} — profile=${profile || '(active)'}, url=${url}`);
 
-  (async () => {
+  queuePost(async () => {
     try {
       if (profile) await playwright.setProfile(profile);
       const result = await playwright.scrapePost(url);
@@ -875,7 +875,7 @@ app.post('/api/fb-scrape', async (req, res) => {
       logger.error(`[fb-scrape] job ${jobId} FAILED: ${e.message}`);
       setJobError(jobId, e.message);
     }
-  })();
+  }, profile || playwright.getActiveProfile().key);
 });
 
 // ===== TEST: FB Quick Post v2 (dev only) — ASYNC JOB pattern =====
@@ -907,7 +907,7 @@ app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res)
   logger.info(`[fb-quick-post-test] queue job ${jobId} — profile=${profile}, groups=${groupKeywords.length}, ảnh=${imagePaths.length}`);
 
   // Chạy background
-  (async () => {
+  queuePost(async () => {
     try {
       await playwright.setProfile(profile);
       const result = await playwright.quickPostToPersonalAndGroups(message || '', imagePaths, groupKeywords);
@@ -919,7 +919,7 @@ app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res)
     } finally {
       cleanupFiles(imagePaths);
     }
-  })();
+  }, profile);
 });
 
 // Lay screenshot moi nhat — hoac anh loi cu the qua ?name=<file>.png.
@@ -2850,7 +2850,7 @@ app.post('/api/seed', upload.array('images', 10), async (req, res) => {
     } finally {
       cleanupFiles(imagePaths);
     }
-  });
+  }, profile);
 });
 
 // Tổng hợp seeding theo post_url cho cột Seeding ở dashboard
@@ -2894,7 +2894,7 @@ app.post('/api/do-comment', upload.array('images', 10), async (req, res) => {
     } finally {
       cleanupFiles(imagePaths);
     }
-  });
+  }, profile);
 });
 
 app.delete('/api/seed-logs/:id', (req, res) => {

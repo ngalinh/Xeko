@@ -65,7 +65,7 @@ class CtvService {
     this.data.campaigns.push(c); this.save(); return c;
   }
   enqueue(c, task) {
-    const run = Promise.resolve().then(() => this.queue(task)).catch(e => { c.state = 'needs_attention'; c.error = e.message; this.save(); });
+    const run = Promise.resolve().then(() => this.queue(task, c.profile)).catch(e => { c.state = 'needs_attention'; c.error = e.message; this.save(); });
     this.running.add(run); run.then(() => this.running.delete(run), () => this.running.delete(run));
   }
   approveImport(id, owner) {

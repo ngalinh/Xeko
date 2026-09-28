@@ -64,6 +64,8 @@ Chưa gọi Gemini hay gửi Facebook thật trong quá trình phát triển. Tr
 
 ## Dữ liệu đọc profile và kết luận thiếu bằng chứng
 
+Đăng bài Facebook, bình luận và chiến dịch quét/gửi CTV dùng chung hàng đợi theo tài khoản trên máy chạy Playwright. Cùng tài khoản chạy lần lượt; khác tài khoản chạy song song trong browser riêng. Mỗi chiến dịch CTV giữ lượt đến khi hoàn tất hoặc dừng, nên bài đăng cùng tài khoản sẽ chờ chiến dịch đó. Server chính truyền tài khoản trong từng yêu cầu; cần cập nhật và khởi động lại cả server chính lẫn worker để áp dụng. Thời gian chờ hàng đợi trên worker không tính vào timeout thực thi bài đăng. Nút Dừng vẫn chặn tác vụ chưa bắt đầu.
+
 Bộ đọc hỗ trợ article, FeedUnit, phần tử trong feed và caption message dự phòng. Bài có caption vẫn được giữ dù không khớp từ khóa bán hàng và không lấy được ảnh. Caption dự phòng ngoài khung bài chỉ cung cấp chữ; không lấy ảnh lân cận vì có thể thuộc bài khác.
 
 Giao diện tách số bài/ảnh đã đọc khỏi số bài có dấu hiệu bán hàng trong caption. Dưới 3 bài có dấu hiệu bán hàng, backend buộc kết quả sản phẩm về “Chưa rõ”, không hiển thị phần trăm và không cho duyệt gửi dù AI trả “Có/Không · 100%”. Kết quả không có trích dẫn khớp dữ liệu cũng không được kết luận Có/Không. Bài bán hàng chỉ thể hiện qua ảnh vẫn cần kiểm tra thêm. Kết quả đã lưu cần bấm Thử lại AI sau khi cập nhật worker.
