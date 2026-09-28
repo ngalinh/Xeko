@@ -84,10 +84,10 @@ test('changed message and changed selection invalidate old preview approval',asy
   s.prepareMessages(c.id,'owner','Nội dung mới cho {name}');assert.throws(()=>s.sendApproved(c.id,'owner',token));
   const changed=c.messagePreview.token;s.reviewAnalysis(c.id,'owner');assert.equal(c.messagePreview,undefined);assert.throws(()=>s.sendApproved(c.id,'owner',changed));assert.equal(sent.length,0);
 });
-test('unqualified, unknown recipients, nonexistent IDs and alias duplicates cannot be approved',async t=>{
+test('unqualified profiles, nonexistent IDs and alias duplicates cannot be approved',async t=>{
   const {s}=setup(t);const c=await analyzed(s);const lead=c.leads[0];
   lead.assessment.eligible=false;assert.throws(()=>s.approveAnalysis(c.id,'owner',[lead.id]));lead.assessment.eligible=true;
-  lead.assessment.recipientId=null;assert.throws(()=>s.approveAnalysis(c.id,'owner',[lead.id]));assert.throws(()=>s.approveAnalysis(c.id,'owner',['fake']));
+  lead.assessment.recipientId=null;assert.throws(()=>s.approveAnalysis(c.id,'owner',['fake']));
   lead.assessment.recipientId=c.leads[1].assessment.recipientId;assert.throws(()=>s.approveAnalysis(c.id,'owner',c.leads.map(l=>l.id)));
 });
 test('stopping queued analysis and sending prevents external operations',async t=>{
@@ -159,7 +159,7 @@ test('import rejects missing, malformed and unsafe account keys', t => {
   s.reviewAnalysis(c.id,'owner');
   assert.throws(()=>s.approveAnalysis(c.id,'owner',[c.leads[0].id]));
   assert.equal(sent.length,0);
- });
+});
 
 
 test('retry clears stale results and approvals, rereads profiles and never sends', async t => {
@@ -248,4 +248,22 @@ test('skip API checks owner, lead and review stage and rejects qualified profile
   c.state='analysis_review'; c.leads[1].assessment.eligible=false;
   s.skipLead(c.id,'owner',c.leads[1].id);
   assert.throws(()=>s.retryAnalysis(c.id,'owner'),/Tất cả hồ sơ/);
+});
+
+test('AI-qualified profile without recipient ID can be selected but cannot prepare or send', async t => {
+  const {s,sent}=setup(t); const c=await analyzed(s); const lead=c.leads[0];
+  lead.assessment.recipientId=null;
+  const view=s.view(c).leads[0];
+  assert.equal(view.selectionBlockedReason,'');
+  assert.match(view.blockedReason,/Chưa xác minh/);
+  s.approveAnalysis(c.id,'owner',[lead.id]);
+  assert.equal(c.state,'message_review');
+  assert.throws(()=>s.prepareMessages(c.id,'owner','Chào {name}'),/Chưa xác minh/);
+  assert.throws(()=>s.sendApproved(c.id,'owner','fake'));
+  assert.equal(sent.length,0);
+  s.reviewAnalysis(c.id,'owner');
+  lead.assessment.recipientId='123456789';
+  s.approveAnalysis(c.id,'owner',[lead.id]);
+  s.prepareMessages(c.id,'owner','Chào {name}');
+  assert.equal(c.messagePreview.messages[0].recipientId,'123456789');
 });

@@ -55,3 +55,20 @@ for (const prefix of ['', '/b/test-bot']) {
     }
   });
 }
+
+test('customer labels come from the submitted Facebook path', () => {
+  const source = js.slice(js.indexOf('  function customerLabel('), js.indexOf('  function approvalText('));
+  const label = vm.runInNewContext(source + ';customerLabel', {URL});
+  assert.equal(label('https://www.facebook.com/linhduongasale.auth'), 'linhduongasale.auth');
+  assert.equal(label('https://www.facebook.com/linhduongasale.auth/?ref=test'), 'linhduongasale.auth');
+  assert.equal(label('https://www.facebook.com/profile.php?id=123&ref=test'), '123');
+});
+test('selection uses the selection gate, retaining legacy worker restrictions', () => {
+  const source = js.match(/  const canPick = [^\n]+/)[0];
+  const canPick = vm.runInNewContext(source + ';canPick');
+  const lead = {state:'qualified', assessment:{criteriaVersion:'us-website-products-v2',eligible:true}, blockedReason:'Missing ID',selectionBlockedReason:''};
+  assert.equal(canPick(lead),true);
+  assert.equal(canPick({...lead,selectionBlockedReason:'Already contacted'}),false);
+  assert.equal(canPick({...lead,state:'skipped'}),false);
+  assert.equal(canPick({...lead,selectionBlockedReason:undefined}),false);
+});
