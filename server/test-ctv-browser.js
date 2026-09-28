@@ -3,9 +3,9 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const { inspect, readProfileSnapshot, collectProfilePosts, readPostMedia } = require('./src/ctv/browser');
 
-function snapshot({level = 1, hidden = false, friend = true, text = '', article = false, feed = false, header = false} = {}) {
+function snapshot({level = 1, hidden = false, friend = true, text = '', article = false, feed = false, header = false, name = 'Linh Thảo'} = {}) {
   const element = (innerText, extra = {}) => ({innerText, getClientRects: () => [1], getAttribute: () => null, ...extra});
-  const heading = element('Linh Thảo', {
+  const heading = element(name, {
     getClientRects: () => hidden ? [] : [1], closest: () => article ? {} : null,
     matches: () => level === 1,
     ...(header ? {getBoundingClientRect: () => ({left:240,top:320,bottom:350})} : {}),
@@ -30,13 +30,39 @@ function snapshot({level = 1, hidden = false, friend = true, text = '', article 
 
 test('reads primary and alternative profile headings', () => {
   assert.equal(snapshot().name, 'Linh Thảo');
-  assert.equal(snapshot({level: 2}).name, 'Linh Thảo');
-  assert.equal(snapshot({level: 2}).personalEvidence, true);
+  assert.equal(snapshot({level: 2, header:true}).name, 'Linh Thảo');
+  assert.equal(snapshot({level: 2, header:true}).personalEvidence, true);
 });
 test('ignores hidden headings, post headings and unverified secondary headings', () => {
   assert.equal(snapshot({hidden: true}), false);
   assert.equal(snapshot({article: true}), false);
   assert.equal(snapshot({level: 2, friend: false}), false);
+});
+test('section headings are never Facebook names even with friend controls', () => {
+  for (const name of ['Thông tin cá nhân','Công việc','Personal details','Facebook']) {
+    assert.equal(snapshot({name,header:true,level:2}),false);
+  }
+  assert.equal(snapshot({name:'Ryna Lê (Mẹ Sún)',header:true}).name,'Ryna Lê (Mẹ Sún)');
+});
+test('two repeated posts stop scrolling and reach Gemini with the saved header', async t => {
+  const originalFetch = global.fetch, originalKey = process.env.GEMINI_API_KEY;
+  t.after(() => { global.fetch = originalFetch; if(originalKey === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = originalKey; });
+  process.env.GEMINI_API_KEY = 'test-only';
+  const bio = 'Fb : https://www.facebook.com/share/g/1BbpL4chHb/?mibextid=wwXIfr\nZalo : https://zalo.me/g/urqnio877';
+  const mock = mediaPage(() => ['Bán túi DKNY giá 1499k', 'Bán đồng hồ Michael Kors giá 1800k']);
+  mock.page.goto = async () => {};
+  mock.page.waitForFunction = async () => ({jsonValue:async()=>({name:'Ryna Lê (Mẹ Sún)',headerBio:bio,bio,personalEvidence:true,messageLinks:[]}),dispose:async()=>{}});
+  let calls = 0;
+  global.fetch = async (_, options) => {
+    calls++;
+    const data = JSON.parse(JSON.parse(options.body).contents[0].parts[0].text);
+    assert.equal(data.name,'Ryna Lê (Mẹ Sún)');assert.equal(data.headerBio,bio);assert.equal(data.posts.length,2);
+    return {ok:true,json:async()=>({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({profileType:'personal',sellerUS:'unknown',confidence:0,reason:'Chỉ đọc được hai bài bán hàng',evidence:[data.posts[0]],bio,brands:['DKNY'],captionAnalysis:'Hai bài bán túi và đồng hồ.'})}]}}]})};
+  };
+  const result = await inspect(mock.page,'https://facebook.com/123');
+  assert.equal(calls,1);assert.equal(mock.scrolls(),3);
+  assert.equal(result.name,'Ryna Lê (Mẹ Sún)');assert.equal(result.bio,bio);
+  assert.equal(result.reviewedPostCount,2);assert.equal(result.insufficientData,true);
 });
 test('recognizes unavailable profiles without waiting for a name', () => {
   assert.match(snapshot({hidden: true, text: "This content isn't available"}).blocked, /không xem được/);
@@ -64,7 +90,7 @@ test('blocked profile remains ineligible and redirects remain rejected', async (
 
 
 test('reads bio beneath the profile header', () => {
-  assert.equal(snapshot({text: 'Nhận order sản phẩm từ website Mỹ'}).bio, 'Nhận order sản phẩm từ website Mỹ');
+  assert.equal(snapshot({text: 'Công việc'}).bio, '');
 });
 test('reads header bio above tabs, retaining group link and category but excluding counters and posts', () => {
   const result = snapshot({header:true});
@@ -80,7 +106,7 @@ function mediaPage(batches, images = []) {
       count: async () => batches(scrolls).length,
       nth: i => ({
         isVisible: async () => true,
-        getByRole: () => ({count: async () => 1, nth: () => ({click: async () => { expanded++; }})}),
+        getByRole: () => ({count: async () => 1, nth: () => ({evaluate: async () => { expanded++; }})}),
         evaluate: async () => batches(scrolls)[i],
         locator: () => ({count: async () => images.length, nth: j => ({
           evaluate: async () => images[j] !== 'small', isVisible: async () => true,
@@ -101,7 +127,7 @@ test('scrolls and accumulates five distinct captions across virtualized batches'
 test('bounds scrolling and deduplicates repeated captions', async () => {
   const mock = mediaPage(() => ['Bán một sản phẩm']);
   const result = await collectProfilePosts(mock.page, {});
-  assert.equal(mock.scrolls(), 12);
+  assert.equal(mock.scrolls(), 3);
   assert.equal(result.posts.length, 1);
 });
 test('expands captions, skips avatars and broken images, captures at most two photos', async () => {
@@ -192,7 +218,7 @@ test('continues through outer scroller when inner feed reaches its end', () => {
     result.nth = index => {
       const article = nth(index);
       article.getByRole = () => ({count: async () => remaining, nth: i => ({
-        click: async () => {
+        evaluate: async () => {
           if (i >= remaining) throw Error('button disappeared');
           remaining--;
         },
