@@ -3,13 +3,21 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const { inspect, readProfileSnapshot, collectProfilePosts, readPostMedia } = require('./src/ctv/browser');
 
-function snapshot({level = 1, hidden = false, friend = true, text = '', article = false, feed = false} = {}) {
+function snapshot({level = 1, hidden = false, friend = true, text = '', article = false, feed = false, header = false} = {}) {
   const element = (innerText, extra = {}) => ({innerText, getClientRects: () => [1], getAttribute: () => null, ...extra});
   const heading = element('Linh Thảo', {
     getClientRects: () => hidden ? [] : [1], closest: () => article ? {} : null,
     matches: () => level === 1,
+    ...(header ? {getBoundingClientRect: () => ({left:240,top:320,bottom:350})} : {}),
   });
   const root = element(text, {cloneNode: () => ({innerText: text, querySelectorAll: () => []}), querySelectorAll(selector) {
+    if (selector === '[role="tab"], a') return [element('All', {getBoundingClientRect:()=>({top:480})})];
+    if (selector === 'span, div, a') return [
+      ['20K followers · 1.9K following',355], ['GROUP SĂN SALE',375],
+      ['https://www.facebook.com/groups/388088742359273/',390],
+      ['Digital creator',405], ['lananhtruong_authentic',420],
+      ['Message',430], ['Caption bán hàng không phải bio',550],
+    ].map(([value,top]) => element(value,{children:[],closest:()=>null,getBoundingClientRect:()=>({left:240,top,bottom:top+12})}));
     if (selector.startsWith('h1')) return [heading];
     if (selector.startsWith('[role="feed"]')) return feed ? [element('Bài viết')] : [];
     if (selector.includes('button')) return friend ? [element('Thêm bạn bè')] : [];
@@ -57,6 +65,10 @@ test('blocked profile remains ineligible and redirects remain rejected', async (
 
 test('reads bio beneath the profile header', () => {
   assert.equal(snapshot({text: 'Nhận order sản phẩm từ website Mỹ'}).bio, 'Nhận order sản phẩm từ website Mỹ');
+});
+test('reads header bio above tabs, retaining group link and category but excluding counters and posts', () => {
+  const result = snapshot({header:true});
+  assert.equal(result.headerBio, 'GROUP SĂN SALE\nhttps://www.facebook.com/groups/388088742359273/\nDigital creator\nlananhtruong_authentic');
 });
 function mediaPage(batches, images = []) {
   let scrolls = 0, expanded = 0;

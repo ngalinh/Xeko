@@ -29,7 +29,28 @@ function readProfileSnapshot() {
     if (!blocked && !trustedName && !feedReady) continue;
     const intro = main.cloneNode(true);
     intro.querySelectorAll('[role="article"], article, [role="feed"], [role="navigation"], nav').forEach(e => e.remove());
+    // Read the visible header below the name and above the profile tabs,
+    // before scrolling can unmount it. Do not confuse post text with bio.
+    let headerBio = '';
+    if (trustedName && heading.getBoundingClientRect) {
+      const titleBox = heading.getBoundingClientRect();
+      const tabs = [...main.querySelectorAll('[role="tab"], a')].filter(e => visible(e)
+        && /^(All|About|Posts|Tất cả|Giới thiệu|Bài viết)$/i.test((e.innerText || '').trim())
+        && e.getBoundingClientRect().top >= titleBox.bottom);
+      const bottom = tabs.length ? Math.min(...tabs.map(e => e.getBoundingClientRect().top)) : titleBox.bottom + 220;
+      const lines = [...main.querySelectorAll('span, div, a')].filter(e => visible(e)
+        && !e.closest('[role="article"], article, [role="feed"], [role="button"], button, [role="tab"], [role="navigation"], nav')
+        && ![...e.children].some(child => (child.innerText || '').trim()))
+        .map(e => ({text:(e.innerText || '').trim(), box:e.getBoundingClientRect()}))
+        .filter(({text,box}) => text && box.top >= titleBox.bottom - 2 && box.bottom <= bottom
+          && box.left >= titleBox.left - 4
+          && !/followers|following|người theo dõi|đang theo dõi/i.test(text)
+          && !/^(Message|Nhắn tin|Follow|Theo dõi|Add friend|Thêm bạn bè|Search|Tìm kiếm)$/i.test(text))
+        .sort((a,b) => a.box.top - b.box.top || a.box.left - b.box.left);
+      headerBio = [...new Set(lines.map(line => line.text))].join('\n').slice(0,2000);
+    }
     return {
+      headerBio,
       bio: (intro.innerText || intro.textContent || '').trim().slice(0,8000),
       name: trustedName, blocked, pageEvidence, personalEvidence,
       posts: [...main.querySelectorAll('[role="article"], article')].filter(visible).slice(0,10).map(e => e.innerText.slice(0,6000)),
