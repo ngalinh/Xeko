@@ -55,7 +55,7 @@ function readProfileSnapshot(requireHeader = false) {
     return {
       headerBio,
       bio: headerBio,
-      name: trustedName, blocked, pageEvidence, personalEvidence,
+      name: trustedName, blocked, pageEvidence, personalEvidence, feedReady,
       posts: [...main.querySelectorAll('[role="article"], article')].filter(visible).slice(0,10).map(e => e.innerText.slice(0,6000)),
       messageLinks: [...main.querySelectorAll('a[href]')].filter(visible).filter(e => /^(Message|Nhắn tin)$/i.test((e.getAttribute('aria-label') || e.innerText || '').trim())).map(e => e.href),
     };
@@ -164,11 +164,16 @@ async function inspect(page, url) {
     // Preserve browser/navigation failures instead of masking them with locator.count.
     if (error.name !== 'TimeoutError') throw error;
     await assertSession(page);
-    throw new Error('Chưa đọc được tên Facebook sau 30 giây nên chưa thể cuộn quét. Hãy kiểm tra vùng tên và bio ở đầu hồ sơ rồi thử lại.');
+    // Some profile layouts expose the feed without a supported name heading.
+    // Preserve the header-first wait, but do not discard a readable feed.
+    snapshot = await page.evaluate(readProfileSnapshot, false);
+    if (!snapshot || (!snapshot.blocked && !snapshot.name && !snapshot.feedReady)) {
+      throw new Error('Chưa đọc được tên Facebook sau 30 giây và chưa thấy bài viết để cuộn quét. Hãy kiểm tra hồ sơ đã tải xong rồi thử lại.');
+    }
   } finally {
     if (handle) await handle.dispose();
   }
-  if (!snapshot.blocked && !snapshot.name) throw new Error('Chưa đọc được tên Facebook; chưa cuộn xuống bài viết. Hãy thử lại khi vùng đầu hồ sơ tải xong.');
+  if (!snapshot.blocked && !snapshot.name && !snapshot.feedReady) throw new Error('Chưa đọc được tên Facebook hoặc bài viết để cuộn quét. Hãy thử lại khi hồ sơ tải xong.');
   // Header text can mount after the name. Capture it before any feed scroll,
   // retaining the saved header if Facebook temporarily unmounts the DOM.
   for (let attempt = 0; !snapshot.blocked && !snapshot.headerBio && attempt < 4; attempt++) {
@@ -195,7 +200,12 @@ async function inspect(page, url) {
       if (match) ids.add(match[1]);
     } catch {}
   }
-  return { url: target, actualUrl: actual, name: snapshot.name, bio: snapshot.headerBio || '', recipientId: ids.size === 1 ? [...ids][0] : null, checkedAt: new Date().toISOString(), ...await evaluateProfile(snapshot) };
+  const assessment = await evaluateProfile(snapshot);
+  if (!snapshot.blocked && !snapshot.name) {
+    assessment.eligible = false;
+    assessment.gateReason = 'Đã đọc bài viết nhưng chưa xác minh được tên Facebook. Hãy kiểm tra hồ sơ và Thử lại AI trước khi gửi.';
+  }
+  return { url: target, actualUrl: actual, name: snapshot.name, bio: snapshot.headerBio || '', recipientId: ids.size === 1 ? [...ids][0] : null, checkedAt: new Date().toISOString(), ...assessment };
 }
 
 async function send(page, lead, message, beforeSubmit, cancelled) {
