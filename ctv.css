@@ -28,3 +28,28 @@ main{max-width:1440px;padding:24px;margin:0 auto}.page-heading h1{font-size:22px
 .xeko-nav-item>span:last-child{min-width:0;overflow-wrap:anywhere}
 
 .campaign-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center}#campaigns .campaign-row .secondary{color:#a43232;padding:8px;box-shadow:none}
+
+/* Keep the row-level skip action quieter than the workflow buttons. */
+#analysisRows button.secondary{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:fit-content;
+  min-height:32px;
+  margin-top:10px;
+  padding:6px 12px;
+  border:1px solid #d6deea;
+  border-radius:8px;
+  background:#f8fafc;
+  color:#506580;
+  font-size:12px;
+  font-weight:600;
+  line-height:18px;
+  white-space:nowrap;
+  box-shadow:none;
+  transition:background .15s,border-color .15s,color .15s;
+}
+#analysisRows button.secondary:hover:not(:disabled){background:#edf2f7;border-color:#a8b8cc;color:#344762}
+#analysisRows button.secondary:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+#analysisRows button.secondary:active:not(:disabled){background:#e2e8f0}
+@media(pointer:coarse){#analysisRows button.secondary{min-height:44px}}
