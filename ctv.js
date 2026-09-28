@@ -31,6 +31,25 @@
   }
   viewStep(1);
   const element = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
+  function renderAssessment(v) {
+    const type = {personal:'Profile cá nhân',page:'Fanpage',group:'Group'}[v.type] || 'Chưa rõ loại';
+    const seller = {yes:'Có',no:'Không'}[v.sellerUS] || 'Chưa rõ';
+    const confidence = Number.isFinite(v.confidence) ? Math.round(v.confidence * 100) + '%' : 'Chưa đủ dữ liệu';
+    const sections = [
+      ['Đánh giá chung', type + ' - Bán sản phẩm có trên website Mỹ - ' + seller + ' - ' + confidence],
+      ['Tên Facebook', v.name || 'Chưa đọc được tên Facebook'],
+      ['Bio ở profile', v.bio || 'Chưa có dữ liệu bio'],
+      ['Các thương hiệu có trên bài viết bán hàng', Array.isArray(v.brands) && v.brands.length ? v.brands.join(', ') : 'Chưa xác định được thương hiệu'],
+      ['Phân tích cụ thể caption', v.captionAnalysis || v.reason || 'Chưa có phân tích caption'],
+    ];
+    const list = element('ol', undefined, 'assessment-sections');
+    for (const [label, value] of sections) {
+      const item = element('li');
+      item.append(element('strong', label + ': '), element('span', value));
+      list.append(item);
+    }
+    return list;
+  }
   const urlsFrom = text => text.match(/https?:\/\/[^\s,"'<>]+/gi) || [];
   const canPick = l => l.state !== 'skipped' && l.assessment?.criteriaVersion === 'us-website-products-v2' && l.assessment?.eligible && !(l.selectionBlockedReason ?? l.blockedReason);
   const canRetry = c => c?.workflowVersion === 2 && c.approvals?.import && c.leads.some(l => l.state !== 'skipped') && !c.approvals.send && ['analysis_review','message_review','interrupted','needs_attention'].includes(c.state);
@@ -151,13 +170,8 @@
       customer.append(link(l.url,customerLabel(l.url))); customer.dataset.label='Khách hàng';
       analysis.dataset.label='AI đánh giá'; result.dataset.label='Kết quả';
       const v=l.assessment;
-      if(v){analysis.append(element('p',`${v.type==='personal'?'Cá nhân':v.type==='page'?'Fanpage':'Chưa rõ loại'} · ${v.criteriaVersion==='us-website-products-v2'?'Sản phẩm trên website Mỹ':'Thị trường Mỹ (tiêu chí cũ)'}: ${v.sellerUS==='yes'?'Có':v.sellerUS==='no'?'Không':'Chưa rõ'}${typeof v.confidence==='number'?' · '+Math.round(v.confidence*100)+'%':''}`),element('p',v.reason || ''));
-        if(v.criteriaVersion!=='us-website-products-v2')analysis.append(element('p','Kết quả dùng tiêu chí cũ. Hãy cập nhật Xeko worker, bấm Thử lại AI để đánh giá sản phẩm có bán trên website Mỹ.','warn'));
-        if(Number.isInteger(v.salesPostCount))analysis.append(element('p',`${v.salesPostCount} bài có dấu hiệu bán hàng trong caption`,'muted'));
-        if(Number.isInteger(v.reviewedPostCount))analysis.append(element('p',`Đã đọc ${v.reviewedPostCount} bài viết${Number.isInteger(v.reviewedImageCount) ? ` · ${v.reviewedImageCount} ảnh` : ''}`,'muted'));
-        if(v.evidence?.length){const d=element('details');d.append(element('summary',`Xem ${v.evidence.length} bằng chứng`));v.evidence.forEach(q=>d.append(element('blockquote',q)));analysis.append(d);}
-        if(v.gateReason&&!v.eligible)analysis.append(element('p',v.gateReason,'muted'));
-      }else analysis.append(element('p',l.error || 'Chưa có kết quả','muted'));
+      if(v) analysis.append(renderAssessment(v));
+      else analysis.append(element('p',l.error || 'Chưa có kết quả','muted'));
       result.append(badge(l.state === 'qualified' && l.blockedReason ? 'AI đạt · Chưa sẵn sàng gửi' : labels[l.state] || l.state,canPick(l)?'good':l.state==='review'?'warn':''));
       if(v?.eligible && l.blockedReason && !a.send)result.append(element('p',l.blockedReason,'muted'));
       if(modern && c.state === 'analysis_review' && ['review','qualified'].includes(l.state) && l.blockedReason) {
