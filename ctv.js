@@ -69,7 +69,7 @@
     return l.selectionBlockedReason || l.blockedReason || v?.gateReason || 'Hồ sơ chưa đủ điều kiện để chọn.';
   }
   const urlsFrom = text => text.match(/https?:\/\/[^\s,"'<>]+/gi) || [];
-  const canPick = l => l.state !== 'skipped' && l.assessment?.criteriaVersion === 'us-website-products-v2' && l.assessment?.eligible && !(l.selectionBlockedReason ?? l.blockedReason);
+  const canPick = l => l.state !== 'skipped' && l.assessment?.criteriaVersion === 'us-website-products-v2' && !(l.selectionBlockedReason ?? l.blockedReason);
   const canRetry = c => c?.workflowVersion === 2 && c.approvals?.import && c.leads.some(l => l.state !== 'skipped') && !c.approvals.send && ['analysis_review','message_review','interrupted','needs_attention'].includes(c.state);
   const accountName = key => accounts.find(a => a.key === key)?.name || key;
   function notice(message = '', error = false) { $('notice').textContent = message; $('notice').className = 'notice' + (error ? ' error' : ''); show('notice', !!message); }
@@ -199,7 +199,7 @@
         analysis.append(note);
       }
       result.append(badge(l.state === 'qualified' && l.blockedReason ? 'AI đạt · Chưa sẵn sàng gửi' : labels[l.state] || l.state,canPick(l)?'good':l.state==='review'?'warn':''));
-      if(v?.eligible && l.blockedReason && !a.send)result.append(element('p',l.blockedReason,'muted'));
+      if(canPick(l) && l.blockedReason && !a.send)result.append(element('p',l.blockedReason,'muted'));
       if(modern && c.state === 'analysis_review' && ['review','qualified'].includes(l.state) && l.blockedReason) {
         const skip = element('button','Bỏ qua','secondary');
         skip.setAttribute('aria-label',`Bỏ qua ${v?.name || l.url}`);

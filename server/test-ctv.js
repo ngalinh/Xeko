@@ -84,9 +84,14 @@ test('changed message and changed selection invalidate old preview approval',asy
   s.prepareMessages(c.id,'owner','Nội dung mới cho {name}');assert.throws(()=>s.sendApproved(c.id,'owner',token));
   const changed=c.messagePreview.token;s.reviewAnalysis(c.id,'owner');assert.equal(c.messagePreview,undefined);assert.throws(()=>s.sendApproved(c.id,'owner',changed));assert.equal(sent.length,0);
 });
-test('unqualified profiles, nonexistent IDs and alias duplicates cannot be approved',async t=>{
+test('manual selection allows reviewed profiles but preserves send checks and rejects invalid or duplicate recipients',async t=>{
   const {s}=setup(t);const c=await analyzed(s);const lead=c.leads[0];
-  lead.assessment.eligible=false;assert.throws(()=>s.approveAnalysis(c.id,'owner',[lead.id]));lead.assessment.eligible=true;
+  lead.assessment.eligible=false;lead.assessment.type='page';
+  assert.equal(s.view(c).leads[0].selectionBlockedReason,'');
+  s.approveAnalysis(c.id,'owner',[lead.id]);
+  assert.equal(c.state,'message_review');
+  assert.throws(()=>s.prepareMessages(c.id,'owner','Chào {name}'),/chưa đủ điều kiện gửi/);
+  s.reviewAnalysis(c.id,'owner');lead.assessment.eligible=true;
   lead.assessment.recipientId=null;assert.throws(()=>s.approveAnalysis(c.id,'owner',['fake']));
   lead.assessment.recipientId=c.leads[1].assessment.recipientId;assert.throws(()=>s.approveAnalysis(c.id,'owner',c.leads.map(l=>l.id)));
 });
