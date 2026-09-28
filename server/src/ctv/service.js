@@ -96,20 +96,24 @@ class CtvService {
   }
   async analyze(c) {
     c.state = 'analyzing'; this.save();
-    for (const lead of c.leads) {
-      if (c.cancelled) break;
-      if (lead.state === 'skipped') continue;
-      lead.state = 'checking'; this.save();
-      try {
-        lead.assessment = await this.browser.withPage(c.profile, page => this.browser.inspect(page, lead.url), { keepOpen: true });
-        lead.state = lead.assessment.eligible ? 'qualified' : 'review'; this.save();
-      } catch (e) {
-        lead.state = 'review'; lead.error = e.message; c.state = 'analysis_review'; c.error = e.message; this.save(); return;
+    try {
+      for (const lead of c.leads) {
+        if (c.cancelled) break;
+        if (lead.state === 'skipped') continue;
+        lead.state = 'checking'; this.save();
+        try {
+          lead.assessment = await this.browser.withPage(c.profile, page => this.browser.inspect(page, lead.url), { keepOpen: true });
+          lead.state = lead.assessment.eligible ? 'qualified' : 'review'; this.save();
+        } catch (e) {
+          lead.state = 'review'; lead.error = e.message; c.state = 'analysis_review'; c.error = e.message; this.save(); return;
+        }
+        if (lead !== c.leads[c.leads.length - 1]) await this.wait(c, 2);
       }
-      if (lead !== c.leads[c.leads.length - 1]) await this.wait(c, 2);
+      // Always stop at review. Analysis cannot call the message adapter.
+      c.state = 'analysis_review'; this.save();
+    } finally {
+      await this.browser.closeInspection(c.profile);
     }
-    // Always stop at review. Analysis cannot call the message adapter.
-    c.state = 'analysis_review'; this.save();
   }
   skipLead(id, owner, leadId) {
     const c = this.staged(id, owner);

@@ -2,6 +2,20 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const { inspect, readProfileSnapshot, collectProfilePosts, readPostMedia } = require('./src/ctv/browser');
+test('inspection cleanup closes only its context and clears the cached page', async () => {
+  const {createBrowserAdapter} = require('./src/ctv/browser');
+  const closed = [];
+  const contexts = new Map(['first', 'other'].map(profile => [profile, {
+    close: async () => { closed.push(profile); },
+    newPage: async () => ({isClosed: () => false, context: () => contexts.get(profile)}),
+  }]));
+  const adapter = createBrowserAdapter({profileExists: () => true, getBrowser: async profile => contexts.get(profile)});
+  const page = await adapter.withPage('first', async p => p, {keepOpen:true});
+  await adapter.withPage('other', async p => p, {keepOpen:true});
+  await adapter.closeInspection('first'); await adapter.closeInspection('first');
+  assert.deepEqual(closed, ['first']);
+  assert.notEqual(await adapter.withPage('first', async p => p, {keepOpen:true}), page);
+});
 
 function snapshot({level = 1, hidden = false, friend = true, text = '', article = false, feed = false} = {}) {
   const element = (innerText, extra = {}) => ({innerText, getClientRects: () => [1], getAttribute: () => null, ...extra});

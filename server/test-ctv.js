@@ -11,11 +11,37 @@ const input = urls => ({profile:'test',name:'Test workflow',urls:urls || ['https
 function setup(t, overrides = {}) {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'xeko-ctv-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
   const sent=[],inspected=[];
-  const browser={withPage:async(p,fn)=>fn({}),inspect:async(_,url)=>{inspected.push(url);return {url,actualUrl:url,name:'Khách '+recipientId(url),criteriaVersion:'us-website-products-v2',eligible:true,recipientId:recipientId(url)};},send:async(_,a,m,reserve)=>{reserve();sent.push({id:a.recipientId,message:m});return {state:'sent'};},...overrides};
+  const browser={closeInspection:async()=>{},withPage:async(p,fn)=>fn({}),inspect:async(_,url)=>{inspected.push(url);return {url,actualUrl:url,name:'Khách '+recipientId(url),criteriaVersion:'us-website-products-v2',eligible:true,recipientId:recipientId(url)};},send:async(_,a,m,reserve)=>{reserve();sent.push({id:a.recipientId,message:m});return {state:'sent'};},...overrides};
   const s=new CtvService({file:path.join(dir,'campaigns.json'),browser,pause:async()=>{}});
   return {s,sent,inspected,browser,dir};
 }
 const settle = s => Promise.all([...s.running]);
+for (const count of [1, 2]) {
+  test(`analysis keeps scanning ${count} links then closes once, including retry`, async t => {
+    const events = [];
+    const {s} = setup(t, {
+      withPage: async (profile, fn, options) => { assert.equal(options.keepOpen, true); return fn({}); },
+      inspect: async (_, url) => { events.push(url); return {eligible:false}; },
+      closeInspection: async profile => { assert.equal(profile, 'test'); events.push('close'); },
+    });
+    const c = await analyzed(s, input().urls.slice(0, count));
+    const expected = [...c.leads.map(l => l.url), 'close'];
+    assert.deepEqual(events, expected);
+    s.retryAnalysis(c.id, 'owner'); await settle(s);
+    assert.deepEqual(events, [...expected, ...expected]);
+  });
+}
+test('analysis closes after failure and when stopped between links', async t => {
+  let closed = 0;
+  const {s, browser, inspected} = setup(t, {closeInspection:async () => { closed++; }});
+  const c = s.create(input(), 'owner');
+  s.pause = async () => { s.stop(c.id, 'owner'); };
+  s.approveImport(c.id, 'owner'); await settle(s);
+  assert.equal(inspected.length, 1); assert.equal(closed, 1);
+  browser.inspect = async () => { throw new Error('AI unavailable'); };
+  const d = await analyzed(s);
+  assert.equal(closed, 2); assert.equal(d.state, 'analysis_review'); assert.match(d.error, /AI unavailable/);
+});
 async function analyzed(s,urls){const c=s.create(input(urls),'owner');s.approveImport(c.id,'owner');await settle(s);return c;}
 function prepared(s,c){s.approveAnalysis(c.id,'owner',c.leads.map(l=>l.id));s.prepareMessages(c.id,'owner','Chào {name}, mời bạn hợp tác CTV.');return c.messagePreview.token;}
 

@@ -212,6 +212,14 @@ function createBrowserAdapter(playwright = require('../playwright/post')) {
         if (!keepOpen) await page.close().catch(() => {});
       }
     },
+    async closeInspection(profile) {
+      const page = inspectionPages.get(profile);
+      if (!page) return;
+      inspectionPages.delete(profile);
+      // Close only the persistent context used by this inspection campaign.
+      // Its close handler also clears the Playwright profile cache.
+      await page.context().close();
+    },
     inspect, send,
   };
 }
