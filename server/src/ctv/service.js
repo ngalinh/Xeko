@@ -33,7 +33,7 @@ class CtvService {
   selectionBlocked(lead) {
     if (lead.state === 'skipped') return 'Đã bỏ qua trong chiến dịch này';
     if (lead.assessment && lead.assessment.criteriaVersion !== 'us-website-products-v2') return 'Kết quả dùng tiêu chí cũ. Hãy tạo chiến dịch mới và chạy AI lại trên worker đã cập nhật.';
-    if (!lead.assessment?.eligible) return 'AI chưa đánh giá đạt';
+    if (!lead.assessment) return 'Chưa có kết quả đánh giá';
     const id = lead.assessment.recipientId;
     if (id && this.data.reservations[id]) return 'Đã có lần gửi trước hoặc chưa rõ trạng thái gửi';
     return '';
@@ -41,6 +41,7 @@ class CtvService {
   reasonBlocked(lead) {
     const reason = this.selectionBlocked(lead);
     if (reason) return reason;
+    if (!lead.assessment.eligible) return 'Đã cho phép chọn thủ công, nhưng chưa đủ điều kiện gửi: ' + (lead.assessment.gateReason || 'AI chưa đánh giá đạt');
     if (!/^\d+$/.test(lead.assessment.recipientId || '')) return 'Chưa xác minh được ID người nhận. Có thể chọn và soạn tin, nhưng cần Thử lại AI để xác minh trước khi gửi.';
     return '';
   }
@@ -64,7 +65,7 @@ class CtvService {
     this.data.campaigns.push(c); this.save(); return c;
   }
   enqueue(c, task) {
-    const run = Promise.resolve().then(() => this.queue(task)).catch(e => { c.state = 'needs_attention'; c.error = e.message; this.save(); });
+    const run = Promise.resolve().then(() => this.queue(task, c.profile)).catch(e => { c.state = 'needs_attention'; c.error = e.message; this.save(); });
     this.running.add(run); run.then(() => this.running.delete(run), () => this.running.delete(run));
   }
   approveImport(id, owner) {
@@ -82,7 +83,7 @@ class CtvService {
     c.cancelled = false;
     for (const lead of c.leads) {
       if (lead.state === 'skipped') continue;
-      delete lead.assessment; delete lead.error; delete lead.message;
+      delete lead.assessment; delete lead.error; delete lead.message; delete lead.scanLog;
       lead.state = 'pending';
     }
     c.state = 'analysis_queued'; this.save(); this.enqueue(c, () => this.analyze(c)); return c;
@@ -96,23 +97,43 @@ class CtvService {
   }
   async analyze(c) {
     c.state = 'analyzing'; this.save();
+    let lastProgress;
     try {
       for (const lead of c.leads) {
         if (c.cancelled) break;
         if (lead.state === 'skipped') continue;
-        lead.state = 'checking'; this.save();
+        lead.state = 'checking'; lead.scanLog = [];
+        const started = Date.now();
+        const onProgress = event => {
+          lead.scanLog.push({ ...event, at: new Date().toISOString(), elapsedMs: Date.now() - started });
+          lead.scanLog = lead.scanLog.slice(-100);
+          this.save();
+        };
+        lastProgress = onProgress;
+        onProgress({ stage: 'browser', message: 'Đang mở tab kiểm tra của tài khoản Facebook' });
         try {
-          lead.assessment = await this.browser.withPage(c.profile, page => this.browser.inspect(page, lead.url), { keepOpen: true });
+          lead.assessment = await this.browser.withPage(c.profile, page => this.browser.inspect(page, lead.url, { onProgress, cancelled: () => c.cancelled }), { keepOpen: true });
           lead.state = lead.assessment.eligible ? 'qualified' : 'review'; this.save();
         } catch (e) {
-          lead.state = 'review'; lead.error = e.message; c.state = 'analysis_review'; c.error = e.message; this.save(); return;
+          onProgress({ stage: c.cancelled ? 'cancelled' : 'error', message: e.message });
+          lead.state = 'review'; lead.error = e.message; c.error = e.message; this.save(); break;
         }
         if (lead !== c.leads[c.leads.length - 1]) await this.wait(c, 2);
       }
-      // Always stop at review. Analysis cannot call the message adapter.
-      c.state = 'analysis_review'; this.save();
     } finally {
-      await this.browser.closeInspection(c.profile);
+      // Keep the campaign active and the account queue held until close finishes.
+      try {
+        lastProgress?.({ stage: 'browser_closing', message: 'Đã kết thúc quét danh sách; đang đóng browser của tài khoản' });
+        await this.browser.closeInspection(c.profile);
+        lastProgress?.({ stage: 'browser_closed', message: 'Đã đóng browser của tài khoản quét' });
+        c.state = 'analysis_review';
+      } catch (error) {
+        const message = `Không đóng được browser: ${error.message}`;
+        c.error = [c.error, message].filter(Boolean).join(' · ');
+        c.state = 'needs_attention';
+        lastProgress?.({ stage: 'browser_close_error', message });
+      }
+      this.save();
     }
   }
   skipLead(id, owner, leadId) {

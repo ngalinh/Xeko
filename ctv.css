@@ -53,3 +53,26 @@ main{max-width:1440px;padding:24px;margin:0 auto}.page-heading h1{font-size:22px
 #analysisRows button.secondary:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
 #analysisRows button.secondary:active:not(:disabled){background:#e2e8f0}
 @media(pointer:coarse){#analysisRows button.secondary{min-height:44px}}
+
+.assessment-sections{margin:0;padding-left:20px;line-height:1.75}
+.assessment-sections li{padding-left:3px;margin:0 0 10px;overflow-wrap:anywhere}
+.assessment-sections li:last-child{margin-bottom:0}
+.assessment-sections strong{font-weight:600;color:#344762}
+.assessment-sections span{white-space:pre-line}
+.seller-verdict{font-weight:600;color:#344762}
+.assessment-details summary{width:fit-content;color:var(--blue);font-weight:600}
+.assessment-details .collapse-label{display:none}
+.assessment-details[open] .expand-label{display:none}
+.assessment-details[open] .collapse-label{display:inline}
+.assessment-details .assessment-sections{margin-top:8px}
+td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-height:1.6}
+/* Keep scan diagnostics readable without expanding the whole customer table. */
+.scan-log { margin-top: 12px; font-size: 13px; }
+.scan-log summary { cursor: pointer; color: #2864e8; }
+.scan-log ol { max-height: 240px; overflow: auto; padding-left: 24px; line-height: 1.6; }
+.scan-log li { overflow-wrap: anywhere; margin-bottom: 4px; }
+#analysisRows .fb-name { min-width: 140px; max-width: 190px; }
+#analysisRows td[data-label="AI đánh giá"] { min-width: 220px; }
+@media(max-width:600px){
+  #analysisRows .fb-name, #analysisRows td[data-label="AI đánh giá"] { min-width: 0; max-width: none; }
+}

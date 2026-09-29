@@ -16,31 +16,62 @@ function setup(t, overrides = {}) {
   return {s,sent,inspected,browser,dir};
 }
 const settle = s => Promise.all([...s.running]);
-for (const count of [1, 2]) {
-  test(`analysis keeps scanning ${count} links then closes once, including retry`, async t => {
-    const events = [];
-    const {s} = setup(t, {
-      withPage: async (profile, fn, options) => { assert.equal(options.keepOpen, true); return fn({}); },
-      inspect: async (_, url) => { events.push(url); return {eligible:false}; },
-      closeInspection: async profile => { assert.equal(profile, 'test'); events.push('close'); },
-    });
-    const c = await analyzed(s, input().urls.slice(0, count));
-    const expected = [...c.leads.map(l => l.url), 'close'];
-    assert.deepEqual(events, expected);
-    s.retryAnalysis(c.id, 'owner'); await settle(s);
-    assert.deepEqual(events, [...expected, ...expected]);
+test('analysis closes once after all links and closes again on retry', async t => {
+  const events = [];
+  const {s} = setup(t, {
+    inspect:async (_, url)=>{events.push(url); return {eligible:false};},
+    closeInspection:async profile=>{assert.equal(profile,'test'); events.push('close');},
   });
-}
-test('analysis closes after failure and when stopped between links', async t => {
-  let closed = 0;
-  const {s, browser, inspected} = setup(t, {closeInspection:async () => { closed++; }});
-  const c = s.create(input(), 'owner');
-  s.pause = async () => { s.stop(c.id, 'owner'); };
-  s.approveImport(c.id, 'owner'); await settle(s);
-  assert.equal(inspected.length, 1); assert.equal(closed, 1);
-  browser.inspect = async () => { throw new Error('AI unavailable'); };
-  const d = await analyzed(s);
-  assert.equal(closed, 2); assert.equal(d.state, 'analysis_review'); assert.match(d.error, /AI unavailable/);
+  const c = await analyzed(s);
+  const expected = [...c.leads.map(l=>l.url),'close'];
+  assert.deepEqual(events,expected);
+  s.retryAnalysis(c.id,'owner'); await settle(s);
+  assert.deepEqual(events,[...expected,...expected]);
+  assert.equal(c.leads.at(-1).scanLog.at(-1).stage,'browser_closed');
+});
+test('cleanup runs after failure or stop and preserves scan errors', async t => {
+  let closed=0;
+  const {s,browser,inspected} = setup(t,{closeInspection:async()=>{closed++;}});
+  const c=s.create(input(),'owner');
+  s.pause=async()=>s.stop(c.id,'owner');
+  s.approveImport(c.id,'owner'); await settle(s);
+  assert.equal(inspected.length,1); assert.equal(closed,1);
+  browser.inspect=async()=>{throw Error('AI unavailable');};
+  const d=await analyzed(s);
+  assert.equal(closed,2); assert.equal(d.state,'analysis_review'); assert.match(d.error,/AI unavailable/);
+  browser.closeInspection=async()=>{throw Error('close failed');};
+  const e=await analyzed(s);
+  assert.equal(e.state,'needs_attention'); assert.match(e.error,/AI unavailable.*close failed/);
+  assert.equal(e.leads[0].scanLog.at(-1).stage,'browser_close_error');
+});
+test('review and retry stay locked until context close resolves', async t => {
+  let release, closing;
+  const entered=new Promise(resolve=>{closing=resolve;});
+  const {s}=setup(t,{closeInspection:async()=>{closing(); await new Promise(resolve=>{release=resolve;});}});
+  const c=s.create(input(['https://facebook.com/123']),'owner');
+  s.approveImport(c.id,'owner'); await entered;
+  assert.equal(c.state,'analyzing');
+  assert.throws(()=>s.retryAnalysis(c.id,'owner'));
+  assert.throws(()=>s.approveAnalysis(c.id,'owner',[c.leads[0].id]));
+  release(); await settle(s); assert.equal(c.state,'analysis_review');
+});
+test('scan events are bounded, persisted during work, and retain failure context', async t => {
+  const { s, browser } = setup(t);
+  browser.inspect = async (_, url, { onProgress, cancelled }) => {
+    assert.equal(cancelled(), false);
+    for (let i = 0; i < 105; i++) onProgress({stage: 'batch', message: `Lượt ${i}`});
+    const persisted = JSON.parse(fs.readFileSync(s.file, 'utf8')).campaigns[0].leads[0];
+    assert.equal(persisted.state, 'checking');
+    assert.equal(persisted.scanLog.length, 100);
+    assert.equal(persisted.scanLog.at(-1).message, 'Lượt 104');
+    throw Error('browser disconnected');
+  };
+  const c = await analyzed(s, ['https://facebook.com/123']);
+  assert.equal(c.leads[0].scanLog.find(e=>e.stage === 'error').stage, 'error');
+  assert.equal(c.leads[0].scanLog.find(e=>e.stage === 'error').message, 'browser disconnected');
+  assert.equal(c.state, 'analysis_review');
+  const restored = new CtvService({file:s.file,browser});
+  assert.equal(restored.view(restored.get(c.id, 'owner')).leads[0].scanLog.find(e=>e.stage === 'error').stage, 'error');
 });
 async function analyzed(s,urls){const c=s.create(input(urls),'owner');s.approveImport(c.id,'owner');await settle(s);return c;}
 function prepared(s,c){s.approveAnalysis(c.id,'owner',c.leads.map(l=>l.id));s.prepareMessages(c.id,'owner','Chào {name}, mời bạn hợp tác CTV.');return c.messagePreview.token;}
@@ -110,9 +141,14 @@ test('changed message and changed selection invalidate old preview approval',asy
   s.prepareMessages(c.id,'owner','Nội dung mới cho {name}');assert.throws(()=>s.sendApproved(c.id,'owner',token));
   const changed=c.messagePreview.token;s.reviewAnalysis(c.id,'owner');assert.equal(c.messagePreview,undefined);assert.throws(()=>s.sendApproved(c.id,'owner',changed));assert.equal(sent.length,0);
 });
-test('unqualified profiles, nonexistent IDs and alias duplicates cannot be approved',async t=>{
+test('manual selection allows reviewed profiles but preserves send checks and rejects invalid or duplicate recipients',async t=>{
   const {s}=setup(t);const c=await analyzed(s);const lead=c.leads[0];
-  lead.assessment.eligible=false;assert.throws(()=>s.approveAnalysis(c.id,'owner',[lead.id]));lead.assessment.eligible=true;
+  lead.assessment.eligible=false;lead.assessment.type='page';
+  assert.equal(s.view(c).leads[0].selectionBlockedReason,'');
+  s.approveAnalysis(c.id,'owner',[lead.id]);
+  assert.equal(c.state,'message_review');
+  assert.throws(()=>s.prepareMessages(c.id,'owner','Chào {name}'),/chưa đủ điều kiện gửi/);
+  s.reviewAnalysis(c.id,'owner');lead.assessment.eligible=true;
   lead.assessment.recipientId=null;assert.throws(()=>s.approveAnalysis(c.id,'owner',['fake']));
   lead.assessment.recipientId=c.leads[1].assessment.recipientId;assert.throws(()=>s.approveAnalysis(c.id,'owner',c.leads.map(l=>l.id)));
 });

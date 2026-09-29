@@ -126,7 +126,7 @@ function addSchedule({ time, target, groupId, message, imagePaths, profile, prof
   // Đặt timer
   const delay = scheduleTime.getTime() - Date.now();
   job.timer = setTimeout(() => {
-    queuePost(() => executeSchedule(job));
+    queuePost(() => executeSchedule(job), job.type === 'zalo' ? `zalo:${job.zaloAccount}` : job.profile);
   }, delay);
 
   scheduledPosts.push(job);
@@ -193,7 +193,7 @@ async function executeSchedule(job) {
 
     } else {
     // Facebook
-    playwright.setProfile(job.profile);
+    await playwright.setProfile(job.profile);
 
     if (job.target === 'personal') {
       result = await playwright.postToPersonal(job.message, job.imagePaths);
@@ -405,7 +405,7 @@ function rescheduleSchedule(id, newTime) {
 
   const delay = scheduleTime.getTime() - Date.now();
   job.timer = setTimeout(() => {
-    queuePost(() => executeSchedule(job));
+    queuePost(() => executeSchedule(job), job.type === 'zalo' ? `zalo:${job.zaloAccount}` : job.profile);
   }, delay);
 
   logger.info(`Đã đổi lịch #${id} → ${scheduleTime.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`);
@@ -457,10 +457,10 @@ function init() {
       const mins = Math.round(-delay / 60000);
       logger.warn(`Catch-up lịch #${p.id}: quá hạn ${mins} phút, chạy ngay`);
       catchup++;
-      queuePost(() => executeSchedule(job));
+      queuePost(() => executeSchedule(job), job.type === 'zalo' ? `zalo:${job.zaloAccount}` : job.profile);
     } else {
       // Còn trong tương lai -> re-schedule
-      job.timer = setTimeout(() => queuePost(() => executeSchedule(job)), delay);
+      job.timer = setTimeout(() => queuePost(() => executeSchedule(job), job.type === 'zalo' ? `zalo:${job.zaloAccount}` : job.profile), delay);
       restored++;
       logger.info(`Khôi phục lịch #${p.id}: ${p.time.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`);
     }
@@ -598,7 +598,7 @@ async function executeSeedSchedule(job) {
         message: c.text || '',
         imagePaths: c.imagePaths || [],
         profile: acc.key,
-      }));
+      }), acc.key);
     } catch (e) {
       result = { success: false, error: e.message };
     }

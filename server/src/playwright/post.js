@@ -1,4 +1,6 @@
 const { safeLaunchPersistentContext } = require('../utils/playwright-launch');
+const { getQueuedProfile } = require('../utils/post-queue');
+const { withClipboard } = require('../utils/clipboard-queue');
 const path = require('path');
 const fs = require('fs');
 const { randomUUID } = require('crypto');
@@ -24,10 +26,15 @@ function setProfile(profileName) {
   if (!fs.existsSync(profileDir)) {
     throw new Error(`Profile "${profileName}" không tồn tại — thêm tài khoản trong UI Web trước.`);
   }
-  activeProfile = profileName;
-  activeProfileData = { name: profileName, userDataDir: profileDir };
+  const data = { key: profileName, name: profileName, userDataDir: profileDir };
+  const queuedProfile = getQueuedProfile();
+  if (queuedProfile && queuedProfile !== profileName) throw new Error('Không thể đổi tài khoản của tác vụ đang chạy');
+  if (!queuedProfile) {
+    activeProfile = profileName;
+    activeProfileData = data;
+  }
   logger.info(`Đã chọn profile: ${profileName}`);
-  return activeProfileData;
+  return data;
 }
 
 // Kiểm tra profile có tồn tại không, KHÔNG mutate activeProfile global
@@ -39,6 +46,8 @@ function profileExists(profileName) {
 }
 
 function getActiveProfile() {
+  const key = getQueuedProfile();
+  if (key) return { key, name: key, userDataDir: path.resolve(__dirname, '../../playwright-data', key) };
   if (!activeProfile) {
     throw new Error('Chưa chọn profile!');
   }
@@ -46,7 +55,7 @@ function getActiveProfile() {
 }
 
 async function getBrowser(profileKey) {
-  const key = profileKey || activeProfile;
+  const key = profileKey || getActiveProfile().key;
   const profile = profileKey
     ? { name: profileKey, userDataDir: path.resolve(__dirname, '../../playwright-data', profileKey) }
     : getActiveProfile();
@@ -317,8 +326,10 @@ async function _diagComposerNotFound(page) {
 async function pasteText(page, message) {
   // 1. Clipboard paste (instant, hoạt động tốt với React)
   try {
-    await page.evaluate(async (txt) => navigator.clipboard.writeText(txt), message);
-    await page.keyboard.press('Control+v');
+    await withClipboard(async () => {
+      await page.evaluate(async (txt) => navigator.clipboard.writeText(txt), message);
+      await page.keyboard.press('Control+v');
+    });
     return;
   } catch {}
 
@@ -1190,7 +1201,7 @@ async function recoverPostUrlFromProfile(page, message) {
  */
 
 async function postToPersonal(message, imagePaths = [], shouldCancel = null) {
-  const _profileKey = activeProfile;
+  const _profileKey = getActiveProfile().key;
   const t0 = Date.now();
   let _wasCancelled = false;
   const profileSnap = getActiveProfile();
@@ -1292,7 +1303,7 @@ async function postToPersonal(message, imagePaths = [], shouldCancel = null) {
 // dùng tính năng "Chia sẻ lên nhóm" trong dialog "Cài đặt bài viết" của FB.
 // groupKeywords: mảng tên nhóm (substring, case-insensitive). FB giới hạn 9.
 async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywords = [], shouldCancel = null) {
-  const _profileKey = activeProfile;
+  const _profileKey = getActiveProfile().key;
   const t0 = Date.now();
   let _wasCancelled = false;
   const profileSnap = getActiveProfile();
@@ -1365,7 +1376,7 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
 }
 
 async function postToGroup(groupId, message, imagePaths = [], shouldCancel = null) {
-  const _profileKey = activeProfile;
+  const _profileKey = getActiveProfile().key;
   const browser = await getBrowser();
 
   let page;
@@ -1677,7 +1688,7 @@ async function dismissAddButtonPrompt(page) {
 }
 
 async function postToPage(pageId, message, imagePaths = [], pageName = null, shouldCancel = null) {
-  const _profileKey = activeProfile;
+  const _profileKey = getActiveProfile().key;
   const browser = await getBrowser();
 
   let page;
@@ -2558,7 +2569,7 @@ async function _qpCloseShareGroupsDialog(page, confirmSelection = false) {
 }
 
 async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywords = [], shouldCancel = null) {
-  const _profileKey = activeProfile;
+  const _profileKey = getActiveProfile().key;
   const t0 = Date.now();
   let _wasCancelled = false;
   const profileSnap = getActiveProfile();
@@ -2874,7 +2885,7 @@ function detectPostType(url) {
 }
 
 async function scrapePost(postUrl) {
-  const _profileKey = activeProfile;
+  const _profileKey = getActiveProfile().key;
   const t0 = Date.now();
   const postType = detectPostType(postUrl);
   const profileSnap = getActiveProfile();
@@ -3495,7 +3506,7 @@ async function waitForCommentImageUploaded(page, baselineCount, timeout = 30000)
 }
 
 async function postComment({ postUrl, message, imagePaths, profile }) {
-  const tag = `[postComment:${profile || activeProfile}]`;
+  const tag = `[postComment:${profile || getActiveProfile().key}]`;
   logger.info(`${tag} Bắt đầu seeding: ${postUrl}`);
 
   if (profile) setProfile(profile);

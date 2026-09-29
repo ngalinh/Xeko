@@ -66,7 +66,10 @@ function _fire(record) {
     logger.error(`[retry-queue] chưa có runner — bỏ qua #${record.id}`);
     return;
   }
-  queuePost(() => _runner(record))
+  queuePost(() => {
+    if (!record.args?.profile) throw new Error('Lịch đăng lại cũ thiếu tài khoản; hãy chọn tài khoản và đăng lại thủ công.');
+    return _runner(record);
+  }, record.args?.profile || null)
     .then(() => {
       _cleanupImages(record.imagePaths);
       retryStore.remove(record.id);

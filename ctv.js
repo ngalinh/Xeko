@@ -31,8 +31,60 @@
   }
   viewStep(1);
   const element = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
+  function renderAssessment(v) {
+    const type = {personal:'Profile cá nhân',page:'Fanpage',group:'Group'}[v.type] || 'Chưa rõ loại';
+    const seller = {yes:'Có',no:'Không'}[v.sellerUS] || 'Chưa rõ';
+    const confidence = Number.isFinite(v.confidence) ? Math.round(v.confidence * 100) + '%' : 'Chưa đủ dữ liệu';
+    const sections = [
+      ['Đánh giá chung', type + ' - Bán sản phẩm có trên website Mỹ - ' + seller + ' - ' + confidence],
+      ['Tên Facebook', v.name || 'Chưa đọc được tên Facebook'],
+      ['Bio ở profile', v.bio || 'Chưa có dữ liệu bio'],
+      ['Các thương hiệu có trên bài viết bán hàng', Array.isArray(v.brands) && v.brands.length ? v.brands.join(', ') : 'Chưa xác định được thương hiệu'],
+      ['Phân tích cụ thể caption', v.captionAnalysis || v.reason || 'Chưa có phân tích caption'],
+    ];
+    const list = element('ol', undefined, 'assessment-sections');
+    for (const [label, value] of sections) {
+      const item = element('li');
+      item.append(element('strong', label + ': '), element('span', value));
+      list.append(item);
+    }
+    return list;
+  }
+  function renderAssessmentPreview(v) {
+    const preview = element('div');
+    const seller = {yes:'Có',no:'Không'}[v.sellerUS] || 'Chưa đủ dữ liệu';
+    preview.append(element('p', 'Seller bán sản phẩm trên website Mỹ: ' + seller, 'seller-verdict'));
+    const details = element('details', undefined, 'assessment-details');
+    const summary = element('summary');
+    summary.append(element('span', 'Xem chi tiết', 'expand-label'), element('span', 'Thu gọn', 'collapse-label'));
+    details.append(summary, renderAssessment(v));
+    preview.append(details);
+    return preview;
+  }
+  function renderScanLog(lead) {
+    const log = element('div', undefined, 'scan-log');
+    const entries = lead.scanLog || [], latest = entries.at(-1);
+    if (!latest) return log;
+    log.append(element('p', `${Math.round(latest.elapsedMs / 1000)}s · ${latest.message}`, 'muted'));
+    const details = element('details');
+    details.open = openScanLogs.has(lead.id);
+    details.ontoggle = () => { if (details.open) openScanLogs.add(lead.id); else openScanLogs.delete(lead.id); };
+    details.append(element('summary', `Nhật ký quét (${entries.length})`));
+    const list = element('ol');
+    for (const entry of entries) list.append(element('li', `${Math.round(entry.elapsedMs / 1000)}s · ${entry.message}`));
+    details.append(list); log.append(details);
+    return log;
+  }
+  const openScanLogs = new Set();
+  function selectionExplanation(l) {
+    const v = l.assessment;
+    if (!v?.eligible && ['page','group'].includes(v?.type)) return v.type === 'page'
+      ? 'Không thể chọn: đây là Fanpage. Chiến dịch hiện chỉ cho chọn profile cá nhân, dù AI xác định có bán sản phẩm trên website Mỹ.'
+      : 'Không thể chọn: đây là Group. Chiến dịch hiện chỉ cho chọn profile cá nhân.';
+    return l.selectionBlockedReason || l.blockedReason || v?.gateReason || 'Hồ sơ chưa đủ điều kiện để chọn.';
+  }
   const urlsFrom = text => text.match(/https?:\/\/[^\s,"'<>]+/gi) || [];
-  const canPick = l => l.state !== 'skipped' && l.assessment?.criteriaVersion === 'us-website-products-v2' && l.assessment?.eligible && !(l.selectionBlockedReason ?? l.blockedReason);
+  const canPick = l => l.state !== 'skipped' && l.assessment?.criteriaVersion === 'us-website-products-v2' && !(l.selectionBlockedReason ?? l.blockedReason);
   const canRetry = c => c?.workflowVersion === 2 && c.approvals?.import && c.leads.some(l => l.state !== 'skipped') && !c.approvals.send && ['analysis_review','message_review','interrupted','needs_attention'].includes(c.state);
   const accountName = key => accounts.find(a => a.key === key)?.name || key;
   function notice(message = '', error = false) { $('notice').textContent = message; $('notice').className = 'notice' + (error ? ' error' : ''); show('notice', !!message); }
@@ -145,28 +197,35 @@
     $('analysisApproval').textContent = approvalText(a.analysis,'Khách chưa đạt hoặc chưa rõ người nhận sẽ không được chuyển sang gửi.');
     $('analysisRows').replaceChildren();
     for (const l of c.leads) {
-      const row = element('tr'), chooseCell = element('td'), customer = element('td'), analysis = element('td'), result = element('td');
+      const row = element('tr'), chooseCell = element('td'), customer = element('td'), fbName = element('td'), analysis = element('td'), result = element('td');
       const cb=element('input');cb.type='checkbox';cb.value=l.id;cb.checked=picks.has(l.id);cb.setAttribute('aria-label',`Chọn ${customerLabel(l.url)}`);
       cb.onchange=()=>{if(cb.checked)picks.add(l.id);else picks.delete(l.id);updateControls();};chooseCell.append(cb);
       customer.append(link(l.url,customerLabel(l.url))); customer.dataset.label='Khách hàng';
       analysis.dataset.label='AI đánh giá'; result.dataset.label='Kết quả';
       const v=l.assessment;
-      if(v){analysis.append(element('p',`${v.type==='personal'?'Cá nhân':v.type==='page'?'Fanpage':'Chưa rõ loại'} · ${v.criteriaVersion==='us-website-products-v2'?'Sản phẩm trên website Mỹ':'Thị trường Mỹ (tiêu chí cũ)'}: ${v.sellerUS==='yes'?'Có':v.sellerUS==='no'?'Không':'Chưa rõ'}${typeof v.confidence==='number'?' · '+Math.round(v.confidence*100)+'%':''}`),element('p',v.reason || ''));
-        if(v.criteriaVersion!=='us-website-products-v2')analysis.append(element('p','Kết quả dùng tiêu chí cũ. Hãy cập nhật Xeko worker, bấm Thử lại AI để đánh giá sản phẩm có bán trên website Mỹ.','warn'));
-        if(Number.isInteger(v.salesPostCount))analysis.append(element('p',`${v.salesPostCount} bài có dấu hiệu bán hàng trong caption`,'muted'));
-        if(Number.isInteger(v.reviewedPostCount))analysis.append(element('p',`Đã đọc ${v.reviewedPostCount} bài viết${Number.isInteger(v.reviewedImageCount) ? ` · ${v.reviewedImageCount} ảnh` : ''}`,'muted'));
-        if(v.evidence?.length){const d=element('details');d.append(element('summary',`Xem ${v.evidence.length} bằng chứng`));v.evidence.forEach(q=>d.append(element('blockquote',q)));analysis.append(d);}
-        if(v.gateReason&&!v.eligible)analysis.append(element('p',v.gateReason,'muted'));
-      }else analysis.append(element('p',l.error || 'Chưa có kết quả','muted'));
+      fbName.dataset.label = 'Tên FB';
+      fbName.className = 'fb-name';
+      fbName.textContent = v?.name || (l.state === 'checking' ? 'Đang quét…' : v || l.error ? 'Chưa đọc được tên' : 'Chưa quét');
+      if(v) analysis.append(renderAssessmentPreview(v));
+      else analysis.append(element('p',l.error || 'Chưa có kết quả','muted'));
+      analysis.append(renderScanLog(l));
+      if(v && !canPick(l)) {
+        const reason = selectionExplanation(l);
+        const note = element('p', reason, 'selection-explanation');
+        note.id = 'selection-reason-' + l.id;
+        cb.setAttribute('aria-describedby', note.id);
+        chooseCell.title = reason;
+        analysis.append(note);
+      }
       result.append(badge(l.state === 'qualified' && l.blockedReason ? 'AI đạt · Chưa sẵn sàng gửi' : labels[l.state] || l.state,canPick(l)?'good':l.state==='review'?'warn':''));
-      if(v?.eligible && l.blockedReason && !a.send)result.append(element('p',l.blockedReason,'muted'));
+      if(canPick(l) && l.blockedReason && !a.send)result.append(element('p',l.blockedReason,'muted'));
       if(modern && c.state === 'analysis_review' && ['review','qualified'].includes(l.state) && l.blockedReason) {
         const skip = element('button','Bỏ qua','secondary');
         skip.setAttribute('aria-label',`Bỏ qua ${v?.name || l.url}`);
         skip.onclick=()=>action('skip-lead',{leadId:l.id});
         result.append(skip);
       }
-      row.append(chooseCell,customer,analysis,result);$('analysisRows').append(row);
+      row.append(chooseCell,customer,fbName,analysis,result);$('analysisRows').append(row);
     }
     const hasMessages=!!a.analysis;
     show('messageEmpty',!hasMessages);show('messageResult',hasMessages);

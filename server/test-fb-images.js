@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
+const { queuePost } = require('./src/utils/post-queue');
 const { readImageState, waitForImages } = require('./src/playwright/fb-image-guard');
 const ready = { count: 2, rejected: false, busy: false, readyButton: true };
 
@@ -84,7 +85,7 @@ test('proxy rejects missing, empty and directory paths before sending caption', 
     { 'good.jpg': 100, 'bad.jpg': 'directory' }]) {
     await t.test(JSON.stringify(files), async () => {
       const s = loadProxy(files);
-      await assert.rejects(s.proxy.postToPersonal('caption', ['good.jpg', 'bad.jpg']), /Ảnh không tồn tại hoặc rỗng/);
+      await assert.rejects(queuePost(() => s.proxy.postToPersonal('caption', ['good.jpg', 'bad.jpg']), 'image-test'), /Ảnh không tồn tại hoặc rỗng/);
       assert.equal(s.requests(), 0);
     });
   }

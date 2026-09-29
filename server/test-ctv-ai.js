@@ -7,9 +7,30 @@ const snapshot = { personalEvidence: true, bio: '', posts: [
   'Chốt đơn mỹ phẩm từ sephora.com Mỹ.',
 ] };
 const good = { profileType: 'personal', sellerUS: 'yes', confidence: .95,
-  reason: 'Có bằng chứng sản phẩm trên website Mỹ', evidence: [snapshot.posts[0]] };
+  reason: 'Có bằng chứng sản phẩm trên website Mỹ', evidence: [snapshot.posts[0]], bio:'', brands:['Nike'], captionAnalysis:'Bài 2 bán giày từ nike.com; bài 3 nhận chốt đơn mỹ phẩm từ sephora.com Mỹ.' };
 const candidate = (text, finishReason = 'STOP') => ({ candidates: [{ finishReason, content: { parts: [{ text }] } }] });
 const valid = candidate(JSON.stringify(good));
+test('header bio is preserved even when AI omits it from the response', async t => {
+  const headerBio = 'GROUP SĂN SALE\nhttps://www.facebook.com/groups/388088742359273/\nDigital creator';
+  const m = mock(t, [valid]);
+  const result = await evaluateProfile({...snapshot, headerBio}, m.fetch);
+  assert.equal(result.bio, headerBio);
+  assert.match(m.calls[0].systemInstruction.parts[0].text, /Ưu tiên headerBio/);
+  assert.equal(JSON.parse(m.calls[0].contents[0].parts[0].text).headerBio, headerBio);
+});
+test('structured display fields retain only grounded bio and caption brands', async t => {
+  const bio = 'Nhận order hàng Mỹ chính hãng';
+  const m = mock(t, [candidate(JSON.stringify({...good, bio, brands:['Nike','InventedBrand']}))]);
+  const result = await evaluateProfile({...snapshot, bio:'Giới thiệu\n' + bio}, m.fetch);
+  assert.equal(result.bio, bio);
+  assert.deepEqual(result.brands, ['Nike']);
+  assert.equal(result.captionAnalysis, good.captionAnalysis);
+});
+test('fabricated bio is not displayed and group classification remains ineligible', async t => {
+  const m = mock(t, [candidate(JSON.stringify({...good, profileType:'group', bio:'Invented bio'}))]);
+  const result = await evaluateProfile(snapshot, m.fetch);
+  assert.equal(result.bio, ''); assert.equal(result.type, 'group'); assert.equal(result.eligible, false);
+});
 function mock(t, responses) {
   const old = process.env.GEMINI_API_KEY;
   process.env.GEMINI_API_KEY = 'test-only';
