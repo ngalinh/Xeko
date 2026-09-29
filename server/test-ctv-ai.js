@@ -42,6 +42,63 @@ function mock(t, responses) {
     return { ok: true, json: async () => body };
   } };
 }
+
+test('brand grounding handles accents, Unicode and spacing and deduplicates variants', async t => {
+  const posts = ['Bán Lancome, ESTEE\u00a0  LAUDER và Olay giá sale từ Sephora.', ...snapshot.posts];
+  const m = mock(t, [candidate(JSON.stringify({...good, brands:['Lancôme','lancome','Este\u0301e Lauder','Olay']}))]);
+  const result = await evaluateProfile({...snapshot, posts}, m.fetch);
+  assert.deepEqual(result.brands, ['Lancôme','Estée Lauder','Olay']);
+  assert.equal(m.calls.length, 1);
+});
+
+test('brand matches require whole names in one sales caption, not bio or analysis', async t => {
+  const posts = ['Bán coaching giá tốt. Bán Estee', 'Bán Lauder giá sale', 'Nhật ký: Lancôme', ...snapshot.posts];
+  const m = mock(t, [candidate(JSON.stringify({...good, brands:['Coach','Estée Lauder','Lancôme','Olay'], captionAnalysis:'Thương hiệu Coach, Lancôme và Olay.'}))]);
+  const result = await evaluateProfile({...snapshot, bio:'Olay', posts}, m.fetch);
+  assert.deepEqual(result.brands, []);
+  assert.equal(m.calls.length, 1);
+});
+
+test('empty brands with brand analysis gets one grounded text-only recovery', async t => {
+  const posts = ['Bán Lancome, Estee Lauder và Olay giá sale từ Sephora.', ...snapshot.posts];
+  const m = mock(t, [candidate(JSON.stringify({...good, brands:[], captionAnalysis:'Thương hiệu Lancôme, Estée Lauder, Olay và Dior.'})),
+    candidate(JSON.stringify({brands:['Lancôme','Estée Lauder','Olay','Dior']}))]);
+  const events = [];
+  const result = await evaluateProfile({...snapshot, posts}, m.fetch, {report:stage=>events.push(stage)});
+  assert.deepEqual(result.brands, ['Lancôme','Estée Lauder','Olay']);
+  assert.equal(result.eligible, true);
+  assert.equal(m.calls.length, 2);
+  assert.equal(m.calls[1].contents[0].parts.length, 1);
+  assert.deepEqual(JSON.parse(m.calls[1].contents[0].parts[0].text).captions, posts);
+  assert.match(m.calls[1].systemInstruction.parts[0].text, /Không lấy tên nhà bán lẻ/);
+  assert.ok(events.includes('brands_complete'));
+});
+
+for (const response of [candidate('{'), candidate('{"brands":[]}', 'MAX_TOKENS'), candidate('{"brands":null}')]) {
+  test('failed brand recovery preserves assessment without another retry', async t => {
+    const m = mock(t, [candidate(JSON.stringify({...good, brands:[], captionAnalysis:'Có thương hiệu Nike.'})), response]);
+    const result = await evaluateProfile(snapshot, m.fetch);
+    assert.equal(result.eligible, true);
+    assert.deepEqual(result.brands, []);
+    assert.equal(m.calls.length, 2);
+  });
+}
+
+test('brand recovery timeout preserves assessment and cancellation still propagates', async t => {
+  const m = mock(t, [candidate(JSON.stringify({...good, brands:[], captionAnalysis:'Thương hiệu Nike.'}))]);
+  let requests = 0, stopped = false;
+  const fetchFn = async (...args) => {
+    if (++requests % 2 === 0) throw new Error('timeout');
+    return m.fetch(...args);
+  };
+  const result = await evaluateProfile(snapshot, fetchFn);
+  assert.equal(requests, 2);
+  assert.equal(result.eligible, true);
+  await assert.rejects(evaluateProfile(snapshot, fetchFn, {
+    report:stage=>{if(stage==='brands')stopped=true;},
+    check:()=>{if(stopped)throw new Error('cancelled');},
+  }), /cancelled/);
+});
 test('structured response includes captions/images, excludes thoughts and joins text parts', async t => {
   const raw = JSON.stringify(good);
   const m = mock(t, [{ candidates: [{ finishReason: 'STOP', content: { parts: [
