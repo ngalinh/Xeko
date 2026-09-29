@@ -20,6 +20,10 @@ Tiêu chí: AI đánh giá `personal`, `sellerUS=yes`, confidence ≥ 0,85; có 
 
 AI chỉ dựa trên nội dung profile, chưa truy cập website Mỹ để xác minh. Dưới 3 bài bán hàng sẽ báo thiếu dữ liệu và không đủ điều kiện duyệt.
 
+Mỗi khách có **Nhật ký quét** ngay trong cột AI đánh giá, cập nhật cùng tiến độ: mở tab/profile, chờ tên/bio, từng lượt đọc và cuộn, số bài mới, số caption có dấu hiệu bán hàng, số ảnh gửi AI, từng lần gọi AI và lý do dừng/lỗi. Mốc giây là thời gian tính từ khi bắt đầu hồ sơ, không phải thời gian dự kiến hoàn tất. Giữ tối đa 100 dòng mỗi khách trong dữ liệu chiến dịch, xem lại được sau reload; Thử lại AI tạo nhật ký mới. Log không lưu caption, bio hoặc ảnh gốc.
+
+Bộ quét chỉ đọc bài trong vùng đang xem (không giới hạn vào 10 bài đầu DOM), tái sử dụng ảnh đã chụp cho caption trùng và không kéo trang ngược lên để chụp ảnh ngoài màn hình. Dừng thu thập khi đủ 5 caption có dấu hiệu bán hàng, 3 lượt không có bài mới, 12 lượt cuộn hoặc hết ngân sách 60 giây đọc bài. Thao tác đang chạy có thể kết thúc muộn hơn ngân sách một khoảng timeout ngắn; dữ liệu đã đọc được giữ lại. Thời gian mở trang/chờ header (tối đa 30 giây mỗi bước) và gọi AI (45 giây/lần, tối đa 2 lần nếu phản hồi sai định dạng) tính riêng. Nút dừng được kiểm tra giữa các thao tác đọc và trước/sau AI; cần chờ thao tác hiện tại kết thúc. Đây là mẫu bài thu thập được, không phải toàn bộ lịch sử profile.
+
 ## 3. Gửi tin nhắn hàng loạt
 
 Soạn tin nhắn, dùng `{name}` để chèn tên. Bấm **Tạo bản xem trước** để xem nội dung chính xác cho từng khách đã duyệt. Kiểm tra danh sách/nội dung, đánh dấu xác nhận, rồi bấm **Duyệt & gửi N tin nhắn**. Gửi lần lượt, có kết quả từng khách và nút dừng.

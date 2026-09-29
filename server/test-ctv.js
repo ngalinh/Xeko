@@ -16,6 +16,24 @@ function setup(t, overrides = {}) {
   return {s,sent,inspected,browser,dir};
 }
 const settle = s => Promise.all([...s.running]);
+test('scan events are bounded, persisted during work, and retain failure context', async t => {
+  const { s, browser } = setup(t);
+  browser.inspect = async (_, url, { onProgress, cancelled }) => {
+    assert.equal(cancelled(), false);
+    for (let i = 0; i < 105; i++) onProgress({stage: 'batch', message: `Lượt ${i}`});
+    const persisted = JSON.parse(fs.readFileSync(s.file, 'utf8')).campaigns[0].leads[0];
+    assert.equal(persisted.state, 'checking');
+    assert.equal(persisted.scanLog.length, 100);
+    assert.equal(persisted.scanLog.at(-1).message, 'Lượt 104');
+    throw Error('browser disconnected');
+  };
+  const c = await analyzed(s, ['https://facebook.com/123']);
+  assert.equal(c.leads[0].scanLog.at(-1).stage, 'error');
+  assert.equal(c.leads[0].scanLog.at(-1).message, 'browser disconnected');
+  assert.equal(c.state, 'analysis_review');
+  const restored = new CtvService({file:s.file,browser});
+  assert.equal(restored.view(restored.get(c.id, 'owner')).leads[0].scanLog.at(-1).stage, 'error');
+});
 async function analyzed(s,urls){const c=s.create(input(urls),'owner');s.approveImport(c.id,'owner');await settle(s);return c;}
 function prepared(s,c){s.approveAnalysis(c.id,'owner',c.leads.map(l=>l.id));s.prepareMessages(c.id,'owner','Chào {name}, mời bạn hợp tác CTV.');return c.messagePreview.token;}
 

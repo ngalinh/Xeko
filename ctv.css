@@ -66,3 +66,8 @@ main{max-width:1440px;padding:24px;margin:0 auto}.page-heading h1{font-size:22px
 .assessment-details[open] .collapse-label{display:inline}
 .assessment-details .assessment-sections{margin-top:8px}
 td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-height:1.6}
+/* Keep scan diagnostics readable without expanding the whole customer table. */
+.scan-log { margin-top: 12px; font-size: 13px; }
+.scan-log summary { cursor: pointer; color: #2864e8; }
+.scan-log ol { max-height: 240px; overflow: auto; padding-left: 24px; line-height: 1.6; }
+.scan-log li { overflow-wrap: anywhere; margin-bottom: 4px; }

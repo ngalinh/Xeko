@@ -108,7 +108,7 @@ function readProfileSnapshot(requireHeader = false) {
 }
 
 // Read caption and image pixels before virtualized feed entries disappear.
-async function readPostMedia(page) {
+async function readPostMedia(page, { cache = new Map(), report = () => {}, check = () => {}, expired = () => false } = {}) {
   // Prefer complete post containers; fall back to caption blocks only when
   // Facebook omits article semantics. Never treat the whole feed as one post.
   const roots = ':is([role="main"], main, #content, #m_basic)';
@@ -116,9 +116,19 @@ async function readPostMedia(page) {
   const captions = ':is([data-ad-preview="message"], [data-ad-comet-preview="message"])';
   const articles = page.locator(`${roots} ${containers}:not(:has(${containers})):visible, ${roots} ${captions}:not(${containers} ${captions}):visible`);
   const records = [];
-  for (let i = 0, count = Math.min(await articles.count(), 10); i < count; i++) {
+  for (let i = 0, count = await articles.count(), scanned = 0; i < count && scanned < 10; i++) {
+    check();
+    if (expired()) break;
     const article = articles.nth(i);
     if (!await article.isVisible()) continue;
+    // :visible includes off-screen posts. Filter before limiting the batch so
+    // a growing feed cannot keep us reading its first ten posts forever.
+    const inViewport = await article.evaluate(e => {
+      const r = e.getBoundingClientRect();
+      return r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
+    }, undefined, { timeout: 1500 });
+    if (!inViewport) continue;
+    scanned++;
     const more = article.getByRole('button', { name: /^(Xem thêm|See more)$/i });
     for (let j = 0, n = Math.min(await more.count(), 3); j < n; j++) {
       // DOM click avoids Playwright scrolling back up to an old off-screen post.
@@ -127,19 +137,34 @@ async function readPostMedia(page) {
     const caption = await article.evaluate(e => {
       const bodies = [...e.querySelectorAll('[data-ad-preview="message"], [data-ad-comet-preview="message"]')];
       return (bodies.length ? bodies.map(b => b.innerText || '').join('\n') : e.innerText || '').trim().slice(0,6000);
-    });
+    }, undefined, { timeout: 1500 });
+    const cached = caption && cache.get(caption);
+    if (cached) { records.push(cached); continue; }
+    report('post', `Đọc bài trong vùng xem: ${caption.length} ký tự; đang kiểm tra ảnh`);
     const images = [];
     const candidates = article.locator('img');
     for (let j = 0, n = Math.min(await candidates.count(), 12); j < n && images.length < 2; j++) {
+      if (expired()) break;
       const img = candidates.nth(j);
       try {
-        const usable = await img.evaluate(e => e.complete && e.naturalWidth >= 150 && e.naturalHeight >= 150 && e.getBoundingClientRect().width >= 120 && e.getBoundingClientRect().height >= 120);
+        check();
+        const usable = await img.evaluate(e => {
+          const r = e.getBoundingClientRect();
+          return e.complete && e.naturalWidth >= 150 && e.naturalHeight >= 150
+            && r.width >= 120 && r.height >= 120 && r.top >= 0 && r.bottom <= innerHeight
+            && r.left >= 0 && r.right <= innerWidth;
+        }, undefined, { timeout: 1500 });
         if (!usable || !await img.isVisible()) continue;
         const bytes = await img.screenshot({ type: 'jpeg', quality: 65, timeout: 2500 });
         if (bytes.length <= 750000) images.push({ mimeType: 'image/jpeg', data: bytes.toString('base64') });
-      } catch {} // A missing image must not discard the caption.
+      } catch { check(); report('image_skipped', 'Ảnh không đọc được hoặc quá thời gian; giữ lại caption'); }
     }
-    if (caption || images.length) records.push({ caption, images });
+    if (caption || images.length) {
+      const record = { caption, images };
+      // Retry absent/lazy images on later viewports, but never recapture photos.
+      if (caption && images.length) cache.set(caption, record);
+      records.push(record);
+    }
   }
   return records;
 }
@@ -166,24 +191,38 @@ function scrollProfileFeed() {
 }
 
 // Collect across scrolls because Facebook may virtualize older feed entries.
-async function collectProfilePosts(page, snapshot) {
+async function collectProfilePosts(page, snapshot, { report = () => {}, check = () => {} } = {}) {
   const posts = new Map();
+  const cache = new Map(), seen = new Set(), started = Date.now();
+  const expired = () => Date.now() - started >= 60000;
+  let stopReason = 'Đã đạt giới hạn 12 lượt cuộn';
   let staleBatches = 0;
   for (let step = 0; step <= 12; step++) {
+    check();
+    if (expired()) { stopReason = 'Đã đạt giới hạn 60 giây đọc bài'; break; }
     await assertSession(page);
-    const batch = await readPostMedia(page);
-    const before = posts.size;
+    report('reading', `Lượt ${step + 1}/13: đọc caption và ảnh trong vùng xem`);
+    const batch = await readPostMedia(page, { cache, report, check, expired });
+    let discovered = 0;
     for (const post of batch) {
       const key = post.caption.replace(/\s+/g, ' ').trim() || post.images[0].data;
+      if (!seen.has(key)) { discovered++; seen.add(key); }
       if (!posts.has(key) && posts.size >= 20 && isSalesPost(post.caption)) {
         const supplementary = [...posts].find(([, value]) => !isSalesPost(value.caption));
         if (supplementary) posts.delete(supplementary[0]);
       }
       if ((!posts.has(key) && posts.size < 20) || (posts.has(key) && posts.get(key).images.length < post.images.length)) posts.set(key, post);
     }
-    staleBatches = posts.size === before ? staleBatches + 1 : 0;
-    if ([...posts.values()].filter(p => isSalesPost(p.caption)).length >= 5 || staleBatches >= 3 || step === 12) break;
+    staleBatches = discovered === 0 ? staleBatches + 1 : 0;
+    const sales = [...posts.values()].filter(p => isSalesPost(p.caption)).length;
+    report('batch', `Lượt ${step + 1}: ${batch.length} bài trong vùng xem, ${discovered} bài mới; giữ ${posts.size} bài, ${sales} bài có dấu hiệu bán hàng`);
+    if (sales >= 5) { stopReason = 'Đã thu thập đủ 5 bài có dấu hiệu bán hàng'; break; }
+    if (expired()) { stopReason = 'Đã đạt giới hạn 60 giây đọc bài'; break; }
+    if (staleBatches >= 3) { stopReason = 'Không có bài mới sau 3 lượt liên tiếp'; break; }
+    if (step === 12) break;
+    check();
     const progress = await page.evaluate(scrollProfileFeed);
+    report('scroll', `Cuộn tải bài tiếp theo: ${progress?.moved === false ? 'chưa di chuyển, chờ tải thêm' : 'đã yêu cầu cuộn'}`);
     if (progress && !progress.moved) {
       // Allow delayed feed content to mount before another attempt.
       await page.waitForTimeout(1500);
@@ -192,16 +231,24 @@ async function collectProfilePosts(page, snapshot) {
     await page.waitForTimeout(1500);
   }
   const selected = [...posts.values()].sort((a,b) => Number(isSalesPost(b.caption)) - Number(isSalesPost(a.caption))).slice(0,5);
+  report('scan_complete', `${stopReason}; chọn ${selected.length} bài và ${selected.reduce((n, p) => n + p.images.length, 0)} ảnh để đánh giá`);
   return { ...snapshot, posts: selected.map(p => p.caption), postMedia: selected };
 }
 
-async function inspect(page, url) {
+async function inspect(page, url, { onProgress = () => {}, cancelled = () => false } = {}) {
+  const started = Date.now();
+  const report = (stage, message) => onProgress({ stage, message, elapsedMs: Date.now() - started, at: new Date().toISOString() });
+  const check = () => { if (cancelled()) throw new Error('Đã dừng quét profile theo yêu cầu'); };
+  check();
+  report('navigation', 'Đang mở profile (tối đa 30 giây)');
   const target = profileUrl(url);
   await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await assertSession(page);
   let handle;
   let snapshot;
   try {
+    check();
+    report('header', 'Đang chờ tên và bio profile (tối đa 30 giây)');
     handle = await page.waitForFunction(readProfileSnapshot, true, { timeout: 30000 });
     snapshot = await handle.jsonValue();
   } catch (error) {
@@ -211,6 +258,7 @@ async function inspect(page, url) {
     // Some profile layouts expose the feed without a supported name heading.
     // Preserve the header-first wait, but do not discard a readable feed.
     snapshot = await page.evaluate(readProfileSnapshot, false);
+    report('header_fallback', 'Hết thời gian chờ tên; kiểm tra phần bài viết có thể đọc');
     if (!snapshot || (!snapshot.blocked && !snapshot.name && !snapshot.feedReady)) {
       throw new Error('Chưa đọc được tên Facebook sau 30 giây và chưa thấy bài viết để cuộn quét. Hãy kiểm tra hồ sơ đã tải xong rồi thử lại.');
     }
@@ -221,6 +269,7 @@ async function inspect(page, url) {
   // Header text can mount after the name. Capture it before any feed scroll,
   // retaining the saved header if Facebook temporarily unmounts the DOM.
   for (let attempt = 0; !snapshot.blocked && !snapshot.headerBio && attempt < 4; attempt++) {
+    check();
     await page.waitForTimeout(750);
     await assertSession(page);
     const header = await page.evaluate(readProfileSnapshot, true);
@@ -231,7 +280,8 @@ async function inspect(page, url) {
   await assertSession(page);
   const actual = profileUrl(page.url());
   if (actual !== target) throw new Error('Link chuyển sang hồ sơ khác; hãy kiểm tra và nhập lại link chính xác');
-  if (!snapshot.blocked) snapshot = await collectProfilePosts(page, snapshot);
+  report('header_ready', `Tên: ${snapshot.name ? 'đã đọc' : 'chưa đọc được'}; bio: ${(snapshot.headerBio || '').length} ký tự${snapshot.blocked ? '; hồ sơ bị khóa/không xem được' : ''}`);
+  if (!snapshot.blocked) snapshot = await collectProfilePosts(page, snapshot, { report, check });
   if (profileUrl(page.url()) !== target) throw new Error('Link chuyển sang hồ sơ khác khi đọc bài viết');
   const ids = new Set();
   const directId = recipientId(actual);
@@ -244,11 +294,15 @@ async function inspect(page, url) {
       if (match) ids.add(match[1]);
     } catch {}
   }
-  const assessment = await evaluateProfile(snapshot);
+  check();
+  report('ai', 'Đang đánh giá dữ liệu bằng AI');
+  const assessment = await evaluateProfile(snapshot, undefined, { report, check });
+  check();
   if (!snapshot.blocked && !snapshot.name) {
     assessment.eligible = false;
     assessment.gateReason = 'Đã đọc bài viết nhưng chưa xác minh được tên Facebook. Hãy kiểm tra hồ sơ và Thử lại AI trước khi gửi.';
   }
+  report('complete', `Đánh giá xong: ${assessment.salesPostCount || 0}/3 bài có dấu hiệu bán hàng; ${assessment.eligible ? 'đạt điều kiện' : 'cần kiểm tra'}`);
   return { url: target, actualUrl: actual, name: snapshot.name, bio: snapshot.headerBio || '', recipientId: ids.size === 1 ? [...ids][0] : null, checkedAt: new Date().toISOString(), ...assessment };
 }
 

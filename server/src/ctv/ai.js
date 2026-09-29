@@ -46,7 +46,7 @@ function readAssessment(body) {
   return { ai };
 }
 
-async function evaluateProfile(snapshot, fetchFn = fetch) {
+async function evaluateProfile(snapshot, fetchFn = fetch, { report = () => {}, check = () => {} } = {}) {
   const base = classify(snapshot);
   if (snapshot.blocked) return { ...base, criteriaVersion: 'us-website-products-v2', reviewedPostCount: 0 };
   // No post content means collection failed or the feed is unavailable.
@@ -78,6 +78,8 @@ async function evaluateProfile(snapshot, fetchFn = fetch) {
   }
   let ai;
   for (let attempt = 0; attempt < 2; attempt++) {
+    check();
+    report('ai_request', `Gọi AI lần ${attempt + 1}/2: ${(snapshot.posts || []).length} bài, ${imageCount} ảnh (tối đa 45 giây/lần)`);
     const response = await fetchFn('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
       method: 'POST', signal: AbortSignal.timeout(45000),
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
@@ -89,6 +91,7 @@ async function evaluateProfile(snapshot, fetchFn = fetch) {
     });
     if (!response.ok) throw new Error(`AI chưa đánh giá được (HTTP ${response.status}); không gửi tin`);
     const body = await response.json();
+    check();
     const result = readAssessment(body);
     if (result.ai) { ai = result.ai; break; }
     if (attempt === 1) throw new Error(result.error.message + ' (đã tự thử lại 1 lần)');
