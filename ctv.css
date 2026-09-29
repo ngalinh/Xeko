@@ -71,3 +71,8 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 .scan-log summary { cursor: pointer; color: #2864e8; }
 .scan-log ol { max-height: 240px; overflow: auto; padding-left: 24px; line-height: 1.6; }
 .scan-log li { overflow-wrap: anywhere; margin-bottom: 4px; }
+#analysisRows .fb-name { min-width: 140px; max-width: 190px; }
+#analysisRows td[data-label="AI đánh giá"] { min-width: 220px; }
+@media(max-width:600px){
+  #analysisRows .fb-name, #analysisRows td[data-label="AI đánh giá"] { min-width: 0; max-width: none; }
+}

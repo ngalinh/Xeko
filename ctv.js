@@ -197,12 +197,15 @@
     $('analysisApproval').textContent = approvalText(a.analysis,'Khách chưa đạt hoặc chưa rõ người nhận sẽ không được chuyển sang gửi.');
     $('analysisRows').replaceChildren();
     for (const l of c.leads) {
-      const row = element('tr'), chooseCell = element('td'), customer = element('td'), analysis = element('td'), result = element('td');
+      const row = element('tr'), chooseCell = element('td'), customer = element('td'), fbName = element('td'), analysis = element('td'), result = element('td');
       const cb=element('input');cb.type='checkbox';cb.value=l.id;cb.checked=picks.has(l.id);cb.setAttribute('aria-label',`Chọn ${customerLabel(l.url)}`);
       cb.onchange=()=>{if(cb.checked)picks.add(l.id);else picks.delete(l.id);updateControls();};chooseCell.append(cb);
       customer.append(link(l.url,customerLabel(l.url))); customer.dataset.label='Khách hàng';
       analysis.dataset.label='AI đánh giá'; result.dataset.label='Kết quả';
       const v=l.assessment;
+      fbName.dataset.label = 'Tên FB';
+      fbName.className = 'fb-name';
+      fbName.textContent = v?.name || (l.state === 'checking' ? 'Đang quét…' : v || l.error ? 'Chưa đọc được tên' : 'Chưa quét');
       if(v) analysis.append(renderAssessmentPreview(v));
       else analysis.append(element('p',l.error || 'Chưa có kết quả','muted'));
       analysis.append(renderScanLog(l));
@@ -222,7 +225,7 @@
         skip.onclick=()=>action('skip-lead',{leadId:l.id});
         result.append(skip);
       }
-      row.append(chooseCell,customer,analysis,result);$('analysisRows').append(row);
+      row.append(chooseCell,customer,fbName,analysis,result);$('analysisRows').append(row);
     }
     const hasMessages=!!a.analysis;
     show('messageEmpty',!hasMessages);show('messageResult',hasMessages);
