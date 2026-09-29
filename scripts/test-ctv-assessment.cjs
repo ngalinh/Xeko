@@ -7,6 +7,17 @@ const source = fs.readFileSync(path.join(__dirname, '..', 'ctv.js'), 'utf8');
 const context = {element: (tag, text, cls) => ({tag, text, cls, children:[], append(...nodes) {this.children.push(...nodes);}})};
 vm.createContext(context);
 vm.runInContext(source.slice(source.indexOf('  function renderAssessment('), source.indexOf('  const urlsFrom')), context);
+
+test('scan log shows elapsed time and preserves expansion on polling', () => {
+  const lead = {id:'lead-1', scanLog:[{elapsedMs:1250, message:'<img onerror=alert(1)>'}]};
+  const rendered = context.renderScanLog(lead);
+  assert.equal(rendered.children[0].text, '1s · <img onerror=alert(1)>');
+  const details = rendered.children[1];
+  assert.equal(details.open, false);
+  details.open = true; details.ontoggle();
+  assert.equal(context.renderScanLog(lead).children[1].open, true);
+  assert.equal(context.renderScanLog({id:'legacy'}).children.length, 0);
+});
 test('preview defaults to a seller verdict and closed native details containing five sections', () => {
   const preview = context.renderAssessmentPreview({sellerUS:'yes',type:'page',confidence:1});
   assert.equal(preview.children[0].text, 'Seller bán sản phẩm trên website Mỹ: Có');

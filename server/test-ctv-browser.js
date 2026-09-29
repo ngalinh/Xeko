@@ -108,7 +108,7 @@ function mediaPage(batches, images = []) {
       nth: i => ({
         isVisible: async () => true,
         getByRole: () => ({count: async () => 1, nth: () => ({evaluate: async () => { expanded++; }})}),
-        evaluate: async () => batches(scrolls)[i],
+        evaluate: async fn => fn.toString().includes('getBoundingClientRect') ? true : batches(scrolls)[i],
         locator: () => ({count: async () => images.length, nth: j => ({
           evaluate: async () => images[j] !== 'small', isVisible: async () => true,
           screenshot: async () => { if (images[j] === 'broken') throw Error('detached'); return Buffer.from(images[j]); },
@@ -130,6 +130,77 @@ test('bounds scrolling and deduplicates repeated captions', async () => {
   const result = await collectProfilePosts(mock.page, {});
   assert.equal(mock.scrolls(), 3);
   assert.equal(result.posts.length, 1);
+});
+
+test('reads viewport posts after the first ten off-screen feed entries', async () => {
+  const mock = mediaPage(() => Array.from({length: 15}, (_, i) => `Bán sản phẩm ${i}`));
+  const locate = mock.page.locator;
+  mock.page.locator = selector => {
+    const result = locate(selector);
+    if (selector.startsWith('input')) return result;
+    const nth = result.nth;
+    result.nth = i => {
+      const article = nth(i), evaluate = article.evaluate;
+      article.evaluate = async fn => fn.toString().includes('getBoundingClientRect') ? i >= 10 : evaluate(fn);
+      return article;
+    };
+    return result;
+  };
+  const result = await readPostMedia(mock.page);
+  assert.equal(result.length, 5);
+  assert.equal(result[0].caption, 'Bán sản phẩm 10');
+});
+
+test('repeated captions reuse captured images across scrolls', async () => {
+  const mock = mediaPage(() => ['Bán sản phẩm'], ['photo']);
+  const locate = mock.page.locator;
+  let captures = 0;
+  mock.page.locator = selector => {
+    const result = locate(selector);
+    if (selector.startsWith('input')) return result;
+    const nth = result.nth;
+    result.nth = i => {
+      const article = nth(i), images = article.locator;
+      article.locator = () => {
+        const result = images(), nth = result.nth;
+        result.nth = j => { const image = nth(j), screenshot = image.screenshot; image.screenshot = async () => { captures++; return screenshot(); }; return image; };
+        return result;
+      };
+      return article;
+    };
+    return result;
+  };
+  const events = [];
+  const result = await collectProfilePosts(mock.page, {}, { report: (stage, message) => events.push({stage, message}) });
+  assert.equal(captures, 1);
+  assert.equal(result.postMedia[0].images.length, 1);
+  assert.match(events.at(-1).message, /Không có bài mới sau 3 lượt/);
+});
+
+test('cancellation between batches stops further scrolling', async () => {
+  const mock = mediaPage(n => [`Bán sản phẩm ${n}`]);
+  let stopped = false;
+  await assert.rejects(collectProfilePosts(mock.page, {}, {
+    report: stage => { if (stage === 'batch') stopped = true; },
+    check: () => { if (stopped) throw Error('cancelled'); },
+  }), /cancelled/);
+  assert.equal(mock.scrolls(), 0);
+});
+
+test('scan budget preserves partial captions and reports timeout', async t => {
+  const now = Date.now;
+  let elapsed = 0;
+  Date.now = () => elapsed;
+  t.after(() => { Date.now = now; });
+  const mock = mediaPage(() => ['Bán sản phẩm']);
+  const events = [];
+  const result = await collectProfilePosts(mock.page, {}, { report: (stage, message) => {
+    events.push({stage, message});
+    if (stage === 'post') elapsed = 60001;
+  } });
+  assert.equal(result.posts.length, 1);
+  assert.equal(mock.scrolls(), 0);
+  assert.match(events.at(-1).message, /60 giây/);
 });
 test('expands captions, skips avatars and broken images, captures at most two photos', async () => {
   const mock = mediaPage(() => ['Bán sản phẩm'], ['small','broken','photo1','photo2','photo3']);

@@ -61,6 +61,21 @@
     preview.append(details);
     return preview;
   }
+  function renderScanLog(lead) {
+    const log = element('div', undefined, 'scan-log');
+    const entries = lead.scanLog || [], latest = entries.at(-1);
+    if (!latest) return log;
+    log.append(element('p', `${Math.round(latest.elapsedMs / 1000)}s · ${latest.message}`, 'muted'));
+    const details = element('details');
+    details.open = openScanLogs.has(lead.id);
+    details.ontoggle = () => { if (details.open) openScanLogs.add(lead.id); else openScanLogs.delete(lead.id); };
+    details.append(element('summary', `Nhật ký quét (${entries.length})`));
+    const list = element('ol');
+    for (const entry of entries) list.append(element('li', `${Math.round(entry.elapsedMs / 1000)}s · ${entry.message}`));
+    details.append(list); log.append(details);
+    return log;
+  }
+  const openScanLogs = new Set();
   function selectionExplanation(l) {
     const v = l.assessment;
     if (!v?.eligible && ['page','group'].includes(v?.type)) return v.type === 'page'
@@ -190,6 +205,7 @@
       const v=l.assessment;
       if(v) analysis.append(renderAssessmentPreview(v));
       else analysis.append(element('p',l.error || 'Chưa có kết quả','muted'));
+      analysis.append(renderScanLog(l));
       if(v && !canPick(l)) {
         const reason = selectionExplanation(l);
         const note = element('p', reason, 'selection-explanation');

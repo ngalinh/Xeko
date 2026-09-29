@@ -83,7 +83,7 @@ class CtvService {
     c.cancelled = false;
     for (const lead of c.leads) {
       if (lead.state === 'skipped') continue;
-      delete lead.assessment; delete lead.error; delete lead.message;
+      delete lead.assessment; delete lead.error; delete lead.message; delete lead.scanLog;
       lead.state = 'pending';
     }
     c.state = 'analysis_queued'; this.save(); this.enqueue(c, () => this.analyze(c)); return c;
@@ -100,11 +100,19 @@ class CtvService {
     for (const lead of c.leads) {
       if (c.cancelled) break;
       if (lead.state === 'skipped') continue;
-      lead.state = 'checking'; this.save();
+      lead.state = 'checking'; lead.scanLog = [];
+      const started = Date.now();
+      const onProgress = event => {
+        lead.scanLog.push({ ...event, at: new Date().toISOString(), elapsedMs: Date.now() - started });
+        lead.scanLog = lead.scanLog.slice(-100);
+        this.save();
+      };
+      onProgress({ stage: 'browser', message: 'Đang mở tab kiểm tra của tài khoản Facebook' });
       try {
-        lead.assessment = await this.browser.withPage(c.profile, page => this.browser.inspect(page, lead.url), { keepOpen: true });
+        lead.assessment = await this.browser.withPage(c.profile, page => this.browser.inspect(page, lead.url, { onProgress, cancelled: () => c.cancelled }), { keepOpen: true });
         lead.state = lead.assessment.eligible ? 'qualified' : 'review'; this.save();
       } catch (e) {
+        onProgress({ stage: c.cancelled ? 'cancelled' : 'error', message: e.message });
         lead.state = 'review'; lead.error = e.message; c.state = 'analysis_review'; c.error = e.message; this.save(); return;
       }
       if (lead !== c.leads[c.leads.length - 1]) await this.wait(c, 2);
