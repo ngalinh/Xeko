@@ -1,5 +1,6 @@
 const { validProfileKey, profileUrl, recipientId, isSalesPost } = require('./rules');
 const { evaluateProfile } = require('./ai');
+const { resolveCurrentProfileUid } = require('./uid');
 
 async function assertSession(page) {
   if (page.isClosed?.()) throw new Error('Tab Facebook đã đóng trước khi quét bài viết; hãy mở lại tài khoản và bấm Thử lại AI');
@@ -98,7 +99,7 @@ function readProfileSnapshot(requireHeader = false) {
       bio: headerBio,
       name: trustedName, blocked, pageEvidence, personalEvidence, feedReady,
       posts: [...main.querySelectorAll('[role="article"], article')].filter(visible).slice(0,10).map(e => e.innerText.slice(0,6000)),
-      messageLinks: [...main.querySelectorAll('a[href]')].filter(visible).filter(e => /^(Message|Nhắn tin)$/i.test((e.getAttribute('aria-label') || e.innerText || '').trim())).map(e => e.href),
+      messageLinks: [...main.querySelectorAll('a[href]')].filter(visible).filter(e => !e.closest(excluded) && aboveTabs(e) && /^(Message|Nhắn tin)$/i.test((e.getAttribute('aria-label') || e.innerText || '').trim())).map(e => e.href),
     };
     // A feed-only main can precede a separate profile header in the DOM.
     if (trustedName || blocked) return result;
@@ -285,19 +286,11 @@ async function inspect(page, url, { onProgress = () => {}, cancelled = () => fal
   const actual = profileUrl(page.url());
   if (actual !== target) throw new Error('Link chuyển sang hồ sơ khác; hãy kiểm tra và nhập lại link chính xác');
   report('header_ready', `Tên: ${snapshot.name ? 'đã đọc' : 'chưa đọc được'}; bio: ${(snapshot.headerBio || '').length} ký tự${snapshot.blocked ? '; hồ sơ bị khóa/không xem được' : ''}`);
+  report('uid', 'Đang đối chiếu UID với link hồ sơ');
+  const identity = await resolveCurrentProfileUid(page, target, snapshot);
+  report('uid', identity.recipientId ? `Đã xác định UID: ${identity.recipientId}` : identity.uidReason);
   if (!snapshot.blocked) snapshot = await collectProfilePosts(page, snapshot, { report, check });
   if (profileUrl(page.url()) !== target) throw new Error('Link chuyển sang hồ sơ khác khi đọc bài viết');
-  const ids = new Set();
-  const directId = recipientId(actual);
-  if (directId) ids.add(directId);
-  for (const link of snapshot.messageLinks) {
-    try {
-      const u = new URL(link);
-      if (u.protocol !== 'https:' || !['www.facebook.com','facebook.com','www.messenger.com','messenger.com'].includes(u.hostname)) continue;
-      const match = u.pathname.match(/^\/(?:messages\/)?t\/(\d+)\/?$/);
-      if (match) ids.add(match[1]);
-    } catch {}
-  }
   check();
   report('ai', 'Đang đánh giá dữ liệu bằng AI');
   const assessment = await evaluateProfile(snapshot, undefined, { report, check });
@@ -307,7 +300,26 @@ async function inspect(page, url, { onProgress = () => {}, cancelled = () => fal
     assessment.gateReason = 'Đã đọc bài viết nhưng chưa xác minh được tên Facebook. Hãy kiểm tra hồ sơ và Thử lại AI trước khi gửi.';
   }
   report('complete', `Đánh giá xong: ${assessment.salesPostCount || 0}/3 bài có dấu hiệu bán hàng; ${assessment.eligible ? 'đạt điều kiện' : 'cần kiểm tra'}`);
-  return { url: target, actualUrl: actual, name: snapshot.name, bio: snapshot.headerBio || '', recipientId: ids.size === 1 ? [...ids][0] : null, checkedAt: new Date().toISOString(), ...assessment };
+  return { url: target, actualUrl: actual, name: snapshot.name, bio: snapshot.headerBio || '', checkedAt: new Date().toISOString(), ...assessment, ...identity };
+}
+
+async function resolveUid(page, url, { cancelled = () => false } = {}) {
+  const check = () => { if (cancelled()) throw new Error('Đã dừng tìm UID'); };
+  check();
+  const target = profileUrl(url);
+  await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await assertSession(page);
+  let handle;
+  try {
+    check();
+    handle = await page.waitForFunction(readProfileSnapshot, true, { timeout: 30000 });
+    const snapshot = await handle.jsonValue();
+    await assertSession(page);
+    check();
+    const identity = await resolveCurrentProfileUid(page, target, snapshot);
+    check();
+    return { ...identity, uidCheckedAt: new Date().toISOString() };
+  } finally { if (handle) await handle.dispose(); }
 }
 
 async function send(page, lead, message, beforeSubmit, cancelled) {
@@ -373,8 +385,8 @@ function createBrowserAdapter(playwright = require('../playwright/post')) {
       inspectionContexts.delete(profile);
       inspectionPages.delete(profile);
     },
-    inspect, send,
+    inspect, send, resolveUid,
   };
 }
-module.exports = { createBrowserAdapter, inspect, send, readProfileSnapshot, collectProfilePosts, readPostMedia, scrollProfileFeed };
+module.exports = { createBrowserAdapter, inspect, send, resolveUid, readProfileSnapshot, collectProfilePosts, readPostMedia, scrollProfileFeed };
 

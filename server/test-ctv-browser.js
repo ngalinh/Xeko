@@ -143,7 +143,7 @@ function mediaPage(batches, images = []) {
   const page = {
     url: () => 'https://www.facebook.com/123',
     waitForTimeout: async () => {},
-    evaluate: async () => { scrolls++; },
+    evaluate: async fn => { if (fn.name === 'scrollProfileFeed') scrolls++; else return []; },
     locator: selector => selector.startsWith('input') ? {count: async () => 0} : {
       count: async () => batches(scrolls).length,
       nth: i => ({
