@@ -41,7 +41,7 @@ class CtvService {
   reasonBlocked(lead) {
     const reason = this.selectionBlocked(lead);
     if (reason) return reason;
-    if (!lead.assessment.eligible) return 'Đã cho phép chọn thủ công, nhưng chưa đủ điều kiện gửi: ' + (lead.assessment.gateReason || 'AI chưa đánh giá đạt');
+    // AI qualification is advisory; the operator approves recipients explicitly.
     if (!/^\d+$/.test(lead.assessment.recipientId || '')) return 'Chưa xác minh được ID người nhận. Có thể chọn và soạn tin, nhưng cần Thử lại AI để xác minh trước khi gửi.';
     return '';
   }
@@ -142,7 +142,7 @@ class CtvService {
     const lead = c.leads.find(l => l.id === leadId);
     if (!lead) fail('Không tìm thấy hồ sơ trong chiến dịch');
     if (lead.state === 'skipped') return c;
-    if (!['review', 'qualified'].includes(lead.state) || !this.reasonBlocked(lead)) fail('Chỉ bỏ qua hồ sơ đã đánh giá nhưng chưa đủ điều kiện gửi');
+    if (!['review', 'qualified'].includes(lead.state) || (lead.assessment?.eligible && !this.reasonBlocked(lead))) fail('Chỉ bỏ qua hồ sơ đã đánh giá nhưng chưa đủ điều kiện gửi');
     lead.state = 'skipped';
     lead.skippedBy = owner; lead.skippedAt = new Date().toISOString();
     this.save(); return c;

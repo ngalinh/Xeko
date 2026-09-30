@@ -147,10 +147,25 @@ test('manual selection allows reviewed profiles but preserves send checks and re
   assert.equal(s.view(c).leads[0].selectionBlockedReason,'');
   s.approveAnalysis(c.id,'owner',[lead.id]);
   assert.equal(c.state,'message_review');
-  assert.throws(()=>s.prepareMessages(c.id,'owner','Chào {name}'),/chưa đủ điều kiện gửi/);
+  s.prepareMessages(c.id,'owner','Chào {name}');
+  assert.equal(c.messagePreview.messages.length,1);
   s.reviewAnalysis(c.id,'owner');lead.assessment.eligible=true;
   lead.assessment.recipientId=null;assert.throws(()=>s.approveAnalysis(c.id,'owner',['fake']));
   lead.assessment.recipientId=c.leads[1].assessment.recipientId;assert.throws(()=>s.approveAnalysis(c.id,'owner',c.leads.map(l=>l.id)));
+});
+test('manually approved insufficient-data lead can preview and send without changing AI result', async t => {
+  const {s,sent}=setup(t); const c=await analyzed(s); const lead=c.leads[0];
+  Object.assign(lead.assessment,{eligible:false,insufficientData:true,salesPostCount:0,sellerUS:'unknown',gateReason:'Chưa đủ dữ liệu'});
+  lead.state='review';
+  assert.equal(s.view(c).leads[0].blockedReason,'');
+  s.approveAnalysis(c.id,'owner',[lead.id]);
+  s.prepareMessages(c.id,'owner','Chào {name}');
+  assert.equal(sent.length,0);
+  s.sendApproved(c.id,'owner',c.messagePreview.token); await settle(s);
+  assert.deepEqual(sent.map(item=>item.id),['123']);
+  assert.equal(lead.assessment.eligible,false);
+  assert.equal(lead.assessment.salesPostCount,0);
+  assert.equal(c.state,'completed');
 });
 test('stopping queued analysis and sending prevents external operations',async t=>{
   const {s,sent,inspected}=setup(t);const c=s.create(input(),'owner');s.approveImport(c.id,'owner');s.stop(c.id,'owner');await settle(s);

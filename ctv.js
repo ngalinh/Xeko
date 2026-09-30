@@ -194,7 +194,7 @@
     show('analysisWarning',!!c.error && !a.analysis);$('analysisWarning').textContent = c.error || '';
     show('retryAnalysis',!!canRetry(c));
     show('stopAnalysis',analyzing);show('approveAnalysis',modern && c.state === 'analysis_review');
-    $('analysisApproval').textContent = approvalText(a.analysis,'Khách chưa đạt hoặc chưa rõ người nhận sẽ không được chuyển sang gửi.');
+    $('analysisApproval').textContent = approvalText(a.analysis,'Bạn có thể duyệt gửi khách đã chọn dù AI chưa đánh giá đạt. Cần xác minh người nhận trước khi gửi.');
     $('analysisRows').replaceChildren();
     for (const l of c.leads) {
       const row = element('tr'), chooseCell = element('td'), customer = element('td'), fbName = element('td'), analysis = element('td'), result = element('td');
@@ -219,7 +219,7 @@
       }
       result.append(badge(l.state === 'qualified' && l.blockedReason ? 'AI đạt · Chưa sẵn sàng gửi' : labels[l.state] || l.state,canPick(l)?'good':l.state==='review'?'warn':''));
       if(canPick(l) && l.blockedReason && !a.send)result.append(element('p',l.blockedReason,'muted'));
-      if(modern && c.state === 'analysis_review' && ['review','qualified'].includes(l.state) && l.blockedReason) {
+      if(modern && c.state === 'analysis_review' && ['review','qualified'].includes(l.state) && (l.blockedReason || !v?.eligible)) {
         const skip = element('button','Bỏ qua','secondary');
         skip.setAttribute('aria-label',`Bỏ qua ${v?.name || l.url}`);
         skip.onclick=()=>action('skip-lead',{leadId:l.id});
