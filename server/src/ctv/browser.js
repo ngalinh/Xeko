@@ -136,7 +136,11 @@ async function readPostMedia(page, { cache = new Map(), report = () => {}, check
     }
     const caption = await article.evaluate(e => {
       const bodies = [...e.querySelectorAll('[data-ad-preview="message"], [data-ad-comet-preview="message"]')];
-      return (bodies.length ? bodies.map(b => b.innerText || '').join('\n') : e.innerText || '').trim().slice(0,6000);
+      // Album titles are outside the message block but belong to this post.
+      const albums = [...e.querySelectorAll('a[href*="/media/set"], a[href*="/albums/"], a[href*="set=a."]')]
+        .map(a => (a.innerText || '').trim()).filter(Boolean);
+      return [...new Set([...albums, ...(bodies.length ? bodies.map(b => b.innerText || '') : [e.innerText || ''])])]
+        .join('\n').trim().slice(0,6000);
     }, undefined, { timeout: 1500 });
     const cached = caption && cache.get(caption);
     if (cached) { records.push(cached); continue; }
@@ -363,3 +367,4 @@ function createBrowserAdapter(playwright = require('../playwright/post')) {
   };
 }
 module.exports = { createBrowserAdapter, inspect, send, readProfileSnapshot, collectProfilePosts, readPostMedia, scrollProfileFeed };
+

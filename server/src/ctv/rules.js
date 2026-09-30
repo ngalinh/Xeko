@@ -26,7 +26,9 @@ function recipientId(value) {
 }
 
 function isSalesPost(text) {
-  return typeof text === 'string' && /\b(order|orders|shop|buy|sale|selling|wholesale|retail|in stock)\b|đặt hàng|chốt đơn|nhận đơn|bán|còn hàng|sỉ|lẻ|giá|mua|sale/iu.test(text);
+  if (typeof text !== 'string') return false;
+  const normalized = text.normalize('NFKC').replace(/🅰\uFE0F?/gu, 'a').replace(/[\u200B-\u200D\uFE0F]/gu, '');
+  return /\b(order|orders|shop|buy|sale|selling|wholesale|retail|in stock)\b|đặt hàng|chốt đơn|nhận đơn|bán|còn hàng|sỉ|lẻ|giá|mua|sale/iu.test(normalized);
 }
 
 function classify(snapshot) {
@@ -54,3 +56,4 @@ function renderMessage(template, name) {
 }
 
 module.exports = { validProfileKey, profileUrl, recipientId, isSalesPost, classify, renderMessage };
+
