@@ -71,6 +71,13 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 .scan-log summary { cursor: pointer; color: #2864e8; }
 .scan-log ol { max-height: 240px; overflow: auto; padding-left: 24px; line-height: 1.6; }
 .scan-log li { overflow-wrap: anywhere; margin-bottom: 4px; }
+.history h2 { margin: 0; }
+#campaigns { overscroll-behavior: contain; scrollbar-gutter: stable; }
+#campaigns .campaign-row > button:first-child { border-radius: 10px; }
+@media(max-width:1180px){
+  .workspace > aside .history { grid-column: auto; }
+  .workspace > aside .criteria { grid-column: 1 / -1; }
+}
 #analysisRows .fb-name { min-width: 140px; max-width: 190px; }
 #analysisRows td[data-label="AI đánh giá"] { min-width: 220px; }
 @media(max-width:600px){
