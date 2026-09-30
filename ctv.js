@@ -108,6 +108,72 @@
     } catch { return value; }
   }
   function approvalText(a, fallback) { return a ? `Đã duyệt lúc ${new Date(a.at).toLocaleString('vi-VN')}` : fallback; }
+  function sendCategory(lead) {
+    if (lead.state === 'sent') return 'sent';
+    if (lead.state === 'duplicate') return 'duplicate';
+    if (['unconfirmed','review','failed'].includes(lead.state) || lead.error) return 'attention';
+    return 'pending';
+  }
+  function cleanDiagnostic(value) {
+    return String(value || '').replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '').trim();
+  }
+  function sendIssue(lead) {
+    const raw = cleanDiagnostic(lead.error);
+    if (lead.state === 'unconfirmed') return 'Chưa xác nhận được tin đã gửi. Mở Messenger kiểm tra trước khi thực hiện thêm thao tác.';
+    if (/timeout|locator\.waitFor/i.test(raw)) return 'Không mở được ô soạn tin trong thời gian chờ. Kiểm tra hội thoại và trạng thái đăng nhập Facebook.';
+    if (/checkpoint|đăng nhập|login|challenge/i.test(raw)) return 'Tài khoản cần đăng nhập hoặc xác minh. Hãy xử lý trong Quản lý tài khoản.';
+    if (/hội thoại khác|người nhận|recipient|UID/i.test(raw)) return 'Chưa xác minh được đúng người nhận. Kiểm tra lại hồ sơ và UID trước khi gửi.';
+    if (/closed|đã đóng|disconnected/i.test(raw)) return 'Kết nối trình duyệt đã đóng. Kiểm tra tài khoản Facebook và hội thoại.';
+    return 'Lượt gửi đã dừng ở khách này. Mở Messenger để kiểm tra; thông tin kỹ thuật nằm bên dưới.';
+  }
+  const openSendDetails = new Set();
+  function renderSendRows(c) {
+    const approved = c.approvals?.analysis?.leadIds || [];
+    const leads = c.leads.filter(l => approved.includes(l.id));
+    const query = $('sendSearch').value.trim().toLocaleLowerCase('vi'), filter = $('sendFilter').value;
+    const matches = leads.filter(l => (filter === 'all' || sendCategory(l) === filter)
+      && [l.assessment?.name,l.url,l.assessment?.recipientId].join(' ').toLocaleLowerCase('vi').includes(query));
+    $('sendListCount').textContent = `Hiển thị ${matches.length}/${leads.length} khách`;
+    $('sendRows').replaceChildren(...matches.map(l => {
+      const category = sendCategory(l), row = element('article',undefined,`send-row send-${category}`);
+      const info = element('div',undefined,'send-customer'), name = l.assessment?.name || customerLabel(l.url);
+      const avatar = element('span',name.trim().slice(0,1).toUpperCase(),'send-avatar'); avatar.setAttribute('aria-hidden','true');
+      const heading = element('div',undefined,'send-row-heading'), identity = element('div',undefined,'send-identity');
+      identity.append(link(l.url,name),element('small',l.assessment?.recipientId ? `UID ${l.assessment.recipientId}` : customerLabel(l.url)));
+      heading.append(avatar,identity);
+      const state = l.state === 'unconfirmed' ? 'Chưa xác nhận' : category === 'attention' ? 'Cần kiểm tra' : category === 'duplicate' ? 'Đã liên hệ trước' : l.state === 'sending' ? 'Đang gửi' : category === 'sent' ? 'Đã gửi' : c.cancelled || c.state === 'needs_attention' ? 'Chưa gửi' : 'Chờ gửi';
+      heading.append(badge(state,category === 'attention' ? 'warn' : category === 'sent' ? 'good' : ''));
+      info.append(heading);
+      if (category === 'attention') info.append(element('p',sendIssue(l),'send-explanation'));
+      if (category === 'duplicate') info.append(element('p','Đã có lần liên hệ trước; lượt này không gửi lại.','send-explanation'));
+      const actions = element('div',undefined,'send-row-actions');
+      if (/^\d+$/.test(l.assessment?.recipientId || '')) actions.append(link(`https://www.facebook.com/messages/t/${l.assessment.recipientId}`,'Mở Messenger ↗'));
+      actions.append(link(l.url,'Xem hồ sơ ↗')); info.append(actions);
+      if (l.error) {
+        const details = element('details',undefined,'send-diagnostic');
+        const key = `${c.id}:${l.id}`;
+        details.open = openSendDetails.has(key);
+        details.ontoggle = () => { if (!details.isConnected) return; if(details.open)openSendDetails.add(key);else openSendDetails.delete(key); };
+        details.append(element('summary','Chi tiết kỹ thuật'),element('pre',cleanDiagnostic(l.error)));
+        info.append(details);
+      }
+      row.append(info); return row;
+    }));
+    if (!matches.length) $('sendRows').append(element('p','Không có khách phù hợp với bộ lọc.','send-empty'));
+  }
+  function renderSendSummary(c, leads) {
+    const active = ['send_queued','sending'].includes(c.state), attention = leads.filter(l=>sendCategory(l)==='attention').length;
+    const sent = leads.filter(l=>l.state==='sent').length, pending = leads.filter(l=>sendCategory(l)==='pending').length;
+    const title = active ? c.cancelled ? 'Đang dừng gửi' : 'Đang gửi tin nhắn' : c.state==='needs_attention' || attention ? 'Lượt gửi cần kiểm tra' : c.cancelled || c.state==='cancelled' ? 'Đã dừng theo yêu cầu' : 'Đã kết thúc lượt gửi';
+    $('sendSummary').className = 'send-summary' + (!active && (attention || c.state==='needs_attention') ? ' needs-attention' : !active && sent===leads.length && sent ? ' complete' : '');
+    $('sendSummaryTitle').textContent = title;
+    show('sendCampaignDiagnostic',!!c.error && !leads.some(l=>cleanDiagnostic(l.error)===cleanDiagnostic(c.error)));
+    $('sendCampaignError').textContent = cleanDiagnostic(c.error);
+    $('sendSummaryText').textContent = active ? 'Trạng thái tự cập nhật. Bạn có thể dừng các tin tiếp theo.' : attention ? `${attention} khách cần kiểm tra. ${pending ? `${pending} khách chưa được gửi. ` : ''}Xem hướng dẫn tại từng khách bên dưới.` : c.error ? 'Không thể hoàn tất lượt gửi. Kiểm tra tài khoản Facebook và trạng thái các khách bên dưới.' : `${sent}/${leads.length} tin được xác nhận đã gửi.${pending ? ` Còn ${pending} khách chưa gửi.` : ''}`;
+    stats('sendStats',[['Đã gửi',sent,'good'],[active?'Chờ / đang gửi':'Chưa gửi',pending],['Cần kiểm tra',attention,attention?'warn':''],['Tổng đã duyệt',leads.length]]);
+    $('sendNote').textContent = 'Tin chưa xác nhận không được tự gửi lại. Nội dung đã duyệt được lưu bên dưới.';
+    renderSendRows(c);
+  }
   function updateControls() {
     const c = selected, unlocked = !busy && !uncertain, modern = c?.workflowVersion === 2;
     for (const id of ['campaignName','profile','urls','file']) $(id).disabled = !!c || busy;
@@ -167,7 +233,7 @@
   function render(c, reset = false) {
     if (selected?.id !== c.id || selected?.messagePreview?.token !== c.messagePreview?.token) $('confirmSend').checked = false;
     selected = c;
-    if (reset) { picks = new Set(c.approvals?.analysis?.leadIds || []); $('template').value = c.template || defaultTemplate; $('confirmSend').checked = false; }
+    if (reset) { picks = new Set(c.approvals?.analysis?.leadIds || []); $('template').value = c.template || defaultTemplate; $('confirmSend').checked = false; $('sendSearch').value='';$('sendFilter').value='all';$('sendCampaignDiagnostic').open=false; }
     if (c.state === 'analysis_review') picks = new Set([...picks].filter(id => c.leads.some(l => l.id === id && canPick(l))));
     else picks = new Set(c.approvals?.analysis?.leadIds || []);
     campaigns = [...campaigns.filter(x => x.id !== c.id), c]; renderHistory();
@@ -244,16 +310,21 @@
     const hasMessages=!!a.analysis;
     show('messageEmpty',!hasMessages);show('messageResult',hasMessages);
     $('status3').textContent=a.send?(labels[c.state] || c.state):hasMessages?'Chờ duyệt gửi':'Đang khóa';
-    $('status3').className='badge '+(c.state==='completed'?'good':hasMessages?'blue':'');
+    $('status3').className='badge '+(c.state==='needs_attention'?'warn':c.state==='completed'?'good':hasMessages?'blue':'');
     $('recipientSummary').textContent=`${a.analysis?.leadIds.length || 0} khách đã duyệt · Gửi từ ${accountName(c.profile)}`;
     show('reviewSelection',c.state==='message_review');show('prepareMessages',c.state==='message_review');
-    $('messagePreviews').replaceChildren(...(c.messagePreview?.messages || []).map(m=>{const d=element('article',undefined,'message-card');d.append(element('h3',customerLabel(m.url)),link(m.url),element('p',m.message));return d;}));
+    show('messageComposer',!a.send);
+    $('messageStageHint').textContent = a.send ? 'Theo dõi trạng thái và kiểm tra kết quả từng khách.' : 'Xem từng tin nhắn trước khi duyệt gửi.';
+    show('messageArchive',!!c.messagePreview?.messages.length);
+    const archiveMode = a.send ? 'sent' : 'preview';
+    if (reset || $('messageArchive').dataset.mode !== archiveMode) $('messageArchive').open = !a.send;
+    $('messageArchive').dataset.mode = archiveMode;
+    $('messageArchiveTitle').textContent = `${a.send?'Nội dung đã duyệt':'Xem trước tin nhắn'} (${c.messagePreview?.messages.length || 0})`;
+    $('messagePreviews').replaceChildren(...(c.messagePreview?.messages || []).map(m=>{const d=element('article',undefined,'message-card');d.append(element('h3',m.name || customerLabel(m.url)),link(m.url,customerLabel(m.url)),element('p',m.message));return d;}));
     show('sendApproval',c.state==='message_review' && !!c.messagePreview);
     show('sendResult',!!a.send);show('stopSending',['send_queued','sending'].includes(c.state));
     const sentLeads=c.leads.filter(l=>a.analysis?.leadIds.includes(l.id));
-    stats('sendStats',[['Đã gửi',sentLeads.filter(l=>l.state==='sent').length,'good'],['Chưa xác nhận',sentLeads.filter(l=>l.state==='unconfirmed').length,'warn'],['Tổng đã duyệt',sentLeads.length]]);
-    $('sendRows').replaceChildren(...sentLeads.map(l=>{const row=element('div',undefined,'send-row'),info=element('div');info.append(link(l.url,customerLabel(l.url)));if(l.error)info.append(element('p',l.error,'muted'));row.append(info,badge(l.state==='qualified'?'Chờ gửi':labels[l.state] || l.state,l.state==='sent'?'good':l.state==='unconfirmed'?'warn':''));return row;}));
-    $('sendNote').textContent=c.error || (c.cancelled?'Đã yêu cầu dừng; tin đã gửi không thể thu hồi tại đây.':'Chỉ ghi đã gửi khi Messenger xác nhận. Tin chưa rõ trạng thái không được tự gửi lại.');
+    if (a.send) renderSendSummary(c,sentLeads);
     for(let n=1;n<=3;n++){$(`nav${n}`).className='step-link';$(`nav${n}`).removeAttribute('aria-current');}
     const step=a.analysis?3:a.import?2:1;$(`nav${step}`).classList.add('active');$(`nav${step}`).setAttribute('aria-current','step');
     for(let n=1;n<step;n++)$(`nav${n}`).classList.add('done');
@@ -319,6 +390,7 @@
   $('sendButton').onclick=()=>{if(!$('sendButton').disabled)action('send',{previewToken:selected.messagePreview.token});};
   $('stopAnalysis').onclick=$('stopSending').onclick=()=>action('stop');
   $('refresh').onclick=()=>sync();
+  $('sendSearch').oninput=$('sendFilter').onchange=()=>{if(selected)renderSendRows(selected);};
   $('newCampaign').onclick=()=>{if(busy)return;epoch++;clearTimeout(timer);selected=null;uncertain=false;picks.clear();notice();viewStep(1);
     show('importForm',true);show('importResult',false);show('analysisEmpty',true);show('analysisResult',false);show('retryAnalysis',false);show('resolveUids',false);show('messageEmpty',true);show('messageResult',false);
     $('campaignName').value='';$('urls').value='';$('file').value='';$('fileName').textContent='Hoặc dán dữ liệu vào ô phía trên';$('urls').oninput();$('template').value=defaultTemplate;$('confirmSend').checked=false;
