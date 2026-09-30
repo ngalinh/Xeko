@@ -96,6 +96,7 @@ class CtvService {
     this.save(); return c;
   }
   async analyze(c) {
+    try {
     c.state = 'analyzing'; this.save();
     for (const lead of c.leads) {
       if (c.cancelled) break;
@@ -119,6 +120,15 @@ class CtvService {
     }
     // Always stop at review. Analysis cannot call the message adapter.
     c.state = 'analysis_review'; this.save();
+    } finally {
+      // Close only this campaign's profile context, including early return,
+      // cancellation and AI/navigation failures. Never close all accounts.
+      try { await this.browser.closeInspection?.(c.profile); }
+      catch (error) {
+        c.error = [c.error, `Không đóng được browser sau khi quét: ${error.message}`].filter(Boolean).join('; ');
+        this.save();
+      }
+    }
   }
   skipLead(id, owner, leadId) {
     const c = this.staged(id, owner);
@@ -205,3 +215,4 @@ class CtvService {
   }
 }
 module.exports = { CtvService, ACTIVE };
+
