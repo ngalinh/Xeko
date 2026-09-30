@@ -1,6 +1,46 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { evaluateProfile } = require('./src/ctv/ai');
+const { isSalesPost } = require('./src/ctv/rules');
+
+test('emoji sale is recognized without treating a brand alone as a sales post', () => {
+  assert.equal(isSalesPost('Short C.K mẫu hiếm mới s🅰️le cạn đáy ạ'), true);
+  assert.equal(isSalesPost('QUẦN ÁO TOMMY, CK authentic 100%'), false);
+});
+
+test('CK aliases and analysis survive insufficient sales data', async t => {
+  const posts = ['QUẦN ÁO TOMMY, CK authentic 100%\nShort C.K mẫu hiếm mới s🅰️le cạn đáy ạ'];
+  const m = mock(t, [candidate(JSON.stringify({...good, brands: ['Calvin Klein', 'InventedBrand'], evidence: [posts[0]]}))]);
+  const result = await evaluateProfile({...snapshot, posts}, m.fetch);
+  assert.deepEqual(result.brands, ['Calvin Klein']);
+  assert.equal(result.salesPostCount, 1);
+  assert.equal(result.eligible, false);
+  assert.equal(result.captionAnalysis, good.captionAnalysis);
+});
+
+test('grounded semantic sales count overrides keyword gate', async t => {
+  const posts = ['Short C.K mẫu hiếm cạn đáy ạ', 'Quần Tommy đủ size tại Amazon.com', 'Áo Calvin Klein về thêm đủ màu'];
+  const postAssessments = posts.map((quote, postIndex) => ({postIndex, quote, isSalesPost: true}));
+  const m = mock(t, [candidate(JSON.stringify({...good, evidence: [posts[1]], postAssessments}))]);
+  const result = await evaluateProfile({...snapshot, posts}, m.fetch);
+  assert.equal(result.salesPostCount, 3);
+  assert.equal(result.eligible, true);
+});
+
+test('fabricated quotes and repeated post indexes cannot inflate sales count', async t => {
+  const posts = ['Short C.K mẫu hiếm cạn đáy ạ'];
+  const postAssessments = [0, 1, 2].map(postIndex => ({postIndex, quote: 'fabricated caption', isSalesPost: true}));
+  const m = mock(t, [candidate(JSON.stringify({...good, evidence: posts, postAssessments}))]);
+  const result = await evaluateProfile({...snapshot, posts}, m.fetch);
+  assert.equal(result.salesPostCount, 0);
+  assert.equal(result.eligible, false);
+});
+
+test('grounded negative per-post assessment overrides incidental sales keywords', async t => {
+  const postAssessments = snapshot.posts.map((quote, postIndex) => ({postIndex, quote, isSalesPost: false}));
+  const m = mock(t, [candidate(JSON.stringify({...good, postAssessments}))]);
+  assert.equal((await evaluateProfile(snapshot, m.fetch)).salesPostCount, 0);
+});
 const snapshot = { personalEvidence: true, bio: '', posts: [
   'Nhận order máy pha cà phê từ Amazon.com.',
   'Bán giày từ website Mỹ nike.com, nhận đặt hàng.',
@@ -136,3 +176,4 @@ test('ungrounded negative result is unknown even with enough posts', async t => 
   assert.equal(result.sellerUS, 'unknown');
   assert.equal(result.eligible, false);
  });
+

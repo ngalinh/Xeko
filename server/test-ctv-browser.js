@@ -3,6 +3,28 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const { inspect, readProfileSnapshot, collectProfilePosts, readPostMedia } = require('./src/ctv/browser');
 
+test('album title is retained alongside message caption without unrelated article text', async () => {
+  const mock = mediaPage(() => ['placeholder']);
+  const locate = mock.page.locator;
+  mock.page.locator = selector => {
+    const result = locate(selector);
+    const nth = result.nth;
+    result.nth = i => {
+      const article = nth(i);
+      article.evaluate = async fn => fn.toString().includes('getBoundingClientRect') ? true : fn({
+        innerText: 'Unrelated comments and controls',
+        querySelectorAll: selector => selector.includes('data-ad-preview')
+          ? [{innerText: 'Short C.K mẫu hiếm mới s🅰️le'}]
+          : [{innerText: 'QUẦN ÁO TOMMY, CK authentic 100%'}],
+      });
+      return article;
+    };
+    return result;
+  };
+  const records = await readPostMedia(mock.page);
+  assert.equal(records[0].caption, 'QUẦN ÁO TOMMY, CK authentic 100%\nShort C.K mẫu hiếm mới s🅰️le');
+});
+
 function snapshot({level = 1, hidden = false, friend = true, text = '', article = false, feed = false, header = false, name = 'Linh Thảo'} = {}) {
   const element = (innerText, extra = {}) => ({innerText, getClientRects: () => [1], getAttribute: () => null, ...extra});
   const heading = element(name, {
@@ -392,3 +414,4 @@ test('header timeout does not scan a feed redirected to another profile', async 
   await assert.rejects(inspect(mock.page, 'https://facebook.com/123'), /hồ sơ khác/);
   assert.equal(mock.scrolls(), 0);
 });
+
