@@ -350,10 +350,13 @@ async function send(page, lead, message, beforeSubmit, cancelled) {
 
 function createBrowserAdapter(playwright = require('../playwright/post')) {
   const inspectionPages = new Map();
+  const inspectionContexts = new Map();
   return {
     async withPage(profile, callback, { keepOpen = false } = {}) {
       if (!validProfileKey(profile) || !playwright.profileExists(profile)) throw new Error('Tài khoản Facebook không tồn tại');
       const browser = await playwright.getBrowser(profile);
+      // Retain the context even if newPage fails, so batch cleanup can close it.
+      if (keepOpen) inspectionContexts.set(profile, browser);
       let page = keepOpen ? inspectionPages.get(profile) : null;
       if (!page || page.isClosed() || page.context() !== browser) {
         page = await browser.newPage();
@@ -362,6 +365,13 @@ function createBrowserAdapter(playwright = require('../playwright/post')) {
       try { return await callback(page); } finally {
         if (!keepOpen) await page.close().catch(() => {});
       }
+    },
+    async closeInspection(profile) {
+      const context = inspectionContexts.get(profile);
+      if (!context) return;
+      await context.close();
+      inspectionContexts.delete(profile);
+      inspectionPages.delete(profile);
     },
     inspect, send,
   };

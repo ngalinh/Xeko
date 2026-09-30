@@ -2,6 +2,25 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const { inspect, readProfileSnapshot, collectProfilePosts, readPostMedia } = require('./src/ctv/browser');
+test('cleanup closes the inspected context only, including newPage failure', async () => {
+  const {createBrowserAdapter}=require('./src/ctv/browser');
+  const closed=[], contexts=new Map();
+  for(const key of ['first','other','broken']) {
+    const context={close:async()=>closed.push(key),newPage:async()=>{
+      if(key==='broken') throw Error('newPage failed');
+      return {isClosed:()=>false,context:()=>context};
+    }};
+    contexts.set(key,context);
+  }
+  const adapter=createBrowserAdapter({profileExists:()=>true,getBrowser:async key=>contexts.get(key)});
+  const page=await adapter.withPage('first',async p=>p,{keepOpen:true});
+  await adapter.withPage('other',async p=>p,{keepOpen:true});
+  await adapter.closeInspection('first'); await adapter.closeInspection('first');
+  assert.deepEqual(closed,['first']);
+  assert.notEqual(await adapter.withPage('first',async p=>p,{keepOpen:true}),page);
+  await assert.rejects(adapter.withPage('broken',async()=>{}, {keepOpen:true}),/newPage failed/);
+  await adapter.closeInspection('broken'); assert.deepEqual(closed,['first','broken']);
+});
 
 test('album title is retained alongside message caption without unrelated article text', async () => {
   const mock = mediaPage(() => ['placeholder']);

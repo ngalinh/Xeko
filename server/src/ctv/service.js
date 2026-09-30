@@ -97,28 +97,44 @@ class CtvService {
   }
   async analyze(c) {
     c.state = 'analyzing'; this.save();
-    for (const lead of c.leads) {
-      if (c.cancelled) break;
-      if (lead.state === 'skipped') continue;
-      lead.state = 'checking'; lead.scanLog = [];
-      const started = Date.now();
-      const onProgress = event => {
-        lead.scanLog.push({ ...event, at: new Date().toISOString(), elapsedMs: Date.now() - started });
-        lead.scanLog = lead.scanLog.slice(-100);
-        this.save();
-      };
-      onProgress({ stage: 'browser', message: 'Đang mở tab kiểm tra của tài khoản Facebook' });
-      try {
-        lead.assessment = await this.browser.withPage(c.profile, page => this.browser.inspect(page, lead.url, { onProgress, cancelled: () => c.cancelled }), { keepOpen: true });
-        lead.state = lead.assessment.eligible ? 'qualified' : 'review'; this.save();
-      } catch (e) {
-        onProgress({ stage: c.cancelled ? 'cancelled' : 'error', message: e.message });
-        lead.state = 'review'; lead.error = e.message; c.state = 'analysis_review'; c.error = e.message; this.save(); return;
+    let lastProgress;
+    try {
+      for (const lead of c.leads) {
+        if (c.cancelled) break;
+        if (lead.state === 'skipped') continue;
+        lead.state = 'checking'; lead.scanLog = [];
+        const started = Date.now();
+        const onProgress = event => {
+          lead.scanLog.push({ ...event, at: new Date().toISOString(), elapsedMs: Date.now() - started });
+          lead.scanLog = lead.scanLog.slice(-100);
+          this.save();
+        };
+        lastProgress = onProgress;
+        onProgress({ stage: 'browser', message: 'Đang mở tab kiểm tra của tài khoản Facebook' });
+        try {
+          lead.assessment = await this.browser.withPage(c.profile, page => this.browser.inspect(page, lead.url, { onProgress, cancelled: () => c.cancelled }), { keepOpen: true });
+          lead.state = lead.assessment.eligible ? 'qualified' : 'review'; this.save();
+        } catch (e) {
+          onProgress({ stage: c.cancelled ? 'cancelled' : 'error', message: e.message });
+          lead.state = 'review'; lead.error = e.message; c.error = e.message; this.save(); break;
+        }
+        if (lead !== c.leads[c.leads.length - 1]) await this.wait(c, 2);
       }
-      if (lead !== c.leads[c.leads.length - 1]) await this.wait(c, 2);
+    } finally {
+      // Keep the campaign active and the account queue held until close finishes.
+      try {
+        lastProgress?.({ stage: 'browser_closing', message: 'Đã kết thúc quét danh sách; đang đóng browser của tài khoản' });
+        await this.browser.closeInspection(c.profile);
+        lastProgress?.({ stage: 'browser_closed', message: 'Đã đóng browser của tài khoản quét' });
+        c.state = 'analysis_review';
+      } catch (error) {
+        const message = `Không đóng được browser: ${error.message}`;
+        c.error = [c.error, message].filter(Boolean).join(' · ');
+        c.state = 'needs_attention';
+        lastProgress?.({ stage: 'browser_close_error', message });
+      }
+      this.save();
     }
-    // Always stop at review. Analysis cannot call the message adapter.
-    c.state = 'analysis_review'; this.save();
   }
   skipLead(id, owner, leadId) {
     const c = this.staged(id, owner);
