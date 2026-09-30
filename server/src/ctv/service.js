@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { validProfileKey, profileUrl, renderMessage } = require('./rules');
-const ACTIVE = ['analysis_queued', 'analyzing', 'send_queued', 'sending'];
+const ACTIVE = ['analysis_queued', 'analyzing', 'uid_queued', 'resolving_uid', 'send_queued', 'sending'];
 const fail = message => { const e = new Error(message); e.status = 409; throw e; };
 
 class CtvService {
@@ -11,6 +11,7 @@ class CtvService {
     this.data = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { campaigns: [], reservations: {} };
     for (const c of this.data.campaigns) if (ACTIVE.includes(c.state) || ['running', 'queued'].includes(c.state)) {
       c.state = 'interrupted'; c.error = 'Tiến trình bị gián đoạn. Không tự tiếp tục hoặc gửi lại.';
+      for (const l of c.leads) if (['checking', 'queued'].includes(l.uidLookup?.state)) l.uidLookup = { state: 'unresolved', reason: c.error };
       for (const l of c.leads) if (['checking', 'sending'].includes(l.state)) { l.state = l.state === 'sending' ? 'unconfirmed' : 'review'; l.error = c.error; }
     }
     this.save();
@@ -42,7 +43,7 @@ class CtvService {
     const reason = this.selectionBlocked(lead);
     if (reason) return reason;
     // AI qualification is advisory; the operator approves recipients explicitly.
-    if (!/^\d+$/.test(lead.assessment.recipientId || '')) return 'Chưa xác minh được ID người nhận. Có thể chọn và soạn tin, nhưng cần Thử lại AI để xác minh trước khi gửi.';
+    if (!/^\d+$/.test(lead.assessment.recipientId || '')) return 'Chưa xác minh được ID người nhận. Hãy bấm Tìm UID ở bước 2 trước khi gửi.';
     return '';
   }
   view(c) { return { ...c, leads: c.leads.map(l => ({ ...l, selectionBlockedReason: this.selectionBlocked(l), blockedReason: this.reasonBlocked(l) })) }; }
@@ -83,7 +84,7 @@ class CtvService {
     c.cancelled = false;
     for (const lead of c.leads) {
       if (lead.state === 'skipped') continue;
-      delete lead.assessment; delete lead.error; delete lead.message; delete lead.scanLog;
+      delete lead.assessment; delete lead.error; delete lead.message; delete lead.scanLog; delete lead.uidLookup;
       lead.state = 'pending';
     }
     c.state = 'analysis_queued'; this.save(); this.enqueue(c, () => this.analyze(c)); return c;
@@ -94,6 +95,45 @@ class CtvService {
     this.data.campaigns = this.data.campaigns.filter(item => item.id !== c.id);
     // Keep recipient reservations even after removing campaign history.
     this.save(); return c;
+  }
+  resolveUids(id, owner, leadId) {
+    const c = this.staged(id, owner);
+    if (!c.approvals.import || c.approvals.send || !['analysis_review', 'message_review'].includes(c.state)) fail('Chỉ tìm UID sau khi đánh giá xong và chưa duyệt gửi');
+    if (leadId !== undefined && (typeof leadId !== 'string' || !leadId)) fail('Mã hồ sơ không hợp lệ');
+    const leads = c.leads.filter(l => l.state !== 'skipped' && l.assessment && (leadId ? l.id === leadId : !l.assessment.recipientId));
+    if (!leads.length) fail('Không có hồ sơ cần tìm UID');
+    // Changing recipient identity invalidates both selection and message approval.
+    delete c.approvals.analysis; delete c.messagePreview; delete c.error;
+    c.cancelled = false; c.state = 'uid_queued';
+    for (const l of leads) { l.uidLookup = { state: 'queued' }; l.assessment.recipientId = null; }
+    this.save();
+    this.enqueue(c, () => this.lookupUids(c, leads));
+    return c;
+  }
+  async lookupUids(c, leads) {
+    c.state = 'resolving_uid'; this.save();
+    try {
+      for (const lead of leads) {
+        if (c.cancelled) break;
+        lead.uidLookup = { state: 'checking' }; this.save();
+        try {
+          const identity = await this.browser.withPage(c.profile, page => this.browser.resolveUid(page, lead.url, { cancelled: () => c.cancelled }), { keepOpen: true });
+          if (c.cancelled) break;
+          Object.assign(lead.assessment, identity);
+          lead.uidLookup = { state: identity.recipientId ? 'resolved' : 'unresolved', reason: identity.uidReason };
+        } catch (e) {
+          lead.uidLookup = { state: 'unresolved', reason: e.message };
+          c.error = e.message;
+          break;
+        } finally { this.save(); }
+        if (lead !== leads.at(-1)) await this.wait(c, 2);
+      }
+    } finally {
+      for (const lead of leads) if (['queued', 'checking'].includes(lead.uidLookup?.state)) lead.uidLookup = { state: 'unresolved', reason: 'Chưa hoàn tất tìm UID; hãy thử lại' };
+      try { await this.browser.closeInspection(c.profile); c.state = 'analysis_review'; }
+      catch (e) { c.error = e.message; c.state = 'needs_attention'; }
+      this.save();
+    }
   }
   async analyze(c) {
     c.state = 'analyzing'; this.save();

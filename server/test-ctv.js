@@ -16,6 +16,67 @@ function setup(t, overrides = {}) {
   return {s,sent,inspected,browser,dir};
 }
 const settle = s => Promise.all([...s.running]);
+
+test('UID lookup preserves AI, invalidates approvals and runs in account queue without sending', async t => {
+  const {s,browser,sent,inspected}=setup(t);
+  const c=await analyzed(s); const oldToken=prepared(s,c);
+  const lead=c.leads[0], previous={...lead.assessment};
+  let queuedProfile, calls=0;
+  s.queue=async(fn,profile)=>{queuedProfile=profile;return fn();};
+  browser.resolveUid=async()=>{calls++;return {recipientId:'999',uidStatus:'resolved'};};
+  s.resolveUids(c.id,'owner',lead.id);
+  assert.equal(c.state,'uid_queued');assert.equal(c.messagePreview,undefined);assert.equal(c.approvals.analysis,undefined);
+  assert.throws(()=>s.sendApproved(c.id,'owner',oldToken));
+  assert.throws(()=>s.resolveUids(c.id,'owner',lead.id));
+  assert.throws(()=>s.deleteCampaign(c.id,'owner'));
+  await settle(s);
+  assert.equal(queuedProfile,'test');assert.equal(calls,1);assert.equal(sent.length,0);assert.equal(inspected.length,2);
+  assert.equal(c.state,'analysis_review');assert.equal(lead.assessment.recipientId,'999');
+  assert.equal(lead.assessment.name,previous.name);assert.equal(lead.assessment.eligible,previous.eligible);
+  prepared(s,c);assert.equal(c.messagePreview.messages[0].recipientId,'999');
+});
+test('missing UID batch skips resolved and skipped profiles and supports stop before opening browser', async t => {
+  const {s,browser}=setup(t);const c=await analyzed(s);
+  c.leads[0].assessment.recipientId=null;
+  let calls=0, closed=0;
+  browser.resolveUid=async()=>{calls++;return {recipientId:'111',uidStatus:'resolved'};};
+  browser.closeInspection=async()=>{closed++;};
+  s.resolveUids(c.id,'owner');s.stop(c.id,'owner');await settle(s);
+  assert.equal(calls,0);assert.equal(closed,1);assert.equal(c.leads[0].uidLookup.state,'unresolved');
+  s.resolveUids(c.id,'owner');await settle(s);assert.equal(calls,1);
+  c.leads[0].state='skipped';c.leads[0].assessment.recipientId=null;
+  assert.throws(()=>s.resolveUids(c.id,'owner'));
+});
+test('failed UID refresh clears stale recipient and closes browser; lookup is owner and stage scoped', async t => {
+  const {s,browser}=setup(t);const c=await analyzed(s);let closed=0;
+  browser.resolveUid=async()=>{throw Error('checkpoint');};browser.closeInspection=async()=>{closed++;};
+  assert.throws(()=>s.resolveUids(c.id,'other',c.leads[0].id));
+  assert.throws(()=>s.resolveUids(c.id,'owner','unknown'));
+  assert.throws(()=>s.resolveUids(c.id,'owner',{}));
+  s.resolveUids(c.id,'owner',c.leads[0].id);await settle(s);
+  assert.equal(closed,1);assert.equal(c.leads[0].assessment.recipientId,null);
+  assert.match(c.leads[0].uidLookup.reason,/checkpoint/);
+  assert.match(s.reasonBlocked(c.leads[0]),/Tìm UID/);
+  c.approvals.send={token:'old'};assert.throws(()=>s.resolveUids(c.id,'owner',c.leads[0].id));
+});
+test('UID lookup restart cannot resume or retain in-progress status', async t => {
+  const {s,browser}=setup(t);const c=await analyzed(s);
+  c.state='resolving_uid';c.leads[0].uidLookup={state:'checking'};c.leads[0].assessment.recipientId=null;s.save();
+  const restored=new CtvService({file:s.file,browser}).get(c.id,'owner');
+  assert.equal(restored.state,'interrupted');assert.equal(restored.leads[0].uidLookup.state,'unresolved');
+});
+test('resolve-uids API returns accepted and enforces permissions for cloud forwarding', async t => {
+  const {s,browser}=setup(t);const c=await analyzed(s);
+  browser.resolveUid=async()=>({recipientId:'999',uidStatus:'resolved'});
+  let handler;mountCtv({all:(_,h)=>{handler=h;}},{service:s});
+  const req={path:`/api/ctv/campaigns/${c.id}/resolve-uids`,method:'POST',body:{leadId:c.leads[0].id},headers:{'x-ctv-owner':'owner'}};
+  const res=response();await handler(req,res);assert.equal(res.code,202);await settle(s);
+  let forwarded=0;
+  mountCtv({all:(_,h)=>{handler=h;}},{remote:true,getLocalUrl:()=> 'http://local',permissions:{getAllowedProfileKeys:()=>['other']},
+    fetchFn:async()=>{forwarded++;return {ok:true,json:async()=>({profile:'test'})};}});
+  const forbidden=response();await handler({...req,user:{email:'owner'},body:{profile:'other'}},forbidden);
+  assert.equal(forbidden.code,403);assert.equal(forwarded,1);
+});
 test('analysis closes once after all links and closes again on retry', async t => {
   const events = [];
   const {s} = setup(t, {
