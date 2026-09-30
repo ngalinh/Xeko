@@ -80,6 +80,32 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 }
 #analysisRows .fb-name { min-width: 140px; max-width: 190px; }
 #analysisRows td[data-label="AI đánh giá"] { min-width: 220px; }
+/* Step 3: editing before approval, results first after dispatch. */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+#step3 .recipient-info{background:transparent;border:1px solid var(--line);padding:10px 16px;margin-bottom:20px}
+.message-composer{padding:20px;background:#fff;border:1px solid var(--line);border-radius:12px}
+.composer-heading,.composer-footer{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.composer-heading{margin-bottom:20px}.composer-heading h3{margin:0}.composer-heading .muted{font-size:11px}
+.composer-footer{border-top:1px solid var(--line);padding-top:14px}.composer-footer .hint{flex:1;min-width:160px;margin:0}
+#step3 #template{min-height:150px;background:#f9fbff}.template-meta{margin-bottom:18px}
+.message-archive{margin-top:22px;border:1px solid var(--line);border-radius:12px;padding:4px 16px;background:#fff}
+.message-archive>summary{font-weight:600;padding:14px 0;color:#344762}.message-archive .message-previews{margin:0 0 12px;max-height:500px;overflow:auto}
+.message-archive .message-card{background:#f8faff}.message-archive .message-card p{margin-bottom:0}
+#step3 #sendResult{margin-top:0}.send-summary{display:flex;align-items:center;justify-content:space-between;gap:16px;background:#eff6ff;border:1px solid #dbeafe;border-left:4px solid #3b82f6;border-radius:12px;padding:18px 20px}
+.send-summary h3{margin:0 0 5px;font-size:16px}.send-summary p{font-size:12px;line-height:1.7;margin:0;color:var(--muted)}
+.send-summary.needs-attention{background:#fff9ed;border-color:#f6e4be;border-left-color:#d49a30}.send-summary.needs-attention h3{color:#805813}
+.send-summary.complete{background:#edf9f2;border-color:#cee9d8;border-left-color:#2e9560}
+#sendStats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0 26px}#sendStats .stat{min-width:0;padding:14px 16px}#sendStats .stat strong{font-size:24px}
+.send-list-heading{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}.send-list-heading h3{margin:0;font-size:14px}
+.send-filters{display:flex;gap:8px;flex:1;justify-content:flex-end;min-width:0}#sendSearch{max-width:245px;min-width:0}#sendFilter{width:auto;max-width:100%}#sendSearch,#sendFilter{font-size:12px;padding:10px 12px}
+#sendListCount{font-size:11px;margin:10px 0}.send-rows{gap:12px}.send-row{padding:18px;background:#fff;border:1px solid #e5ebf4;border-radius:12px;display:block}.send-row.send-attention{border-color:#eadcc0}
+.send-customer,.send-identity{min-width:0}.send-row-heading{display:flex;align-items:center;gap:12px}.send-avatar{display:grid;place-items:center;flex-shrink:0;width:38px;height:38px;border-radius:12px;background:#edf3ff;color:#416aaa;font-weight:700}
+.send-identity{flex:1}.send-identity>a{font-size:13px;font-weight:700;text-decoration:none;overflow-wrap:anywhere}.send-identity small{display:block;font-size:10px;color:var(--muted);margin-top:4px;overflow-wrap:anywhere}
+.send-row .send-explanation{margin:14px 0 10px;line-height:1.8;color:#66738a;font-size:12px}
+.send-row-actions{display:flex;flex-wrap:wrap;gap:18px;margin-top:14px}.send-row-actions a{font-size:11px;font-weight:600;text-decoration:none}.send-row-actions a:hover{text-decoration:underline}
+.send-diagnostic{margin-top:14px;padding-top:6px;border-top:1px dashed #e2e8f0}.send-diagnostic summary{font-size:11px;color:#758399}.send-diagnostic pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;font-size:11px;line-height:1.7;padding:12px;background:#f5f7fb;border-radius:8px;color:#53657b;margin:4px 0 0}
+.send-empty{text-align:center;padding:28px;border:1px dashed #dce4ef;border-radius:12px;color:var(--muted);font-size:13px}#sendNote{margin-top:14px;font-size:11px}
+@media(max-width:600px){#sendStats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#sendStats .stat{padding:12px}.send-summary{padding:15px;align-items:flex-start;flex-direction:column}.send-summary h3{font-size:15px}.send-list-heading{align-items:stretch;flex-direction:column}.send-filters{flex-direction:column}#sendSearch{max-width:none}#sendFilter{width:100%}.send-row{padding:14px}.send-row-heading{gap:8px;flex-wrap:wrap}.send-row-heading .badge{margin-left:auto}.send-avatar{width:32px;height:32px}.send-identity{min-width:100px}.message-composer{padding:15px}.composer-footer{align-items:stretch;flex-direction:column}.composer-footer button{width:100%}.message-archive{padding:4px 12px}}
 @media(max-width:600px){
   #analysisRows .fb-name, #analysisRows td[data-label="AI đánh giá"] { min-width: 0; max-width: none; }
 }
