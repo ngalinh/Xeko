@@ -3,26 +3,30 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const { inspect, readProfileSnapshot, collectProfilePosts, readPostMedia } = require('./src/ctv/browser');
 
-test('album title is retained alongside message caption without unrelated article text', async () => {
+test('caption extraction excludes nested articles and never falls back to article text', async () => {
   const mock = mediaPage(() => ['placeholder']);
+  let ownCaption = true, standalone = false;
+  const root = {innerText:'Xin giá và Bài viết đã ghim', matches: () => standalone};
+  const comment = {parentElement:root, matches: () => true};
+  const node = (innerText, parentElement=root) => ({innerText,parentElement,matches:()=>false});
+  root.querySelectorAll = selector => selector.includes('data-ad-preview')
+    ? [...(ownCaption ? [node('Short C.K s🅰️le')] : []), node('Xin giá',comment)]
+    : ownCaption ? [node('Album TOMMY CK'), node('Lacoste',comment)] : [];
   const locate = mock.page.locator;
   mock.page.locator = selector => {
-    const result = locate(selector);
-    const nth = result.nth;
+    const result = locate(selector), nth = result.nth;
     result.nth = i => {
       const article = nth(i);
-      article.evaluate = async fn => fn.toString().includes('getBoundingClientRect') ? true : fn({
-        innerText: 'Unrelated comments and controls',
-        querySelectorAll: selector => selector.includes('data-ad-preview')
-          ? [{innerText: 'Short C.K mẫu hiếm mới s🅰️le'}]
-          : [{innerText: 'QUẦN ÁO TOMMY, CK authentic 100%'}],
-      });
+      article.evaluate = async fn => fn.toString().includes('getBoundingClientRect') ? true : fn(root);
       return article;
     };
     return result;
   };
-  const records = await readPostMedia(mock.page);
-  assert.equal(records[0].caption, 'QUẦN ÁO TOMMY, CK authentic 100%\nShort C.K mẫu hiếm mới s🅰️le');
+  assert.equal((await readPostMedia(mock.page))[0].caption, 'Album TOMMY CK\nShort C.K s🅰️le');
+  ownCaption=false;
+  assert.deepEqual(await readPostMedia(mock.page), []);
+  standalone=true; root.innerText='Bán áo CK';
+  assert.equal((await readPostMedia(mock.page))[0].caption, 'Bán áo CK');
 });
 
 function snapshot({level = 1, hidden = false, friend = true, text = '', article = false, feed = false, header = false, name = 'Linh Thảo'} = {}) {
