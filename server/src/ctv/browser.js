@@ -112,9 +112,14 @@ async function readPostMedia(page, { cache = new Map(), report = () => {}, check
   // Prefer complete post containers; fall back to caption blocks only when
   // Facebook omits article semantics. Never treat the whole feed as one post.
   const roots = ':is([role="main"], main, #content, #m_basic)';
+  const post = ':is([role="article"], article)';
+  const comments = ':is([data-commentid], [data-testid*="comment"], [aria-label^="Comment by"], [aria-label^="Bình luận của"])';
   const containers = ':is([role="article"], article, [data-pagelet^="FeedUnit"], [role="feed"] > div)';
   const captions = ':is([data-ad-preview="message"], [data-ad-comet-preview="message"])';
-  const articles = page.locator(`${roots} ${containers}:not(:has(${containers})):visible, ${roots} ${captions}:not(${containers} ${captions}):visible`);
+  // Facebook also marks comments as articles. Select the outer post, never
+  // its innermost article, and use structural fallbacks only without articles.
+  const candidatesSelector = `${post}:not(${post} ${post}), [data-pagelet^="FeedUnit"]:not(:has(${post})):not(${post} *), [role="feed"] > div:not(:has(${post}, [data-pagelet^="FeedUnit"])):not([data-pagelet^="FeedUnit"]), ${captions}:not(${containers} ${captions})`;
+  const articles = page.locator(`${roots} :is(${candidatesSelector}):not(${comments}):not(${comments} *):visible`);
   const records = [];
   for (let i = 0, count = await articles.count(), scanned = 0; i < count && scanned < 10; i++) {
     check();
@@ -130,23 +135,39 @@ async function readPostMedia(page, { cache = new Map(), report = () => {}, check
     if (!inViewport) continue;
     scanned++;
     const more = article.getByRole('button', { name: /^(Xem thêm|See more)$/i });
-    for (let j = 0, n = Math.min(await more.count(), 3); j < n; j++) {
+    for (let j = Math.min(await more.count(), 3) - 1; j >= 0; j--) {
       // DOM click avoids Playwright scrolling back up to an old off-screen post.
-      try { await more.nth(0).evaluate(button => button.click(), undefined, { timeout: 1000 }); } catch {}
+      try { await more.nth(j).evaluate(button => {
+        const message = button.closest('[data-ad-preview="message"], [data-ad-comet-preview="message"]');
+        if (!message || button.closest('[data-commentid], [data-testid*="comment"], [aria-label^="Comment by"], [aria-label^="Bình luận của"]')) return;
+        const owner = button.closest('[role="article"], article');
+        if (owner?.parentElement.closest('[role="article"], article')) return;
+        button.click();
+      }, undefined, { timeout: 1000 }); } catch {}
     }
     const caption = await article.evaluate(e => {
-      const bodies = [...e.querySelectorAll('[data-ad-preview="message"], [data-ad-comet-preview="message"]')];
+      const message = '[data-ad-preview="message"], [data-ad-comet-preview="message"]';
+      const excluded = '[role="article"], article, [data-commentid], [data-testid*="comment"], [aria-label^="Comment by"], [aria-label^="Bình luận của"]';
+      const belongsToPost = node => {
+        for (let parent = node; parent && parent !== e; parent = parent.parentElement) {
+          if (parent.matches(excluded)) return false;
+        }
+        return true;
+      };
+      const bodies = (e.matches(message) ? [e] : [...e.querySelectorAll(message)]).filter(belongsToPost);
       // Album titles are outside the message block but belong to this post.
       const albums = [...e.querySelectorAll('a[href*="/media/set"], a[href*="/albums/"], a[href*="set=a."]')]
-        .map(a => (a.innerText || '').trim()).filter(Boolean);
-      return [...new Set([...albums, ...(bodies.length ? bodies.map(b => b.innerText || '') : [e.innerText || ''])])]
+        .filter(belongsToPost).map(a => (a.innerText || '').trim()).filter(Boolean);
+      // Never substitute the entire article: it contains comments and UI labels.
+      return [...new Set([...albums, ...bodies.map(b => b.innerText || '')])]
         .join('\n').trim().slice(0,6000);
     }, undefined, { timeout: 1500 });
+    if (!caption) report('caption_missing', 'Chưa đọc được caption của bài; bỏ qua chữ trong bình luận và nhãn giao diện');
     const cached = caption && cache.get(caption);
     if (cached) { records.push(cached); continue; }
     report('post', `Đọc bài trong vùng xem: ${caption.length} ký tự; đang kiểm tra ảnh`);
     const images = [];
-    const candidates = article.locator('img');
+    const candidates = article.locator(`img:not(${post} ${post} img):not(${comments} img)`);
     for (let j = 0, n = Math.min(await candidates.count(), 12); j < n && images.length < 2; j++) {
       if (expired()) break;
       const img = candidates.nth(j);
