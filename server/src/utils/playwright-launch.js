@@ -112,7 +112,8 @@ async function safeLaunch(opts = {}) {
   }
 }
 
-async function safeLaunchPersistentContext(userDataDir, opts = {}) {
+const { createProfileLauncher } = require('./profile-context');
+const safeLaunchPersistentContext = createProfileLauncher(async (userDataDir, opts = {}) => {
   try {
     return await chromium.launchPersistentContext(userDataDir, opts);
   } catch (e) {
@@ -120,7 +121,7 @@ async function safeLaunchPersistentContext(userDataDir, opts = {}) {
     await ensureBrowsers();
     return await chromium.launchPersistentContext(userDataDir, opts);
   }
-}
+});
 
 module.exports = {
   safeLaunch,
@@ -131,3 +132,4 @@ module.exports = {
   BROWSERS_PATH,
   stealthEnabled: _stealthEnabled,
 };
+

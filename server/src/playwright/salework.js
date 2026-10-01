@@ -1,4 +1,5 @@
 const { safeLaunchPersistentContext } = require('../utils/playwright-launch');
+const { closeProfileContext } = require('../utils/profile-context');
 const path = require('path');
 const fs = require('fs');
 const logger = require('../utils/logger');
@@ -951,7 +952,7 @@ async function _withAccountLock(key, fn) {
   try {
     return await fn();
   } finally {
-    _accountLocks.delete(key);
+    if (_accountLocks.get(key) === next) _accountLocks.delete(key);
     release();
   }
 }
@@ -1002,32 +1003,10 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
     ...(proxy ? { proxy } : {}),
   });
 
-  const page = await browser.newPage();
-
-  // Dọn dẹp browser CHẠY NỀN (fire-and-forget) — không bao giờ chặn việc trả
-  // kết quả. Trước đây finally await page.close()/browser.close() có thể treo
-  // (dù có Promise.race) → promise postToZaloGroup không resolve → local-server
-  // không set job 'done' → cloud poll mãi 'processing' → frontend kẹt "Đang đăng".
-  // Tách cleanup ra để lỗi đóng browser không ảnh hưởng tới việc báo kết quả.
-  let cleaned = false;
-  let normalizedImageFiles = []; // file .zalo.jpg do chuẩn hoá tạo ra → dọn khi xong
-  const cleanup = () => {
-    if (cleaned) return;
-    cleaned = true;
-    // Dọn ảnh JPEG chuẩn hoá tạm (upload đã xong khi tới đây). File gốc do
-    // local-server quản lý vòng đời, không đụng ở đây.
-    for (const f of normalizedImageFiles) { try { fs.unlinkSync(f); } catch {} }
-    // Chờ thêm một nhịp TRƯỚC khi đóng trình duyệt — không đóng vội ngay khi vừa
-    // gửi xong, để có thời gian xác nhận trực quan trên màn hình (headless: false)
-    // và tránh cắt ngang bất kỳ request nào của Zalo còn sót lại.
-    sleep(4000)
-      .then(() => Promise.race([page.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {}))
-      .then(() => Promise.race([browser.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {}))
-      .then(() => logger.info('[salework] Đã đóng browser'))
-      .catch(() => {});
-  };
-
+  let page;
+  let normalizedImageFiles = [];
   try {
+    page = await browser.newPage();
     logger.info(`[salework] === account=${zaloAccountName}, group=${groupName} ===`);
 
     await page.goto(ZALO_CHAT_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -1107,14 +1086,19 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
       assertConversationTarget(page, { groupName, accountName: zaloAccountName }));
 
     logger.info(`[salework] Đã đăng lên "${groupName}" qua "${zaloAccountName}"`);
-    cleanup(); // chạy nền, không await — trả kết quả ngay
     return { success: true };
   } catch (e) {
     if (e.cancelled) logger.info(`[salework] Đã bị dừng theo yêu cầu người dùng — không gửi`);
     else logger.error(`[salework] Lỗi: ${e.message}`);
     try { await screenshot(page, '99-error'); } catch {}
-    cleanup(); // chạy nền, không await
     return { success: false, error: e.message, cancelled: !!e.cancelled };
+  } finally {
+    for (const f of normalizedImageFiles) { try { fs.unlinkSync(f); } catch {} }
+    // Keep the account queue occupied until close completes. On timeout the
+    // shared profile guard stays reserved until the actual context close event.
+    await sleep(4000);
+    if (await closeProfileContext(browser)) logger.info('[salework] Đã đóng browser');
+    else logger.warn('[salework] Browser chưa đóng xong; hồ sơ vẫn được giữ để tránh mở trùng.');
   }
 }
 
@@ -1122,3 +1106,4 @@ module.exports = {
   postToZaloGroup, getSaleworkProfile, ZALO_LOGIN_URL, ZALO_CHAT_URL,
   getCrmCredentials, performCrmLogin, ensureLoggedIn,
 };
+
