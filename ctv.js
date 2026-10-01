@@ -130,9 +130,12 @@
   function renderSendRows(c) {
     const approved = c.approvals?.analysis?.leadIds || [];
     const leads = c.leads.filter(l => approved.includes(l.id));
+    if (leads.length <= 5) { $('sendSearch').value=''; $('sendFilter').value='all'; }
     const query = $('sendSearch').value.trim().toLocaleLowerCase('vi'), filter = $('sendFilter').value;
     const matches = leads.filter(l => (filter === 'all' || sendCategory(l) === filter)
       && [l.assessment?.name,l.url,l.assessment?.recipientId].join(' ').toLocaleLowerCase('vi').includes(query));
+    show('sendListTools',leads.length > 5);
+    show('sendListCount',leads.length > 5);
     $('sendListCount').textContent = `Hiển thị ${matches.length}/${leads.length} khách`;
     $('sendRows').replaceChildren(...matches.map(l => {
       const category = sendCategory(l), row = element('article',undefined,`send-row send-${category}`);
@@ -170,7 +173,7 @@
     show('sendCampaignDiagnostic',!!c.error && !leads.some(l=>cleanDiagnostic(l.error)===cleanDiagnostic(c.error)));
     $('sendCampaignError').textContent = cleanDiagnostic(c.error);
     $('sendSummaryText').textContent = active ? 'Trạng thái tự cập nhật. Bạn có thể dừng các tin tiếp theo.' : attention ? `${attention} khách cần kiểm tra. ${pending ? `${pending} khách chưa được gửi. ` : ''}Xem hướng dẫn tại từng khách bên dưới.` : c.error ? 'Không thể hoàn tất lượt gửi. Kiểm tra tài khoản Facebook và trạng thái các khách bên dưới.' : `${sent}/${leads.length} tin được xác nhận đã gửi.${pending ? ` Còn ${pending} khách chưa gửi.` : ''}`;
-    stats('sendStats',[['Đã gửi',sent,'good'],[active?'Chờ / đang gửi':'Chưa gửi',pending],['Cần kiểm tra',attention,attention?'warn':''],['Tổng đã duyệt',leads.length]]);
+    stats('sendStats',[['Đã gửi',sent,'good'],[active?'Chờ / đang gửi':'Chưa gửi',pending],['Cần kiểm tra',attention,attention?'warn':''],].filter((item,index)=>index===0 || item[1]>0));
     $('sendNote').textContent = 'Tin chưa xác nhận không được tự gửi lại. Nội dung đã duyệt được lưu bên dưới.';
     renderSendRows(c);
   }
@@ -313,6 +316,7 @@
     $('status3').className='badge '+(c.state==='needs_attention'?'warn':c.state==='completed'?'good':hasMessages?'blue':'');
     $('recipientSummary').textContent=`${a.analysis?.leadIds.length || 0} khách đã duyệt · Gửi từ ${accountName(c.profile)}`;
     show('reviewSelection',c.state==='message_review');show('prepareMessages',c.state==='message_review');
+    $('step3').classList.toggle('has-send-results',!!a.send);
     show('messageComposer',!a.send);
     $('messageStageHint').textContent = a.send ? 'Theo dõi trạng thái và kiểm tra kết quả từng khách.' : 'Xem từng tin nhắn trước khi duyệt gửi.';
     show('messageArchive',!!c.messagePreview?.messages.length);
