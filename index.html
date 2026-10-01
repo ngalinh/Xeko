@@ -12917,6 +12917,8 @@
           //  - auth: hết phiên đăng nhập → cần mở lại tài khoản
           const classifyFailure = (err) => {
             const e = (err || '').toLowerCase();
+            if (/opening in existing browser session|profile.*already in use|processsingleton|singletonlock|hồ sơ tài khoản đang được/.test(e))
+              return { color:'#92400e', bg:'#fef3c7', emoji:'🔒', label:'Hồ sơ đang mở', tip:'Hồ sơ tài khoản đang được một phiên trình duyệt khác sử dụng — đóng cửa sổ kiểm tra đăng nhập hoặc chờ lượt trước đóng rồi đăng lại.' };
             if (/local server chưa kết nối|không phải json|tunnel|proxy.*không kết nối|chưa kết nối/.test(e))
               return { color:'#3730a3', bg:'#e0e7ff', emoji:'🔌', label:'Mất kết nối', tip:'Không kết nối được tới máy đăng bài (local/tunnel/proxy). Kiểm tra kết nối rồi đăng lại.' };
             // Lỗi mạng cấp trình duyệt (Chromium net::ERR_*): máy đăng không mở nổi
@@ -12938,6 +12940,8 @@
             const e = (raw || '').trim();
             if (!e) return '';
             const low = e.toLowerCase();
+            if (/opening in existing browser session|profile.*already in use|processsingleton|singletonlock|hồ sơ tài khoản đang được/.test(low))
+              return 'Hồ sơ tài khoản đang được một phiên trình duyệt khác sử dụng — đóng cửa sổ kiểm tra đăng nhập hoặc chờ lượt trước đóng rồi đăng lại.';
             // Bỏ chi tiết kỹ thuật nội bộ khỏi phần hiển thị cho người dùng.
             const stripped = e
               .replace(/\(xem logs\/[^)]*\)/gi, '')
@@ -15552,3 +15556,4 @@
   </script>
 </body>
 </html>
+
