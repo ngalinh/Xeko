@@ -112,3 +112,6 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 
 /* Main workflow uses the space previously occupied by the right sidebar. */
 .workspace.workspace-main-only { grid-template-columns: minmax(0, 1fr); }
+
+.analysis-filters{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:18px}.analysis-filters #analysisSearch{width:260px;max-width:100%}.analysis-filters #analysisFilter{width:220px;max-width:100%}.analysis-filters input,.analysis-filters select{font-size:12px}
+@media(max-width:600px){.analysis-filters #analysisSearch,.analysis-filters #analysisFilter{width:100%}}

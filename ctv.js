@@ -184,9 +184,10 @@
     $('resolveUids').disabled = !unlocked || !modern || !['analysis_review','message_review'].includes(c.state) || !!c.approvals.send;
     $('approveImport').disabled = !unlocked || !modern || c.state !== 'import_review' || !c.leads.length;
     $('selectAll').disabled = !unlocked || !modern || c.state !== 'analysis_review';
-    const eligible = c?.leads.filter(canPick) || [];
+    const eligible = c?.leads.filter(l => canPick(l) && matchesAnalysis(l)) || [];
     $('selectAll').checked = eligible.length > 0 && eligible.every(l => picks.has(l.id));
-    $('selectAll').indeterminate = c?.state === 'analysis_review' && picks.size > 0 && !$('selectAll').checked;
+    $('selectAll').indeterminate = c?.state === 'analysis_review' && eligible.some(l => picks.has(l.id)) && !$('selectAll').checked;
+    $('selectAll').disabled ||= !eligible.length;
     $('selectionCount').textContent = `${picks.size} khách được chọn`;
     $('approveAnalysis').textContent = `Duyệt ${picks.size} khách & sang bước 3 →`;
     $('approveAnalysis').disabled = !unlocked || !modern || c.state !== 'analysis_review' || !picks.size;
@@ -231,6 +232,7 @@
     if (!campaigns.length) $('campaigns').append(element('p','Chưa có chiến dịch.','muted'));
   }
   function render(c, reset = false) {
+    if (reset || selected?.id !== c.id) { $('analysisSearch').value=''; $('analysisFilter').value='all'; }
     if (selected?.id !== c.id || selected?.messagePreview?.token !== c.messagePreview?.token) $('confirmSend').checked = false;
     selected = c;
     if (reset) { picks = new Set(c.approvals?.analysis?.leadIds || []); $('template').value = c.template || defaultTemplate; $('confirmSend').checked = false; $('sendSearch').value='';$('sendFilter').value='all';$('sendCampaignDiagnostic').open=false; }
@@ -268,6 +270,7 @@
     $('analysisRows').replaceChildren();
     for (const l of c.leads) {
       const row = element('tr'), chooseCell = element('td'), customer = element('td'), fbName = element('td'), analysis = element('td'), result = element('td');
+      row.dataset.leadId = l.id;
       const cb=element('input');cb.type='checkbox';cb.value=l.id;cb.checked=picks.has(l.id);cb.setAttribute('aria-label',`Chọn ${customerLabel(l.url)}`);
       cb.onchange=()=>{if(cb.checked)picks.add(l.id);else picks.delete(l.id);updateControls();};chooseCell.append(cb);
       customer.append(link(l.url,customerLabel(l.url))); customer.dataset.label='Khách hàng';
@@ -307,6 +310,7 @@
       }
       row.append(chooseCell,customer,fbName,analysis,result);$('analysisRows').append(row);
     }
+    applyAnalysisFilters();
     const hasMessages=!!a.analysis;
     show('messageEmpty',!hasMessages);show('messageResult',hasMessages);
     $('status3').textContent=a.send?(labels[c.state] || c.state):hasMessages?'Chờ duyệt gửi':'Đang khóa';
@@ -381,7 +385,21 @@
   $('retryAnalysis').onclick=()=>{if(canRetry(selected) && window.confirm('Đọc lại các profile chưa bỏ qua và đánh giá lại bằng AI? Kết quả cũ và bản duyệt tin nhắn sẽ được bỏ; bạn cần duyệt lại trước khi gửi.')){picks.clear();action('retry-analysis');}};
   $('approveImport').onclick=()=>action('approve-import');
   $('resolveUids').onclick=()=>action('resolve-uids');
-  $('selectAll').onchange=()=>{picks=$('selectAll').checked?new Set(selected.leads.filter(canPick).map(l=>l.id)):new Set();for(const box of $('analysisRows').querySelectorAll('input'))box.checked=picks.has(box.value);updateControls();};
+  $('selectAll').onchange=()=>{for(const l of selected.leads.filter(l=>canPick(l)&&matchesAnalysis(l))){if($('selectAll').checked)picks.add(l.id);else picks.delete(l.id);}for(const box of $('analysisRows').querySelectorAll('input'))box.checked=picks.has(box.value);updateControls();};
+  const searchText = value => String(value || '').normalize('NFD').replace(/\p{M}/gu,'').replace(/[đĐ]/g,'d').toLowerCase();
+  function matchesAnalysis(lead) {
+    const filter=$('analysisFilter').value;
+    const category=lead.state==='skipped'?'skipped':lead.assessment?.eligible?'qualified':lead.assessment||lead.error?'review':'pending';
+    return (filter==='all'||filter===category) && searchText([lead.assessment?.name,lead.url,lead.assessment?.recipientId].join(' ')).includes(searchText($('analysisSearch').value.trim()));
+  }
+  function applyAnalysisFilters() {
+    if(!selected)return;
+    const visible=new Set(selected.leads.filter(matchesAnalysis).map(l=>l.id));
+    for(const row of $('analysisRows').children) row.hidden=!visible.has(row.dataset.leadId);
+    $('analysisFilterCount').textContent=`Hiển thị ${visible.size}/${selected.leads.length} khách`;
+    show('analysisFilterEmpty',visible.size===0);
+  }
+  $('analysisSearch').oninput=$('analysisFilter').onchange=()=>{applyAnalysisFilters();updateControls();};
   $('approveAnalysis').onclick=()=>action('approve-analysis',{leadIds:[...picks]});
   $('reviewSelection').onclick=()=>action('review-analysis');
   $('template').oninput=()=>{$('confirmSend').checked=false;updateControls();};
