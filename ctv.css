@@ -109,3 +109,6 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 @media(max-width:600px){
   #analysisRows .fb-name, #analysisRows td[data-label="AI đánh giá"] { min-width: 0; max-width: none; }
 }
+
+/* Main workflow uses the space previously occupied by the right sidebar. */
+.workspace.workspace-main-only { grid-template-columns: minmax(0, 1fr); }
