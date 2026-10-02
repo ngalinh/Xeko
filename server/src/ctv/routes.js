@@ -18,9 +18,11 @@ function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', pe
       if (typeof owner !== 'string' || !owner) return res.status(401).json({ error: 'Chưa xác thực người dùng' });
       const allowed = remote ? permissions.getAllowedProfileKeys(owner) : null;
       const allowedProfile = profile => allowed === null || allowed.includes(profile);
+      const customers = req.path === '/api/ctv/customers';
+      if (customers && req.method !== 'GET') return res.status(405).json({ error: 'Chỉ hỗ trợ xem dữ liệu khách hàng' });
       const collection = req.path === '/api/ctv/campaigns';
       const match = req.path.match(campaignPath);
-      if ((!collection && (!match || (match[2] && !ACTIONS.includes(match[2])))) || !['GET','POST'].includes(req.method) || (match?.[2] && req.method !== 'POST')) return res.status(404).json({ error: 'Không tìm thấy thao tác' });
+      if ((!customers && !collection && (!match || (match[2] && !ACTIONS.includes(match[2])))) || !['GET','POST'].includes(req.method) || (match?.[2] && req.method !== 'POST')) return res.status(404).json({ error: 'Không tìm thấy thao tác' });
       const local = remote && getLocalUrl();
       if (remote && process.env.PLAYWRIGHT_LOCAL_URL && !local) return res.status(503).json({ error: 'Máy chạy Playwright chưa kết nối' });
       if (local) {
@@ -41,6 +43,7 @@ function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', pe
         return res.status(upstream.status).json(data);
       }
       const s = getService();
+      if (customers) return res.json(s.listCustomers(owner).filter(c => allowedProfile(c.profile)));
       if (collection) {
         if (req.method === 'GET') return res.json(s.data.campaigns.filter(c => c.owner === owner && allowedProfile(c.profile)).map(c => s.view(c)));
         if (!allowedProfile(req.body.profile)) return res.status(403).json({ error: 'Không có quyền dùng tài khoản này' });

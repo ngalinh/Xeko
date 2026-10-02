@@ -363,7 +363,7 @@
     catch(e){notice(e.message,true);}finally{busy=false;updateControls();schedule();}
   }
   async function deleteCampaign(c) {
-    if (busy || !window.confirm(`Xoá chiến dịch “${c.name}”? Không thể khôi phục. Lịch sử chống gửi trùng vẫn được giữ.`)) return;
+    if (busy || !window.confirm(`Xoá chiến dịch “${c.name}”? Không thể khôi phục. Dữ liệu khách hàng và lịch sử chống gửi trùng vẫn được giữ.`)) return;
     busy=true; clearTimeout(timer); updateControls(); notice();
     try {
       await api(`/api/ctv/campaigns/${c.id}/delete`, 'POST', {});

@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { validProfileKey, profileUrl, renderMessage } = require('./rules');
+const { captureCustomers, listCustomers } = require('./customers');
 const ACTIVE = ['analysis_queued', 'analyzing', 'uid_queued', 'resolving_uid', 'send_queued', 'sending'];
 const fail = message => { const e = new Error(message); e.status = 409; throw e; };
 
@@ -16,7 +17,9 @@ class CtvService {
     }
     this.save();
   }
+  listCustomers(owner) { return listCustomers(this.data, owner); }
   save() {
+    captureCustomers(this.data);
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     fs.writeFileSync(`${this.file}.tmp`, JSON.stringify(this.data, null, 2));
     fs.renameSync(`${this.file}.tmp`, this.file);
@@ -92,6 +95,7 @@ class CtvService {
   deleteCampaign(id, owner) {
     const c = this.get(id, owner);
     if (ACTIVE.includes(c.state) || ['running', 'queued'].includes(c.state)) fail('Hãy dừng chiến dịch và chờ xử lý xong trước khi xoá');
+    captureCustomers(this.data);
     this.data.campaigns = this.data.campaigns.filter(item => item.id !== c.id);
     // Keep recipient reservations even after removing campaign history.
     this.save(); return c;

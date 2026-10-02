@@ -19,7 +19,7 @@ for (const prefix of ['', '/b/test-bot']) {
       assert.equal(location.href, `${prefix}/ctv.html`);
     }
     const pageUrl = `https://xeko.test${prefix}/ctv.html`;
-    for (const asset of ['ctv.css', 'ctv.js']) {
+    for (const asset of ['ctv.css', 'ctv.js', 'ctv-customers.js']) {
       const ref = html.match(new RegExp(`(?:href|src)="([^"]*${asset.replace('.', '\\.')}[^\"]*)"`))[1];
       assert.equal(new URL(ref, pageUrl).pathname, `${prefix}/${asset}`);
     }
