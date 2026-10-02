@@ -268,9 +268,12 @@
     show('stopAnalysis',analyzing);show('approveAnalysis',modern && c.state === 'analysis_review');
     $('analysisApproval').textContent = approvalText(a.analysis,'Bạn có thể duyệt gửi khách đã chọn dù AI chưa đánh giá đạt. Cần xác minh người nhận trước khi gửi.');
     $('analysisRows').replaceChildren();
-    for (const l of c.leads) {
+    for (const [index, l] of c.leads.entries()) {
       const row = element('tr'), chooseCell = element('td'), customer = element('td'), fbName = element('td'), analysis = element('td'), result = element('td');
       row.dataset.leadId = l.id;
+      const ordinal = element('td', String(index + 1), 'row-number');
+      ordinal.dataset.label = 'STT';
+      customer.className = 'customer-cell';
       const cb=element('input');cb.type='checkbox';cb.value=l.id;cb.checked=picks.has(l.id);cb.setAttribute('aria-label',`Chọn ${customerLabel(l.url)}`);
       cb.onchange=()=>{if(cb.checked)picks.add(l.id);else picks.delete(l.id);updateControls();};chooseCell.append(cb);
       customer.append(link(l.url,customerLabel(l.url))); customer.dataset.label='Khách hàng';
@@ -308,7 +311,7 @@
         skip.onclick=()=>action('skip-lead',{leadId:l.id});
         result.append(skip);
       }
-      row.append(chooseCell,customer,fbName,analysis,result);$('analysisRows').append(row);
+      row.append(chooseCell,ordinal,customer,fbName,analysis,result);$('analysisRows').append(row);
     }
     applyAnalysisFilters();
     const hasMessages=!!a.analysis;
