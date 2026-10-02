@@ -220,3 +220,44 @@ test('continues through outer scroller when inner feed reaches its end', () => {
   assert.equal(result.insufficientData, true);
   assert.equal(result.eligible, false);
  });
+
+function unlockFixture() {
+  let blocked = true, waits = 0;
+  const page = {
+    isClosed: () => false, url: () => 'https://www.facebook.com/messages/t/123',
+    locator: () => ({count: async () => blocked ? 1 : 0}),
+    waitForTimeout: async () => { waits++; blocked = false; },
+  };
+  const box = {count: async () => 1, isVisible: async () => true};
+  return {page, box, waits: () => waits};
+}
+test('sending waits for unlock even when composer is visible behind dialog', async () => {
+  const {waitForMessageComposer} = require('./src/ctv/browser');
+  const f = unlockFixture();
+  await waitForMessageComposer(f.page, f.box, () => false);
+  assert.equal(f.waits(), 1);
+});
+test('unlock wait supports stop, closed page and actionable timeout', async () => {
+  const {waitForMessageComposer} = require('./src/ctv/browser');
+  const f = unlockFixture();
+  await assert.rejects(waitForMessageComposer(f.page, f.box, () => true), /Đã dừng/);
+  await assert.rejects(waitForMessageComposer(f.page, f.box, () => false, 0), /Chưa gửi tin/);
+  f.page.isClosed = () => true;
+  await assert.rejects(waitForMessageComposer(f.page, f.box, () => false), /Tab gửi tin Facebook đã đóng/);
+});
+test('failed send retains its tab without replacing inspection tab; successful reuse closes it', async () => {
+  const {createBrowserAdapter} = require('./src/ctv/browser');
+  const context = {newPage: async () => {
+    let closed = false;
+    return {isClosed: () => closed, context: () => context, close: async () => {closed = true;}};
+  }};
+  const adapter = createBrowserAdapter({profileExists: () => true, getBrowser: async () => context});
+  const inspection = await adapter.withPage('test', async p => p, {keepOpen: true});
+  let sending;
+  await assert.rejects(adapter.withPage('test', async p => {sending = p; throw Error('unlock timeout');}, {keepOnError: true}), /unlock timeout/);
+  assert.notEqual(sending, inspection);
+  assert.equal(sending.isClosed(), false);
+  await adapter.withPage('test', async p => assert.equal(p, sending), {keepOnError: true});
+  assert.equal(sending.isClosed(), true);
+  assert.equal(inspection.isClosed(), false);
+});
