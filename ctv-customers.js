@@ -57,8 +57,8 @@
     } catch (e) { $('customerLibraryStatus').textContent = `${loaded ? 'Dữ liệu đang hiển thị chưa được cập nhật. ' : ''}Không tải được dữ liệu khách hàng. Bấm Cập nhật để thử lại. ${e.name === 'AbortError' ? 'Kết nối quá thời gian chờ.' : e.message}`; }
     finally { clearTimeout(timeout); loading = false; $('refreshCustomers').disabled = false; }
   }
-  $('toggleCustomers').onclick = () => { const open = $('customerLibrary').hidden; $('customerLibrary').hidden = !open; $('toggleCustomers').setAttribute('aria-expanded', String(open)); if (open) load(); };
-  $('closeCustomers').onclick = () => { $('customerLibrary').hidden = true; $('toggleCustomers').setAttribute('aria-expanded', 'false'); $('toggleCustomers').focus(); };
+  $('toggleCustomers').onclick = () => { const open = $('customerLibrary').hidden; document.dispatchEvent(new CustomEvent('ctv:view', { detail: open ? 'customers' : 'workflow' })); if (open) load(); };
+  $('closeCustomers').onclick = () => { document.dispatchEvent(new CustomEvent('ctv:view', { detail: 'workflow' })); $('toggleCustomers').focus(); };
   $('refreshCustomers').onclick = load;
   $('customerSearch').oninput = $('customerStatus').onchange = $('customerAccount').onchange = () => { page = 0; render(); };
   $('customerPrevious').onclick = () => { page--; render(); };
