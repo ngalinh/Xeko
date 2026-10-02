@@ -216,10 +216,17 @@
     else if (c?.approvals?.send) $('previewHint').textContent = 'Nội dung đã duyệt gửi được lưu cố định bên dưới.';
     for (const button of $('campaigns').querySelectorAll('button')) button.disabled = busy || (button.dataset.deleteState && ACTIVE.concat(['running','queued']).includes(button.dataset.deleteState));
   }
-  function setHistoryOpen(open) {
-    show('campaignHistory', open);
-    $('toggleHistory').setAttribute('aria-expanded', String(open));
+  function setPageView(view) {
+    if (!['workflow', 'history', 'customers'].includes(view)) return;
+    show('workflowSteps', view === 'workflow');
+    show('campaignWorkspace', view === 'workflow');
+    show('campaignHistory', view === 'history');
+    show('customerLibrary', view === 'customers');
+    $('toggleHistory').setAttribute('aria-expanded', String(view === 'history'));
+    $('toggleCustomers').setAttribute('aria-expanded', String(view === 'customers'));
   }
+  document.addEventListener('ctv:view', event => setPageView(event.detail));
+  function setHistoryOpen(open) { setPageView(open ? 'history' : 'workflow'); }
   function renderHistory() {
     $('campaigns').replaceChildren();
     for (const c of [...campaigns].sort((a,b) => b.createdAt.localeCompare(a.createdAt))) {

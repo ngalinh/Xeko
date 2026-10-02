@@ -73,13 +73,13 @@
     <div class="customer-pagination"><button id="customerPrevious" class="secondary" type="button">← Trước</button><span id="customerPage" class="muted"></span><button id="customerNext" class="secondary" type="button">Sau →</button></div>
   </section>
   <div id="demoBanner" class="demo" hidden>BẢN PREVIEW · AI và gửi tin đều được mô phỏng. Không liên hệ khách thật.</div>
-  <nav class="steps" aria-label="Quy trình gửi tin nhắn hàng loạt">
+  <nav id="workflowSteps" class="steps" aria-label="Quy trình gửi tin nhắn hàng loạt">
     <a href="#step1" id="nav1" class="step-link active"><span class="step-number">1</span><span>Nhập danh sách<small id="navStatus1">Chờ nhập dữ liệu</small></span></a>
     <a href="#step2" id="nav2" class="step-link"><span class="step-number">2</span><span>AI đánh giá<small id="navStatus2">Chờ duyệt danh sách</small></span></a>
     <a href="#step3" id="nav3" class="step-link"><span class="step-number">3</span><span>Gửi tin nhắn hàng loạt<small id="navStatus3">Chờ duyệt kết quả AI</small></span></a>
   </nav>
   <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
-  <div class="workspace workspace-main-only">
+  <div id="campaignWorkspace" class="workspace workspace-main-only">
     <div class="flow">
       <section class="panel" id="step1" aria-labelledby="title1">
         <div class="panel-heading"><div class="title-row"><span class="number">01</span><div><h2 id="title1">Nhập danh sách khách hàng</h2><p class="muted">Xem lại link hợp lệ trước khi chuyển sang AI.</p></div></div><span class="badge" id="status1">Chưa nhập</span></div>
