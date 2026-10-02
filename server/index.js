@@ -421,7 +421,14 @@ app.post('/api/profile', async (req, res) => {
 postLogger.cleanupStalePending();
 
 // Định kỳ mỗi 10 phút: mark pending posts > 10 phút là failed (timeout)
-setInterval(() => postLogger.markTimedOutPending(10 * 60 * 1000), 10 * 60 * 1000);
+setInterval(() => {
+  const active = [...postJobs].filter(([, job]) => job.status === 'pending').map(([id]) => id);
+  // Healthy worker heartbeats protect queued Zalo jobs, however old their DB row.
+  for (const [id, meta] of _pendingZaloLogs) {
+    if (Date.now() - (meta.lastSeenAt || meta.ts) < 10 * 60 * 1000) active.push(id);
+  }
+  postLogger.markTimedOutPending(10 * 60 * 1000, active);
+}, 10 * 60 * 1000);
 
 // Job queue: post chạy async để tránh reverse proxy timeout ở ~60s.
 // Browser POST /api/post → trả ngay {jobId}, rồi polling /api/job/:id.
@@ -477,7 +484,7 @@ function setJobError(id, message) {
 setInterval(() => {
   const now = Date.now();
   for (const [id, job] of postJobs) {
-    if (now - job.createdAt > 3600_000) postJobs.delete(id);
+    if (job.status !== 'pending' && now - job.createdAt > 3600_000) postJobs.delete(id);
   }
 }, 3600_000);
 
@@ -2152,7 +2159,7 @@ const _zaloJobDoneCache = new Map(); // jobId → {status, success, error, ts}
 setInterval(() => {
   const cutoff = Date.now() - 2 * 60 * 60 * 1000; // 2h TTL
   for (const [id, m] of _pendingZaloLogs) {
-    if (m.ts < cutoff) _pendingZaloLogs.delete(id);
+    if ((m.lastSeenAt || m.ts) < cutoff) _pendingZaloLogs.delete(id);
   }
   for (const [id, m] of _zaloJobDoneCache) {
     if (m.ts < cutoff) _zaloJobDoneCache.delete(id);
@@ -2164,36 +2171,46 @@ setInterval(() => {
 // xảy ra khi frontend poll /api/zalo/status (lazy + forward mỗi lần) → mong manh.
 // Giờ cloud chủ động drive job tới hoàn thành; frontend chỉ cần đọc _zaloJobDoneCache.
 async function _driveZaloJob(jobId, maxWaitMs = 10 * 60 * 1000) {
-  const start = Date.now();
+  let deadline = Date.now() + maxWaitMs;
+  let uncertainAt = null;
   const fetchFn = await getFetch();
-  while (Date.now() - start < maxWaitMs) {
-    await new Promise(r => setTimeout(r, 2000));
-    if (_zaloJobDoneCache.has(jobId)) return; // frontend poll đã xử lý xong
+  // Keep reconciling uncertain delivery for up to two hours, without re-posting.
+  while (uncertainAt === null || Date.now() - uncertainAt < 2 * 60 * 60 * 1000) {
+    await new Promise(r => setTimeout(r, uncertainAt === null ? 2000 : 15000));
+    if (_zaloJobDoneCache.has(jobId)) return;
     const LOCAL_URL = getLocalUrl();
-    if (!LOCAL_URL) continue;
-    try {
-      const resp = await fetchFn(`${LOCAL_URL}/api/zalo/status/${jobId}`, {
-        headers: { 'x-api-key': LOCAL_API_KEY },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!resp.ok) continue;
-      const txt = await resp.text();
-      let d; try { d = JSON.parse(txt); } catch { continue; }
-      if (d && d.status === 'done') {
-        logger.info(`[driveZalo] ${jobId} → done success=${d.success}`);
-        _completeZaloJob(jobId, { success: !!d.success, error: d.error || null });
-        return;
+    if (LOCAL_URL) {
+      try {
+        const resp = await fetchFn(LOCAL_URL + '/api/zalo/status/' + jobId, {
+          headers: { 'x-api-key': LOCAL_API_KEY }, signal: AbortSignal.timeout(10000),
+        });
+        if (resp.ok) {
+          const d = JSON.parse(await resp.text());
+          if (d.status === 'done') {
+            _completeZaloJob(jobId, { success: !!d.success, error: d.error || null });
+            return;
+          }
+          if (d.status === 'processing') {
+            const meta = _pendingZaloLogs.get(jobId);
+            if (meta) meta.lastSeenAt = Date.now();
+            // Queue/stagger/semaphore waiting does not spend execution time.
+            if (d.queued === true) { deadline = Date.now() + maxWaitMs; uncertainAt = null; }
+          }
+        }
+      } catch (e) {
+        logger.warn('[driveZalo] ' + jobId + ' poll error: ' + e.message);
       }
-    } catch (e) {
-      if (e.name === 'TimeoutError' || e.name === 'AbortError') continue;
-      logger.warn(`[driveZalo] ${jobId} poll error: ${e.message}`);
+    }
+    if (uncertainAt === null && Date.now() >= deadline) {
+      uncertainAt = Date.now();
+      logger.warn('[driveZalo] ' + jobId + ' chưa xác nhận kết quả; tiếp tục đối soát, không đăng lại');
+      // This exact recoverable marker can be replaced by a late result, unlike
+      // cancellation or confirmed failures. Do not write a terminal done cache.
+      postLogger.completePendingByJobId(jobId, {
+        success: false, error: 'Timeout - không xác nhận được kết quả',
+      });
     }
   }
-  // Hết thời gian chờ mà job chưa 'done' → đánh dấu thất bại để LUÔN có dòng
-  // trên Dashboard (kể cả khi pending pre-insert lỗi: _completeZaloJob sẽ
-  // logPost fallback). Tránh job kẹt vô hình, user không biết kết quả.
-  logger.warn(`[driveZalo] ${jobId} → quá ${maxWaitMs}ms chưa done, đánh dấu timeout`);
-  _completeZaloJob(jobId, { success: false, error: `Timeout — job Zalo không phản hồi 'done' sau ${Math.round(maxWaitMs / 60000)} phút` });
 }
 
 // Lưu cache done + complete pending DB row (dùng chung cho cả driveZalo và frontend poll)
@@ -2403,62 +2420,8 @@ app.get('/api/zalo/status/:jobId', async (req, res) => {
       return res.json({ status: 'processing' });
     }
 
-    // Khi job xong: cache kết quả trước, complete pending row sau
     if (data && data.status === 'done') {
-      _zaloJobDoneCache.set(jobId, { status: 'done', success: !!data.success, error: data.error || null, ts: Date.now() });
-      const meta = _pendingZaloLogs.get(jobId);
-      const donePayload = { success: !!data.success, error: data.error || null, postUrl: null };
-      if (meta) {
-        _pendingZaloLogs.delete(jobId);
-        try {
-          if (meta.pendingLogId) {
-            // Có pending row → update thay vì insert mới (giống FB flow)
-            const r = postLogger.completePendingPost(meta.pendingLogId, donePayload);
-            if (r.changes === 0) {
-              // Row đã bị markTimedOut hoặc pendingLogId sai → thử bằng job_id
-              logger.warn(`[zalo/status] completePendingPost id=${meta.pendingLogId} → 0 changes, retry bằng job_id=${jobId}`);
-              const r2 = postLogger.completePendingByJobId(jobId, donePayload);
-              if (r2.changes === 0) logger.error(`[zalo/status] completePendingByJobId job_id=${jobId} → 0 changes cũng thất bại`);
-              else logger.info(`[zalo/status] completePendingByJobId job_id=${jobId} → ${r2.changes} row(s) updated`);
-            }
-          } else {
-            // Thử cập nhật pending row bằng job_id trước (tránh duplicate)
-            const r = postLogger.completePendingByJobId(jobId, donePayload);
-            if (r.changes > 0) {
-              logger.info(`[zalo/status] completePendingByJobId (no pendingLogId) job_id=${jobId} → ${r.changes} row(s)`);
-            } else {
-              // Không có pending row → insert mới
-              postLogger.logPost({
-                profile: meta.profile,
-                profileName: meta.profileName,
-                platform: 'zalo',
-                target: 'group',
-                groupName: meta.groupName,
-                message: meta.message,
-                imageCount: meta.imageCount,
-                success: !!data.success,
-                error: data.error || null,
-                postUrl: null,
-                source: 'web',
-                images: meta.images,
-                batchId: meta.batchId,
-                website: meta.website || null,
-              });
-            }
-          }
-        } catch (logErr) {
-          logger.error(`[zalo/status] complete/logPost error: ${logErr.message}`);
-        }
-      } else {
-        // Server restart cleared _pendingZaloLogs → dùng job_id trực tiếp
-        try {
-          const r = postLogger.completePendingByJobId(jobId, donePayload);
-          if (r.changes === 0) logger.warn(`[zalo/status] completePendingByJobId (restart) job_id=${jobId} → 0 changes`);
-          else logger.info(`[zalo/status] completePendingByJobId (restart) job_id=${jobId} → ${r.changes} row(s)`);
-        } catch (logErr) {
-          logger.error(`[zalo/status] completePendingPost-by-jobId error: ${logErr.message}`);
-        }
-      }
+      _completeZaloJob(jobId, { success: !!data.success, error: data.error || null });
     }
 
     return res.status(response.status).json(data);

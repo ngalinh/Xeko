@@ -124,6 +124,20 @@ test('clipboard write and paste are atomic across independent accounts', async (
   ]),[true,true]);
 });
 
+test('scheduled Zalo proxy excludes worker queue time from its deadline', async () => {
+  let now = 0, polls = 0;
+  const proxy = loadModule('playwright-proxy.js', {
+    'form-data': class {}, './src/utils/post-queue': { getQueuedProfile }, './src/utils/api-key': { assertConfigured() {} },
+  }, {
+    Date: { now: () => now }, setTimeout: fn => { now += 60000; fn(); },
+    fetch: async url => ({ ok: true, text: async () => JSON.stringify(url.endsWith('/api/zalo/post')
+      ? { jobId: 'zalo-test' } : ++polls <= 15 ? { status: 'processing', queued: true } : { status: 'done', success: true }) }),
+  });
+  const result = await proxy.postToZaloGroup({ zaloAccountName: 'A', groupName: 'Group', message: 'hello' });
+  assert.equal(result.success, true);
+  assert.equal(polls, 16);
+});
+
 test('worker HTTP post shares account queue with scans and cancels before browser work', async () => {
   const source=fs.readFileSync(path.join(__dirname,'local-server.js'),'utf8');
   const start=source.indexOf("app.post('/api/post',"), end=source.indexOf('// ===== DO-COMMENT',start);
@@ -135,7 +149,7 @@ test('worker HTTP post shares account queue with scans and cancels before browse
     queuePost:(fn,profile)=>{const p=queuePost(fn,profile);running.push(p);return p;},
     postJobs:jobs, cancelledFbJobIds:cancelled,
     playwright:{profileExists:()=>true, getActiveProfile:()=>({key:'wrong-default'}),postToPersonal:async()=>{calls.push(getQueuedProfile());return {success:true};}},
-    rateLimit:{check:()=>({ok:true})},cleanupFiles:files=>cleaned.push(files),
+    rateLimit:{checkHourly:()=>({ok:true})},waitForPostTurn:async()=>{},finishPostTurn:()=>{},cleanupFiles:files=>cleaned.push(files),
     createJob:()=>{const id=String(++counter);jobs.set(id,{status:'pending'});return id;},
     setJobResult:(id,result)=>jobs.set(id,{status:'done',result}),setJobError:(id,error)=>jobs.set(id,{status:'failed',error}),
     setTimeout:()=>{timers.push(getQueuedProfile());return timers.length;},clearTimeout:()=>{},

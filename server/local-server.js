@@ -31,6 +31,7 @@ const logger = require('./src/utils/logger');
 const { parseProxy } = require('./src/utils/proxy');
 const apiKey = require('./src/utils/api-key');
 const rateLimit = require('./src/utils/rate-limit');
+const { waitForPostTurn, finishPostTurn } = require('./src/utils/fb-post-pacing');
 const zaloQueue = require('./src/utils/zalo-queue');
 const { groupDelayMs } = require('./src/utils/post-delays');
 
@@ -136,12 +137,17 @@ function createJob() {
   postJobs.set(id, { status: 'pending', createdAt: Date.now() });
   return id;
 }
-function queueWorkerJob(id, profile, fn) {
+function queueWorkerJob(id, profile, fn, posting = false) {
   postJobs.get(id).queued = true;
-  return queuePost(() => {
+  return queuePost(async () => {
+    if (posting) await waitForPostTurn(profile, () => cancelledFbJobIds.has(id));
     const job = postJobs.get(id);
     if (job) { job.queued = false; job.createdAt = Date.now(); }
-    return fn();
+    try {
+      return await fn();
+    } finally {
+      if (posting) finishPostTurn(profile);
+    }
   }, profile).catch(error => setJobError(id, error.message));
 }
 function setJobResult(id, result) {
@@ -156,7 +162,7 @@ setInterval(() => {
     if (['done', 'failed'].includes(job.status) && now - job.createdAt > 3600_000) postJobs.delete(id);
   }
   for (const [id, job] of zaloJobs) {
-    if (job.createdAt && now - job.createdAt > 3600_000) zaloJobs.delete(id);
+    if (job.status === 'done' && now - job.completedAt > 3600_000) zaloJobs.delete(id);
   }
 }, 3600_000);
 
@@ -202,8 +208,8 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
     return res.status(400).json({ error: 'Chưa chọn profile!' });
   }
 
-  // Rate limit theo profile — tránh spam đẩy đến FB
-  const rl = rateLimit.check(activeProfile.key);
+  // Reserve hourly quota here; worker FIFO waits out the short posting interval.
+  const rl = rateLimit.checkHourly(activeProfile.key);
   if (!rl.ok) {
     cleanupFiles(imagePaths);
     res.setHeader('Retry-After', Math.ceil(rl.retryAfterMs / 1000));
@@ -319,7 +325,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
       clearTimeout(_jobTimeoutId);
       cleanupFiles(imagePaths);
     }
-  });
+  }, true);
 });
 
 // ===== DO-COMMENT: execute comment only, no DB logging (called by cloud via playwright-proxy) =====
@@ -380,8 +386,8 @@ app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res)
     return res.status(400).json({ error: e.message });
   }
 
-  // Rate limit per profile (từ main)
-  const rl = rateLimit.check(profile);
+  // Same hourly quota and worker pacing as normal Facebook posts.
+  const rl = rateLimit.checkHourly(profile);
   if (!rl.ok) {
     cleanupFiles(imagePaths);
     res.setHeader('Retry-After', Math.ceil(rl.retryAfterMs / 1000));
@@ -414,7 +420,7 @@ app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res)
       cancelledFbJobIds.delete(jobId);
       cleanupFiles(imagePaths);
     }
-  });
+  }, true);
 });
 
 // ===== ĐĂNG ZALO =====
@@ -452,7 +458,7 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   const accountKey = acct ? acct.key : accountName;
 
   const jobId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  zaloJobs.set(jobId, { status: 'processing', createdAt: Date.now() });
+  zaloJobs.set(jobId, { status: 'processing', queued: true, createdAt: Date.now() });
 
   // COPY ảnh sang thư mục RIÊNG của job (giống scheduler) — tách khỏi vòng đời
   // temp chung của multer. Khi đăng nhiều kênh/group 1 phiên, job xếp hàng chờ
@@ -494,8 +500,11 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
 
   // Xếp hàng theo account: tuần tự hoá (tránh xung đột profile browser) + tự
   // giãn cách ≥ MIN_INTERVAL giữa 2 post cùng account (chống Zalo flag spam).
-  zaloQueue.enqueue(`zalo:${accountKey || accountName}`, () =>
-    salework.postToZaloGroup({ zaloAccountName: accountName, accountKey, groupName, message: message || '', imagePaths: jobImagePaths, shouldCancel: () => cancelledZaloJobIds.has(jobId) }))
+  zaloQueue.enqueue(`zalo:${accountKey || accountName}`, () => {
+    const job = zaloJobs.get(jobId);
+    if (job) { job.queued = false; job.startedAt = Date.now(); }
+    return salework.postToZaloGroup({ zaloAccountName: accountName, accountKey, groupName, message: message || '', imagePaths: jobImagePaths, shouldCancel: () => cancelledZaloJobIds.has(jobId) });
+  })
     .then(result => {
       cleanupJob();
       zaloJobs.set(jobId, { status: 'done', success: result.success, error: result.error || null, cancelled: !!result.cancelled, completedAt: Date.now() });
