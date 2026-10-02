@@ -322,13 +322,26 @@ async function resolveUid(page, url, { cancelled = () => false } = {}) {
   } finally { if (handle) await handle.dispose(); }
 }
 
+// Wait for the user to unlock Messenger; never read or fill credentials.
+async function waitForMessageComposer(page, box, cancelled, timeoutMs = 300000) {
+  const deadline = Date.now() + timeoutMs;
+  while (true) {
+    if (cancelled()) throw new Error('Đã dừng trước khi gửi');
+    if (page.isClosed()) throw new Error('Tab gửi tin Facebook đã đóng; chưa gửi tin');
+    const authPage = /\/(login|checkpoint|challenge|two_step_verification)(?:[/?]|$)/i.test(new URL(page.url()).pathname);
+    const blocked = authPage || await page.locator('input[type="password"]:visible, [role="dialog"]:visible, [aria-modal="true"]:visible').count() > 0;
+    if (!blocked && await box.count() === 1 && await box.isVisible()) return;
+    if (Date.now() >= deadline) throw new Error('Đã chờ 5 phút nhưng Messenger chưa sẵn sàng. Hãy hoàn tất mật khẩu/PIN hoặc xác minh trong tab Facebook đang được giữ mở. Chưa gửi tin.');
+    await page.waitForTimeout(1000);
+  }
+}
+
 async function send(page, lead, message, beforeSubmit, cancelled) {
   if (!/^\d+$/.test(lead.recipientId || '')) throw new Error('Không xác minh được ID người nhận; cần kiểm tra thủ công');
   const id = lead.recipientId;
   await page.goto(`https://www.facebook.com/messages/t/${id}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await assertSession(page);
   const box = page.locator('[role="main"] [contenteditable="true"][role="textbox"][aria-label="Message"], [role="main"] [contenteditable="true"][role="textbox"][aria-label="Tin nhắn"]');
-  await box.first().waitFor({ state: 'visible', timeout: 15000 });
+  await waitForMessageComposer(page, box, cancelled);
   if (await box.count() !== 1) throw new Error('Không xác định được duy nhất ô soạn của hội thoại');
   const verify = async () => {
     const u = new URL(page.url());
@@ -362,20 +375,29 @@ async function send(page, lead, message, beforeSubmit, cancelled) {
 
 function createBrowserAdapter(playwright = require('../playwright/post')) {
   const inspectionPages = new Map();
+  const sendingPages = new Map();
   const inspectionContexts = new Map();
   return {
-    async withPage(profile, callback, { keepOpen = false } = {}) {
+    async withPage(profile, callback, { keepOpen = false, keepOnError = false } = {}) {
       if (!validProfileKey(profile) || !playwright.profileExists(profile)) throw new Error('Tài khoản Facebook không tồn tại');
       const browser = await playwright.getBrowser(profile);
       // Retain the context even if newPage fails, so batch cleanup can close it.
       if (keepOpen) inspectionContexts.set(profile, browser);
-      let page = keepOpen ? inspectionPages.get(profile) : null;
+      const pages = keepOpen ? inspectionPages : sendingPages;
+      let page = (keepOpen || keepOnError) ? pages.get(profile) : null;
       if (!page || page.isClosed() || page.context() !== browser) {
         page = await browser.newPage();
-        if (keepOpen) inspectionPages.set(profile, page);
+        if (keepOpen || keepOnError) pages.set(profile, page);
       }
-      try { return await callback(page); } finally {
-        if (!keepOpen) await page.close().catch(() => {});
+      let failed = false;
+      try { return await callback(page); } catch (error) {
+        failed = true;
+        throw error;
+      } finally {
+        if (!keepOpen && !(keepOnError && failed)) {
+          pages.delete(profile);
+          await page.close().catch(() => {});
+        }
       }
     },
     async closeInspection(profile) {
@@ -388,5 +410,4 @@ function createBrowserAdapter(playwright = require('../playwright/post')) {
     inspect, send, resolveUid,
   };
 }
-module.exports = { createBrowserAdapter, inspect, send, resolveUid, readProfileSnapshot, collectProfilePosts, readPostMedia, scrollProfileFeed };
-
+module.exports = { waitForMessageComposer, createBrowserAdapter, inspect, send, resolveUid, readProfileSnapshot, collectProfilePosts, readPostMedia, scrollProfileFeed };

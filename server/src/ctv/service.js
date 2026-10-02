@@ -248,7 +248,7 @@ class CtvService {
           if (this.data.reservations[m.recipientId]) throw new Error('Người nhận đã có lần gửi trước');
           this.data.reservations[m.recipientId] = { campaignId: c.id, at: new Date().toISOString() };
           lead.state = 'sending'; this.save();
-        }, () => c.cancelled));
+        }, () => c.cancelled), { keepOnError: true });
         lead.state = result.state; lead.error = result.reason; this.save();
         if (result.state !== 'sent') { c.state = 'needs_attention'; c.error = result.reason; this.save(); return; }
       } catch (e) {
