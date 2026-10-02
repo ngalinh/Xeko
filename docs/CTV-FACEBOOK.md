@@ -14,11 +14,15 @@ AI phân loại hồ sơ cá nhân/Fanpage, bằng chứng sản phẩm có bán
 
 Nút **Bỏ qua** ở kết quả hồ sơ chưa đủ điều kiện gửi lưu trạng thái **Đã bỏ qua** trong chiến dịch. Hồ sơ này không được duyệt gửi và không được quét lại khi bấm **Thử lại AI**; kết quả cũ vẫn được giữ để đối chiếu.
 
-Chọn các khách đủ điều kiện, đọc bằng chứng rồi bấm **Duyệt N khách & sang bước 3**. Khách thiếu bằng chứng hoặc đã có dấu gửi trước sẽ không chọn được. Khách AI đánh giá đạt nhưng chưa xác minh ID vẫn được chọn và chuyển sang bước soạn tin; hệ thống hiển thị lý do chưa sẵn sàng gửi và chặn tạo bản xem trước/gửi cho đến khi xác minh ID. Bấm Thử lại AI để xác minh lại, sau đó duyệt lại danh sách. Nếu hai link cùng một ID Facebook, chỉ duyệt một link. Khi dừng/lỗi AI, có thể duyệt phần kết quả đã xử lý; các hồ sơ chưa xử lý không được chọn. Chạy lại phần còn lại bằng chiến dịch mới.
+Chọn các khách đủ điều kiện, đọc bằng chứng rồi bấm **Duyệt N khách & sang bước 3**. Khách thiếu bằng chứng hoặc AI chưa đánh giá đạt vẫn có thể được chọn, tạo bản xem trước và gửi sau khi người dùng duyệt thủ công. Khách đã có dấu gửi trước vẫn bị chặn. Khách AI đánh giá đạt nhưng chưa xác minh ID vẫn được chọn và chuyển sang bước soạn tin; hệ thống hiển thị lý do chưa sẵn sàng gửi và chặn tạo bản xem trước/gửi cho đến khi xác minh ID. Bấm Thử lại AI để xác minh lại, sau đó duyệt lại danh sách. Nếu hai link cùng một ID Facebook, chỉ duyệt một link. Khi dừng/lỗi AI, có thể duyệt phần kết quả đã xử lý; các hồ sơ chưa xử lý không được chọn. Chạy lại phần còn lại bằng chiến dịch mới.
 
 Tiêu chí: AI đánh giá `personal`, `sellerUS=yes`, confidence ≥ 0,85; có trích dẫn khớp nội dung đầu vào; đồng thời phải có dấu hiệu profile cá nhân, đọc ít nhất 3 bài bán hàng và bằng chứng sản phẩm gắn với website Mỹ trong bio/bài viết. Điểm mô hình không phải xác suất đã hiệu chuẩn. Không suy luận thị trường từ tên, quốc tịch, sắc tộc, nơi ở, tiếng Anh hoặc USD. Sản phẩm mua từ website Mỹ về bán tại Việt Nam vẫn phù hợp; không yêu cầu khách mua ở Mỹ. Kết quả thiếu phiên bản `us-website-products-v2` được đánh dấu tiêu chí cũ và không được duyệt gửi. Cần cập nhật cả web và Xeko worker, sau đó tạo chiến dịch mới để đánh giá lại; kết quả đã lưu không tự đổi.
 
-AI chỉ dựa trên nội dung profile, chưa truy cập website Mỹ để xác minh. Dưới 3 bài bán hàng sẽ báo thiếu dữ liệu và không đủ điều kiện duyệt.
+AI chỉ dựa trên nội dung profile, chưa truy cập website Mỹ để xác minh. Dưới 3 bài bán hàng sẽ báo thiếu dữ liệu; đây là đánh giá tham khảo, không chặn gửi khi người dùng đã chọn và duyệt khách thủ công. Việc xác minh người nhận, chống gửi trùng và duyệt bản xem trước vẫn bắt buộc.
+
+Mỗi khách có **Nhật ký quét** ngay trong cột AI đánh giá, cập nhật cùng tiến độ: mở tab/profile, chờ tên/bio, từng lượt đọc và cuộn, số bài mới, số caption có dấu hiệu bán hàng, số ảnh gửi AI, từng lần gọi AI và lý do dừng/lỗi. Mốc giây là thời gian tính từ khi bắt đầu hồ sơ, không phải thời gian dự kiến hoàn tất. Giữ tối đa 100 dòng mỗi khách trong dữ liệu chiến dịch, xem lại được sau reload; Thử lại AI tạo nhật ký mới. Log không lưu caption, bio hoặc ảnh gốc.
+
+Bộ quét chỉ đọc bài trong vùng đang xem (không giới hạn vào 10 bài đầu DOM), tái sử dụng ảnh đã chụp cho caption trùng và không kéo trang ngược lên để chụp ảnh ngoài màn hình. Dừng thu thập khi đủ 5 caption có dấu hiệu bán hàng, 3 lượt không có bài mới, 12 lượt cuộn hoặc hết ngân sách 60 giây đọc bài. Thao tác đang chạy có thể kết thúc muộn hơn ngân sách một khoảng timeout ngắn; dữ liệu đã đọc được giữ lại. Thời gian mở trang/chờ header (tối đa 30 giây mỗi bước) và gọi AI (45 giây/lần, tối đa 2 lần nếu phản hồi sai định dạng) tính riêng. Nút dừng được kiểm tra giữa các thao tác đọc và trước/sau AI; cần chờ thao tác hiện tại kết thúc. Đây là mẫu bài thu thập được, không phải toàn bộ lịch sử profile.
 
 ## 3. Gửi tin nhắn hàng loạt
 
@@ -38,7 +42,7 @@ Trước Enter, worker xác minh ID người nhận, URL và link hồ sơ ở t
 - Node.js 18+; giữ cấu hình `LOCAL_API_KEY`, đăng nhập Basso và phân quyền tài khoản. API cloud kiểm tra quyền trên tài khoản lưu trong chiến dịch trước mọi thao tác.
 - Dữ liệu lưu ở `data/.ctv/campaigns.json` trong `XEKO_DATA_DIR` hoặc root repo mặc định. Không public thư mục dot này qua static server. Chạy một worker ghi dữ liệu cho mỗi thư mục.
 - Đọc phần giới thiệu dưới tiêu đề profile và cuộn tối đa 12 lượt để thu thập tối đa 5 bài bán hàng khác nhau (6.000 ký tự/bài). Mở “Xem thêm”/“See more” trong bài, đọc caption và chụp tối đa 2 ảnh đã tải mỗi bài (tối đa 5 bài) để gửi Gemini đọc chữ và nhận diện sản phẩm. Bỏ qua ảnh nhỏ và ảnh không tải được; không mở album hoặc cuộn toàn bộ lịch sử. Bài chỉ có ảnh được dùng làm ngữ cảnh, chưa được tính vào ngưỡng 3 bài bán hàng có caption. Bằng chứng duyệt vẫn phải khớp caption/bio. Selector hỗ trợ dấu hiệu tiếng Việt/Anh và dừng khi không xác minh được. Không chạy chức năng đóng browser/đổi phiên tài khoản cùng lúc.
-- Giữ lại và tái sử dụng một tab kiểm tra riêng cho mỗi tài khoản, kể cả khi AI lỗi, để xem hồ sơ cuối; không tự đóng tab rồi quay về `about:blank`. Chưa xác minh website bên ngoài.
+- Tái sử dụng một tab kiểm tra trong cùng đợt quét. Khi hết danh sách, dừng hoặc lỗi, worker đóng browser context của đúng tài khoản quét và xóa tab khỏi cache. Nhật ký ghi đang đóng/đã đóng/lỗi đóng browser; chỉ chuyển sang chờ duyệt sau khi đóng xong. Lỗi đóng giữ kết quả và báo cần xử lý. Không đóng browser tài khoản khác. Chưa xác minh website bên ngoài.
 - Trạng thái duyệt và bản xem trước sống qua reload/restart. Job đang chạy khi worker restart chuyển thành `interrupted`; không tự tiếp tục gửi. Chưa có tính năng tiếp tục batch đã bị gián đoạn. Chiến dịch tạo bằng phiên bản cũ chỉ được xem; endpoint `/start` cũ đã bị vô hiệu hóa.
 - UI tự thử lại khi tải tiến độ gặp lỗi, đối chiếu trạng thái sau lỗi thao tác và bỏ qua phản hồi của chiến dịch đã chuyển khỏi. Không tự phát lại yêu cầu gửi.
 
@@ -65,6 +69,8 @@ Chạy `node --test server/test-ctv.js` từ root repo. 15 ca dùng adapter gi�
 Chưa gọi Gemini hay gửi Facebook thật trong quá trình phát triển. Trước triển khai cần kiểm thử selector bằng tài khoản và người nhận thử nghiệm. Không coi preview mô phỏng là kiểm chứng khả năng gửi trên mọi giao diện Messenger.
 
 ## Dữ liệu đọc profile và kết luận thiếu bằng chứng
+
+Đăng bài Facebook, bình luận và chiến dịch quét/gửi CTV dùng chung hàng đợi theo tài khoản trên máy chạy Playwright. Cùng tài khoản chạy lần lượt; khác tài khoản chạy song song trong browser riêng. Mỗi chiến dịch CTV giữ lượt đến khi hoàn tất hoặc dừng, nên bài đăng cùng tài khoản sẽ chờ chiến dịch đó. Server chính truyền tài khoản trong từng yêu cầu; cần cập nhật và khởi động lại cả server chính lẫn worker để áp dụng. Thời gian chờ hàng đợi trên worker không tính vào timeout thực thi bài đăng. Nút Dừng vẫn chặn tác vụ chưa bắt đầu.
 
 Bộ đọc hỗ trợ article, FeedUnit, phần tử trong feed và caption message dự phòng. Bài có caption vẫn được giữ dù không khớp từ khóa bán hàng và không lấy được ảnh. Caption dự phòng ngoài khung bài chỉ cung cấp chữ; không lấy ảnh lân cận vì có thể thuộc bài khác.
 

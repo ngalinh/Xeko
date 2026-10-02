@@ -4,6 +4,7 @@
  */
 
 const FormData = require('form-data');
+const { getQueuedProfile } = require('./src/utils/post-queue');
 const fs = require('fs');
 const path = require('path');
 const { PassThrough } = require('stream');
@@ -116,6 +117,11 @@ async function getFetch() {
 // ===== API tương thích với playwright/post.js =====
 
 async function setProfile(profileName) {
+  const queuedProfile = getQueuedProfile();
+  if (queuedProfile) {
+    if (queuedProfile !== profileName) throw new Error('Không thể đổi tài khoản của tác vụ đang chạy');
+    return { name: profileName, key: profileName };
+  }
   _activeProfile = profileName;
   _activeProfileName = profileName;
   try {
@@ -126,6 +132,8 @@ async function setProfile(profileName) {
 }
 
 function getActiveProfile() {
+  const key = getQueuedProfile();
+  if (key) return { name: key, key };
   if (!_activeProfile) throw new Error('Chưa chọn profile!');
   return { name: _activeProfileName || _activeProfile, key: _activeProfile };
 }
@@ -141,7 +149,7 @@ function profileExists(_profileName) {
 
 // Poll /api/zalo/status/:id trên máy local cho đến khi job Zalo xong
 async function pollZaloLocalJob(jobId, maxWaitMs = 10 * 60 * 1000) {
-  const start = Date.now();
+  let start = Date.now();
   while (Date.now() - start < maxWaitMs) {
     await new Promise(r => setTimeout(r, 2000));
     try {
@@ -155,6 +163,7 @@ async function pollZaloLocalJob(jobId, maxWaitMs = 10 * 60 * 1000) {
       if (!response.ok) continue; // 404 / network glitch → thử lại
       const data = await safeJson(response);
       if (data.status === 'done') return { success: !!data.success, error: data.error || null };
+      if (data.queued === true) start = Date.now();
       // status 'processing' → tiếp tục poll
     } catch (e) {
       if (e.name === 'TimeoutError' || e.name === 'AbortError') continue;
@@ -188,7 +197,7 @@ async function _forwardCancelToLocal(jobId) {
 
 // Poll /api/job/:id trên máy local cho đến khi xong
 async function pollLocalJob(jobId, maxWaitMs = 10 * 60 * 1000, shouldCancel = null) {
-  const start = Date.now();
+  let start = Date.now();
   let _cancelSent = false;
   while (Date.now() - start < maxWaitMs) {
     await new Promise(r => setTimeout(r, 1500));
@@ -208,6 +217,7 @@ async function pollLocalJob(jobId, maxWaitMs = 10 * 60 * 1000, shouldCancel = nu
       const data = await safeJson(response);
       if (data.status === 'done') return data.result;
       if (data.status === 'failed') throw new Error(data.error || 'Job thất bại');
+      if (data.queued === true) start = Date.now();
       // status 'pending'/'running' → tiếp tục poll
     } catch (e) {
       if (e.name === 'TimeoutError' || e.name === 'AbortError') continue; // timeout → thử lại lần sau
@@ -218,19 +228,19 @@ async function pollLocalJob(jobId, maxWaitMs = 10 * 60 * 1000, shouldCancel = nu
 }
 
 async function postToPersonal(message, imagePaths = [], shouldCancel = null) {
-  const res = await callLocal('POST', '/api/post', { message, target: 'personal' }, imagePaths);
+  const res = await callLocal('POST', '/api/post', { profile: getActiveProfile().key, message, target: 'personal' }, imagePaths);
   if (res.jobId) return pollLocalJob(res.jobId, undefined, shouldCancel);
   return res;
 }
 
 async function postToGroup(groupId, message, imagePaths = [], shouldCancel = null) {
-  const res = await callLocal('POST', '/api/post', { message, target: 'group', groupId }, imagePaths);
+  const res = await callLocal('POST', '/api/post', { profile: getActiveProfile().key, message, target: 'group', groupId }, imagePaths);
   if (res.jobId) return pollLocalJob(res.jobId, undefined, shouldCancel);
   return res;
 }
 
 async function postToPage(pageId, message, imagePaths = [], shouldCancel = null) {
-  const res = await callLocal('POST', '/api/post', { message, target: 'page', groupId: pageId }, imagePaths);
+  const res = await callLocal('POST', '/api/post', { profile: getActiveProfile().key, message, target: 'page', groupId: pageId }, imagePaths);
   if (res.jobId) return pollLocalJob(res.jobId, undefined, shouldCancel);
   return res;
 }
@@ -240,7 +250,7 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
   const res = await callLocal(
     'POST',
     '/api/post',
-    { message, target: 'personal-share-groups', groupKeywords: JSON.stringify(groupKeywords) },
+    { profile: getActiveProfile().key, message, target: 'personal-share-groups', groupKeywords: JSON.stringify(groupKeywords) },
     imagePaths
   );
   if (res.jobId) return pollLocalJob(res.jobId, undefined, shouldCancel);
@@ -249,11 +259,11 @@ async function postPersonalAndShareToGroups(message, imagePaths = [], groupKeywo
 
 // Quick Post v2 — async job pattern (tránh tunnel timeout khi test > 1-2 phút)
 async function quickPostToPersonalAndGroups(message, imagePaths = [], groupKeywords = [], shouldCancel = null) {
-  if (!_activeProfile) throw new Error('Chưa chọn profile!');
+  if (!getQueuedProfile() && !_activeProfile) throw new Error('Chưa chọn profile!');
   const res = await callLocal(
     'POST',
     '/api/fb-quick-post-test',
-    { profile: _activeProfile, message, groupKeywords: JSON.stringify(groupKeywords || []) },
+    { profile: getActiveProfile().key, message, groupKeywords: JSON.stringify(groupKeywords || []) },
     imagePaths
   );
   if (res.jobId) return pollLocalJob(res.jobId, undefined, shouldCancel);
@@ -276,8 +286,8 @@ async function closeBrowser() {
 
 // scrapePost — local server tạo job, proxy poll rồi trả imageUrls trực tiếp
 async function scrapePost(postUrl) {
-  if (!_activeProfile) throw new Error('Chưa chọn profile!');
-  const res = await callLocal('POST', '/api/fb-scrape', { url: postUrl, profile: _activeProfile });
+  if (!getQueuedProfile() && !_activeProfile) throw new Error('Chưa chọn profile!');
+  const res = await callLocal('POST', '/api/fb-scrape', { url: postUrl, profile: getActiveProfile().key });
   if (!res.jobId) return res;
 
   const result = await pollLocalJob(res.jobId);
@@ -285,9 +295,9 @@ async function scrapePost(postUrl) {
 }
 
 async function postComment({ postUrl, message, imagePaths = [], profile }) {
-  if (profile) await setProfile(profile).catch(() => {});
+  if (profile) await setProfile(profile);
   const res = await callLocal('POST', '/api/do-comment', {
-    postUrl, message: message || '', profile: profile || _activeProfile,
+    postUrl, message: message || '', profile: profile || getActiveProfile().key,
   }, imagePaths);
   if (res.error) throw new Error(res.error);
   if (res.jobId) return pollLocalJob(res.jobId);

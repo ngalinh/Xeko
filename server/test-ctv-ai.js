@@ -1,15 +1,76 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { evaluateProfile } = require('./src/ctv/ai');
+const { isSalesPost } = require('./src/ctv/rules');
+
+test('emoji sale is recognized without treating a brand alone as a sales post', () => {
+  assert.equal(isSalesPost('Short C.K mẫu hiếm mới s🅰️le cạn đáy ạ'), true);
+  assert.equal(isSalesPost('QUẦN ÁO TOMMY, CK authentic 100%'), false);
+});
+
+test('CK aliases and analysis survive insufficient sales data', async t => {
+  const posts = ['QUẦN ÁO TOMMY, CK authentic 100%\nShort C.K mẫu hiếm mới s🅰️le cạn đáy ạ'];
+  const m = mock(t, [candidate(JSON.stringify({...good, brands: ['Calvin Klein', 'InventedBrand'], evidence: [posts[0]]}))]);
+  const result = await evaluateProfile({...snapshot, posts}, m.fetch);
+  assert.deepEqual(result.brands, ['Calvin Klein']);
+  assert.equal(result.salesPostCount, 1);
+  assert.equal(result.eligible, false);
+  assert.equal(result.captionAnalysis, good.captionAnalysis);
+});
+
+test('grounded semantic sales count overrides keyword gate', async t => {
+  const posts = ['Short C.K mẫu hiếm cạn đáy ạ', 'Quần Tommy đủ size tại Amazon.com', 'Áo Calvin Klein về thêm đủ màu'];
+  const postAssessments = posts.map((quote, postIndex) => ({postIndex, quote, isSalesPost: true}));
+  const m = mock(t, [candidate(JSON.stringify({...good, evidence: [posts[1]], postAssessments}))]);
+  const result = await evaluateProfile({...snapshot, posts}, m.fetch);
+  assert.equal(result.salesPostCount, 3);
+  assert.equal(result.eligible, true);
+});
+
+test('fabricated quotes and repeated post indexes cannot inflate sales count', async t => {
+  const posts = ['Short C.K mẫu hiếm cạn đáy ạ'];
+  const postAssessments = [0, 1, 2].map(postIndex => ({postIndex, quote: 'fabricated caption', isSalesPost: true}));
+  const m = mock(t, [candidate(JSON.stringify({...good, evidence: posts, postAssessments}))]);
+  const result = await evaluateProfile({...snapshot, posts}, m.fetch);
+  assert.equal(result.salesPostCount, 0);
+  assert.equal(result.eligible, false);
+});
+
+test('grounded negative per-post assessment overrides incidental sales keywords', async t => {
+  const postAssessments = snapshot.posts.map((quote, postIndex) => ({postIndex, quote, isSalesPost: false}));
+  const m = mock(t, [candidate(JSON.stringify({...good, postAssessments}))]);
+  assert.equal((await evaluateProfile(snapshot, m.fetch)).salesPostCount, 0);
+});
 const snapshot = { personalEvidence: true, bio: '', posts: [
   'Nhận order máy pha cà phê từ Amazon.com.',
   'Bán giày từ website Mỹ nike.com, nhận đặt hàng.',
   'Chốt đơn mỹ phẩm từ sephora.com Mỹ.',
 ] };
 const good = { profileType: 'personal', sellerUS: 'yes', confidence: .95,
-  reason: 'Có bằng chứng sản phẩm trên website Mỹ', evidence: [snapshot.posts[0]] };
+  reason: 'Có bằng chứng sản phẩm trên website Mỹ', evidence: [snapshot.posts[0]], bio:'', brands:['Nike'], captionAnalysis:'Bài 2 bán giày từ nike.com; bài 3 nhận chốt đơn mỹ phẩm từ sephora.com Mỹ.' };
 const candidate = (text, finishReason = 'STOP') => ({ candidates: [{ finishReason, content: { parts: [{ text }] } }] });
 const valid = candidate(JSON.stringify(good));
+test('header bio is preserved even when AI omits it from the response', async t => {
+  const headerBio = 'GROUP SĂN SALE\nhttps://www.facebook.com/groups/388088742359273/\nDigital creator';
+  const m = mock(t, [valid]);
+  const result = await evaluateProfile({...snapshot, headerBio}, m.fetch);
+  assert.equal(result.bio, headerBio);
+  assert.match(m.calls[0].systemInstruction.parts[0].text, /Ưu tiên headerBio/);
+  assert.equal(JSON.parse(m.calls[0].contents[0].parts[0].text).headerBio, headerBio);
+});
+test('structured display fields retain only grounded bio and caption brands', async t => {
+  const bio = 'Nhận order hàng Mỹ chính hãng';
+  const m = mock(t, [candidate(JSON.stringify({...good, bio, brands:['Nike','InventedBrand']}))]);
+  const result = await evaluateProfile({...snapshot, bio:'Giới thiệu\n' + bio}, m.fetch);
+  assert.equal(result.bio, bio);
+  assert.deepEqual(result.brands, ['Nike']);
+  assert.equal(result.captionAnalysis, good.captionAnalysis);
+});
+test('fabricated bio is not displayed and group classification remains ineligible', async t => {
+  const m = mock(t, [candidate(JSON.stringify({...good, profileType:'group', bio:'Invented bio'}))]);
+  const result = await evaluateProfile(snapshot, m.fetch);
+  assert.equal(result.bio, ''); assert.equal(result.type, 'group'); assert.equal(result.eligible, false);
+});
 function mock(t, responses) {
   const old = process.env.GEMINI_API_KEY;
   process.env.GEMINI_API_KEY = 'test-only';
@@ -115,3 +176,4 @@ test('ungrounded negative result is unknown even with enough posts', async t => 
   assert.equal(result.sellerUS, 'unknown');
   assert.equal(result.eligible, false);
  });
+

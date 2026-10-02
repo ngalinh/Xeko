@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { validProfileKey, profileUrl, renderMessage } = require('./rules');
-const ACTIVE = ['analysis_queued', 'analyzing', 'send_queued', 'sending'];
+const ACTIVE = ['analysis_queued', 'analyzing', 'uid_queued', 'resolving_uid', 'send_queued', 'sending'];
 const fail = message => { const e = new Error(message); e.status = 409; throw e; };
 
 class CtvService {
@@ -11,6 +11,7 @@ class CtvService {
     this.data = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { campaigns: [], reservations: {} };
     for (const c of this.data.campaigns) if (ACTIVE.includes(c.state) || ['running', 'queued'].includes(c.state)) {
       c.state = 'interrupted'; c.error = 'Tiến trình bị gián đoạn. Không tự tiếp tục hoặc gửi lại.';
+      for (const l of c.leads) if (['checking', 'queued'].includes(l.uidLookup?.state)) l.uidLookup = { state: 'unresolved', reason: c.error };
       for (const l of c.leads) if (['checking', 'sending'].includes(l.state)) { l.state = l.state === 'sending' ? 'unconfirmed' : 'review'; l.error = c.error; }
     }
     this.save();
@@ -33,7 +34,7 @@ class CtvService {
   selectionBlocked(lead) {
     if (lead.state === 'skipped') return 'Đã bỏ qua trong chiến dịch này';
     if (lead.assessment && lead.assessment.criteriaVersion !== 'us-website-products-v2') return 'Kết quả dùng tiêu chí cũ. Hãy tạo chiến dịch mới và chạy AI lại trên worker đã cập nhật.';
-    if (!lead.assessment?.eligible) return 'AI chưa đánh giá đạt';
+    if (!lead.assessment) return 'Chưa có kết quả đánh giá';
     const id = lead.assessment.recipientId;
     if (id && this.data.reservations[id]) return 'Đã có lần gửi trước hoặc chưa rõ trạng thái gửi';
     return '';
@@ -41,7 +42,8 @@ class CtvService {
   reasonBlocked(lead) {
     const reason = this.selectionBlocked(lead);
     if (reason) return reason;
-    if (!/^\d+$/.test(lead.assessment.recipientId || '')) return 'Chưa xác minh được ID người nhận. Có thể chọn và soạn tin, nhưng cần Thử lại AI để xác minh trước khi gửi.';
+    // AI qualification is advisory; the operator approves recipients explicitly.
+    if (!/^\d+$/.test(lead.assessment.recipientId || '')) return 'Chưa xác minh được ID người nhận. Hãy bấm Tìm UID ở bước 2 trước khi gửi.';
     return '';
   }
   view(c) { return { ...c, leads: c.leads.map(l => ({ ...l, selectionBlockedReason: this.selectionBlocked(l), blockedReason: this.reasonBlocked(l) })) }; }
@@ -64,7 +66,7 @@ class CtvService {
     this.data.campaigns.push(c); this.save(); return c;
   }
   enqueue(c, task) {
-    const run = Promise.resolve().then(() => this.queue(task)).catch(e => { c.state = 'needs_attention'; c.error = e.message; this.save(); });
+    const run = Promise.resolve().then(() => this.queue(task, c.profile)).catch(e => { c.state = 'needs_attention'; c.error = e.message; this.save(); });
     this.running.add(run); run.then(() => this.running.delete(run), () => this.running.delete(run));
   }
   approveImport(id, owner) {
@@ -82,7 +84,7 @@ class CtvService {
     c.cancelled = false;
     for (const lead of c.leads) {
       if (lead.state === 'skipped') continue;
-      delete lead.assessment; delete lead.error; delete lead.message;
+      delete lead.assessment; delete lead.error; delete lead.message; delete lead.scanLog; delete lead.uidLookup;
       lead.state = 'pending';
     }
     c.state = 'analysis_queued'; this.save(); this.enqueue(c, () => this.analyze(c)); return c;
@@ -94,22 +96,85 @@ class CtvService {
     // Keep recipient reservations even after removing campaign history.
     this.save(); return c;
   }
+  resolveUids(id, owner, leadId) {
+    const c = this.staged(id, owner);
+    if (!c.approvals.import || c.approvals.send || !['analysis_review', 'message_review'].includes(c.state)) fail('Chỉ tìm UID sau khi đánh giá xong và chưa duyệt gửi');
+    if (leadId !== undefined && (typeof leadId !== 'string' || !leadId)) fail('Mã hồ sơ không hợp lệ');
+    const leads = c.leads.filter(l => l.state !== 'skipped' && l.assessment && (leadId ? l.id === leadId : !l.assessment.recipientId));
+    if (!leads.length) fail('Không có hồ sơ cần tìm UID');
+    // Changing recipient identity invalidates both selection and message approval.
+    delete c.approvals.analysis; delete c.messagePreview; delete c.error;
+    c.cancelled = false; c.state = 'uid_queued';
+    for (const l of leads) { l.uidLookup = { state: 'queued' }; l.assessment.recipientId = null; }
+    this.save();
+    this.enqueue(c, () => this.lookupUids(c, leads));
+    return c;
+  }
+  async lookupUids(c, leads) {
+    c.state = 'resolving_uid'; this.save();
+    try {
+      for (const lead of leads) {
+        if (c.cancelled) break;
+        lead.uidLookup = { state: 'checking' }; this.save();
+        try {
+          const identity = await this.browser.withPage(c.profile, page => this.browser.resolveUid(page, lead.url, { cancelled: () => c.cancelled }), { keepOpen: true });
+          if (c.cancelled) break;
+          Object.assign(lead.assessment, identity);
+          lead.uidLookup = { state: identity.recipientId ? 'resolved' : 'unresolved', reason: identity.uidReason };
+        } catch (e) {
+          lead.uidLookup = { state: 'unresolved', reason: e.message };
+          c.error = e.message;
+          break;
+        } finally { this.save(); }
+        if (lead !== leads.at(-1)) await this.wait(c, 2);
+      }
+    } finally {
+      for (const lead of leads) if (['queued', 'checking'].includes(lead.uidLookup?.state)) lead.uidLookup = { state: 'unresolved', reason: 'Chưa hoàn tất tìm UID; hãy thử lại' };
+      try { await this.browser.closeInspection(c.profile); c.state = 'analysis_review'; }
+      catch (e) { c.error = e.message; c.state = 'needs_attention'; }
+      this.save();
+    }
+  }
   async analyze(c) {
     c.state = 'analyzing'; this.save();
-    for (const lead of c.leads) {
-      if (c.cancelled) break;
-      if (lead.state === 'skipped') continue;
-      lead.state = 'checking'; this.save();
-      try {
-        lead.assessment = await this.browser.withPage(c.profile, page => this.browser.inspect(page, lead.url), { keepOpen: true });
-        lead.state = lead.assessment.eligible ? 'qualified' : 'review'; this.save();
-      } catch (e) {
-        lead.state = 'review'; lead.error = e.message; c.state = 'analysis_review'; c.error = e.message; this.save(); return;
+    let lastProgress;
+    try {
+      for (const lead of c.leads) {
+        if (c.cancelled) break;
+        if (lead.state === 'skipped') continue;
+        lead.state = 'checking'; lead.scanLog = [];
+        const started = Date.now();
+        const onProgress = event => {
+          lead.scanLog.push({ ...event, at: new Date().toISOString(), elapsedMs: Date.now() - started });
+          lead.scanLog = lead.scanLog.slice(-100);
+          this.save();
+        };
+        lastProgress = onProgress;
+        onProgress({ stage: 'browser', message: 'Đang mở tab kiểm tra của tài khoản Facebook' });
+        try {
+          lead.assessment = await this.browser.withPage(c.profile, page => this.browser.inspect(page, lead.url, { onProgress, cancelled: () => c.cancelled }), { keepOpen: true });
+          lead.state = lead.assessment.eligible ? 'qualified' : 'review'; this.save();
+        } catch (e) {
+          onProgress({ stage: c.cancelled ? 'cancelled' : 'error', message: e.message });
+          lead.state = 'review'; lead.error = e.message; c.error = e.message; this.save(); break;
+        }
+        if (lead !== c.leads[c.leads.length - 1]) await this.wait(c, 2);
       }
-      if (lead !== c.leads[c.leads.length - 1]) await this.wait(c, 2);
+    } finally {
+      // Keep the campaign active and the account queue held until close finishes.
+      try {
+        lastProgress?.({ stage: 'browser_closing', message: 'Đã kết thúc quét danh sách; đang đóng browser của tài khoản' });
+        await this.browser.closeInspection(c.profile);
+        lastProgress?.({ stage: 'browser_closed', message: 'Đã đóng browser của tài khoản quét' });
+        c.state = 'analysis_review';
+      } catch (error) {
+        const message = `Không đóng được browser: ${error.message}`;
+        c.error = [c.error, message].filter(Boolean).join(' · ');
+        c.state = 'needs_attention';
+        lastProgress?.({ stage: 'browser_close_error', message });
+      }
+      this.save();
     }
-    // Always stop at review. Analysis cannot call the message adapter.
-    c.state = 'analysis_review'; this.save();
   }
   skipLead(id, owner, leadId) {
     const c = this.staged(id, owner);
@@ -117,7 +182,7 @@ class CtvService {
     const lead = c.leads.find(l => l.id === leadId);
     if (!lead) fail('Không tìm thấy hồ sơ trong chiến dịch');
     if (lead.state === 'skipped') return c;
-    if (!['review', 'qualified'].includes(lead.state) || !this.reasonBlocked(lead)) fail('Chỉ bỏ qua hồ sơ đã đánh giá nhưng chưa đủ điều kiện gửi');
+    if (!['review', 'qualified'].includes(lead.state) || (lead.assessment?.eligible && !this.reasonBlocked(lead))) fail('Chỉ bỏ qua hồ sơ đã đánh giá nhưng chưa đủ điều kiện gửi');
     lead.state = 'skipped';
     lead.skippedBy = owner; lead.skippedAt = new Date().toISOString();
     this.save(); return c;

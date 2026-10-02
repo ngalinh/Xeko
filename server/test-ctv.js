@@ -11,11 +11,129 @@ const input = urls => ({profile:'test',name:'Test workflow',urls:urls || ['https
 function setup(t, overrides = {}) {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'xeko-ctv-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
   const sent=[],inspected=[];
-  const browser={withPage:async(p,fn)=>fn({}),inspect:async(_,url)=>{inspected.push(url);return {url,actualUrl:url,name:'Khách '+recipientId(url),criteriaVersion:'us-website-products-v2',eligible:true,recipientId:recipientId(url)};},send:async(_,a,m,reserve)=>{reserve();sent.push({id:a.recipientId,message:m});return {state:'sent'};},...overrides};
+  const browser={closeInspection:async()=>{},withPage:async(p,fn)=>fn({}),inspect:async(_,url)=>{inspected.push(url);return {url,actualUrl:url,name:'Khách '+recipientId(url),criteriaVersion:'us-website-products-v2',eligible:true,recipientId:recipientId(url)};},send:async(_,a,m,reserve)=>{reserve();sent.push({id:a.recipientId,message:m});return {state:'sent'};},...overrides};
   const s=new CtvService({file:path.join(dir,'campaigns.json'),browser,pause:async()=>{}});
   return {s,sent,inspected,browser,dir};
 }
 const settle = s => Promise.all([...s.running]);
+
+test('UID lookup preserves AI, invalidates approvals and runs in account queue without sending', async t => {
+  const {s,browser,sent,inspected}=setup(t);
+  const c=await analyzed(s); const oldToken=prepared(s,c);
+  const lead=c.leads[0], previous={...lead.assessment};
+  let queuedProfile, calls=0;
+  s.queue=async(fn,profile)=>{queuedProfile=profile;return fn();};
+  browser.resolveUid=async()=>{calls++;return {recipientId:'999',uidStatus:'resolved'};};
+  s.resolveUids(c.id,'owner',lead.id);
+  assert.equal(c.state,'uid_queued');assert.equal(c.messagePreview,undefined);assert.equal(c.approvals.analysis,undefined);
+  assert.throws(()=>s.sendApproved(c.id,'owner',oldToken));
+  assert.throws(()=>s.resolveUids(c.id,'owner',lead.id));
+  assert.throws(()=>s.deleteCampaign(c.id,'owner'));
+  await settle(s);
+  assert.equal(queuedProfile,'test');assert.equal(calls,1);assert.equal(sent.length,0);assert.equal(inspected.length,2);
+  assert.equal(c.state,'analysis_review');assert.equal(lead.assessment.recipientId,'999');
+  assert.equal(lead.assessment.name,previous.name);assert.equal(lead.assessment.eligible,previous.eligible);
+  prepared(s,c);assert.equal(c.messagePreview.messages[0].recipientId,'999');
+});
+test('missing UID batch skips resolved and skipped profiles and supports stop before opening browser', async t => {
+  const {s,browser}=setup(t);const c=await analyzed(s);
+  c.leads[0].assessment.recipientId=null;
+  let calls=0, closed=0;
+  browser.resolveUid=async()=>{calls++;return {recipientId:'111',uidStatus:'resolved'};};
+  browser.closeInspection=async()=>{closed++;};
+  s.resolveUids(c.id,'owner');s.stop(c.id,'owner');await settle(s);
+  assert.equal(calls,0);assert.equal(closed,1);assert.equal(c.leads[0].uidLookup.state,'unresolved');
+  s.resolveUids(c.id,'owner');await settle(s);assert.equal(calls,1);
+  c.leads[0].state='skipped';c.leads[0].assessment.recipientId=null;
+  assert.throws(()=>s.resolveUids(c.id,'owner'));
+});
+test('failed UID refresh clears stale recipient and closes browser; lookup is owner and stage scoped', async t => {
+  const {s,browser}=setup(t);const c=await analyzed(s);let closed=0;
+  browser.resolveUid=async()=>{throw Error('checkpoint');};browser.closeInspection=async()=>{closed++;};
+  assert.throws(()=>s.resolveUids(c.id,'other',c.leads[0].id));
+  assert.throws(()=>s.resolveUids(c.id,'owner','unknown'));
+  assert.throws(()=>s.resolveUids(c.id,'owner',{}));
+  s.resolveUids(c.id,'owner',c.leads[0].id);await settle(s);
+  assert.equal(closed,1);assert.equal(c.leads[0].assessment.recipientId,null);
+  assert.match(c.leads[0].uidLookup.reason,/checkpoint/);
+  assert.match(s.reasonBlocked(c.leads[0]),/Tìm UID/);
+  c.approvals.send={token:'old'};assert.throws(()=>s.resolveUids(c.id,'owner',c.leads[0].id));
+});
+test('UID lookup restart cannot resume or retain in-progress status', async t => {
+  const {s,browser}=setup(t);const c=await analyzed(s);
+  c.state='resolving_uid';c.leads[0].uidLookup={state:'checking'};c.leads[0].assessment.recipientId=null;s.save();
+  const restored=new CtvService({file:s.file,browser}).get(c.id,'owner');
+  assert.equal(restored.state,'interrupted');assert.equal(restored.leads[0].uidLookup.state,'unresolved');
+});
+test('resolve-uids API returns accepted and enforces permissions for cloud forwarding', async t => {
+  const {s,browser}=setup(t);const c=await analyzed(s);
+  browser.resolveUid=async()=>({recipientId:'999',uidStatus:'resolved'});
+  let handler;mountCtv({all:(_,h)=>{handler=h;}},{service:s});
+  const req={path:`/api/ctv/campaigns/${c.id}/resolve-uids`,method:'POST',body:{leadId:c.leads[0].id},headers:{'x-ctv-owner':'owner'}};
+  const res=response();await handler(req,res);assert.equal(res.code,202);await settle(s);
+  let forwarded=0;
+  mountCtv({all:(_,h)=>{handler=h;}},{remote:true,getLocalUrl:()=> 'http://local',permissions:{getAllowedProfileKeys:()=>['other']},
+    fetchFn:async()=>{forwarded++;return {ok:true,json:async()=>({profile:'test'})};}});
+  const forbidden=response();await handler({...req,user:{email:'owner'},body:{profile:'other'}},forbidden);
+  assert.equal(forbidden.code,403);assert.equal(forwarded,1);
+});
+test('analysis closes once after all links and closes again on retry', async t => {
+  const events = [];
+  const {s} = setup(t, {
+    inspect:async (_, url)=>{events.push(url); return {eligible:false};},
+    closeInspection:async profile=>{assert.equal(profile,'test'); events.push('close');},
+  });
+  const c = await analyzed(s);
+  const expected = [...c.leads.map(l=>l.url),'close'];
+  assert.deepEqual(events,expected);
+  s.retryAnalysis(c.id,'owner'); await settle(s);
+  assert.deepEqual(events,[...expected,...expected]);
+  assert.equal(c.leads.at(-1).scanLog.at(-1).stage,'browser_closed');
+});
+test('cleanup runs after failure or stop and preserves scan errors', async t => {
+  let closed=0;
+  const {s,browser,inspected} = setup(t,{closeInspection:async()=>{closed++;}});
+  const c=s.create(input(),'owner');
+  s.pause=async()=>s.stop(c.id,'owner');
+  s.approveImport(c.id,'owner'); await settle(s);
+  assert.equal(inspected.length,1); assert.equal(closed,1);
+  browser.inspect=async()=>{throw Error('AI unavailable');};
+  const d=await analyzed(s);
+  assert.equal(closed,2); assert.equal(d.state,'analysis_review'); assert.match(d.error,/AI unavailable/);
+  browser.closeInspection=async()=>{throw Error('close failed');};
+  const e=await analyzed(s);
+  assert.equal(e.state,'needs_attention'); assert.match(e.error,/AI unavailable.*close failed/);
+  assert.equal(e.leads[0].scanLog.at(-1).stage,'browser_close_error');
+});
+test('review and retry stay locked until context close resolves', async t => {
+  let release, closing;
+  const entered=new Promise(resolve=>{closing=resolve;});
+  const {s}=setup(t,{closeInspection:async()=>{closing(); await new Promise(resolve=>{release=resolve;});}});
+  const c=s.create(input(['https://facebook.com/123']),'owner');
+  s.approveImport(c.id,'owner'); await entered;
+  assert.equal(c.state,'analyzing');
+  assert.throws(()=>s.retryAnalysis(c.id,'owner'));
+  assert.throws(()=>s.approveAnalysis(c.id,'owner',[c.leads[0].id]));
+  release(); await settle(s); assert.equal(c.state,'analysis_review');
+});
+test('scan events are bounded, persisted during work, and retain failure context', async t => {
+  const { s, browser } = setup(t);
+  browser.inspect = async (_, url, { onProgress, cancelled }) => {
+    assert.equal(cancelled(), false);
+    for (let i = 0; i < 105; i++) onProgress({stage: 'batch', message: `Lượt ${i}`});
+    const persisted = JSON.parse(fs.readFileSync(s.file, 'utf8')).campaigns[0].leads[0];
+    assert.equal(persisted.state, 'checking');
+    assert.equal(persisted.scanLog.length, 100);
+    assert.equal(persisted.scanLog.at(-1).message, 'Lượt 104');
+    throw Error('browser disconnected');
+  };
+  const c = await analyzed(s, ['https://facebook.com/123']);
+  assert.equal(c.leads[0].scanLog.find(e=>e.stage === 'error').stage, 'error');
+  assert.equal(c.leads[0].scanLog.find(e=>e.stage === 'error').message, 'browser disconnected');
+  assert.equal(c.state, 'analysis_review');
+  const restored = new CtvService({file:s.file,browser});
+  assert.equal(restored.view(restored.get(c.id, 'owner')).leads[0].scanLog.find(e=>e.stage === 'error').stage, 'error');
+});
 async function analyzed(s,urls){const c=s.create(input(urls),'owner');s.approveImport(c.id,'owner');await settle(s);return c;}
 function prepared(s,c){s.approveAnalysis(c.id,'owner',c.leads.map(l=>l.id));s.prepareMessages(c.id,'owner','Chào {name}, mời bạn hợp tác CTV.');return c.messagePreview.token;}
 
@@ -84,11 +202,31 @@ test('changed message and changed selection invalidate old preview approval',asy
   s.prepareMessages(c.id,'owner','Nội dung mới cho {name}');assert.throws(()=>s.sendApproved(c.id,'owner',token));
   const changed=c.messagePreview.token;s.reviewAnalysis(c.id,'owner');assert.equal(c.messagePreview,undefined);assert.throws(()=>s.sendApproved(c.id,'owner',changed));assert.equal(sent.length,0);
 });
-test('unqualified profiles, nonexistent IDs and alias duplicates cannot be approved',async t=>{
+test('manual selection allows reviewed profiles but preserves send checks and rejects invalid or duplicate recipients',async t=>{
   const {s}=setup(t);const c=await analyzed(s);const lead=c.leads[0];
-  lead.assessment.eligible=false;assert.throws(()=>s.approveAnalysis(c.id,'owner',[lead.id]));lead.assessment.eligible=true;
+  lead.assessment.eligible=false;lead.assessment.type='page';
+  assert.equal(s.view(c).leads[0].selectionBlockedReason,'');
+  s.approveAnalysis(c.id,'owner',[lead.id]);
+  assert.equal(c.state,'message_review');
+  s.prepareMessages(c.id,'owner','Chào {name}');
+  assert.equal(c.messagePreview.messages.length,1);
+  s.reviewAnalysis(c.id,'owner');lead.assessment.eligible=true;
   lead.assessment.recipientId=null;assert.throws(()=>s.approveAnalysis(c.id,'owner',['fake']));
   lead.assessment.recipientId=c.leads[1].assessment.recipientId;assert.throws(()=>s.approveAnalysis(c.id,'owner',c.leads.map(l=>l.id)));
+});
+test('manually approved insufficient-data lead can preview and send without changing AI result', async t => {
+  const {s,sent}=setup(t); const c=await analyzed(s); const lead=c.leads[0];
+  Object.assign(lead.assessment,{eligible:false,insufficientData:true,salesPostCount:0,sellerUS:'unknown',gateReason:'Chưa đủ dữ liệu'});
+  lead.state='review';
+  assert.equal(s.view(c).leads[0].blockedReason,'');
+  s.approveAnalysis(c.id,'owner',[lead.id]);
+  s.prepareMessages(c.id,'owner','Chào {name}');
+  assert.equal(sent.length,0);
+  s.sendApproved(c.id,'owner',c.messagePreview.token); await settle(s);
+  assert.deepEqual(sent.map(item=>item.id),['123']);
+  assert.equal(lead.assessment.eligible,false);
+  assert.equal(lead.assessment.salesPostCount,0);
+  assert.equal(c.state,'completed');
 });
 test('stopping queued analysis and sending prevents external operations',async t=>{
   const {s,sent,inspected}=setup(t);const c=s.create(input(),'owner');s.approveImport(c.id,'owner');s.stop(c.id,'owner');await settle(s);

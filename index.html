@@ -6321,7 +6321,7 @@
       };
 
       try {
-        const start = Date.now();
+        let start = Date.now();
         let iteration = 0;
         while (Date.now() - start < maxWaitMs) {
           // Kiểm tra SSE result trước (có thể đã đến trước khi sleep kết thúc)
@@ -6359,6 +6359,8 @@
             }
             if (data.status === 'failed') { const _e = new Error(data.error || 'Job thất bại'); _e.confirmedFail = true; throw _e; }
             if (data.offline) throw new Error('Mất kết nối mạng — kiểm tra internet rồi thử lại.');
+            // The server owns execution deadlines; a live pending job may be queued.
+            if (data.status === 'pending') start = Date.now();
           } catch (e) {
             if (isProxyTimeout(e)) { console.log(`[pollJob ${jobId}] proxy timeout, retry`); continue; }
             throw e;
@@ -12917,6 +12919,8 @@
           //  - auth: hết phiên đăng nhập → cần mở lại tài khoản
           const classifyFailure = (err) => {
             const e = (err || '').toLowerCase();
+            if (/opening in existing browser session|profile.*already in use|processsingleton|singletonlock|hồ sơ tài khoản đang được/.test(e))
+              return { color:'#92400e', bg:'#fef3c7', emoji:'🔒', label:'Hồ sơ đang mở', tip:'Hồ sơ tài khoản đang được một phiên trình duyệt khác sử dụng — đóng cửa sổ kiểm tra đăng nhập hoặc chờ lượt trước đóng rồi đăng lại.' };
             if (/local server chưa kết nối|không phải json|tunnel|proxy.*không kết nối|chưa kết nối/.test(e))
               return { color:'#3730a3', bg:'#e0e7ff', emoji:'🔌', label:'Mất kết nối', tip:'Không kết nối được tới máy đăng bài (local/tunnel/proxy). Kiểm tra kết nối rồi đăng lại.' };
             // Lỗi mạng cấp trình duyệt (Chromium net::ERR_*): máy đăng không mở nổi
@@ -12938,6 +12942,8 @@
             const e = (raw || '').trim();
             if (!e) return '';
             const low = e.toLowerCase();
+            if (/opening in existing browser session|profile.*already in use|processsingleton|singletonlock|hồ sơ tài khoản đang được/.test(low))
+              return 'Hồ sơ tài khoản đang được một phiên trình duyệt khác sử dụng — đóng cửa sổ kiểm tra đăng nhập hoặc chờ lượt trước đóng rồi đăng lại.';
             // Bỏ chi tiết kỹ thuật nội bộ khỏi phần hiển thị cho người dùng.
             const stripped = e
               .replace(/\(xem logs\/[^)]*\)/gi, '')
@@ -14332,7 +14338,7 @@
           try {
             if (job.zaloJobId) {
               // Zalo: poll với proper error handling (giống pollZaloJob)
-              const deadline = Date.now() + 10 * 60 * 1000;
+              let deadline = Date.now() + 10 * 60 * 1000;
               let d;
               while (Date.now() < deadline) {
                 await sleepOrVisible(2000);
@@ -14341,6 +14347,7 @@
                   if (!sr.ok) continue;
                   const sd = await parseJson(sr);
                   if (sd.status === 'done') { d = sd; break; }
+                  if (sd.queued === true) deadline = Date.now() + 10 * 60 * 1000;
                 } catch {}
               }
               d = d || { success: false, error: 'Timeout' };
@@ -15552,3 +15559,4 @@
   </script>
 </body>
 </html>
+

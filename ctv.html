@@ -71,7 +71,7 @@
     <a href="#step3" id="nav3" class="step-link"><span class="step-number">3</span><span>Gửi tin nhắn hàng loạt<small id="navStatus3">Chờ duyệt kết quả AI</small></span></a>
   </nav>
   <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
-  <div class="workspace">
+  <div class="workspace workspace-main-only">
     <div class="flow">
       <section class="panel" id="step1" aria-labelledby="title1">
         <div class="panel-heading"><div class="title-row"><span class="number">01</span><div><h2 id="title1">Nhập danh sách khách hàng</h2><p class="muted">Xem lại link hợp lệ trước khi chuyển sang AI.</p></div></div><span class="badge" id="status1">Chưa nhập</span></div>
@@ -89,32 +89,42 @@
         <div class="panel-heading"><div class="title-row"><span class="number">02</span><div><h2 id="title2">AI đánh giá</h2><p class="muted">Đọc bằng chứng, chọn khách đạt và duyệt chuyển tiếp.</p></div></div><span class="badge" id="status2">Đang khóa</span></div>
         <div id="analysisEmpty" class="empty"><span class="empty-icon">✦</span><h3>AI sẽ đánh giá sau khi bạn duyệt bước 1</h3><p>Profile cá nhân · Bio dưới ảnh đại diện · 3–5 bài bán hàng · Sản phẩm trên website Mỹ</p><span class="muted">Kết quả đánh giá luôn dừng để bạn duyệt. Không tự gửi tin.</span></div>
         <div id="analysisResult" hidden>
-          <div class="progress-row"><p id="analysisProgress"></p><button id="retryAnalysis" class="secondary" hidden>↻ Thử lại AI</button><button id="stopAnalysis" class="secondary" hidden>Dừng đánh giá</button></div><progress id="analysisBar" max="100" value="0" aria-label="Tiến độ AI đánh giá"></progress>
+          <div class="progress-row"><p id="analysisProgress"></p><button id="resolveUids" class="secondary" hidden>Tìm UID còn thiếu</button><button id="retryAnalysis" class="secondary" hidden>↻ Thử lại AI</button><button id="stopAnalysis" class="secondary" hidden>Dừng xử lý</button></div><progress id="analysisBar" max="100" value="0" aria-label="Tiến độ AI đánh giá"></progress>
           <div id="analysisStats" class="stats"></div><p id="analysisWarning" class="warning" hidden></p>
-          <div class="selection-tools"><label class="check-label"><input id="selectAll" type="checkbox"> Chọn tất cả khách đủ điều kiện</label><span id="selectionCount" class="muted">0 khách được chọn</span></div>
-          <div class="table-wrap"><table><thead><tr><th>Chọn</th><th>Khách hàng</th><th>AI đánh giá & bằng chứng</th><th>Kết quả</th></tr></thead><tbody id="analysisRows"></tbody></table></div>
+          <div class="analysis-filters"><label class="sr-only" for="analysisSearch">Tìm khách theo tên, link hoặc UID</label><input id="analysisSearch" type="search" placeholder="Tìm tên, link hoặc UID…"><label class="sr-only" for="analysisFilter">Lọc kết quả AI</label><select id="analysisFilter"><option value="all">Tất cả kết quả</option><option value="qualified">AI đạt</option><option value="review">Cần kiểm tra</option><option value="pending">Chưa đánh giá / đang quét</option><option value="skipped">Đã bỏ qua</option></select><span id="analysisFilterCount" class="muted" aria-live="polite"></span></div>
+          <p id="analysisFilterEmpty" class="muted" hidden>Không có khách phù hợp với bộ lọc.</p>
+          <div class="selection-tools"><label class="check-label"><input id="selectAll" type="checkbox"> Chọn tất cả khách đang hiển thị có thể chọn</label><span id="selectionCount" class="muted">0 khách được chọn</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Chọn</th><th>Khách hàng</th><th>Tên FB</th><th>AI đánh giá & bằng chứng</th><th>Kết quả</th></tr></thead><tbody id="analysisRows"></tbody></table></div>
           <div class="panel-footer"><span id="analysisApproval" class="muted">Chỉ khách được bạn chọn mới đi tiếp.</span><button id="approveAnalysis" disabled>Duyệt 0 khách →</button></div>
         </div>
       </section>
 
       <section class="panel" id="step3" aria-labelledby="title3">
-        <div class="panel-heading"><div class="title-row"><span class="number">03</span><div><h2 id="title3">Gửi tin nhắn hàng loạt</h2><p class="muted">Xem từng tin nhắn trước khi duyệt gửi.</p></div></div><span class="badge" id="status3">Đang khóa</span></div>
+        <div class="panel-heading"><div class="title-row"><span class="number">03</span><div><h2 id="title3">Gửi tin nhắn hàng loạt</h2><p id="messageStageHint" class="muted">Xem từng tin nhắn trước khi duyệt gửi.</p></div></div><span class="badge" id="status3">Đang khóa</span></div>
         <div id="messageEmpty" class="empty"><span class="empty-icon">✉</span><h3>Chưa có khách được duyệt gửi</h3><p>Duyệt kết quả AI ở bước 2 để mở phần soạn tin nhắn.</p></div>
         <div id="messageResult" hidden>
           <div class="recipient-info"><p id="recipientSummary"></p><button id="reviewSelection" class="text-button">← Chọn lại khách</button></div>
+          <div id="messageComposer" class="message-composer"><div class="composer-heading"><h3>Soạn tin nhắn</h3><span class="muted">Cá nhân hóa cho từng khách</span></div>
           <label for="template">Nội dung tin nhắn</label><textarea id="template" rows="5" maxlength="2000">Chào {name}, mình có thông tin muốn chia sẻ với bạn. Bạn có muốn nhận thêm thông tin không?</textarea>
           <div class="template-meta"><span class="muted">Dùng <code>{name}</code> để chèn tên khách.</span><span id="messageLength" class="muted"></span></div>
-          <button id="prepareMessages" class="secondary">Tạo bản xem trước</button><p id="previewHint" class="hint">Chưa có bản xem trước. Chưa thể gửi tin.</p>
-          <div id="messagePreviews" class="message-previews"></div>
+          <div class="composer-footer"><p id="previewHint" class="hint">Chưa có bản xem trước. Chưa thể gửi tin.</p><button id="prepareMessages">Xem trước tin nhắn →</button></div></div>
+          <div id="sendResult" hidden>
+            <div id="sendSummary" class="send-summary" role="status" aria-live="polite"><div><h3 id="sendSummaryTitle"></h3><p id="sendSummaryText"></p></div><button id="stopSending" class="secondary">Dừng gửi</button></div>
+            <details id="sendCampaignDiagnostic" class="send-diagnostic" hidden><summary>Chi tiết lỗi chiến dịch</summary><pre id="sendCampaignError"></pre></details>
+            <div id="sendStats" class="stats"></div>
+            <div class="send-list-heading"><h3>Kết quả từng khách</h3><div class="send-filters"><label class="sr-only" for="sendSearch">Tìm khách theo tên, link hoặc UID</label><input id="sendSearch" type="search" placeholder="Tìm tên, link hoặc UID…"><label class="sr-only" for="sendFilter">Lọc trạng thái gửi</label><select id="sendFilter"><option value="all">Tất cả trạng thái</option><option value="attention">Cần kiểm tra</option><option value="sent">Đã gửi</option><option value="pending">Chờ / đang gửi</option><option value="duplicate">Đã liên hệ trước</option></select></div></div>
+            <p id="sendListCount" class="muted" aria-live="polite"></p><div id="sendRows" class="send-rows"></div><p id="sendNote" class="hint"></p>
+          </div>
+          <details id="messageArchive" class="message-archive" open><summary id="messageArchiveTitle">Xem trước tin nhắn</summary><div id="messagePreviews" class="message-previews"></div></details>
           <div id="sendApproval" class="send-approval" hidden><label class="check-label"><input id="confirmSend" type="checkbox"> Tôi đã kiểm tra người nhận và nội dung các tin nhắn ở trên.</label><button id="sendButton" disabled>Duyệt & gửi hàng loạt</button></div>
-          <div id="sendResult" hidden><div class="progress-row"><h3>Kết quả gửi</h3><button id="stopSending" class="secondary">Dừng gửi</button></div><div id="sendStats" class="stats"></div><div id="sendRows" class="send-rows"></div><p id="sendNote" class="muted"></p></div>
         </div>
       </section>
     </div>
-    <aside>
+    <!-- Retained hidden DOM supports existing campaign state bindings. -->
+    <aside hidden>
       <section class="panel overview"><p class="eyebrow">CHIẾN DỊCH ĐANG XEM</p><h2 id="currentName">Chưa có chiến dịch</h2><p id="currentProfile" class="muted">Chọn tài khoản ở bước 1.</p><span id="currentState" class="badge">Chờ nhập dữ liệu</span><div class="rule"></div><p class="muted">Mỗi bước đều có kết quả và thao tác duyệt riêng. Không chuyển bước tự động.</p><button id="refresh" class="secondary" disabled>↻ Cập nhật trạng thái</button><p id="connection" class="muted" aria-live="polite"></p></section>
-      <section class="panel criteria"><p class="eyebrow">TIÊU CHÍ AI ĐÁNH GIÁ</p><ul><li><strong>Facebook cá nhân</strong><span>Xác định loại hồ sơ của khách.</span></li><li><strong>Có hoạt động bán hàng</strong><span>Đọc bio dưới ảnh đại diện và cuộn xem 3–5 bài bán hàng.</span></li><li><strong>Sản phẩm có bán trên website Mỹ</strong><span>Đối chiếu sản phẩm, website Mỹ trong bio và bài bán hàng; không xét thị trường người mua.</span></li></ul><p class="hint">Thiếu bằng chứng → cần kiểm tra lại trước khi chọn gửi.</p></section>
       <section class="panel history"><h2>Lịch sử chiến dịch</h2><div id="campaigns"><p class="muted">Đang tải…</p></div></section>
+      <section class="panel criteria"><p class="eyebrow">TIÊU CHÍ AI ĐÁNH GIÁ</p><ul><li><strong>Facebook cá nhân</strong><span>Xác định loại hồ sơ của khách.</span></li><li><strong>Có hoạt động bán hàng</strong><span>Đọc bio dưới ảnh đại diện và cuộn xem 3–5 bài bán hàng.</span></li><li><strong>Sản phẩm có bán trên website Mỹ</strong><span>Đối chiếu sản phẩm, website Mỹ trong bio và bài bán hàng; không xét thị trường người mua.</span></li></ul><p class="hint">Thiếu bằng chứng → cần kiểm tra lại trước khi chọn gửi.</p></section>
     </aside>
   </div>
 </main><script src="./ctv.js"></script></body></html>

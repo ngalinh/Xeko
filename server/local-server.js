@@ -23,6 +23,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 
 const playwright = require('./src/playwright/post');
+const { queuePost } = require('./src/utils/post-queue');
 const salework = require('./src/playwright/salework');
 const sessionCheck = require('./src/utils/session-check');
 const loginHistory = require('./src/utils/login-history');
@@ -30,6 +31,7 @@ const logger = require('./src/utils/logger');
 const { parseProxy } = require('./src/utils/proxy');
 const apiKey = require('./src/utils/api-key');
 const rateLimit = require('./src/utils/rate-limit');
+const { waitForPostTurn, finishPostTurn } = require('./src/utils/fb-post-pacing');
 const zaloQueue = require('./src/utils/zalo-queue');
 const { groupDelayMs } = require('./src/utils/post-delays');
 
@@ -135,6 +137,19 @@ function createJob() {
   postJobs.set(id, { status: 'pending', createdAt: Date.now() });
   return id;
 }
+function queueWorkerJob(id, profile, fn, posting = false) {
+  postJobs.get(id).queued = true;
+  return queuePost(async () => {
+    if (posting) await waitForPostTurn(profile, () => cancelledFbJobIds.has(id));
+    const job = postJobs.get(id);
+    if (job) { job.queued = false; job.createdAt = Date.now(); }
+    try {
+      return await fn();
+    } finally {
+      if (posting) finishPostTurn(profile);
+    }
+  }, profile).catch(error => setJobError(id, error.message));
+}
 function setJobResult(id, result) {
   postJobs.set(id, { status: 'done', result, createdAt: Date.now() });
 }
@@ -144,10 +159,10 @@ function setJobError(id, message) {
 setInterval(() => {
   const now = Date.now();
   for (const [id, job] of postJobs) {
-    if (now - job.createdAt > 3600_000) postJobs.delete(id);
+    if (['done', 'failed'].includes(job.status) && now - job.createdAt > 3600_000) postJobs.delete(id);
   }
   for (const [id, job] of zaloJobs) {
-    if (job.createdAt && now - job.createdAt > 3600_000) zaloJobs.delete(id);
+    if (job.status === 'done' && now - job.completedAt > 3600_000) zaloJobs.delete(id);
   }
 }, 3600_000);
 
@@ -185,14 +200,16 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
 
   let activeProfile;
   try {
-    activeProfile = playwright.getActiveProfile();
+    const key = req.body.profile || playwright.getActiveProfile().key;
+    if (!playwright.profileExists(key)) throw new Error('Tài khoản Facebook không tồn tại');
+    activeProfile = { key, name: key };
   } catch {
     cleanupFiles(imagePaths);
     return res.status(400).json({ error: 'Chưa chọn profile!' });
   }
 
-  // Rate limit theo profile — tránh spam đẩy đến FB
-  const rl = rateLimit.check(activeProfile.key);
+  // Reserve hourly quota here; worker FIFO waits out the short posting interval.
+  const rl = rateLimit.checkHourly(activeProfile.key);
   if (!rl.ok) {
     cleanupFiles(imagePaths);
     res.setHeader('Retry-After', Math.ceil(rl.retryAfterMs / 1000));
@@ -203,21 +220,22 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   const jobId = createJob();
   res.json({ jobId, status: 'pending' });
 
-  // Safety net: nếu Playwright bị kẹt và IIFE không bao giờ gọi setJobResult/setJobError,
+  // Safety net: nếu Playwright bị kẹt và không gọi setJobResult/setJobError,
   // job sẽ ở pending mãi mãi. Force-fail sau 9 phút (< 10 phút của pollLocalJob ở cloud)
   // để cloud thấy "failed" thay vì tự timeout với message chung chung hơn.
-  const _jobTimeoutId = setTimeout(() => {
-    const j = postJobs.get(jobId);
-    if (j && j.status === 'pending') {
-      logger.error(`[job ${jobId}] TIMEOUT sau 9 phút — force setJobError`);
-      setJobError(jobId, 'Timeout: Playwright bị kẹt quá 9 phút. Có thể đã đăng thành công — kiểm tra Facebook trước khi đăng lại.');
-    }
-  }, 9 * 60 * 1000);
+  queueWorkerJob(jobId, activeProfile.key, async () => {
+    const _jobTimeoutId = setTimeout(() => {
+      const j = postJobs.get(jobId);
+      if (j && j.status === 'pending') {
+        logger.error(`[job ${jobId}] TIMEOUT sau 9 phút — force setJobError`);
+        setJobError(jobId, 'Timeout: Playwright bị kẹt quá 9 phút. Có thể đã đăng thành công — kiểm tra Facebook trước khi đăng lại.');
+      }
+    }, 9 * 60 * 1000);
 
-  const shouldCancel = () => cancelledFbJobIds.has(jobId);
+    const shouldCancel = () => cancelledFbJobIds.has(jobId);
 
-  (async () => {
     try {
+      if (shouldCancel()) { setJobResult(jobId, {success:false, cancelled:true}); return; }
       const cfg = require('./config/default');
 
       if (target === 'all') {
@@ -307,7 +325,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
       clearTimeout(_jobTimeoutId);
       cleanupFiles(imagePaths);
     }
-  })();
+  }, true);
 });
 
 // ===== DO-COMMENT: execute comment only, no DB logging (called by cloud via playwright-proxy) =====
@@ -320,12 +338,12 @@ app.post('/api/do-comment', upload.array('images', 10), async (req, res) => {
   const jobId = createJob();
   res.json({ jobId, status: 'pending' });
 
-  const _timeoutId = setTimeout(() => {
-    const j = postJobs.get(jobId);
-    if (j && j.status === 'pending') setJobError(jobId, 'Timeout: Playwright bị kẹt quá 9 phút.');
-  }, 9 * 60 * 1000);
+  queueWorkerJob(jobId, profile, async () => {
+    const _timeoutId = setTimeout(() => {
+      const j = postJobs.get(jobId);
+      if (j && j.status === 'pending') setJobError(jobId, 'Timeout: Playwright bị kẹt quá 9 phút.');
+    }, 9 * 60 * 1000);
 
-  (async () => {
     try {
       const result = await playwright.postComment({ postUrl, message: message || '', imagePaths, profile });
       setJobResult(jobId, result);
@@ -335,7 +353,7 @@ app.post('/api/do-comment', upload.array('images', 10), async (req, res) => {
       clearTimeout(_timeoutId);
       cleanupFiles(imagePaths);
     }
-  })();
+  });
 });
 
 // ===== TEST: FB QUICK POST V2 — ASYNC JOB pattern =====
@@ -362,14 +380,14 @@ app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res)
   }
 
   try {
-    playwright.setProfile(profile);
+    if (!playwright.profileExists(profile)) throw new Error('Tài khoản Facebook không tồn tại');
   } catch (e) {
     cleanupFiles(imagePaths);
     return res.status(400).json({ error: e.message });
   }
 
-  // Rate limit per profile (từ main)
-  const rl = rateLimit.check(profile);
+  // Same hourly quota and worker pacing as normal Facebook posts.
+  const rl = rateLimit.checkHourly(profile);
   if (!rl.ok) {
     cleanupFiles(imagePaths);
     res.setHeader('Retry-After', Math.ceil(rl.retryAfterMs / 1000));
@@ -380,26 +398,29 @@ app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res)
   const jobId = createJob();
   res.json({ jobId, status: 'pending' });
 
-  const _qpTimeoutId = setTimeout(() => {
-    const j = postJobs.get(jobId);
-    if (j && j.status === 'pending') {
-      logger.error(`[fb-quick-post-test job ${jobId}] TIMEOUT sau 9 phút`);
-      setJobError(jobId, 'Timeout: Playwright bị kẹt quá 9 phút. Có thể đã đăng thành công — kiểm tra Facebook trước khi đăng lại.');
-    }
-  }, 9 * 60 * 1000);
+  queueWorkerJob(jobId, profile, async () => {
+    const _qpTimeoutId = setTimeout(() => {
+      const j = postJobs.get(jobId);
+      if (j && j.status === 'pending') {
+        logger.error(`[fb-quick-post-test job ${jobId}] TIMEOUT sau 9 phút`);
+        setJobError(jobId, 'Timeout: Playwright bị kẹt quá 9 phút. Có thể đã đăng thành công — kiểm tra Facebook trước khi đăng lại.');
+      }
+    }, 9 * 60 * 1000);
 
-  (async () => {
     try {
-      const result = await playwright.quickPostToPersonalAndGroups(message || '', imagePaths, groupKeywords);
+      const shouldCancel = () => cancelledFbJobIds.has(jobId);
+      if (shouldCancel()) { setJobResult(jobId, {success:false, cancelled:true}); return; }
+      const result = await playwright.quickPostToPersonalAndGroups(message || '', imagePaths, groupKeywords, shouldCancel);
       setJobResult(jobId, result);
     } catch (e) {
       logger.error(`[fb-quick-post-test] job ${jobId} FAILED: ${e.message}`);
       setJobError(jobId, e.message);
     } finally {
       clearTimeout(_qpTimeoutId);
+      cancelledFbJobIds.delete(jobId);
       cleanupFiles(imagePaths);
     }
-  })();
+  }, true);
 });
 
 // ===== ĐĂNG ZALO =====
@@ -437,7 +458,7 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   const accountKey = acct ? acct.key : accountName;
 
   const jobId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  zaloJobs.set(jobId, { status: 'processing', createdAt: Date.now() });
+  zaloJobs.set(jobId, { status: 'processing', queued: true, createdAt: Date.now() });
 
   // COPY ảnh sang thư mục RIÊNG của job (giống scheduler) — tách khỏi vòng đời
   // temp chung của multer. Khi đăng nhiều kênh/group 1 phiên, job xếp hàng chờ
@@ -479,8 +500,11 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
 
   // Xếp hàng theo account: tuần tự hoá (tránh xung đột profile browser) + tự
   // giãn cách ≥ MIN_INTERVAL giữa 2 post cùng account (chống Zalo flag spam).
-  zaloQueue.enqueue(`zalo:${accountKey || accountName}`, () =>
-    salework.postToZaloGroup({ zaloAccountName: accountName, accountKey, groupName, message: message || '', imagePaths: jobImagePaths, shouldCancel: () => cancelledZaloJobIds.has(jobId) }))
+  zaloQueue.enqueue(`zalo:${accountKey || accountName}`, () => {
+    const job = zaloJobs.get(jobId);
+    if (job) { job.queued = false; job.startedAt = Date.now(); }
+    return salework.postToZaloGroup({ zaloAccountName: accountName, accountKey, groupName, message: message || '', imagePaths: jobImagePaths, shouldCancel: () => cancelledZaloJobIds.has(jobId) });
+  })
     .then(result => {
       cleanupJob();
       zaloJobs.set(jobId, { status: 'done', success: result.success, error: result.error || null, cancelled: !!result.cancelled, completedAt: Date.now() });
@@ -1061,19 +1085,20 @@ app.post('/api/fb-scrape', async (req, res) => {
   if (!url) return res.status(400).json({ error: 'Thiếu url bài viết' });
 
   if (profile) {
-    try { playwright.setProfile(profile); } catch (e) {
+    try { if (!playwright.profileExists(profile)) throw new Error('Tài khoản Facebook không tồn tại'); } catch (e) {
       return res.status(400).json({ error: e.message });
     }
   }
 
-  try { playwright.getActiveProfile(); } catch {
+  let selectedProfile;
+  try { selectedProfile = profile || playwright.getActiveProfile().key; } catch {
     return res.status(400).json({ error: 'Chưa chọn profile!' });
   }
 
   const jobId = createJob();
   res.json({ jobId, status: 'pending' });
 
-  (async () => {
+  queueWorkerJob(jobId, selectedProfile, async () => {
     try {
       const result = await playwright.scrapePost(url);
       setJobResult(jobId, { success: result.success, text: result.text || '', imageUrls: result.imageUrls || [], error: result.error });
@@ -1081,7 +1106,7 @@ app.post('/api/fb-scrape', async (req, res) => {
       logger.error(`[fb-scrape] job ${jobId} FAILED: ${e.message}`);
       setJobError(jobId, e.message);
     }
-  })();
+  });
 });
 
 // ===== SCREENSHOT =====

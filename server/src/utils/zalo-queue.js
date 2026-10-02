@@ -35,7 +35,7 @@ const {
   PROFILE_DELAY_MAX_MS,
 } = require('./post-delays');
 
-// Map<accountKey, { tail: Promise, lastStartAt: number }>
+// Map<accountKey, { tail: Promise, nextStartAt: number }>
 const chains = new Map();
 
 // Cổng giãn cách TOÀN CỤC giữa các account khác nhau (lệch thời điểm bắt đầu).
@@ -90,29 +90,21 @@ function enqueue(accountKey, fn) {
   const key = accountKey || '_default';
   let chain = chains.get(key);
   if (!chain) {
-    chain = { tail: Promise.resolve(), lastStartAt: 0 };
+    chain = { tail: Promise.resolve(), nextStartAt: 0 };
     chains.set(key, chain);
   }
 
   const run = chain.tail.then(async () => {
-    // 1) Giãn cách giữa 2 post CÙNG account (tính từ lần BẮT ĐẦU trước đó).
-    //    Nếu post trước đã chạy lâu hơn group delay thì không phải chờ thêm.
-    if (chain.lastStartAt) {
-      const since = Date.now() - chain.lastStartAt;
-      const need = groupDelayMs();
-      if (since < need) {
-        await sleep(need - since);
-      }
-    }
-    // 2) Lệch thời điểm bắt đầu giữa các account KHÁC nhau (cổng toàn cục).
-    await passGlobalStagger();
-    // 3) Giới hạn số cửa sổ Chromium chạy đồng thời — chờ tới khi có "chỗ trống"
-    //    thay vì mở thêm cửa sổ mới vô hạn (chống đói CPU cho cả máy).
+    // Rest AFTER the previous attempt finishes, even when it ran for minutes.
+    const wait = chain.nextStartAt - Date.now();
+    if (wait > 0) await sleep(wait);
+    // Acquire capacity before staggering so queued slots cannot start together.
     await _acquireSlot();
-    chain.lastStartAt = Date.now();
     try {
+      await passGlobalStagger();
       return await fn();
     } finally {
+      chain.nextStartAt = Date.now() + groupDelayMs();
       _releaseSlot();
     }
   });

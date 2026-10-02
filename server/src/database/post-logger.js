@@ -16,13 +16,13 @@ const completePendingStmt = db.prepare(
   `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl,
      profile=COALESCE(NULLIF(@profile,''), profile),
      profile_name=COALESCE(NULLIF(@profileName,''), profile_name)
-   WHERE id=@id AND success=-1`
+   WHERE id=@id AND (success=-1 OR (success=0 AND error='Timeout - không xác nhận được kết quả'))`
 );
 const completePendingWithGroupStmt = db.prepare(
   `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl, group_name=@groupName,
      profile=COALESCE(NULLIF(@profile,''), profile),
      profile_name=COALESCE(NULLIF(@profileName,''), profile_name)
-   WHERE id=@id AND success=-1`
+   WHERE id=@id AND (success=-1 OR (success=0 AND error='Timeout - không xác nhận được kết quả'))`
 );
 
 // === Cache lich su (trong bo nho) ===
@@ -132,7 +132,7 @@ function completePendingByJobId(jobId, { success, error, postUrl, profile, profi
     `UPDATE post_logs SET success=@success, error=@error, post_url=@postUrl,
        profile=COALESCE(NULLIF(@profile,''), profile),
        profile_name=COALESCE(NULLIF(@profileName,''), profile_name)
-     WHERE job_id=@jobId AND success=-1`
+     WHERE job_id=@jobId AND (success=-1 OR (success=0 AND error='Timeout - không xác nhận được kết quả'))`
   ).run({ jobId, success: success ? 1 : 0, error: error || null, postUrl: postUrl || null, profile: profile || '', profileName: profileName || '' });
 }
 
@@ -186,8 +186,8 @@ function getRetryWaiting() {
 }
 
 function getPendingPosts() {
-  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  return db.prepare('SELECT * FROM post_logs WHERE success = -1 AND timestamp >= ? ORDER BY timestamp DESC').all(since).map(r => ({
+  // The sweeper owns stale detection; age alone must not hide live queued jobs.
+  return db.prepare('SELECT * FROM post_logs WHERE success = -1 ORDER BY timestamp DESC').all().map(r => ({
     ...r,
     images: r.images ? safeParseJson(r.images) : [],
   }));
@@ -200,10 +200,13 @@ function cleanupStalePending() {
 }
 
 // Mark pending posts older than maxAgeMs as failed (timeout) instead of leaving them stuck
-function markTimedOutPending(maxAgeMs = 10 * 60 * 1000) {
+function markTimedOutPending(maxAgeMs = 10 * 60 * 1000, activeJobIds = []) {
   _bustHistoryCache();
   const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
-  db.prepare(`UPDATE post_logs SET success=0, error='Timeout - không xác nhận được kết quả' WHERE success=-1 AND timestamp < ?`).run(cutoff);
+  db.prepare(`UPDATE post_logs SET success=0, error='Timeout - không xác nhận được kết quả'
+    WHERE success=-1 AND timestamp < ?
+      AND (job_id IS NULL OR job_id NOT IN (SELECT value FROM json_each(?)))`
+  ).run(cutoff, JSON.stringify(activeJobIds));
 }
 
 /**

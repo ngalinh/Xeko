@@ -10,9 +10,10 @@
     $('xekoMenu').setAttribute('aria-label',open?'Đóng menu Xeko':'Mở menu Xeko');
   };
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMenu();}});
-  const ACTIVE = ['analysis_queued','analyzing','send_queued','sending'];
+  const ACTIVE = ['analysis_queued','analyzing','uid_queued','resolving_uid','send_queued','sending'];
   const labels = { import_review:'Chờ duyệt danh sách',analysis_queued:'Chờ chạy AI',analyzing:'AI đang đánh giá',analysis_review:'Chờ duyệt kết quả AI',message_review:'Chờ duyệt tin nhắn',send_queued:'Chờ gửi',sending:'Đang gửi',completed:'Hoàn tất',cancelled:'Đã dừng',interrupted:'Bị gián đoạn',needs_attention:'Cần xử lý',skipped:'Đã bỏ qua',pending:'Chờ đánh giá',checking:'Đang đánh giá',qualified:'Đạt',review:'Cần kiểm tra',duplicate:'Đã liên hệ',sent:'Đã gửi',unconfirmed:'Chưa xác nhận gửi',done:'Hoàn tất',draft:'Bản cũ',failed:'Lỗi' };
   const defaultTemplate = $('template').value;
+  Object.assign(labels, {uid_queued:'Chờ tìm UID',resolving_uid:'Đang tìm UID'});
   let selected = null, epoch = 0, timer = null, busy = false, uncertain = false, retries = 0;
   let picks = new Set(), accounts = [], campaigns = [];
   const show = (id, visible) => { $(id).hidden = !visible; };
@@ -31,8 +32,60 @@
   }
   viewStep(1);
   const element = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
+  function renderAssessment(v) {
+    const type = {personal:'Profile cá nhân',page:'Fanpage',group:'Group'}[v.type] || 'Chưa rõ loại';
+    const seller = {yes:'Có',no:'Không'}[v.sellerUS] || 'Chưa rõ';
+    const confidence = Number.isFinite(v.confidence) ? Math.round(v.confidence * 100) + '%' : 'Chưa đủ dữ liệu';
+    const sections = [
+      ['Đánh giá chung', type + ' - Bán sản phẩm có trên website Mỹ - ' + seller + ' - ' + confidence],
+      ['Tên Facebook', v.name || 'Chưa đọc được tên Facebook'],
+      ['Bio ở profile', v.bio || 'Chưa có dữ liệu bio'],
+      ['Các thương hiệu có trên bài viết bán hàng', Array.isArray(v.brands) && v.brands.length ? v.brands.join(', ') : 'Chưa xác định được thương hiệu'],
+      ['Phân tích cụ thể caption', v.captionAnalysis || v.reason || 'Chưa có phân tích caption'],
+    ];
+    const list = element('ol', undefined, 'assessment-sections');
+    for (const [label, value] of sections) {
+      const item = element('li');
+      item.append(element('strong', label + ': '), element('span', value));
+      list.append(item);
+    }
+    return list;
+  }
+  function renderAssessmentPreview(v) {
+    const preview = element('div');
+    const seller = {yes:'Có',no:'Không'}[v.sellerUS] || 'Chưa đủ dữ liệu';
+    preview.append(element('p', 'Seller bán sản phẩm trên website Mỹ: ' + seller, 'seller-verdict'));
+    const details = element('details', undefined, 'assessment-details');
+    const summary = element('summary');
+    summary.append(element('span', 'Xem chi tiết', 'expand-label'), element('span', 'Thu gọn', 'collapse-label'));
+    details.append(summary, renderAssessment(v));
+    preview.append(details);
+    return preview;
+  }
+  function renderScanLog(lead) {
+    const log = element('div', undefined, 'scan-log');
+    const entries = lead.scanLog || [], latest = entries.at(-1);
+    if (!latest) return log;
+    log.append(element('p', `${Math.round(latest.elapsedMs / 1000)}s · ${latest.message}`, 'muted'));
+    const details = element('details');
+    details.open = openScanLogs.has(lead.id);
+    details.ontoggle = () => { if (details.open) openScanLogs.add(lead.id); else openScanLogs.delete(lead.id); };
+    details.append(element('summary', `Nhật ký quét (${entries.length})`));
+    const list = element('ol');
+    for (const entry of entries) list.append(element('li', `${Math.round(entry.elapsedMs / 1000)}s · ${entry.message}`));
+    details.append(list); log.append(details);
+    return log;
+  }
+  const openScanLogs = new Set();
+  function selectionExplanation(l) {
+    const v = l.assessment;
+    if (!v?.eligible && ['page','group'].includes(v?.type)) return v.type === 'page'
+      ? 'Không thể chọn: đây là Fanpage. Chiến dịch hiện chỉ cho chọn profile cá nhân, dù AI xác định có bán sản phẩm trên website Mỹ.'
+      : 'Không thể chọn: đây là Group. Chiến dịch hiện chỉ cho chọn profile cá nhân.';
+    return l.selectionBlockedReason || l.blockedReason || v?.gateReason || 'Hồ sơ chưa đủ điều kiện để chọn.';
+  }
   const urlsFrom = text => text.match(/https?:\/\/[^\s,"'<>]+/gi) || [];
-  const canPick = l => l.state !== 'skipped' && l.assessment?.criteriaVersion === 'us-website-products-v2' && l.assessment?.eligible && !(l.selectionBlockedReason ?? l.blockedReason);
+  const canPick = l => l.state !== 'skipped' && l.assessment?.criteriaVersion === 'us-website-products-v2' && !(l.selectionBlockedReason ?? l.blockedReason);
   const canRetry = c => c?.workflowVersion === 2 && c.approvals?.import && c.leads.some(l => l.state !== 'skipped') && !c.approvals.send && ['analysis_review','message_review','interrupted','needs_attention'].includes(c.state);
   const accountName = key => accounts.find(a => a.key === key)?.name || key;
   function notice(message = '', error = false) { $('notice').textContent = message; $('notice').className = 'notice' + (error ? ' error' : ''); show('notice', !!message); }
@@ -55,6 +108,72 @@
     } catch { return value; }
   }
   function approvalText(a, fallback) { return a ? `Đã duyệt lúc ${new Date(a.at).toLocaleString('vi-VN')}` : fallback; }
+  function sendCategory(lead) {
+    if (lead.state === 'sent') return 'sent';
+    if (lead.state === 'duplicate') return 'duplicate';
+    if (['unconfirmed','review','failed'].includes(lead.state) || lead.error) return 'attention';
+    return 'pending';
+  }
+  function cleanDiagnostic(value) {
+    return String(value || '').replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '').trim();
+  }
+  function sendIssue(lead) {
+    const raw = cleanDiagnostic(lead.error);
+    if (lead.state === 'unconfirmed') return 'Chưa xác nhận được tin đã gửi. Mở Messenger kiểm tra trước khi thực hiện thêm thao tác.';
+    if (/timeout|locator\.waitFor/i.test(raw)) return 'Không mở được ô soạn tin trong thời gian chờ. Kiểm tra hội thoại và trạng thái đăng nhập Facebook.';
+    if (/checkpoint|đăng nhập|login|challenge/i.test(raw)) return 'Tài khoản cần đăng nhập hoặc xác minh. Hãy xử lý trong Quản lý tài khoản.';
+    if (/hội thoại khác|người nhận|recipient|UID/i.test(raw)) return 'Chưa xác minh được đúng người nhận. Kiểm tra lại hồ sơ và UID trước khi gửi.';
+    if (/closed|đã đóng|disconnected/i.test(raw)) return 'Kết nối trình duyệt đã đóng. Kiểm tra tài khoản Facebook và hội thoại.';
+    return 'Lượt gửi đã dừng ở khách này. Mở Messenger để kiểm tra; thông tin kỹ thuật nằm bên dưới.';
+  }
+  const openSendDetails = new Set();
+  function renderSendRows(c) {
+    const approved = c.approvals?.analysis?.leadIds || [];
+    const leads = c.leads.filter(l => approved.includes(l.id));
+    const query = $('sendSearch').value.trim().toLocaleLowerCase('vi'), filter = $('sendFilter').value;
+    const matches = leads.filter(l => (filter === 'all' || sendCategory(l) === filter)
+      && [l.assessment?.name,l.url,l.assessment?.recipientId].join(' ').toLocaleLowerCase('vi').includes(query));
+    $('sendListCount').textContent = `Hiển thị ${matches.length}/${leads.length} khách`;
+    $('sendRows').replaceChildren(...matches.map(l => {
+      const category = sendCategory(l), row = element('article',undefined,`send-row send-${category}`);
+      const info = element('div',undefined,'send-customer'), name = l.assessment?.name || customerLabel(l.url);
+      const avatar = element('span',name.trim().slice(0,1).toUpperCase(),'send-avatar'); avatar.setAttribute('aria-hidden','true');
+      const heading = element('div',undefined,'send-row-heading'), identity = element('div',undefined,'send-identity');
+      identity.append(link(l.url,name),element('small',l.assessment?.recipientId ? `UID ${l.assessment.recipientId}` : customerLabel(l.url)));
+      heading.append(avatar,identity);
+      const state = l.state === 'unconfirmed' ? 'Chưa xác nhận' : category === 'attention' ? 'Cần kiểm tra' : category === 'duplicate' ? 'Đã liên hệ trước' : l.state === 'sending' ? 'Đang gửi' : category === 'sent' ? 'Đã gửi' : c.cancelled || c.state === 'needs_attention' ? 'Chưa gửi' : 'Chờ gửi';
+      heading.append(badge(state,category === 'attention' ? 'warn' : category === 'sent' ? 'good' : ''));
+      info.append(heading);
+      if (category === 'attention') info.append(element('p',sendIssue(l),'send-explanation'));
+      if (category === 'duplicate') info.append(element('p','Đã có lần liên hệ trước; lượt này không gửi lại.','send-explanation'));
+      const actions = element('div',undefined,'send-row-actions');
+      if (/^\d+$/.test(l.assessment?.recipientId || '')) actions.append(link(`https://www.facebook.com/messages/t/${l.assessment.recipientId}`,'Mở Messenger ↗'));
+      actions.append(link(l.url,'Xem hồ sơ ↗')); info.append(actions);
+      if (l.error) {
+        const details = element('details',undefined,'send-diagnostic');
+        const key = `${c.id}:${l.id}`;
+        details.open = openSendDetails.has(key);
+        details.ontoggle = () => { if (!details.isConnected) return; if(details.open)openSendDetails.add(key);else openSendDetails.delete(key); };
+        details.append(element('summary','Chi tiết kỹ thuật'),element('pre',cleanDiagnostic(l.error)));
+        info.append(details);
+      }
+      row.append(info); return row;
+    }));
+    if (!matches.length) $('sendRows').append(element('p','Không có khách phù hợp với bộ lọc.','send-empty'));
+  }
+  function renderSendSummary(c, leads) {
+    const active = ['send_queued','sending'].includes(c.state), attention = leads.filter(l=>sendCategory(l)==='attention').length;
+    const sent = leads.filter(l=>l.state==='sent').length, pending = leads.filter(l=>sendCategory(l)==='pending').length;
+    const title = active ? c.cancelled ? 'Đang dừng gửi' : 'Đang gửi tin nhắn' : c.state==='needs_attention' || attention ? 'Lượt gửi cần kiểm tra' : c.cancelled || c.state==='cancelled' ? 'Đã dừng theo yêu cầu' : 'Đã kết thúc lượt gửi';
+    $('sendSummary').className = 'send-summary' + (!active && (attention || c.state==='needs_attention') ? ' needs-attention' : !active && sent===leads.length && sent ? ' complete' : '');
+    $('sendSummaryTitle').textContent = title;
+    show('sendCampaignDiagnostic',!!c.error && !leads.some(l=>cleanDiagnostic(l.error)===cleanDiagnostic(c.error)));
+    $('sendCampaignError').textContent = cleanDiagnostic(c.error);
+    $('sendSummaryText').textContent = active ? 'Trạng thái tự cập nhật. Bạn có thể dừng các tin tiếp theo.' : attention ? `${attention} khách cần kiểm tra. ${pending ? `${pending} khách chưa được gửi. ` : ''}Xem hướng dẫn tại từng khách bên dưới.` : c.error ? 'Không thể hoàn tất lượt gửi. Kiểm tra tài khoản Facebook và trạng thái các khách bên dưới.' : `${sent}/${leads.length} tin được xác nhận đã gửi.${pending ? ` Còn ${pending} khách chưa gửi.` : ''}`;
+    stats('sendStats',[['Đã gửi',sent,'good'],[active?'Chờ / đang gửi':'Chưa gửi',pending],['Cần kiểm tra',attention,attention?'warn':''],['Tổng đã duyệt',leads.length]]);
+    $('sendNote').textContent = 'Tin chưa xác nhận không được tự gửi lại. Nội dung đã duyệt được lưu bên dưới.';
+    renderSendRows(c);
+  }
   function updateControls() {
     const c = selected, unlocked = !busy && !uncertain, modern = c?.workflowVersion === 2;
     for (const id of ['campaignName','profile','urls','file']) $(id).disabled = !!c || busy;
@@ -62,11 +181,13 @@
     $('newCampaign').disabled = busy;
     $('refresh').disabled = !c || busy;
     $('retryAnalysis').disabled = !unlocked || !canRetry(c);
+    $('resolveUids').disabled = !unlocked || !modern || !['analysis_review','message_review'].includes(c.state) || !!c.approvals.send;
     $('approveImport').disabled = !unlocked || !modern || c.state !== 'import_review' || !c.leads.length;
     $('selectAll').disabled = !unlocked || !modern || c.state !== 'analysis_review';
-    const eligible = c?.leads.filter(canPick) || [];
+    const eligible = c?.leads.filter(l => canPick(l) && matchesAnalysis(l)) || [];
     $('selectAll').checked = eligible.length > 0 && eligible.every(l => picks.has(l.id));
-    $('selectAll').indeterminate = c?.state === 'analysis_review' && picks.size > 0 && !$('selectAll').checked;
+    $('selectAll').indeterminate = c?.state === 'analysis_review' && eligible.some(l => picks.has(l.id)) && !$('selectAll').checked;
+    $('selectAll').disabled ||= !eligible.length;
     $('selectionCount').textContent = `${picks.size} khách được chọn`;
     $('approveAnalysis').textContent = `Duyệt ${picks.size} khách & sang bước 3 →`;
     $('approveAnalysis').disabled = !unlocked || !modern || c.state !== 'analysis_review' || !picks.size;
@@ -111,9 +232,10 @@
     if (!campaigns.length) $('campaigns').append(element('p','Chưa có chiến dịch.','muted'));
   }
   function render(c, reset = false) {
+    if (reset || selected?.id !== c.id) { $('analysisSearch').value=''; $('analysisFilter').value='all'; }
     if (selected?.id !== c.id || selected?.messagePreview?.token !== c.messagePreview?.token) $('confirmSend').checked = false;
     selected = c;
-    if (reset) { picks = new Set(c.approvals?.analysis?.leadIds || []); $('template').value = c.template || defaultTemplate; $('confirmSend').checked = false; }
+    if (reset) { picks = new Set(c.approvals?.analysis?.leadIds || []); $('template').value = c.template || defaultTemplate; $('confirmSend').checked = false; $('sendSearch').value='';$('sendFilter').value='all';$('sendCampaignDiagnostic').open=false; }
     if (c.state === 'analysis_review') picks = new Set([...picks].filter(id => c.leads.some(l => l.id === id && canPick(l))));
     else picks = new Set(c.approvals?.analysis?.leadIds || []);
     campaigns = [...campaigns.filter(x => x.id !== c.id), c]; renderHistory();
@@ -132,7 +254,7 @@
     $('status1').textContent = a.import ? 'Đã duyệt' : 'Chờ duyệt'; $('status1').className = 'badge ' + (a.import ? 'good' : 'warn');
     const hasAnalysis = !!a.import || !modern;
     show('analysisEmpty',!hasAnalysis);show('analysisResult',hasAnalysis);
-    const analyzing = ['analysis_queued','analyzing'].includes(c.state);
+    const analyzing = ['analysis_queued','analyzing','uid_queued','resolving_uid'].includes(c.state);
     $('status2').textContent = a.analysis ? 'Đã duyệt' : analyzing ? 'Đang đánh giá' : hasAnalysis ? 'Chờ duyệt' : 'Đang khóa';
     $('status2').className = 'badge ' + (a.analysis ? 'good' : analyzing ? 'blue' : hasAnalysis ? 'warn' : '');
     const checked = c.leads.filter(l => l.assessment || l.error).length;
@@ -141,46 +263,72 @@
     stats('analysisStats',[['AI đánh giá đạt',c.leads.filter(l=>l.assessment?.eligible).length,'good'],['Có thể chọn soạn tin',c.leads.filter(canPick).length],['Cần kiểm tra',c.leads.filter(l=>l.state==='review').length,'warn'],['Đã bỏ qua',c.leads.filter(l=>l.state==='skipped').length]]);
     show('analysisWarning',!!c.error && !a.analysis);$('analysisWarning').textContent = c.error || '';
     show('retryAnalysis',!!canRetry(c));
+    show('resolveUids',modern && !a.send && ['analysis_review','message_review'].includes(c.state) && c.leads.some(l=>l.state!=='skipped' && l.assessment && !l.assessment.recipientId));
+    if (['uid_queued','resolving_uid'].includes(c.state)) $('analysisProgress').textContent = `${labels[c.state]} · ${c.leads.filter(l=>l.uidLookup?.state==='resolved').length} hồ sơ đã tìm được UID`;
     show('stopAnalysis',analyzing);show('approveAnalysis',modern && c.state === 'analysis_review');
-    $('analysisApproval').textContent = approvalText(a.analysis,'Khách chưa đạt hoặc chưa rõ người nhận sẽ không được chuyển sang gửi.');
+    $('analysisApproval').textContent = approvalText(a.analysis,'Bạn có thể duyệt gửi khách đã chọn dù AI chưa đánh giá đạt. Cần xác minh người nhận trước khi gửi.');
     $('analysisRows').replaceChildren();
     for (const l of c.leads) {
-      const row = element('tr'), chooseCell = element('td'), customer = element('td'), analysis = element('td'), result = element('td');
+      const row = element('tr'), chooseCell = element('td'), customer = element('td'), fbName = element('td'), analysis = element('td'), result = element('td');
+      row.dataset.leadId = l.id;
       const cb=element('input');cb.type='checkbox';cb.value=l.id;cb.checked=picks.has(l.id);cb.setAttribute('aria-label',`Chọn ${customerLabel(l.url)}`);
       cb.onchange=()=>{if(cb.checked)picks.add(l.id);else picks.delete(l.id);updateControls();};chooseCell.append(cb);
       customer.append(link(l.url,customerLabel(l.url))); customer.dataset.label='Khách hàng';
       analysis.dataset.label='AI đánh giá'; result.dataset.label='Kết quả';
       const v=l.assessment;
-      if(v){analysis.append(element('p',`${v.type==='personal'?'Cá nhân':v.type==='page'?'Fanpage':'Chưa rõ loại'} · ${v.criteriaVersion==='us-website-products-v2'?'Sản phẩm trên website Mỹ':'Thị trường Mỹ (tiêu chí cũ)'}: ${v.sellerUS==='yes'?'Có':v.sellerUS==='no'?'Không':'Chưa rõ'}${typeof v.confidence==='number'?' · '+Math.round(v.confidence*100)+'%':''}`),element('p',v.reason || ''));
-        if(v.criteriaVersion!=='us-website-products-v2')analysis.append(element('p','Kết quả dùng tiêu chí cũ. Hãy cập nhật Xeko worker, bấm Thử lại AI để đánh giá sản phẩm có bán trên website Mỹ.','warn'));
-        if(Number.isInteger(v.salesPostCount))analysis.append(element('p',`${v.salesPostCount} bài có dấu hiệu bán hàng trong caption`,'muted'));
-        if(Number.isInteger(v.reviewedPostCount))analysis.append(element('p',`Đã đọc ${v.reviewedPostCount} bài viết${Number.isInteger(v.reviewedImageCount) ? ` · ${v.reviewedImageCount} ảnh` : ''}`,'muted'));
-        if(v.evidence?.length){const d=element('details');d.append(element('summary',`Xem ${v.evidence.length} bằng chứng`));v.evidence.forEach(q=>d.append(element('blockquote',q)));analysis.append(d);}
-        if(v.gateReason&&!v.eligible)analysis.append(element('p',v.gateReason,'muted'));
-      }else analysis.append(element('p',l.error || 'Chưa có kết quả','muted'));
+      fbName.dataset.label = 'Tên FB';
+      fbName.className = 'fb-name';
+      fbName.textContent = v?.name || (l.state === 'checking' ? 'Đang quét…' : v || l.error ? 'Chưa đọc được tên' : 'Chưa quét');
+      if (v) {
+        fbName.append(element('p',v.recipientId ? `UID: ${v.recipientId}` : 'UID: chưa xác định','muted'));
+        const reason = l.uidLookup?.reason || v.uidReason;
+        if (!v.recipientId && reason) fbName.append(element('p',reason,'muted'));
+        if (modern && c.state === 'analysis_review' && !a.send && l.state !== 'skipped') {
+          const findUid = element('button',v.recipientId ? 'Kiểm tra lại UID' : 'Tìm UID','secondary');
+          findUid.onclick=()=>action('resolve-uids',{leadId:l.id});
+          fbName.append(findUid);
+        }
+      }
+      if(v) analysis.append(renderAssessmentPreview(v));
+      else analysis.append(element('p',l.error || 'Chưa có kết quả','muted'));
+      analysis.append(renderScanLog(l));
+      if(v && !canPick(l)) {
+        const reason = selectionExplanation(l);
+        const note = element('p', reason, 'selection-explanation');
+        note.id = 'selection-reason-' + l.id;
+        cb.setAttribute('aria-describedby', note.id);
+        chooseCell.title = reason;
+        analysis.append(note);
+      }
       result.append(badge(l.state === 'qualified' && l.blockedReason ? 'AI đạt · Chưa sẵn sàng gửi' : labels[l.state] || l.state,canPick(l)?'good':l.state==='review'?'warn':''));
-      if(v?.eligible && l.blockedReason && !a.send)result.append(element('p',l.blockedReason,'muted'));
-      if(modern && c.state === 'analysis_review' && ['review','qualified'].includes(l.state) && l.blockedReason) {
+      if(canPick(l) && l.blockedReason && !a.send)result.append(element('p',l.blockedReason,'muted'));
+      if(modern && c.state === 'analysis_review' && ['review','qualified'].includes(l.state) && (l.blockedReason || !v?.eligible)) {
         const skip = element('button','Bỏ qua','secondary');
         skip.setAttribute('aria-label',`Bỏ qua ${v?.name || l.url}`);
         skip.onclick=()=>action('skip-lead',{leadId:l.id});
         result.append(skip);
       }
-      row.append(chooseCell,customer,analysis,result);$('analysisRows').append(row);
+      row.append(chooseCell,customer,fbName,analysis,result);$('analysisRows').append(row);
     }
+    applyAnalysisFilters();
     const hasMessages=!!a.analysis;
     show('messageEmpty',!hasMessages);show('messageResult',hasMessages);
     $('status3').textContent=a.send?(labels[c.state] || c.state):hasMessages?'Chờ duyệt gửi':'Đang khóa';
-    $('status3').className='badge '+(c.state==='completed'?'good':hasMessages?'blue':'');
+    $('status3').className='badge '+(c.state==='needs_attention'?'warn':c.state==='completed'?'good':hasMessages?'blue':'');
     $('recipientSummary').textContent=`${a.analysis?.leadIds.length || 0} khách đã duyệt · Gửi từ ${accountName(c.profile)}`;
     show('reviewSelection',c.state==='message_review');show('prepareMessages',c.state==='message_review');
-    $('messagePreviews').replaceChildren(...(c.messagePreview?.messages || []).map(m=>{const d=element('article',undefined,'message-card');d.append(element('h3',customerLabel(m.url)),link(m.url),element('p',m.message));return d;}));
+    show('messageComposer',!a.send);
+    $('messageStageHint').textContent = a.send ? 'Theo dõi trạng thái và kiểm tra kết quả từng khách.' : 'Xem từng tin nhắn trước khi duyệt gửi.';
+    show('messageArchive',!!c.messagePreview?.messages.length);
+    const archiveMode = a.send ? 'sent' : 'preview';
+    if (reset || $('messageArchive').dataset.mode !== archiveMode) $('messageArchive').open = !a.send;
+    $('messageArchive').dataset.mode = archiveMode;
+    $('messageArchiveTitle').textContent = `${a.send?'Nội dung đã duyệt':'Xem trước tin nhắn'} (${c.messagePreview?.messages.length || 0})`;
+    $('messagePreviews').replaceChildren(...(c.messagePreview?.messages || []).map(m=>{const d=element('article',undefined,'message-card');d.append(element('h3',m.name || customerLabel(m.url)),link(m.url,customerLabel(m.url)),element('p',m.message));return d;}));
     show('sendApproval',c.state==='message_review' && !!c.messagePreview);
     show('sendResult',!!a.send);show('stopSending',['send_queued','sending'].includes(c.state));
     const sentLeads=c.leads.filter(l=>a.analysis?.leadIds.includes(l.id));
-    stats('sendStats',[['Đã gửi',sentLeads.filter(l=>l.state==='sent').length,'good'],['Chưa xác nhận',sentLeads.filter(l=>l.state==='unconfirmed').length,'warn'],['Tổng đã duyệt',sentLeads.length]]);
-    $('sendRows').replaceChildren(...sentLeads.map(l=>{const row=element('div',undefined,'send-row'),info=element('div');info.append(link(l.url,customerLabel(l.url)));if(l.error)info.append(element('p',l.error,'muted'));row.append(info,badge(l.state==='qualified'?'Chờ gửi':labels[l.state] || l.state,l.state==='sent'?'good':l.state==='unconfirmed'?'warn':''));return row;}));
-    $('sendNote').textContent=c.error || (c.cancelled?'Đã yêu cầu dừng; tin đã gửi không thể thu hồi tại đây.':'Chỉ ghi đã gửi khi Messenger xác nhận. Tin chưa rõ trạng thái không được tự gửi lại.');
+    if (a.send) renderSendSummary(c,sentLeads);
     for(let n=1;n<=3;n++){$(`nav${n}`).className='step-link';$(`nav${n}`).removeAttribute('aria-current');}
     const step=a.analysis?3:a.import?2:1;$(`nav${step}`).classList.add('active');$(`nav${step}`).setAttribute('aria-current','step');
     for(let n=1;n<step;n++)$(`nav${n}`).classList.add('done');
@@ -221,7 +369,7 @@
   async function action(name,body={}) {
     if(!selected || busy || uncertain)return;
     const id=selected.id,version=epoch;busy=true;clearTimeout(timer);updateControls();notice();
-    try{const c=await api(`/api/ctv/campaigns/${id}/${name}`,'POST',body);if(epoch!==version)return;uncertain=false;$('confirmSend').checked=false;render(c);if(name==='approve-import'||name==='review-analysis'||name==='retry-analysis')viewStep(2);if(name==='approve-analysis')viewStep(3);}
+    try{const c=await api(`/api/ctv/campaigns/${id}/${name}`,'POST',body);if(epoch!==version)return;uncertain=false;$('confirmSend').checked=false;render(c);if(name==='approve-import'||name==='review-analysis'||name==='retry-analysis'||name==='resolve-uids')viewStep(2);if(name==='approve-analysis')viewStep(3);}
     catch(e){if(epoch!==version)return;notice(e.message,true);uncertain=true;await sync(id,version);}
     finally{busy=false;updateControls();schedule();}
   }
@@ -236,7 +384,22 @@
   };
   $('retryAnalysis').onclick=()=>{if(canRetry(selected) && window.confirm('Đọc lại các profile chưa bỏ qua và đánh giá lại bằng AI? Kết quả cũ và bản duyệt tin nhắn sẽ được bỏ; bạn cần duyệt lại trước khi gửi.')){picks.clear();action('retry-analysis');}};
   $('approveImport').onclick=()=>action('approve-import');
-  $('selectAll').onchange=()=>{picks=$('selectAll').checked?new Set(selected.leads.filter(canPick).map(l=>l.id)):new Set();for(const box of $('analysisRows').querySelectorAll('input'))box.checked=picks.has(box.value);updateControls();};
+  $('resolveUids').onclick=()=>action('resolve-uids');
+  $('selectAll').onchange=()=>{for(const l of selected.leads.filter(l=>canPick(l)&&matchesAnalysis(l))){if($('selectAll').checked)picks.add(l.id);else picks.delete(l.id);}for(const box of $('analysisRows').querySelectorAll('input'))box.checked=picks.has(box.value);updateControls();};
+  const searchText = value => String(value || '').normalize('NFD').replace(/\p{M}/gu,'').replace(/[đĐ]/g,'d').toLowerCase();
+  function matchesAnalysis(lead) {
+    const filter=$('analysisFilter').value;
+    const category=lead.state==='skipped'?'skipped':lead.assessment?.eligible?'qualified':lead.assessment||lead.error?'review':'pending';
+    return (filter==='all'||filter===category) && searchText([lead.assessment?.name,lead.url,lead.assessment?.recipientId].join(' ')).includes(searchText($('analysisSearch').value.trim()));
+  }
+  function applyAnalysisFilters() {
+    if(!selected)return;
+    const visible=new Set(selected.leads.filter(matchesAnalysis).map(l=>l.id));
+    for(const row of $('analysisRows').children) row.hidden=!visible.has(row.dataset.leadId);
+    $('analysisFilterCount').textContent=`Hiển thị ${visible.size}/${selected.leads.length} khách`;
+    show('analysisFilterEmpty',visible.size===0);
+  }
+  $('analysisSearch').oninput=$('analysisFilter').onchange=()=>{applyAnalysisFilters();updateControls();};
   $('approveAnalysis').onclick=()=>action('approve-analysis',{leadIds:[...picks]});
   $('reviewSelection').onclick=()=>action('review-analysis');
   $('template').oninput=()=>{$('confirmSend').checked=false;updateControls();};
@@ -245,8 +408,9 @@
   $('sendButton').onclick=()=>{if(!$('sendButton').disabled)action('send',{previewToken:selected.messagePreview.token});};
   $('stopAnalysis').onclick=$('stopSending').onclick=()=>action('stop');
   $('refresh').onclick=()=>sync();
+  $('sendSearch').oninput=$('sendFilter').onchange=()=>{if(selected)renderSendRows(selected);};
   $('newCampaign').onclick=()=>{if(busy)return;epoch++;clearTimeout(timer);selected=null;uncertain=false;picks.clear();notice();viewStep(1);
-    show('importForm',true);show('importResult',false);show('analysisEmpty',true);show('analysisResult',false);show('retryAnalysis',false);show('messageEmpty',true);show('messageResult',false);
+    show('importForm',true);show('importResult',false);show('analysisEmpty',true);show('analysisResult',false);show('retryAnalysis',false);show('resolveUids',false);show('messageEmpty',true);show('messageResult',false);
     $('campaignName').value='';$('urls').value='';$('file').value='';$('fileName').textContent='Hoặc dán dữ liệu vào ô phía trên';$('urls').oninput();$('template').value=defaultTemplate;$('confirmSend').checked=false;
     $('currentName').textContent='Chưa có chiến dịch';$('currentProfile').textContent='Chọn tài khoản ở bước 1.';$('currentState').textContent='Chờ nhập dữ liệu';$('connection').textContent='';
     for(let n=1;n<=3;n++){$(`status${n}`).textContent=n===1?'Chưa nhập':'Đang khóa';$(`status${n}`).className='badge';$(`nav${n}`).className='step-link'+(n===1?' active':'');$(`nav${n}`).removeAttribute('aria-current');}
