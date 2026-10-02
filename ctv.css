@@ -150,3 +150,12 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 #analysisRows .uid-cell{min-width:150px;max-width:200px}
 #analysisRows .uid-value{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 @media(max-width:600px){#analysisRows .uid-cell{min-width:0;max-width:none}}
+
+/* Campaign history is accessible from the page actions without leaving the workflow. */
+.campaign-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.campaign-actions button{white-space:nowrap}
+.campaign-history{margin-bottom:24px}
+.history-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#campaignHistory #campaigns{max-height:360px}
+#campaignHistory .campaign-row>button:first-child{min-width:0}
+@media(max-width:600px){.page-heading{flex-wrap:wrap}.campaign-actions{width:100%;justify-content:flex-start}.page-heading .campaign-actions button{max-width:none;min-height:44px;font-size:12px;padding:10px 14px}.campaign-history{padding:18px}}
