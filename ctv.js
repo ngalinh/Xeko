@@ -216,6 +216,10 @@
     else if (c?.approvals?.send) $('previewHint').textContent = 'Nội dung đã duyệt gửi được lưu cố định bên dưới.';
     for (const button of $('campaigns').querySelectorAll('button')) button.disabled = busy || (button.dataset.deleteState && ACTIVE.concat(['running','queued']).includes(button.dataset.deleteState));
   }
+  function setHistoryOpen(open) {
+    show('campaignHistory', open);
+    $('toggleHistory').setAttribute('aria-expanded', String(open));
+  }
   function renderHistory() {
     $('campaigns').replaceChildren();
     for (const c of [...campaigns].sort((a,b) => b.createdAt.localeCompare(a.createdAt))) {
@@ -355,7 +359,7 @@
   }
   async function choose(id) {
     if(busy)return;clearTimeout(timer);const version=++epoch;busy=true;updateControls();
-    try{const c=await api(`/api/ctv/campaigns/${id}`);if(epoch!==version)return;uncertain=false;notice();render(c,true);}
+    try{const c=await api(`/api/ctv/campaigns/${id}`);if(epoch!==version)return;uncertain=false;notice();render(c,true);setHistoryOpen(false);$('toggleHistory').focus();}
     catch(e){notice(e.message,true);}finally{busy=false;updateControls();schedule();}
   }
   async function deleteCampaign(c) {
@@ -414,7 +418,9 @@
   $('stopAnalysis').onclick=$('stopSending').onclick=()=>action('stop');
   $('refresh').onclick=()=>sync();
   $('sendSearch').oninput=$('sendFilter').onchange=()=>{if(selected)renderSendRows(selected);};
-  $('newCampaign').onclick=()=>{if(busy)return;epoch++;clearTimeout(timer);selected=null;uncertain=false;picks.clear();notice();viewStep(1);
+  $('toggleHistory').onclick=()=>setHistoryOpen($('campaignHistory').hidden);
+  $('closeHistory').onclick=()=>{setHistoryOpen(false);$('toggleHistory').focus();};
+  $('newCampaign').onclick=()=>{if(busy)return;setHistoryOpen(false);epoch++;clearTimeout(timer);selected=null;uncertain=false;picks.clear();notice();viewStep(1);
     show('importForm',true);show('importResult',false);show('analysisEmpty',true);show('analysisResult',false);show('retryAnalysis',false);show('resolveUids',false);show('messageEmpty',true);show('messageResult',false);
     $('campaignName').value='';$('urls').value='';$('file').value='';$('fileName').textContent='Hoặc dán dữ liệu vào ô phía trên';$('urls').oninput();$('template').value=defaultTemplate;$('confirmSend').checked=false;
     $('currentName').textContent='Chưa có chiến dịch';$('currentProfile').textContent='Chọn tài khoản ở bước 1.';$('currentState').textContent='Chờ nhập dữ liệu';$('connection').textContent='';

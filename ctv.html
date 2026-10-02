@@ -63,7 +63,8 @@
 </div><a class="xeko-return" href="./?page=dashboard"><svg class="xi" aria-hidden="true"><use href="#ic-back"/></svg> Về Dashboard</a></nav>
 <header class="topbar"><button id="xekoMenu" class="secondary" aria-controls="xekoSidebar" aria-expanded="false" aria-label="Mở menu Xeko"><svg class="xi" aria-hidden="true"><use href="#ic-menu"/></svg></button><span class="header-icon"><svg class="xi" aria-hidden="true"><use href="#ic-send"/></svg></span><div><strong>Gửi tin nhắn hàng loạt</strong><small>Facebook · Quy trình duyệt 3 bước</small></div><a class="back" href="./?page=dashboard">← Về Xeko</a></header>
 <main>
-  <div class="page-heading"><div><p class="eyebrow">KHÔNG GIAN LÀM VIỆC / FACEBOOK</p><h1>Gửi tin nhắn hàng loạt</h1><p class="muted">Từ danh sách khách hàng đến tin nhắn hàng loạt — bạn duyệt ở mỗi bước.</p></div><button id="newCampaign" class="secondary">＋ Chiến dịch mới</button></div>
+  <div class="page-heading"><div><p class="eyebrow">KHÔNG GIAN LÀM VIỆC / FACEBOOK</p><h1>Gửi tin nhắn hàng loạt</h1><p class="muted">Từ danh sách khách hàng đến tin nhắn hàng loạt — bạn duyệt ở mỗi bước.</p></div><div class="campaign-actions"><button id="newCampaign" class="secondary">＋ Chiến dịch mới</button><button id="toggleHistory" class="secondary" aria-expanded="false" aria-controls="campaignHistory">Lịch sử chiến dịch</button></div></div>
+  <section id="campaignHistory" class="panel campaign-history" aria-labelledby="historyTitle" hidden><div class="history-heading"><h2 id="historyTitle">Lịch sử chiến dịch</h2><button id="closeHistory" class="secondary" type="button">Đóng</button></div><div id="campaigns"><p class="muted">Đang tải…</p></div></section>
   <div id="demoBanner" class="demo" hidden>BẢN PREVIEW · AI và gửi tin đều được mô phỏng. Không liên hệ khách thật.</div>
   <nav class="steps" aria-label="Quy trình gửi tin nhắn hàng loạt">
     <a href="#step1" id="nav1" class="step-link active"><span class="step-number">1</span><span>Nhập danh sách<small id="navStatus1">Chờ nhập dữ liệu</small></span></a>
@@ -123,7 +124,6 @@
     <!-- Retained hidden DOM supports existing campaign state bindings. -->
     <aside hidden>
       <section class="panel overview"><p class="eyebrow">CHIẾN DỊCH ĐANG XEM</p><h2 id="currentName">Chưa có chiến dịch</h2><p id="currentProfile" class="muted">Chọn tài khoản ở bước 1.</p><span id="currentState" class="badge">Chờ nhập dữ liệu</span><div class="rule"></div><p class="muted">Mỗi bước đều có kết quả và thao tác duyệt riêng. Không chuyển bước tự động.</p><button id="refresh" class="secondary" disabled>↻ Cập nhật trạng thái</button><p id="connection" class="muted" aria-live="polite"></p></section>
-      <section class="panel history"><h2>Lịch sử chiến dịch</h2><div id="campaigns"><p class="muted">Đang tải…</p></div></section>
       <section class="panel criteria"><p class="eyebrow">TIÊU CHÍ AI ĐÁNH GIÁ</p><ul><li><strong>Facebook cá nhân</strong><span>Xác định loại hồ sơ của khách.</span></li><li><strong>Có hoạt động bán hàng</strong><span>Đọc bio dưới ảnh đại diện và cuộn xem 3–5 bài bán hàng.</span></li><li><strong>Sản phẩm có bán trên website Mỹ</strong><span>Đối chiếu sản phẩm, website Mỹ trong bio và bài bán hàng; không xét thị trường người mua.</span></li></ul><p class="hint">Thiếu bằng chứng → cần kiểm tra lại trước khi chọn gửi.</p></section>
     </aside>
   </div>
