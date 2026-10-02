@@ -269,7 +269,7 @@
     $('analysisApproval').textContent = approvalText(a.analysis,'Bạn có thể duyệt gửi khách đã chọn dù AI chưa đánh giá đạt. Cần xác minh người nhận trước khi gửi.');
     $('analysisRows').replaceChildren();
     for (const [index, l] of c.leads.entries()) {
-      const row = element('tr'), chooseCell = element('td'), customer = element('td'), fbName = element('td'), analysis = element('td'), result = element('td');
+      const row = element('tr'), chooseCell = element('td'), customer = element('td'), uidCell = element('td'), fbName = element('td'), analysis = element('td'), result = element('td');
       row.dataset.leadId = l.id;
       const ordinal = element('td', String(index + 1), 'row-number');
       ordinal.dataset.label = 'STT';
@@ -279,17 +279,19 @@
       customer.append(link(l.url,customerLabel(l.url))); customer.dataset.label='Khách hàng';
       analysis.dataset.label='AI đánh giá'; result.dataset.label='Kết quả';
       const v=l.assessment;
+      uidCell.dataset.label = 'UID';
+      uidCell.className = 'uid-cell';
+      uidCell.append(element('span', v?.recipientId || 'Chưa xác định', 'uid-value'));
       fbName.dataset.label = 'Tên FB';
       fbName.className = 'fb-name';
       fbName.textContent = v?.name || (l.state === 'checking' ? 'Đang quét…' : v || l.error ? 'Chưa đọc được tên' : 'Chưa quét');
       if (v) {
-        fbName.append(element('p',v.recipientId ? `UID: ${v.recipientId}` : 'UID: chưa xác định','muted'));
         const reason = l.uidLookup?.reason || v.uidReason;
-        if (!v.recipientId && reason) fbName.append(element('p',reason,'muted'));
+        if (!v.recipientId && reason) uidCell.append(element('p',reason,'muted'));
         if (modern && c.state === 'analysis_review' && !a.send && l.state !== 'skipped') {
           const findUid = element('button',v.recipientId ? 'Kiểm tra lại UID' : 'Tìm UID','secondary');
           findUid.onclick=()=>action('resolve-uids',{leadId:l.id});
-          fbName.append(findUid);
+          uidCell.append(findUid);
         }
       }
       if(v) analysis.append(renderAssessmentPreview(v));
@@ -311,7 +313,7 @@
         skip.onclick=()=>action('skip-lead',{leadId:l.id});
         result.append(skip);
       }
-      row.append(chooseCell,ordinal,customer,fbName,analysis,result);$('analysisRows').append(row);
+      row.append(chooseCell,ordinal,customer,uidCell,fbName,analysis,result);$('analysisRows').append(row);
     }
     applyAnalysisFilters();
     const hasMessages=!!a.analysis;

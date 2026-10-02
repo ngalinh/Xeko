@@ -140,3 +140,7 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 /* Stable campaign order, independent of the current search/filter. */
 #step2 .row-number{width:52px;min-width:52px;text-align:center;white-space:nowrap;font-variant-numeric:tabular-nums}
 @media(max-width:600px){#step2 td.row-number{width:auto;min-width:0;text-align:left;padding-right:30px}}
+
+#analysisRows .uid-cell{min-width:150px;max-width:200px}
+#analysisRows .uid-value{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+@media(max-width:600px){#analysisRows .uid-cell{min-width:0;max-width:none}}
