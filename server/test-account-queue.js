@@ -149,7 +149,7 @@ test('worker HTTP post shares account queue with scans and cancels before browse
     queuePost:(fn,profile)=>{const p=queuePost(fn,profile);running.push(p);return p;},
     postJobs:jobs, cancelledFbJobIds:cancelled,
     playwright:{profileExists:()=>true, getActiveProfile:()=>({key:'wrong-default'}),postToPersonal:async()=>{calls.push(getQueuedProfile());return {success:true};}},
-    rateLimit:{checkHourly:()=>({ok:true})},waitForPostTurn:async()=>{},cleanupFiles:files=>cleaned.push(files),
+    rateLimit:{checkHourly:()=>({ok:true})},waitForPostTurn:async()=>{},finishPostTurn:()=>{},cleanupFiles:files=>cleaned.push(files),
     createJob:()=>{const id=String(++counter);jobs.set(id,{status:'pending'});return id;},
     setJobResult:(id,result)=>jobs.set(id,{status:'done',result}),setJobError:(id,error)=>jobs.set(id,{status:'failed',error}),
     setTimeout:()=>{timers.push(getQueuedProfile());return timers.length;},clearTimeout:()=>{},

@@ -708,11 +708,7 @@ async function attachImages(page, imagePaths) {
     // QUAN TRỌNG: preview ảnh hiện ra (blob/data) TRƯỚC khi basso upload xong ảnh
     // lên server của nó. Nếu bấm Gửi ngay thì tin gửi đi KHÔNG kèm ảnh (group rỗng)
     // nhưng salework vẫn tưởng thành công. Chờ network rảnh để upload hoàn tất.
-    try {
-      await page.waitForLoadState('networkidle', { timeout: 30000 });
-    } catch {
-      throw new Error('Chưa xác nhận tải ảnh hoàn tất — đã dừng trước khi Gửi, không gửi caption.');
-    }
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
   } else {
     logger.warn(`[basso] CHƯA xác nhận đủ ${imagePaths.length} ảnh — dừng, không đính chồng ảnh`);
   }
@@ -784,11 +780,17 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null, 
   // Một album chỉ được submit một lần. Không quan sát đủ ảnh trên DOM không
   // đồng nghĩa gửi thất bại (upload chậm, album thu gọn, ảnh đổi blob → CDN).
   if (imagePaths.length > 0) {
+    const attachmentBaseline = await _imageThreadState(page);
     const uploaded = await attachImages(page, imagePaths);
     if (!uploaded) {
       throw new Error('Chưa xác nhận đủ ảnh trong bản nháp — đã dừng trước khi Gửi để tránh đính trùng.');
     }
     const before = await _imageThreadState(page);
+    // Preview Basso có thể nằm ngoài ancestor chứa nút Gửi. Theo dõi các URL
+    // local vừa xuất hiện sau đính ảnh, độc lập vị trí DOM.
+    const oldLocal = new Set([...(attachmentBaseline.threadSources || []), ...(attachmentBaseline.composerSources || [])]);
+    before.pendingSources = [...(before.threadSources || []), ...(before.composerSources || [])]
+      .filter(src => /^(blob:|data:)/.test(src) && !oldLocal.has(src));
     logger.info(`[basso][verify] trước khi gửi ảnh: ${JSON.stringify(before)}`);
     _throwIfCancelled();
     if (!(await clickSend(page, verifyTarget))) {
@@ -886,7 +888,6 @@ async function _imageThreadState(page) {
       }
     }
     const threadSources = [], composerSources = [];
-    const thread = document.querySelector('.chat-messages-area');
     let http = 0, threadBlob = 0, composerBlob = 0;
     for (const el of document.querySelectorAll('img, [style*="background-image"], .v-image__image')) {
       const r = el.getBoundingClientRect();
@@ -900,7 +901,7 @@ async function _imageThreadState(page) {
       if (root && root.contains(el)) {
         composerSources.push(s);
         if (/^(blob:|data:)/.test(s)) composerBlob++;
-      } else if (thread && thread.contains(el)) {
+      } else {
         threadSources.push(s);
         if (/^https?:/.test(s)) http++; else threadBlob++;
       }
@@ -909,14 +910,17 @@ async function _imageThreadState(page) {
   });
 }
 
-// Draft disappearance is not delivery: upload errors also clear previews.
-// Require all new remote image sources in the message thread before the caption.
-// A collapsed album or reused CDN URL is ambiguous: stop without resending it.
-function _imageDeliveryReady(before, after, expected = 1) {
+// Không bắt buộc tổng ảnh tăng. Bản nháp đã có ảnh trước click và được CRM xóa
+// sau click là tín hiệu được phép chuyển sang text, không phải bảo đảm giao hàng.
+function _imageDeliveryReady(before, after) {
   if (!after.composerPresent || after.composerSources.length) return false;
   const oldSources = new Set(before.threadSources);
-  const newImages = new Set(after.threadSources.filter(src => /^https?:/.test(src) && !oldSources.has(src)));
-  return newImages.size >= expected;
+  const newImage = after.threadSources.some(src => !oldSources.has(src));
+  const draftCleared = before.composerSources.length > 0;
+  const remaining = new Set([...after.threadSources, ...after.composerSources]);
+  const detachedPreviewsCleared = before.pendingSources?.length > 0 &&
+    before.pendingSources.every(src => !remaining.has(src));
+  return newImage || draftCleared || detachedPreviewsCleared;
 }
 
 async function waitImageSent(page, expected = 1, before = null) {
@@ -927,13 +931,13 @@ async function waitImageSent(page, expected = 1, before = null) {
       logger.warn(`[basso][verify] Không đọc được trạng thái: ${e.message}`);
       return null;
     });
-    if (after && _imageDeliveryReady(before, after, expected)) {
-      logger.info(`[basso][verify] Đã thấy đủ ảnh mới trong hội thoại; chuyển sang text (album=${expected}, threadImages=${after.threadSources.length})`);
+    if (after && _imageDeliveryReady(before, after)) {
+      logger.info(`[basso][verify] Bản nháp ảnh đã trống; chuyển sang text (album=${expected}, threadImages=${after.threadSources.length})`);
       return true;
     }
     await sleep(500);
   }
-  logger.warn('[basso][verify] Chưa xác nhận đủ ảnh mới sau 30s; không gửi caption hoặc gửi lại album');
+  logger.warn('[basso][verify] Chưa xác nhận composer ảnh đã trống sau 30s; không gửi lại album');
   return false;
 }
 

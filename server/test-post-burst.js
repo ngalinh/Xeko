@@ -123,13 +123,54 @@ test('FB pacing delays the second post only, honors configured minimum and cance
   await wait('A');
   await wait('B');
   assert.deepEqual(waits, []);
+  now += 120000; // a long post still needs a rest once it finishes
+  mod.exports.finishPostTurn('A');
   await wait('A');
   assert.deepEqual(waits, [30000]);
+  mod.exports.finishPostTurn('A');
   await wait('A', () => true);
   assert.deepEqual(waits, [30000]);
   now += 40000;
   await wait('A');
   assert.deepEqual(waits, [30000]);
+});
+
+test('Zalo rests between channels after a long or failed attempt', async () => {
+  let now = 1000;
+  const mod = { exports: {} }, starts = [];
+  vm.runInNewContext(source('src/utils/zalo-queue.js'), {
+    module: mod, Date: { now: () => now }, process: { env: {} },
+    require: () => ({ groupDelayMs: () => 30000, profileDelayMs: () => 15000,
+      sleep: async ms => { now += ms; } }),
+  });
+  const first = mod.exports.enqueue('A', async () => {
+    starts.push(now); now += 120000; throw Error('posting failed');
+  });
+  const second = mod.exports.enqueue('A', async () => { starts.push(now); });
+  await assert.rejects(first, /posting failed/);
+  await second;
+  assert.deepEqual(starts, [1000, 151000]);
+});
+
+test('Zalo accounts waiting for capacity still start at staggered times', async () => {
+  let now = 1000;
+  const mod = { exports: {} }, starts = [], releases = [];
+  vm.runInNewContext(source('src/utils/zalo-queue.js'), {
+    module: mod, Date: { now: () => now }, process: { env: { ZALO_MAX_CONCURRENT: '2' } },
+    require: () => ({ groupDelayMs: () => 30000, profileDelayMs: () => 15000,
+      sleep: async ms => { now += ms; } }),
+  });
+  const jobs = ['A', 'B', 'C', 'D'].map(account => mod.exports.enqueue(account, async () => {
+    starts.push({ account, at: now });
+    if (account === 'A' || account === 'B') await new Promise(resolve => releases.push(resolve));
+  }));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(starts.map(s => s.account), ['A', 'B']);
+  now += 120000;
+  releases.forEach(resolve => resolve());
+  await Promise.all(jobs);
+  assert.equal(starts.length, 4);
+  assert.ok(starts[3].at - starts[2].at >= 15000);
 });
 
 test('browser keeps following a healthy FB job through a long queue', async () => {

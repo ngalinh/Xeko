@@ -31,7 +31,7 @@ const logger = require('./src/utils/logger');
 const { parseProxy } = require('./src/utils/proxy');
 const apiKey = require('./src/utils/api-key');
 const rateLimit = require('./src/utils/rate-limit');
-const { waitForPostTurn } = require('./src/utils/fb-post-pacing');
+const { waitForPostTurn, finishPostTurn } = require('./src/utils/fb-post-pacing');
 const zaloQueue = require('./src/utils/zalo-queue');
 const { groupDelayMs } = require('./src/utils/post-delays');
 
@@ -143,7 +143,11 @@ function queueWorkerJob(id, profile, fn, posting = false) {
     if (posting) await waitForPostTurn(profile, () => cancelledFbJobIds.has(id));
     const job = postJobs.get(id);
     if (job) { job.queued = false; job.createdAt = Date.now(); }
-    return fn();
+    try {
+      return await fn();
+    } finally {
+      if (posting) finishPostTurn(profile);
+    }
   }, profile).catch(error => setJobError(id, error.message));
 }
 function setJobResult(id, result) {

@@ -8,9 +8,11 @@ async function waitForPostTurn(profile, shouldCancel = () => false) {
   if (shouldCancel()) return;
   const wait = (nextStarts.get(profile) || 0) - Date.now();
   if (wait > 0) await sleep(wait);
-  if (!shouldCancel()) {
-    nextStarts.set(profile, Date.now() + Math.max(MIN_INTERVAL_MS, groupDelayMs()));
-  }
 }
 
-module.exports = { waitForPostTurn };
+// Rest after completion, including a slow/failed attempt, before the next channel.
+function finishPostTurn(profile) {
+  nextStarts.set(profile, Date.now() + Math.max(MIN_INTERVAL_MS, groupDelayMs()));
+}
+
+module.exports = { waitForPostTurn, finishPostTurn };
