@@ -149,7 +149,7 @@ function profileExists(_profileName) {
 
 // Poll /api/zalo/status/:id trên máy local cho đến khi job Zalo xong
 async function pollZaloLocalJob(jobId, maxWaitMs = 10 * 60 * 1000) {
-  const start = Date.now();
+  let start = Date.now();
   while (Date.now() - start < maxWaitMs) {
     await new Promise(r => setTimeout(r, 2000));
     try {
@@ -163,6 +163,7 @@ async function pollZaloLocalJob(jobId, maxWaitMs = 10 * 60 * 1000) {
       if (!response.ok) continue; // 404 / network glitch → thử lại
       const data = await safeJson(response);
       if (data.status === 'done') return { success: !!data.success, error: data.error || null };
+      if (data.queued === true) start = Date.now();
       // status 'processing' → tiếp tục poll
     } catch (e) {
       if (e.name === 'TimeoutError' || e.name === 'AbortError') continue;
