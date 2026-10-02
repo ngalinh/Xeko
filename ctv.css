@@ -29,8 +29,9 @@ main{max-width:1440px;padding:24px;margin:0 auto}.page-heading h1{font-size:22px
 
 .campaign-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center}#campaigns .campaign-row .secondary{color:#a43232;padding:8px;box-shadow:none}
 
-/* Match the Dashboard stop action while keeping a comfortable workflow target. */
-#stopAnalysis.secondary{
+/* Compact workflow actions, matching the Dashboard stop action geometry. */
+#stopAnalysis.secondary,
+#retryAnalysis.secondary{
   flex-shrink:0;
   min-height:32px;
   padding:6px 12px;
@@ -48,7 +49,12 @@ main{max-width:1440px;padding:24px;margin:0 auto}.page-heading h1{font-size:22px
 #stopAnalysis.secondary:hover:not(:disabled){background:#fef2f2}
 #stopAnalysis.secondary:focus-visible{outline:2px solid #dc2626;outline-offset:3px}
 #stopAnalysis.secondary:active:not(:disabled){background:#fee2e2;border-color:#f87171}
-@media(pointer:coarse){#stopAnalysis.secondary{min-height:44px}}
+@media(pointer:coarse){#stopAnalysis.secondary,#retryAnalysis.secondary{min-height:44px}}
+
+#retryAnalysis.secondary{border-color:#bfdbfe;background:#eff6ff;color:#1e3a8a}
+#retryAnalysis.secondary:hover:not(:disabled){background:#dbeafe;border-color:#93c5fd}
+#retryAnalysis.secondary:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+#retryAnalysis.secondary:active:not(:disabled){background:#bfdbfe;border-color:#60a5fa}
 
 /* Keep the row-level skip action quieter than the workflow buttons. */
 #analysisRows button.secondary{
