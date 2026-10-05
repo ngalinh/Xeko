@@ -43,6 +43,7 @@
       ['Các thương hiệu có trên bài viết bán hàng', Array.isArray(v.brands) && v.brands.length ? v.brands.join(', ') : 'Chưa xác định được thương hiệu'],
       ['Phân tích cụ thể caption', v.captionAnalysis || v.reason || 'Chưa có phân tích caption'],
     ];
+    if (v.selfDeclaredGender) { const g=v.selfDeclaredGender; sections.push(['Giới tính tự khai', [g.status === 'self_declared' ? g.value : 'Chưa xác định', g.reason, g.evidence, 'Nguồn: '+g.sourceUrl, 'Đọc lúc: '+new Date(g.checkedAt).toLocaleString('vi-VN')].filter(Boolean).join('\n')]); }
     if (v.wholesaleRecruitment) sections.push(['Dấu hiệu nguồn sỉ / tuyển mạng lưới bán hàng', [v.wholesaleRecruitment.reason, ...(v.wholesaleRecruitment.evidence || []).map(q => '“'+q+'”')].join('\n')]);
     const list = element('ol', undefined, 'assessment-sections');
     for (const [label, value] of sections) {
@@ -305,7 +306,7 @@
     $('analysisApproval').textContent = approvalText(a.analysis,'Bạn có thể duyệt gửi khách đã chọn dù AI chưa đánh giá đạt. Cần xác minh người nhận trước khi gửi.');
     $('analysisRows').replaceChildren();
     for (const [index, l] of c.leads.entries()) {
-      const row = element('tr'), chooseCell = element('td'), customer = element('td'), uidCell = element('td'), fbName = element('td'), analysis = element('td'), result = element('td');
+      const row = element('tr'), chooseCell = element('td'), customer = element('td'), uidCell = element('td'), fbName = element('td'), genderCell = element('td'), analysis = element('td'), result = element('td');
       row.dataset.leadId = l.id;
       const ordinal = element('td', String(index + 1), 'row-number');
       ordinal.dataset.label = 'STT';
@@ -321,6 +322,10 @@
       fbName.dataset.label = 'Tên FB';
       fbName.className = 'fb-name';
       fbName.textContent = v?.name || (l.state === 'checking' ? 'Đang quét…' : v || l.error ? 'Chưa đọc được tên' : 'Chưa quét');
+      genderCell.dataset.label = 'Giới tính';
+      genderCell.className = 'gender-cell';
+      genderCell.title = 'Giới tính tự khai trên Facebook';
+      genderCell.textContent = v?.selfDeclaredGender?.status === 'self_declared' && v.selfDeclaredGender.value || 'Chưa xác định';
       if (v) {
         const reason = l.uidLookup?.reason || v.uidReason;
         if (!v.recipientId && reason) uidCell.append(element('p',reason,'muted'));
@@ -349,7 +354,7 @@
         skip.onclick=()=>action('skip-lead',{leadId:l.id});
         result.append(skip);
       }
-      row.append(chooseCell,ordinal,customer,uidCell,fbName,analysis,result);$('analysisRows').append(row);
+      row.append(chooseCell,ordinal,customer,uidCell,fbName,genderCell,analysis,result);$('analysisRows').append(row);
     }
     applyAnalysisFilters();
     const hasMessages=!!a.analysis;
