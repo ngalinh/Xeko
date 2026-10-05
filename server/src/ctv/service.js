@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { validProfileKey, profileUrl, renderMessage } = require('./rules');
-const { captureCustomers, listCustomers } = require('./customers');
+const { captureCustomers, listCustomers, addManualCustomer } = require('./customers');
 const ACTIVE = ['analysis_queued', 'analyzing', 'uid_queued', 'resolving_uid', 'send_queued', 'sending'];
 const fail = message => { const e = new Error(message); e.status = 409; throw e; };
 
@@ -16,6 +16,10 @@ class CtvService {
       for (const l of c.leads) if (['checking', 'sending'].includes(l.state)) { l.state = l.state === 'sending' ? 'unconfirmed' : 'review'; l.error = c.error; }
     }
     this.save();
+  }
+  addCustomer(input, owner) {
+    const record = addManualCustomer(this.data, input, owner); this.save();
+    return this.listCustomers(owner).find(r => r.profile === record.profile && r.url === record.url);
   }
   listCustomers(owner) { return listCustomers(this.data, owner); }
   save() {
