@@ -79,6 +79,36 @@ test('group filter clears old filters before selecting group', async () => {
   } finally { await browser.close(); }
 });
 
+for (const [name, tooltips] of [
+  ['duplicate visible tooltips', '<div role="tooltip">Nhóm</div><div role="tooltip">Nhóm</div>'],
+  ['retained hidden tooltip', '<div role="tooltip" hidden>Nhóm</div><div role="tooltip">Nhóm</div>'],
+  ['no tooltip', ''],
+]) {
+  test(`group filter works with ${name}`, async () => {
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const page = await browser.newPage();
+      await page.setContent(`<div class="chat-panel-left"><div class="filter-bar">
+        <button class="filter-btn filter-active">Unread</button>
+        <button class="filter-btn">Unreplied</button><button class="filter-btn">User</button>
+        <button class="filter-btn" id="group" onclick="this.classList.add('filter-active')">Group</button>
+        <button class="filter-btn filter-clear" onclick="document.querySelectorAll('.filter-active').forEach(el=>el.classList.remove('filter-active'))">Clear</button>
+      </div></div>${tooltips}`);
+      // An unrelated tooltip must never become the click target.
+      await page.locator('[role=tooltip]').evaluateAll(elements => {
+        elements.forEach(el => el.onclick = () => { document.body.dataset.tooltipClicked = 'true'; });
+      });
+      await selectGroupFilter(page);
+      assert.equal(await page.locator('.filter-active').count(), 1);
+      assert.equal(await page.locator('.filter-active').getAttribute('id'), 'group');
+      assert.equal(await page.locator('body').getAttribute('data-tooltip-clicked'), null);
+      await selectGroupFilter(page);
+      assert.equal(await page.locator('.filter-active').count(), 1);
+      assert.equal(await page.locator('.filter-active').getAttribute('id'), 'group');
+    } finally { await browser.close(); }
+  });
+}
+
 test('every send checks target again, and a mismatch never clicks', async () => {
   const fs = require('node:fs');
   const path = require('node:path');
@@ -104,4 +134,5 @@ test('every send checks target again, and a mismatch never clicks', async () => 
   assert.equal(checks, 2);
   assert.equal(clicks, 1);
 });
+
 
