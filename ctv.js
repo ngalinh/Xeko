@@ -227,21 +227,44 @@
   }
   document.addEventListener('ctv:view', event => setPageView(event.detail));
   function setHistoryOpen(open) { setPageView(open ? 'history' : 'workflow'); }
-  function renderHistory() {
-    $('campaigns').replaceChildren();
-    for (const c of [...campaigns].sort((a,b) => b.createdAt.localeCompare(a.createdAt))) {
-      const b = element('button', c.name || 'Chiến dịch gửi tin nhắn hàng loạt', c.id === selected?.id ? 'active' : '');
-      b.append(element('small',`${new Date(c.createdAt).toLocaleDateString('vi-VN')} · ${c.leads.length} khách · ${labels[c.state] || c.state}`));
-      b.disabled = busy; b.onclick = () => choose(c.id);
-      const row = element('div', undefined, 'campaign-row'), remove = element('button','Xoá','secondary');
-      remove.dataset.deleteState = c.state;
-      remove.setAttribute('aria-label', `Xoá chiến dịch ${c.name}`);
-      remove.disabled = busy || ACTIVE.concat(['running','queued']).includes(c.state);
-      remove.onclick = () => deleteCampaign(c);
-      row.append(b, remove); $('campaigns').append(row);
-    }
-    if (!campaigns.length) $('campaigns').append(element('p','Chưa có chiến dịch.','muted'));
+  let historyPage = 0;
+  const historyPageSize = 10;
+  function historyCategory(c) {
+    if (ACTIVE.concat(['running','queued']).includes(c.state)) return 'active';
+    if (['completed','done'].includes(c.state)) return 'complete';
+    if (['import_review','analysis_review','message_review','draft'].includes(c.state)) return 'review';
+    return 'attention';
   }
+  function renderHistory() {
+    const query = $('historySearch').value.trim().toLocaleLowerCase('vi-VN'), filter = $('historyFilter').value;
+    const sorted = [...campaigns].sort((a,b) => b.createdAt.localeCompare(a.createdAt));
+    const visible = sorted.filter(c => (!query || [c.name,c.profile,accountName(c.profile)].some(v => String(v || '').toLocaleLowerCase('vi-VN').includes(query))) && (filter === 'all' || historyCategory(c) === filter));
+    historyPage = Math.min(historyPage, Math.max(0, Math.ceil(visible.length / historyPageSize) - 1));
+    $('campaigns').replaceChildren();
+    for (const [index,c] of visible.slice(historyPage * historyPageSize, (historyPage + 1) * historyPageSize).entries()) {
+      const row = element('article', undefined, 'history-row' + (c.id === selected?.id ? ' is-selected' : ''));
+      const cell = (label, child, cls = '') => { const d=element('div',undefined,cls);d.dataset.label=label;d.append(child);return d; };
+      const name = element('button', c.name || 'Chiến dịch gửi tin nhắn hàng loạt', 'secondary history-name');
+      name.disabled=busy;name.onclick=()=>choose(c.id);
+      const identity=cell('Chiến dịch',name,'history-identity');identity.append(element('small',accountName(c.profile)));
+      const created = new Date(c.createdAt);
+      const date=cell('Ngày tạo',element('span',created.toLocaleDateString('vi-VN')));date.append(element('small',created.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})));
+      const sent=c.leads.filter(l=>l.state==='sent').length;
+      const count=cell('Khách hàng',element('strong',String(c.leads.length)));count.append(element('small',sent+' đã gửi'));
+      const category=historyCategory(c), status=element('span',labels[c.state] || c.state,'badge '+({active:'blue',complete:'good',review:'warn',attention:'warn'}[category]));
+      const open=element('button','Mở','secondary history-open');open.disabled=busy;open.onclick=()=>choose(c.id);open.setAttribute('aria-label','Mở chiến dịch '+c.name);
+      const remove=element('button','Xoá','secondary history-delete');remove.dataset.deleteState=c.state;remove.disabled=busy || category==='active';remove.onclick=()=>deleteCampaign(c);remove.setAttribute('aria-label','Xoá chiến dịch '+c.name);if(category==='active')remove.title='Dừng chiến dịch trước khi xoá';
+      const actions=cell('Thao tác',open,'history-actions');actions.append(remove);
+      row.append(cell('STT',element('span',String(historyPage * historyPageSize+index+1)),'history-index'),identity,date,count,cell('Trạng thái',status),actions);$('campaigns').append(row);
+    }
+    if (!visible.length) $('campaigns').append(element('p',campaigns.length?'Không có chiến dịch phù hợp. Thử đổi từ khoá hoặc bộ lọc.':'Chưa có chiến dịch. Bấm “Chiến dịch mới” để bắt đầu.','history-empty'));
+    $('historyCount').textContent=visible.length+' / '+campaigns.length+' chiến dịch';
+    $('historyPage').textContent='Trang '+(historyPage+1)+'/'+Math.max(1,Math.ceil(visible.length/historyPageSize));
+    $('historyPrevious').disabled=historyPage===0;$('historyNext').disabled=(historyPage+1)*historyPageSize>=visible.length;
+  }
+  $('historySearch').oninput=$('historyFilter').onchange=()=>{historyPage=0;renderHistory();};
+  $('historyPrevious').onclick=()=>{historyPage--;renderHistory();};
+  $('historyNext').onclick=()=>{historyPage++;renderHistory();};
   function render(c, reset = false) {
     if (reset || selected?.id !== c.id) { $('analysisSearch').value=''; $('analysisFilter').value='all'; }
     if (selected?.id !== c.id || selected?.messagePreview?.token !== c.messagePreview?.token) $('confirmSend').checked = false;
