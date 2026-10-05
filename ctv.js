@@ -43,6 +43,7 @@
       ['Các thương hiệu có trên bài viết bán hàng', Array.isArray(v.brands) && v.brands.length ? v.brands.join(', ') : 'Chưa xác định được thương hiệu'],
       ['Phân tích cụ thể caption', v.captionAnalysis || v.reason || 'Chưa có phân tích caption'],
     ];
+    if (v.wholesaleRecruitment) sections.push(['Dấu hiệu nguồn sỉ / tuyển mạng lưới bán hàng', [v.wholesaleRecruitment.reason, ...(v.wholesaleRecruitment.evidence || []).map(q => '“'+q+'”')].join('\n')]);
     const list = element('ol', undefined, 'assessment-sections');
     for (const [label, value] of sections) {
       const item = element('li');
@@ -55,6 +56,7 @@
     const preview = element('div');
     const seller = {yes:'Có',no:'Không'}[v.sellerUS] || 'Chưa đủ dữ liệu';
     preview.append(element('p', 'Seller bán sản phẩm trên website Mỹ: ' + seller, 'seller-verdict'));
+    if (v.wholesaleRecruitment?.excluded) preview.append(element('p','Đã loại: tuyển CTV / đại lý / người nhận hàng bán lại','warning'));
     const details = element('details', undefined, 'assessment-details');
     const summary = element('summary');
     summary.append(element('span', 'Xem chi tiết', 'expand-label'), element('span', 'Thu gọn', 'collapse-label'));
