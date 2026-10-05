@@ -26,12 +26,12 @@
       const states = el('div');
       states.append(el('span', r.sent ? 'Đã gửi tin nhắn' : r.state === 'unconfirmed' ? 'Chưa xác nhận gửi' : r.assessment ? 'Đã đánh giá AI' : r.manual ? 'Thêm thủ công' : 'Đã nhập', 'badge'));
       if (attention(r)) states.append(el('p', 'Cần kiểm tra', 'muted'));
-      grid.append(field('STT', String(page * pageSize + index + 1)), field('Khách hàng', identity), field('UID', String(r.assessment?.recipientId || r.uid || 'Chưa xác định')), field('Tài khoản gửi', r.profile), field('Trạng thái', states));
+      const gender=r.assessment?.selfDeclaredGender;
+      grid.append(field('STT', String(page * pageSize + index + 1)), field('Khách hàng', identity), field('UID', String(r.assessment?.recipientId || r.uid || 'Chưa xác định')), field('Giới tính', gender?.status === 'self_declared' && gender.value || 'Chưa xác định'), field('Tài khoản gửi', r.profile), field('Trạng thái', states));
       const details = el('details'); details.append(el('summary', 'Thông tin đã lưu & chiến dịch'));
       details.append(el('p', `Nhập lần đầu: ${date(r.importedAt)} · Cập nhật: ${date(r.updatedAt)}`));
       details.append(el('p', r.campaigns.length ? `Chiến dịch: ${r.campaigns.map(c => c.name || c.id).join(' · ')}` : 'Nguồn: Thêm thủ công'));
       if (r.notes) details.append(el('p', `Ghi chú: ${r.notes}`));
-      const gender=r.assessment?.selfDeclaredGender;
       details.append(el('p', 'Giới tính tự khai: '+(gender?.status === 'self_declared' ? gender.value : 'Chưa xác định')));
       if (gender) details.append(el('p', [gender.reason, gender.evidence, 'Nguồn: '+gender.sourceUrl, 'Đọc lúc: '+date(gender.checkedAt)].filter(Boolean).join('\n')));
       if (r.assessment) {
