@@ -10,6 +10,14 @@ Bước nhập chỉ tạo kết quả kiểm tra. Chưa mở Facebook, chưa g�
 
 ## 2. AI đánh giá
 
+### Đối chiếu bạn bè chung với tài khoản tùy chọn
+
+Ở bước 1, nhập **Tài khoản cần đối chiếu bạn bè chung** bằng link hồ sơ Facebook trực tiếp (username hoặc `profile.php?id=...`). Có thể dùng Linh Dương hoặc bất kỳ tài khoản nào khác; để trống để bỏ qua. Link được lưu theo chiến dịch, giữ nguyên khi tải lại hoặc Thử lại AI. Tạo chiến dịch mới để đổi tài khoản đối chiếu; kết quả cũ không bị gán sang tài khoản mới.
+
+Kết quả từng khách hiển thị tài khoản đối chiếu và một trong các trạng thái: **Đã xác minh**, **Cần kiểm tra**, **Chưa đủ thông tin**, **Chưa chọn tài khoản đối chiếu**. Chỉ xác minh khi thấy đúng liên kết trong hàng bạn bè chung có nhãn hoặc đường dẫn nhận diện vùng này, ở phần đầu hồ sơ trước khi cuộn bài. Avatar không có nhãn/liên kết, tên trùng, nhắc tên trong bio/bài viết, nút Thêm bạn bè và việc không thấy avatar đều không chứng minh quan hệ bạn bè. Không suy ra “chưa kết bạn” khi thiếu dữ liệu. Kết quả cũ hiển thị “Chưa kiểm tra”.
+
+Tính năng đọc liên kết và dấu hiệu giao diện, chưa so khớp ảnh avatar hay tự mở danh sách bạn bè. Username và UID khác dạng chưa được tự quy đổi; nếu Facebook chỉ hiện liên kết UID thì dùng link UID đó làm tài khoản đối chiếu. Bạn bè chung phụ thuộc tài khoản đang đăng nhập và thông tin Facebook cho phép xem. Đây là thông tin tham khảo, không tự chọn khách hoặc thay đổi điều kiện gửi. Cần cập nhật cả giao diện và worker; chưa xác minh trên phiên Facebook thật.
+
 AI phân loại hồ sơ cá nhân/Fanpage, bằng chứng sản phẩm có bán trên website Mỹ, điểm tin cậy, lý do và trích dẫn. UI hiển thị tiến độ và kết quả từng khách. Khi xong, chiến dịch dừng ở trạng thái **Chờ duyệt kết quả AI**; không gửi bất kỳ tin nào.
 
 Nút **Bỏ qua** ở kết quả hồ sơ chưa đủ điều kiện gửi lưu trạng thái **Đã bỏ qua** trong chiến dịch. Hồ sơ này không được duyệt gửi và không được quét lại khi bấm **Thử lại AI**; kết quả cũ vẫn được giữ để đối chiếu.
@@ -48,7 +56,7 @@ Trước Enter, worker xác minh ID người nhận, URL và link hồ sơ ở t
 
 ## API chuyển bước
 
-`POST /api/ctv/campaigns` nhận `{name, profile, urls}` và chỉ tạo `import_review`.
+`POST /api/ctv/campaigns` nhận `{name, profile, urls, mutualFriendTarget?}` và chỉ tạo `import_review`. `mutualFriendTarget` là link hồ sơ cần đối chiếu hoặc chuỗi rỗng.
 
 | Thao tác | Dữ liệu | Kết quả |
 |---|---|---|
