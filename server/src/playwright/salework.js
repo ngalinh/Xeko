@@ -479,16 +479,10 @@ const ZALO_IMG_JPEG_QUALITY = 0.92;  // chất lượng JPEG khi re-encode
 // ghi 1 file .zalo.jpg cạnh file gốc và trả về đường dẫn đó; ảnh không chuẩn hoá được
 // giữ nguyên đường dẫn gốc. Đường dẫn .zalo.jpg mới nằm cùng thư mục job → caller nên
 // dọn (được liệt kê để xoá trong _postToZaloGroupImpl).
-async function normalizeImagesForZalo(browser, imagePaths) {
+async function normalizeImagesForZalo(page, imagePaths) {
   if (!imagePaths || imagePaths.length === 0) return imagePaths;
-  let scratch;
-  try {
-    scratch = await browser.newPage();
-    await scratch.goto('about:blank').catch(() => {});
-  } catch (e) {
-    logger.warn(`[salework][img] Không mở được trang chuẩn hoá ảnh (${e.message}) — dùng ảnh gốc`);
-    return imagePaths;
-  }
+  // Decode on the existing chat page using detached Image/canvas objects.
+  // Do not open/navigate a tab or change the chat DOM, draft, or focus.
   const out = [];
   for (const src of imagePaths) {
     try {
@@ -497,7 +491,7 @@ async function normalizeImagesForZalo(browser, imagePaths) {
                  : ext === '.webp' ? 'image/webp' : ext === '.bmp' ? 'image/bmp'
                  : (ext === '.heic' || ext === '.heif') ? 'image/heic' : 'image/jpeg';
       const b64 = fs.readFileSync(src).toString('base64');
-      const jpegB64 = await scratch.evaluate(async ({ dataUrl, maxEdge, quality }) => {
+      const jpegB64 = await page.evaluate(async ({ dataUrl, maxEdge, quality }) => {
         const img = new Image();
         const loaded = await new Promise((resolve) => {
           img.onload = () => resolve(true);
@@ -536,7 +530,6 @@ async function normalizeImagesForZalo(browser, imagePaths) {
       out.push(src);
     }
   }
-  try { await scratch.close(); } catch {}
   const changed = out.filter((p, i) => p !== imagePaths[i]).length;
   logger.info(`[salework][img] Chuẩn hoá ${changed}/${imagePaths.length} ảnh về JPEG (cạnh dài ≤ ${ZALO_IMG_MAX_EDGE}px) cho Zalo`);
   return out;
@@ -1078,7 +1071,7 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
     // định dạng/khổ (vd webp) thành FILE đính kèm ("hình cuối chuyển thành file").
     let sendImagePaths = imagePaths;
     if (imagePaths && imagePaths.length > 0) {
-      sendImagePaths = await normalizeImagesForZalo(browser, imagePaths);
+      sendImagePaths = await normalizeImagesForZalo(page, imagePaths);
       normalizedImageFiles = sendImagePaths.filter((p, i) => p !== imagePaths[i]);
     }
 
