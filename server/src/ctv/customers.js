@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+const { validProfileKey, profileUrl } = require('./rules');
 // Durable customer snapshots, independent of campaign deletion and AI retries.
 function captureCustomers(data) {
   data.customers ||= {};
@@ -29,9 +31,11 @@ function listCustomers(data, owner) {
     const key = JSON.stringify([record.profile, record.url]);
     const old = groups.get(key);
     const campaigns = new Map((old?.campaigns || []).map(c => [c.id, c]));
-    campaigns.set(record.campaignId, { id: record.campaignId, name: record.campaignName });
+    if (record.campaignId) campaigns.set(record.campaignId, { id: record.campaignId, name: record.campaignName });
     groups.set(key, {
       profile: record.profile, url: record.url,
+      name: record.name || old?.name, uid: record.uid || old?.uid, notes: record.notes || old?.notes,
+      manual: !!(record.manual || old?.manual),
       assessment: record.assessment || old?.assessment,
       sent: !!(old?.sent || record.sent), state: record.state, error: record.error,
       message: record.message || old?.message,
@@ -43,4 +47,19 @@ function listCustomers(data, owner) {
   return [...groups.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
-module.exports = { captureCustomers, listCustomers };
+function addManualCustomer(data, input, owner) {
+  if (!input || typeof input !== 'object') throw new Error('Dữ liệu không hợp lệ');
+  if (!validProfileKey(input.profile)) throw new Error('Cần chọn tài khoản quản lý hợp lệ');
+  const text = (value, max, label) => { if (value == null) return ''; if (typeof value !== 'string' || value.length > max) throw new Error(label+' không hợp lệ'); return value.trim(); };
+  const url = profileUrl(text(input.url, 2000, 'Link Facebook'));
+  const name = text(input.name, 150, 'Tên khách hàng'), uid = text(input.uid, 30, 'UID'), notes = text(input.notes, 2000, 'Ghi chú');
+  if (uid && !/^\d{5,30}$/.test(uid)) throw new Error('UID phải gồm 5–30 chữ số');
+  if (Object.values(data.customers || {}).some(r => r.owner === owner && r.profile === input.profile && (r.url === url || uid && (r.uid === uid || r.assessment?.recipientId === uid)))) {
+    const error = new Error('Khách hàng đã có trong dữ liệu của tài khoản này (trùng link hoặc UID).'); error.status = 409; throw error;
+  }
+  const now = new Date().toISOString();
+  const record = { owner, profile: input.profile, url, name, uid, notes, manual: true, state: 'pending', sent: false, importedAt: now, updatedAt: now };
+  data.customers ||= {}; data.customers['manual:'+crypto.randomUUID()] = record;
+  return record;
+}
+module.exports = { captureCustomers, listCustomers, addManualCustomer };
