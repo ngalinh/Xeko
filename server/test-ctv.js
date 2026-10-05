@@ -405,3 +405,11 @@ test('AI-qualified profile without recipient ID can be selected but cannot prepa
   s.prepareMessages(c.id,'owner','Chào {name}');
   assert.equal(c.messagePreview.messages[0].recipientId,'123456789');
 });
+
+test('wholesale exclusion blocks manual selection and approved message sending',async t=>{
+ const {s,sent}=setup(t);const c=await analyzed(s);const token=prepared(s,c);
+ c.leads[0].assessment.wholesaleRecruitment={excluded:true,verdict:'yes',evidence:['Tuyển đại lý nhận hàng sỉ bán lại']};s.save();
+ assert.match(s.selectionBlocked(c.leads[0]),/nguồn sỉ/);
+ assert.throws(()=>s.approveAnalysis(c.id,'owner',[c.leads[0].id]));
+ assert.throws(()=>s.sendApproved(c.id,'owner',token));assert.equal(sent.length,0);
+});

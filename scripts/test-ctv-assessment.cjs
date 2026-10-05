@@ -48,3 +48,12 @@ test('legacy assessment shows missing fields honestly and retains the previous a
   assert.equal(values[3], 'Chưa xác định được thương hiệu');
   assert.equal(values[4], 'Phân tích cũ');
 });
+
+test('wholesale exclusion shows a warning and the grounded recruitment quote', () => {
+ const quote='Tuyển đại lý toàn quốc, nhận hàng sỉ bán lại';
+ const v={sellerUS:'yes',wholesaleRecruitment:{excluded:true,reason:'Loại do tuyển mạng lưới bán hàng',evidence:[quote]}};
+ const preview=context.renderAssessmentPreview(v);
+ assert.match(preview.children[1].text,/Đã loại/);
+ const list=context.renderAssessment(v);
+ assert.match(list.children.at(-1).children[1].text,/Tuyển đại lý toàn quốc/);
+});

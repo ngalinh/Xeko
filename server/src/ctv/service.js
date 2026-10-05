@@ -42,6 +42,7 @@ class CtvService {
     if (lead.state === 'skipped') return 'Đã bỏ qua trong chiến dịch này';
     if (lead.assessment && lead.assessment.criteriaVersion !== 'us-website-products-v2') return 'Kết quả dùng tiêu chí cũ. Hãy tạo chiến dịch mới và chạy AI lại trên worker đã cập nhật.';
     if (!lead.assessment) return 'Chưa có kết quả đánh giá';
+    if (lead.assessment.wholesaleRecruitment?.excluded) return 'Đã loại: có dấu hiệu nguồn sỉ tuyển CTV/đại lý hoặc người nhận hàng bán lại.';
     const id = lead.assessment.recipientId;
     if (id && this.data.reservations[id]) return 'Đã có lần gửi trước hoặc chưa rõ trạng thái gửi';
     return '';

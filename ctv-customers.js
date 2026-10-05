@@ -33,6 +33,7 @@
       if (r.notes) details.append(el('p', `Ghi chú: ${r.notes}`));
       if (r.assessment) {
         details.append(el('p', `AI đánh giá: ${r.assessment.eligible ? 'Đạt' : 'Cần kiểm tra'}`));
+        if (r.assessment.wholesaleRecruitment) details.append(el('p', [r.assessment.wholesaleRecruitment.reason, ...(r.assessment.wholesaleRecruitment.evidence || [])].join('\n')));
         for (const [label, value] of [['Bio', r.assessment.bio], ['Thương hiệu', r.assessment.brands?.join(', ')], ['Phân tích', r.assessment.captionAnalysis || r.assessment.reason]]) if (value) details.append(el('p', `${label}: ${value}`));
       }
       if (r.message) details.append(el('p', `Nội dung tin nhắn đã lưu${r.messageState === 'sent' ? '' : ' (chưa xác nhận gửi thành công)'}: ${r.message}`));

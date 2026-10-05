@@ -91,7 +91,7 @@ test('structured response includes captions/images, excludes thoughts and joins 
   assert.equal(result.eligible, true);
   assert.equal(result.reviewedImageCount, 1);
   assert.equal(m.calls.length, 1);
-  assert.deepEqual(m.calls[0].generationConfig.responseSchema.required, Object.keys(good));
+  assert.deepEqual(m.calls[0].generationConfig.responseSchema.required, ['wholesaleRecruitment', ...Object.keys(good)]);
   assert.equal(m.calls[0].generationConfig.thinkingConfig.thinkingBudget, 0);
 });
 for (const [name, body, error] of [
@@ -177,3 +177,28 @@ test('ungrounded negative result is unknown even with enough posts', async t => 
   assert.equal(result.eligible, false);
  });
 
+
+for (const quote of ['Tuyển CTV bán hàng nhận hàng giá sỉ, chiết khấu theo doanh số.', 'Tuyển đại lý toàn quốc, nguồn hàng sỉ cho đối tác bán lại.']) {
+  test('grounded wholesale recruitment excludes an otherwise eligible seller: '+quote, async t => {
+    const recruitment={verdict:'yes',confidence:.96,reason:'Tuyển mạng lưới',evidence:[quote]};
+    const m=mock(t,[candidate(JSON.stringify({...good,wholesaleRecruitment:recruitment}))]);
+    const result=await evaluateProfile({...snapshot,headerBio:quote},m.fetch);
+    assert.equal(result.sellerUS,'yes');assert.equal(result.eligible,false);assert.equal(result.wholesaleRecruitment.excluded,true);assert.deepEqual(result.wholesaleRecruitment.evidence,[quote]);assert.match(result.gateReason,/nguồn sỉ/);
+    assert.match(m.calls[0].systemInstruction.parts[0].text,/nhân viên bán hàng lương cố định/);
+  });
+}
+test('fabricated or short recruitment evidence cannot exclude', async t=>{
+  const m=mock(t,[candidate(JSON.stringify({...good,wholesaleRecruitment:{verdict:'yes',confidence:1,reason:'Sỉ lớn',evidence:['Tuyển đại lý toàn quốc giá sỉ','CTV']}}))]);
+  const result=await evaluateProfile(snapshot,m.fetch);assert.equal(result.eligible,true);assert.equal(result.wholesaleRecruitment.excluded,false);assert.equal(result.wholesaleRecruitment.verdict,'unknown');
+});
+test('low confidence and ambiguous recruitment remain unexcluded',async t=>{
+  const quote='Tuyển CTV bán hàng, liên hệ để biết thêm.';
+  const m=mock(t,[candidate(JSON.stringify({...good,wholesaleRecruitment:{verdict:'yes',confidence:.6,reason:'Chưa rõ',evidence:[quote]}}))]);
+  const result=await evaluateProfile({...snapshot,headerBio:quote},m.fetch);assert.equal(result.wholesaleRecruitment.excluded,false);
+});
+for(const quote of ['Không tuyển CTV, chỉ bán lẻ.', 'Tuyển nhân viên bán hàng tại cửa hàng, lương cố định.', 'Mình đang tìm việc CTV bán hàng.', 'Bán sỉ và lẻ hàng Mỹ.']) {
+ test('negative semantic verdict is respected: '+quote,async t=>{
+  const m=mock(t,[candidate(JSON.stringify({...good,wholesaleRecruitment:{verdict:'no',confidence:.95,reason:'Không tuyển mạng lưới',evidence:[quote]}}))]);
+  const result=await evaluateProfile({...snapshot,headerBio:quote},m.fetch);assert.equal(result.eligible,true);assert.equal(result.wholesaleRecruitment.excluded,false);
+ });
+}
