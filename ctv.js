@@ -42,6 +42,7 @@
       ['Bio ở profile', v.bio || 'Chưa có dữ liệu bio'],
       ['Các thương hiệu có trên bài viết bán hàng', Array.isArray(v.brands) && v.brands.length ? v.brands.join(', ') : 'Chưa xác định được thương hiệu'],
       ['Phân tích cụ thể caption', v.captionAnalysis || v.reason || 'Chưa có phân tích caption'],
+      ['Bạn bè chung với tài khoản đối chiếu', mutualFriendSummary(v.mutualFriend)],
     ];
     const list = element('ol', undefined, 'assessment-sections');
     for (const [label, value] of sections) {
@@ -60,7 +61,13 @@
     summary.append(element('span', 'Xem chi tiết', 'expand-label'), element('span', 'Thu gọn', 'collapse-label'));
     details.append(summary, renderAssessment(v));
     preview.append(details);
+    preview.append(element('p', 'Bạn bè chung: ' + mutualFriendSummary(v.mutualFriend), 'muted'));
     return preview;
+  }
+  function mutualFriendSummary(value) {
+    if (!value) return 'Chưa kiểm tra trong kết quả cũ.';
+    const status = {confirmed:'Đã xác minh',needs_review:'Cần kiểm tra',unknown:'Chưa đủ thông tin',not_configured:'Chưa chọn tài khoản đối chiếu'}[value.status] || 'Chưa đủ thông tin';
+    return [status, value.targetUrl, value.reason].filter(Boolean).join(' · ');
   }
   function renderScanLog(lead) {
     const log = element('div', undefined, 'scan-log');
@@ -176,7 +183,7 @@
   }
   function updateControls() {
     const c = selected, unlocked = !busy && !uncertain, modern = c?.workflowVersion === 2;
-    for (const id of ['campaignName','profile','urls','file']) $(id).disabled = !!c || busy;
+    for (const id of ['campaignName','profile','mutualFriendTarget','urls','file']) $(id).disabled = !!c || busy;
     $('importButton').disabled = !!c || busy || !accounts.length;
     $('newCampaign').disabled = busy;
     $('refresh').disabled = !c || busy;
@@ -250,13 +257,13 @@
     if (c.state === 'analysis_review') picks = new Set([...picks].filter(id => c.leads.some(l => l.id === id && canPick(l))));
     else picks = new Set(c.approvals?.analysis?.leadIds || []);
     campaigns = [...campaigns.filter(x => x.id !== c.id), c]; renderHistory();
-    $('currentName').textContent = c.name || 'Chiến dịch gửi tin nhắn hàng loạt'; $('currentProfile').textContent = `Tài khoản: ${accountName(c.profile)}`;
+    $('currentName').textContent = c.name || 'Chiến dịch gửi tin nhắn hàng loạt'; $('currentProfile').textContent = `Tài khoản: ${accountName(c.profile)} · Đối chiếu bạn bè chung: ${c.mutualFriendTarget || 'Chưa chọn'}`;
     $('currentState').textContent = labels[c.state] || c.state;
     const a = c.approvals || {}, modern = c.workflowVersion === 2;
     if (!modern) notice('Chiến dịch phiên bản cũ chỉ được xem. Tạo chiến dịch mới để dùng quy trình 3 bước có duyệt.',true);
     show('importForm',false);show('importResult',true);
     stats('importStats',[['Link hợp lệ',c.leads.length,'good'],['Link trùng đã gộp',c.duplicateCount || 0],['Link bị loại',c.rejected?.length || 0,'warn']]);
-    $('importContext').textContent = `${c.name || 'Chiến dịch gửi tin nhắn hàng loạt'} · ${accountName(c.profile)} · Danh sách đã lưu cố định cho chiến dịch này.`;
+    $('importContext').textContent = `${c.name || 'Chiến dịch gửi tin nhắn hàng loạt'} · ${accountName(c.profile)} · Đối chiếu bạn bè chung: ${c.mutualFriendTarget || 'Chưa chọn'} · Danh sách và tài khoản đối chiếu đã lưu cố định cho chiến dịch này.`;
     $('importList').replaceChildren(...c.leads.map(l => { const li=element('li');li.append(link(l.url,customerLabel(l.url)));return li;}));
     $('rejectedList').replaceChildren(...(c.rejected || []).map(r => element('p',`${r.value} — ${r.reason}`,'warning')));
     if (reset) $('importDetails').open = c.state === 'import_review';
@@ -395,7 +402,7 @@
     if(busy)return;const urls=urlsFrom($('urls').value);
     if(!$('profile').value || !urls.length || urls.length>100){notice('Chọn tài khoản và nhập từ 1 đến 100 link http/https để kiểm tra.',true);return;}
     busy=true;updateControls();notice();
-    try{const c=await api('/api/ctv/campaigns','POST',{name:$('campaignName').value,profile:$('profile').value,urls});epoch++;uncertain=false;render(c,true);}
+    try{const c=await api('/api/ctv/campaigns','POST',{name:$('campaignName').value,profile:$('profile').value,mutualFriendTarget:$('mutualFriendTarget').value.trim(),urls});epoch++;uncertain=false;render(c,true);}
     catch(e){notice(e.message,true);}finally{busy=false;updateControls();schedule();}
   };
   $('retryAnalysis').onclick=()=>{if(canRetry(selected) && window.confirm('Đọc lại các profile chưa bỏ qua và đánh giá lại bằng AI? Kết quả cũ và bản duyệt tin nhắn sẽ được bỏ; bạn cần duyệt lại trước khi gửi.')){picks.clear();action('retry-analysis');}};

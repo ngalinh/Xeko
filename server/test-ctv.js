@@ -17,6 +17,30 @@ function setup(t, overrides = {}) {
 }
 const settle = s => Promise.all([...s.running]);
 
+test('mutual friend target is saved per campaign, forwarded on retry and optional for old data', async t => {
+  const calls = [];
+  const {s,browser,sent} = setup(t, {inspect:async (_, url, options) => {
+    calls.push(options.mutualFriendTarget);
+    return {url,criteriaVersion:'us-website-products-v2',eligible:true,recipientId:'123',mutualFriend:{status:'unknown',targetUrl:options.mutualFriendTarget}};
+  }});
+  for (const target of ['first.account', 'second.account']) {
+    const c = s.create({...input(['https://facebook.com/123']), mutualFriendTarget:`https://m.facebook.com/${target}?ref=x`}, 'owner');
+    assert.equal(c.mutualFriendTarget, `https://www.facebook.com/${target}`);
+    s.approveImport(c.id,'owner'); await settle(s);
+    s.retryAnalysis(c.id,'owner'); await settle(s);
+    assert.equal(c.leads[0].assessment.mutualFriend.targetUrl,c.mutualFriendTarget);
+    const restored = new CtvService({file:s.file,browser}).get(c.id,'owner');
+    assert.equal(restored.mutualFriendTarget,c.mutualFriendTarget);
+  }
+  assert.deepEqual(calls,['first.account','first.account','second.account','second.account'].map(x=>`https://www.facebook.com/${x}`));
+  const legacy = s.create(input(['https://facebook.com/123']),'owner');
+  delete legacy.mutualFriendTarget;
+  s.approveImport(legacy.id,'owner'); await settle(s);
+  assert.equal(calls.at(-1),undefined);
+  assert.equal(sent.length,0);
+  assert.throws(()=>s.create({...input(),mutualFriendTarget:'https://evil.test/account'},'owner'));
+});
+
 test('UID lookup preserves AI, invalidates approvals and runs in account queue without sending', async t => {
   const {s,browser,sent,inspected}=setup(t);
   const c=await analyzed(s); const oldToken=prepared(s,c);

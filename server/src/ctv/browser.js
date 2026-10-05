@@ -1,6 +1,7 @@
 const { validProfileKey, profileUrl, recipientId, isSalesPost } = require('./rules');
 const { evaluateProfile } = require('./ai');
 const { resolveCurrentProfileUid } = require('./uid');
+const { normalizeMutualFriendTarget, unknownMutualFriend, readMutualFriendEvidence } = require('./mutual-friends');
 
 async function assertSession(page) {
   if (page.isClosed?.()) throw new Error('Tab Facebook đã đóng trước khi quét bài viết; hãy mở lại tài khoản và bấm Thử lại AI');
@@ -240,7 +241,8 @@ async function collectProfilePosts(page, snapshot, { report = () => {}, check = 
   return { ...snapshot, posts: selected.map(p => p.caption), postMedia: selected };
 }
 
-async function inspect(page, url, { onProgress = () => {}, cancelled = () => false } = {}) {
+async function inspect(page, url, { onProgress = () => {}, cancelled = () => false, mutualFriendTarget = '' } = {}) {
+  const mutualTarget = normalizeMutualFriendTarget(mutualFriendTarget);
   const started = Date.now();
   const report = (stage, message) => onProgress({ stage, message, elapsedMs: Date.now() - started, at: new Date().toISOString() });
   const check = () => { if (cancelled()) throw new Error('Đã dừng quét profile theo yêu cầu'); };
@@ -285,6 +287,13 @@ async function inspect(page, url, { onProgress = () => {}, cancelled = () => fal
   await assertSession(page);
   const actual = profileUrl(page.url());
   if (actual !== target) throw new Error('Link chuyển sang hồ sơ khác; hãy kiểm tra và nhập lại link chính xác');
+  let mutualFriend = unknownMutualFriend(mutualTarget);
+  if (mutualTarget && !snapshot.blocked && snapshot.name && !snapshot.pageEvidence) {
+    check();
+    report('mutual_friends', 'Đang đối chiếu tài khoản trong vùng bạn bè chung');
+    mutualFriend = await page.evaluate(readMutualFriendEvidence, { targetUrl: mutualTarget, profileName: snapshot.name }) || mutualFriend;
+    report('mutual_friends', mutualFriend.reason);
+  }
   report('header_ready', `Tên: ${snapshot.name ? 'đã đọc' : 'chưa đọc được'}; bio: ${(snapshot.headerBio || '').length} ký tự${snapshot.blocked ? '; hồ sơ bị khóa/không xem được' : ''}`);
   report('uid', 'Đang đối chiếu UID với link hồ sơ');
   const identity = await resolveCurrentProfileUid(page, target, snapshot);
@@ -300,7 +309,7 @@ async function inspect(page, url, { onProgress = () => {}, cancelled = () => fal
     assessment.gateReason = 'Đã đọc bài viết nhưng chưa xác minh được tên Facebook. Hãy kiểm tra hồ sơ và Thử lại AI trước khi gửi.';
   }
   report('complete', `Đánh giá xong: ${assessment.salesPostCount || 0}/3 bài có dấu hiệu bán hàng; ${assessment.eligible ? 'đạt điều kiện' : 'cần kiểm tra'}`);
-  return { url: target, actualUrl: actual, name: snapshot.name, bio: snapshot.headerBio || '', checkedAt: new Date().toISOString(), ...assessment, ...identity };
+  return { url: target, actualUrl: actual, name: snapshot.name, bio: snapshot.headerBio || '', checkedAt: new Date().toISOString(), ...assessment, ...identity, mutualFriend };
 }
 
 async function resolveUid(page, url, { cancelled = () => false } = {}) {

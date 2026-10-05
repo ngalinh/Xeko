@@ -85,6 +85,8 @@
         <div class="panel-heading"><div class="title-row"><span class="number">01</span><div><h2 id="title1">Nhập danh sách khách hàng</h2><p class="muted">Xem lại link hợp lệ trước khi chuyển sang AI.</p></div></div><span class="badge" id="status1">Chưa nhập</span></div>
         <div id="importForm">
           <div class="fields"><div><label for="campaignName">Tên chiến dịch</label><input id="campaignName" maxlength="100" placeholder="VD: Gửi tin nhắn hàng loạt tháng 9"></div><div><label for="profile">Tài khoản Facebook cá nhân</label><select id="profile"><option value="">Đang tải tài khoản…</option></select></div></div>
+          <label for="mutualFriendTarget">Tài khoản cần đối chiếu bạn bè chung (không bắt buộc)</label><input id="mutualFriendTarget" type="url" maxlength="2000" placeholder="https://www.facebook.com/ten.tai.khoan" aria-describedby="mutualFriendHint">
+          <p id="mutualFriendHint" class="hint">Nhập link tài khoản bất kỳ, ví dụ Linh Dương. Để trống nếu không cần kiểm tra. Muốn đổi tài khoản đối chiếu sau khi lưu, hãy tạo chiến dịch mới.</p>
           <label for="urls">Danh sách link Facebook</label><textarea id="urls" rows="5" placeholder="https://www.facebook.com/ten.khach&#10;https://www.facebook.com/profile.php?id=..."></textarea>
           <div class="import-tools"><div><label class="file-label" for="file">↑ Chọn file TXT / CSV</label><input id="file" type="file" accept=".txt,.csv,text/plain,text/csv"><span id="fileName" class="muted">Hoặc dán dữ liệu vào ô phía trên</span></div><span id="count" class="muted">0 link</span></div>
           <p class="hint">Tối đa 100 link/lần. Tên khách lấy từ hồ sơ Facebook; các cột khác trong CSV không được nhập.</p>

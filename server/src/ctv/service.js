@@ -3,6 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { validProfileKey, profileUrl, renderMessage } = require('./rules');
 const { captureCustomers, listCustomers } = require('./customers');
+const { normalizeMutualFriendTarget } = require('./mutual-friends');
 const ACTIVE = ['analysis_queued', 'analyzing', 'uid_queued', 'resolving_uid', 'send_queued', 'sending'];
 const fail = message => { const e = new Error(message); e.status = 409; throw e; };
 
@@ -51,6 +52,7 @@ class CtvService {
   }
   view(c) { return { ...c, leads: c.leads.map(l => ({ ...l, selectionBlockedReason: this.selectionBlocked(l), blockedReason: this.reasonBlocked(l) })) }; }
   create(input, owner) {
+    const mutualFriendTarget = normalizeMutualFriendTarget(input.mutualFriendTarget);
     if (input.profile == null || input.profile === '') throw new Error('Cần chọn tài khoản Facebook');
     if (!validProfileKey(input.profile)) throw new Error('Mã tài khoản Facebook không hợp lệ');
     if (!Array.isArray(input.urls) || !input.urls.length || input.urls.length > 100) throw new Error('Mỗi đợt nhận từ 1 đến 100 link');
@@ -62,7 +64,7 @@ class CtvService {
         if (urls.has(url)) duplicateCount++; else urls.add(url);
       } catch (e) { rejected.push({ value: String(value).slice(0,2000), reason: e.message }); }
     }
-    const c = { id: crypto.randomUUID(), workflowVersion: 2, owner, profile: input.profile,
+    const c = { id: crypto.randomUUID(), workflowVersion: 2, owner, profile: input.profile, mutualFriendTarget,
       name: String(input.name || 'Chiến dịch gửi tin nhắn hàng loạt').trim().slice(0,100), createdAt: new Date().toISOString(),
       state: 'import_review', cancelled: false, importedCount: input.urls.length, duplicateCount, rejected, approvals: {},
       leads: [...urls].map(url => ({ id: crypto.randomUUID(), url, state: 'pending' })) };
@@ -156,7 +158,7 @@ class CtvService {
         lastProgress = onProgress;
         onProgress({ stage: 'browser', message: 'Đang mở tab kiểm tra của tài khoản Facebook' });
         try {
-          lead.assessment = await this.browser.withPage(c.profile, page => this.browser.inspect(page, lead.url, { onProgress, cancelled: () => c.cancelled }), { keepOpen: true });
+          lead.assessment = await this.browser.withPage(c.profile, page => this.browser.inspect(page, lead.url, { onProgress, cancelled: () => c.cancelled, mutualFriendTarget: c.mutualFriendTarget }), { keepOpen: true });
           lead.state = lead.assessment.eligible ? 'qualified' : 'review'; this.save();
         } catch (e) {
           onProgress({ stage: c.cancelled ? 'cancelled' : 'error', message: e.message });

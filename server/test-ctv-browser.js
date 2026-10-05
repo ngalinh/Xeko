@@ -93,6 +93,14 @@ test('two repeated posts stop scrolling and reach Gemini with the saved header',
   const mock = mediaPage(() => ['Bán túi DKNY giá 1499k', 'Bán đồng hồ Michael Kors giá 1800k']);
   mock.page.goto = async () => {};
   mock.page.waitForFunction = async () => ({jsonValue:async()=>({name:'Ryna Lê (Mẹ Sún)',headerBio:bio,bio,personalEvidence:true,messageLinks:[]}),dispose:async()=>{}});
+  const evaluate = mock.page.evaluate;
+  const mutualFriend = {status:'confirmed',targetUrl:'https://www.facebook.com/another.account',reason:'Verified header link',evidence:[]};
+  mock.page.evaluate = async (fn,arg) => {
+    if (fn.name !== 'readMutualFriendEvidence') return evaluate(fn,arg);
+    assert.equal(mock.scrolls(),0);
+    assert.equal(arg.targetUrl,mutualFriend.targetUrl);
+    return mutualFriend;
+  };
   let calls = 0;
   global.fetch = async (_, options) => {
     calls++;
@@ -100,7 +108,8 @@ test('two repeated posts stop scrolling and reach Gemini with the saved header',
     assert.equal(data.name,'Ryna Lê (Mẹ Sún)');assert.equal(data.headerBio,bio);assert.equal(data.posts.length,2);
     return {ok:true,json:async()=>({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({profileType:'personal',sellerUS:'unknown',confidence:0,reason:'Chỉ đọc được hai bài bán hàng',evidence:[data.posts[0]],bio,brands:['DKNY'],captionAnalysis:'Hai bài bán túi và đồng hồ.'})}]}}]})};
   };
-  const result = await inspect(mock.page,'https://facebook.com/123');
+  const result = await inspect(mock.page,'https://facebook.com/123',{mutualFriendTarget:mutualFriend.targetUrl});
+  assert.deepEqual(result.mutualFriend,mutualFriend);
   assert.equal(calls,1);assert.equal(mock.scrolls(),3);
   assert.equal(result.name,'Ryna Lê (Mẹ Sún)');assert.equal(result.bio,bio);
   assert.equal(result.reviewedPostCount,2);assert.equal(result.insufficientData,true);
