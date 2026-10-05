@@ -43,6 +43,7 @@
       ['Các thương hiệu có trên bài viết bán hàng', Array.isArray(v.brands) && v.brands.length ? v.brands.join(', ') : 'Chưa xác định được thương hiệu'],
       ['Phân tích cụ thể caption', v.captionAnalysis || v.reason || 'Chưa có phân tích caption'],
     ];
+    if (v.selfDeclaredGender) { const g=v.selfDeclaredGender; sections.push(['Giới tính tự khai', [g.status === 'self_declared' ? g.value : 'Chưa xác định', g.reason, g.evidence, 'Nguồn: '+g.sourceUrl, 'Đọc lúc: '+new Date(g.checkedAt).toLocaleString('vi-VN')].filter(Boolean).join('\n')]); }
     if (v.wholesaleRecruitment) sections.push(['Dấu hiệu nguồn sỉ / tuyển mạng lưới bán hàng', [v.wholesaleRecruitment.reason, ...(v.wholesaleRecruitment.evidence || []).map(q => '“'+q+'”')].join('\n')]);
     const list = element('ol', undefined, 'assessment-sections');
     for (const [label, value] of sections) {

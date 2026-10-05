@@ -1,3 +1,4 @@
+const { readSelfDeclaredGender } = require('./gender');
 const { validProfileKey, profileUrl, recipientId, isSalesPost } = require('./rules');
 const { evaluateProfile } = require('./ai');
 const { resolveCurrentProfileUid } = require('./uid');
@@ -300,7 +301,11 @@ async function inspect(page, url, { onProgress = () => {}, cancelled = () => fal
     assessment.gateReason = 'Đã đọc bài viết nhưng chưa xác minh được tên Facebook. Hãy kiểm tra hồ sơ và Thử lại AI trước khi gửi.';
   }
   report('complete', `Đánh giá xong: ${assessment.salesPostCount || 0}/3 bài có dấu hiệu bán hàng; ${assessment.eligible ? 'đạt điều kiện' : 'cần kiểm tra'}`);
-  return { url: target, actualUrl: actual, name: snapshot.name, bio: snapshot.headerBio || '', checkedAt: new Date().toISOString(), ...assessment, ...identity };
+  report('gender', 'Đang đọc mục Giới tính tự khai trong phần Giới thiệu');
+  const selfDeclaredGender = snapshot.blocked ? { status: 'unknown', value: null, sourceUrl: target, checkedAt: new Date().toISOString(), reason: 'Hồ sơ không xem được.' } : await readSelfDeclaredGender(page, target, { check, assertSession });
+  check();
+  report('gender', selfDeclaredGender.status === 'self_declared' ? 'Đã đọc mục Giới tính tự khai' : 'Giới tính tự khai: chưa xác định');
+  return { selfDeclaredGender, url: target, actualUrl: actual, name: snapshot.name, bio: snapshot.headerBio || '', checkedAt: new Date().toISOString(), ...assessment, ...identity };
 }
 
 async function resolveUid(page, url, { cancelled = () => false } = {}) {

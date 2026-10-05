@@ -31,6 +31,9 @@
       details.append(el('p', `Nhập lần đầu: ${date(r.importedAt)} · Cập nhật: ${date(r.updatedAt)}`));
       details.append(el('p', r.campaigns.length ? `Chiến dịch: ${r.campaigns.map(c => c.name || c.id).join(' · ')}` : 'Nguồn: Thêm thủ công'));
       if (r.notes) details.append(el('p', `Ghi chú: ${r.notes}`));
+      const gender=r.assessment?.selfDeclaredGender;
+      details.append(el('p', 'Giới tính tự khai: '+(gender?.status === 'self_declared' ? gender.value : 'Chưa xác định')));
+      if (gender) details.append(el('p', [gender.reason, gender.evidence, 'Nguồn: '+gender.sourceUrl, 'Đọc lúc: '+date(gender.checkedAt)].filter(Boolean).join('\n')));
       if (r.assessment) {
         details.append(el('p', `AI đánh giá: ${r.assessment.eligible ? 'Đạt' : 'Cần kiểm tra'}`));
         if (r.assessment.wholesaleRecruitment) details.append(el('p', [r.assessment.wholesaleRecruitment.reason, ...(r.assessment.wholesaleRecruitment.evidence || [])].join('\n')));
