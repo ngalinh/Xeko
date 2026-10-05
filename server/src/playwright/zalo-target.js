@@ -31,8 +31,8 @@ async function selectGroupFilter(page) {
   if (await clear.isEnabled()) await clear.click();
   // ConversationList defines these four tabs: unread, unreplied, user, group.
   const group = bar.locator('button.filter-btn').nth(3);
-  await group.hover();
-  await page.getByRole('tooltip').filter({ hasText: /^Nhóm$/ }).waitFor({ state: 'visible', timeout: 4000 });
+  // Vuetify can retain duplicate tooltip overlays. Use the button's state,
+  // not a page-wide tooltip, to select and verify the group filter.
   if (!(await group.evaluate(el => el.classList.contains('filter-active')))) await group.click();
   await page.waitForFunction(() => {
     const buttons = [...document.querySelectorAll('.chat-panel-left .filter-bar button.filter-btn')];
@@ -68,4 +68,5 @@ async function assertConversationTarget(page, target) {
 
 module.exports = { findExactGroupRow, readConversationTarget, assertConversationTarget,
   selectGroupFilter, isGroupSearchResponse, verifySearchResults };
+
 
