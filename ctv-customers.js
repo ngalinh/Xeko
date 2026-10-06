@@ -4,6 +4,20 @@
   const base = window.location.pathname.replace(/\/[^/]*$/, '');
   let records = [], page = 0, loading = false, loaded = false;
   const pageSize = 25;
+  const chosen = new Map();
+  const keyOf = r => JSON.stringify([r.profile, r.url]);
+  let visible = [];
+  function updateSelection() {
+    const rows = [...chosen.values()], profiles = new Set(rows.map(r => r.profile));
+    $('customerSelectionCount').textContent = `${rows.length} khách đã chọn (kể cả ngoài trang/bộ lọc hiện tại).`;
+    $('customerSelectionStatus').textContent = profiles.size > 1 ? 'Mỗi chiến dịch dùng một tài khoản gửi. Hãy bỏ chọn khách thuộc tài khoản khác.' : rows.length > 100 ? 'Mỗi chiến dịch tối đa 100 khách. Hãy giảm số khách đã chọn.' : '';
+    $('useCustomers').disabled = loading || !rows.length || profiles.size !== 1 || rows.length > 100;
+    $('clearCustomerSelection').disabled = !rows.length;
+    const count = visible.filter(r => chosen.has(keyOf(r))).length;
+    $('selectCustomerPage').checked = visible.length > 0 && count === visible.length;
+    $('selectCustomerPage').indeterminate = count > 0 && count < visible.length;
+    $('selectCustomerPage').disabled = !visible.length;
+  }
   let saving = false, accountsReady = false;
   const updateSave = () => { $('saveCustomer').disabled = saving || loading || !accountsReady; };
   const el = (tag, text, cls) => { const node = document.createElement(tag); if (text != null) node.textContent = text; if (cls) node.className = cls; return node; };
@@ -16,10 +30,11 @@
     const filtered = records.filter(r => (account === 'all' || r.profile === account)
       && (!query || [r.url, r.assessment?.name || r.name, r.assessment?.recipientId || r.uid].some(v => String(v || '').toLocaleLowerCase('vi-VN').includes(query)))
       && (status === 'all' || status === 'sent' && r.sent || status === 'assessed' && r.assessment
-        || status === 'imported' && !r.assessment && !r.sent || status === 'attention' && attention(r)));
+        || status === 'manual' && r.manual || status === 'imported' && !r.assessment && !r.sent || status === 'attention' && attention(r)));
     page = Math.min(page, Math.max(0, Math.ceil(filtered.length / pageSize) - 1));
     $('customerRecords').replaceChildren();
-    for (const [index, r] of filtered.slice(page * pageSize, (page + 1) * pageSize).entries()) {
+    visible = filtered.slice(page * pageSize, (page + 1) * pageSize);
+    for (const [index, r] of visible.entries()) {
       const card = el('article', null, 'customer-record'), grid = el('div', null, 'customer-record-grid');
       const identity = el('div'); identity.append(el('strong', r.assessment?.name || r.name || 'Chưa có tên Facebook'));
       const link = el('a', r.url); link.href = r.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; identity.append(el('br'), link);
@@ -27,7 +42,12 @@
       states.append(el('span', r.sent ? 'Đã gửi tin nhắn' : r.state === 'unconfirmed' ? 'Chưa xác nhận gửi' : r.assessment ? 'Đã đánh giá AI' : r.manual ? 'Thêm thủ công' : 'Đã nhập', 'badge'));
       if (attention(r)) states.append(el('p', 'Cần kiểm tra', 'muted'));
       const gender=r.assessment?.selfDeclaredGender;
-      grid.append(field('STT', String(page * pageSize + index + 1)), field('Khách hàng', identity), field('UID', String(r.assessment?.recipientId || r.uid || 'Chưa xác định')), field('Giới tính', gender?.status === 'self_declared' && gender.value || 'Chưa xác định'), field('Tài khoản gửi', r.profile), field('Trạng thái', states));
+      const choose = el('label', null, 'check-label'), checkbox = el('input');
+      checkbox.type = 'checkbox'; checkbox.checked = chosen.has(keyOf(r));
+      checkbox.setAttribute('aria-label', `Chọn ${r.assessment?.name || r.name || r.url} · ${r.profile}`);
+      checkbox.onchange = () => { if (checkbox.checked) chosen.set(keyOf(r), r); else chosen.delete(keyOf(r)); updateSelection(); };
+      choose.append(checkbox, String(page * pageSize + index + 1));
+      grid.append(field('Chọn', choose), field('Khách hàng', identity), field('UID', String(r.assessment?.recipientId || r.uid || 'Chưa xác định')), field('Giới tính', gender?.status === 'self_declared' && gender.value || 'Chưa xác định'), field('Tài khoản gửi', r.profile), field('Trạng thái', states));
       const details = el('details'); details.append(el('summary', 'Thông tin đã lưu & chiến dịch'));
       details.append(el('p', `Nhập lần đầu: ${date(r.importedAt)} · Cập nhật: ${date(r.updatedAt)}`));
       details.append(el('p', r.campaigns.length ? `Chiến dịch: ${r.campaigns.map(c => c.name || c.id).join(' · ')}` : 'Nguồn: Thêm thủ công'));
@@ -47,22 +67,25 @@
     if (!filtered.length) $('customerRecords').append(el('p', records.length ? 'Không có khách phù hợp bộ lọc.' : 'Chưa có dữ liệu khách hàng. Khách sẽ được lưu khi bạn nhập danh sách vào chiến dịch.', 'muted'));
     $('customerPage').textContent = `Trang ${page + 1}/${Math.max(1, Math.ceil(filtered.length / pageSize))}`;
     $('customerPrevious').disabled = page === 0; $('customerNext').disabled = (page + 1) * pageSize >= filtered.length;
+    updateSelection();
   }
   async function load() {
     if (loading || saving) return;
-    loading = true; $('refreshCustomers').disabled = true; updateSave();
+    loading = true; $('refreshCustomers').disabled = true; updateSave(); updateSelection();
     $('customerLibraryStatus').textContent = 'Đang tải dữ liệu khách hàng…';
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 15000);
     try {
       const response = await fetch(`${base}/api/ctv/customers`, { signal: controller.signal });
       const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Không tải được dữ liệu');
       records = data; loaded = true;
+      const fresh = new Map(records.map(r => [keyOf(r), r]));
+      for (const key of chosen.keys()) { if (fresh.has(key)) chosen.set(key, fresh.get(key)); else chosen.delete(key); }
       const selected = $('customerAccount').value;
       $('customerAccount').replaceChildren(new Option('Tất cả tài khoản', 'all'), ...[...new Set(records.map(r => r.profile))].sort().map(p => new Option(p, p)));
       $('customerAccount').value = [...$('customerAccount').options].some(o => o.value === selected) ? selected : 'all';
       render();
     } catch (e) { $('customerLibraryStatus').textContent = `${loaded ? 'Dữ liệu đang hiển thị chưa được cập nhật. ' : ''}Không tải được dữ liệu khách hàng. Bấm Cập nhật để thử lại. ${e.name === 'AbortError' ? 'Kết nối quá thời gian chờ.' : e.message}`; }
-    finally { clearTimeout(timeout); loading = false; $('refreshCustomers').disabled = false; updateSave(); }
+    finally { clearTimeout(timeout); loading = false; $('refreshCustomers').disabled = false; updateSave(); updateSelection(); }
   }
   function closeCreate() { if (saving) return; $('customerCreateForm').hidden=true; $('addCustomer').setAttribute('aria-expanded','false'); $('addCustomer').focus(); }
   $('addCustomer').onclick = async () => {
@@ -102,6 +125,18 @@
   $('toggleCustomers').onclick = () => { const open = $('customerLibrary').hidden; document.dispatchEvent(new CustomEvent('ctv:view', { detail: open ? 'customers' : 'workflow' })); if (open) load(); };
   $('closeCustomers').onclick = () => { document.dispatchEvent(new CustomEvent('ctv:view', { detail: 'workflow' })); $('toggleCustomers').focus(); };
   $('refreshCustomers').onclick = load;
+  $('selectCustomerPage').onchange = () => {
+    for (const r of visible) { if ($('selectCustomerPage').checked) chosen.set(keyOf(r), r); else chosen.delete(keyOf(r)); }
+    render();
+  };
+  $('clearCustomerSelection').onclick = () => { chosen.clear(); render(); };
+  $('useCustomers').onclick = () => {
+    if ($('useCustomers').disabled) return;
+    const detail = { customers: [...chosen.values()], accepted: false, error: '' };
+    document.dispatchEvent(new CustomEvent('ctv:use-customers', { detail }));
+    if (detail.accepted) { chosen.clear(); render(); }
+    else $('customerSelectionStatus').textContent = detail.error || 'Chưa thể mở chiến dịch. Vui lòng thử lại.';
+  };
   $('customerSearch').oninput = $('customerStatus').onchange = $('customerAccount').onchange = () => { page = 0; render(); };
   $('customerPrevious').onclick = () => { page--; render(); };
   $('customerNext').onclick = () => { page++; render(); };

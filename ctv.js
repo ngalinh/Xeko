@@ -464,6 +464,24 @@
     for(let n=1;n<=3;n++){$(`status${n}`).textContent=n===1?'Chưa nhập':'Đang khóa';$(`status${n}`).className='badge';$(`nav${n}`).className='step-link'+(n===1?' active':'');$(`nav${n}`).removeAttribute('aria-current');}
     $('nav1').setAttribute('aria-current','step');$('navStatus1').textContent='Chờ nhập dữ liệu';$('navStatus2').textContent='Chờ duyệt bước 1';$('navStatus3').textContent='Chờ duyệt bước 2';renderHistory();updateControls();viewStep(1);$('step1').scrollIntoView({behavior:'smooth'});
   };
+  document.addEventListener('ctv:use-customers', event => {
+    const detail = event.detail, rows = detail.customers;
+    if (busy) { detail.error = 'Đang xử lý chiến dịch. Vui lòng thử lại khi hoàn tất.'; return; }
+    if (!Array.isArray(rows) || !rows.length || rows.length > 100 || new Set(rows.map(r => r.profile)).size !== 1) {
+      detail.error = 'Chọn từ 1 đến 100 khách cùng tài khoản gửi.'; return;
+    }
+    const profile = rows[0].profile;
+    if (!accounts.some(a => a.key === profile)) { detail.error = 'Tài khoản gửi chưa sẵn sàng hoặc bạn không còn quyền sử dụng. Hãy tải lại trang và kiểm tra tài khoản.'; return; }
+    if (!selected && ($('urls').value.trim() || $('campaignName').value.trim()) && !window.confirm('Thay bản nháp chưa lưu bằng danh sách khách đã chọn?')) {
+      detail.error = 'Đã giữ lại bản nháp hiện tại và các khách đã chọn.'; return;
+    }
+    $('newCampaign').onclick();
+    $('profile').value = profile;
+    $('urls').value = rows.map(r => r.url).join('\n'); $('urls').oninput();
+    detail.accepted = true;
+    notice(`Đã đưa ${rows.length} khách vào chiến dịch mới. Kiểm tra danh sách rồi bấm Kiểm tra danh sách.`);
+    $('campaignName').focus();
+  });
   (async()=>{
     const results=await Promise.allSettled([api('/api/accounts'),api('/api/ctv/campaigns')]);
     if(results[0].status==='fulfilled'){
