@@ -540,75 +540,17 @@ async function normalizeImagesForZalo(page, imagePaths) {
 // nhiều group. DỰ PHÒNG: DÁN (paste) ảnh từ clipboard giả lập (untrusted, Zalo hay
 // bỏ qua). Thử tối đa 2 vòng + xác minh ảnh đã vào thật. Trả true nếu đính được.
 async function attachImages(page, imagePaths) {
-  // XÁC MINH ảnh đã thực sự đính vào Ô SOẠN — KHÔNG đếm ảnh trong lịch sử chat.
-  // Cách cũ (nút .send-btn bật HOẶC có 1 ảnh bất kỳ trong document) dễ DƯƠNG TÍNH
-  // GIẢ: nút Gửi hay bật sẵn, còn '[class*=thumb] img'/'.v-image__image' khớp luôn
-  // ảnh trong khung chat của group → tưởng đã đính nên gửi mỗi text (đúng hiện
-  // tượng "rớt hình"). Cách mới: chỉ đếm ảnh BÊN TRONG khu soạn (tổ tiên gần nhất
-  // của textarea mà cũng chứa nút Gửi) và đòi SỐ ẢNH TĂNG so với lúc chưa đính.
-
-  // Đo 2 tín hiệu trong page context (KHÔNG dùng eval/new Function — trang có thể
-  // chặn bởi CSP — nên inline cùng một thân đếm ở cả baseline lẫn waitForFunction):
-  //  - local: số ảnh render bằng blob:/data: URL = file CỤC BỘ vừa đính. Ảnh trong
-  //    lịch sử chat luôn là URL http(s) từ CDN → KHÔNG khớp. Độc lập vị trí preview.
-  //  - scoped: số ảnh hiển thị TRONG khu soạn (tổ tiên gần nhất của textarea mà
-  //    cũng chứa nút Gửi) — phòng khi trang dùng URL http cho preview tại chỗ.
-  // Cả 2 đều so với baseline trước khi đính nên miễn nhiễm ảnh lịch sử chat.
-  const countImages = () => page.evaluate(() => {
-    const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
-    const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 12 && r.height > 12; };
-    let local = 0;
-    for (const img of document.querySelectorAll('img')) {
-      const src = img.currentSrc || img.src || '';
-      if ((src.startsWith('blob:') || src.startsWith('data:')) && visible(img)) local++;
-    }
-    let scoped = 0;
-    if (ta) {
-      let root = ta;
-      for (let i = 0; i < 8 && root.parentElement; i++) {
-        root = root.parentElement;
-        if (root.querySelector('button.send-btn')) break;
-      }
-      for (const el of root.querySelectorAll('img, .v-image__image, [class*="preview"], [class*="thumb"]')) {
-        if (el !== ta && visible(el)) scoped++;
-      }
-    }
-    return { local, scoped };
-  });
-
-  // Baseline (icon/nút & ảnh lịch sử cố định). SỐ ẢNH CẦN đính = imagePaths.length.
-  // "Đính đủ" = số ảnh MỚI (local blob/data HOẶC trong khu soạn) TĂNG >= số cần —
-  // KHÔNG chỉ ">=1" như trước (đính 2 ảnh mà chỉ 1 vào vẫn tưởng xong → rớt hình).
-  // Upload nhiều ảnh chậm hơn → chờ tối đa 20s.
+  // Count unique image sources, never preview wrappers or nested thumbnail nodes.
+  // Detached local previews are supported; historical HTTP images are excluded.
   const expected = imagePaths.length;
-  const baseline = await countImages().catch(() => ({ local: 0, scoped: 0 }));
+  const baseline = await _imageThreadState(page);
   const imageAttached = async (need, timeout = 20000) => {
-    try {
-      await page.waitForFunction(({ base, need }) => {
-        const ta = document.querySelector('textarea.msg-textarea') || document.querySelector('textarea');
-        const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 12 && r.height > 12; };
-        let local = 0;
-        for (const img of document.querySelectorAll('img')) {
-          const src = img.currentSrc || img.src || '';
-          if ((src.startsWith('blob:') || src.startsWith('data:')) && visible(img)) local++;
-        }
-        let scoped = 0;
-        if (ta) {
-          let root = ta;
-          for (let i = 0; i < 8 && root.parentElement; i++) {
-            root = root.parentElement;
-            if (root.querySelector('button.send-btn')) break;
-          }
-          for (const el of root.querySelectorAll('img, .v-image__image, [class*="preview"], [class*="thumb"]')) {
-            if (el !== ta && visible(el)) scoped++;
-          }
-        }
-        return (local - base.local) >= need || (scoped - base.scoped) >= need;
-      }, { base: baseline, need }, { timeout });
-      return true;
-    } catch {
-      return false;
+    for (let elapsed = 0; elapsed < timeout; elapsed += 500) {
+      const state = await _imageThreadState(page).catch(() => null);
+      if (state && _newDraftImageSources(baseline, state).length >= need) return true;
+      await sleep(500);
     }
+    return false;
   };
 
   // CÁCH TRUSTED: input[type=file] sẵn có; rồi .ic-violet → menu "Hình ảnh" → filechooser.
@@ -903,37 +845,45 @@ async function _imageThreadState(page) {
   });
 }
 
-// Không bắt buộc tổng ảnh tăng. Bản nháp đã có ảnh trước click và được CRM xóa
-// sau click là tín hiệu được phép chuyển sang text, không phải bảo đảm giao hàng.
-function _imageDeliveryReady(before, after) {
+// Sources appearing in the draft after attachment, excluding chat history.
+function _newDraftImageSources(before, after) {
+  const old = new Set([...(before.threadSources || []), ...(before.composerSources || [])]);
+  return [...new Set([...(after.composerSources || []),
+    ...(after.threadSources || []).filter(src => /^(blob:|data:)/.test(src))])]
+    .filter(src => !old.has(src));
+}
+
+// Clearing a draft is not delivery evidence: upload errors can clear it too.
+// Require the full expected number of new remote images and no pending previews.
+// Collapsed/virtualized albums without enough evidence remain unknown.
+function _imageDeliveryReady(before, after, expected = 1) {
   if (!after.composerPresent || after.composerSources.length) return false;
-  const oldSources = new Set(before.threadSources);
-  const newImage = after.threadSources.some(src => !oldSources.has(src));
-  const draftCleared = before.composerSources.length > 0;
   const remaining = new Set([...after.threadSources, ...after.composerSources]);
-  const detachedPreviewsCleared = before.pendingSources?.length > 0 &&
-    before.pendingSources.every(src => !remaining.has(src));
-  return newImage || draftCleared || detachedPreviewsCleared;
+  if (before.pendingSources?.some(src => remaining.has(src))) return false;
+  const oldSources = new Set(before.threadSources);
+  const delivered = new Set(after.threadSources.filter(src => /^https?:/.test(src) && !oldSources.has(src)));
+  return delivered.size >= expected;
 }
 
 async function waitImageSent(page, expected = 1, before = null) {
   if (!before) return false;
-  // Chờ composer trống trước khi gửi text để không gửi kèm lại ảnh còn trong draft.
+  // Chờ đủ ảnh mới và composer trống trước khi gửi text.
   for (let attempt = 0; attempt < 60; attempt++) {
     const after = await _imageThreadState(page).catch(e => {
       logger.warn(`[basso][verify] Không đọc được trạng thái: ${e.message}`);
       return null;
     });
-    if (after && _imageDeliveryReady(before, after)) {
-      logger.info(`[basso][verify] Bản nháp ảnh đã trống; chuyển sang text (album=${expected}, threadImages=${after.threadSources.length})`);
+    if (after && _imageDeliveryReady(before, after, expected)) {
+      logger.info(`[basso][verify] Đã xác nhận đủ ảnh mới trong lịch sử; chuyển sang text (album=${expected}, threadImages=${after.threadSources.length})`);
       return true;
     }
     await sleep(500);
   }
-  logger.warn('[basso][verify] Chưa xác nhận composer ảnh đã trống sau 30s; không gửi lại album');
+  logger.warn('[basso][verify] Chưa xác nhận đủ ảnh mới sau 30s; không gửi text hoặc gửi lại album');
   return false;
 }
 
+const { withGroupPostGap } = require('../utils/zalo-group-pacing');
 const _accountLocks = new Map();
 
 async function _withAccountLock(key, fn) {
@@ -952,7 +902,8 @@ async function _withAccountLock(key, fn) {
 
 async function postToZaloGroup({ zaloAccountName, accountKey, groupName, message, imagePaths, shouldCancel = null }) {
   return _withAccountLock(accountKey || zaloAccountName, () =>
-    _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, message, imagePaths, shouldCancel })
+    withGroupPostGap(groupName, () =>
+      _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, message, imagePaths, shouldCancel }), shouldCancel)
   );
 }
 

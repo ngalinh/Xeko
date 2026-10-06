@@ -50,7 +50,7 @@ for (const outcome of ['timeout', 'exception', 'success']) {
       locator: () => ({ first: () => ({ waitFor: async () => {} }) }),
       waitForLoadState: async () => {},
     };
-    const run = c.sendMessage(page, '', ['photo.jpg']);
+    const run = c.sendMessage(page, '', ['photo.jpg'], null, async () => {});
     if (outcome === 'success') await run;
     else await assert.rejects(run, e => e.deliveryUnknown === true);
     assert.equal(attachments, 1);
@@ -63,7 +63,7 @@ test('unconfirmed attachment never sends', async () => {
   c.attachImages = async () => false;
   c.clickSend = async () => assert.fail('must not send');
   const page = { locator: () => ({ first: () => ({ waitFor: async () => {} }) }) };
-  await assert.rejects(c.sendMessage(page, 'caption', ['photo.jpg']));
+  await assert.rejects(c.sendMessage(page, 'caption', ['photo.jpg'], null, async () => {}));
 });
 
 test('ambiguous click never falls back to another send button', async () => {
@@ -73,7 +73,7 @@ test('ambiguous click never falls back to another send button', async () => {
     count: async () => 1,
     click: async () => { clicks++; throw new Error('timeout after dispatch'); },
   }) }) };
-  await assert.rejects(c.clickSend(page), e => e.deliveryUnknown === true);
+  await assert.rejects(c.clickSend(page, async () => {}), e => e.deliveryUnknown === true);
   assert.equal(clicks, 1);
 });
 
@@ -96,9 +96,8 @@ for (const failsDuringSet of [false, true]) {
   });
 }
 
-// Production log: seven newly attached blob previews are outside the composer.
-// Their disappearance after Send must allow the caption even with unchanged HTTP count.
-for (const scenario of ['detached-previews', 'virtualized-image', 'draft-cleared', 'unchanged', 'draft-remains', 'missing-composer']) {
+// Draft disappearance alone must not allow captions or report success.
+for (const scenario of ['detached-previews', 'virtualized-image', 'draft-cleared', 'unchanged', 'draft-remains', 'missing-composer', 'full-album', 'partial-album']) {
   test('image-to-caption transition: ' + scenario, async () => {
     const c = harness();
     const events = [];
@@ -118,6 +117,8 @@ for (const scenario of ['detached-previews', 'virtualized-image', 'draft-cleared
     if (scenario === 'unchanged') after = attached;
     if (scenario === 'draft-remains') after.composerSources = pending;
     if (scenario === 'missing-composer') after.composerPresent = false;
+    if (scenario === 'full-album') after.threadSources = pending.map((_, i) => 'https://cdn/new-' + i);
+    if (scenario === 'partial-album') after.threadSources = ['https://cdn/new-0'];
     let snapshots = 0;
     c._imageThreadState = async () => ++snapshots === 1 ? base : snapshots === 2 ? attached : after;
     c.attachImages = async () => { events.push('attach'); return true; };
@@ -126,8 +127,8 @@ for (const scenario of ['detached-previews', 'virtualized-image', 'draft-cleared
       fill: async () => events.push('caption'), evaluate: async () => {} };
     const page = { locator: () => ({ first: () => field }),
       waitForFunction: async () => {}, waitForLoadState: async () => {} };
-    const run = c.sendMessage(page, 'caption', Array(7).fill('photo.jpg'));
-    if (['unchanged', 'draft-remains', 'missing-composer'].includes(scenario)) {
+    const run = c.sendMessage(page, 'caption', Array(7).fill('photo.jpg'), null, async () => {});
+    if (scenario !== 'full-album') {
       await assert.rejects(run, e => e.deliveryUnknown === true);
       assert.deepEqual(events, ['attach', 'send']);
     } else {
@@ -136,3 +137,64 @@ for (const scenario of ['detached-previews', 'virtualized-image', 'draft-cleared
     }
   });
 }
+
+for (const expected of [4, 6]) {
+  test(`delivery requires all ${expected} remote images, deduplicated`, () => {
+    const c = harness();
+    const before = { threadSources: ['https://cdn/old'], composerSources: ['blob:preview'] };
+    const after = { composerPresent: true, composerSources: [], threadSources: [] };
+    assert.equal(c._imageDeliveryReady(before, after, expected), false);
+    after.threadSources = Array(expected).fill('https://cdn/one');
+    assert.equal(c._imageDeliveryReady(before, after, expected), false);
+    after.threadSources = Array.from({length: expected - 1}, (_, i) => 'https://cdn/new-' + i);
+    assert.equal(c._imageDeliveryReady(before, after, expected), false);
+    after.threadSources.push('blob:last-preview');
+    assert.equal(c._imageDeliveryReady(before, after, expected), false);
+    after.threadSources[expected - 1] = 'https://cdn/last';
+    assert.equal(c._imageDeliveryReady(before, after, expected), true);
+  });
+}
+
+test('draft evidence deduplicates nested image nodes and excludes historical images', () => {
+  const c = harness();
+  const before = { threadSources: ['https://cdn/old', 'blob:old'], composerSources: [] };
+  const after = { threadSources: ['https://cdn/old', 'https://cdn/lazy-history', 'blob:old', 'blob:new'],
+    composerSources: ['blob:new', 'blob:new', 'https://cdn/draft'] };
+  assert.deepEqual(Array.from(c._newDraftImageSources(before, after)), ['blob:new', 'https://cdn/draft']);
+});
+
+test('nested preview wrappers cannot make two attached images look like six', async () => {
+  const { chromium } = require('playwright');
+  const browser = await chromium.launch({ headless: true, ...(process.env.ZALO_TEST_BROWSER_CHANNEL ? {channel: process.env.ZALO_TEST_BROWSER_CHANNEL} : {}) });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`<style>img,.preview,.thumb{width:100px;height:100px;display:block}</style>
+      <img src="https://cdn/history"><section><textarea class="msg-textarea"></textarea>
+      <div id="draft"></div><button class="send-btn">Send</button></section>`);
+    const c = harness();
+    await page.locator('#draft').evaluate(el => {
+      for (let i = 0; i < 2; i++) {
+        const wrap = document.createElement('div');
+        wrap.className = 'preview';
+        const thumb = document.createElement('div');
+        thumb.className = 'thumb';
+        const img = document.createElement('img');
+        img.src = 'blob:preview-' + i;
+        thumb.append(img); wrap.append(thumb); el.append(wrap);
+      }
+    });
+    const previewHtml = await page.locator('#draft').innerHTML();
+    await page.locator('#draft').evaluate(el => { el.innerHTML = ''; });
+    const originalEvaluate = page.evaluate.bind(page);
+    let sets = 0;
+    const fakePage = {
+      evaluate: originalEvaluate,
+      waitForFunction: page.waitForFunction.bind(page),
+      waitForLoadState: async () => {},
+      $$: async () => [{ setInputFiles: async () => { sets++; await page.locator('#draft').evaluate((el, html) => { el.innerHTML = html; }, previewHtml); } }],
+      locator: () => assert.fail('must not append again'),
+    };
+    assert.equal(await c.attachImages(fakePage, Array(6).fill('photo.jpg')), false);
+    assert.equal(sets, 1);
+  } finally { await browser.close(); }
+});
