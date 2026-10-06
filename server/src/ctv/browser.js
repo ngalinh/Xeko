@@ -328,45 +328,82 @@ async function resolveUid(page, url, { cancelled = () => false } = {}) {
 }
 
 // Wait for the user to unlock Messenger; never read or fill credentials.
-async function waitForMessageComposer(page, box, cancelled, timeoutMs = 300000) {
+async function waitForMessageComposer(page, box, cancelled, timeoutMs = 300000, allowChatDialog = false) {
   const deadline = Date.now() + timeoutMs;
   while (true) {
     if (cancelled()) throw new Error('Đã dừng trước khi gửi');
     if (page.isClosed()) throw new Error('Tab gửi tin Facebook đã đóng; chưa gửi tin');
     const authPage = /\/(login|checkpoint|challenge|two_step_verification)(?:[/?]|$)/i.test(new URL(page.url()).pathname);
-    const blocked = authPage || await page.locator('input[type="password"]:visible, [role="dialog"]:visible, [aria-modal="true"]:visible').count() > 0;
+    const blockers = page.locator('input[type="password"]:visible, [role="dialog"]:visible, [aria-modal="true"]:visible');
+    const blocked = authPage || (allowChatDialog
+      ? await blockers.evaluateAll(elements => elements.some(e => e.matches('input') || !e.querySelector('[contenteditable="true"][role="textbox"][aria-label="Message"], [contenteditable="true"][role="textbox"][aria-label="Tin nhắn"]')))
+      : await blockers.count() > 0);
     if (!blocked && await box.count() === 1 && await box.isVisible()) return;
     if (Date.now() >= deadline) throw new Error('Đã chờ 5 phút nhưng Messenger chưa sẵn sàng. Hãy hoàn tất mật khẩu/PIN hoặc xác minh trong tab Facebook đang được giữ mở. Chưa gửi tin.');
     await page.waitForTimeout(1000);
   }
 }
 
-async function send(page, lead, message, beforeSubmit, cancelled) {
+// Run in the profile DOM. Never select Message actions from posts or other chats.
+function profileMessageButton() {
+  const excluded = '[role="article"], article, [role="feed"], [role="dialog"], [role="navigation"], nav, [role="complementary"]';
+  const buttons = [...document.querySelectorAll('[role="main"] [role="button"], [role="main"] button, [role="main"] a')].filter(e =>
+    e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden' && !e.closest(excluded)
+    && /^(Message|Send message|Nhắn tin|Gửi tin nhắn)$/i.test((e.getAttribute('aria-label') || e.innerText || '').trim())
+    && e.getAttribute('aria-disabled') !== 'true' && !e.disabled);
+  return buttons.length === 1 ? buttons[0] : false;
+}
+
+async function send(page, lead, message, beforeSubmit, cancelled = () => false) {
   if (!/^\d+$/.test(lead.recipientId || '')) throw new Error('Không xác minh được ID người nhận; cần kiểm tra thủ công');
   const id = lead.recipientId;
-  await page.goto(`https://www.facebook.com/messages/t/${id}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  const box = page.locator('[role="main"] [contenteditable="true"][role="textbox"][aria-label="Message"], [role="main"] [contenteditable="true"][role="textbox"][aria-label="Tin nhắn"]');
-  await waitForMessageComposer(page, box, cancelled);
+  const target = profileUrl(lead.actualUrl || lead.url);
+  const check = () => { if (cancelled()) throw new Error('Đã dừng trước khi gửi'); };
+  check();
+  await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await assertSession(page);
+  if (profileUrl(page.url()) !== target && recipientId(page.url()) !== id) throw new Error('Facebook chuyển sang hồ sơ khác; đã dừng');
+  let button;
+  try {
+    button = await page.waitForFunction(profileMessageButton, null, { timeout: 30000 });
+    check();
+    if (profileUrl(page.url()) !== target && recipientId(page.url()) !== id) throw new Error('Facebook chuyển sang hồ sơ khác; đã dừng');
+    await button.asElement().click({ timeout: 10000 });
+  } finally { if (button) await button.dispose(); }
+  const box = page.locator('[contenteditable="true"][role="textbox"][aria-label="Message"]:visible, [contenteditable="true"][role="textbox"][aria-label="Tin nhắn"]:visible');
+  await waitForMessageComposer(page, box, cancelled, 300000, true);
   if (await box.count() !== 1) throw new Error('Không xác định được duy nhất ô soạn của hội thoại');
+  const conversation = box.locator('xpath=ancestor::*[@role="dialog" or @role="main" or @role="complementary"][1]');
   const verify = async () => {
+    check();
     const u = new URL(page.url());
-    if (u.hostname !== 'www.facebook.com' || u.pathname.replace(/\/$/,'') !== `/messages/t/${id}`) throw new Error('Facebook chuyển sang hội thoại khác; đã dừng');
+    if (u.hostname !== 'www.facebook.com') throw new Error('Facebook chuyển sang hội thoại khác; đã dừng');
+    if (u.pathname.startsWith('/messages/')) {
+      if (u.pathname.replace(/\/$/,'') !== `/messages/t/${id}`) throw new Error('Facebook chuyển sang hội thoại khác; đã dừng');
+    } else if (profileUrl(page.url()) !== target && recipientId(page.url()) !== id) throw new Error('Facebook chuyển sang hồ sơ khác; đã dừng');
+    if (await box.count() !== 1 || await conversation.count() !== 1) throw new Error('Không xác định được duy nhất hội thoại');
     // Require a profile link in the conversation header, excluding message history.
-    const links = await page.locator('[role="main"] [role="banner"] a[href], [role="main"] h1 a[href], [role="main"] h2 a[href]').evaluateAll(es => es.map(e => e.href));
-    if (!links.some(link => { try { return recipientId(link) === id || profileUrl(link) === lead.actualUrl; } catch { return false; } })) throw new Error('Không xác minh được hồ sơ ở tiêu đề hội thoại; đã dừng');
+    const links = await conversation.evaluate(root => {
+      const floating = root.getAttribute('role') !== 'main';
+      return [...root.querySelectorAll(floating ? 'a[href]' : '[role="banner"] a[href], h1 a[href], h2 a[href], [role="heading"] a[href]')]
+        .filter(e => e.getClientRects().length && !e.closest('[role="log"], [role="row"], [role="grid"], [role="article"], article'))
+        .map(e => e.href);
+    });
+    if (!links.some(link => { try { const uid = recipientId(link); return uid ? uid === id : profileUrl(link) === target; } catch { return false; } })) throw new Error('Không xác minh được hồ sơ ở tiêu đề hội thoại; đã dừng');
   };
   await verify();
   if ((await box.innerText()).trim()) throw new Error('Hội thoại có bản nháp đang soạn; cần xử lý thủ công');
   await box.fill(message);
   if ((await box.innerText()).trim() !== message.trim()) throw new Error('Nội dung trong ô soạn không khớp mẫu');
   await verify();
-  const confirmedCount = () => page.locator('[role="main"] [role="row"]').evaluateAll((rows, text) => rows.filter(row => {
+  const confirmedCount = () => conversation.locator('[role="row"]').evaluateAll((rows, text) => rows.filter(row => {
     const exact = [...row.querySelectorAll('[dir="auto"]')].some(e => e.textContent.trim() === text);
     const receipt = [...row.querySelectorAll('[aria-label]')].some(e => /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)$/i.test(e.getAttribute('aria-label') || ''));
     return exact && receipt;
   }).length, message.trim());
   const beforeCount = await confirmedCount();
   if (cancelled()) { await box.fill(''); throw new Error('Đã dừng trước khi gửi'); }
+  await verify();
   // Durable reservation BEFORE Enter. Never automatically retry an ambiguous send.
   beforeSubmit();
   await box.press('Enter');
@@ -415,4 +452,4 @@ function createBrowserAdapter(playwright = require('../playwright/post')) {
     inspect, send, resolveUid,
   };
 }
-module.exports = { waitForMessageComposer, createBrowserAdapter, inspect, send, resolveUid, readProfileSnapshot, collectProfilePosts, readPostMedia, scrollProfileFeed };
+module.exports = { profileMessageButton, waitForMessageComposer, createBrowserAdapter, inspect, send, resolveUid, readProfileSnapshot, collectProfilePosts, readPostMedia, scrollProfileFeed };
