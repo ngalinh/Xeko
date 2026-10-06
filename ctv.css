@@ -26,6 +26,22 @@ main{max-width:1440px;padding:24px;margin:0 auto}.page-heading h1{font-size:22px
 
 .xeko-nav-item .nav-icon{flex-shrink:0}
 .xeko-nav-item>span:last-child{min-width:0;overflow-wrap:anywhere}
+.xeko-nav-item,.xeko-nav-item>span:last-child{font-weight:700}
+.xeko-sidebar{overflow-y:auto}
+.xeko-sidebar-footer{margin-top:auto;padding:16px 20px;border-top:1px solid var(--line)}
+#xekoSidebarToggle{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-height:44px;background:#d4e3fc;color:#2563eb}
+#xekoSidebarToggle:hover{background:#c3d7fb}
+@media(min-width:769px){
+  body.xeko-sidebar-collapsed{padding-left:72px}
+  .xeko-sidebar-collapsed .xeko-sidebar{width:72px}
+  .xeko-sidebar-collapsed .xeko-logo{padding:24px 0;justify-content:center}
+  .xeko-sidebar-collapsed .xeko-logo>span,.xeko-sidebar-collapsed .xeko-nav-item>span:last-child,.xeko-sidebar-collapsed #xekoSidebarToggle>span{display:none}
+  .xeko-sidebar-collapsed .xeko-nav{padding:8px}
+  .xeko-sidebar-collapsed .xeko-nav-item{justify-content:center;padding:10px 0;gap:0}
+  .xeko-sidebar-collapsed .xeko-sidebar-footer{padding:16px 12px}
+  .xeko-sidebar-collapsed #xekoSidebarToggle{padding:10px 0}
+  .xeko-sidebar-collapsed #xekoSidebarToggle svg{transform:rotate(180deg)}
+}
 
 .campaign-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center}#campaigns .campaign-row .secondary{color:#a43232;padding:8px;box-shadow:none}
 
