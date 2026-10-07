@@ -5,7 +5,7 @@ const { send, profileMessageButton, waitForMessageComposer } = require('./src/ct
 
 const target = 'https://www.facebook.com/customer';
 const image = {name:'photo.png', dataUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1cAAAAASUVORK5CYII='};
-function fixture({fullPage = false, wrongHeader = false, redirect = false, draft = '', missingButton = false, changeAfterFill = false, receipt = true, imageReceipt = true, uploadFails = false, wrongAfterUpload = false, pendingImage = false} = {}) {
+function fixture({fullPage = false, wrongHeader = false, redirect = false, draft = '', missingButton = false, changeAfterFill = false, receipt = true, imageReceipt = true, uploadFails = false, wrongAfterUpload = false, pendingImage = false, loseImageAfterFill = false} = {}) {
   const actions = []; let url = target, text = draft, submitted = false, headerWrong = wrongHeader;
   let imageAttached = false, imageSent = false;
   const conversation = {
@@ -16,8 +16,8 @@ function fixture({fullPage = false, wrongHeader = false, redirect = false, draft
       : {count:async()=>pendingImage ? 1 : 0},
   };
   const box = {count: async () => 1, isVisible: async () => true, locator: () => conversation,
-    innerText: async () => text, fill: async value => {actions.push('fill'); text = value; if (changeAfterFill) headerWrong = true;},
-    press: async key => {actions.push(key); if(imageAttached && !imageSent){imageSent=true;actions.push('image sent');}else submitted = true;},
+    innerText: async () => text, fill: async value => {actions.push('fill'); text = value; if (changeAfterFill) headerWrong = true; if (loseImageAfterFill) imageAttached = false;},
+    press: async key => {actions.push(key); submitted = true; if(imageAttached){imageSent=true;actions.push('image sent');}},
   };
   const page = {
     goto: async value => {actions.push(value); url = redirect ? 'https://www.facebook.com/other' : value;},
@@ -37,26 +37,47 @@ for (const fullPage of [false, true]) test(`opens profile and clicks Message bef
   assert.deepEqual(f.actions, [target,'click Message','fill','reserve','Enter']);
   assert.equal(result.state,'sent');
 });
-test('sends confirmed image before filling text and reserves exactly once', async () => {
+test('attaches image, fills text, then submits once and reserves exactly once', async () => {
   const f=fixture();
   const result=await send(f.page,{url:target,recipientId:'123'},'Hello',f.submit,()=>false,[image]);
   assert.equal(result.state,'sent');
-  assert.deepEqual(f.actions,[target,'click Message','attach','reserve','Enter','image sent','fill','Enter']);
+  assert.deepEqual(f.actions,[target,'click Message','attach','fill','reserve','Enter','image sent']);
 });
-test('unconfirmed image stops before text and never retries the image', async () => {
+test('unconfirmed image keeps combined submission uncertain and never retries', async () => {
   const f=fixture({imageReceipt:false});
-  await assert.rejects(send(f.page,{url:target,recipientId:'123'},'Hello',f.submit,()=>false,[image]),/Chưa xác nhận ảnh/);
-  assert.equal(f.actions.filter(a=>a==='Enter').length,1);assert.ok(!f.actions.includes('fill'));
+  const result=await send(f.page,{url:target,recipientId:'123'},'Hello',f.submit,()=>false,[image]);
+  assert.equal(result.state,'unconfirmed');assert.match(result.reason,/chưa xác nhận đầy đủ/);
+  assert.equal(f.actions.filter(a=>a==='Enter').length,1);assert.ok(f.actions.includes('fill'));
 });
 for(const options of [{uploadFails:true},{wrongAfterUpload:true},{pendingImage:true}]) test('image preparation failure cannot submit: '+JSON.stringify(options),async()=>{
   const f=fixture(options);
   await assert.rejects(send(f.page,{url:target,recipientId:'123'},'Hello',f.submit,()=>false,[image]));
   assert.ok(!f.actions.includes('reserve'));assert.ok(!f.actions.includes('Enter'));assert.ok(!f.actions.includes('fill'));
 });
-test('cancellation after image submission stops text',async()=>{
+test('cancellation after combined submission never retries',async()=>{
   const f=fixture();
-  await assert.rejects(send(f.page,{url:target,recipientId:'123'},'Hello',f.submit,()=>f.actions.includes('image sent'),[image]),/Đã dừng/);
-  assert.ok(!f.actions.includes('fill'));assert.equal(f.actions.filter(a=>a==='Enter').length,1);
+  const result=await send(f.page,{url:target,recipientId:'123'},'Hello',f.submit,()=>f.actions.includes('image sent'),[image]);
+  assert.equal(result.state,'unconfirmed');assert.equal(f.actions.filter(a=>a==='Enter').length,1);
+});
+test('cancellation after attachment and before text does not submit',async()=>{
+  const f=fixture();
+  await assert.rejects(send(f.page,{url:target,recipientId:'123'},'Hello',f.submit,()=>f.actions.includes('attach'),[image]),/Đã dừng/);
+  assert.ok(!f.actions.includes('fill'));assert.ok(!f.actions.includes('reserve'));assert.ok(!f.actions.includes('Enter'));
+});
+test('text receipt without image receipt and image receipt without text receipt remain uncertain',async()=>{
+  const f=fixture({receipt:false});
+  assert.equal((await send(f.page,{url:target,recipientId:'123'},'Hello',f.submit,()=>false,[image])).state,'unconfirmed');
+  assert.equal(f.actions.filter(a=>a==='Enter').length,1);
+});
+test('recipient change after filling caption cannot submit attachments',async()=>{
+  const f=fixture({changeAfterFill:true});
+  await assert.rejects(send(f.page,{url:target,recipientId:'123'},'Hello',f.submit,()=>false,[image]),/tiêu đề hội thoại/);
+  assert.ok(!f.actions.includes('reserve'));assert.ok(!f.actions.includes('Enter'));
+});
+test('lost image after filling caption cannot submit a text-only message',async()=>{
+  const f=fixture({loseImageAfterFill:true});
+  await assert.rejects(send(f.page,{url:target,recipientId:'123'},'Hello',f.submit,()=>false,[image]),/Ảnh trong ô soạn/);
+  assert.ok(!f.actions.includes('reserve'));assert.ok(!f.actions.includes('Enter'));
 });
 for (const [options, error] of [
   [{wrongHeader:true}, /tiêu đề hội thoại/], [{redirect:true}, /hồ sơ khác/],

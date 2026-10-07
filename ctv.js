@@ -393,7 +393,7 @@
     if (reset || $('messageArchive').dataset.mode !== archiveMode) $('messageArchive').open = !a.send;
     $('messageArchive').dataset.mode = archiveMode;
     $('messageArchiveTitle').textContent = `${a.send?'Nội dung đã duyệt':'Xem trước tin nhắn'} (${c.messagePreview?.messages.length || 0})`;
-    $('messagePreviews').replaceChildren(...(c.messagePreview?.messages || []).map(m=>{const d=element('article',undefined,'message-card');d.append(element('h3',m.name || customerLabel(m.url)),link(m.url,customerLabel(m.url)));if(c.messagePreview.images?.length){d.append(element('p','Gửi ảnh trước ('+c.messagePreview.images.length+' ảnh)', 'muted'),imageGallery(c.messagePreview.images),element('p','Sau đó gửi tin nhắn:', 'muted'));}d.append(element('p',m.message));return d;}));
+    $('messagePreviews').replaceChildren(...(c.messagePreview?.messages || []).map(m=>{const d=element('article',undefined,'message-card');d.append(element('h3',m.name || customerLabel(m.url)),link(m.url,customerLabel(m.url)));if(c.messagePreview.images?.length){d.append(element('p','Ảnh đính kèm ('+c.messagePreview.images.length+' ảnh)', 'muted'),imageGallery(c.messagePreview.images),element('p','Nội dung gửi kèm ảnh:', 'muted'));}d.append(element('p',m.message));return d;}));
     show('sendApproval',c.state==='message_review' && !!c.messagePreview);
     show('sendResult',!!a.send);show('stopSending',['send_queued','sending'].includes(c.state));
     const sentLeads=c.leads.filter(l=>a.analysis?.leadIds.includes(l.id));

@@ -355,7 +355,7 @@ function profileMessageButton() {
   return buttons.length === 1 ? buttons[0] : false;
 }
 
-async function sendImagesFirst(page, conversation, box, images, verify, beforeSubmit, cancelled) {
+async function prepareImages(page, conversation, images, verify) {
   const payloads = imagePayloads(images);
   if (!payloads.length) return;
   const removeSelector = '[role="button"][aria-label="Remove attachment"], [role="button"][aria-label="Remove photo"], [role="button"][aria-label="Remove image"], [role="button"][aria-label="Xóa ảnh"], button[aria-label="Remove attachment"], button[aria-label="Remove photo"]';
@@ -378,28 +378,20 @@ async function sendImagesFirst(page, conversation, box, images, verify, beforeSu
   await verify();
   await input.setInputFiles(payloads);
   // Wait for loaded composer thumbnails, outside message history.
+  const composerReady = () => conversation.evaluate((root, count) => [...root.querySelectorAll('img')].filter(img => {
+    const r = img.getBoundingClientRect();
+    return !img.closest('[role="row"], [role="log"]') && /^(blob:|data:image\/)/.test(img.currentSrc || img.src) && img.complete && img.naturalWidth > 0 && r.width >= 40 && r.height >= 40;
+  }).length === count, payloads.length);
   let ready = false;
   for (let i = 0; i < 30; i++) {
     await verify();
-    ready = await conversation.evaluate((root, count) => [...root.querySelectorAll('img')].filter(img => {
-      const r = img.getBoundingClientRect();
-      return !img.closest('[role="row"], [role="log"]') && /^(blob:|data:image\/)/.test(img.currentSrc || img.src) && img.complete && img.naturalWidth > 0 && r.width >= 40 && r.height >= 40;
-    }).length >= count, payloads.length);
+    ready = await composerReady();
     if (ready) break;
     await page.waitForTimeout(1000);
   }
   if (!ready) throw new Error('Ảnh chưa tải xong trong ô soạn; chưa gửi ảnh hoặc tin nhắn');
-  if ((await box.innerText()).trim()) throw new Error('Ô soạn có nội dung mới; chưa gửi ảnh');
   await verify();
-  beforeSubmit();
-  await box.press('Enter');
-  for (let i = 0; i < 45; i++) {
-    if (cancelled()) throw new Error('Đã dừng sau thao tác gửi ảnh; cần kiểm tra Messenger, không tự gửi lại');
-    await page.waitForTimeout(1000);
-    await verify();
-    if (await confirmedImages() >= before + payloads.length) return;
-  }
-  throw new Error('Chưa xác nhận ảnh đã gửi; đã dừng trước tin nhắn. Kiểm tra Messenger, không tự gửi lại ảnh.');
+  return { confirmedImages, composerReady, before, count: payloads.length };
 }
 
 async function send(page, lead, message, beforeSubmit, cancelled = () => false, images = []) {
@@ -443,11 +435,12 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
   };
   await verify();
   if ((await box.innerText()).trim()) throw new Error('Hội thoại có bản nháp đang soạn; cần xử lý thủ công');
+  let media;
   if (images.length) {
-    await sendImagesFirst(page, conversation, box, images, verify, beforeSubmit, cancelled);
+    media = await prepareImages(page, conversation, images, verify);
     await waitForMessageComposer(page, box, cancelled, 300000, true);
     await verify();
-    if ((await box.innerText()).trim()) throw new Error('Ô soạn có bản nháp sau gửi ảnh; đã dừng trước tin nhắn');
+    if ((await box.innerText()).trim()) throw new Error('Ô soạn có bản nháp sau đính kèm ảnh; chưa gửi tin nhắn');
   }
   await box.fill(message);
   if ((await box.innerText()).trim() !== message.trim()) throw new Error('Nội dung trong ô soạn không khớp mẫu');
@@ -461,14 +454,19 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
   if (cancelled()) { await box.fill(''); throw new Error('Đã dừng trước khi gửi'); }
   await verify();
   // Durable reservation BEFORE Enter. Never automatically retry an ambiguous send.
-  if (!images.length) beforeSubmit();
+  if (media && !await media.composerReady()) throw new Error('Ảnh trong ô soạn đã thay đổi hoặc chưa sẵn sàng; chưa gửi tin nhắn');
+  beforeSubmit();
   await box.press('Enter');
-  for (let i = 0; i < 15; i++) {
+  for (let i = 0; i < (media ? 45 : 15); i++) {
+    if (cancelled()) return { state: 'unconfirmed', reason: 'Đã dừng sau thao tác gửi; cần kiểm tra Messenger. Không tự gửi lại.' };
     await page.waitForTimeout(1000);
-    if (await confirmedCount() > beforeCount) return { state: 'sent', reason: 'Messenger hiển thị trạng thái đã gửi/đã chuyển cho tin nhắn mới' };
+    if (media) await verify();
+    const textSent = await confirmedCount() > beforeCount;
+    const imagesSent = !media || await media.confirmedImages() >= media.before + media.count;
+    if (textSent && imagesSent) return { state: 'sent', reason: media ? 'Messenger xác nhận ảnh và nội dung tin nhắn đã gửi/đã chuyển' : 'Messenger hiển thị trạng thái đã gửi/đã chuyển cho tin nhắn mới' };
   }
   // DOM receipts differ across Messenger variants: uncertainty must remain explicit.
-  return { state: 'unconfirmed', reason: 'Đã thao tác gửi; cần kiểm tra Messenger để xác nhận. Không tự gửi lại.' };
+  return { state: 'unconfirmed', reason: media ? 'Đã thao tác gửi ảnh kèm nội dung nhưng chưa xác nhận đầy đủ. Kiểm tra Messenger; không tự gửi lại.' : 'Đã thao tác gửi; cần kiểm tra Messenger để xác nhận. Không tự gửi lại.' };
 }
 
 function createBrowserAdapter(playwright = require('../playwright/post')) {

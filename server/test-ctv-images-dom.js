@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const {chromium}=require('playwright');
 const {send}=require('./src/ctv/browser');
 const image={name:'photo.png',dataUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1cAAAAASUVORK5CYII='};
-for(const receipt of [true,false])test('Messenger DOM image-before-text, receipt='+receipt,async()=>{
+for(const receipt of [true,false])test('Messenger DOM attach, fill caption and send once, receipt='+receipt,async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.CTV_TEST_BROWSER_CHANNEL ? {channel:process.env.CTV_TEST_BROWSER_CHANNEL} : {})});
  try{
   const page=await browser.newPage();
@@ -16,16 +16,17 @@ for(const receipt of [true,false])test('Messenger DOM image-before-text, receipt
     dialog.querySelector('input').onchange=e=>{window.actions.push('attach');photos=[...e.target.files].map(file=>{const img=new Image();img.src=URL.createObjectURL(file);img.style='width:120px;height:120px';dialog.querySelector('#photos').append(img);return img;});};
     box.oninput=()=>{if(box.innerText)window.actions.push('text filled');};
     box.onkeydown=e=>{if(e.key!=='Enter')return;e.preventDefault();const row=document.createElement('div');row.setAttribute('role','row');
-     if(photos.length){window.actions.push('image Enter');photos.forEach(img=>row.append(img));photos=[];if(${receipt}){const status=document.createElement('span');status.setAttribute('aria-label','Sent');row.append(status);}}
-     else{window.actions.push('text Enter');const text=document.createElement('span');text.setAttribute('dir','auto');text.textContent=box.innerText;row.append(text);const status=document.createElement('span');status.setAttribute('aria-label','Sent');row.append(status);box.innerText='';}
+     window.actions.push('combined Enter');photos.forEach(img=>row.append(img));photos=[];
+     const text=document.createElement('span');text.setAttribute('dir','auto');text.textContent=box.innerText;row.append(text);box.innerText='';
+     if(${receipt}){const status=document.createElement('span');status.setAttribute('aria-label','Sent');row.append(status);}
      dialog.querySelector('#history').append(row);
     };
    };
   </script>`}));
   const wait=page.waitForTimeout.bind(page);page.waitForTimeout=()=>wait(30);
   let reserved=0;const call=()=>send(page,{url:'https://www.facebook.com/customer',recipientId:'123'},'Hello',()=>{reserved++;},()=>false,[image]);
-  if(receipt){const result=await call();assert.equal(result.state,'sent');assert.deepEqual(await page.evaluate(()=>window.actions),['attach','image Enter','text filled','text Enter']);}
-  else{await assert.rejects(call(),/Chưa xác nhận ảnh/);assert.deepEqual(await page.evaluate(()=>window.actions),['attach','image Enter']);}
+  const result=await call();assert.equal(result.state,receipt?'sent':'unconfirmed');
+  assert.deepEqual(await page.evaluate(()=>window.actions),['attach','text filled','combined Enter']);
   assert.equal(reserved,1);
  }finally{await browser.close();}
 });
