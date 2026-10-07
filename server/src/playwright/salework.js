@@ -937,13 +937,14 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
   }
 
   // Fingerprint riêng cho mỗi Zalo account (namespace 'zalo:' để tránh va FB)
-  const { userAgent, viewport } = getProfileDeviceFingerprint(`zalo:${accountKey || zaloAccountName}`);
+  const { userAgent } = getProfileDeviceFingerprint(`zalo:${accountKey || zaloAccountName}`);
   const browser = await safeLaunchPersistentContext(profilePath, {
     headless: false,
     slowMo: 500,
-    viewport,
+    // Use the visible window size so ZaloCRM can resize naturally.
+    viewport: null,
     userAgent,
-    args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
+    args: ['--disable-blink-features=AutomationControlled', '--no-sandbox', '--start-maximized'],
     ...(proxy ? { proxy } : {}),
   });
 
