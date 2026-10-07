@@ -2,6 +2,7 @@ const { readSelfDeclaredGender } = require('./gender');
 const { validProfileKey, profileUrl, recipientId, isSalesPost } = require('./rules');
 const { evaluateProfile } = require('./ai');
 const { resolveCurrentProfileUid } = require('./uid');
+const { imagePayloads } = require('./attachments');
 
 async function assertSession(page) {
   if (page.isClosed?.()) throw new Error('Tab Facebook đã đóng trước khi quét bài viết; hãy mở lại tài khoản và bấm Thử lại AI');
@@ -354,7 +355,56 @@ function profileMessageButton() {
   return buttons.length === 1 ? buttons[0] : false;
 }
 
-async function send(page, lead, message, beforeSubmit, cancelled = () => false) {
+async function sendImagesFirst(page, conversation, box, images, verify, beforeSubmit, cancelled) {
+  const payloads = imagePayloads(images);
+  if (!payloads.length) return;
+  const removeSelector = '[role="button"][aria-label="Remove attachment"], [role="button"][aria-label="Remove photo"], [role="button"][aria-label="Remove image"], [role="button"][aria-label="Xóa ảnh"], button[aria-label="Remove attachment"], button[aria-label="Remove photo"]';
+  if (await conversation.locator(removeSelector).count()) throw new Error('Hội thoại có ảnh đang soạn; cần xử lý thủ công');
+  const input = conversation.locator('input[type="file"][accept*="image"]');
+  if (await input.count() !== 1) throw new Error('Không xác định được duy nhất ô đính kèm ảnh trong hội thoại');
+  const confirmedImages = () => conversation.locator('[role="row"]').evaluateAll(rows => {
+    const photos = new Set();
+    for (const row of rows) {
+      const receipt = [...row.querySelectorAll('[aria-label]')].some(e => /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)$/i.test(e.getAttribute('aria-label') || ''));
+      if (!receipt) continue;
+      for (const img of row.querySelectorAll('img')) {
+        const r = img.getBoundingClientRect();
+        if (img.complete && img.naturalWidth > 0 && r.width >= 80 && r.height >= 80) photos.add(img.currentSrc || img.src);
+      }
+    }
+    return photos.size;
+  });
+  const before = await confirmedImages();
+  await verify();
+  await input.setInputFiles(payloads);
+  // Wait for loaded composer thumbnails, outside message history.
+  let ready = false;
+  for (let i = 0; i < 30; i++) {
+    await verify();
+    ready = await conversation.evaluate((root, count) => [...root.querySelectorAll('img')].filter(img => {
+      const r = img.getBoundingClientRect();
+      return !img.closest('[role="row"], [role="log"]') && /^(blob:|data:image\/)/.test(img.currentSrc || img.src) && img.complete && img.naturalWidth > 0 && r.width >= 40 && r.height >= 40;
+    }).length >= count, payloads.length);
+    if (ready) break;
+    await page.waitForTimeout(1000);
+  }
+  if (!ready) throw new Error('Ảnh chưa tải xong trong ô soạn; chưa gửi ảnh hoặc tin nhắn');
+  if ((await box.innerText()).trim()) throw new Error('Ô soạn có nội dung mới; chưa gửi ảnh');
+  await verify();
+  beforeSubmit();
+  await box.press('Enter');
+  for (let i = 0; i < 45; i++) {
+    if (cancelled()) throw new Error('Đã dừng sau thao tác gửi ảnh; cần kiểm tra Messenger, không tự gửi lại');
+    await page.waitForTimeout(1000);
+    await verify();
+    if (await confirmedImages() >= before + payloads.length) return;
+  }
+  throw new Error('Chưa xác nhận ảnh đã gửi; đã dừng trước tin nhắn. Kiểm tra Messenger, không tự gửi lại ảnh.');
+}
+
+async function send(page, lead, message, beforeSubmit, cancelled = () => false, images = []) {
+  // Validate before opening a browser or changing a conversation draft.
+  imagePayloads(images);
   if (!/^\d+$/.test(lead.recipientId || '')) throw new Error('Không xác minh được ID người nhận; cần kiểm tra thủ công');
   const id = lead.recipientId;
   const target = profileUrl(lead.actualUrl || lead.url);
@@ -393,6 +443,12 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false) 
   };
   await verify();
   if ((await box.innerText()).trim()) throw new Error('Hội thoại có bản nháp đang soạn; cần xử lý thủ công');
+  if (images.length) {
+    await sendImagesFirst(page, conversation, box, images, verify, beforeSubmit, cancelled);
+    await waitForMessageComposer(page, box, cancelled, 300000, true);
+    await verify();
+    if ((await box.innerText()).trim()) throw new Error('Ô soạn có bản nháp sau gửi ảnh; đã dừng trước tin nhắn');
+  }
   await box.fill(message);
   if ((await box.innerText()).trim() !== message.trim()) throw new Error('Nội dung trong ô soạn không khớp mẫu');
   await verify();
@@ -405,7 +461,7 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false) 
   if (cancelled()) { await box.fill(''); throw new Error('Đã dừng trước khi gửi'); }
   await verify();
   // Durable reservation BEFORE Enter. Never automatically retry an ambiguous send.
-  beforeSubmit();
+  if (!images.length) beforeSubmit();
   await box.press('Enter');
   for (let i = 0; i < 15; i++) {
     await page.waitForTimeout(1000);
@@ -453,3 +509,4 @@ function createBrowserAdapter(playwright = require('../playwright/post')) {
   };
 }
 module.exports = { profileMessageButton, waitForMessageComposer, createBrowserAdapter, inspect, send, resolveUid, readProfileSnapshot, collectProfilePosts, readPostMedia, scrollProfileFeed };
+

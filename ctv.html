@@ -131,6 +131,7 @@
           <div id="messageComposer" class="message-composer"><div class="composer-heading"><h3>Soạn tin nhắn</h3><span class="muted">Cá nhân hóa cho từng khách</span></div>
           <label for="template">Nội dung tin nhắn</label><textarea id="template" rows="5" maxlength="2000">Chào {name}, mình có thông tin muốn chia sẻ với bạn. Bạn có muốn nhận thêm thông tin không?</textarea>
           <div class="template-meta"><span class="muted">Dùng <code>{name}</code> để chèn tên khách.</span><span id="messageLength" class="muted"></span></div>
+          <div class="message-attachments"><label for="messageImages">Ảnh đính kèm (không bắt buộc)</label><button id="addMessageImages" type="button" class="secondary">+ Thêm ảnh</button><input id="messageImages" type="file" accept="image/jpeg,image/png,image/webp" multiple aria-describedby="imageHint" hidden><p id="imageHint" class="muted">Tối đa 5 ảnh JPG, PNG hoặc WebP · 2 MB/ảnh · tổng 4 MB. Ảnh được gửi trước, sau đó mới gửi tin nhắn.</p><div id="imagePreviews" class="attachment-grid" aria-live="polite"></div></div>
           <div class="composer-footer"><p id="previewHint" class="hint">Chưa có bản xem trước. Chưa thể gửi tin.</p><button id="prepareMessages">Xem trước tin nhắn →</button></div></div>
           <div id="sendResult" hidden>
             <div id="sendSummary" class="send-summary" role="status" aria-live="polite"><div><h3 id="sendSummaryTitle"></h3><p id="sendSummaryText"></p></div><button id="stopSending" class="secondary">Dừng gửi</button></div>
@@ -140,7 +141,7 @@
             <p id="sendListCount" class="muted" aria-live="polite"></p><div id="sendRows" class="send-rows"></div><p id="sendNote" class="hint"></p>
           </div>
           <details id="messageArchive" class="message-archive" open><summary id="messageArchiveTitle">Xem trước tin nhắn</summary><div id="messagePreviews" class="message-previews"></div></details>
-          <div id="sendApproval" class="send-approval" hidden><label class="check-label"><input id="confirmSend" type="checkbox"> Tôi đã kiểm tra người nhận và nội dung các tin nhắn ở trên.</label><button id="sendButton" disabled>Duyệt & gửi hàng loạt</button></div>
+          <div id="sendApproval" class="send-approval" hidden><label class="check-label"><input id="confirmSend" type="checkbox"> Tôi đã kiểm tra người nhận, ảnh đính kèm và nội dung các tin nhắn ở trên.</label><button id="sendButton" disabled>Duyệt & gửi hàng loạt</button></div>
         </div>
       </section>
     </div>
@@ -151,3 +152,4 @@
     </aside>
   </div>
 </main><script src="./ctv.js"></script><script src="./ctv-customers.js"></script></body></html>
+

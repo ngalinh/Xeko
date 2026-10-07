@@ -16,6 +16,25 @@
   Object.assign(labels, {uid_queued:'Chờ tìm UID',resolving_uid:'Đang tìm UID'});
   let selected = null, epoch = 0, timer = null, busy = false, uncertain = false, retries = 0;
   let picks = new Set(), accounts = [], campaigns = [];
+  let draftImages = [], readingImages = false;
+  const imageSignature = images => JSON.stringify((images || []).map(image => [image.name, image.dataUrl]));
+  function imageGallery(images, removable = false) {
+    const gallery = element('div', undefined, 'attachment-grid');
+    images.forEach((image, index) => {
+      const card = element('figure', undefined, 'attachment-card'), img = element('img');
+      img.src = image.dataUrl; img.alt = image.name;
+      card.append(img, element('figcaption', image.name));
+      if (removable) {
+        const remove = element('button', 'Xóa ảnh', 'secondary'); remove.type = 'button';
+        remove.disabled = busy || readingImages || uncertain || selected?.state !== 'message_review';
+        remove.setAttribute('aria-label', `Xóa ảnh ${image.name}`);
+        remove.onclick = () => { draftImages.splice(index, 1); $('confirmSend').checked = false; updateControls(); };
+        card.append(remove);
+      }
+      gallery.append(card);
+    });
+    return gallery;
+  }
   const show = (id, visible) => { $(id).hidden = !visible; };
   let viewedStep = 1;
   function viewStep(n) {
@@ -198,9 +217,12 @@
     for (const button of $('analysisRows').querySelectorAll('button')) button.disabled = !unlocked || !modern || c.state !== 'analysis_review';
     const editing = modern && c.state === 'message_review';
     $('template').disabled = !editing || !unlocked;
-    $('prepareMessages').disabled = !editing || !unlocked || !$('template').value.trim();
+    $('messageImages').disabled = !editing || !unlocked || readingImages;
+    $('addMessageImages').disabled = $('messageImages').disabled;
+    $('imagePreviews').replaceChildren(imageGallery(draftImages, true));
+    $('prepareMessages').disabled = !editing || !unlocked || readingImages || !$('template').value.trim();
     $('reviewSelection').disabled = !editing || !unlocked;
-    const fresh = editing && c.messagePreview && $('template').value.trim() === c.template;
+    const fresh = editing && !readingImages && c.messagePreview && $('template').value.trim() === c.template && imageSignature(draftImages) === imageSignature(c.messagePreview.images);
     $('confirmSend').disabled = !fresh || !unlocked;
     $('sendButton').disabled = !fresh || !unlocked || !$('confirmSend').checked;
     $('sendButton').textContent = `Duyệt & gửi ${c?.messagePreview?.messages.length || 0} tin nhắn`;
@@ -269,6 +291,7 @@
   $('historyPrevious').onclick=()=>{historyPage--;renderHistory();};
   $('historyNext').onclick=()=>{historyPage++;renderHistory();};
   function render(c, reset = false) {
+    if (reset || selected?.id !== c.id) { draftImages = (c.messagePreview?.images || []).map(image => ({ ...image })); $('messageImages').value = ''; }
     if (reset || selected?.id !== c.id) { $('analysisSearch').value=''; $('analysisFilter').value='all'; }
     if (selected?.id !== c.id || selected?.messagePreview?.token !== c.messagePreview?.token) $('confirmSend').checked = false;
     selected = c;
@@ -370,7 +393,7 @@
     if (reset || $('messageArchive').dataset.mode !== archiveMode) $('messageArchive').open = !a.send;
     $('messageArchive').dataset.mode = archiveMode;
     $('messageArchiveTitle').textContent = `${a.send?'Nội dung đã duyệt':'Xem trước tin nhắn'} (${c.messagePreview?.messages.length || 0})`;
-    $('messagePreviews').replaceChildren(...(c.messagePreview?.messages || []).map(m=>{const d=element('article',undefined,'message-card');d.append(element('h3',m.name || customerLabel(m.url)),link(m.url,customerLabel(m.url)),element('p',m.message));return d;}));
+    $('messagePreviews').replaceChildren(...(c.messagePreview?.messages || []).map(m=>{const d=element('article',undefined,'message-card');d.append(element('h3',m.name || customerLabel(m.url)),link(m.url,customerLabel(m.url)));if(c.messagePreview.images?.length){d.append(element('p','Gửi ảnh trước ('+c.messagePreview.images.length+' ảnh)', 'muted'),imageGallery(c.messagePreview.images),element('p','Sau đó gửi tin nhắn:', 'muted'));}d.append(element('p',m.message));return d;}));
     show('sendApproval',c.state==='message_review' && !!c.messagePreview);
     show('sendResult',!!a.send);show('stopSending',['send_queued','sending'].includes(c.state));
     const sentLeads=c.leads.filter(l=>a.analysis?.leadIds.includes(l.id));
@@ -449,7 +472,25 @@
   $('approveAnalysis').onclick=()=>action('approve-analysis',{leadIds:[...picks]});
   $('reviewSelection').onclick=()=>action('review-analysis');
   $('template').oninput=()=>{$('confirmSend').checked=false;updateControls();};
-  $('prepareMessages').onclick=()=>action('prepare-messages',{template:$('template').value});
+  $('addMessageImages').onclick = () => $('messageImages').click();
+  $('messageImages').onchange = async () => {
+    const files = [...$('messageImages').files], version = epoch;
+    if (!files.length || busy || readingImages || selected?.state !== 'message_review') return;
+    readingImages = true; $('confirmSend').checked = false; updateControls();
+    try {
+      if (draftImages.length + files.length > 5) throw new Error('Chỉ đính kèm tối đa 5 ảnh');
+      if (files.some(file => !['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024 || !file.size)) throw new Error('Chọn ảnh JPG, PNG hoặc WebP, tối đa 2 MB mỗi ảnh');
+      const added = await Promise.all(files.map(file => new Promise((resolve, reject) => {
+        const reader = new FileReader(); reader.onload = () => resolve({ name: file.name.replace(/[\\/\x00-\x1f]/g,'_').slice(0,120) || 'image', dataUrl: reader.result }); reader.onerror = () => reject(new Error('Không đọc được ảnh '+file.name)); reader.readAsDataURL(file);
+      })));
+      if (epoch !== version) return;
+      const all = [...draftImages, ...added];
+      if (all.reduce((sum, image) => sum + atob(image.dataUrl.split(',')[1]).length, 0) > 4 * 1024 * 1024) throw new Error('Tổng ảnh đính kèm tối đa 4 MB');
+      draftImages = all; notice();
+    } catch (error) { if (epoch === version) notice(error.message, true); }
+    finally { readingImages = false; $('messageImages').value = ''; updateControls(); }
+  };
+  $('prepareMessages').onclick=()=>action('prepare-messages',{template:$('template').value,images:draftImages});
   $('confirmSend').onchange=updateControls;
   $('sendButton').onclick=()=>{if(!$('sendButton').disabled)action('send',{previewToken:selected.messagePreview.token});};
   $('stopAnalysis').onclick=$('stopSending').onclick=()=>action('stop');
@@ -459,6 +500,7 @@
   $('closeHistory').onclick=()=>{setHistoryOpen(false);$('toggleHistory').focus();};
   $('newCampaign').onclick=()=>{if(busy)return;setHistoryOpen(false);epoch++;clearTimeout(timer);selected=null;uncertain=false;picks.clear();notice();viewStep(1);
     show('importForm',true);show('importResult',false);show('analysisEmpty',true);show('analysisResult',false);show('retryAnalysis',false);show('resolveUids',false);show('messageEmpty',true);show('messageResult',false);
+    draftImages=[];$('messageImages').value='';
     $('campaignName').value='';$('urls').value='';$('file').value='';$('fileName').textContent='Hoặc dán dữ liệu vào ô phía trên';$('urls').oninput();$('template').value=defaultTemplate;$('confirmSend').checked=false;
     $('currentName').textContent='Chưa có chiến dịch';$('currentProfile').textContent='Chọn tài khoản ở bước 1.';$('currentState').textContent='Chờ nhập dữ liệu';$('connection').textContent='';
     for(let n=1;n<=3;n++){$(`status${n}`).textContent=n===1?'Chưa nhập':'Đang khóa';$(`status${n}`).className='badge';$(`nav${n}`).className='step-link'+(n===1?' active':'');$(`nav${n}`).removeAttribute('aria-current');}
@@ -492,3 +534,4 @@
     updateControls();
   })();
 })();
+

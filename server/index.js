@@ -20,6 +20,7 @@ const permissions = require('./src/utils/permissions');
 const auth = require('./src/utils/auth');
 
 const app = express();
+app.use('/api/ctv', express.json({ limit: '6mb' }));
 app.use(express.json());
 
 // ===== GIT AUTO-COMMIT (debounce 30s) =====
