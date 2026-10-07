@@ -149,6 +149,12 @@
     return 'Lượt gửi đã dừng ở khách này. Mở Messenger để kiểm tra; thông tin kỹ thuật nằm bên dưới.';
   }
   const openSendDetails = new Set();
+  function retryRequestId() {
+    if (window.crypto.randomUUID) return window.crypto.randomUUID();
+    const bytes=window.crypto.getRandomValues(new Uint8Array(16));bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
+    const hex=[...bytes].map(b=>b.toString(16).padStart(2,'0')).join('');
+    return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+  }
   function renderSendRows(c) {
     const approved = c.approvals?.analysis?.leadIds || [];
     const leads = c.leads.filter(l => approved.includes(l.id));
@@ -171,6 +177,16 @@
       const actions = element('div',undefined,'send-row-actions');
       if (/^\d+$/.test(l.assessment?.recipientId || '')) actions.append(link(`https://www.facebook.com/messages/t/${l.assessment.recipientId}`,'Mở Messenger ↗'));
       actions.append(link(l.url,'Xem hồ sơ ↗')); info.append(actions);
+      if (l.retryAvailable) {
+        const retry = element('button',category === 'attention' ? '↻ Thử gửi lại' : 'Gửi khách này','secondary');
+        retry.type='button';retry.dataset.retryLead=l.id;retry.disabled=busy || uncertain || ACTIVE.includes(c.state);
+        retry.onclick=()=>{
+          if(retry.disabled || selected?.id!==c.id)return;
+          if(l.retryNeedsConfirmation && !window.confirm('Bạn đã kiểm tra Messenger và xác nhận khách chưa nhận bất kỳ ảnh hay tin nhắn nào của lượt gửi này? Thử lại sẽ gửi toàn bộ ảnh và nội dung đã duyệt.'))return;
+          action('retry-send',{leadId:l.id,previewToken:c.messagePreview.token,requestId:retryRequestId(),confirmedNotReceived:!!l.retryNeedsConfirmation});
+        };
+        actions.append(retry);
+      }
       if (l.error) {
         const details = element('details',undefined,'send-diagnostic');
         const key = `${c.id}:${l.id}`;
@@ -193,11 +209,12 @@
     $('sendCampaignError').textContent = cleanDiagnostic(c.error);
     $('sendSummaryText').textContent = active ? 'Trạng thái tự cập nhật. Bạn có thể dừng các tin tiếp theo.' : attention ? `${attention} khách cần kiểm tra. ${pending ? `${pending} khách chưa được gửi. ` : ''}Xem hướng dẫn tại từng khách bên dưới.` : c.error ? 'Không thể hoàn tất lượt gửi. Kiểm tra tài khoản Facebook và trạng thái các khách bên dưới.' : `${sent}/${leads.length} tin được xác nhận đã gửi.${pending ? ` Còn ${pending} khách chưa gửi.` : ''}`;
     stats('sendStats',[['Đã gửi',sent,'good'],[active?'Chờ / đang gửi':'Chưa gửi',pending],['Cần kiểm tra',attention,attention?'warn':''],['Tổng đã duyệt',leads.length]]);
-    $('sendNote').textContent = 'Tin chưa xác nhận không được tự gửi lại. Nội dung đã duyệt được lưu bên dưới.';
+    $('sendNote').textContent = 'Bạn có thể thử lại từng khách. Với lượt chưa rõ kết quả, hãy kiểm tra Messenger trước để tránh gửi trùng. Nội dung đã duyệt được lưu bên dưới.';
     renderSendRows(c);
   }
   function updateControls() {
     const c = selected, unlocked = !busy && !uncertain, modern = c?.workflowVersion === 2;
+    for(const button of $('sendRows').querySelectorAll('button[data-retry-lead]'))button.disabled=!unlocked || ACTIVE.includes(c?.state);
     for (const id of ['campaignName','profile','urls','file']) $(id).disabled = !!c || busy;
     $('importButton').disabled = !!c || busy || !accounts.length;
     $('newCampaign').disabled = busy;
@@ -541,5 +558,6 @@
     updateControls();
   })();
 })();
+
 
 
