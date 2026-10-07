@@ -62,6 +62,7 @@ function saveZaloAccounts(accounts) {
 }
 
 const app = express();
+app.use('/api/ctv', express.json({ limit: '6mb' }));
 app.use(express.json());
 
 // ===== API KEY AUTH (timing-safe compare, đã assertConfigured ở trên) =====
@@ -1214,3 +1215,4 @@ process.on('SIGINT', async () => {
   await playwright.closeBrowser();
   process.exit(0);
 });
+

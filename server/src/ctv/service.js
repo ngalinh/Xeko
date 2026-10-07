@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { normalizeImages } = require('./attachments');
 const { validProfileKey, profileUrl, renderMessage } = require('./rules');
 const { captureCustomers, listCustomers, addManualCustomer } = require('./customers');
 const ACTIVE = ['analysis_queued', 'analyzing', 'uid_queued', 'resolving_uid', 'send_queued', 'sending'];
@@ -54,7 +55,11 @@ class CtvService {
     if (!/^\d+$/.test(lead.assessment.recipientId || '')) return 'Chưa xác minh được ID người nhận. Hãy bấm Tìm UID ở bước 2 trước khi gửi.';
     return '';
   }
-  view(c) { return { ...c, leads: c.leads.map(l => ({ ...l, selectionBlockedReason: this.selectionBlocked(l), blockedReason: this.reasonBlocked(l) })) }; }
+  view(c, includeImageData = true) {
+    const view = { ...c, leads: c.leads.map(l => ({ ...l, selectionBlockedReason: this.selectionBlocked(l), blockedReason: this.reasonBlocked(l) })) };
+    if (!includeImageData && c.messagePreview) view.messagePreview = { ...c.messagePreview, images: (c.messagePreview.images || []).map(({ dataUrl, ...image }) => image) };
+    return view;
+  }
   create(input, owner) {
     if (input.profile == null || input.profile === '') throw new Error('Cần chọn tài khoản Facebook');
     if (!validProfileKey(input.profile)) throw new Error('Mã tài khoản Facebook không hợp lệ');
@@ -217,17 +222,18 @@ class CtvService {
     for (const l of c.leads) delete l.message;
     this.save(); return c;
   }
-  prepareMessages(id, owner, template) {
+  prepareMessages(id, owner, template, images = []) {
     const c = this.staged(id, owner);
     if (c.state !== 'message_review' || !c.approvals.analysis) fail('Cần duyệt kết quả AI trước khi soạn tin');
     renderMessage(template, 'bạn');
+    const attachments = normalizeImages(images);
     const messages = c.approvals.analysis.leadIds.map(id => {
       const l = c.leads.find(l => l.id === id);
       const blocked = this.reasonBlocked(l);
       if (blocked) fail(blocked);
       return { leadId: id, recipientId: l.assessment.recipientId, name: l.assessment.name || 'bạn', url: l.url, message: renderMessage(template, l.assessment.name) };
     });
-    c.template = template.trim(); c.messagePreview = { token: crypto.randomUUID(), createdAt: new Date().toISOString(), messages };
+    c.template = template.trim(); c.messagePreview = { token: crypto.randomUUID(), createdAt: new Date().toISOString(), images: attachments, messages };
     this.save(); return c;
   }
   sendApproved(id, owner, token) {
@@ -257,7 +263,7 @@ class CtvService {
           if (this.data.reservations[m.recipientId]) throw new Error('Người nhận đã có lần gửi trước');
           this.data.reservations[m.recipientId] = { campaignId: c.id, at: new Date().toISOString() };
           lead.state = 'sending'; this.save();
-        }, () => c.cancelled), { keepOnError: true });
+        }, () => c.cancelled, c.messagePreview.images || []), { keepOnError: true });
         lead.state = result.state; lead.error = result.reason; this.save();
         if (result.state !== 'sent') { c.state = 'needs_attention'; c.error = result.reason; this.save(); return; }
       } catch (e) {
@@ -270,3 +276,4 @@ class CtvService {
   }
 }
 module.exports = { CtvService, ACTIVE };
+

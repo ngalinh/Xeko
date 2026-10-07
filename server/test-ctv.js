@@ -16,6 +16,33 @@ function setup(t, overrides = {}) {
   return {s,sent,inspected,browser,dir};
 }
 const settle = s => Promise.all([...s.running]);
+const sampleImage={name:'photo.png',dataUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1cAAAAASUVORK5CYII='};
+test('images are fixed in preview, restored and forwarded only after approval',async t=>{
+  const {s,browser}=setup(t),c=await analyzed(s);prepared(s,c);
+  const inputImages=[{...sampleImage}];s.prepareMessages(c.id,'owner','Hi {name}',inputImages);
+  const token=c.messagePreview.token;inputImages[0].dataUrl='changed';
+  assert.equal(c.messagePreview.images[0].dataUrl,sampleImage.dataUrl);
+  const restored=new CtvService({file:s.file,browser}).get(c.id,'owner');
+  assert.equal(restored.messagePreview.images[0].dataUrl,sampleImage.dataUrl);
+  s.prepareMessages(c.id,'owner','Hi {name}',[]);
+  assert.throws(()=>s.sendApproved(c.id,'owner',token));
+  s.prepareMessages(c.id,'owner','Hi {name}',[sampleImage]);let calls=0;
+  browser.send=async(_,lead,message,reserve,cancelled,images)=>{calls++;assert.equal(images[0].dataUrl,sampleImage.dataUrl);reserve();return {state:'sent'};};
+  assert.equal(calls,0);s.sendApproved(c.id,'owner',c.messagePreview.token);await settle(s);assert.equal(calls,2);
+});
+test('invalid and oversized attachments cannot replace a valid preview',async t=>{
+  const {s}=setup(t),c=await analyzed(s);const token=prepared(s,c);
+  for(const images of [null,{},Array(6).fill(sampleImage),[{name:'x',dataUrl:'data:image/svg+xml;base64,PHN2Zz4='}],[{name:'x',dataUrl:'data:image/png;base64,YWJj'}],[{name:'x',dataUrl:'data:image/png;base64,'+Buffer.alloc(2*1024*1024+1).toString('base64')}]]){
+    assert.throws(()=>s.prepareMessages(c.id,'owner','Hello',images));assert.equal(c.messagePreview.token,token);
+  }
+});
+test('image submission failure retains reservation and blocks a second attempt',async t=>{
+  const {s,browser}=setup(t),c=await analyzed(s);prepared(s,c);s.prepareMessages(c.id,'owner','Hi',[sampleImage]);
+  browser.send=async(_,lead,message,reserve)=>{reserve();throw Error('Chưa xác nhận ảnh đã gửi');};
+  s.sendApproved(c.id,'owner',c.messagePreview.token);await settle(s);
+  assert.equal(c.state,'needs_attention');assert.equal(c.leads[0].state,'unconfirmed');assert.ok(s.data.reservations['123']);
+  s.sendApproved(c.id,'owner',c.messagePreview.token);assert.equal(s.running.size,0);
+});
 
 test('UID lookup preserves AI, invalidates approvals and runs in account queue without sending', async t => {
   const {s,browser,sent,inspected}=setup(t);
@@ -413,3 +440,4 @@ test('wholesale exclusion blocks manual selection and approved message sending',
  assert.throws(()=>s.approveAnalysis(c.id,'owner',[c.leads[0].id]));
  assert.throws(()=>s.sendApproved(c.id,'owner',token));assert.equal(sent.length,0);
 });
+

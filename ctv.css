@@ -186,3 +186,12 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 @media(max-width:1100px){.history-columns{display:none}.history-row{grid-template-columns:40px 1fr 1fr;border:1px solid var(--line);border-radius:10px;margin-bottom:12px;gap:16px}.history-row>div:not(.history-index):before{content:attr(data-label);display:block;color:var(--muted);font-size:10px;margin-bottom:6px}.history-identity{grid-column:2/-1}.history-actions{grid-column:2/-1;justify-content:flex-end}.history-actions:before{display:none!important}}
 @media(max-width:600px){.history-toolbar>div:first-child,.history-toolbar>div:nth-child(2){width:100%;flex:auto}.history-toolbar>p{margin:0}.history-row{grid-template-columns:1fr 1fr;padding:16px}.history-index{display:none}.history-identity{grid-column:1/-1}.history-actions{grid-column:auto}.history-row .badge{white-space:normal}#campaignHistory #campaigns .history-actions button{min-height:44px}.history-pagination{justify-content:space-between}}
 .customer-header-actions,.customer-create-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap}.customer-create{margin-top:20px;padding:20px;border:1px solid #bfdbfe;border-radius:12px;background:#f8fbff}.customer-create h3{margin:0}.customer-create>.muted{margin-bottom:18px}.customer-create-actions button{min-height:42px}@media(max-width:600px){.customer-header-actions{justify-content:flex-start}.customer-create{padding:15px}.customer-create-actions button{flex:1}}
+
+:root { --attachment-border: #dce6f5; }
+.message-attachments { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--attachment-border); }
+.message-attachments > button { display: block; margin: 10px 0; }
+.attachment-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+.attachment-card { margin: 0; padding: 8px; width: 144px; border: 1px solid var(--attachment-border); border-radius: 12px; background: #fff; }
+.attachment-card img { display: block; width: 100%; height: 100px; object-fit: contain; border-radius: 8px; background: #f5f8fe; }
+.attachment-card figcaption { margin: 6px 0; font-size: 12px; overflow-wrap: anywhere; }
+.attachment-card button { width: 100%; min-height: 36px; }

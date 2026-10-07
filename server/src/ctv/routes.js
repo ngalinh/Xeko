@@ -50,7 +50,7 @@ function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', pe
         return res.json(s.listCustomers(owner).filter(c => allowedProfile(c.profile)));
       }
       if (collection) {
-        if (req.method === 'GET') return res.json(s.data.campaigns.filter(c => c.owner === owner && allowedProfile(c.profile)).map(c => s.view(c)));
+        if (req.method === 'GET') return res.json(s.data.campaigns.filter(c => c.owner === owner && allowedProfile(c.profile)).map(c => s.view(c, false)));
         if (!allowedProfile(req.body.profile)) return res.status(403).json({ error: 'Không có quyền dùng tài khoản này' });
         return res.status(201).json(s.view(s.create(req.body, owner)));
       }
@@ -63,7 +63,7 @@ function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', pe
           'approve-import': () => s.approveImport(c.id, owner),
           'approve-analysis': () => s.approveAnalysis(c.id, owner, body.leadIds),
           'review-analysis': () => s.reviewAnalysis(c.id, owner),
-          'prepare-messages': () => s.prepareMessages(c.id, owner, body.template),
+          'prepare-messages': () => s.prepareMessages(c.id, owner, body.template, body.images),
           'send': () => s.sendApproved(c.id, owner, body.previewToken),
           'stop': () => s.stop(c.id, owner),
           'retry-analysis': () => s.retryAnalysis(c.id, owner),
@@ -78,3 +78,4 @@ function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', pe
   });
 }
 module.exports = { mountCtv };
+
