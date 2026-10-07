@@ -56,7 +56,15 @@ class CtvService {
     return '';
   }
   view(c, includeImageData = true) {
-    const view = { ...c, leads: c.leads.map(l => ({ ...l, selectionBlockedReason: this.selectionBlocked(l), blockedReason: this.reasonBlocked(l) })) };
+    const retryStage = !!c.approvals.send && ['needs_attention','interrupted','cancelled','completed'].includes(c.state);
+    const view = { ...c, leads: c.leads.map(l => {
+      const m = c.messagePreview?.messages.find(m => m.leadId === l.id), reservation = m && this.data.reservations[m.recipientId];
+      const retryAvailable = retryStage && c.approvals.send.token === c.messagePreview?.token && c.approvals.analysis?.leadIds.includes(l.id)
+        && ['review','failed','unconfirmed','pending','qualified'].includes(l.state) && m?.recipientId === l.assessment?.recipientId
+        && /^\d+$/.test(m?.recipientId || '') && l.assessment?.criteriaVersion === 'us-website-products-v2' && !l.assessment?.wholesaleRecruitment?.excluded
+        && (!reservation || reservation.campaignId === c.id);
+      return { ...l, retryAvailable: !!retryAvailable, retryNeedsConfirmation: !!retryAvailable && (l.state === 'unconfirmed' || !!reservation), selectionBlockedReason: this.selectionBlocked(l), blockedReason: this.reasonBlocked(l) };
+    }) };
     if (!includeImageData && c.messagePreview) view.messagePreview = { ...c.messagePreview, images: (c.messagePreview.images || []).map(({ dataUrl, ...image }) => image) };
     return view;
   }
@@ -245,23 +253,48 @@ class CtvService {
     c.approvals.send = { by: owner, at: new Date().toISOString(), token };
     c.cancelled = false; c.state = 'send_queued'; this.save(); this.enqueue(c, () => this.send(c)); return c;
   }
+  retrySend(id, owner, { leadId, previewToken, requestId, confirmedNotReceived = false } = {}) {
+    const c = this.staged(id, owner);
+    if (typeof requestId !== 'string' || !/^[a-f0-9-]{36}$/.test(requestId)) fail('Mã lượt thử lại không hợp lệ');
+    const lead = c.leads.find(l => l.id === leadId);
+    if (!lead) fail('Không tìm thấy khách trong chiến dịch');
+    if (lead.retryApproval?.requestId === requestId) return c;
+    if (!['needs_attention','interrupted','cancelled','completed'].includes(c.state)) fail('Chờ lượt gửi hiện tại kết thúc trước khi thử lại');
+    if (!c.approvals.send || c.approvals.send.token !== previewToken || c.messagePreview?.token !== previewToken) fail('Chỉ thử lại nội dung đã duyệt gửi');
+    const message = c.messagePreview.messages.find(m => m.leadId === leadId);
+    if (!message || !c.approvals.analysis?.leadIds.includes(leadId) || !['review','failed','unconfirmed','pending','qualified'].includes(lead.state)) fail('Khách này không được phép thử gửi lại');
+    if (lead.assessment?.recipientId !== message.recipientId || !/^\d+$/.test(message.recipientId) || lead.assessment.criteriaVersion !== 'us-website-products-v2' || lead.assessment.wholesaleRecruitment?.excluded) fail('Người nhận hoặc kết quả duyệt đã thay đổi');
+    const reservation = this.data.reservations[message.recipientId];
+    if (reservation && reservation.campaignId !== c.id) fail('Người nhận đã có lượt gửi trong chiến dịch khác');
+    if ((lead.state === 'unconfirmed' || reservation) && confirmedNotReceived !== true) fail('Hãy kiểm tra Messenger và xác nhận khách chưa nhận bất kỳ ảnh hay tin nhắn nào của lượt này trước khi thử lại');
+    lead.retryApproval = { requestId, by: owner, at: new Date().toISOString(), previewToken, confirmedNotReceived: confirmedNotReceived === true, reservation: reservation ? { ...reservation } : null };
+    lead.retryHistory = [...(lead.retryHistory || []), { ...lead.retryApproval, previousState: lead.state, previousError: lead.error }];
+    lead.state = 'pending'; delete lead.error;
+    c.cancelled = false; c.error = null; c.state = 'send_queued'; this.save();
+    const approval = lead.retryApproval;
+    this.enqueue(c, () => this.send(c, [message], approval));
+    return c;
+  }
   stop(id, owner) {
     const c = this.staged(id, owner);
     if (ACTIVE.includes(c.state)) { c.cancelled = true; this.save(); } return c;
   }
   async wait(c, seconds) { for (let i = 0; i < seconds && !c.cancelled; i++) await this.pause(1000); }
-  async send(c) {
+  async send(c, messages = c.messagePreview.messages, retry = null) {
     c.state = 'sending'; this.save();
-    for (const m of c.messagePreview.messages) {
+    for (const m of messages) {
       if (c.cancelled) break;
       const lead = c.leads.find(l => l.id === m.leadId);
-      if (this.data.reservations[m.recipientId]) { lead.state = 'duplicate'; this.save(); continue; }
+      const reservationAllowed = () => retry
+        ? lead.retryApproval?.requestId === retry.requestId && JSON.stringify(this.data.reservations[m.recipientId] || null) === JSON.stringify(retry.reservation)
+        : !this.data.reservations[m.recipientId];
+      if (!reservationAllowed()) { lead.state = 'duplicate'; this.save(); continue; }
       lead.message = m.message;
       try {
         const result = await this.browser.withPage(c.profile, page => this.browser.send(page, lead.assessment, m.message, () => {
           if (c.cancelled) throw new Error('Đã dừng trước khi gửi');
-          if (this.data.reservations[m.recipientId]) throw new Error('Người nhận đã có lần gửi trước');
-          this.data.reservations[m.recipientId] = { campaignId: c.id, at: new Date().toISOString() };
+          if (!reservationAllowed()) throw new Error('Người nhận đã có lần gửi trước hoặc lượt thử lại đã thay đổi');
+          this.data.reservations[m.recipientId] = { campaignId: c.id, at: new Date().toISOString(), ...(retry ? { requestId: retry.requestId } : {}) };
           lead.state = 'sending'; this.save();
         }, () => c.cancelled, c.messagePreview.images || []), { keepOnError: true });
         lead.state = result.state; lead.error = result.reason; this.save();
@@ -270,10 +303,12 @@ class CtvService {
         lead.state = lead.state === 'sending' ? 'unconfirmed' : 'review'; lead.error = e.message;
         c.state = c.cancelled && lead.state !== 'unconfirmed' ? 'cancelled' : 'needs_attention'; c.error = e.message; this.save(); return;
       }
-      if (m !== c.messagePreview.messages[c.messagePreview.messages.length - 1]) await this.wait(c, 5);
+      if (m !== messages[messages.length - 1]) await this.wait(c, 5);
     }
-    c.state = c.cancelled ? 'cancelled' : 'completed'; this.save();
+    const unfinished = c.messagePreview.messages.some(m => !['sent','duplicate'].includes(c.leads.find(l => l.id === m.leadId)?.state));
+    c.state = c.cancelled ? 'cancelled' : unfinished ? 'needs_attention' : 'completed'; this.save();
   }
 }
 module.exports = { CtvService, ACTIVE };
+
 
