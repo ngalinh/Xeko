@@ -10,8 +10,9 @@ function fixture({fullPage = false, wrongHeader = false, redirect = false, draft
   let imageAttached = false, imageSent = false;
   const conversation = {
     count: async () => 1,
-    evaluate: async (_, count) => count === undefined ? [headerWrong ? 'https://www.facebook.com/999' : target] : imageAttached,
-    locator: selector => selector.startsWith('input') ? {count:async()=>1,setInputFiles:async files=>{actions.push('attach');assert.equal(files[0].mimeType,'image/png');assert.ok(Buffer.isBuffer(files[0].buffer));if(uploadFails)throw Error('upload failed');imageAttached=true;if(wrongAfterUpload)headerWrong=true;}}
+    isVisible: async () => true,
+    evaluate: async fn => fn.name === 'conversationHeaderLinks' ? [headerWrong ? 'https://www.facebook.com/999' : target] : fn.toString().includes('setAttribute') ? undefined : (imageAttached ? 1 : 0),
+    locator: selector => selector.startsWith('[contenteditable') ? box : selector.startsWith('input') ? {count:async()=>1,setInputFiles:async files=>{actions.push('attach');assert.equal(files[0].mimeType,'image/png');assert.ok(Buffer.isBuffer(files[0].buffer));if(uploadFails)throw Error('upload failed');imageAttached=true;if(wrongAfterUpload)headerWrong=true;}}
       : selector === '[role="row"]' ? {evaluateAll:async(_,text)=>text===undefined ? (imageSent && imageReceipt ? 1 : 0) : (submitted && receipt ? 1 : 0)}
       : {count:async()=>pendingImage ? 1 : 0},
   };
@@ -27,7 +28,7 @@ function fixture({fullPage = false, wrongHeader = false, redirect = false, draft
       if (missingButton) throw Error('Message button timeout');
       return {asElement: () => ({click: async () => {actions.push('click Message'); if (fullPage) url = 'https://www.facebook.com/messages/t/123';}}), dispose: async () => {}};
     },
-    locator: selector => selector.startsWith('[contenteditable') ? box : {count: async () => 0, evaluateAll: async () => false},
+    locator: selector => selector.startsWith('[data-xeko') ? conversation : selector === '[role="dialog"], [role="main"], [role="complementary"]' ? {count:async()=>1,nth:()=>conversation} : {count: async () => 0, evaluateAll: async () => false},
   };
   return {page, actions, submit: () => actions.push('reserve')};
 }
@@ -113,4 +114,5 @@ test('composer wait allows chat dialog but waits for a separate PIN dialog', asy
   await waitForMessageComposer(page,{count:async()=>1,isVisible:async()=>true},()=>false,1000,true);
   assert.equal(waits,1);
 });
+
 
