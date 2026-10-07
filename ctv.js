@@ -473,9 +473,9 @@
   $('reviewSelection').onclick=()=>action('review-analysis');
   $('template').oninput=()=>{$('confirmSend').checked=false;updateControls();};
   $('addMessageImages').onclick = () => $('messageImages').click();
-  $('messageImages').onchange = async () => {
-    const files = [...$('messageImages').files], version = epoch;
-    if (!files.length || busy || readingImages || selected?.state !== 'message_review') return;
+  async function addImageFiles(files) {
+    const version = epoch;
+    if (!files.length || busy || uncertain || readingImages || selected?.state !== 'message_review') return;
     readingImages = true; $('confirmSend').checked = false; updateControls();
     try {
       if (draftImages.length + files.length > 5) throw new Error('Chỉ đính kèm tối đa 5 ảnh');
@@ -489,7 +489,14 @@
       draftImages = all; notice();
     } catch (error) { if (epoch === version) notice(error.message, true); }
     finally { readingImages = false; $('messageImages').value = ''; updateControls(); }
-  };
+  }
+  $('messageImages').onchange = () => addImageFiles([...$('messageImages').files]);
+  $('messageComposer').addEventListener('paste', event => {
+    const files = [...(event.clipboardData?.items || [])].filter(item => item.kind === 'file' && item.type.startsWith('image/')).map(item => item.getAsFile()).filter(Boolean);
+    if (!files.length) return;
+    event.preventDefault();
+    addImageFiles(files);
+  });
   $('prepareMessages').onclick=()=>action('prepare-messages',{template:$('template').value,images:draftImages});
   $('confirmSend').onchange=updateControls;
   $('sendButton').onclick=()=>{if(!$('sendButton').disabled)action('send',{previewToken:selected.messagePreview.token});};
@@ -534,4 +541,5 @@
     updateControls();
   })();
 })();
+
 

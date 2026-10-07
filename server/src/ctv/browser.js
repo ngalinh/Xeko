@@ -3,6 +3,48 @@ const { validProfileKey, profileUrl, recipientId, isSalesPost } = require('./rul
 const { evaluateProfile } = require('./ai');
 const { resolveCurrentProfileUid } = require('./uid');
 const { imagePayloads } = require('./attachments');
+const { randomUUID } = require('crypto');
+const { withClipboard } = require('../utils/clipboard-queue');
+const COMPOSER = '[contenteditable="true"][role="textbox"][aria-label="Message"]:visible, [contenteditable="true"][role="textbox"][aria-label="Tin nhắn"]:visible';
+const CHAT_ROOT = '[role="dialog"], [role="main"], [role="complementary"]';
+
+// Only the header of the composer's nearest chat container can identify it.
+function conversationHeaderLinks(root) {
+  const boxes = [...root.querySelectorAll('[contenteditable="true"][role="textbox"][aria-label="Message"], [contenteditable="true"][role="textbox"][aria-label="Tin nhắn"]')]
+    .filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden'
+      && e.closest('[role="dialog"], [role="main"], [role="complementary"]') === root);
+  if (boxes.length !== 1) return [];
+  const floating = root.getAttribute('role') !== 'main';
+  return [...root.querySelectorAll(floating ? 'a[href]' : '[role="banner"] a[href], h1 a[href], h2 a[href], [role="heading"] a[href]')]
+    .filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden'
+      && !e.closest('[role="log"], [role="row"], [role="grid"], [role="article"], article')
+      && e.closest('[role="dialog"], [role="main"], [role="complementary"]') === root)
+    .map(e => e.href);
+}
+function matchesRecipient(link, id, target) {
+  try { const uid = recipientId(link); return uid ? uid === id : profileUrl(link) === target; } catch { return false; }
+}
+async function selectRecipientConversation(page, id, target, cancelled) {
+  for (let attempt = 0; attempt < 30; attempt++) {
+    if (cancelled()) throw new Error('Đã dừng trước khi gửi');
+    const roots = page.locator(CHAT_ROOT), matches = [];
+    for (let i = 0, n = await roots.count(); i < n; i++) {
+      const root = roots.nth(i);
+      if (!await root.isVisible()) continue;
+      const links = await root.evaluate(conversationHeaderLinks);
+      if (links.some(link => matchesRecipient(link, id, target))) matches.push(root);
+    }
+    if (matches.length > 1) throw new Error('Có nhiều khung chat cùng người nhận; chưa gửi tin');
+    if (matches.length === 1) {
+      // Pin this DOM container; inserting/reordering another popup cannot retarget it.
+      const token = randomUUID();
+      await matches[0].evaluate((root, value) => root.setAttribute('data-xeko-recipient-chat', value), token);
+      return page.locator(`[data-xeko-recipient-chat="${token}"]`);
+    }
+    await page.waitForTimeout(1000);
+  }
+  throw new Error('Không xác minh được hồ sơ ở tiêu đề hội thoại của người nhận; chưa gửi tin');
+}
 
 async function assertSession(page) {
   if (page.isClosed?.()) throw new Error('Tab Facebook đã đóng trước khi quét bài viết; hãy mở lại tài khoản và bấm Thử lại AI');
@@ -355,13 +397,14 @@ function profileMessageButton() {
   return buttons.length === 1 ? buttons[0] : false;
 }
 
-async function prepareImages(page, conversation, images, verify) {
+async function prepareImages(page, conversation, images, verify, box) {
   const payloads = imagePayloads(images);
   if (!payloads.length) return;
   const removeSelector = '[role="button"][aria-label="Remove attachment"], [role="button"][aria-label="Remove photo"], [role="button"][aria-label="Remove image"], [role="button"][aria-label="Xóa ảnh"], button[aria-label="Remove attachment"], button[aria-label="Remove photo"]';
   if (await conversation.locator(removeSelector).count()) throw new Error('Hội thoại có ảnh đang soạn; cần xử lý thủ công');
   const input = conversation.locator('input[type="file"][accept*="image"]');
-  if (await input.count() !== 1) throw new Error('Không xác định được duy nhất ô đính kèm ảnh trong hội thoại');
+  const inputCount = await input.count();
+  if (inputCount > 1) throw new Error('Không xác định được duy nhất ô đính kèm ảnh trong hội thoại');
   const confirmedImages = () => conversation.locator('[role="row"]').evaluateAll(rows => {
     const photos = new Set();
     for (const row of rows) {
@@ -375,13 +418,56 @@ async function prepareImages(page, conversation, images, verify) {
     return photos.size;
   });
   const before = await confirmedImages();
-  await verify();
-  await input.setInputFiles(payloads);
-  // Wait for loaded composer thumbnails, outside message history.
-  const composerReady = () => conversation.evaluate((root, count) => [...root.querySelectorAll('img')].filter(img => {
+  const previewCount = () => conversation.evaluate(root => [...root.querySelectorAll('img')].filter(img => {
     const r = img.getBoundingClientRect();
-    return !img.closest('[role="row"], [role="log"]') && /^(blob:|data:image\/)/.test(img.currentSrc || img.src) && img.complete && img.naturalWidth > 0 && r.width >= 40 && r.height >= 40;
-  }).length === count, payloads.length);
+    return !img.closest('[role="row"], [role="log"], a[href], [role="banner"], h1, h2, [role="heading"]')
+      && img.complete && img.naturalWidth > 0 && r.width >= 40 && r.height >= 40;
+  }).length);
+  if (await previewCount()) throw new Error('Hội thoại có ảnh đang soạn; cần xử lý thủ công');
+  await verify();
+  if (inputCount === 1) {
+    await input.setInputFiles(payloads);
+  } else {
+    const attach = conversation.getByRole('button', { name: /^(Attach a photo or video|Attach photos and videos|Add photos and videos|Đính kèm ảnh hoặc video|Thêm ảnh và video)$/i });
+    if (await attach.count() > 1) throw new Error('Có nhiều nút đính kèm trong hội thoại; chưa gửi tin');
+    if (await attach.count() === 1) {
+      const chooserPromise = page.waitForEvent('filechooser', { timeout: 8000 }).catch(() => null);
+      await verify();
+      await attach.click();
+      const chooser = await chooserPromise;
+      if (!chooser) throw new Error('Không mở được bộ chọn ảnh; chưa gửi tin nhắn');
+      await verify();
+      await chooser.setFiles(payloads);
+    } else {
+      // A trusted paste for Messenger layouts that expose no file input/button.
+      // Lock write+paste because browser contexts share the system clipboard.
+      for (let i = 0; i < images.length; i++) await withClipboard(async () => {
+        await verify();
+        await page.bringToFront();
+        await box.focus();
+        await page.evaluate(async dataUrl => {
+          const source = await (await fetch(dataUrl)).blob();
+          const bitmap = await createImageBitmap(source);
+          const canvas = document.createElement('canvas'); canvas.width = bitmap.width; canvas.height = bitmap.height;
+          canvas.getContext('2d').drawImage(bitmap, 0, 0); bitmap.close();
+          const png = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+          if (!png) throw new Error('Không chuyển được ảnh để dán');
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+        }, images[i].dataUrl);
+        await verify();
+        await box.press(process.platform === 'darwin' ? 'Meta+V' : 'Control+V');
+        let pasted = false;
+        for (let attempt = 0; attempt < 30; attempt++) {
+          await verify();
+          if (await previewCount() === i + 1) { pasted = true; break; }
+          await page.waitForTimeout(200);
+        }
+        if (!pasted) throw new Error('Messenger chưa hiển thị ảnh vừa dán; chưa gửi tin nhắn');
+      });
+    }
+  }
+  // Wait for loaded composer thumbnails, outside message history.
+  const composerReady = async () => await previewCount() === payloads.length;
   let ready = false;
   for (let i = 0; i < 30; i++) {
     await verify();
@@ -412,10 +498,10 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
     if (profileUrl(page.url()) !== target && recipientId(page.url()) !== id) throw new Error('Facebook chuyển sang hồ sơ khác; đã dừng');
     await button.asElement().click({ timeout: 10000 });
   } finally { if (button) await button.dispose(); }
-  const box = page.locator('[contenteditable="true"][role="textbox"][aria-label="Message"]:visible, [contenteditable="true"][role="textbox"][aria-label="Tin nhắn"]:visible');
+  const conversation = await selectRecipientConversation(page, id, target, cancelled);
+  const box = conversation.locator(COMPOSER);
   await waitForMessageComposer(page, box, cancelled, 300000, true);
   if (await box.count() !== 1) throw new Error('Không xác định được duy nhất ô soạn của hội thoại');
-  const conversation = box.locator('xpath=ancestor::*[@role="dialog" or @role="main" or @role="complementary"][1]');
   const verify = async () => {
     check();
     const u = new URL(page.url());
@@ -425,19 +511,14 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
     } else if (profileUrl(page.url()) !== target && recipientId(page.url()) !== id) throw new Error('Facebook chuyển sang hồ sơ khác; đã dừng');
     if (await box.count() !== 1 || await conversation.count() !== 1) throw new Error('Không xác định được duy nhất hội thoại');
     // Require a profile link in the conversation header, excluding message history.
-    const links = await conversation.evaluate(root => {
-      const floating = root.getAttribute('role') !== 'main';
-      return [...root.querySelectorAll(floating ? 'a[href]' : '[role="banner"] a[href], h1 a[href], h2 a[href], [role="heading"] a[href]')]
-        .filter(e => e.getClientRects().length && !e.closest('[role="log"], [role="row"], [role="grid"], [role="article"], article'))
-        .map(e => e.href);
-    });
-    if (!links.some(link => { try { const uid = recipientId(link); return uid ? uid === id : profileUrl(link) === target; } catch { return false; } })) throw new Error('Không xác minh được hồ sơ ở tiêu đề hội thoại; đã dừng');
+    const links = await conversation.evaluate(conversationHeaderLinks);
+    if (!links.some(link => matchesRecipient(link, id, target))) throw new Error('Không xác minh được hồ sơ ở tiêu đề hội thoại; đã dừng');
   };
   await verify();
   if ((await box.innerText()).trim()) throw new Error('Hội thoại có bản nháp đang soạn; cần xử lý thủ công');
   let media;
   if (images.length) {
-    media = await prepareImages(page, conversation, images, verify);
+    media = await prepareImages(page, conversation, images, verify, box);
     await waitForMessageComposer(page, box, cancelled, 300000, true);
     await verify();
     if ((await box.innerText()).trim()) throw new Error('Ô soạn có bản nháp sau đính kèm ảnh; chưa gửi tin nhắn');
@@ -507,4 +588,5 @@ function createBrowserAdapter(playwright = require('../playwright/post')) {
   };
 }
 module.exports = { profileMessageButton, waitForMessageComposer, createBrowserAdapter, inspect, send, resolveUid, readProfileSnapshot, collectProfilePosts, readPostMedia, scrollProfileFeed };
+
 
