@@ -5,12 +5,14 @@ const { resolveCurrentProfileUid } = require('./uid');
 const { imagePayloads } = require('./attachments');
 const { randomUUID } = require('crypto');
 const { withClipboard } = require('../utils/clipboard-queue');
-const COMPOSER = '[contenteditable="true"][role="textbox"][aria-label="Message"]:visible, [contenteditable="true"][role="textbox"][aria-label="Tin nhắn"]:visible';
+// Messenger's Lexical composer label varies with recipient and language
+// (e.g. "Write to Linh Thảo US"). This selector is used only inside a verified chat.
+const COMPOSER = '[contenteditable="true"][role="textbox"]:visible';
 const CHAT_ROOT = '[role="dialog"], [role="main"], [role="complementary"]';
 
 // Only the header of the composer's nearest chat container can identify it.
 function conversationHeaderLinks(root) {
-  const boxes = [...root.querySelectorAll('[contenteditable="true"][role="textbox"][aria-label="Message"], [contenteditable="true"][role="textbox"][aria-label="Tin nhắn"]')]
+  const boxes = [...root.querySelectorAll('[contenteditable="true"][role="textbox"]')]
     .filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden'
       && e.closest('[role="dialog"], [role="main"], [role="complementary"]') === root);
   if (boxes.length !== 1) return [];
@@ -379,9 +381,15 @@ async function waitForMessageComposer(page, box, cancelled, timeoutMs = 300000, 
     const authPage = /\/(login|checkpoint|challenge|two_step_verification)(?:[/?]|$)/i.test(new URL(page.url()).pathname);
     const blockers = page.locator('input[type="password"]:visible, [role="dialog"]:visible, [aria-modal="true"]:visible');
     const blocked = authPage || (allowChatDialog
-      ? await blockers.evaluateAll(elements => elements.some(e => e.matches('input') || !e.querySelector('[contenteditable="true"][role="textbox"][aria-label="Message"], [contenteditable="true"][role="textbox"][aria-label="Tin nhắn"]')))
+      ? await blockers.evaluateAll(elements => elements.some(e => e.matches('input') || !e.querySelector('[contenteditable="true"][role="textbox"]')))
       : await blockers.count() > 0);
-    if (!blocked && await box.count() === 1 && await box.isVisible()) return;
+    if (!blocked && await box.count() === 1 && await box.isVisible()) {
+      const before = await box.getAttribute('aria-label');
+      await page.waitForTimeout(600);
+      if (cancelled()) throw new Error('Đã dừng trước khi gửi');
+      if (await box.count() === 1 && await box.isVisible() && await box.isEditable()
+        && await box.getAttribute('aria-label') === before) return;
+    }
     if (Date.now() >= deadline) throw new Error('Đã chờ 5 phút nhưng Messenger chưa sẵn sàng. Hãy hoàn tất mật khẩu/PIN hoặc xác minh trong tab Facebook đang được giữ mở. Chưa gửi tin.');
     await page.waitForTimeout(1000);
   }
@@ -588,5 +596,6 @@ function createBrowserAdapter(playwright = require('../playwright/post')) {
   };
 }
 module.exports = { profileMessageButton, waitForMessageComposer, createBrowserAdapter, inspect, send, resolveUid, readProfileSnapshot, collectProfilePosts, readPostMedia, scrollProfileFeed };
+
 
 

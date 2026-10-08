@@ -32,7 +32,7 @@ for (const options of cases) test('recipient stays pinned with another popup: ' 
       document.querySelector('#open').onclick = () => {
         const chat = options.fullPage ? document.querySelector('main') : document.createElement('section');
         chat.id = 'target'; chat.setAttribute('role', options.fullPage ? 'main' : 'dialog');
-        chat.innerHTML = '<h2><a href="https://www.facebook.com/customer">Khách</a></h2><div id="history" role="log"></div><div id="photos"></div><div contenteditable="true" role="textbox" aria-label="Message"></div>';
+        chat.innerHTML = '<h2><a href="https://www.facebook.com/customer">Khách</a></h2><div id="history" role="log"></div><div id="photos"></div><div contenteditable="true" data-lexical-editor="true" role="textbox" aria-placeholder="Aa" aria-label="Nhắn tin cho Khách"></div>';
         if (!options.fullPage) document.body.append(chat);
         const box = chat.querySelector('[contenteditable]'); let photos = [];
         function addPhoto(blob) {
@@ -84,3 +84,4 @@ for (const options of cases) test('recipient stays pinned with another popup: ' 
     assert.equal(await page.locator('#target [role="row"] img').count(), 1);
   } finally { await browser.close(); }
 });
+

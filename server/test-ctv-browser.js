@@ -400,14 +400,14 @@ function unlockFixture() {
     locator: () => ({count: async () => blocked ? 1 : 0}),
     waitForTimeout: async () => { waits++; blocked = false; },
   };
-  const box = {count: async () => 1, isVisible: async () => true};
+  const box = {count: async () => 1, isVisible: async () => true, getAttribute: async () => 'Write to Khách', isEditable: async () => true};
   return {page, box, waits: () => waits};
 }
 test('sending waits for unlock even when composer is visible behind dialog', async () => {
   const {waitForMessageComposer} = require('./src/ctv/browser');
   const f = unlockFixture();
   await waitForMessageComposer(f.page, f.box, () => false);
-  assert.equal(f.waits(), 1);
+  assert.equal(f.waits(), 2);
 });
 test('unlock wait supports stop, closed page and actionable timeout', async () => {
   const {waitForMessageComposer} = require('./src/ctv/browser');
@@ -473,3 +473,4 @@ test('header timeout does not scan a feed redirected to another profile', async 
   await assert.rejects(inspect(mock.page, 'https://facebook.com/123'), /hồ sơ khác/);
   assert.equal(mock.scrolls(), 0);
 });
+
