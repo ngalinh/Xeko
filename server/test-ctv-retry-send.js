@@ -66,6 +66,8 @@ test('stopping queued retry and restarting cannot automatically resend',async t=
 });
 test('retrying one lead does not mark a campaign complete when another approved lead remains',async t=>{
   const {s,c,request,sent}=setup(t);c.leads[1].state='qualified';delete s.data.reservations['456'];
+  // This scenario needs a never-sent second lead, including its durable snapshot.
+  delete s.data.customers[`${c.id}:${c.leads[1].id}`];
   s.retrySend(c.id,'owner',request());await settle(s);
   assert.equal(sent.length,1);assert.equal(c.state,'needs_attention');assert.equal(s.view(c).leads[1].retryAvailable,true);
 });

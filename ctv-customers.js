@@ -6,17 +6,19 @@
   const pageSize = 25;
   const chosen = new Map();
   const keyOf = r => JSON.stringify([r.profile, r.url]);
+  const canSelect = r => !r.sendBlocked && !r.sent && !['sent', 'sending', 'unconfirmed'].includes(r.state);
   let visible = [];
   function updateSelection() {
+    for (const [key, row] of chosen) if (!canSelect(row)) chosen.delete(key);
     const rows = [...chosen.values()], profiles = new Set(rows.map(r => r.profile));
     $('customerSelectionCount').textContent = `${rows.length} khách đã chọn (kể cả ngoài trang/bộ lọc hiện tại).`;
     $('customerSelectionStatus').textContent = profiles.size > 1 ? 'Mỗi chiến dịch dùng một tài khoản gửi. Hãy bỏ chọn khách thuộc tài khoản khác.' : rows.length > 100 ? 'Mỗi chiến dịch tối đa 100 khách. Hãy giảm số khách đã chọn.' : '';
     $('useCustomers').disabled = loading || !rows.length || profiles.size !== 1 || rows.length > 100;
     $('clearCustomerSelection').disabled = !rows.length;
-    const count = visible.filter(r => chosen.has(keyOf(r))).length;
-    $('selectCustomerPage').checked = visible.length > 0 && count === visible.length;
-    $('selectCustomerPage').indeterminate = count > 0 && count < visible.length;
-    $('selectCustomerPage').disabled = !visible.length;
+    const selectable = visible.filter(canSelect), count = selectable.filter(r => chosen.has(keyOf(r))).length;
+    $('selectCustomerPage').checked = selectable.length > 0 && count === selectable.length;
+    $('selectCustomerPage').indeterminate = count > 0 && count < selectable.length;
+    $('selectCustomerPage').disabled = !selectable.length;
   }
   let saving = false, accountsReady = false;
   const updateSave = () => { $('saveCustomer').disabled = saving || loading || !accountsReady; };
@@ -29,7 +31,7 @@
     const status = $('customerStatus').value, account = $('customerAccount').value;
     const filtered = records.filter(r => (account === 'all' || r.profile === account)
       && (!query || [r.url, r.assessment?.name || r.name, r.assessment?.recipientId || r.uid].some(v => String(v || '').toLocaleLowerCase('vi-VN').includes(query)))
-      && (status === 'all' || status === 'sent' && r.sent || status === 'assessed' && r.assessment
+      && (status === 'all' || status === 'available' && canSelect(r) || status === 'contacted' && !canSelect(r) || status === 'sent' && r.sent || status === 'assessed' && r.assessment
         || status === 'manual' && r.manual || status === 'imported' && !r.assessment && !r.sent || status === 'attention' && attention(r)));
     page = Math.min(page, Math.max(0, Math.ceil(filtered.length / pageSize) - 1));
     $('customerRecords').replaceChildren();
@@ -41,11 +43,12 @@
       const states = el('div');
       states.append(el('span', r.sent ? 'Đã gửi tin nhắn' : r.state === 'unconfirmed' ? 'Chưa xác nhận gửi' : r.assessment ? 'Đã đánh giá AI' : r.manual ? 'Thêm thủ công' : 'Đã nhập', 'badge'));
       if (attention(r)) states.append(el('p', 'Cần kiểm tra', 'muted'));
+      if (!canSelect(r)) states.append(el('p', 'Đã có lịch sử gửi / chưa xác nhận. Không chọn gửi lại.', 'muted'));
       const gender=r.assessment?.selfDeclaredGender;
       const choose = el('label', null, 'check-label'), checkbox = el('input');
-      checkbox.type = 'checkbox'; checkbox.checked = chosen.has(keyOf(r));
+      checkbox.type = 'checkbox'; checkbox.disabled = !canSelect(r); checkbox.checked = canSelect(r) && chosen.has(keyOf(r));
       checkbox.setAttribute('aria-label', `Chọn ${r.assessment?.name || r.name || r.url} · ${r.profile}`);
-      checkbox.onchange = () => { if (checkbox.checked) chosen.set(keyOf(r), r); else chosen.delete(keyOf(r)); updateSelection(); };
+      checkbox.onchange = () => { if (checkbox.checked && canSelect(r)) chosen.set(keyOf(r), r); else chosen.delete(keyOf(r)); updateSelection(); };
       choose.append(checkbox, String(page * pageSize + index + 1));
       grid.append(field('Chọn', choose), field('Khách hàng', identity), field('UID', String(r.assessment?.recipientId || r.uid || 'Chưa xác định')), field('Giới tính', gender?.status === 'self_declared' && gender.value || 'Chưa xác định'), field('Tài khoản gửi', r.profile), field('Trạng thái', states));
       const details = el('details'); details.append(el('summary', 'Thông tin đã lưu & chiến dịch'));
@@ -79,7 +82,7 @@
       const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Không tải được dữ liệu');
       records = data; loaded = true;
       const fresh = new Map(records.map(r => [keyOf(r), r]));
-      for (const key of chosen.keys()) { if (fresh.has(key)) chosen.set(key, fresh.get(key)); else chosen.delete(key); }
+      for (const key of chosen.keys()) { if (fresh.has(key) && canSelect(fresh.get(key))) chosen.set(key, fresh.get(key)); else chosen.delete(key); }
       const selected = $('customerAccount').value;
       $('customerAccount').replaceChildren(new Option('Tất cả tài khoản', 'all'), ...[...new Set(records.map(r => r.profile))].sort().map(p => new Option(p, p)));
       $('customerAccount').value = [...$('customerAccount').options].some(o => o.value === selected) ? selected : 'all';
@@ -126,7 +129,7 @@
   $('closeCustomers').onclick = () => { document.dispatchEvent(new CustomEvent('ctv:view', { detail: 'workflow' })); $('toggleCustomers').focus(); };
   $('refreshCustomers').onclick = load;
   $('selectCustomerPage').onchange = () => {
-    for (const r of visible) { if ($('selectCustomerPage').checked) chosen.set(keyOf(r), r); else chosen.delete(keyOf(r)); }
+    for (const r of visible) { if ($('selectCustomerPage').checked && canSelect(r)) chosen.set(keyOf(r), r); else chosen.delete(keyOf(r)); }
     render();
   };
   $('clearCustomerSelection').onclick = () => { chosen.clear(); render(); };

@@ -343,10 +343,11 @@
     const a = c.approvals || {}, modern = c.workflowVersion === 2;
     if (!modern) notice('Chiến dịch phiên bản cũ chỉ được xem. Tạo chiến dịch mới để dùng quy trình 3 bước có duyệt.',true);
     show('importForm',false);show('importResult',true);
-    stats('importStats',[['Link hợp lệ',c.leads.length,'good'],['Link trùng đã gộp',c.duplicateCount || 0],['Link bị loại',c.rejected?.length || 0,'warn']]);
+    stats('importStats',[['Khách mới hợp lệ',c.leads.length,'good'],['Khách trùng đã gộp',c.duplicateCount || 0],['Đã có lịch sử gửi',c.previouslyContacted?.length || 0,'warn'],['Link bị loại',c.rejected?.length || 0,'warn']]);
     $('importContext').textContent = `${c.name || 'Chiến dịch gửi tin nhắn hàng loạt'} · ${accountName(c.profile)} · Danh sách đã lưu cố định cho chiến dịch này.`;
     $('importList').replaceChildren(...c.leads.map(l => { const li=element('li');li.append(link(l.url,customerLabel(l.url)));return li;}));
     $('rejectedList').replaceChildren(...(c.rejected || []).map(r => element('p',`${r.value} — ${r.reason}`,'warning')));
+    $('rejectedList').append(...(c.previouslyContacted || []).map(url => element('p', `${url} — Đã có lịch sử gửi hoặc chưa xác nhận kết quả; tự động loại khỏi chiến dịch.`, 'warning')));
     if (reset) $('importDetails').open = c.state === 'import_review';
     $('importApproval').textContent = approvalText(a.import,'Chỉ các link hợp lệ bên trên sẽ được chuyển sang AI.');
     show('approveImport',modern && c.state === 'import_review');

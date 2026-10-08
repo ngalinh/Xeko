@@ -22,8 +22,9 @@ test('customer information survives retry clearing, campaign deletion and restar
   assert.equal(restored.listCustomers('owner')[0].assessment.recipientId, '123');
 });
 test('groups repeat imports by URL and account, isolates owners and preserves sent fact', t => {
-  const s = setup(t), first = create(s); first.leads[0].state = 'sent'; s.save();
+  const s = setup(t), first = create(s);
   create(s); create(s, 'owner', 'other'); create(s, 'someone-else');
+  first.leads[0].state = 'sent'; s.save();
   const rows = s.listCustomers('owner');
   assert.equal(rows.length, 2);
   const row = rows.find(r => r.profile === 'account');
