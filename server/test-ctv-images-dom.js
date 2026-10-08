@@ -11,7 +11,7 @@ for(const receipt of [true,false])test('Messenger DOM attach, fill caption and s
    window.actions=[];
    document.querySelector('#open').onclick=()=>{
     const dialog=document.createElement('section');dialog.setAttribute('role','dialog');
-    dialog.innerHTML='<a href="https://www.facebook.com/customer">Khách</a><div id="history" role="log"></div><div id="photos"></div><input type="file" accept="image/*" multiple><div contenteditable="true" role="textbox" aria-label="Message"></div>';
+    dialog.innerHTML='<a href="https://www.facebook.com/customer">Khách</a><div id="history" role="log"></div><div id="photos"></div><input type="file" accept="image/*" multiple><div data-lexical-editor="true" contenteditable="true" role="textbox" aria-label="Write to Khách" aria-placeholder="Aa"></div>';
     document.body.append(dialog);const box=dialog.querySelector('[contenteditable]');let photos=[];
     dialog.querySelector('input').onchange=e=>{window.actions.push('attach');photos=[...e.target.files].map(file=>{const img=new Image();img.src=URL.createObjectURL(file);img.style='width:120px;height:120px';dialog.querySelector('#photos').append(img);return img;});};
     box.oninput=()=>{if(box.innerText)window.actions.push('text filled');};
@@ -30,3 +30,4 @@ for(const receipt of [true,false])test('Messenger DOM attach, fill caption and s
   assert.equal(reserved,1);
  }finally{await browser.close();}
 });
+

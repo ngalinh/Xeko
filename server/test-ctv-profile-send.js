@@ -17,6 +17,7 @@ function fixture({fullPage = false, wrongHeader = false, redirect = false, draft
       : {count:async()=>pendingImage ? 1 : 0},
   };
   const box = {count: async () => 1, isVisible: async () => true, locator: () => conversation,
+    getAttribute: async () => 'Write to Khách', isEditable: async () => true,
     innerText: async () => text, fill: async value => {actions.push('fill'); text = value; if (changeAfterFill) headerWrong = true; if (loseImageAfterFill) imageAttached = false;},
     press: async key => {actions.push(key); submitted = true; if(imageAttached){imageSent=true;actions.push('image sent');}},
   };
@@ -111,8 +112,22 @@ test('composer wait allows chat dialog but waits for a separate PIN dialog', asy
   const chat = {matches:()=>false,querySelector:()=>({})};
   const pin = {matches:()=>false,querySelector:()=>null};
   const page = {isClosed:()=>false,url:()=>target,locator:()=>({evaluateAll:async fn=>fn(locked ? [chat,pin] : [chat])}),waitForTimeout:async()=>{waits++;locked=false;}};
-  await waitForMessageComposer(page,{count:async()=>1,isVisible:async()=>true},()=>false,1000,true);
-  assert.equal(waits,1);
+  await waitForMessageComposer(page,{count:async()=>1,isVisible:async()=>true,getAttribute:async()=> 'Write to Khách',isEditable:async()=>true},()=>false,1000,true);
+  assert.equal(waits,2);
 });
+test('Lexical composer waits for a stable recipient label and editable state',async()=>{
+  let phase=0;
+  const page={isClosed:()=>false,url:()=>target,locator:()=>({evaluateAll:async()=>false}),waitForTimeout:async()=>{phase++;}};
+  const box={count:async()=>1,isVisible:async()=>true,isEditable:async()=>phase>=2,getAttribute:async()=>phase===0?'Write to previous customer':'Write to Khách'};
+  await waitForMessageComposer(page,box,()=>false,1000,true);
+  assert.equal(phase,3);
+});
+test('stop during composer stabilization cannot proceed to attachment or text',async()=>{
+  let stopped=false;
+  const page={isClosed:()=>false,url:()=>target,locator:()=>({evaluateAll:async()=>false}),waitForTimeout:async()=>{stopped=true;}};
+  const box={count:async()=>1,isVisible:async()=>true,isEditable:async()=>true,getAttribute:async()=> 'Write to Khách'};
+  await assert.rejects(waitForMessageComposer(page,box,()=>stopped,1000,true),/Đã dừng/);
+});
+
 
 
