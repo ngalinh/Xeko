@@ -38,6 +38,25 @@
   Object.assign(labels, {uid_queued:'Chờ tìm UID',resolving_uid:'Đang tìm UID'});
   let selected = null, epoch = 0, timer = null, busy = false, uncertain = false, retries = 0;
   let picks = new Set(), accounts = [], campaigns = [];
+  let draftImages = [], readingImages = false;
+  const imageSignature = images => JSON.stringify((images || []).map(image => [image.name, image.dataUrl]));
+  function imageGallery(images, removable = false) {
+    const gallery = element('div', undefined, 'attachment-grid');
+    images.forEach((image, index) => {
+      const card = element('figure', undefined, 'attachment-card'), img = element('img');
+      img.src = image.dataUrl; img.alt = image.name;
+      card.append(img, element('figcaption', image.name));
+      if (removable) {
+        const remove = element('button', 'Xóa ảnh', 'secondary'); remove.type = 'button';
+        remove.disabled = busy || readingImages || uncertain || selected?.state !== 'message_review';
+        remove.setAttribute('aria-label', `Xóa ảnh ${image.name}`);
+        remove.onclick = () => { draftImages.splice(index, 1); $('confirmSend').checked = false; updateControls(); };
+        card.append(remove);
+      }
+      gallery.append(card);
+    });
+    return gallery;
+  }
   const show = (id, visible) => { $(id).hidden = !visible; };
   let viewedStep = 1;
   function viewStep(n) {
@@ -152,6 +171,12 @@
     return 'Lượt gửi đã dừng ở khách này. Mở Messenger để kiểm tra; thông tin kỹ thuật nằm bên dưới.';
   }
   const openSendDetails = new Set();
+  function retryRequestId() {
+    if (window.crypto.randomUUID) return window.crypto.randomUUID();
+    const bytes=window.crypto.getRandomValues(new Uint8Array(16));bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
+    const hex=[...bytes].map(b=>b.toString(16).padStart(2,'0')).join('');
+    return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+  }
   function renderSendRows(c) {
     const approved = c.approvals?.analysis?.leadIds || [];
     const leads = c.leads.filter(l => approved.includes(l.id));
@@ -174,6 +199,16 @@
       const actions = element('div',undefined,'send-row-actions');
       if (/^\d+$/.test(l.assessment?.recipientId || '')) actions.append(link(`https://www.facebook.com/messages/t/${l.assessment.recipientId}`,'Mở Messenger ↗'));
       actions.append(link(l.url,'Xem hồ sơ ↗')); info.append(actions);
+      if (l.retryAvailable) {
+        const retry = element('button',category === 'attention' ? '↻ Thử gửi lại' : 'Gửi khách này','secondary');
+        retry.type='button';retry.dataset.retryLead=l.id;retry.disabled=busy || uncertain || ACTIVE.includes(c.state);
+        retry.onclick=()=>{
+          if(retry.disabled || selected?.id!==c.id)return;
+          if(l.retryNeedsConfirmation && !window.confirm('Bạn đã kiểm tra Messenger và xác nhận khách chưa nhận bất kỳ ảnh hay tin nhắn nào của lượt gửi này? Thử lại sẽ gửi toàn bộ ảnh và nội dung đã duyệt.'))return;
+          action('retry-send',{leadId:l.id,previewToken:c.messagePreview.token,requestId:retryRequestId(),confirmedNotReceived:!!l.retryNeedsConfirmation});
+        };
+        actions.append(retry);
+      }
       if (l.error) {
         const details = element('details',undefined,'send-diagnostic');
         const key = `${c.id}:${l.id}`;
@@ -196,11 +231,12 @@
     $('sendCampaignError').textContent = cleanDiagnostic(c.error);
     $('sendSummaryText').textContent = active ? 'Trạng thái tự cập nhật. Bạn có thể dừng các tin tiếp theo.' : attention ? `${attention} khách cần kiểm tra. ${pending ? `${pending} khách chưa được gửi. ` : ''}Xem hướng dẫn tại từng khách bên dưới.` : c.error ? 'Không thể hoàn tất lượt gửi. Kiểm tra tài khoản Facebook và trạng thái các khách bên dưới.' : `${sent}/${leads.length} tin được xác nhận đã gửi.${pending ? ` Còn ${pending} khách chưa gửi.` : ''}`;
     stats('sendStats',[['Đã gửi',sent,'good'],[active?'Chờ / đang gửi':'Chưa gửi',pending],['Cần kiểm tra',attention,attention?'warn':''],['Tổng đã duyệt',leads.length]]);
-    $('sendNote').textContent = 'Tin chưa xác nhận không được tự gửi lại. Nội dung đã duyệt được lưu bên dưới.';
+    $('sendNote').textContent = 'Bạn có thể thử lại từng khách. Với lượt chưa rõ kết quả, hãy kiểm tra Messenger trước để tránh gửi trùng. Nội dung đã duyệt được lưu bên dưới.';
     renderSendRows(c);
   }
   function updateControls() {
     const c = selected, unlocked = !busy && !uncertain, modern = c?.workflowVersion === 2;
+    for(const button of $('sendRows').querySelectorAll('button[data-retry-lead]'))button.disabled=!unlocked || ACTIVE.includes(c?.state);
     for (const id of ['campaignName','profile','urls','file']) $(id).disabled = !!c || busy;
     $('importButton').disabled = !!c || busy || !accounts.length;
     $('newCampaign').disabled = busy;
@@ -220,9 +256,12 @@
     for (const button of $('analysisRows').querySelectorAll('button')) button.disabled = !unlocked || !modern || c.state !== 'analysis_review';
     const editing = modern && c.state === 'message_review';
     $('template').disabled = !editing || !unlocked;
-    $('prepareMessages').disabled = !editing || !unlocked || !$('template').value.trim();
+    $('messageImages').disabled = !editing || !unlocked || readingImages;
+    $('addMessageImages').disabled = $('messageImages').disabled;
+    $('imagePreviews').replaceChildren(imageGallery(draftImages, true));
+    $('prepareMessages').disabled = !editing || !unlocked || readingImages || !$('template').value.trim();
     $('reviewSelection').disabled = !editing || !unlocked;
-    const fresh = editing && c.messagePreview && $('template').value.trim() === c.template;
+    const fresh = editing && !readingImages && c.messagePreview && $('template').value.trim() === c.template && imageSignature(draftImages) === imageSignature(c.messagePreview.images);
     $('confirmSend').disabled = !fresh || !unlocked;
     $('sendButton').disabled = !fresh || !unlocked || !$('confirmSend').checked;
     $('sendButton').textContent = `Duyệt & gửi ${c?.messagePreview?.messages.length || 0} tin nhắn`;
@@ -291,6 +330,7 @@
   $('historyPrevious').onclick=()=>{historyPage--;renderHistory();};
   $('historyNext').onclick=()=>{historyPage++;renderHistory();};
   function render(c, reset = false) {
+    if (reset || selected?.id !== c.id) { draftImages = (c.messagePreview?.images || []).map(image => ({ ...image })); $('messageImages').value = ''; }
     if (reset || selected?.id !== c.id) { $('analysisSearch').value=''; $('analysisFilter').value='all'; }
     if (selected?.id !== c.id || selected?.messagePreview?.token !== c.messagePreview?.token) $('confirmSend').checked = false;
     selected = c;
@@ -392,7 +432,7 @@
     if (reset || $('messageArchive').dataset.mode !== archiveMode) $('messageArchive').open = !a.send;
     $('messageArchive').dataset.mode = archiveMode;
     $('messageArchiveTitle').textContent = `${a.send?'Nội dung đã duyệt':'Xem trước tin nhắn'} (${c.messagePreview?.messages.length || 0})`;
-    $('messagePreviews').replaceChildren(...(c.messagePreview?.messages || []).map(m=>{const d=element('article',undefined,'message-card');d.append(element('h3',m.name || customerLabel(m.url)),link(m.url,customerLabel(m.url)),element('p',m.message));return d;}));
+    $('messagePreviews').replaceChildren(...(c.messagePreview?.messages || []).map(m=>{const d=element('article',undefined,'message-card');d.append(element('h3',m.name || customerLabel(m.url)),link(m.url,customerLabel(m.url)));if(c.messagePreview.images?.length){d.append(element('p','Ảnh đính kèm ('+c.messagePreview.images.length+' ảnh)', 'muted'),imageGallery(c.messagePreview.images),element('p','Nội dung gửi kèm ảnh:', 'muted'));}d.append(element('p',m.message));return d;}));
     show('sendApproval',c.state==='message_review' && !!c.messagePreview);
     show('sendResult',!!a.send);show('stopSending',['send_queued','sending'].includes(c.state));
     const sentLeads=c.leads.filter(l=>a.analysis?.leadIds.includes(l.id));
@@ -471,7 +511,32 @@
   $('approveAnalysis').onclick=()=>action('approve-analysis',{leadIds:[...picks]});
   $('reviewSelection').onclick=()=>action('review-analysis');
   $('template').oninput=()=>{$('confirmSend').checked=false;updateControls();};
-  $('prepareMessages').onclick=()=>action('prepare-messages',{template:$('template').value});
+  $('addMessageImages').onclick = () => $('messageImages').click();
+  async function addImageFiles(files) {
+    const version = epoch;
+    if (!files.length || busy || uncertain || readingImages || selected?.state !== 'message_review') return;
+    readingImages = true; $('confirmSend').checked = false; updateControls();
+    try {
+      if (draftImages.length + files.length > 5) throw new Error('Chỉ đính kèm tối đa 5 ảnh');
+      if (files.some(file => !['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024 || !file.size)) throw new Error('Chọn ảnh JPG, PNG hoặc WebP, tối đa 2 MB mỗi ảnh');
+      const added = await Promise.all(files.map(file => new Promise((resolve, reject) => {
+        const reader = new FileReader(); reader.onload = () => resolve({ name: file.name.replace(/[\\/\x00-\x1f]/g,'_').slice(0,120) || 'image', dataUrl: reader.result }); reader.onerror = () => reject(new Error('Không đọc được ảnh '+file.name)); reader.readAsDataURL(file);
+      })));
+      if (epoch !== version) return;
+      const all = [...draftImages, ...added];
+      if (all.reduce((sum, image) => sum + atob(image.dataUrl.split(',')[1]).length, 0) > 4 * 1024 * 1024) throw new Error('Tổng ảnh đính kèm tối đa 4 MB');
+      draftImages = all; notice();
+    } catch (error) { if (epoch === version) notice(error.message, true); }
+    finally { readingImages = false; $('messageImages').value = ''; updateControls(); }
+  }
+  $('messageImages').onchange = () => addImageFiles([...$('messageImages').files]);
+  $('messageComposer').addEventListener('paste', event => {
+    const files = [...(event.clipboardData?.items || [])].filter(item => item.kind === 'file' && item.type.startsWith('image/')).map(item => item.getAsFile()).filter(Boolean);
+    if (!files.length) return;
+    event.preventDefault();
+    addImageFiles(files);
+  });
+  $('prepareMessages').onclick=()=>action('prepare-messages',{template:$('template').value,images:draftImages});
   $('confirmSend').onchange=updateControls;
   $('sendButton').onclick=()=>{if(!$('sendButton').disabled)action('send',{previewToken:selected.messagePreview.token});};
   $('stopAnalysis').onclick=$('stopSending').onclick=()=>action('stop');
@@ -481,6 +546,7 @@
   $('closeHistory').onclick=()=>{setHistoryOpen(false);$('toggleHistory').focus();};
   $('newCampaign').onclick=()=>{if(busy)return;setHistoryOpen(false);epoch++;clearTimeout(timer);selected=null;uncertain=false;picks.clear();notice();viewStep(1);
     show('importForm',true);show('importResult',false);show('analysisEmpty',true);show('analysisResult',false);show('retryAnalysis',false);show('resolveUids',false);show('messageEmpty',true);show('messageResult',false);
+    draftImages=[];$('messageImages').value='';
     $('campaignName').value='';$('urls').value='';$('file').value='';$('fileName').textContent='Hoặc dán dữ liệu vào ô phía trên';$('urls').oninput();$('template').value=defaultTemplate;$('confirmSend').checked=false;
     $('currentName').textContent='Chưa có chiến dịch';$('currentProfile').textContent='Chọn tài khoản ở bước 1.';$('currentState').textContent='Chờ nhập dữ liệu';$('connection').textContent='';
     for(let n=1;n<=3;n++){$(`status${n}`).textContent=n===1?'Chưa nhập':'Đang khóa';$(`status${n}`).className='badge';$(`nav${n}`).className='step-link'+(n===1?' active':'');$(`nav${n}`).removeAttribute('aria-current');}
@@ -514,3 +580,6 @@
     updateControls();
   })();
 })();
+
+
+

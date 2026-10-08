@@ -20,6 +20,7 @@ const permissions = require('./src/utils/permissions');
 const auth = require('./src/utils/auth');
 
 const app = express();
+app.use('/api/ctv', express.json({ limit: '6mb' }));
 app.use(express.json());
 
 // ===== GIT AUTO-COMMIT (debounce 30s) =====
@@ -1011,7 +1012,9 @@ app.post('/api/accounts', async (req, res) => {
       const browser = await safeLaunchPersistentContext(profileDir, {
         headless: false,
         slowMo: 500,
-        viewport: { width: 1280, height: 720 },
+        // Let Facebook/Zalo use the actual browser window size.
+        viewport: null,
+        args: ['--start-maximized'],
         ...(proxyOpt ? { proxy: proxyOpt } : {}),
       });
 

@@ -1,6 +1,6 @@
 const path = require('path');
 const { CtvService } = require('./service');
-const ACTIONS = ['approve-import', 'approve-analysis', 'review-analysis', 'prepare-messages', 'send', 'stop', 'retry-analysis', 'resolve-uids', 'delete', 'skip-lead'];
+const ACTIONS = ['approve-import', 'approve-analysis', 'review-analysis', 'prepare-messages', 'send', 'retry-send', 'stop', 'retry-analysis', 'resolve-uids', 'delete', 'skip-lead'];
 const campaignPath = /^\/api\/ctv\/campaigns\/([a-f0-9-]+)(?:\/([a-z-]+))?$/;
 
 function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', permissions, service: providedService, fetchFn = fetch } = {}) {
@@ -50,7 +50,7 @@ function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', pe
         return res.json(s.listCustomers(owner).filter(c => allowedProfile(c.profile)));
       }
       if (collection) {
-        if (req.method === 'GET') return res.json(s.data.campaigns.filter(c => c.owner === owner && allowedProfile(c.profile)).map(c => s.view(c)));
+        if (req.method === 'GET') return res.json(s.data.campaigns.filter(c => c.owner === owner && allowedProfile(c.profile)).map(c => s.view(c, false)));
         if (!allowedProfile(req.body.profile)) return res.status(403).json({ error: 'Không có quyền dùng tài khoản này' });
         return res.status(201).json(s.view(s.create(req.body, owner)));
       }
@@ -63,18 +63,21 @@ function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', pe
           'approve-import': () => s.approveImport(c.id, owner),
           'approve-analysis': () => s.approveAnalysis(c.id, owner, body.leadIds),
           'review-analysis': () => s.reviewAnalysis(c.id, owner),
-          'prepare-messages': () => s.prepareMessages(c.id, owner, body.template),
+          'prepare-messages': () => s.prepareMessages(c.id, owner, body.template, body.images),
           'send': () => s.sendApproved(c.id, owner, body.previewToken),
+          'retry-send': () => s.retrySend(c.id, owner, body),
           'stop': () => s.stop(c.id, owner),
           'retry-analysis': () => s.retryAnalysis(c.id, owner),
           'resolve-uids': () => s.resolveUids(c.id, owner, body.leadId),
           'skip-lead': () => s.skipLead(c.id, owner, body.leadId),
           'delete': () => s.deleteCampaign(c.id, owner),
         }[action]();
-        return res.status(['approve-import','send','retry-analysis','resolve-uids'].includes(action) ? 202 : 200).json(s.view(result));
+        return res.status(['approve-import','send','retry-send','retry-analysis','resolve-uids'].includes(action) ? 202 : 200).json(s.view(result));
       }
       return res.status(404).json({ error: 'Không tìm thấy thao tác' });
     } catch (e) { return res.status(e.status || 400).json({ error: e.message }); }
   });
 }
 module.exports = { mountCtv };
+
+

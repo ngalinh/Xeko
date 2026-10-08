@@ -62,6 +62,7 @@ function saveZaloAccounts(accounts) {
 }
 
 const app = express();
+app.use('/api/ctv', express.json({ limit: '6mb' }));
 app.use(express.json());
 
 // ===== API KEY AUTH (timing-safe compare, đã assertConfigured ở trên) =====
@@ -583,7 +584,9 @@ app.post('/api/accounts', (req, res) => {
           const browser = await safeLaunchPersistentContext(saleworkProfileDir, {
             headless: false,
             slowMo: 500,
-            viewport: { width: 1280, height: 720 },
+            // Let Facebook/Zalo use the actual browser window size.
+            viewport: null,
+            args: ['--start-maximized'],
             ...(proxyOpt ? { proxy: proxyOpt } : {}),
           });
           const page = browser.pages()[0] || await browser.newPage();
@@ -688,7 +691,9 @@ app.post('/api/accounts/:key/login', (req, res) => {
         const browser = await safeLaunchPersistentContext(saleworkProfileDir, {
           headless: false,
           slowMo: 500,
-          viewport: { width: 1280, height: 720 },
+          // Let Facebook/Zalo use the actual browser window size.
+          viewport: null,
+          args: ['--start-maximized'],
           ...(proxyOpt ? { proxy: proxyOpt } : {}),
         });
         const page = browser.pages()[0] || await browser.newPage();
@@ -716,7 +721,9 @@ app.post('/api/accounts/:key/login', (req, res) => {
       const browser = await safeLaunchPersistentContext(profileDir, {
         headless: false,
         slowMo: 500,
-        viewport: { width: 1280, height: 720 },
+        // Let Facebook/Zalo use the actual browser window size.
+        viewport: null,
+        args: ['--start-maximized'],
         ...(proxyOpt ? { proxy: proxyOpt } : {}),
       });
       const page = browser.pages()[0] || await browser.newPage();
@@ -1208,3 +1215,4 @@ process.on('SIGINT', async () => {
   await playwright.closeBrowser();
   process.exit(0);
 });
+
