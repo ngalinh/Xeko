@@ -3,12 +3,34 @@
   // Keep requests inside this Xeko instance, including /b/<bot-id>/ deployments.
   const BASE_URL = window.location.pathname.replace(/\/[^/]*$/, '');
   const $ = id => document.getElementById(id);
-  const closeMenu = () => { $('xekoSidebar').classList.remove('open'); $('xekoMenu').setAttribute('aria-expanded','false'); $('xekoMenu').setAttribute('aria-label','Mở menu Xeko'); };
+  const sidebarMobile = window.matchMedia('(max-width: 768px)');
+  function syncSidebar() {
+    const open = $('xekoSidebar').classList.contains('open');
+    const collapsed = document.body.classList.contains('xeko-sidebar-collapsed');
+    const label = sidebarMobile.matches ? 'Đóng menu Xeko' : collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar';
+    $('xekoSidebarToggle').setAttribute('aria-expanded', String(sidebarMobile.matches ? open : !collapsed));
+    $('xekoSidebarToggle').setAttribute('aria-label', label);
+    $('xekoSidebarToggle').title = label;
+    $('xekoSidebarToggle').querySelector('span').textContent = sidebarMobile.matches ? 'Đóng menu' : collapsed ? 'Mở rộng' : 'Thu gọn';
+    $('xekoMenu').setAttribute('aria-expanded', String(open));
+    $('xekoMenu').setAttribute('aria-label', open ? 'Đóng menu Xeko' : 'Mở menu Xeko');
+  }
+  const closeMenu = () => { const open = $('xekoSidebar').classList.contains('open'); $('xekoSidebar').classList.remove('open'); syncSidebar(); if (open && sidebarMobile.matches) $('xekoMenu').focus(); };
   $('xekoMenu').onclick = () => {
-    const open = $('xekoSidebar').classList.toggle('open');
-    $('xekoMenu').setAttribute('aria-expanded',String(open));
-    $('xekoMenu').setAttribute('aria-label',open?'Đóng menu Xeko':'Mở menu Xeko');
+    $('xekoSidebar').classList.toggle('open'); syncSidebar();
   };
+  $('xekoSidebarToggle').onclick = () => {
+    if (sidebarMobile.matches) { closeMenu(); return; }
+    const collapsed = document.body.classList.toggle('xeko-sidebar-collapsed');
+    try { localStorage.setItem('xeko-sidebar-collapsed', String(collapsed)); } catch (_) {}
+    syncSidebar();
+  };
+  for (const link of document.querySelectorAll('.xeko-nav-item, .xeko-logo')) {
+    const label = link.textContent.trim(); link.title = label; link.setAttribute('aria-label', label);
+  }
+  try { document.body.classList.toggle('xeko-sidebar-collapsed', localStorage.getItem('xeko-sidebar-collapsed') === 'true'); } catch (_) {}
+  sidebarMobile.addEventListener('change', () => { $('xekoSidebar').classList.remove('open'); syncSidebar(); });
+  syncSidebar();
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMenu();}});
   const ACTIVE = ['analysis_queued','analyzing','uid_queued','resolving_uid','send_queued','sending'];
   const labels = { import_review:'Chờ duyệt danh sách',analysis_queued:'Chờ chạy AI',analyzing:'AI đang đánh giá',analysis_review:'Chờ duyệt kết quả AI',message_review:'Chờ duyệt tin nhắn',send_queued:'Chờ gửi',sending:'Đang gửi',completed:'Hoàn tất',cancelled:'Đã dừng',interrupted:'Bị gián đoạn',needs_attention:'Cần xử lý',skipped:'Đã bỏ qua',pending:'Chờ đánh giá',checking:'Đang đánh giá',qualified:'Đạt',review:'Cần kiểm tra',duplicate:'Đã liên hệ',sent:'Đã gửi',unconfirmed:'Chưa xác nhận gửi',done:'Hoàn tất',draft:'Bản cũ',failed:'Lỗi' };
