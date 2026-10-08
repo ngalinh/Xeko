@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { normalizeImages } = require('./attachments');
 const { validProfileKey, profileUrl, renderMessage } = require('./rules');
 const { captureCustomers, listCustomers, addManualCustomer } = require('./customers');
+const { contactHistory } = require('./contact-history');
 const ACTIVE = ['analysis_queued', 'analyzing', 'uid_queued', 'resolving_uid', 'send_queued', 'sending'];
 const fail = message => { const e = new Error(message); e.status = 409; throw e; };
 
@@ -22,7 +23,10 @@ class CtvService {
     const record = addManualCustomer(this.data, input, owner); this.save();
     return this.listCustomers(owner).find(r => r.profile === record.profile && r.url === record.url);
   }
-  listCustomers(owner) { return listCustomers(this.data, owner); }
+  listCustomers(owner) {
+    const history = contactHistory(this.data);
+    return listCustomers(this.data, owner).map(r => ({ ...r, sendBlocked: history.has(r) }));
+  }
   save() {
     captureCustomers(this.data);
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
@@ -41,6 +45,7 @@ class CtvService {
   }
   selectionBlocked(lead) {
     if (lead.state === 'skipped') return 'Đã bỏ qua trong chiến dịch này';
+    if (contactHistory(this.data).has(lead)) return 'Khách đã có lần gửi trước hoặc chưa xác nhận kết quả; không gửi lại tự động';
     if (lead.assessment && lead.assessment.criteriaVersion !== 'us-website-products-v2') return 'Kết quả dùng tiêu chí cũ. Hãy tạo chiến dịch mới và chạy AI lại trên worker đã cập nhật.';
     if (!lead.assessment) return 'Chưa có kết quả đánh giá';
     if (lead.assessment.wholesaleRecruitment?.excluded) return 'Đã loại: có dấu hiệu nguồn sỉ tuyển CTV/đại lý hoặc người nhận hàng bán lại.';
@@ -62,7 +67,7 @@ class CtvService {
       const retryAvailable = retryStage && c.approvals.send.token === c.messagePreview?.token && c.approvals.analysis?.leadIds.includes(l.id)
         && ['review','failed','unconfirmed','pending','qualified'].includes(l.state) && m?.recipientId === l.assessment?.recipientId
         && /^\d+$/.test(m?.recipientId || '') && l.assessment?.criteriaVersion === 'us-website-products-v2' && !l.assessment?.wholesaleRecruitment?.excluded
-        && (!reservation || reservation.campaignId === c.id);
+        && (!reservation || reservation.campaignId === c.id) && !contactHistory(this.data, { retryCampaignId: c.id }).has(l);
       return { ...l, retryAvailable: !!retryAvailable, retryNeedsConfirmation: !!retryAvailable && (l.state === 'unconfirmed' || !!reservation), selectionBlockedReason: this.selectionBlocked(l), blockedReason: this.reasonBlocked(l) };
     }) };
     if (!includeImageData && c.messagePreview) view.messagePreview = { ...c.messagePreview, images: (c.messagePreview.images || []).map(({ dataUrl, ...image }) => image) };
@@ -72,17 +77,21 @@ class CtvService {
     if (input.profile == null || input.profile === '') throw new Error('Cần chọn tài khoản Facebook');
     if (!validProfileKey(input.profile)) throw new Error('Mã tài khoản Facebook không hợp lệ');
     if (!Array.isArray(input.urls) || !input.urls.length || input.urls.length > 100) throw new Error('Mỗi đợt nhận từ 1 đến 100 link');
-    const urls = new Set(), rejected = []; let duplicateCount = 0;
+    const urls = new Set(), rejected = [], previouslyContacted = [], seen = new Set(); let duplicateCount = 0;
+    const history = contactHistory(this.data);
     for (const value of input.urls) {
       try {
         if (typeof value !== 'string' || value.length > 2000) throw new Error('Link không hợp lệ');
         const url = profileUrl(value);
-        if (urls.has(url)) duplicateCount++; else urls.add(url);
+        const key = history.key({ url });
+        if (seen.has(key)) { duplicateCount++; continue; }
+        seen.add(key);
+        if (history.has({ url })) previouslyContacted.push(url); else urls.add(url);
       } catch (e) { rejected.push({ value: String(value).slice(0,2000), reason: e.message }); }
     }
     const c = { id: crypto.randomUUID(), workflowVersion: 2, owner, profile: input.profile,
       name: String(input.name || 'Chiến dịch gửi tin nhắn hàng loạt').trim().slice(0,100), createdAt: new Date().toISOString(),
-      state: 'import_review', cancelled: false, importedCount: input.urls.length, duplicateCount, rejected, approvals: {},
+      state: 'import_review', cancelled: false, importedCount: input.urls.length, duplicateCount, rejected, previouslyContacted, approvals: {},
       leads: [...urls].map(url => ({ id: crypto.randomUUID(), url, state: 'pending' })) };
     this.data.campaigns.push(c); this.save(); return c;
   }
@@ -266,6 +275,7 @@ class CtvService {
     if (lead.assessment?.recipientId !== message.recipientId || !/^\d+$/.test(message.recipientId) || lead.assessment.criteriaVersion !== 'us-website-products-v2' || lead.assessment.wholesaleRecruitment?.excluded) fail('Người nhận hoặc kết quả duyệt đã thay đổi');
     const reservation = this.data.reservations[message.recipientId];
     if (reservation && reservation.campaignId !== c.id) fail('Người nhận đã có lượt gửi trong chiến dịch khác');
+    if (contactHistory(this.data, { retryCampaignId: c.id }).has(lead)) fail('Khách đã có lịch sử gửi khác; không thể thử gửi lại');
     if ((lead.state === 'unconfirmed' || reservation) && confirmedNotReceived !== true) fail('Hãy kiểm tra Messenger và xác nhận khách chưa nhận bất kỳ ảnh hay tin nhắn nào của lượt này trước khi thử lại');
     lead.retryApproval = { requestId, by: owner, at: new Date().toISOString(), previewToken, confirmedNotReceived: confirmedNotReceived === true, reservation: reservation ? { ...reservation } : null };
     lead.retryHistory = [...(lead.retryHistory || []), { ...lead.retryApproval, previousState: lead.state, previousError: lead.error }];
@@ -286,15 +296,15 @@ class CtvService {
       if (c.cancelled) break;
       const lead = c.leads.find(l => l.id === m.leadId);
       const reservationAllowed = () => retry
-        ? lead.retryApproval?.requestId === retry.requestId && JSON.stringify(this.data.reservations[m.recipientId] || null) === JSON.stringify(retry.reservation)
-        : !this.data.reservations[m.recipientId];
+        ? lead.retryApproval?.requestId === retry.requestId && JSON.stringify(this.data.reservations[m.recipientId] || null) === JSON.stringify(retry.reservation) && !contactHistory(this.data, { retryCampaignId: c.id }).has(lead)
+        : !this.data.reservations[m.recipientId] && !contactHistory(this.data).has(lead);
       if (!reservationAllowed()) { lead.state = 'duplicate'; this.save(); continue; }
       lead.message = m.message;
       try {
         const result = await this.browser.withPage(c.profile, page => this.browser.send(page, lead.assessment, m.message, () => {
           if (c.cancelled) throw new Error('Đã dừng trước khi gửi');
           if (!reservationAllowed()) throw new Error('Người nhận đã có lần gửi trước hoặc lượt thử lại đã thay đổi');
-          this.data.reservations[m.recipientId] = { campaignId: c.id, at: new Date().toISOString(), ...(retry ? { requestId: retry.requestId } : {}) };
+          this.data.reservations[m.recipientId] = { campaignId: c.id, url: lead.url, actualUrl: lead.assessment?.actualUrl, at: new Date().toISOString(), ...(retry ? { requestId: retry.requestId } : {}) };
           lead.state = 'sending'; this.save();
         }, () => c.cancelled, c.messagePreview.images || []), { keepOnError: true });
         lead.state = result.state; lead.error = result.reason; this.save();

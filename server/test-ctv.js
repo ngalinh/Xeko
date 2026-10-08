@@ -268,7 +268,7 @@ test('unconfirmed submission reserves recipient durably and stops the batch',asy
   const {s,dir,browser}=setup(t,{send:async(_,a,m,reserve)=>{reserve();throw new Error('Lost response after Enter');}});
   const c=await analyzed(s);s.sendApproved(c.id,'owner',prepared(s,c));await settle(s);assert.equal(c.leads[0].state,'unconfirmed');assert.equal(c.state,'needs_attention');
   const restored=new CtvService({file:path.join(dir,'campaigns.json'),browser,pause:async()=>{}});assert.ok(restored.data.reservations['123']);
-  const d=await analyzed(restored);assert.throws(()=>restored.approveAnalysis(d.id,'owner',[d.leads[0].id]));
+  const d=await analyzed(restored);assert.equal(d.previouslyContacted.length,1);assert.ok(d.leads.every(l=>l.assessment.recipientId!=='123'));
 });
 test('restart preserves review stage and approved draft but cannot resume queued sends',async t=>{
   const {s,dir,browser}=setup(t);const c=await analyzed(s);prepared(s,c);const token=c.messagePreview.token;
@@ -357,8 +357,9 @@ test('delete is owner scoped and persists removal without clearing send reservat
   s.deleteCampaign(c.id,'owner'); assert.throws(()=>s.get(c.id,'owner'));
   const restored=new CtvService({file:path.join(dir,'campaigns.json'),browser});
   assert.equal(restored.data.campaigns.length,0); assert.ok(restored.data.reservations['123']);
-  const d=await analyzed(restored);
-  assert.throws(()=>restored.approveAnalysis(d.id,'owner',[d.leads[0].id]));
+  const d=restored.create(input(),'owner');
+  assert.equal(d.leads.length,0); assert.equal(d.previouslyContacted.length,2);
+  assert.throws(()=>restored.approveImport(d.id,'owner'));
 });
 test('retry and delete API actions enforce ownership and state', async t => {
   const {s}=setup(t); const c=await analyzed(s); let handler;

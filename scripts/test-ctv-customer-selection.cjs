@@ -26,6 +26,16 @@ function library(rows) {
   return { $, boxes, transferred: () => transferred };
 }
 const customer = (n, profile = 'one') => ({ profile, url: `https://facebook.com/customer${n}`, name: `Customer ${n}`, campaigns: [], manual: true });
+test('filters contacted customers and select-all skips sent and uncertain rows', async () => {
+  const rows=[customer(1),{...customer(2),sendBlocked:true},{...customer(3),sent:true},{...customer(4),state:'unconfirmed'}];
+  const ui=library(rows);await ui.$('refreshCustomers').onclick();
+  assert.deepEqual(ui.boxes().map(b=>b.disabled),[false,true,true,true]);
+  ui.$('selectCustomerPage').checked=true;ui.$('selectCustomerPage').onchange();
+  assert.match(ui.$('customerSelectionCount').textContent,/^1 khách/);
+  ui.$('customerStatus').value='available';ui.$('customerStatus').onchange();assert.equal(ui.boxes().length,1);
+  rows[0].sendBlocked=true;await ui.$('refreshCustomers').onclick();
+  assert.match(ui.$('customerSelectionCount').textContent,/^0 khách/);assert.equal(ui.$('useCustomers').disabled,true);
+});
 test('selection survives pages and filters; only checked customers transfer', async () => {
   const ui = library(Array.from({length: 30}, (_, i) => customer(i)));
   await ui.$('refreshCustomers').onclick();
