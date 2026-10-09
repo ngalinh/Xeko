@@ -442,3 +442,17 @@ test('wholesale exclusion blocks manual selection and approved message sending',
  assert.throws(()=>s.sendApproved(c.id,'owner',token));assert.equal(sent.length,0);
 });
 
+
+
+test('caption mode persists and reaches worker without enabling automatic selection or sending', async t => {
+  let mode;
+  const {s,sent}=setup(t,{inspect:async(_,url,options)=>{mode=options.assessmentMode;return {...require('./src/ctv/caption-review').evaluateCaptions({personalEvidence:true,posts:['Áo CK đủ size']}),url,actualUrl:url,name:'Test',recipientId:recipientId(url)};}});
+  const c=s.create({...input(['https://facebook.com/123']),assessmentMode:'keywords'},'owner');
+  s.approveImport(c.id,'owner');await settle(s);
+  assert.equal(mode,'keywords');assert.equal(c.assessmentMode,'keywords');assert.equal(c.leads[0].state,'review');assert.equal(sent.length,0);
+  s.approveAnalysis(c.id,'owner',[c.leads[0].id]);
+  assert.equal(c.state,'message_review');assert.equal(sent.length,0);
+  c.leads[0].assessment.collectionBlocked=true;
+  assert.match(s.selectionBlocked(c.leads[0]),/Chưa đọc được caption/);
+  assert.throws(()=>s.create({...input(),assessmentMode:'invalid'},'owner'),/Chế độ/);
+});

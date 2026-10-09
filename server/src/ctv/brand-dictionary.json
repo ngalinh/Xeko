@@ -1,0 +1,195 @@
+{
+  "version": 1,
+  "brands": [
+    {
+      "name": "Calvin Klein",
+      "aliases": [
+        "CK",
+        "C.K",
+        "CalvinKlein"
+      ]
+    },
+    {
+      "name": "Tommy Hilfiger",
+      "aliases": [
+        "Tommy",
+        "TH"
+      ]
+    },
+    {
+      "name": "Michael Kors",
+      "aliases": [
+        "MK"
+      ]
+    },
+    {
+      "name": "Ralph Lauren",
+      "aliases": [
+        "RL",
+        "Polo Ralph Lauren"
+      ]
+    },
+    {
+      "name": "Louis Vuitton",
+      "aliases": [
+        "LV"
+      ]
+    },
+    {
+      "name": "New Balance",
+      "aliases": [
+        "NB"
+      ]
+    },
+    {
+      "name": "Nike",
+      "aliases": []
+    },
+    {
+      "name": "Adidas",
+      "aliases": [
+        "ad!das"
+      ]
+    },
+    {
+      "name": "Lacoste",
+      "aliases": [
+        "L@coste"
+      ]
+    },
+    {
+      "name": "Coach",
+      "aliases": []
+    },
+    {
+      "name": "Guess",
+      "aliases": []
+    },
+    {
+      "name": "Puma",
+      "aliases": []
+    },
+    {
+      "name": "Reebok",
+      "aliases": []
+    },
+    {
+      "name": "Under Armour",
+      "aliases": [
+        "Under Armor"
+      ]
+    },
+    {
+      "name": "The North Face",
+      "aliases": [
+        "TNF"
+      ]
+    },
+    {
+      "name": "Timberland",
+      "aliases": []
+    },
+    {
+      "name": "Skechers",
+      "aliases": []
+    },
+    {
+      "name": "Levi’s",
+      "aliases": [
+        "Levi's",
+        "Levis"
+      ]
+    },
+    {
+      "name": "Tory Burch",
+      "aliases": [
+        "TB"
+      ]
+    },
+    {
+      "name": "Kate Spade",
+      "aliases": []
+    },
+    {
+      "name": "Marc Jacobs",
+      "aliases": []
+    },
+    {
+      "name": "Cole Haan",
+      "aliases": []
+    },
+    {
+      "name": "Converse",
+      "aliases": []
+    },
+    {
+      "name": "Vans",
+      "aliases": []
+    },
+    {
+      "name": "Crocs",
+      "aliases": []
+    },
+    {
+      "name": "Estée Lauder",
+      "aliases": [
+        "Estee Lauder"
+      ]
+    },
+    {
+      "name": "Clinique",
+      "aliases": []
+    },
+    {
+      "name": "Lancôme",
+      "aliases": [
+        "Lancome"
+      ]
+    },
+    {
+      "name": "Shiseido",
+      "aliases": []
+    },
+    {
+      "name": "Kiehl’s",
+      "aliases": [
+        "Kiehl's",
+        "Kiehls"
+      ]
+    },
+    {
+      "name": "MAC",
+      "aliases": []
+    },
+    {
+      "name": "Dior",
+      "aliases": []
+    },
+    {
+      "name": "Chanel",
+      "aliases": []
+    },
+    {
+      "name": "Gucci",
+      "aliases": []
+    },
+    {
+      "name": "Prada",
+      "aliases": []
+    }
+  ],
+  "retailers": [
+    "Amazon",
+    "Macy’s",
+    "Macy's",
+    "Macys",
+    "Nordstrom",
+    "Sephora",
+    "Walmart",
+    "Target",
+    "Costco",
+    "Saks",
+    "Bloomingdale’s",
+    "Bloomingdale's"
+  ]
+}

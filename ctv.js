@@ -33,7 +33,7 @@
   syncSidebar();
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMenu();}});
   const ACTIVE = ['analysis_queued','analyzing','uid_queued','resolving_uid','send_queued','sending'];
-  const labels = { import_review:'Chờ duyệt danh sách',analysis_queued:'Chờ chạy AI',analyzing:'AI đang đánh giá',analysis_review:'Chờ duyệt kết quả AI',message_review:'Chờ duyệt tin nhắn',send_queued:'Chờ gửi',sending:'Đang gửi',completed:'Hoàn tất',cancelled:'Đã dừng',interrupted:'Bị gián đoạn',needs_attention:'Cần xử lý',skipped:'Đã bỏ qua',pending:'Chờ đánh giá',checking:'Đang đánh giá',qualified:'Đạt',review:'Cần kiểm tra',duplicate:'Đã liên hệ',sent:'Đã gửi',unconfirmed:'Chưa xác nhận gửi',done:'Hoàn tất',draft:'Bản cũ',failed:'Lỗi' };
+  const labels = { import_review:'Chờ duyệt danh sách',analysis_queued:'Chờ quét khách',analyzing:'Đang đánh giá',analysis_review:'Chờ duyệt kết quả',message_review:'Chờ duyệt tin nhắn',send_queued:'Chờ gửi',sending:'Đang gửi',completed:'Hoàn tất',cancelled:'Đã dừng',interrupted:'Bị gián đoạn',needs_attention:'Cần xử lý',skipped:'Đã bỏ qua',pending:'Chờ đánh giá',checking:'Đang đánh giá',qualified:'Đạt',review:'Cần kiểm tra',duplicate:'Đã liên hệ',sent:'Đã gửi',unconfirmed:'Chưa xác nhận gửi',done:'Hoàn tất',draft:'Bản cũ',failed:'Lỗi' };
   const defaultTemplate = $('template').value;
   Object.assign(labels, {uid_queued:'Chờ tìm UID',resolving_uid:'Đang tìm UID'});
   let selected = null, epoch = 0, timer = null, busy = false, uncertain = false, retries = 0;
@@ -74,6 +74,7 @@
   viewStep(1);
   const element = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
   function renderAssessment(v) {
+    if (v.provider === 'keywords') return renderCaptionReview(v);
     const type = {personal:'Profile cá nhân',page:'Fanpage',group:'Group'}[v.type] || 'Chưa rõ loại';
     const seller = {yes:'Có',no:'Không'}[v.sellerUS] || 'Chưa rõ';
     const confidence = Number.isFinite(v.confidence) ? Math.round(v.confidence * 100) + '%' : 'Chưa đủ dữ liệu';
@@ -94,10 +95,36 @@
     }
     return list;
   }
+  function renderCaptionReview(v) {
+    const container = element('div', undefined, 'caption-review');
+    container.append(element('p', 'Quét từ khóa trên máy · Không AI · Không xác minh nguồn hàng Mỹ', 'muted'));
+    container.append(element('p', v.reason));
+    const rows = [{text: v.bioReview?.text || v.bio || '', spans: v.bioReview?.spans || [], bio: true}, ...(v.captionReviews || [])];
+    rows.forEach((row, index) => {
+      const section = element('section');
+      section.append(element('strong', row.bio ? 'Bio' : 'Caption ' + index));
+      const content = element('p', undefined, 'caption-source');
+      let cursor = 0;
+      for (const span of row.spans || []) {
+        if (!Number.isInteger(span.start) || !Number.isInteger(span.end) || span.start < cursor || span.end > row.text.length || span.end <= span.start) continue;
+        content.append(element('span', row.text.slice(cursor, span.start)));
+        const mark = element('mark', row.text.slice(span.start, span.end), 'keyword-' + (['brand','retailer','sales','context','recruitment'].includes(span.kind) ? span.kind : 'context'));
+        mark.title = (span.certainty === 'possible' ? 'Có thể là: ' : '') + span.label;
+        content.append(mark); cursor = span.end;
+      }
+      content.append(element('span', row.text.slice(cursor) || (!row.text ? 'Chưa đọc được' : '')));
+      section.append(content);
+      const names = [...new Set((row.spans || []).map(s => (s.certainty === 'possible' ? 'Có thể là: ' : '') + s.label))];
+      if (names.length) section.append(element('small', names.join(' · ')));
+      container.append(section);
+    });
+    container.append(element('p', 'Brand: vàng · Nhà bán lẻ: xanh dương · Bán hàng: xanh lá · Ngữ cảnh/tuyển CTV: tím. Ngày và link từng bài chưa được thu thập trong bản thử này.', 'muted'));
+    return container;
+  }
   function renderAssessmentPreview(v) {
     const preview = element('div');
     const seller = {yes:'Có',no:'Không'}[v.sellerUS] || 'Chưa đủ dữ liệu';
-    preview.append(element('p', 'Seller bán sản phẩm trên website Mỹ: ' + seller, 'seller-verdict'));
+    preview.append(element('p', v.provider === 'keywords' ? v.suggestion || 'Quét caption — cần kiểm tra' : 'Seller bán sản phẩm trên website Mỹ: ' + seller, 'seller-verdict'));
     if (v.wholesaleRecruitment?.excluded) preview.append(element('p','Đã loại: tuyển CTV / đại lý / người nhận hàng bán lại','warning'));
     const details = element('details', undefined, 'assessment-details');
     const summary = element('summary');
@@ -237,7 +264,7 @@
   function updateControls() {
     const c = selected, unlocked = !busy && !uncertain, modern = c?.workflowVersion === 2;
     for(const button of $('sendRows').querySelectorAll('button[data-retry-lead]'))button.disabled=!unlocked || ACTIVE.includes(c?.state);
-    for (const id of ['campaignName','profile','urls','file']) $(id).disabled = !!c || busy;
+    for (const id of ['campaignName','profile','assessmentMode','urls','file']) $(id).disabled = !!c || busy;
     $('importButton').disabled = !!c || busy || !accounts.length;
     $('newCampaign').disabled = busy;
     $('refresh').disabled = !c || busy;
@@ -334,6 +361,7 @@
     if (reset || selected?.id !== c.id) { $('analysisSearch').value=''; $('analysisFilter').value='all'; }
     if (selected?.id !== c.id || selected?.messagePreview?.token !== c.messagePreview?.token) $('confirmSend').checked = false;
     selected = c;
+    $('assessmentMode').value = c.assessmentMode || 'ai';
     if (reset) { picks = new Set(c.approvals?.analysis?.leadIds || []); $('template').value = c.template || defaultTemplate; $('confirmSend').checked = false; $('sendSearch').value='';$('sendFilter').value='all';$('sendCampaignDiagnostic').open=false; }
     if (c.state === 'analysis_review') picks = new Set([...picks].filter(id => c.leads.some(l => l.id === id && canPick(l))));
     else picks = new Set(c.approvals?.analysis?.leadIds || []);
@@ -344,12 +372,12 @@
     if (!modern) notice('Chiến dịch phiên bản cũ chỉ được xem. Tạo chiến dịch mới để dùng quy trình 3 bước có duyệt.',true);
     show('importForm',false);show('importResult',true);
     stats('importStats',[['Khách mới hợp lệ',c.leads.length,'good'],['Khách trùng đã gộp',c.duplicateCount || 0],['Đã có lịch sử gửi',c.previouslyContacted?.length || 0,'warn'],['Link bị loại',c.rejected?.length || 0,'warn']]);
-    $('importContext').textContent = `${c.name || 'Chiến dịch gửi tin nhắn hàng loạt'} · ${accountName(c.profile)} · Danh sách đã lưu cố định cho chiến dịch này.`;
+    $('importContext').textContent = `${c.name || 'Chiến dịch gửi tin nhắn hàng loạt'} · ${accountName(c.profile)} · ${c.assessmentMode === 'keywords' ? 'Quét caption không AI' : 'AI đánh giá'} · Danh sách đã lưu cố định cho chiến dịch này.`;
     $('importList').replaceChildren(...c.leads.map(l => { const li=element('li');li.append(link(l.url,customerLabel(l.url)));return li;}));
     $('rejectedList').replaceChildren(...(c.rejected || []).map(r => element('p',`${r.value} — ${r.reason}`,'warning')));
     $('rejectedList').append(...(c.previouslyContacted || []).map(url => element('p', `${url} — Đã có lịch sử gửi hoặc chưa xác nhận kết quả; tự động loại khỏi chiến dịch.`, 'warning')));
     if (reset) $('importDetails').open = c.state === 'import_review';
-    $('importApproval').textContent = approvalText(a.import,'Chỉ các link hợp lệ bên trên sẽ được chuyển sang AI.');
+    $('importApproval').textContent = approvalText(a.import,'Chỉ các link hợp lệ bên trên sẽ được quét theo chế độ đã chọn.');
     show('approveImport',modern && c.state === 'import_review');
     $('status1').textContent = a.import ? 'Đã duyệt' : 'Chờ duyệt'; $('status1').className = 'badge ' + (a.import ? 'good' : 'warn');
     const hasAnalysis = !!a.import || !modern;
@@ -360,13 +388,13 @@
     const checked = c.leads.filter(l => l.assessment || l.error).length;
     $('analysisProgress').textContent = `${checked}/${c.leads.length} hồ sơ đã xử lý${c.cancelled && c.state === 'analysis_review' ? ' · Đã dừng theo yêu cầu' : ''}`;
     $('analysisBar').max = c.leads.length || 1; $('analysisBar').value = checked;
-    stats('analysisStats',[['AI đánh giá đạt',c.leads.filter(l=>l.assessment?.eligible).length,'good'],['Có thể chọn soạn tin',c.leads.filter(canPick).length],['Cần kiểm tra',c.leads.filter(l=>l.state==='review').length,'warn'],['Đã bỏ qua',c.leads.filter(l=>l.state==='skipped').length]]);
+    stats('analysisStats',[[c.assessmentMode === 'keywords' ? 'Có dấu hiệu phù hợp' : 'AI đánh giá đạt',c.leads.filter(l=>c.assessmentMode === 'keywords' ? l.assessment?.suggestion?.startsWith('Có dấu hiệu phù hợp') : l.assessment?.eligible).length,'good'],['Có thể chọn soạn tin',c.leads.filter(canPick).length],['Cần kiểm tra',c.leads.filter(l=>l.state==='review').length,'warn'],['Đã bỏ qua',c.leads.filter(l=>l.state==='skipped').length]]);
     show('analysisWarning',!!c.error && !a.analysis);$('analysisWarning').textContent = c.error || '';
     show('retryAnalysis',!!canRetry(c));
     show('resolveUids',modern && !a.send && ['analysis_review','message_review'].includes(c.state) && c.leads.some(l=>l.state!=='skipped' && l.assessment && !l.assessment.recipientId));
     if (['uid_queued','resolving_uid'].includes(c.state)) $('analysisProgress').textContent = `${labels[c.state]} · ${c.leads.filter(l=>l.uidLookup?.state==='resolved').length} hồ sơ đã tìm được UID`;
     show('stopAnalysis',analyzing);show('approveAnalysis',modern && c.state === 'analysis_review');
-    $('analysisApproval').textContent = approvalText(a.analysis,'Bạn có thể duyệt gửi khách đã chọn dù AI chưa đánh giá đạt. Cần xác minh người nhận trước khi gửi.');
+    $('analysisApproval').textContent = approvalText(a.analysis,c.assessmentMode === 'keywords' ? 'Đọc caption và từ khóa rồi tick chọn khách. Từ khóa không xác minh nguồn hàng Mỹ; cần xác minh người nhận trước khi gửi.' : 'Bạn có thể duyệt gửi khách đã chọn dù AI chưa đánh giá đạt. Cần xác minh người nhận trước khi gửi.');
     $('analysisRows').replaceChildren();
     for (const [index, l] of c.leads.entries()) {
       const row = element('tr'), chooseCell = element('td'), customer = element('td'), uidCell = element('td'), fbName = element('td'), genderCell = element('td'), analysis = element('td'), result = element('td');
@@ -377,7 +405,7 @@
       const cb=element('input');cb.type='checkbox';cb.value=l.id;cb.checked=picks.has(l.id);cb.setAttribute('aria-label',`Chọn ${customerLabel(l.url)}`);
       cb.onchange=()=>{if(cb.checked)picks.add(l.id);else picks.delete(l.id);updateControls();};chooseCell.append(cb);
       customer.append(link(l.url,customerLabel(l.url))); customer.dataset.label='Khách hàng';
-      analysis.dataset.label='AI đánh giá'; result.dataset.label='Kết quả';
+      analysis.dataset.label='Đánh giá & bằng chứng'; result.dataset.label='Kết quả';
       const v=l.assessment;
       uidCell.dataset.label = 'UID';
       uidCell.className = 'uid-cell';
@@ -488,10 +516,10 @@
     if(busy)return;const urls=urlsFrom($('urls').value);
     if(!$('profile').value || !urls.length || urls.length>100){notice('Chọn tài khoản và nhập từ 1 đến 100 link http/https để kiểm tra.',true);return;}
     busy=true;updateControls();notice();
-    try{const c=await api('/api/ctv/campaigns','POST',{name:$('campaignName').value,profile:$('profile').value,urls});epoch++;uncertain=false;render(c,true);}
+    try{const requestedMode=$('assessmentMode').value;const c=await api('/api/ctv/campaigns','POST',{name:$('campaignName').value,profile:$('profile').value,assessmentMode:requestedMode,urls});if(requestedMode === 'keywords' && c.assessmentMode !== 'keywords')throw new Error('Worker chưa hỗ trợ quét caption. Hãy cập nhật worker trước; danh sách vừa tạo chưa được duyệt chạy.');epoch++;uncertain=false;render(c,true);}
     catch(e){notice(e.message,true);}finally{busy=false;updateControls();schedule();}
   };
-  $('retryAnalysis').onclick=()=>{if(canRetry(selected) && window.confirm('Đọc lại các profile chưa bỏ qua và đánh giá lại bằng AI? Kết quả cũ và bản duyệt tin nhắn sẽ được bỏ; bạn cần duyệt lại trước khi gửi.')){picks.clear();action('retry-analysis');}};
+  $('retryAnalysis').onclick=()=>{if(canRetry(selected) && window.confirm('Đọc lại các profile chưa bỏ qua và đánh giá lại theo chế độ đã chọn? Kết quả cũ và bản duyệt tin nhắn sẽ được bỏ; bạn cần duyệt lại trước khi gửi.')){picks.clear();action('retry-analysis');}};
   $('approveImport').onclick=()=>action('approve-import');
   $('resolveUids').onclick=()=>action('resolve-uids');
   $('selectAll').onchange=()=>{for(const l of selected.leads.filter(l=>canPick(l)&&matchesAnalysis(l))){if($('selectAll').checked)picks.add(l.id);else picks.delete(l.id);}for(const box of $('analysisRows').querySelectorAll('input'))box.checked=picks.has(box.value);updateControls();};
@@ -548,7 +576,7 @@
   $('newCampaign').onclick=()=>{if(busy)return;setHistoryOpen(false);epoch++;clearTimeout(timer);selected=null;uncertain=false;picks.clear();notice();viewStep(1);
     show('importForm',true);show('importResult',false);show('analysisEmpty',true);show('analysisResult',false);show('retryAnalysis',false);show('resolveUids',false);show('messageEmpty',true);show('messageResult',false);
     draftImages=[];$('messageImages').value='';
-    $('campaignName').value='';$('urls').value='';$('file').value='';$('fileName').textContent='Hoặc dán dữ liệu vào ô phía trên';$('urls').oninput();$('template').value=defaultTemplate;$('confirmSend').checked=false;
+    $('assessmentMode').value='keywords';$('campaignName').value='';$('urls').value='';$('file').value='';$('fileName').textContent='Hoặc dán dữ liệu vào ô phía trên';$('urls').oninput();$('template').value=defaultTemplate;$('confirmSend').checked=false;
     $('currentName').textContent='Chưa có chiến dịch';$('currentProfile').textContent='Chọn tài khoản ở bước 1.';$('currentState').textContent='Chờ nhập dữ liệu';$('connection').textContent='';
     for(let n=1;n<=3;n++){$(`status${n}`).textContent=n===1?'Chưa nhập':'Đang khóa';$(`status${n}`).className='badge';$(`nav${n}`).className='step-link'+(n===1?' active':'');$(`nav${n}`).removeAttribute('aria-current');}
     $('nav1').setAttribute('aria-current','step');$('navStatus1').textContent='Chờ nhập dữ liệu';$('navStatus2').textContent='Chờ duyệt bước 1';$('navStatus3').textContent='Chờ duyệt bước 2';renderHistory();updateControls();viewStep(1);$('step1').scrollIntoView({behavior:'smooth'});

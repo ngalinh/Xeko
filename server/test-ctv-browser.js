@@ -474,3 +474,19 @@ test('header timeout does not scan a feed redirected to another profile', async 
   assert.equal(mock.scrolls(), 0);
 });
 
+
+
+test('caption mode reads text without inspecting images or invoking an AI transport', async t => {
+  const oldFetch=global.fetch, oldProvider=process.env.CTV_AI_PROVIDER;
+  t.after(()=>{global.fetch=oldFetch;if(oldProvider===undefined)delete process.env.CTV_AI_PROVIDER;else process.env.CTV_AI_PROVIDER=oldProvider;});
+  process.env.CTV_AI_PROVIDER='invalid-must-never-be-read';
+  global.fetch=async()=>{throw Error('AI must not be called');};
+  const mock=mediaPage(()=>['Áo C.K đủ size','Bạn Nike','Túi Coach có sẵn','Giày ad!das sale','Nhật ký hôm nay']);
+  const locate=mock.page.locator;
+  mock.page.locator=selector=>{const result=locate(selector);if(result.nth){const nth=result.nth;result.nth=i=>{const article=nth(i);article.locator=()=>{throw Error('Images must not be queried');};return article;};}return result;};
+  mock.page.goto=async()=>{};
+  mock.page.waitForFunction=async()=>({jsonValue:async()=>({name:'Khách thử',headerBio:'Cửa hàng',personalEvidence:true,messageLinks:[]}),dispose:async()=>{}});
+  const result=await inspect(mock.page,'https://facebook.com/123',{assessmentMode:'keywords'});
+  assert.equal(result.provider,'keywords');assert.equal(result.reviewedPostCount,5);assert.equal(result.reviewedImageCount,0);assert.equal(result.eligible,false);assert.equal(mock.scrolls(),0);
+  assert.equal(result.captionReviews[1].salesSignal,false);
+});

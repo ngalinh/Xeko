@@ -155,7 +155,7 @@ function readProfileSnapshot(requireHeader = false) {
 }
 
 // Read caption and image pixels before virtualized feed entries disappear.
-async function readPostMedia(page, { cache = new Map(), report = () => {}, check = () => {}, expired = () => false } = {}) {
+async function readPostMedia(page, { cache = new Map(), report = () => {}, check = () => {}, expired = () => false, captionsOnly = false } = {}) {
   // Prefer complete post containers; fall back to caption blocks only when
   // Facebook omits article semantics. Never treat the whole feed as one post.
   const roots = ':is([role="main"], main, #content, #m_basic)';
@@ -189,6 +189,7 @@ async function readPostMedia(page, { cache = new Map(), report = () => {}, check
       return [...new Set([...albums, ...(bodies.length ? bodies.map(b => b.innerText || '') : [e.innerText || ''])])]
         .join('\n').trim().slice(0,6000);
     }, undefined, { timeout: 1500 });
+    if (captionsOnly) { if (caption) records.push({ caption, images: [] }); continue; }
     const cached = caption && cache.get(caption);
     if (cached) { records.push(cached); continue; }
     report('post', `Đọc bài trong vùng xem: ${caption.length} ký tự; đang kiểm tra ảnh`);
@@ -242,7 +243,7 @@ function scrollProfileFeed() {
 }
 
 // Collect across scrolls because Facebook may virtualize older feed entries.
-async function collectProfilePosts(page, snapshot, { report = () => {}, check = () => {} } = {}) {
+async function collectProfilePosts(page, snapshot, { report = () => {}, check = () => {}, captionsOnly = false } = {}) {
   const posts = new Map();
   const cache = new Map(), seen = new Set(), started = Date.now();
   const expired = () => Date.now() - started >= 60000;
@@ -252,8 +253,8 @@ async function collectProfilePosts(page, snapshot, { report = () => {}, check = 
     check();
     if (expired()) { stopReason = 'Đã đạt giới hạn 60 giây đọc bài'; break; }
     await assertSession(page);
-    report('reading', `Lượt ${step + 1}/13: đọc caption và ảnh trong vùng xem`);
-    const batch = await readPostMedia(page, { cache, report, check, expired });
+    report('reading', `Lượt ${step + 1}/13: ${captionsOnly ? "đọc caption, không đọc ảnh" : "đọc caption và ảnh"} trong vùng xem`);
+    const batch = await readPostMedia(page, { cache, report, check, expired, captionsOnly });
     let discovered = 0;
     for (const post of batch) {
       const key = post.caption.replace(/\s+/g, ' ').trim() || post.images[0].data;
@@ -267,6 +268,7 @@ async function collectProfilePosts(page, snapshot, { report = () => {}, check = 
     staleBatches = discovered === 0 ? staleBatches + 1 : 0;
     const sales = [...posts.values()].filter(p => isSalesPost(p.caption)).length;
     report('batch', `Lượt ${step + 1}: ${batch.length} bài trong vùng xem, ${discovered} bài mới; giữ ${posts.size} bài, ${sales} bài có dấu hiệu bán hàng`);
+    if (captionsOnly && posts.size >= 5) { stopReason = 'Đã đọc đủ 5 caption khác nhau'; break; }
     if (sales >= 5) { stopReason = 'Đã thu thập đủ 5 bài có dấu hiệu bán hàng'; break; }
     if (expired()) { stopReason = 'Đã đạt giới hạn 60 giây đọc bài'; break; }
     if (staleBatches >= 3) { stopReason = 'Không có bài mới sau 3 lượt liên tiếp'; break; }
@@ -281,12 +283,13 @@ async function collectProfilePosts(page, snapshot, { report = () => {}, check = 
     }
     await page.waitForTimeout(1500);
   }
-  const selected = [...posts.values()].sort((a,b) => Number(isSalesPost(b.caption)) - Number(isSalesPost(a.caption))).slice(0,5);
+  const values = [...posts.values()];
+  const selected = (captionsOnly ? values : values.sort((a,b) => Number(isSalesPost(b.caption)) - Number(isSalesPost(a.caption)))).slice(0,5);
   report('scan_complete', `${stopReason}; chọn ${selected.length} bài và ${selected.reduce((n, p) => n + p.images.length, 0)} ảnh để đánh giá`);
   return { ...snapshot, posts: selected.map(p => p.caption), postMedia: selected };
 }
 
-async function inspect(page, url, { onProgress = () => {}, cancelled = () => false } = {}) {
+async function inspect(page, url, { onProgress = () => {}, cancelled = () => false, assessmentMode = 'ai' } = {}) {
   const started = Date.now();
   const report = (stage, message) => onProgress({ stage, message, elapsedMs: Date.now() - started, at: new Date().toISOString() });
   const check = () => { if (cancelled()) throw new Error('Đã dừng quét profile theo yêu cầu'); };
@@ -335,11 +338,13 @@ async function inspect(page, url, { onProgress = () => {}, cancelled = () => fal
   report('uid', 'Đang đối chiếu UID với link hồ sơ');
   const identity = await resolveCurrentProfileUid(page, target, snapshot);
   report('uid', identity.recipientId ? `Đã xác định UID: ${identity.recipientId}` : identity.uidReason);
-  if (!snapshot.blocked) snapshot = await collectProfilePosts(page, snapshot, { report, check });
+  if (!snapshot.blocked) snapshot = await collectProfilePosts(page, snapshot, { report, check, captionsOnly: assessmentMode === 'keywords' });
   if (profileUrl(page.url()) !== target) throw new Error('Link chuyển sang hồ sơ khác khi đọc bài viết');
   check();
-  report('ai', 'Đang đánh giá dữ liệu bằng AI');
-  const assessment = await evaluateProfile({ ...snapshot, url: target }, undefined, { report, check });
+  report('assessment', assessmentMode === 'keywords' ? 'Đang đối chiếu từ khóa caption trên máy, không gọi AI' : 'Đang đánh giá dữ liệu bằng AI');
+  const assessment = assessmentMode === 'keywords'
+    ? require('./caption-review').evaluateCaptions(snapshot)
+    : await evaluateProfile({ ...snapshot, url: target }, undefined, { report, check });
   check();
   if (!snapshot.blocked && !snapshot.name) {
     assessment.eligible = false;
