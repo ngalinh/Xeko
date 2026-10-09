@@ -41,7 +41,7 @@
       const identity = el('div'); identity.append(el('strong', r.assessment?.name || r.name || 'Chưa có tên Facebook'));
       const link = el('a', r.url); link.href = r.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; identity.append(el('br'), link);
       const states = el('div');
-      states.append(el('span', r.sent ? 'Đã gửi tin nhắn' : r.state === 'unconfirmed' ? 'Chưa xác nhận gửi' : r.assessment ? 'Đã đánh giá AI' : r.manual ? 'Thêm thủ công' : 'Đã nhập', 'badge'));
+      states.append(el('span', r.sent ? 'Đã gửi tin nhắn' : r.state === 'unconfirmed' ? 'Chưa xác nhận gửi' : r.assessment ? (r.assessment.provider === 'keywords' ? 'Đã quét caption' : 'Đã đánh giá AI') : r.manual ? 'Thêm thủ công' : 'Đã nhập', 'badge'));
       if (attention(r)) states.append(el('p', 'Cần kiểm tra', 'muted'));
       if (!canSelect(r)) states.append(el('p', 'Đã có lịch sử gửi / chưa xác nhận. Không chọn gửi lại.', 'muted'));
       const gender=r.assessment?.selfDeclaredGender;
@@ -58,7 +58,7 @@
       details.append(el('p', 'Giới tính tự khai: '+(gender?.status === 'self_declared' ? gender.value : 'Chưa xác định')));
       if (gender) details.append(el('p', [gender.reason, gender.evidence, 'Nguồn: '+gender.sourceUrl, 'Đọc lúc: '+date(gender.checkedAt)].filter(Boolean).join('\n')));
       if (r.assessment) {
-        details.append(el('p', `AI đánh giá: ${r.assessment.eligible ? 'Đạt' : 'Cần kiểm tra'}`));
+        details.append(el('p', `${r.assessment.provider === 'keywords' ? 'Quét caption' : 'AI đánh giá'}: ${r.assessment.eligible ? 'Đạt' : 'Cần kiểm tra'}`));
         if (r.assessment.wholesaleRecruitment) details.append(el('p', [r.assessment.wholesaleRecruitment.reason, ...(r.assessment.wholesaleRecruitment.evidence || [])].join('\n')));
         for (const [label, value] of [['Bio', r.assessment.bio], ['Thương hiệu', r.assessment.brands?.join(', ')], ['Phân tích', r.assessment.captionAnalysis || r.assessment.reason]]) if (value) details.append(el('p', `${label}: ${value}`));
       }

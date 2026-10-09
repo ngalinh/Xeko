@@ -210,3 +210,5 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
   .xeko-sidebar-collapsed #xekoSidebarToggle{padding:10px 0}
   .xeko-sidebar-collapsed #xekoSidebarToggle svg{transform:rotate(180deg)}
 }
+
+.caption-source{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}.caption-review section{margin:12px 0;padding:10px;border:1px solid #dce5f4;border-radius:8px}.caption-review mark{padding:1px 2px;color:#17243c}.keyword-brand{background:#fff0a6}.keyword-retailer{background:#d4e8ff}.keyword-sales{background:#d5f3df}.keyword-context,.keyword-recruitment{background:#eedbff}

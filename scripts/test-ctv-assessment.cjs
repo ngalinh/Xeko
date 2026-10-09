@@ -57,3 +57,15 @@ test('wholesale exclusion shows a warning and the grounded recruitment quote', (
  const list=context.renderAssessment(v);
  assert.match(list.children.at(-1).children[1].text,/Tuyển đại lý toàn quốc/);
 });
+
+
+test('caption review highlights source text safely and displays uncertain aliases', () => {
+  const review=context.renderAssessment({provider:'keywords',reason:'Không AI',captionReviews:[{text:'<script>CK</script>',spans:[{start:8,end:10,kind:'brand',label:'Calvin Klein',certainty:'possible'}]}]});
+  const caption=review.children[3];
+  const paragraph=caption.children[1];
+  assert.equal(paragraph.children[0].text,'<script>');
+  assert.equal(paragraph.children[1].tag,'mark');assert.equal(paragraph.children[1].text,'CK');
+  assert.equal(paragraph.children[2].text,'</script>');
+  assert.match(caption.children[2].text,/Có thể là: Calvin Klein/);
+  assert.equal(context.renderAssessmentPreview({provider:'keywords',suggestion:'Cần kiểm tra'}).children[0].text,'Cần kiểm tra');
+});
