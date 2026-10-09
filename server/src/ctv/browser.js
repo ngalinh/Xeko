@@ -339,7 +339,7 @@ async function inspect(page, url, { onProgress = () => {}, cancelled = () => fal
   if (profileUrl(page.url()) !== target) throw new Error('Link chuyển sang hồ sơ khác khi đọc bài viết');
   check();
   report('ai', 'Đang đánh giá dữ liệu bằng AI');
-  const assessment = await evaluateProfile(snapshot, undefined, { report, check });
+  const assessment = await evaluateProfile({ ...snapshot, url: target }, undefined, { report, check });
   check();
   if (!snapshot.blocked && !snapshot.name) {
     assessment.eligible = false;
