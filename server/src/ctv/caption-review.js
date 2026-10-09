@@ -41,6 +41,7 @@ function scanText(text, customBrands = []) {
       if (token === 'ck' && /\b(chuyen khoan|ngan hang|stk|truoc|coc|thanh toan)\b/.test(nearby)) continue;
       if (token.length <= 3 || ['coach','guess','target','mac'].includes(token)) span.certainty = fashion ? 'clear' : 'possible';
       if (token === 'mac' && /\b(macbook|may tinh|laptop|apple|dia chi mac)\b/.test(nearby)) continue;
+      if (brand.customAlias) span.customAlias = brand.customAlias;
       spans.push(span);
     }
   }
