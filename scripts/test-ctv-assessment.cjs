@@ -87,3 +87,18 @@ test('inline brand form captures selected caption text and sends canonical name 
  assert.equal(request[0],'/api/ctv/campaigns/campaign-1/add-brand');assert.equal(request[2].leadId,'lead-1');assert.equal(request[2].alias,'Hermès');assert.equal(rendered.id,'campaign-1');
  request=null;alias.value='Not in caption';await form.onsubmit({preventDefault(){}});assert.equal(request,null);
 });
+
+
+test('highlight editor submits exact saved span for hide and replacement',async t=>{
+ const original=context.element;t.after(()=>{context.element=original;});
+ context.element=(tag,text,cls)=>({tag,text,cls,children:[],value:'',append(...nodes){this.children.push(...nodes);},setAttribute(){}});
+ context.selected={id:'campaign',state:'analysis_review'};context.busy=false;context.uncertain=false;context.epoch=1;context.ACTIVE=['sending'];
+ context.updateControls=()=>{};context.notice=()=>{};context.render=()=>{};context.document={querySelectorAll:()=>[]};context.window={confirm:()=>true};
+ let request;context.api=async(...args)=>{request=args;return {id:'campaign'};};
+ const span={start:0,end:17,text:'Hermès Un Jardin',label:'Hermès Un Jardin',kind:'brand'};
+ const form=context.highlightEditor(span,{text:'Hermès Un Jardin'},0,'lead',()=>{});
+ await form.children.find(e=>e.text==='Bỏ highlight lần này').onclick();
+ assert.equal(request[0],'/api/ctv/campaigns/campaign/update-highlight');assert.equal(request[2].operation,'hide');assert.equal(request[2].start,0);assert.equal(request[2].captionText,'Hermès Un Jardin');
+ form.children[1].children[0].value='Hermès';form.children[2].children[0].value='Hermès';
+ await form.children.find(e=>e.text==='Lưu sửa brand').onclick();assert.equal(request[2].operation,'edit');assert.equal(request[2].alias,'Hermès');
+});

@@ -10,7 +10,7 @@ Mọi kết quả đều cần người dùng tick chọn và duyệt nội dung
 
 Chỉnh file server/src/ctv/brand-dictionary.json để thêm tên chuẩn và aliases, tăng version rồi khởi động lại worker. Chỉ thêm cách viết đã xác nhận. 35 brand khởi đầu gồm nhóm thời trang, giày, túi và mỹ phẩm. Chữ hoa/thường, một số ký tự Unicode và khoảng trắng/dấu chấm giữa chữ được chuẩn hóa; ad!das, L@coste là alias cụ thể. Không dùng so khớp gần đúng tùy ý. CK, MK, LV và tên dễ nhầm cần ngữ cảnh sản phẩm; kết quả chưa chắc được ghi “Có thể là”. Các quy tắc vẫn có thể nhận diện nhầm hoặc bỏ sót; nên thử trên một nhóm khách đã biết.
 
-Thay đổi từ điển chỉ áp dụng khi quét lại; kết quả cũ giữ version đã dùng. Có thể thêm alias trực tiếp từ caption theo hướng dẫn dưới đây. Chưa có màn hình sửa/xóa alias đã lưu.
+Thay đổi từ điển chỉ áp dụng khi quét lại; kết quả cũ giữ version đã dùng. Có thể thêm alias trực tiếp từ caption theo hướng dẫn dưới đây. Có thể bấm vào highlight trong caption để sửa hoặc xóa biến thể riêng.
 
 ## Chế độ cũ
 
@@ -21,3 +21,13 @@ Chiến dịch cũ và API tạo chiến dịch không truyền assessmentMode t
 Mở chi tiết kết quả quét caption, bôi chọn tên brand bị bỏ sót (ví dụ Hermès hoặc PATRICK TA), bấm **＋ Thêm brand từ chữ đã chọn**. Kiểm tra chữ gốc, nhập tên brand chuẩn rồi bấm **Lưu & highlight**. Nếu chưa bôi chọn, có thể nhập nguyên văn chữ trong caption vào form.
 
 Chỉ cập nhật chú thích của các caption đã lưu trong chiến dịch hiện tại; không mở Facebook, không gọi AI, không xóa khách đã chọn hoặc bản duyệt tin nhắn. Chờ chiến dịch dừng trước khi sửa. Biến thể được lưu bền trong dữ liệu CTV, riêng cho người dùng và tài khoản Facebook đó, dùng cho các lần quét sau; không cần restart hoặc sửa JSON. Không tự cập nhật các chiến dịch cũ khác. Alias đã thuộc một tên brand khác sẽ bị từ chối thay vì ghi đè.
+
+## Sửa hoặc xóa highlight
+
+Bấm đoạn highlight (hoặc Tab tới đoạn đó rồi Enter) để mở form:
+
+- **Lưu sửa brand**: sửa chữ trong caption và tên chuẩn. Ví dụ đổi “Hermès Un Jardin à Cythère EDT” thành “Hermès” ở cả hai ô. Nếu đoạn được tạo bởi biến thể riêng, thay thế biến thể đó cho tài khoản Facebook này và cập nhật chiến dịch hiện tại. Nếu là từ điển mặc định, không sửa từ điển chung; thay đổi chỉ là chú thích và biến thể riêng.
+- **Bỏ highlight lần này**: bỏ đúng đoạn trong caption đó, vẫn giữ từ điển. Việc thêm brand khác không làm đoạn đã bỏ tự xuất hiện lại. Quét lại Facebook tạo kết quả mới nên không giữ các lần bỏ highlight cũ.
+- **Xóa biến thể riêng**: yêu cầu xác nhận, xóa biến thể đã thêm của người dùng/tài khoản Facebook này và tính lại highlight trong chiến dịch. Không xóa từ điển mặc định; nếu một tên vẫn khớp từ điển hoặc biến thể khác, nó có thể tiếp tục được highlight. Các chiến dịch cũ khác không tự cập nhật.
+
+Các thao tác giữ nguyên caption gốc, khách đã chọn, UID, bản duyệt tin nhắn và lịch sử gửi. Không mở Facebook hoặc gọi AI. Nếu caption đã thay đổi hay highlight đã xóa, tải lại kết quả trước khi thao tác lại.
