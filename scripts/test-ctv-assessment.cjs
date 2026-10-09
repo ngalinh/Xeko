@@ -69,3 +69,21 @@ test('caption review highlights source text safely and displays uncertain aliase
   assert.match(caption.children[2].text,/Có thể là: Calvin Klein/);
   assert.equal(context.renderAssessmentPreview({provider:'keywords',suggestion:'Cần kiểm tra'}).children[0].text,'Cần kiểm tra');
 });
+
+
+test('inline brand form captures selected caption text and sends canonical name without scanning',async t=>{
+ const original=context.element;t.after(()=>{context.element=original;});
+ context.element=(tag,text,cls)=>({tag,text,cls,children:[],value:'',append(...nodes){this.children.push(...nodes);},setAttribute(){},focus(){}});
+ const node={};const content={contains:n=>n===node};
+ context.window={getSelection:()=>({anchorNode:node,focusNode:node,toString:()=> 'Hermès'})};
+ context.selected={id:'campaign-1',state:'analysis_review'};context.busy=false;context.uncertain=false;context.epoch=1;context.ACTIVE=['analyzing'];
+ context.updateControls=()=>{};context.notice=()=>{};context.document={querySelectorAll:()=>[]};
+ let request,rendered;context.api=async(...args)=>{request=args;return {id:'campaign-1'};};context.render=value=>{rendered=value;};
+ const box=context.captionBrandEditor(content,'Hermès Un Jardin','lead-1');
+ content.onmouseup();box.children[0].onclick();
+ const form=box.children[1],alias=form.children[0].children[0],name=form.children[1].children[0];
+ assert.equal(form.hidden,false);assert.equal(alias.value,'Hermès');name.value='Hermès';
+ await form.onsubmit({preventDefault(){}});
+ assert.equal(request[0],'/api/ctv/campaigns/campaign-1/add-brand');assert.equal(request[2].leadId,'lead-1');assert.equal(request[2].alias,'Hermès');assert.equal(rendered.id,'campaign-1');
+ request=null;alias.value='Not in caption';await form.onsubmit({preventDefault(){}});assert.equal(request,null);
+});

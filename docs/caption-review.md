@@ -10,8 +10,14 @@ Mọi kết quả đều cần người dùng tick chọn và duyệt nội dung
 
 Chỉnh file server/src/ctv/brand-dictionary.json để thêm tên chuẩn và aliases, tăng version rồi khởi động lại worker. Chỉ thêm cách viết đã xác nhận. 35 brand khởi đầu gồm nhóm thời trang, giày, túi và mỹ phẩm. Chữ hoa/thường, một số ký tự Unicode và khoảng trắng/dấu chấm giữa chữ được chuẩn hóa; ad!das, L@coste là alias cụ thể. Không dùng so khớp gần đúng tùy ý. CK, MK, LV và tên dễ nhầm cần ngữ cảnh sản phẩm; kết quả chưa chắc được ghi “Có thể là”. Các quy tắc vẫn có thể nhận diện nhầm hoặc bỏ sót; nên thử trên một nhóm khách đã biết.
 
-Thay đổi từ điển chỉ áp dụng khi quét lại; kết quả cũ giữ version đã dùng. Chưa có màn hình sửa alias hoặc tự học từ thao tác người dùng trong bản thử đầu.
+Thay đổi từ điển chỉ áp dụng khi quét lại; kết quả cũ giữ version đã dùng. Có thể thêm alias trực tiếp từ caption theo hướng dẫn dưới đây. Chưa có màn hình sửa/xóa alias đã lưu.
 
 ## Chế độ cũ
 
 Chiến dịch cũ và API tạo chiến dịch không truyền assessmentMode tiếp tục dùng chế độ AI. Giao diện cho chọn AI nếu cần đọc ảnh. Không đổi chế độ giữa một chiến dịch; tạo chiến dịch mới để đổi. Quét lại giữ chế độ đã chọn và xóa các phê duyệt/bản nháp theo luồng hiện có.
+
+## Thêm brand ngay trên caption đã lưu
+
+Mở chi tiết kết quả quét caption, bôi chọn tên brand bị bỏ sót (ví dụ Hermès hoặc PATRICK TA), bấm **＋ Thêm brand từ chữ đã chọn**. Kiểm tra chữ gốc, nhập tên brand chuẩn rồi bấm **Lưu & highlight**. Nếu chưa bôi chọn, có thể nhập nguyên văn chữ trong caption vào form.
+
+Chỉ cập nhật chú thích của các caption đã lưu trong chiến dịch hiện tại; không mở Facebook, không gọi AI, không xóa khách đã chọn hoặc bản duyệt tin nhắn. Chờ chiến dịch dừng trước khi sửa. Biến thể được lưu bền trong dữ liệu CTV, riêng cho người dùng và tài khoản Facebook đó, dùng cho các lần quét sau; không cần restart hoặc sửa JSON. Không tự cập nhật các chiến dịch cũ khác. Alias đã thuộc một tên brand khác sẽ bị từ chối thay vì ghi đè.

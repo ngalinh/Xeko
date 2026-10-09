@@ -29,3 +29,11 @@ test('deduplicates captions, preserves evidence and refuses empty/blocked collec
   assert.equal(evaluateCaptions({posts:[]}).collectionBlocked,true);
   assert.equal(evaluateCaptions({blocked:'Không xem được',posts:['Áo Nike']}).collectionBlocked,true);
 });
+
+
+test('custom brand aliases are literal, scoped inputs without modifying the built-in dictionary',()=>{
+ const custom=[{name:'Hermès',aliases:['Hermes']},{name:'Patrick Ta',aliases:['PATRICK TA']}];
+ const result=evaluateCaptions({posts:['Hermes Un Jardin','PATRICK TA son']},custom);
+ assert.deepEqual(result.brands,['Hermès','Patrick Ta']);
+ assert.equal(evaluateCaptions({posts:['Hermes Un Jardin']}).brands.length,0);
+});

@@ -456,3 +456,28 @@ test('caption mode persists and reaches worker without enabling automatic select
   assert.match(s.selectionBlocked(c.leads[0]),/Chưa đọc được caption/);
   assert.throws(()=>s.create({...input(),assessmentMode:'invalid'},'owner'),/Chế độ/);
 });
+
+
+test('adding a caption brand persists scoped aliases and re-highlights without rescan or approval changes',async t=>{
+  const {s,browser,inspected,sent}=setup(t);
+  const c=s.create({...input(['https://facebook.com/123']),assessmentMode:'keywords'},'owner');
+  const base=require('./src/ctv/caption-review').evaluateCaptions({personalEvidence:true,posts:['Hermès Un Jardin có sẵn','PATRICK TA son mới']});
+  Object.assign(c,{state:'message_review',approvals:{import:{by:'owner'},analysis:{leadIds:[c.leads[0].id]}}});
+  c.leads[0].assessment={...base,name:'Test',recipientId:'123'};c.leads[0].state='review';
+  const approvals=JSON.stringify(c.approvals);
+  s.addBrand(c.id,'owner',{leadId:c.leads[0].id,alias:'Hermès',name:'Hermès'});
+  s.addBrand(c.id,'owner',{leadId:c.leads[0].id,alias:'Hermès',name:'Hermès'});
+  assert.equal(s.data.brandAliases.length,1);assert.ok(c.leads[0].assessment.brands.includes('Hermès'));
+  assert.ok(c.leads[0].assessment.captionReviews[0].spans.some(x=>x.label==='Hermès'));
+  assert.equal(c.leads[0].assessment.recipientId,'123');assert.equal(c.leads[0].assessment.eligible,false);
+  assert.equal(c.state,'message_review');assert.equal(JSON.stringify(c.approvals),approvals);
+  assert.equal(inspected.length,0);assert.equal(sent.length,0);
+  const restored=new CtvService({file:s.file,browser});
+  assert.equal(restored.customBrands(c).length,1);assert.equal(restored.customBrands({...c,owner:'other'}).length,0);assert.equal(restored.customBrands({...c,profile:'other'}).length,0);
+  assert.ok(restored.listCustomers('owner')[0].assessment.brands.includes('Hermès'));
+  assert.throws(()=>s.addBrand(c.id,'other',{leadId:c.leads[0].id,alias:'Hermès',name:'Hermès'}),/Không tìm/);
+  assert.throws(()=>s.addBrand(c.id,'owner',{leadId:c.leads[0].id,alias:'missing',name:'Test'}),/nguyên văn/);
+  assert.throws(()=>s.addBrand(c.id,'owner',{leadId:c.leads[0].id,alias:'Hermès',name:'Other'}),/đã thuộc/);
+  assert.throws(()=>s.addBrand(c.id,'owner',{leadId:c.leads[0].id,alias:'Hermès',name:'<script>'}),/HTML/);
+  c.state='sending';assert.throws(()=>s.addBrand(c.id,'owner',{leadId:c.leads[0].id,alias:'Hermès',name:'Hermès'}),/chờ/);
+});

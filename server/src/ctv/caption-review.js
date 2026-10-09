@@ -29,12 +29,12 @@ function matches(text, aliases, kind, label, flexible = false) {
 const SALES = ['nhận order','order','chốt đơn','nhận đơn','đặt hàng','có sẵn','còn hàng','đủ size','sale','giảm giá','bán','giá sỉ','in stock'];
 const EXCLUSIONS = ['không bán','ngừng bán','không nhận order','tìm mua','cần mua','ai bán','review','chia sẻ'];
 const RECRUIT = ['tuyển CTV','tuyển cộng tác viên','tuyển đại lý','tuyển nhà phân phối'];
-function scanText(text) {
+function scanText(text, customBrands = []) {
   text = String(text || '').slice(0,6000);
   const folded = normalized(text).value;
   const fashion = /\b(ao|quan|giay|dep|tui|vi|size|vay|dam|nuoc hoa|my pham|son|kem|dong ho)\b/.test(folded);
   let spans = [];
-  for (const brand of dictionary.brands) {
+  for (const brand of [...dictionary.brands, ...customBrands]) {
     for (const span of matches(text, [brand.name, ...brand.aliases], 'brand', brand.name, true)) {
       const token = normalized(span.text).value.replace(/[^a-z0-9]/g, '');
       const nearby = normalized(text.slice(Math.max(0,span.start - 25),span.end + 45)).value;
@@ -60,10 +60,10 @@ function scanText(text) {
     needsContext: exclusions.length > 0, recruitmentSignal: recruitment.length > 0 && !recruitmentUncertain };
 }
 
-function evaluateCaptions(snapshot) {
+function evaluateCaptions(snapshot, customBrands = []) {
   const posts = [...new Map((snapshot.posts || []).filter(p => typeof p === 'string' && p.trim())
-    .map(p => [normalized(p).value.replace(/\s+/g,' ').trim(), p])).values()].slice(0,5).map(scanText);
-  const bioReview = scanText(snapshot.headerBio || snapshot.bio || '');
+    .map(p => [normalized(p).value.replace(/\s+/g,' ').trim(), p])).values()].slice(0,5).map(text => scanText(text, customBrands));
+  const bioReview = scanText(snapshot.headerBio || snapshot.bio || '', customBrands);
   const salesPostCount = posts.filter(p => p.salesSignal).length;
   const brands = [...new Set(posts.flatMap(p => p.spans.filter(s => s.kind === 'brand' && s.certainty === 'clear').map(s => s.label)))];
   const retailers = [...new Set(posts.flatMap(p => p.spans.filter(s => s.kind === 'retailer').map(s => s.label)))];
