@@ -103,6 +103,7 @@ function loadAttachmentFlow(wait) {
   const end = source.indexOf('// Nhận diện URL permalink', start);
   const context = {
     require: () => ({ waitForImages: wait }),
+    resolvePostSurface: async page => page.locator().filter().first(),
     logger: { info() {} },
     saveDebugShot: async () => 'test.png',
     module: { exports: {} },
@@ -115,7 +116,7 @@ function fakeComposer(inputs) {
   const composer = {
     locator: sel => sel === 'img' ? { evaluateAll: async () => ['avatar'] }
       : sel === 'input[type="file"]' ? { elementHandles: async () => inputs }
-      : { first: () => ({ click: async () => { throw new Error('no photo button'); } }) },
+      : { first: () => ({ count: async () => 1, click: async () => { throw new Error('no photo button'); } }) },
   };
   const page = {
     locator: () => ({ filter: () => ({ count: async () => 1, first: () => composer }) }),
