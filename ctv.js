@@ -73,8 +73,8 @@
   }
   viewStep(1);
   const element = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
-  function renderAssessment(v) {
-    if (v.provider === 'keywords') return renderCaptionReview(v);
+  function renderAssessment(v, leadId) {
+    if (v.provider === 'keywords') return renderCaptionReview(v, leadId);
     const type = {personal:'Profile cá nhân',page:'Fanpage',group:'Group'}[v.type] || 'Chưa rõ loại';
     const seller = {yes:'Có',no:'Không'}[v.sellerUS] || 'Chưa rõ';
     const confidence = Number.isFinite(v.confidence) ? Math.round(v.confidence * 100) + '%' : 'Chưa đủ dữ liệu';
@@ -95,7 +95,7 @@
     }
     return list;
   }
-  function renderCaptionReview(v) {
+  function renderCaptionReview(v, leadId) {
     const container = element('div', undefined, 'caption-review');
     container.append(element('p', 'Quét từ khóa trên máy · Không AI · Không xác minh nguồn hàng Mỹ', 'muted'));
     container.append(element('p', v.reason));
@@ -114,6 +114,7 @@
       }
       content.append(element('span', row.text.slice(cursor) || (!row.text ? 'Chưa đọc được' : '')));
       section.append(content);
+      if (leadId && !row.bio && row.text) section.append(captionBrandEditor(content, row.text, leadId));
       const names = [...new Set((row.spans || []).map(s => (s.certainty === 'possible' ? 'Có thể là: ' : '') + s.label))];
       if (names.length) section.append(element('small', names.join(' · ')));
       container.append(section);
@@ -121,7 +122,47 @@
     container.append(element('p', 'Brand: vàng · Nhà bán lẻ: xanh dương · Bán hàng: xanh lá · Ngữ cảnh/tuyển CTV: tím. Ngày và link từng bài chưa được thu thập trong bản thử này.', 'muted'));
     return container;
   }
-  function renderAssessmentPreview(v) {
+  function captionBrandEditor(content, text, leadId) {
+    const box = element('div', undefined, 'caption-brand-editor');
+    const open = element('button', '＋ Thêm brand từ chữ đã chọn', 'secondary'); open.type = 'button';
+    const form = element('form'); form.hidden = true;
+    const aliasLabel = element('label', 'Chữ trong caption');
+    const alias = element('input'); alias.maxLength = 80; alias.required = true; aliasLabel.append(alias);
+    const nameLabel = element('label', 'Tên brand chuẩn (ví dụ: Hermès)');
+    const name = element('input'); name.maxLength = 80; name.required = true; nameLabel.append(name);
+    const save = element('button', 'Lưu & highlight'); save.type = 'submit';
+    const cancel = element('button', 'Hủy', 'secondary'); cancel.type = 'button';
+    const status = element('p', '', 'muted'); status.setAttribute('aria-live', 'polite');
+    form.append(aliasLabel, nameLabel, element('p','Áp dụng cho caption đã lưu trong chiến dịch này và các lần quét sau của tài khoản Facebook này.','muted'), save, cancel, status);
+    let chosen = '';
+    const remember = () => {
+      const selection = window.getSelection();
+      if (selection && content.contains(selection.anchorNode) && content.contains(selection.focusNode)) chosen = selection.toString().trim();
+    };
+    content.onmouseup = content.onkeyup = remember;
+    open.onclick = () => {
+      remember(); form.hidden = false; alias.value = chosen; name.value = chosen; status.textContent = '';
+      (chosen ? name : alias).focus();
+    };
+    cancel.onclick = () => { form.hidden = true; open.focus(); };
+    form.onsubmit = async event => {
+      event.preventDefault();
+      if (busy || uncertain || !selected || ACTIVE.includes(selected.state)) { status.textContent = 'Hãy chờ chiến dịch dừng và kết nối ổn định.'; return; }
+      if (!alias.value.trim() || !text.normalize('NFC').includes(alias.value.trim().normalize('NFC'))) { status.textContent = 'Chữ cần thêm phải có nguyên văn trong caption này.'; return; }
+      const campaignId = selected.id, version = epoch;
+      save.disabled = cancel.disabled = true; busy = true; updateControls(); status.textContent = 'Đang lưu…';
+      try {
+        const updated = await api('/api/ctv/campaigns/' + campaignId + '/add-brand','POST',{leadId,alias:alias.value.trim(),name:name.value.trim()});
+        if (epoch !== version || selected?.id !== campaignId) return;
+        render(updated);
+        document.querySelectorAll('.assessment-details').forEach(details => { details.open = true; });
+        notice('Đã lưu brand và cập nhật highlight. Không quét Facebook, không gọi AI.');
+      } catch (error) { status.textContent = error.message + ' Bạn có thể thử lưu lại; biến thể trùng sẽ không bị thêm lần nữa.'; }
+      finally { busy = false; save.disabled = cancel.disabled = false; updateControls(); }
+    };
+    box.append(open, form); return box;
+  }
+  function renderAssessmentPreview(v, leadId) {
     const preview = element('div');
     const seller = {yes:'Có',no:'Không'}[v.sellerUS] || 'Chưa đủ dữ liệu';
     preview.append(element('p', v.provider === 'keywords' ? v.suggestion || 'Quét caption — cần kiểm tra' : 'Seller bán sản phẩm trên website Mỹ: ' + seller, 'seller-verdict'));
@@ -129,7 +170,7 @@
     const details = element('details', undefined, 'assessment-details');
     const summary = element('summary');
     summary.append(element('span', 'Xem chi tiết', 'expand-label'), element('span', 'Thu gọn', 'collapse-label'));
-    details.append(summary, renderAssessment(v));
+    details.append(summary, renderAssessment(v, leadId));
     preview.append(details);
     return preview;
   }
@@ -426,7 +467,7 @@
           uidCell.append(findUid);
         }
       }
-      if(v) analysis.append(renderAssessmentPreview(v));
+      if(v) analysis.append(renderAssessmentPreview(v, l.id));
       else analysis.append(element('p',l.error || 'Chưa có kết quả','muted'));
       analysis.append(renderScanLog(l));
       if(v && !canPick(l)) {

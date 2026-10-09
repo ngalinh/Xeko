@@ -19,6 +19,46 @@ class CtvService {
     }
     this.save();
   }
+  customBrands(c) {
+    return (this.data.brandAliases || []).filter(r => r.owner === c.owner && r.profile === c.profile)
+      .map(r => ({ name: r.name, aliases: [r.alias] }));
+  }
+  addBrand(id, owner, input) {
+    const c = this.staged(id, owner);
+    if (ACTIVE.includes(c.state)) fail('Hãy chờ chiến dịch dừng trước khi thêm brand');
+    const lead = c.leads.find(l => l.id === input.leadId);
+    if (lead?.assessment?.provider !== 'keywords') fail('Chỉ thêm brand từ caption đã quét không AI');
+    const clean = value => typeof value === 'string' ? value.trim().normalize('NFC') : '';
+    const alias = clean(input.alias), name = clean(input.name);
+    if ([alias,name].some(v => v.length < 2 || v.length > 80 || /[\x00-\x1f<>]/.test(v) || !/\p{L}/u.test(v))) fail('Tên brand và biến thể cần 2–80 ký tự chữ, không chứa HTML hoặc xuống dòng');
+    const sources = (lead.assessment.captionReviews || []).map(p => p.text);
+    if (!sources.some(text => text.normalize('NFC').includes(alias))) fail('Biến thể phải xuất hiện nguyên văn trong caption đã lưu');
+    const { normalized, evaluateCaptions } = require('./caption-review');
+    const key = text => normalized(text).value.replace(/[ ._-]/g, '');
+    const builtins = require('./brand-dictionary.json').brands;
+    const records = this.data.brandAliases || [];
+    const scope = records.filter(r => r.owner === owner && r.profile === c.profile);
+    const collision = [...builtins, ...this.customBrands(c)].find(b => [b.name,...b.aliases].some(a => key(a) === key(alias)) && key(b.name) !== key(name));
+    if (collision) fail(`Biến thể đã thuộc brand ${collision.name}; hãy dùng đúng tên chuẩn`);
+    const duplicate = scope.some(r => key(r.alias) === key(alias) && key(r.name) === key(name));
+    if (!duplicate && scope.length >= 300) fail('Đã đạt giới hạn 300 biến thể cho tài khoản này');
+    if (!duplicate) records.push({ owner, profile: c.profile, alias, name, createdAt: new Date().toISOString() });
+    this.data.brandAliases = records;
+    const custom = this.customBrands(c);
+    for (const item of c.leads) {
+      const old = item.assessment;
+      if (old?.provider !== 'keywords') continue;
+      const updated = evaluateCaptions({ bio: old.bio, posts: (old.captionReviews || []).map(p => p.text) }, custom);
+      // Annotation changes must never alter qualification, recipient identity,
+      // send history, campaign state or previously approved message previews.
+      old.captionReviews = updated.captionReviews; old.bioReview = updated.bioReview;
+      old.brands = updated.brands;
+      if (!old.collectionBlocked) { old.reason = updated.reason; old.captionAnalysis = updated.captionAnalysis; }
+      old.brandAnnotationsUpdatedAt = new Date().toISOString();
+    }
+    this.save();
+    return c;
+  }
   addCustomer(input, owner) {
     const record = addManualCustomer(this.data, input, owner); this.save();
     return this.listCustomers(owner).find(r => r.profile === record.profile && r.url === record.url);
@@ -186,7 +226,7 @@ class CtvService {
         lastProgress = onProgress;
         onProgress({ stage: 'browser', message: 'Đang mở tab kiểm tra của tài khoản Facebook' });
         try {
-          lead.assessment = await this.browser.withPage(c.profile, page => this.browser.inspect(page, lead.url, { onProgress, cancelled: () => c.cancelled, assessmentMode: c.assessmentMode || 'ai' }), { keepOpen: true });
+          lead.assessment = await this.browser.withPage(c.profile, page => this.browser.inspect(page, lead.url, { onProgress, cancelled: () => c.cancelled, assessmentMode: c.assessmentMode || 'ai', customBrands: this.customBrands(c) }), { keepOpen: true });
           lead.state = lead.assessment.eligible ? 'qualified' : 'review'; this.save();
         } catch (e) {
           onProgress({ stage: c.cancelled ? 'cancelled' : 'error', message: e.message });

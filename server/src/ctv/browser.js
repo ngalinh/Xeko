@@ -289,7 +289,7 @@ async function collectProfilePosts(page, snapshot, { report = () => {}, check = 
   return { ...snapshot, posts: selected.map(p => p.caption), postMedia: selected };
 }
 
-async function inspect(page, url, { onProgress = () => {}, cancelled = () => false, assessmentMode = 'ai' } = {}) {
+async function inspect(page, url, { onProgress = () => {}, cancelled = () => false, assessmentMode = 'ai', customBrands = [] } = {}) {
   const started = Date.now();
   const report = (stage, message) => onProgress({ stage, message, elapsedMs: Date.now() - started, at: new Date().toISOString() });
   const check = () => { if (cancelled()) throw new Error('Đã dừng quét profile theo yêu cầu'); };
@@ -343,7 +343,7 @@ async function inspect(page, url, { onProgress = () => {}, cancelled = () => fal
   check();
   report('assessment', assessmentMode === 'keywords' ? 'Đang đối chiếu từ khóa caption trên máy, không gọi AI' : 'Đang đánh giá dữ liệu bằng AI');
   const assessment = assessmentMode === 'keywords'
-    ? require('./caption-review').evaluateCaptions(snapshot)
+    ? require('./caption-review').evaluateCaptions(snapshot, customBrands)
     : await evaluateProfile({ ...snapshot, url: target }, undefined, { report, check });
   check();
   if (!snapshot.blocked && !snapshot.name) {
