@@ -1,3 +1,5 @@
+const { startImageDiagnostics } = require('./zalo-image-diagnostics');
+const imageDiagnostics = new WeakMap();
 const { safeLaunchPersistentContext } = require('../utils/playwright-launch');
 const { closeProfileContext } = require('../utils/profile-context');
 const path = require('path');
@@ -643,7 +645,8 @@ async function attachImages(page, imagePaths) {
     // QUAN TRỌNG: preview ảnh hiện ra (blob/data) TRƯỚC khi basso upload xong ảnh
     // lên server của nó. Nếu bấm Gửi ngay thì tin gửi đi KHÔNG kèm ảnh (group rỗng)
     // nhưng salework vẫn tưởng thành công. Chờ network rảnh để upload hoàn tất.
-    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+    const uploadIdle = await page.waitForLoadState('networkidle', { timeout: 10000 }).then(() => true).catch(() => false);
+    await imageDiagnostics.get(page)?.checkpoint('upload-wait', { networkIdle: uploadIdle });
   } else {
     logger.warn(`[basso] CHƯA xác nhận đủ ${imagePaths.length} ảnh — dừng, không đính chồng ảnh`);
   }
@@ -716,7 +719,9 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null, 
   // đồng nghĩa gửi thất bại (upload chậm, album thu gọn, ảnh đổi blob → CDN).
   if (imagePaths.length > 0) {
     const attachmentBaseline = await _imageThreadState(page);
+    await imageDiagnostics.get(page)?.checkpoint('before-attach');
     const uploaded = await attachImages(page, imagePaths);
+    await imageDiagnostics.get(page)?.checkpoint('after-attach', { attachmentConfirmed: uploaded });
     if (!uploaded) {
       throw new Error('Chưa xác nhận đủ ảnh trong bản nháp — đã dừng trước khi Gửi để tránh đính trùng.');
     }
@@ -728,15 +733,18 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null, 
       .filter(src => /^(blob:|data:)/.test(src) && !oldLocal.has(src));
     logger.info(`[basso][verify] trước khi gửi ảnh: ${JSON.stringify(before)}`);
     _throwIfCancelled();
+    await imageDiagnostics.get(page)?.checkpoint('before-send-images');
     if (!(await clickSend(page, verifyTarget))) {
       throw new Error('Không tìm thấy nút Gửi ảnh — chưa gửi.');
     }
+    await imageDiagnostics.get(page)?.checkpoint('send-images-clicked');
     let imageSent = false;
     try {
       imageSent = await waitImageSent(page, imagePaths.length, before);
     } catch (e) {
       logger.warn(`[basso] Xác minh ảnh lỗi: ${e.message}`);
     }
+    await imageDiagnostics.get(page)?.checkpoint('after-verify-images', { deliveryConfirmed: imageSent });
     if (!imageSent) {
       const err = new Error('Đã bấm Gửi ảnh nhưng chưa xác nhận được kết quả. Có thể album đã lên nhóm; không tự gửi lại album hoặc gửi text. Kiểm tra nhóm trước khi đăng lại.');
       err.deliveryUnknown = true;
@@ -1019,6 +1027,17 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
       await screenshot(page, '04b-group-reopened');
     }
 
+    if (imagePaths?.length) {
+      const files = imagePaths.map(file => {
+        try { return { name: path.basename(file), bytes: fs.statSync(file).size }; }
+        catch { return { name: path.basename(file), missing: true }; }
+      });
+      imageDiagnostics.set(page, startImageDiagnostics(page, {
+        account: zaloAccountName, group: groupName, expectedImages: imagePaths.length, files
+      }, { directory: path.resolve(__dirname, '../../logs'), logger, readImageState: _imageThreadState }));
+      await imageDiagnostics.get(page).checkpoint('group-ready');
+    }
+
     // Chuẩn hoá ảnh về JPEG đồng nhất TRƯỚC khi gửi để Zalo không biến ảnh khác
     // định dạng/khổ (vd webp) thành FILE đính kèm ("hình cuối chuyển thành file").
     let sendImagePaths = imagePaths;
@@ -1035,9 +1054,16 @@ async function _postToZaloGroupImpl({ zaloAccountName, accountKey, groupName, me
   } catch (e) {
     if (e.cancelled) logger.info(`[salework] Đã bị dừng theo yêu cầu người dùng — không gửi`);
     else logger.error(`[salework] Lỗi: ${e.message}`);
+    if (page && imageDiagnostics.has(page)) {
+      try { await imageDiagnostics.get(page).saveFailure(e); } catch {}
+    }
     try { await screenshot(page, '99-error'); } catch {}
     return { success: false, error: e.message, cancelled: !!e.cancelled };
   } finally {
+    if (page && imageDiagnostics.has(page)) {
+      imageDiagnostics.get(page).stop();
+      imageDiagnostics.delete(page);
+    }
     for (const f of normalizedImageFiles) { try { fs.unlinkSync(f); } catch {} }
     // Keep the account queue occupied until close completes. On timeout the
     // shared profile guard stays reserved until the actual context close event.
