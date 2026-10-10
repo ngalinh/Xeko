@@ -71,6 +71,16 @@ test('caption review highlights source text safely and displays uncertain aliase
 });
 
 
+test('MyJoy assessment renders grounded highlights without exposing keyword dictionary edits', () => {
+  const rendered=context.renderAssessment({provider:'myjoy',model:'test-model',reason:'Kết quả MyJoy',captionReviews:[{text:'Hermès có sẵn',spans:[{start:0,end:6,text:'Hermès',kind:'brand',label:'Hermès'}]}]},'lead');
+  assert.match(rendered.children[0].text,/MyJoy.*test-model/);
+  const caption=rendered.children[3];
+  assert.equal(caption.children[1].children[1].tag,'mark');
+  assert.equal(caption.children[1].children[1].text,'Hermès');
+  assert.ok(!caption.children.some(c=>c.cls==='caption-brand-editor'));
+  assert.equal(context.renderAssessmentPreview({provider:'myjoy',suggestion:'Cần kiểm tra'}).children[0].text,'Cần kiểm tra');
+});
+
 test('inline brand form captures selected caption text and sends canonical name without scanning',async t=>{
  const original=context.element;t.after(()=>{context.element=original;});
  context.element=(tag,text,cls)=>({tag,text,cls,children:[],value:'',append(...nodes){this.children.push(...nodes);},setAttribute(){},focus(){}});

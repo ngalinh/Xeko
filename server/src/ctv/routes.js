@@ -19,12 +19,14 @@ function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', pe
       const allowed = remote ? permissions.getAllowedProfileKeys(owner) : null;
       const allowedProfile = profile => allowed === null || allowed.includes(profile);
       const customers = req.path === '/api/ctv/customers';
+      const myjoy = req.path === '/api/ctv/myjoy/backends';
+      if (myjoy && req.method !== 'GET') return res.status(405).json({ error: 'Thao tác không được hỗ trợ' });
       if (customers && !['GET','POST'].includes(req.method)) return res.status(405).json({ error: 'Thao tác không được hỗ trợ' });
       if (customers && req.method === 'POST' && (typeof req.body?.profile !== 'string' || !req.body.profile)) return res.status(400).json({ error: 'Cần chọn tài khoản quản lý' });
       if (customers && req.method === 'POST' && !allowedProfile(req.body.profile)) return res.status(403).json({ error: 'Không có quyền dùng tài khoản này' });
       const collection = req.path === '/api/ctv/campaigns';
       const match = req.path.match(campaignPath);
-      if ((!customers && !collection && (!match || (match[2] && !ACTIONS.includes(match[2])))) || !['GET','POST'].includes(req.method) || (match?.[2] && req.method !== 'POST')) return res.status(404).json({ error: 'Không tìm thấy thao tác' });
+      if ((!myjoy && !customers && !collection && (!match || (match[2] && !ACTIONS.includes(match[2])))) || !['GET','POST'].includes(req.method) || (match?.[2] && req.method !== 'POST')) return res.status(404).json({ error: 'Không tìm thấy thao tác' });
       const local = remote && getLocalUrl();
       if (remote && process.env.PLAYWRIGHT_LOCAL_URL && !local) return res.status(503).json({ error: 'Máy chạy Playwright chưa kết nối' });
       if (local) {
@@ -44,6 +46,7 @@ function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', pe
         if (Array.isArray(data)) data = data.filter(c => allowedProfile(c.profile));
         return res.status(upstream.status).json(data);
       }
+      if (myjoy) return res.json(await require('./myjoy').listBackends(owner));
       const s = getService();
       if (customers) {
         if (req.method === 'POST') return res.status(201).json(s.addCustomer(req.body, owner));
