@@ -1,6 +1,6 @@
 const path = require('path');
 const { CtvService } = require('./service');
-const ACTIONS = ['approve-import', 'approve-analysis', 'review-analysis', 'prepare-messages', 'send', 'retry-send', 'stop', 'retry-analysis', 'resolve-uids', 'delete', 'skip-lead', 'add-brand'];
+const ACTIONS = ['approve-import', 'approve-analysis', 'review-analysis', 'prepare-messages', 'send', 'retry-send', 'stop', 'retry-analysis', 'resolve-uids', 'delete', 'skip-lead', 'add-brand', 'update-highlight'];
 const campaignPath = /^\/api\/ctv\/campaigns\/([a-f0-9-]+)(?:\/([a-z-]+))?$/;
 
 function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', permissions, service: providedService, fetchFn = fetch } = {}) {
@@ -60,6 +60,7 @@ function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', pe
       if (action) {
         const body = req.body || {};
         const result = {
+          'update-highlight': () => s.updateHighlight(c.id, owner, body),
           'add-brand': () => s.addBrand(c.id, owner, body),
           'approve-import': () => s.approveImport(c.id, owner),
           'approve-analysis': () => s.approveAnalysis(c.id, owner, body.leadIds),

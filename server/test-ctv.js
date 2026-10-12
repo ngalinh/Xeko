@@ -481,3 +481,43 @@ test('adding a caption brand persists scoped aliases and re-highlights without r
   assert.throws(()=>s.addBrand(c.id,'owner',{leadId:c.leads[0].id,alias:'Hermès',name:'<script>'}),/HTML/);
   c.state='sending';assert.throws(()=>s.addBrand(c.id,'owner',{leadId:c.leads[0].id,alias:'Hermès',name:'Hermès'}),/chờ/);
 });
+
+
+test('highlight edit shortens legacy custom alias, hide survives refresh, delete affects future matching',async t=>{
+ const {s,browser,inspected,sent}=setup(t);
+ const c=s.create({...input(['https://facebook.com/123']),assessmentMode:'keywords'},'owner');
+ c.state='message_review';c.approvals={analysis:{leadIds:[c.leads[0].id]}};
+ c.messagePreview={token:'unchanged',messages:[]};
+ const lead=c.leads[0];lead.state='review';
+ lead.assessment={...require('./src/ctv/caption-review').evaluateCaptions({posts:['Hermès Un Jardin có sẵn; Hermès']}),recipientId:'123'};
+ s.addBrand(c.id,'owner',{leadId:lead.id,alias:'Hermès Un Jardin',name:'Hermès Un Jardin'});
+ const payload=(operation,span=lead.assessment.captionReviews[0].spans.find(x=>x.kind==='brand'))=>({operation,leadId:lead.id,postIndex:0,captionText:lead.assessment.captionReviews[0].text,...span});
+ // Simulate an assessment saved by the preceding release without provenance.
+ delete lead.assessment.captionReviews[0].spans.find(x=>x.kind==='brand').customAlias;
+ s.updateHighlight(c.id,'owner',{...payload('edit'),alias:'Hermès',name:'Hermès'});
+ assert.equal(s.data.brandAliases.length,1);assert.equal(s.data.brandAliases[0].alias,'Hermès');
+ assert.equal(lead.assessment.captionReviews[0].spans.filter(x=>x.kind==='brand').length,2);
+ const hide=payload('hide');s.updateHighlight(c.id,'owner',hide);
+ assert.equal(lead.assessment.captionReviews[0].spans.filter(x=>x.kind==='brand').length,1);
+ s.addBrand(c.id,'owner',{leadId:lead.id,alias:'Hermès',name:'Hermès'});
+ assert.equal(lead.assessment.captionReviews[0].spans.filter(x=>x.kind==='brand').length,1);
+ s.updateHighlight(c.id,'owner',payload('delete-alias'));
+ assert.equal(s.data.brandAliases.length,0);assert.equal(lead.assessment.brands.length,0);
+ assert.equal(c.messagePreview.token,'unchanged');assert.deepEqual(c.approvals.analysis.leadIds,[lead.id]);assert.equal(lead.assessment.recipientId,'123');
+ assert.equal(inspected.length,0);assert.equal(sent.length,0);
+ const restored=new CtvService({file:s.file,browser});assert.equal(restored.get(c.id,'owner').leads[0].assessment.suppressedHighlights.length,1);
+ assert.equal(restored.customBrands(c).length,0);
+});
+
+test('highlight mutations reject stale, cross-owner, active and builtin deletion; invalid edit is atomic',async t=>{
+ const {s}=setup(t);const c=s.create({...input(['https://facebook.com/123']),assessmentMode:'keywords'},'owner');c.state='analysis_review';
+ const lead=c.leads[0];lead.assessment=require('./src/ctv/caption-review').evaluateCaptions({posts:['Nike Hermès Un Jardin']});
+ s.addBrand(c.id,'owner',{leadId:lead.id,alias:'Hermès Un Jardin',name:'Hermès Un Jardin'});
+ const row=lead.assessment.captionReviews[0],brand=row.spans.find(x=>x.label==='Hermès Un Jardin');
+ const request={operation:'edit',leadId:lead.id,postIndex:0,captionText:row.text,...brand,alias:'Hermès',name:'<bad>'};
+ const before=JSON.stringify(s.data);assert.throws(()=>s.updateHighlight(c.id,'owner',request),/HTML/);assert.equal(JSON.stringify(s.data),before);
+ assert.throws(()=>s.updateHighlight(c.id,'other',request),/Không tìm/);
+ assert.throws(()=>s.updateHighlight(c.id,'owner',{...request,captionText:'stale'}),/thay đổi/);
+ assert.throws(()=>s.updateHighlight(c.id,'owner',{...request,operation:'delete-alias',...row.spans.find(x=>x.label==='Nike')}),/biến thể riêng/);
+ s.get(c.id,'owner').state='sending';assert.throws(()=>s.updateHighlight(c.id,'owner',request),/chờ/);
+});

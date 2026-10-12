@@ -21,7 +21,7 @@ class CtvService {
   }
   customBrands(c) {
     return (this.data.brandAliases || []).filter(r => r.owner === c.owner && r.profile === c.profile)
-      .map(r => ({ name: r.name, aliases: [r.alias] }));
+      .map(r => ({ name: r.name, aliases: [r.alias], customAlias: { alias: r.alias, name: r.name } }));
   }
   addBrand(id, owner, input) {
     const c = this.staged(id, owner);
@@ -33,7 +33,7 @@ class CtvService {
     if ([alias,name].some(v => v.length < 2 || v.length > 80 || /[\x00-\x1f<>]/.test(v) || !/\p{L}/u.test(v))) fail('Tên brand và biến thể cần 2–80 ký tự chữ, không chứa HTML hoặc xuống dòng');
     const sources = (lead.assessment.captionReviews || []).map(p => p.text);
     if (!sources.some(text => text.normalize('NFC').includes(alias))) fail('Biến thể phải xuất hiện nguyên văn trong caption đã lưu');
-    const { normalized, evaluateCaptions } = require('./caption-review');
+    const { normalized } = require('./caption-review');
     const key = text => normalized(text).value.replace(/[ ._-]/g, '');
     const builtins = require('./brand-dictionary.json').brands;
     const records = this.data.brandAliases || [];
@@ -44,6 +44,12 @@ class CtvService {
     if (!duplicate && scope.length >= 300) fail('Đã đạt giới hạn 300 biến thể cho tài khoản này');
     if (!duplicate) records.push({ owner, profile: c.profile, alias, name, createdAt: new Date().toISOString() });
     this.data.brandAliases = records;
+    this.refreshCaptionHighlights(c);
+    this.save();
+    return c;
+  }
+  refreshCaptionHighlights(c) {
+    const { evaluateCaptions } = require('./caption-review');
     const custom = this.customBrands(c);
     for (const item of c.leads) {
       const old = item.assessment;
@@ -51,13 +57,44 @@ class CtvService {
       const updated = evaluateCaptions({ bio: old.bio, posts: (old.captionReviews || []).map(p => p.text) }, custom);
       // Annotation changes must never alter qualification, recipient identity,
       // send history, campaign state or previously approved message previews.
-      old.captionReviews = updated.captionReviews; old.bioReview = updated.bioReview;
+      old.captionReviews = updated.captionReviews.map(row => ({ ...row, spans: row.spans.filter(span => !(old.suppressedHighlights || []).some(h => h.text === row.text && h.start === span.start && h.end === span.end && h.kind === span.kind && h.label === span.label)) })); old.bioReview = updated.bioReview;
+      updated.brands = [...new Set(old.captionReviews.flatMap(row => row.spans.filter(span => span.kind === 'brand' && span.certainty === 'clear').map(span => span.label)))];
       old.brands = updated.brands;
-      if (!old.collectionBlocked) { old.reason = updated.reason; old.captionAnalysis = updated.captionAnalysis; }
+      if (!old.collectionBlocked) { old.reason = `${old.captionReviews.length} caption; ${updated.brands.length} brand đang highlight. Bạn cần đọc bằng chứng và tự chọn khách.`; old.captionAnalysis = old.reason; }
       old.brandAnnotationsUpdatedAt = new Date().toISOString();
     }
-    this.save();
-    return c;
+  }
+  updateHighlight(id, owner, input) {
+    const c = this.staged(id, owner);
+    if (ACTIVE.includes(c.state)) fail('Hãy chờ chiến dịch dừng trước khi sửa highlight');
+    if (!['hide','edit','delete-alias'].includes(input.operation)) fail('Thao tác highlight không hợp lệ');
+    const lead = c.leads.find(l => l.id === input.leadId);
+    const a = lead?.assessment;
+    if (a?.provider !== 'keywords' || !Number.isInteger(input.postIndex)) fail('Không tìm thấy caption');
+    const row = a.captionReviews?.[input.postIndex];
+    if (!row || row.text !== input.captionText) fail('Caption đã thay đổi; hãy tải lại kết quả');
+    const span = row.spans.find(s => s.start === input.start && s.end === input.end && s.kind === input.kind && s.label === input.label);
+    if (!span) fail('Highlight đã thay đổi hoặc đã xóa; hãy tải lại kết quả');
+    const records = this.data.brandAliases || [];
+    // Older saved spans lack provenance. Recover only an exact alias/name match.
+    const custom = records.find(r => r.owner === owner && r.profile === c.profile &&
+      (span.customAlias ? r.alias === span.customAlias.alias && r.name === span.customAlias.name
+        : r.name === span.label && r.alias.normalize('NFC') === span.text.normalize('NFC')));
+    if (input.operation === 'delete-alias' && (!custom || span.kind !== 'brand')) fail('Highlight này không thuộc biến thể riêng; dùng Bỏ highlight lần này');
+    if (input.operation === 'edit' && span.kind !== 'brand') fail('Chỉ sửa tên brand; từ khóa khác có thể bỏ highlight lần này');
+    if (input.operation === 'edit' && (typeof input.alias !== 'string' || !row.text.normalize('NFC').includes(input.alias.trim().normalize('NFC')))) fail('Chữ thay thế phải có trong caption này');
+    const backup = JSON.parse(JSON.stringify(this.data));
+    try {
+      if (input.operation === 'hide' || input.operation === 'edit' && !custom) {
+        a.suppressedHighlights ||= [];
+        a.suppressedHighlights.push({ text: row.text, start: span.start, end: span.end, kind: span.kind, label: span.label });
+      }
+      if (custom && input.operation !== 'hide') this.data.brandAliases = records.filter(r => r !== custom);
+      if (input.operation === 'edit') return this.addBrand(id, owner, input);
+      this.refreshCaptionHighlights(c);
+      this.save();
+      return c;
+    } catch (error) { this.data = backup; throw error; }
   }
   addCustomer(input, owner) {
     const record = addManualCustomer(this.data, input, owner); this.save();

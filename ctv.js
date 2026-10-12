@@ -104,16 +104,25 @@
       const section = element('section');
       section.append(element('strong', row.bio ? 'Bio' : 'Caption ' + index));
       const content = element('p', undefined, 'caption-source');
+      const editorHost = element('div');
       let cursor = 0;
       for (const span of row.spans || []) {
         if (!Number.isInteger(span.start) || !Number.isInteger(span.end) || span.start < cursor || span.end > row.text.length || span.end <= span.start) continue;
         content.append(element('span', row.text.slice(cursor, span.start)));
         const mark = element('mark', row.text.slice(span.start, span.end), 'keyword-' + (['brand','retailer','sales','context','recruitment'].includes(span.kind) ? span.kind : 'context'));
         mark.title = (span.certainty === 'possible' ? 'Có thể là: ' : '') + span.label;
+        if (leadId && !row.bio) {
+          mark.tabIndex = 0; mark.setAttribute('role','button');
+          mark.title += ' — Bấm để sửa hoặc bỏ highlight';
+          const openEditor = () => editorHost.replaceChildren(highlightEditor(span, row, index - 1, leadId, () => { editorHost.replaceChildren(); mark.focus(); }));
+          mark.onclick = () => { if (!window.getSelection()?.toString()) openEditor(); };
+          mark.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openEditor(); } };
+        }
         content.append(mark); cursor = span.end;
       }
       content.append(element('span', row.text.slice(cursor) || (!row.text ? 'Chưa đọc được' : '')));
       section.append(content);
+      if (leadId && !row.bio) section.append(editorHost);
       if (leadId && !row.bio && row.text) section.append(captionBrandEditor(content, row.text, leadId));
       const names = [...new Set((row.spans || []).map(s => (s.certainty === 'possible' ? 'Có thể là: ' : '') + s.label))];
       if (names.length) section.append(element('small', names.join(' · ')));
@@ -121,6 +130,40 @@
     });
     container.append(element('p', 'Brand: vàng · Nhà bán lẻ: xanh dương · Bán hàng: xanh lá · Ngữ cảnh/tuyển CTV: tím. Ngày và link từng bài chưa được thu thập trong bản thử này.', 'muted'));
     return container;
+  }
+  function highlightEditor(span, row, postIndex, leadId, close) {
+    const form = element('form', undefined, 'highlight-editor');
+    form.append(element('strong','Chỉnh highlight: ' + span.text));
+    const aliasLabel = element('label','Chữ cần highlight trong caption'), alias = element('input');
+    alias.value = span.text; alias.maxLength = 80; aliasLabel.append(alias);
+    const nameLabel = element('label','Tên brand chuẩn'), name = element('input');
+    name.value = span.label; name.maxLength = 80; nameLabel.append(name);
+    const status = element('p','','muted'); status.setAttribute('aria-live','polite');
+    const buttons = [];
+    async function change(operation) {
+      if (busy || uncertain || !selected || ACTIVE.includes(selected.state)) { status.textContent = 'Hãy chờ chiến dịch dừng và kết nối ổn định.'; return; }
+      if (operation === 'delete-alias' && !window.confirm('Xóa biến thể riêng này khỏi tài khoản Facebook đang dùng và cập nhật highlight trong chiến dịch này? Những lần quét sau không dùng biến thể này; tên trùng từ điển mặc định vẫn có thể được highlight.')) return;
+      const campaignId = selected.id, version = epoch;
+      busy = true; buttons.forEach(b => { b.disabled = true; }); updateControls(); status.textContent = 'Đang cập nhật…';
+      try {
+        const updated = await api('/api/ctv/campaigns/' + campaignId + '/update-highlight','POST',{
+          operation,leadId,postIndex,captionText:row.text,start:span.start,end:span.end,kind:span.kind,label:span.label,alias:alias.value.trim(),name:name.value.trim()
+        });
+        if (epoch !== version || selected?.id !== campaignId) return;
+        render(updated); document.querySelectorAll('.assessment-details').forEach(d => { d.open = true; });
+        notice('Đã cập nhật highlight trên caption đã lưu. Không quét Facebook hoặc gọi AI.');
+      } catch(error) { status.textContent = error.message; }
+      finally { busy = false; buttons.forEach(b => { b.disabled = false; }); updateControls(); }
+    }
+    const button = (label, action) => { const b = element('button',label,'secondary'); b.type='button';b.onclick=action;buttons.push(b);return b; };
+    if (span.kind === 'brand') {
+      form.append(aliasLabel,nameLabel,element('p','Sửa biến thể riêng sẽ áp dụng cho lần quét sau. Từ điển mặc định không bị sửa.','muted'));
+      form.append(button('Lưu sửa brand',()=>change('edit')));
+      form.append(button('Xóa biến thể riêng',()=>change('delete-alias')));
+    }
+    form.append(button('Bỏ highlight lần này',()=>change('hide')),button('Đóng',close),status);
+    form.onsubmit = event => { event.preventDefault(); if(span.kind === 'brand') change('edit'); };
+    return form;
   }
   function captionBrandEditor(content, text, leadId) {
     const box = element('div', undefined, 'caption-brand-editor');
