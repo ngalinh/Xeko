@@ -30,10 +30,10 @@ function flow() {
   }
   return context;
 }
-function fixture(tag, next = false) {
+function fixture(tag, next = false, title = 'Tạo bài viết') {
   return '<style>[contenteditable]{width:300px;height:80px}</style>' +
     '<div role="dialog"><h2>Messenger</h2><div role="textbox" contenteditable="true">Other chat</div><input type="file" accept="image/*"></div>' +
-    '<' + tag + ' id="composer"><h2>Tạo bài viết</h2><div role="textbox" contenteditable="true"></div>' +
+    '<' + tag + ' id="composer"><h2>' + title + '</h2><div role="textbox" contenteditable="true"></div>' +
     '<input id="photos" type="file" accept="image/*" multiple><div role="button">Chia sẻ lên nhóm</div>' +
     (next ? '<button id="next" onclick="this.remove();document.querySelector(\'#composer h2\').textContent=\'Cài đặt bài viết\';document.querySelector(\'#post\').hidden=false">Tiếp</button>' : '') +
     '<button id="post" ' + (next ? 'hidden' : '') + ' onclick="window.sends=(window.sends||0)+1;document.querySelector(\'#composer\').remove()">Đăng</button></' + tag + '>';
@@ -65,6 +65,13 @@ test('Facebook dialog and full-page posting flow', async t => {
         await page.close();
       });
     }
+    await t.test('legacy popup with personalized greeting title is recognized', async () => {
+      const page = await browser.newPage();
+      await page.setContent(fixture('main', false, 'Thùy ơi, bạn đang nghĩ gì thế?'));
+      const surface = await resolvePostSurface(page);
+      assert.equal(await surface.isVisible(), true);
+      await page.close();
+    });
     await t.test('ambiguous composers fail closed', async () => {
       const page = await browser.newPage();
       await page.setContent(fixture('main') + '<div role="dialog"><h2>Create post</h2><div role="textbox" contenteditable="true"></div><button>Post</button></div>');
