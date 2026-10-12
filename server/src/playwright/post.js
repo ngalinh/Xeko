@@ -1039,16 +1039,32 @@ async function submitPost(page, shouldCancel = null) {
   // Ưu tiên "Đăng" (submit cuối) trước "Tiếp" (chuyển màn của bài cá nhân).
   let submittedSurface;
   const clickPostButton = async () => {
+    let surface;
     try {
-      const surface = await resolvePostSurface(page, { requireEditor: false });
-      for (const label of ['Đăng', 'Post', 'Tiếp', 'Next']) {
-        const button = surface.getByRole('button', { name: label, exact: true });
-        if (await button.count() !== 1) continue;
+      surface = await resolvePostSurface(page, { requireEditor: false });
+    } catch (e) {
+      logger.warn(`submitPost: không xác định được vùng đăng bài: ${e.message}`);
+      await _diagPostSurfaceWalk(page);
+      return null;
+    }
+    for (const label of ['Đăng', 'Post', 'Tiếp', 'Next']) {
+      const button = surface.getByRole('button', { name: label, exact: true });
+      const count = await button.count();
+      if (count !== 1) {
+        if (count > 1) logger.warn(`submitPost: có ${count} nút "${label}" trong vùng đăng bài`);
+        continue;
+      }
+      if (typeof shouldCancel === 'function' && shouldCancel()) return null;
+      try {
         await button.click({ timeout: 2500 });
         submittedSurface = surface;
         return 'role=' + label;
+      } catch (e) {
+        logger.warn(`submitPost: không bấm được "${label}": ${e.message}`);
+        return null;
       }
-    } catch {}
+    }
+    logger.warn('submitPost: vùng đăng bài không có nút Đăng/Tiếp duy nhất');
     return null;
   };
   await page.evaluate(() => {
@@ -1077,7 +1093,7 @@ async function submitPost(page, shouldCancel = null) {
     }
     const clicked = await clickPostButton();
     if (clicked) lastClick = clicked;
-    logger.info(`submitPost: lần ${i + 1} bấm "Đăng"${clicked ? ` (${clicked})` : ' — KHÔNG thấy nút'}`);
+    logger.info(`submitPost: lần ${i + 1}${clicked ? ` đã bấm "${clicked.slice(5)}"` : ' — chưa bấm được nút'}`);
 
     // Không thấy nút (có thể đang render) → chờ ngắn rồi thử lại, đừng phí 6s.
     if (!clicked) { await randomDelay(500, 900); continue; }
@@ -1085,17 +1101,13 @@ async function submitPost(page, shouldCancel = null) {
     // Vừa bấm "Tiếp"/"Next" → chuyển sang màn "Cài đặt bài viết". Chờ NGẮN cho
     // nút "Đăng" xuất hiện rồi sang vòng sau bấm ngay (không chờ hộp thoại đóng).
     if (/Tiếp|Next/i.test(clicked)) {
-      await page.waitForFunction(() => {
-        const dialogs = document.querySelectorAll('div[role="dialog"]');
-        const dlg = dialogs[dialogs.length - 1];
-        if (!dlg) return false;
-        if (dlg.querySelector('[aria-label="Đăng"],[aria-label="Post"]')) return true;
-        for (const s of dlg.querySelectorAll('span, div')) {
-          const t = (s.textContent || '').trim();
-          if (t === 'Đăng' || t === 'Post') return true;
-        }
-        return false;
-      }, { timeout: 4000 }).catch(() => {});
+      try {
+        const surface = await resolvePostSurface(page, { requireEditor: false, timeout: 4000 });
+        await surface.getByRole('button', { name: /^(Đăng|Post)$/i })
+          .waitFor({ state: 'visible', timeout: 4000 });
+      } catch (e) {
+        logger.warn(`submitPost: sau Tiếp chưa sẵn sàng bấm Đăng: ${e.message}`);
+      }
       continue;
     }
 
