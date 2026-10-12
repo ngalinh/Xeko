@@ -289,7 +289,7 @@ async function collectProfilePosts(page, snapshot, { report = () => {}, check = 
   return { ...snapshot, posts: selected.map(p => p.caption), postMedia: selected };
 }
 
-async function inspect(page, url, { onProgress = () => {}, cancelled = () => false, assessmentMode = 'ai', customBrands = [] } = {}) {
+async function inspect(page, url, { onProgress = () => {}, cancelled = () => false, assessmentMode = 'ai', customBrands = [], owner, myjoyBackend } = {}) {
   const started = Date.now();
   const report = (stage, message) => onProgress({ stage, message, elapsedMs: Date.now() - started, at: new Date().toISOString() });
   const check = () => { if (cancelled()) throw new Error('Đã dừng quét profile theo yêu cầu'); };
@@ -338,12 +338,14 @@ async function inspect(page, url, { onProgress = () => {}, cancelled = () => fal
   report('uid', 'Đang đối chiếu UID với link hồ sơ');
   const identity = await resolveCurrentProfileUid(page, target, snapshot);
   report('uid', identity.recipientId ? `Đã xác định UID: ${identity.recipientId}` : identity.uidReason);
-  if (!snapshot.blocked) snapshot = await collectProfilePosts(page, snapshot, { report, check, captionsOnly: assessmentMode === 'keywords' });
+  if (!snapshot.blocked) snapshot = await collectProfilePosts(page, snapshot, { report, check, captionsOnly: ['keywords','myjoy'].includes(assessmentMode) });
   if (profileUrl(page.url()) !== target) throw new Error('Link chuyển sang hồ sơ khác khi đọc bài viết');
   check();
   report('assessment', assessmentMode === 'keywords' ? 'Đang đối chiếu từ khóa caption trên máy, không gọi AI' : 'Đang đánh giá dữ liệu bằng AI');
   const assessment = assessmentMode === 'keywords'
     ? require('./caption-review').evaluateCaptions(snapshot, customBrands)
+    : assessmentMode === 'myjoy'
+    ? await require('./myjoy').evaluateMyJoy(snapshot, { owner, backendId: myjoyBackend, report, check })
     : await evaluateProfile({ ...snapshot, url: target }, undefined, { report, check });
   check();
   if (!snapshot.blocked && !snapshot.name) {

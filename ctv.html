@@ -100,7 +100,12 @@
       <section class="panel" id="step1" aria-labelledby="title1">
         <div class="panel-heading"><div class="title-row"><span class="number">01</span><div><h2 id="title1">Nhập danh sách khách hàng</h2><p class="muted">Xem lại link hợp lệ trước khi chuyển sang đánh giá.</p></div></div><span class="badge" id="status1">Chưa nhập</span></div>
         <div id="importForm">
-          <label for="assessmentMode">Cách đánh giá khách</label><select id="assessmentMode"><option value="keywords" selected>Quét caption — không AI, tự chọn khách</option><option value="ai">AI đánh giá (cần cấu hình AI)</option></select><p class="hint">Chế độ caption đọc tối đa 5 bài, gợi ý brand và từ khóa; không đọc ảnh, không kết luận nguồn hàng Mỹ.</p>
+          <label for="assessmentMode">Cách đánh giá khách</label><select id="assessmentMode"><option value="keywords" selected>Quét caption — không AI, tự chọn khách</option><option value="myjoy">Đánh giá caption qua MyJoy</option><option value="ai">AI đánh giá (cần cấu hình AI)</option></select><p class="hint">Chế độ caption đọc tối đa 5 bài, gợi ý brand và từ khóa; không đọc ảnh, không kết luận nguồn hàng Mỹ.</p>
+          <div id="myjoySettings" hidden>
+            <label for="myjoyBackend">AI trên MyJoy</label><select id="myjoyBackend"><option value="">Kết nối MyJoy để chọn AI</option></select>
+            <button id="myjoyConnect" type="button" class="secondary">Kết nối / tải lại danh sách AI</button>
+            <p id="myjoyStatus" class="hint" role="status">Tài khoản MyJoy được cấu hình riêng trên worker. Bio và caption sẽ được gửi sang MyJoy khi bạn duyệt quét; lượt chạy dùng hạn mức của AI đã chọn.</p>
+          </div>
           <div class="fields"><div><label for="campaignName">Tên chiến dịch</label><input id="campaignName" maxlength="100" placeholder="VD: Gửi tin nhắn hàng loạt tháng 9"></div><div><label for="profile">Tài khoản Facebook cá nhân</label><select id="profile"><option value="">Đang tải tài khoản…</option></select></div></div>
           <label for="urls">Danh sách link Facebook</label><textarea id="urls" rows="5" placeholder="https://www.facebook.com/ten.khach&#10;https://www.facebook.com/profile.php?id=..."></textarea>
           <div class="import-tools"><div><label class="file-label" for="file">↑ Chọn file TXT / CSV</label><input id="file" type="file" accept=".txt,.csv,text/plain,text/csv"><span id="fileName" class="muted">Hoặc dán dữ liệu vào ô phía trên</span></div><span id="count" class="muted">0 link</span></div>
