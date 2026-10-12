@@ -6,7 +6,7 @@ const { randomUUID } = require('crypto');
 function findPostSurface({ token, requireEditor }) {
   const visible = el => el.getClientRects().length > 0 &&
     getComputedStyle(el).visibility !== 'hidden';
-  const title = /^(Tạo bài viết|Create post|Create a post|Cài đặt bài viết|Post settings)$/i;
+  const title = /^(Tạo bài viết|Create post|Create a post|Cài đặt bài viết|Post settings)$|bạn đang nghĩ gì thế|on your mind/i;
   const editors = root => [...root.querySelectorAll('[contenteditable="true"][role="textbox"]')].filter(visible);
   const buttons = root => [...root.querySelectorAll('button, [role="button"]')].filter(el =>
     visible(el) && /^(Đăng|Post|Tiếp|Next)$/i.test((el.getAttribute('aria-label') || el.textContent || '').trim()));
