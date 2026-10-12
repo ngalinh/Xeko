@@ -1748,7 +1748,9 @@ async function qpStep1OpenComposer(page, steps) {
     await _qpLog(steps, 'Step 1: OK — nhận diện được trình soạn bài và ô caption');
     return true;
   } catch {
-    await _qpLog(steps, 'Step 1: đã click nhưng không xác định được duy nhất trình soạn bài');
+    const shot = await _qpScreenshot(page, 'step1-surface-fail');
+    await _diagComposerNotFound(page);
+    await _qpLog(steps, `Step 1: đã click nhưng không xác định được duy nhất trình soạn bài (screenshot=${shot})`);
     return false;
   }
 }
