@@ -1,4 +1,4 @@
-const { resolvePostSurface } = require('./fb-composer');
+const { resolvePostSurface, diagnosePostSurface } = require('./fb-composer');
 const { safeLaunchPersistentContext } = require('../utils/playwright-launch');
 const { getQueuedProfile } = require('../utils/post-queue');
 const { withClipboard } = require('../utils/clipboard-queue');
@@ -323,6 +323,26 @@ async function _diagComposerNotFound(page) {
   }
 }
 
+// Khi resolvePostSurface() fail: log vết đi-lên (walk trace) thật của findPostSurface
+// cho từng heading khớp tiêu đề — biết chính xác dừng ở đâu (không có root hợp lệ,
+// hay có NHIỀU root hợp lệ khác nhau → ambiguous) thay vì chỉ thấy "timeout".
+async function _diagPostSurfaceWalk(page) {
+  try {
+    const candidates = await page.evaluate(diagnosePostSurface);
+    if (!candidates.length) {
+      logger.warn('[resolvePostSurface][diag] Không có heading nào khớp tiêu đề composer.');
+      return;
+    }
+    logger.warn(`[resolvePostSurface][diag] ${candidates.length} heading khớp tiêu đề:`);
+    candidates.forEach((c, i) => {
+      logger.warn(`  [${i + 1}] heading=${c.headingTag} text="${c.headingText}" qualified=${c.qualified || 'KHÔNG (hết root trước khi đạt điều kiện)'}`);
+      c.trace.forEach(line => logger.warn(`      -> ${line}`));
+    });
+  } catch (e) {
+    logger.warn(`[resolvePostSurface][diag] lỗi khi chẩn đoán: ${e.message}`);
+  }
+}
+
 // Nhập text vào contenteditable: clipboard paste → execCommand → keyboard.type
 async function pasteText(page, message) {
   // 1. Clipboard paste (instant, hoạt động tốt với React)
@@ -358,6 +378,7 @@ async function typeMessage(page, message) {
   } catch (e) {
     const shot = await saveDebugShot(page, 'debug-caption');
     await _diagComposerNotFound(page);
+    await _diagPostSurfaceWalk(page);
     logger.warn(`Không nhập được caption: ${e.message} (xem logs/${shot})`);
     return false;
   }
@@ -497,6 +518,7 @@ async function _attachImagesImpl(page, imagePaths) {
   } catch (e) {
     await saveDebugShot(page, 'debug-attach-surface');
     await _diagComposerNotFound(page);
+    await _diagPostSurfaceWalk(page);
     throw e;
   }
   const baseline = await composer.locator('img').evaluateAll(imgs =>
