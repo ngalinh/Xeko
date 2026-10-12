@@ -10,9 +10,11 @@ function findPostSurface({ token, requireEditor }) {
   const editors = root => [...root.querySelectorAll('[contenteditable="true"][role="textbox"]')].filter(visible);
   const buttons = root => [...root.querySelectorAll('button, [role="button"]')].filter(el =>
     visible(el) && /^(Đăng|Post|Tiếp|Next)$/i.test((el.getAttribute('aria-label') || el.textContent || '').trim()));
+  const headings = [...document.querySelectorAll('h1,h2,h3,h4,[role="heading"],span')]
+    .filter(h => visible(h) && title.test((h.textContent || '').trim()));
+
   const candidates = [];
-  for (const heading of document.querySelectorAll('h1,h2,h3,h4,[role="heading"],span')) {
-    if (!visible(heading) || !title.test((heading.textContent || '').trim())) continue;
+  for (const heading of headings) {
     for (let root = heading.parentElement; root && root !== document.body; root = root.parentElement) {
       const count = editors(root).length;
       if (buttons(root).length && (requireEditor ? count === 1 : count <= 1)) {
@@ -22,8 +24,43 @@ function findPostSurface({ token, requireEditor }) {
       if (root.matches('[role="dialog"],[aria-modal="true"],[role="main"],main')) break;
     }
   }
-  const unique = [...new Set(candidates)].filter(root =>
+  let unique = [...new Set(candidates)].filter(root =>
     !candidates.some(other => other !== root && root.contains(other)));
+
+  // Composer full-page (không nằm trong dialog riêng) có thể lẫn với một ô nhập
+  // không liên quan (vd ô comment của bài khác) cùng nằm trong role="main" —
+  // phép đếm editor ở trên luôn >1 trước khi chạm biên nên không root nào qua
+  // được điều kiện chặt (candidates rỗng). Fallback: neo theo editor GẦN
+  // heading nhất (khoảng cách DOM), bỏ qua các editor khác trong root.
+  if (unique.length === 0 && headings.length) {
+    const domDistance = (a, b) => {
+      const depthB = new Map();
+      let n = b, d = 0;
+      for (; n; n = n.parentElement, d++) depthB.set(n, d);
+      let i = 0;
+      for (let m = a; m; m = m.parentElement, i++) {
+        const hit = depthB.get(m);
+        if (hit !== undefined) return i + hit;
+      }
+      return Infinity;
+    };
+    const docEditors = editors(document.body);
+    for (const heading of headings) {
+      let nearest = null, bestDist = Infinity;
+      for (const ed of docEditors) {
+        const d = domDistance(heading, ed);
+        if (d < bestDist) { bestDist = d; nearest = ed; }
+      }
+      if (!nearest) continue;
+      for (let root = nearest; root && root !== document.body; root = root.parentElement) {
+        if (buttons(root).length) { candidates.push(root); break; }
+        if (root.matches('[role="dialog"],[aria-modal="true"],[role="main"],main')) break;
+      }
+    }
+    unique = [...new Set(candidates)].filter(root =>
+      !candidates.some(other => other !== root && root.contains(other)));
+  }
+
   if (unique.length !== 1) return false;
   unique[0].setAttribute('data-xeko-post-surface', token);
   return true;

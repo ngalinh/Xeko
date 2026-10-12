@@ -72,6 +72,20 @@ test('Facebook dialog and full-page posting flow', async t => {
       assert.equal(await surface.isVisible(), true);
       await page.close();
     });
+    await t.test('legacy full-page composer with an unrelated comment box still resolves', async () => {
+      const page = await browser.newPage();
+      await page.setContent(
+        '<main>' +
+        '<div role="textbox" contenteditable="true">Unrelated comment on another post</div>' +
+        '<div id="composer"><h2>Thùy ơi, bạn đang nghĩ gì thế?</h2>' +
+        '<div role="textbox" contenteditable="true"></div>' +
+        '<input id="photos" type="file" accept="image/*" multiple></div>' +
+        '<button>Đăng</button></main>'
+      );
+      const surface = await resolvePostSurface(page);
+      assert.equal(await surface.evaluate(el => el.tagName), 'MAIN');
+      await page.close();
+    });
     await t.test('ambiguous composers fail closed', async () => {
       const page = await browser.newPage();
       await page.setContent(fixture('main') + '<div role="dialog"><h2>Create post</h2><div role="textbox" contenteditable="true"></div><button>Post</button></div>');
