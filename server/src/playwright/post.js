@@ -357,6 +357,7 @@ async function typeMessage(page, message) {
     return true;
   } catch (e) {
     const shot = await saveDebugShot(page, 'debug-caption');
+    await _diagComposerNotFound(page);
     logger.warn(`Không nhập được caption: ${e.message} (xem logs/${shot})`);
     return false;
   }
@@ -490,7 +491,14 @@ async function verifyImagesBeforeSubmit(page) {
 
 async function _attachImagesImpl(page, imagePaths) {
   if (!imagePaths || imagePaths.length === 0) return true;
-  const composer = await resolvePostSurface(page);
+  let composer;
+  try {
+    composer = await resolvePostSurface(page);
+  } catch (e) {
+    await saveDebugShot(page, 'debug-attach-surface');
+    await _diagComposerNotFound(page);
+    throw e;
+  }
   const baseline = await composer.locator('img').evaluateAll(imgs =>
     imgs.map(img => img.currentSrc || img.getAttribute('src') || ''));
   const photoByLabel = composer.locator(
