@@ -104,6 +104,15 @@ function diagnosePostSurface() {
     }
     out.push({ headingText: text.slice(0, 60), headingTag: describe(heading), qualified, trace: trace.slice(0, 12) });
   }
+  // Nút Đăng/Tiếp khớp regex có thể nằm NGOÀI dialog đã khớp tiêu đề (vd FB
+  // render action-bar như layer riêng, không phải con của dialog nội dung) —
+  // quét toàn trang để biết nút thật đang ở đâu khi mọi heading đều KHÔNG qualified.
+  out.globalButtons = buttons(document.body).map(el => {
+    const dlg = el.closest('[role="dialog"],[aria-modal="true"]');
+    return describe(el) + (dlg
+      ? ` trongDialog aria-label="${(dlg.getAttribute('aria-label') || '').slice(0, 40)}"`
+      : ' NGOÀI mọi dialog/aria-modal');
+  });
   return out;
 }
 module.exports = { findPostSurface, resolvePostSurface, diagnosePostSurface };
