@@ -338,6 +338,12 @@ async function _diagPostSurfaceWalk(page) {
       logger.warn(`  [${i + 1}] heading=${c.headingTag} text="${c.headingText}" qualified=${c.qualified || 'KHÔNG (hết root trước khi đạt điều kiện)'}`);
       c.trace.forEach(line => logger.warn(`      -> ${line}`));
     });
+    if (candidates.globalButtons && candidates.globalButtons.length) {
+      logger.warn(`[resolvePostSurface][diag] ${candidates.globalButtons.length} nút khớp regex Đăng/Tiếp trên toàn trang:`);
+      candidates.globalButtons.forEach(line => logger.warn(`  * ${line}`));
+    } else {
+      logger.warn('[resolvePostSurface][diag] Không tìm thấy nút nào khớp regex Đăng/Tiếp trên toàn trang.');
+    }
   } catch (e) {
     logger.warn(`[resolvePostSurface][diag] lỗi khi chẩn đoán: ${e.message}`);
   }
