@@ -328,7 +328,7 @@ async function collectProfilePosts(page, snapshot, { report = () => {}, check = 
 
 async function inspect(page, url, { onProgress = () => {}, cancelled = () => false, assessmentMode = 'ai', customBrands = [], owner, myjoyBackend } = {}) {
   const started = Date.now();
-  const report = (stage, message) => onProgress({ stage, message, elapsedMs: Date.now() - started, at: new Date().toISOString() });
+  const report = (stage, message, metadata = {}) => onProgress({ ...metadata, stage, message, elapsedMs: Date.now() - started, at: new Date().toISOString() });
   const check = () => { if (cancelled()) throw new Error('Đã dừng quét profile theo yêu cầu'); };
   check();
   report('navigation', 'Đang mở profile (tối đa 30 giây)');

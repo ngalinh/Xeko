@@ -46,3 +46,12 @@ test('failed discovery leaves no selectable model and does not retry', async () 
   assert.equal(calls,1);assert.equal($('myjoyBackend').children.length,1);assert.equal($('myjoyBackend').children[0].value,'');
   assert.match($('myjoyStatus').textContent,/Chưa cấu hình/);assert.equal(context.myjoyLoading,false);
 });
+
+test('usage UI distinguishes absent, partial and zero usage', () => {
+  const code=source.slice(source.indexOf('  function myjoyUsageText('),source.indexOf('  const ACTIVE ='));
+  const context=vm.createContext({});vm.runInContext(code,context);
+  assert.equal(context.myjoyUsageText(undefined),'Chưa có thông tin usage');
+  assert.equal(context.myjoyUsageText({inputTokens:0,outputTokens:2}),'0 token vào · 2 token ra');
+  assert.equal(context.myjoyUsageText({inputTokens:12}),'12 token vào');
+  assert.equal(context.myjoyUsageText({inputTokens:-1,outputTokens:'20'}),'Chưa có thông tin usage');
+});

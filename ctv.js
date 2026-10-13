@@ -32,6 +32,13 @@
   sidebarMobile.addEventListener('change', () => { $('xekoSidebar').classList.remove('open'); syncSidebar(); });
   syncSidebar();
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMenu();}});
+  function myjoyUsageText(usage) {
+    const parts = [];
+    for (const [key, label] of [['inputTokens', 'token vào'], ['outputTokens', 'token ra'], ['totalTokens', 'token tổng']]) {
+      if (Number.isSafeInteger(usage?.[key]) && usage[key] >= 0) parts.push(`${usage[key].toLocaleString('vi-VN')} ${label}`);
+    }
+    return parts.length ? parts.join(' · ') : 'Chưa có thông tin usage';
+  }
   const ACTIVE = ['analysis_queued','analyzing','uid_queued','resolving_uid','send_queued','sending'];
   const labels = { import_review:'Chờ duyệt danh sách',analysis_queued:'Chờ quét khách',analyzing:'Đang đánh giá',analysis_review:'Chờ duyệt kết quả',message_review:'Chờ duyệt tin nhắn',send_queued:'Chờ gửi',sending:'Đang gửi',completed:'Hoàn tất',cancelled:'Đã dừng',interrupted:'Bị gián đoạn',needs_attention:'Cần xử lý',skipped:'Đã bỏ qua',pending:'Chờ đánh giá',checking:'Đang đánh giá',qualified:'Đạt',review:'Cần kiểm tra',duplicate:'Đã liên hệ',sent:'Đã gửi',unconfirmed:'Chưa xác nhận gửi',done:'Hoàn tất',draft:'Bản cũ',failed:'Lỗi' };
   const defaultTemplate = $('template').value;
@@ -477,6 +484,14 @@
       }
       if(v) analysis.append(renderAssessmentPreview(v, l.id));
       else analysis.append(element('p',l.error || 'Chưa có kết quả','muted'));
+      if (c.assessmentMode === 'myjoy') {
+        const attempts = l.aiUsageAttempts || [];
+        if (!attempts.length) analysis.append(element('p', 'Usage MyJoy: Chưa có thông tin usage', 'muted'));
+        attempts.forEach((usage, index) => {
+          const suffix = usage.outcome === 'incomplete' ? ' · Lượt chưa hoàn tất; số liệu có thể chưa đầy đủ' : '';
+          analysis.append(element('p', `Usage MyJoy · ${usage.backendId} · Lượt ${index + 1}: ${myjoyUsageText(usage)}${suffix}`, 'muted'));
+        });
+      }
       analysis.append(renderScanLog(l));
       if(v && !canPick(l)) {
         const reason = selectionExplanation(l);

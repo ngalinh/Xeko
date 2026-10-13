@@ -44,3 +44,11 @@ Mỗi profile mở kết nối với panel ID ngẫu nhiên, không dùng lại 
 ## Kiểm chứng
 
 Chạy `node --test server/test-ctv-myjoy.js server/test-ctv.js scripts/test-ctv-assessment.cjs scripts/test-ctv-paths.cjs` tại gốc repo. Tests dùng HTTP/WebSocket giả lập; không gửi caption thật hoặc gọi AI tính phí. Cần kiểm tra kết nối worker thực tế sau khi cấu hình tài khoản.
+
+## Usage theo từng profile
+
+Xeko lưu `aiUsageAttempts` trên từng khách trong chiến dịch, mỗi lượt gửi có ID riêng. Các snapshot cùng lượt cập nhật bản ghi, không cộng lặp. Dữ liệu giữ lại khi tải lại trang, khi quét lại và khi lượt gọi lỗi/dừng. Kết quả profile hiển thị backend đã chọn và token vào/ra/tổng nếu nhận được; lượt chưa hoàn tất có cảnh báo số liệu có thể thiếu. Không ước tính từ caption hoặc lấy số usage do AI viết trong câu trả lời.
+
+Định dạng metadata Xeko hỗ trợ: sự kiện WebSocket `usage` hoặc `agent_done`, đúng `panelId`, chứa `usage: { input_tokens, output_tokens, total_tokens }`. Cũng nhận tên `prompt_tokens` / `completion_tokens`. Các số phải là số nguyên không âm; metadata là snapshot tích lũy của một lượt, không phải delta. Không cộng các bộ đếm có cách tính khác nhau hoặc suy ra tiền/phần trăm hạn mức. Chưa hỗ trợ bộ đếm cache/reasoning riêng.
+
+Chưa xác minh MyJoy đang phát định dạng trên trong môi trường thật. Nếu không trả metadata tương thích, Xeko hiển thị **Chưa có thông tin usage**, không ghi 0. Profile cũ không có số liệu không thể truy hồi bằng thay đổi này. Kết nối hỏng có thể đã tiêu hao usage dù không có số liệu; chỉ phía MyJoy/nhà cung cấp mới xác nhận được mức sử dụng thực tế. Không gọi thêm AI để đo usage.
