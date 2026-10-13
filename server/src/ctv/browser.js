@@ -154,6 +154,37 @@ function readProfileSnapshot(requireHeader = false) {
   return feedSnapshot;
 }
 
+// Runs in the profile DOM. Only dismiss Facebook's link information dialog.
+function closeContentInfoDialog() {
+  const roots = '[role="dialog"], [aria-modal="true"]';
+  const visible = e => !!e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden';
+  const title = /^(Giới thiệu về nội dung này|About this content)$/i;
+  for (const dialog of document.querySelectorAll(roots)) {
+    if (!visible(dialog)) continue;
+    const headings = [...dialog.querySelectorAll('h1, h2, h3, [role="heading"]')];
+    const labelled = (dialog.getAttribute('aria-labelledby') || '').split(/\s+/)
+      .map(id => document.getElementById(id)).filter(e => e && dialog.contains(e));
+    if (!title.test((dialog.getAttribute('aria-label') || '').trim())
+      && ![...headings, ...labelled].some(e => visible(e) && e.closest(roots) === dialog && title.test((e.innerText || '').trim()))) continue;
+    const buttons = [...dialog.querySelectorAll('button, [role="button"]')].filter(e =>
+      visible(e) && e.closest(roots) === dialog && !e.closest('a[href]')
+      && !e.disabled && e.getAttribute('aria-disabled') !== 'true'
+      && /^(Đóng|Close)$/i.test((e.getAttribute('aria-label') || e.innerText || '').trim()));
+    if (buttons.length !== 1) continue;
+    buttons[0].click();
+    return true;
+  }
+  return false;
+}
+
+async function dismissContentInfoDialog(page, { check = () => {}, report = () => {} } = {}) {
+  check();
+  if (await page.evaluate(closeContentInfoDialog) === true) {
+    report('popup_closed', 'Đã bấm đóng popup Giới thiệu về nội dung này; tiếp tục quét profile');
+  }
+  check();
+}
+
 // Read caption and image pixels before virtualized feed entries disappear.
 async function readPostMedia(page, { cache = new Map(), report = () => {}, check = () => {}, expired = () => false, captionsOnly = false } = {}) {
   // Prefer complete post containers; fall back to caption blocks only when
@@ -162,6 +193,7 @@ async function readPostMedia(page, { cache = new Map(), report = () => {}, check
   const containers = ':is([role="article"], article, [data-pagelet^="FeedUnit"], [role="feed"] > div)';
   const captions = ':is([data-ad-preview="message"], [data-ad-comet-preview="message"])';
   const articles = page.locator(`${roots} ${containers}:not(:has(${containers})):visible, ${roots} ${captions}:not(${containers} ${captions}):visible`);
+  await dismissContentInfoDialog(page, { check, report });
   const records = [];
   for (let i = 0, count = await articles.count(), scanned = 0; i < count && scanned < 10; i++) {
     check();
@@ -179,8 +211,13 @@ async function readPostMedia(page, { cache = new Map(), report = () => {}, check
     const more = article.getByRole('button', { name: /^(Xem thêm|See more)$/i });
     for (let j = 0, n = Math.min(await more.count(), 3); j < n; j++) {
       // DOM click avoids Playwright scrolling back up to an old off-screen post.
-      try { await more.nth(0).evaluate(button => button.click(), undefined, { timeout: 1000 }); } catch {}
+      // Only expand the caption itself; never click a same-named "See more" that
+      // belongs to an unrelated link-preview card or Intro section in the article.
+      try { await more.nth(0).evaluate(button => {
+        if (button.closest('[data-ad-preview="message"], [data-ad-comet-preview="message"]')) button.click();
+      }, undefined, { timeout: 1000 }); } catch {}
     }
+    await dismissContentInfoDialog(page, { check, report });
     const caption = await article.evaluate(e => {
       const bodies = [...e.querySelectorAll('[data-ad-preview="message"], [data-ad-comet-preview="message"]')];
       // Album titles are outside the message block but belong to this post.
@@ -302,6 +339,7 @@ async function inspect(page, url, { onProgress = () => {}, cancelled = () => fal
   let snapshot;
   try {
     check();
+    await dismissContentInfoDialog(page, { check, report });
     report('header', 'Đang chờ tên và bio profile (tối đa 30 giây)');
     handle = await page.waitForFunction(readProfileSnapshot, true, { timeout: 30000 });
     snapshot = await handle.jsonValue();
@@ -602,7 +640,7 @@ function createBrowserAdapter(playwright = require('../playwright/post')) {
     inspect, send, resolveUid,
   };
 }
-module.exports = { profileMessageButton, waitForMessageComposer, createBrowserAdapter, inspect, send, resolveUid, readProfileSnapshot, collectProfilePosts, readPostMedia, scrollProfileFeed };
+module.exports = { closeContentInfoDialog, dismissContentInfoDialog, profileMessageButton, waitForMessageComposer, createBrowserAdapter, inspect, send, resolveUid, readProfileSnapshot, collectProfilePosts, readPostMedia, scrollProfileFeed };
 
 
 
