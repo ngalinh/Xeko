@@ -13,7 +13,7 @@ function configuration(owner, env = process.env) {
   return { origin: url.origin, username: env.CTV_MYJOY_USERNAME, password: env.CTV_MYJOY_PASSWORD };
 }
 
-function createClient({ fetchFn = globalThis.fetch, WebSocketClass = globalThis.WebSocket, env = process.env, timeoutMs = 180000 } = {}) {
+function createClient({ fetchFn = globalThis.fetch, WebSocketClass = globalThis.WebSocket, env = process.env, timeoutMs = 180000, heartbeatMs = 10000 } = {}) {
   let loginFlight = null, loginKey = '', token = '';
   async function http(config, route, options = {}) {
     let response;
@@ -60,7 +60,7 @@ function createClient({ fetchFn = globalThis.fetch, WebSocketClass = globalThis.
     const { backends } = await connection(owner);
     return { backends };
   }
-  async function request(owner, backendId, content, { check = () => {} } = {}) {
+  async function request(owner, backendId, content, { check = () => {}, report = () => {} } = {}) {
     check();
     if (!WebSocketClass) throw new Error('Kết nối MyJoy cần Node.js 22.4 trở lên trên worker');
     const auth = await connection(owner);
@@ -69,11 +69,12 @@ function createClient({ fetchFn = globalThis.fetch, WebSocketClass = globalThis.
     const url = new URL('/ws/agent', auth.config.origin);
     url.protocol = 'wss:'; url.searchParams.set('token', auth.token);
     const panelId = 'xeko-' + crypto.randomUUID();
+    const started = Date.now();
     return new Promise((resolve, reject) => {
-      let socket, timer, poll, finished = false, output = '', sent = false;
+      let socket, timer, poll, heartbeat, finished = false, output = '', sent = false;
       const finish = (error, result) => {
         if (finished) return;
-        finished = true; clearTimeout(timer); clearInterval(poll);
+        finished = true; clearTimeout(timer); clearInterval(poll); clearInterval(heartbeat);
         // MyJoy does not cancel a running agent on disconnect. Stop only our panel.
         if (error && sent && socket?.readyState === 1) {
           try { socket.send(JSON.stringify({ type: 'stop', panelId })); } catch {}
@@ -85,6 +86,8 @@ function createClient({ fetchFn = globalThis.fetch, WebSocketClass = globalThis.
       catch { finish(new Error('Không mở được kết nối chat MyJoy')); return; }
       timer = setTimeout(() => finish(new Error('MyJoy quá thời gian chờ; không tự gửi lại yêu cầu AI')), timeoutMs);
       poll = setInterval(() => { try { check(); } catch (e) { finish(e); } }, 250);
+      // Keep the scan log moving during a long wait so it does not look stuck.
+      heartbeat = setInterval(() => report('myjoy_waiting', `Đang chờ MyJoy phản hồi… (${Math.round((Date.now() - started) / 1000)}s)`), heartbeatMs);
       socket.addEventListener('open', () => {
         if (finished) return;
         try {
@@ -174,7 +177,7 @@ async function evaluateMyJoy(snapshot, { owner, backendId, check = () => {}, rep
   const base = evaluateCaptions(snapshot);
   if (base.collectionBlocked) return { ...base, provider: 'myjoy', model: backendId };
   check(); report('myjoy_request', 'Đang gửi bio và caption sang MyJoy');
-  const result = await request(owner, backendId, promptFor([base.bioReview, ...base.captionReviews]), { check });
+  const result = await request(owner, backendId, promptFor([base.bioReview, ...base.captionReviews]), { check, report });
   check();
   return parseReview(result, base, backendId);
 }
