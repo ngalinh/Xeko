@@ -54,7 +54,8 @@ test('caption reading dismisses a popup before scanning and after expanding See 
   const events = [];
   const article = {
     isVisible: async () => true,
-    evaluate: async fn => fn.toString().includes('getBoundingClientRect') ? true : 'Caption bán hàng',
+    evaluate: async fn => fn.name === 'isPostPinned' ? false
+      : fn.toString().includes('getBoundingClientRect') ? true : 'Caption bán hàng',
     getByRole: () => ({ count: async () => 1, nth: () => ({ evaluate: async () => events.push('expand') }) }),
   };
   const page = {

@@ -185,6 +185,16 @@ async function dismissContentInfoDialog(page, { check = () => {}, report = () =>
   check();
 }
 
+// Runs in the page: a pinned post repeats across every batch at the top of the
+// feed, so it must never count as one of the 5 captions we select.
+function isPostPinned(e) {
+  const captionEls = [...e.querySelectorAll('[data-ad-preview="message"], [data-ad-comet-preview="message"]')];
+  const inCaption = node => captionEls.some(c => c.contains(node));
+  return [...e.querySelectorAll('span, strong, a')]
+    .filter(el => el.children.length === 0 && !inCaption(el))
+    .some(el => /^(Được ghim|Đã ghim|Pinned( [Pp]ost)?)$/.test((el.innerText || '').trim()));
+}
+
 // Read caption and image pixels before virtualized feed entries disappear.
 async function readPostMedia(page, { cache = new Map(), report = () => {}, check = () => {}, expired = () => false, captionsOnly = false } = {}) {
   // Prefer complete post containers; fall back to caption blocks only when
@@ -207,6 +217,10 @@ async function readPostMedia(page, { cache = new Map(), report = () => {}, check
       return r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
     }, undefined, { timeout: 1500 });
     if (!inViewport) continue;
+    if (await article.evaluate(isPostPinned, undefined, { timeout: 1500 })) {
+      report('pinned_skipped', 'Bỏ qua bài đã ghim');
+      continue;
+    }
     scanned++;
     const more = article.getByRole('button', { name: /^(Xem thêm|See more)$/i });
     for (let j = 0, n = Math.min(await more.count(), 3); j < n; j++) {

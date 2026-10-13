@@ -30,7 +30,8 @@ test('album title is retained alongside message caption without unrelated articl
     const nth = result.nth;
     result.nth = i => {
       const article = nth(i);
-      article.evaluate = async fn => fn.toString().includes('getBoundingClientRect') ? true : fn({
+      article.evaluate = async fn => fn.name === 'isPostPinned' ? false
+        : fn.toString().includes('getBoundingClientRect') ? true : fn({
         innerText: 'Unrelated comments and controls',
         querySelectorAll: selector => selector.includes('data-ad-preview')
           ? [{innerText: 'Short C.K mẫu hiếm mới s🅰️le'}]
@@ -149,7 +150,8 @@ function mediaPage(batches, images = []) {
       nth: i => ({
         isVisible: async () => true,
         getByRole: () => ({count: async () => 1, nth: () => ({evaluate: async () => { expanded++; }})}),
-        evaluate: async fn => fn.toString().includes('getBoundingClientRect') ? true : batches(scrolls)[i],
+        evaluate: async fn => fn.name === 'isPostPinned' ? false
+          : fn.toString().includes('getBoundingClientRect') ? true : batches(scrolls)[i],
         locator: () => ({count: async () => images.length, nth: j => ({
           evaluate: async () => images[j] !== 'small', isVisible: async () => true,
           screenshot: async () => { if (images[j] === 'broken') throw Error('detached'); return Buffer.from(images[j]); },
@@ -182,7 +184,8 @@ test('reads viewport posts after the first ten off-screen feed entries', async (
     const nth = result.nth;
     result.nth = i => {
       const article = nth(i), evaluate = article.evaluate;
-      article.evaluate = async fn => fn.toString().includes('getBoundingClientRect') ? i >= 10 : evaluate(fn);
+      article.evaluate = async fn => fn.name === 'isPostPinned' ? false
+        : fn.toString().includes('getBoundingClientRect') ? i >= 10 : evaluate(fn);
       return article;
     };
     return result;
@@ -192,6 +195,25 @@ test('reads viewport posts after the first ten off-screen feed entries', async (
   assert.equal(result[0].caption, 'Bán sản phẩm 10');
 });
 
+test('a pinned post is skipped and never fills one of the 5 selected captions', async () => {
+  const mock = mediaPage(() => ['Bài viết đã ghim: ưu đãi cũ', 'Bán sản phẩm A', 'Bán sản phẩm B']);
+  const locate = mock.page.locator;
+  mock.page.locator = selector => {
+    const result = locate(selector);
+    if (selector.startsWith('input')) return result;
+    const nth = result.nth;
+    result.nth = i => {
+      const article = nth(i), evaluate = article.evaluate;
+      article.evaluate = async fn => fn.name === 'isPostPinned' ? i === 0 : evaluate(fn);
+      return article;
+    };
+    return result;
+  };
+  const records = await readPostMedia(mock.page);
+  assert.equal(records.length, 2);
+  assert.ok(records.every(p => p.caption !== 'Bài viết đã ghim: ưu đãi cũ'));
+  assert.deepEqual(records.map(p => p.caption), ['Bán sản phẩm A', 'Bán sản phẩm B']);
+});
 test('repeated captions reuse captured images across scrolls', async () => {
   const mock = mediaPage(() => ['Bán sản phẩm'], ['photo']);
   const locate = mock.page.locator;
