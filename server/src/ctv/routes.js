@@ -71,7 +71,7 @@ function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', pe
           'send': () => s.sendApproved(c.id, owner, body.previewToken),
           'retry-send': () => s.retrySend(c.id, owner, body),
           'stop': () => s.stop(c.id, owner),
-          'retry-analysis': () => s.retryAnalysis(c.id, owner),
+          'retry-analysis': () => s.retryAnalysis(c.id, owner, body.myjoyBackend),
           'resolve-uids': () => s.resolveUids(c.id, owner, body.leadId),
           'skip-lead': () => s.skipLead(c.id, owner, body.leadId),
           'delete': () => s.deleteCampaign(c.id, owner),
