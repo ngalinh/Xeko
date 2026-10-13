@@ -179,7 +179,11 @@ async function readPostMedia(page, { cache = new Map(), report = () => {}, check
     const more = article.getByRole('button', { name: /^(Xem thêm|See more)$/i });
     for (let j = 0, n = Math.min(await more.count(), 3); j < n; j++) {
       // DOM click avoids Playwright scrolling back up to an old off-screen post.
-      try { await more.nth(0).evaluate(button => button.click(), undefined, { timeout: 1000 }); } catch {}
+      // Only expand the caption itself; never click a same-named "See more" that
+      // belongs to an unrelated link-preview card or Intro section in the article.
+      try { await more.nth(0).evaluate(button => {
+        if (button.closest('[data-ad-preview="message"], [data-ad-comet-preview="message"]')) button.click();
+      }, undefined, { timeout: 1000 }); } catch {}
     }
     const caption = await article.evaluate(e => {
       const bodies = [...e.querySelectorAll('[data-ad-preview="message"], [data-ad-comet-preview="message"]')];
