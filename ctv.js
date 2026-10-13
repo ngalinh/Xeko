@@ -47,6 +47,7 @@
   let picks = new Set(), accounts = [], campaigns = [];
   let draftImages = [], readingImages = false;
   let myjoyLoading = false;
+  let retryMyjoyLoading = false, retryBackendCampaignId = null;
   const imageSignature = images => JSON.stringify((images || []).map(image => [image.name, image.dataUrl]));
   function imageGallery(images, removable = false) {
     const gallery = element('div', undefined, 'attachment-grid');
@@ -321,6 +322,7 @@
     $('newCampaign').disabled = busy;
     $('refresh').disabled = !c || busy;
     $('retryAnalysis').disabled = !unlocked || !canRetry(c);
+    $('retryMyjoyBackend').disabled = !unlocked || retryMyjoyLoading;
     $('resolveUids').disabled = !unlocked || !modern || !['analysis_review','message_review'].includes(c.state) || !!c.approvals.send;
     $('approveImport').disabled = !unlocked || !modern || c.state !== 'import_review' || !c.leads.length;
     $('selectAll').disabled = !unlocked || !modern || c.state !== 'analysis_review';
@@ -447,6 +449,10 @@
     stats('analysisStats',[[['keywords','myjoy'].includes(c.assessmentMode) ? 'Có dấu hiệu phù hợp' : 'AI đánh giá đạt',c.leads.filter(l=>['keywords','myjoy'].includes(c.assessmentMode) ? l.assessment?.suggestion?.startsWith('Có dấu hiệu phù hợp') : l.assessment?.eligible).length,'good'],['Có thể chọn soạn tin',c.leads.filter(canPick).length],['Cần kiểm tra',c.leads.filter(l=>l.state==='review').length,'warn'],['Đã bỏ qua',c.leads.filter(l=>l.state==='skipped').length]]);
     show('analysisWarning',!!c.error && !a.analysis);$('analysisWarning').textContent = c.error || '';
     show('retryAnalysis',!!canRetry(c));
+    const retryBackendVisible = canRetry(c) && c.assessmentMode === 'myjoy';
+    show('retryMyjoyBackend', retryBackendVisible);
+    if (retryBackendVisible) { if (retryBackendCampaignId !== c.id) { retryBackendCampaignId = c.id; loadRetryBackends(c); } }
+    else retryBackendCampaignId = null;
     show('resolveUids',modern && !a.send && ['analysis_review','message_review'].includes(c.state) && c.leads.some(l=>l.state!=='skipped' && l.assessment && !l.assessment.recipientId));
     if (['uid_queued','resolving_uid'].includes(c.state)) $('analysisProgress').textContent = `${labels[c.state]} · ${c.leads.filter(l=>l.uidLookup?.state==='resolved').length} hồ sơ đã tìm được UID`;
     show('stopAnalysis',analyzing);show('approveAnalysis',modern && c.state === 'analysis_review');
@@ -615,7 +621,33 @@
     try{const requestedMode=$('assessmentMode').value;const c=await api('/api/ctv/campaigns','POST',{name:$('campaignName').value,profile:$('profile').value,assessmentMode:requestedMode,myjoyBackend:$('myjoyBackend').value,urls});if(requestedMode !== 'ai' && c.assessmentMode !== requestedMode)throw new Error('Worker chưa hỗ trợ chế độ đã chọn. Hãy cập nhật worker trước; danh sách vừa tạo chưa được duyệt chạy.');epoch++;uncertain=false;render(c,true);}
     catch(e){notice(e.message,true);}finally{busy=false;updateControls();schedule();}
   };
-  $('retryAnalysis').onclick=()=>{if(canRetry(selected) && window.confirm('Đọc lại các profile chưa bỏ qua và đánh giá lại theo chế độ đã chọn? Kết quả cũ và bản duyệt tin nhắn sẽ được bỏ; bạn cần duyệt lại trước khi gửi.')){picks.clear();action('retry-analysis');}};
+  async function loadRetryBackends(c) {
+    const id = c.id, version = epoch;
+    retryMyjoyLoading = true; updateControls();
+    const connecting = element('option', 'Đang tải danh sách AI…'); connecting.value = c.myjoyBackend || '';
+    $('retryMyjoyBackend').replaceChildren(connecting);
+    try {
+      const result = await api('/api/ctv/myjoy/backends');
+      if (epoch !== version || selected?.id !== id) return;
+      if (!Array.isArray(result.backends)) throw new Error('Worker chưa hỗ trợ danh sách AI MyJoy');
+      const options = result.backends.map(backend => {
+        const option = element('option', backend.label + (backend.available ? '' : ' — ' + backend.reason));
+        option.value = backend.id; option.disabled = !backend.available; return option;
+      });
+      if (!options.some(o => o.value === c.myjoyBackend)) {
+        const current = element('option', c.myjoyBackend); current.value = c.myjoyBackend;
+        options.unshift(current);
+      }
+      $('retryMyjoyBackend').replaceChildren(...options);
+      $('retryMyjoyBackend').value = c.myjoyBackend || options.find(o => !o.disabled)?.value || '';
+    } catch {
+      if (epoch === version && selected?.id === id) {
+        const current = element('option', c.myjoyBackend); current.value = c.myjoyBackend;
+        $('retryMyjoyBackend').replaceChildren(current);
+      }
+    } finally { if (epoch === version) { retryMyjoyLoading = false; updateControls(); } }
+  }
+  $('retryAnalysis').onclick=()=>{if(canRetry(selected) && window.confirm('Đọc lại các profile chưa bỏ qua và đánh giá lại theo chế độ đã chọn? Kết quả cũ và bản duyệt tin nhắn sẽ được bỏ; bạn cần duyệt lại trước khi gửi.')){picks.clear();const backend=selected.assessmentMode==='myjoy' && $('retryMyjoyBackend').value;action('retry-analysis', backend ? {myjoyBackend: backend} : undefined);}};
   $('approveImport').onclick=()=>action('approve-import');
   $('resolveUids').onclick=()=>action('resolve-uids');
   $('selectAll').onchange=()=>{for(const l of selected.leads.filter(l=>canPick(l)&&matchesAnalysis(l))){if($('selectAll').checked)picks.add(l.id);else picks.delete(l.id);}for(const box of $('analysisRows').querySelectorAll('input'))box.checked=picks.has(box.value);updateControls();};

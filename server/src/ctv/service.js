@@ -153,10 +153,15 @@ class CtvService {
     c.approvals.import = { by: owner, at: new Date().toISOString() };
     c.state = 'analysis_queued'; this.save(); this.enqueue(c, () => this.analyze(c)); return c;
   }
-  retryAnalysis(id, owner) {
+  retryAnalysis(id, owner, myjoyBackend) {
     const c = this.staged(id, owner);
     if (!c.approvals.import || c.approvals.send || !['analysis_review', 'message_review', 'interrupted', 'needs_attention'].includes(c.state)) fail('Chỉ thử lại đánh giá khi đã dừng và chưa duyệt gửi');
     if (c.leads.every(l => l.state === 'skipped')) fail('Tất cả hồ sơ đã được bỏ qua');
+    if (myjoyBackend !== undefined) {
+      if (c.assessmentMode !== 'myjoy') fail('Chỉ đổi AI khi chiến dịch dùng chế độ MyJoy');
+      if (typeof myjoyBackend !== 'string' || !/^[\w.-]{1,100}$/.test(myjoyBackend)) fail('Cần chọn AI MyJoy hợp lệ');
+      c.myjoyBackend = myjoyBackend;
+    }
     delete c.approvals.analysis; delete c.messagePreview; delete c.error;
     c.cancelled = false;
     for (const lead of c.leads) {

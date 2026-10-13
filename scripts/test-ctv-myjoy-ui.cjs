@@ -55,3 +55,50 @@ test('usage UI distinguishes absent, partial and zero usage', () => {
   assert.equal(context.myjoyUsageText({inputTokens:12}),'12 token vào');
   assert.equal(context.myjoyUsageText({inputTokens:-1,outputTokens:'20'}),'Chưa có thông tin usage');
 });
+
+function setupRetry(api) {
+  const nodes = new Map();
+  const $ = id => {if (!nodes.has(id)) nodes.set(id,{textContent:'',children:[],value:'',disabled:false,replaceChildren(...children){this.children=children;},append(node){this.children.push(node);}});return nodes.get(id);};
+  const slice = source.slice(source.indexOf("  async function loadRetryBackends"), source.indexOf("  $('approveImport').onclick"));
+  const context = { $, api, selected:null, busy:false, epoch:0, retryMyjoyLoading:false, retryBackendCampaignId:null,
+    picks: new Set(), canRetry: () => true, window: { confirm: () => true }, action: () => {},
+    updateControls(){}, element:(tag,text)=>({tag,text,value:'',disabled:false}) };
+  vm.createContext(context); vm.runInContext(slice,context);
+  return { $, context };
+}
+test('retry backend picker preselects the campaign current AI from the live list', async () => {
+  const { $, context } = setupRetry(async route => { assert.equal(route,'/api/ctv/myjoy/backends'); return {backends:[{id:'model-a',label:'A',available:true},{id:'model-b',label:'B',available:true}]}; });
+  context.selected = { id:'c1', myjoyBackend:'model-b' };
+  await context.loadRetryBackends(context.selected);
+  assert.equal($('retryMyjoyBackend').children.length,2);
+  assert.equal($('retryMyjoyBackend').value,'model-b');
+});
+test('retry backend picker keeps the current AI selectable even if MyJoy no longer lists it', async () => {
+  const { $, context } = setupRetry(async () => ({backends:[{id:'model-a',label:'A',available:true}]}));
+  context.selected = { id:'c1', myjoyBackend:'model-old' };
+  await context.loadRetryBackends(context.selected);
+  assert.equal($('retryMyjoyBackend').children.length,2);
+  assert.equal($('retryMyjoyBackend').children[0].value,'model-old');
+  assert.equal($('retryMyjoyBackend').value,'model-old');
+});
+test('clicking Quét lại sends the selected MyJoy backend only in myjoy mode', () => {
+  const calls = [];
+  const { $, context } = setupRetry(async () => ({backends:[]}));
+  context.action = (name,body) => calls.push({name,body});
+  context.selected = { id:'c1', assessmentMode:'myjoy' };
+  $('retryMyjoyBackend').value = 'model-x';
+  $('retryAnalysis').onclick();
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].name,'retry-analysis');
+  assert.equal(calls[0].body.myjoyBackend,'model-x');
+});
+test('clicking Quét lại omits the backend field for non-MyJoy campaigns', () => {
+  const calls = [];
+  const { $, context } = setupRetry(async () => ({backends:[]}));
+  context.action = (name,body) => calls.push({name,body});
+  context.selected = { id:'c1', assessmentMode:'keywords' };
+  $('retryAnalysis').onclick();
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].name,'retry-analysis');
+  assert.equal(calls[0].body,undefined);
+});
