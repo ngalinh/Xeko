@@ -219,3 +219,5 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 /* Assessment mode select shares a row with the MyJoy AI picker when visible. */
 .assessment-row{display:flex;gap:16px;flex-wrap:wrap}
 .assessment-row>div{flex:1;min-width:220px}
+.myjoy-picker{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.myjoy-picker select{flex:1;width:auto;min-width:0}
