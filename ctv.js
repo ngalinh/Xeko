@@ -306,10 +306,10 @@
   function updateControls() {
     const c = selected, unlocked = !busy && !uncertain, modern = c?.workflowVersion === 2;
     for(const button of $('sendRows').querySelectorAll('button[data-retry-lead]'))button.disabled=!unlocked || ACTIVE.includes(c?.state);
+    const myjoyActive = $('assessmentMode').value === 'myjoy';
     for (const id of ['campaignName','profile','assessmentMode','myjoyBackend','urls','file']) $(id).disabled = !!c || busy;
-    $('myjoyConnect').disabled = !!c || busy || myjoyLoading;
-    $('myjoyBackend').disabled ||= myjoyLoading;
-    show('myjoySettings', $('assessmentMode').value === 'myjoy');
+    $('myjoyConnect').disabled = !!c || busy || myjoyLoading || !myjoyActive;
+    $('myjoyBackend').disabled ||= myjoyLoading || !myjoyActive;
     $('importButton').disabled = !!c || busy || !accounts.length || ($('assessmentMode').value === 'myjoy' && (myjoyLoading || !$('myjoyBackend').value));
     $('newCampaign').disabled = busy;
     $('refresh').disabled = !c || busy;
