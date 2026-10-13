@@ -566,18 +566,26 @@
     const version = epoch;
     myjoyLoading = true; updateControls();
     $('myjoyStatus').textContent = 'Đang kết nối MyJoy…';
-    const empty = element('option', 'Chọn AI MyJoy'); empty.value = '';
-    $('myjoyBackend').replaceChildren(empty);
+    const connecting = element('option', 'Đang kết nối MyJoy…'); connecting.value = '';
+    $('myjoyBackend').replaceChildren(connecting);
     try {
       const result = await api('/api/ctv/myjoy/backends');
       if (epoch !== version || selected) return;
       if (!Array.isArray(result.backends)) throw new Error('Worker chưa hỗ trợ danh sách AI MyJoy');
-      for (const backend of result.backends) {
+      const options = result.backends.map(backend => {
         const option = element('option', backend.label + (backend.available ? '' : ' — ' + backend.reason));
-        option.value = backend.id; option.disabled = !backend.available; $('myjoyBackend').append(option);
+        option.value = backend.id; option.disabled = !backend.available; return option;
+      });
+      const firstAvailable = options.find(o => !o.disabled);
+      if (firstAvailable) {
+        $('myjoyBackend').replaceChildren(...options);
+        $('myjoyBackend').value = firstAvailable.value;
+      } else {
+        const empty = element('option', 'Chọn AI MyJoy'); empty.value = '';
+        $('myjoyBackend').replaceChildren(empty, ...options);
       }
-      $('myjoyStatus').textContent = result.backends.some(b => b.available)
-        ? 'Đã kết nối. Chọn AI trước khi tạo chiến dịch. Quét qua MyJoy dùng hạn mức của AI đã chọn; không tự chuyển sang Gemini API.'
+      $('myjoyStatus').textContent = firstAvailable
+        ? 'Đã kết nối. Quét qua MyJoy dùng hạn mức của AI đã chọn; không tự chuyển sang Gemini API.'
         : 'Đã kết nối nhưng chưa có AI hỗ trợ. Kiểm tra cấu hình MyJoy hoặc chọn chế độ từ khoá.';
     } catch (error) {
       if (epoch === version && !selected) $('myjoyStatus').textContent = error.message;

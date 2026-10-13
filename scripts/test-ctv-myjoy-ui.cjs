@@ -12,14 +12,22 @@ function setup(api) {
   vm.createContext(context); vm.runInContext(handlers,context);
   return { $, context };
 }
-test('backend discovery is explicit, keeps placeholder and disables unavailable AI', async () => {
+test('backend discovery selects the first available AI and drops the placeholder', async () => {
   let calls=0;
   const { $ } = setup(async route => { calls++; assert.equal(route,'/api/ctv/myjoy/backends'); return {backends:[{id:'model',label:'My AI',available:true},{id:'cli',label:'Gemini',available:false,reason:'Không hỗ trợ'}]}; });
   assert.equal(calls,0);
   await $('myjoyConnect').onclick();
-  assert.equal(calls,1); assert.equal($('myjoyBackend').children[0].value,'');
-  assert.equal($('myjoyBackend').children[1].value,'model'); assert.equal($('myjoyBackend').children[2].disabled,true);
+  assert.equal(calls,1); assert.equal($('myjoyBackend').children.length,2);
+  assert.equal($('myjoyBackend').children[0].value,'model'); assert.equal($('myjoyBackend').children[1].disabled,true);
+  assert.equal($('myjoyBackend').value,'model');
   assert.match($('myjoyStatus').textContent,/không tự chuyển sang Gemini API/);
+});
+test('backend discovery with no available AI keeps a placeholder to choose', async () => {
+  const { $ } = setup(async () => ({backends:[{id:'cli',label:'Gemini',available:false,reason:'Không hỗ trợ'}]}));
+  await $('myjoyConnect').onclick();
+  assert.equal($('myjoyBackend').children.length,2);
+  assert.equal($('myjoyBackend').children[0].value,''); assert.equal($('myjoyBackend').children[1].value,'cli');
+  assert.match($('myjoyStatus').textContent,/chưa có AI hỗ trợ/);
 });
 test('stale response cannot overwrite the AI of a selected campaign', async () => {
   let resolve;
