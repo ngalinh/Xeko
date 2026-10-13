@@ -5,7 +5,7 @@ const { evaluateCaptions } = require('./src/ctv/caption-review');
 
 const env = { CTV_MYJOY_OWNER: 'owner@example.com', CTV_MYJOY_URL: 'https://myjoy.example', CTV_MYJOY_USERNAME: 'member', CTV_MYJOY_PASSWORD: 'private-password' };
 const owner = env.CTV_MYJOY_OWNER;
-function harness({ admin = false, backends = [{id:'chat-model',label:'Chat model',type:'codex',available:true}], timeoutMs = 1000, run } = {}) {
+function harness({ admin = false, backends = [{id:'chat-model',label:'Chat model',type:'codex',available:true}], timeoutMs = 1000, heartbeatMs = 10000, run } = {}) {
   const calls = [], sockets = [];
   class Socket extends EventTarget {
     constructor(url) { super(); this.url = url; this.readyState = 0; this.sent = []; sockets.push(this); setImmediate(() => { if (this.readyState !== 3) { this.readyState = 1; this.dispatchEvent(new Event('open')); } }); }
@@ -13,7 +13,7 @@ function harness({ admin = false, backends = [{id:'chat-model',label:'Chat model
     emit(data) { this.dispatchEvent(new MessageEvent('message', {data: typeof data === 'string' ? data : JSON.stringify(data)})); }
     close() { if (this.readyState === 3) return; this.readyState = 3; this.dispatchEvent(new Event('close')); }
   }
-  const client = createClient({ env, WebSocketClass: Socket, timeoutMs, fetchFn: async (url, options) => {
+  const client = createClient({ env, WebSocketClass: Socket, timeoutMs, heartbeatMs, fetchFn: async (url, options) => {
     calls.push({ url, options });
     const data = url.endsWith('/auth/login') ? {token:'a'.repeat(64),user:'member'} : url.endsWith('/api/me') ? {user:'member',admin} : backends;
     return {ok:true,status:200,json:async()=>data};
@@ -69,6 +69,17 @@ test('tool use, oversized output and backend errors stop only our panel without 
     assert.deepEqual(h.sockets[0].sent[1],{type:'stop',panelId:h.sockets[0].sent[0].panelId});
     assert.equal(h.sockets.length,1);
   }
+});
+test('a long MyJoy wait reports periodic heartbeats so the scan log keeps moving', async () => {
+  const events = [];
+  let respond;
+  const h = harness({heartbeatMs:5, run(socket, task) { respond = () => { socket.emit({type:'text_delta',panelId:task.panelId,content:'{}'}); socket.emit({type:'agent_done',panelId:task.panelId}); }; }});
+  const pending = h.client.request(owner,'chat-model','caption',{report:(stage,message)=>events.push({stage,message})});
+  await new Promise(resolve => setTimeout(resolve, 30));
+  respond();
+  assert.equal(await pending,'{}');
+  assert.ok(events.filter(e => e.stage === 'myjoy_waiting').length >= 2);
+  assert.match(events.find(e => e.stage === 'myjoy_waiting').message, /Đang chờ MyJoy phản hồi/);
 });
 test('timeout and user cancellation send a scoped stop, while disconnect rejects partial output', async () => {
   const timeout = harness({timeoutMs:20});
