@@ -373,6 +373,7 @@ test('continues through outer scroller when inner feed reaches its end', () => {
   const evaluate = mock.page.evaluate;
   let headerReads = 0;
   mock.page.evaluate = async (fn, arg) => {
+    if (fn.name === 'closeContentInfoDialog') return false;
     if (fn.name === 'readProfileSnapshot') {
       assert.equal(mock.scrolls(),0);assert.equal(arg,true);
       return ++headerReads === 1 ? false : {...header,headerBio:'GROUP SĂN SALE\nDigital creator'};
@@ -467,6 +468,7 @@ test('header timeout does not scan a feed redirected to another profile', async 
   mock.page.url = () => 'https://www.facebook.com/456';
   mock.page.waitForFunction = async () => { const e = new Error('timeout'); e.name = 'TimeoutError'; throw e; };
   mock.page.evaluate = async fn => {
+    if (fn.name === 'closeContentInfoDialog') return false;
     assert.equal(fn.name, 'readProfileSnapshot');
     return {name: '', headerBio: '', feedReady: true, messageLinks: []};
   };
