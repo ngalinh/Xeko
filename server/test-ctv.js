@@ -458,6 +458,45 @@ test('caption mode persists and reaches worker without enabling automatic select
 });
 
 
+test('MyJoy campaign keeps owner/model, preserves manual approvals, and never persists credentials', async t => {
+  const keys = {CTV_MYJOY_OWNER:'owner',CTV_MYJOY_USERNAME:'member',CTV_MYJOY_PASSWORD:'test-secret',CTV_MYJOY_URL:'https://myjoy.example'};
+  const previous = Object.fromEntries(Object.keys(keys).map(k => [k,process.env[k]]));
+  Object.assign(process.env,keys);
+  t.after(() => {for (const [k,v] of Object.entries(previous)) if (v === undefined) delete process.env[k]; else process.env[k] = v;});
+  let received;
+  const {s,sent,browser} = setup(t,{inspect:async(_,url,options) => {
+    received=options;
+    return {...require('./src/ctv/caption-review').evaluateCaptions({personalEvidence:true,posts:['Áo CK đủ size']}),provider:'myjoy',model:options.myjoyBackend,url,recipientId:recipientId(url)};
+  }});
+  const body = {...input(['https://facebook.com/123']),assessmentMode:'myjoy',myjoyBackend:'chat-model',password:'SHOULD_NOT_SAVE'};
+  assert.throws(()=>s.create(body,'other'),/Chưa cấu hình/);
+  assert.throws(()=>s.create({...body,myjoyBackend:''},'owner'),/Cần chọn AI/);
+  const c = s.create(body,'owner');
+  assert.equal(sent.length,0); assert.equal(received,undefined);
+  s.approveImport(c.id,'owner'); await settle(s);
+  assert.equal(received.owner,'owner'); assert.equal(received.myjoyBackend,'chat-model'); assert.equal(received.assessmentMode,'myjoy');
+  assert.equal(c.leads[0].state,'review'); assert.equal(sent.length,0);
+  s.approveAnalysis(c.id,'owner',[c.leads[0].id]); assert.equal(c.state,'message_review'); assert.equal(sent.length,0);
+  const restored = new CtvService({file:s.file,browser}).get(c.id,'owner');
+  assert.equal(restored.myjoyBackend,'chat-model');
+  assert.ok(!fs.readFileSync(s.file,'utf8').includes('test-secret')); assert.ok(!JSON.stringify(c).includes('SHOULD_NOT_SAVE'));
+  c.leads[0].assessment.collectionBlocked=true;
+  assert.match(s.selectionBlocked(c.leads[0]),/Chưa đọc được caption/);
+});
+
+test('MyJoy backend discovery forwards owner to the worker without filtering models by Facebook profile', async () => {
+  let handler, forwarded;
+  mountCtv({all(_path,fn){handler=fn;}},{remote:true,getLocalUrl:()=> 'https://worker.example',apiKey:'local-test',permissions:{getAllowedProfileKeys:()=>['fb-test']},fetchFn:async(url,options)=>{
+    forwarded={url,options};return {ok:true,status:200,json:async()=>({backends:[{id:'model',label:'Model',available:true}]})};
+  }});
+  const response={statusCode:200,status(code){this.statusCode=code;return this;},json(data){this.data=data;return this;}};
+  await handler({path:'/api/ctv/myjoy/backends',method:'GET',user:{email:'owner'}},response);
+  assert.equal(response.statusCode,200);assert.equal(response.data.backends[0].id,'model');
+  assert.equal(forwarded.options.headers['x-ctv-owner'],'owner');assert.equal(forwarded.url,'https://worker.example/api/ctv/myjoy/backends');
+  await handler({path:'/api/ctv/myjoy/backends',method:'POST',user:{email:'owner'}},response);assert.equal(response.statusCode,405);
+  await handler({path:'/api/ctv/myjoy/backends',method:'GET'},response);assert.equal(response.statusCode,401);
+});
+
 test('adding a caption brand persists scoped aliases and re-highlights without rescan or approval changes',async t=>{
   const {s,browser,inspected,sent}=setup(t);
   const c=s.create({...input(['https://facebook.com/123']),assessmentMode:'keywords'},'owner');
