@@ -223,6 +223,12 @@ class CtvService {
         lead.state = 'checking'; lead.scanLog = [];
         const started = Date.now();
         const onProgress = event => {
+          if (event.aiUsage) {
+            lead.aiUsageAttempts ||= [];
+            const index = lead.aiUsageAttempts.findIndex(item => item.requestId === event.aiUsage.requestId);
+            if (index < 0) lead.aiUsageAttempts.push(event.aiUsage);
+            else lead.aiUsageAttempts[index] = event.aiUsage;
+          }
           lead.scanLog.push({ ...event, at: new Date().toISOString(), elapsedMs: Date.now() - started });
           lead.scanLog = lead.scanLog.slice(-100);
           this.save();

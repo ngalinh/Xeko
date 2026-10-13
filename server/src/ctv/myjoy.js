@@ -13,6 +13,22 @@ function configuration(owner, env = process.env) {
   return { origin: url.origin, username: env.CTV_MYJOY_USERNAME, password: env.CTV_MYJOY_PASSWORD };
 }
 
+// Only transport metadata is usage; never trust numbers in the AI's answer.
+function normalizeUsage(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const fields = {
+    inputTokens: ['input_tokens', 'prompt_tokens'],
+    outputTokens: ['output_tokens', 'completion_tokens'],
+    totalTokens: ['total_tokens'],
+  };
+  const result = {};
+  for (const [key, aliases] of Object.entries(fields)) {
+    const value = aliases.map(name => raw[name]).find(value => Number.isSafeInteger(value) && value >= 0);
+    if (value !== undefined) result[key] = value;
+  }
+  return result;
+}
+
 function createClient({ fetchFn = globalThis.fetch, WebSocketClass = globalThis.WebSocket, env = process.env, timeoutMs = 180000, heartbeatMs = 10000 } = {}) {
   let loginFlight = null, loginKey = '', token = '';
   async function http(config, route, options = {}) {
@@ -70,6 +86,8 @@ function createClient({ fetchFn = globalThis.fetch, WebSocketClass = globalThis.
     url.protocol = 'wss:'; url.searchParams.set('token', auth.token);
     const panelId = 'xeko-' + crypto.randomUUID();
     const started = Date.now();
+    const usage = { requestId: panelId, backendId, status: 'unavailable' };
+    const publishUsage = () => report('myjoy_usage', 'Đã cập nhật thông tin usage MyJoy', { aiUsage: { ...usage } });
     return new Promise((resolve, reject) => {
       let socket, timer, poll, heartbeat, finished = false, output = '', sent = false;
       const finish = (error, result) => {
@@ -80,6 +98,7 @@ function createClient({ fetchFn = globalThis.fetch, WebSocketClass = globalThis.
           try { socket.send(JSON.stringify({ type: 'stop', panelId })); } catch {}
         }
         try { socket?.close(); } catch {}
+        if (sent) { usage.outcome = error ? 'incomplete' : 'completed'; publishUsage(); }
         error ? reject(error) : resolve(result);
       };
       try { socket = new WebSocketClass(url.href); }
@@ -93,7 +112,7 @@ function createClient({ fetchFn = globalThis.fetch, WebSocketClass = globalThis.
         try {
           check();
           // No sessionId, cwd or repo: each profile has a fresh, isolated chat.
-          socket.send(JSON.stringify({ type: 'task', panelId, backendId, content })); sent = true;
+          socket.send(JSON.stringify({ type: 'task', panelId, backendId, content })); sent = true; publishUsage();
         } catch { finish(new Error('Đã dừng hoặc không gửi được yêu cầu MyJoy')); }
       });
       socket.addEventListener('message', event => {
@@ -102,6 +121,12 @@ function createClient({ fetchFn = globalThis.fetch, WebSocketClass = globalThis.
         let message;
         try { message = JSON.parse(event.data); } catch { finish(new Error('Sự kiện MyJoy sai định dạng')); return; }
         if (!message || message.panelId !== panelId) return;
+        // Usage events and completion usage are cumulative snapshots, not deltas.
+        // Merge fields without summing repeated snapshots.
+        if (message.type === 'usage' || message.type === 'agent_done') {
+          Object.assign(usage, normalizeUsage(message.usage));
+          if (['inputTokens', 'outputTokens', 'totalTokens'].some(key => usage[key] !== undefined)) usage.status = 'reported';
+        }
         if (message.type === 'text_delta') {
           if (typeof message.content !== 'string') { finish(new Error('Nội dung MyJoy không hợp lệ')); return; }
           output += message.content;
@@ -181,4 +206,4 @@ async function evaluateMyJoy(snapshot, { owner, backendId, check = () => {}, rep
   check();
   return parseReview(result, base, backendId);
 }
-module.exports = { configuration, createClient, listBackends: client.listBackends, evaluateMyJoy, parseReview, promptFor };
+module.exports = { normalizeUsage, configuration, createClient, listBackends: client.listBackends, evaluateMyJoy, parseReview, promptFor };

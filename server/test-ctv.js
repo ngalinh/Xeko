@@ -520,3 +520,21 @@ test('adding a caption brand persists scoped aliases and re-highlights without r
   assert.throws(()=>s.addBrand(c.id,'owner',{leadId:c.leads[0].id,alias:'Hermès',name:'<script>'}),/HTML/);
   c.state='sending';assert.throws(()=>s.addBrand(c.id,'owner',{leadId:c.leads[0].id,alias:'Hermès',name:'Hermès'}),/chờ/);
 });
+
+test('usage survives a failed scan, reload and repeated scan without duplicate snapshots', async t => {
+  let attempt=0;
+  const {s,browser}=setup(t,{inspect:async(_,url,{onProgress})=>{
+    const requestId='request-'+(++attempt);
+    onProgress({stage:'myjoy_usage',aiUsage:{requestId,backendId:'model',status:'unavailable'}});
+    onProgress({stage:'myjoy_usage',aiUsage:{requestId,backendId:'model',status:'reported',inputTokens:12,outcome:'incomplete'}});
+    throw new Error('Disconnected');
+  }});
+  const c=await analyzed(s,['https://facebook.com/123']);
+  assert.equal(c.leads[0].aiUsageAttempts.length,1);
+  await s.analyze(c);
+  assert.equal(c.leads[0].aiUsageAttempts.length,2);
+  const restored=new CtvService({file:s.file,browser});
+  const lead=restored.view(restored.get(c.id,'owner')).leads[0];
+  assert.equal(lead.aiUsageAttempts.length,2);
+  assert.equal(lead.aiUsageAttempts[0].inputTokens,12);
+});
