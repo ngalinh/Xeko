@@ -666,7 +666,10 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
   for (let i = 0; i < (media ? 45 : 15); i++) {
     if (cancelled()) return { state: 'unconfirmed', reason: 'Đã dừng sau thao tác gửi; cần kiểm tra Messenger. Không tự gửi lại.' };
     await page.waitForTimeout(1000);
-    if (media) await verify();
+    // The message was already sent before this loop starts; a benign DOM change
+    // (e.g. a "not friends" preview turning into a real thread right after the
+    // first message) must not abort confirmation — just skip re-verifying this tick.
+    if (media) { try { await verify(); } catch {} }
     const textSent = await confirmedCount() > beforeCount;
     const imagesSent = !media || await media.confirmedImages() >= media.before + media.count;
     if (textSent && imagesSent) { report('sent', 'Messenger đã xác nhận gửi'); return { state: 'sent', reason: media ? 'Messenger xác nhận ảnh và nội dung tin nhắn đã gửi/đã chuyển' : 'Messenger hiển thị trạng thái đã gửi/đã chuyển cho tin nhắn mới' }; }
