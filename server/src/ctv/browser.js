@@ -26,6 +26,15 @@ function conversationHeaderLinks(root) {
 function matchesRecipient(link, id, target) {
   try { const uid = recipientId(link); return uid ? uid === id : profileUrl(link) === target; } catch { return false; }
 }
+// Runs in the page: Facebook shows this preview instead of a normal chat header
+// when the sending account has never been in a conversation with this person.
+function conversationNotFriendsNotice(root) {
+  const boxes = [...root.querySelectorAll('[contenteditable="true"][role="textbox"]')]
+    .filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden'
+      && e.closest('[role="dialog"], [role="main"], [role="complementary"]') === root);
+  if (boxes.length !== 1) return false;
+  return /không phải là bạn bè trên Facebook|aren.t friends on Facebook/i.test(root.innerText || '');
+}
 async function selectRecipientConversation(page, id, target, cancelled) {
   for (let attempt = 0; attempt < 30; attempt++) {
     if (cancelled()) throw new Error('Đã dừng trước khi gửi');
@@ -35,6 +44,9 @@ async function selectRecipientConversation(page, id, target, cancelled) {
       if (!await root.isVisible()) continue;
       const links = await root.evaluate(conversationHeaderLinks);
       if (links.some(link => matchesRecipient(link, id, target))) matches.push(root);
+      else if (await root.evaluate(conversationNotFriendsNotice)) {
+        throw new Error('Tài khoản gửi chưa là bạn bè/chưa từng nhắn tin với khách trên Facebook; Messenger chỉ hiện bản xem trước, không xác minh được để gửi tự động. Hãy kết bạn hoặc tự mở đầu hội thoại thủ công trước, hoặc đổi sang tài khoản đã quen biết khách.');
+      }
     }
     if (matches.length > 1) throw new Error('Có nhiều khung chat cùng người nhận; chưa gửi tin');
     if (matches.length === 1) {

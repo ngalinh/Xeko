@@ -5,13 +5,15 @@ const { send, profileMessageButton, waitForMessageComposer } = require('./src/ct
 
 const target = 'https://www.facebook.com/customer';
 const image = {name:'photo.png', dataUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1cAAAAASUVORK5CYII='};
-function fixture({fullPage = false, wrongHeader = false, redirect = false, draft = '', missingButton = false, changeAfterFill = false, receipt = true, imageReceipt = true, uploadFails = false, wrongAfterUpload = false, pendingImage = false, loseImageAfterFill = false} = {}) {
+function fixture({fullPage = false, wrongHeader = false, notFriends = false, redirect = false, draft = '', missingButton = false, changeAfterFill = false, receipt = true, imageReceipt = true, uploadFails = false, wrongAfterUpload = false, pendingImage = false, loseImageAfterFill = false} = {}) {
   const actions = []; let url = target, text = draft, submitted = false, headerWrong = wrongHeader;
   let imageAttached = false, imageSent = false;
   const conversation = {
     count: async () => 1,
     isVisible: async () => true,
-    evaluate: async fn => fn.name === 'conversationHeaderLinks' ? [headerWrong ? 'https://www.facebook.com/999' : target] : fn.toString().includes('setAttribute') ? undefined : (imageAttached ? 1 : 0),
+    evaluate: async fn => fn.name === 'conversationHeaderLinks' ? (notFriends ? [] : [headerWrong ? 'https://www.facebook.com/999' : target])
+      : fn.name === 'conversationNotFriendsNotice' ? notFriends
+      : fn.toString().includes('setAttribute') ? undefined : (imageAttached ? 1 : 0),
     locator: selector => selector.startsWith('[contenteditable') ? box : selector.startsWith('input') ? {count:async()=>1,setInputFiles:async files=>{actions.push('attach');assert.equal(files[0].mimeType,'image/png');assert.ok(Buffer.isBuffer(files[0].buffer));if(uploadFails)throw Error('upload failed');imageAttached=true;if(wrongAfterUpload)headerWrong=true;}}
       : selector === '[role="row"]' ? {evaluateAll:async(_,text)=>text===undefined ? (imageSent && imageReceipt ? 1 : 0) : (submitted && receipt ? 1 : 0)}
       : {count:async()=>pendingImage ? 1 : 0},
@@ -70,6 +72,11 @@ test('text receipt without image receipt and image receipt without text receipt 
   const f=fixture({receipt:false});
   assert.equal((await send(f.page,{url:target,recipientId:'123'},'Hello',f.submit,()=>false,[image])).state,'unconfirmed');
   assert.equal(f.actions.filter(a=>a==='Enter').length,1);
+});
+test('a Messenger \'not friends\' preview fails fast with a specific reason instead of a generic timeout', async () => {
+  const f = fixture({notFriends:true});
+  await assert.rejects(send(f.page,{actualUrl:target,recipientId:'123'},'Hello',f.submit), /chưa là bạn bè/);
+  assert.ok(!f.actions.includes('fill')); assert.ok(!f.actions.includes('reserve'));
 });
 test('recipient change after filling caption cannot submit attachments',async()=>{
   const f=fixture({changeAfterFill:true});
