@@ -83,3 +83,23 @@ test('retry API returns accepted, checks owner and rejects cloud profile spoofin
   res=response();await handler({...req,user:{email:'owner'},body:{...request(),profile:'forbidden'}},res);
   assert.equal(res.code,403);assert.equal(forwarded,1);
 });
+test('retry-send can route the browser automation through a different Facebook profile than the campaign default', async t => {
+  const {s,c,request} = setup(t);
+  const calls = [];
+  const original = s.browser.withPage;
+  s.browser.withPage = async (profile, fn) => { calls.push(profile); return original(profile, fn); };
+  assert.throws(()=>s.retrySend(c.id,'owner',request({profile:'a/b'})), /không hợp lệ/);
+  s.retrySend(c.id,'owner',request({profile:'other-account'}));
+  await settle(s);
+  assert.deepEqual(calls,['other-account']);
+});
+test('retry-send on the worker itself rejects an alternate Facebook profile outside the member permission scope', async t => {
+  const {s,c,request} = setup(t);let handler;
+  mountCtv({all:(_,h)=>handler=h},{remote:true,service:s,permissions:{getAllowedProfileKeys:()=>['test']}});
+  const response=()=>({code:200,status(code){this.code=code;return this;},json(body){this.body=body;return this;}});
+  const req={path:`/api/ctv/campaigns/${c.id}/retry-send`,method:'POST',user:{email:'owner'},body:{...request(),profile:'other-account'}};
+  let res=response();await handler(req,res);
+  assert.equal(res.code,403);
+  res=response();await handler({...req,body:{...request(),profile:'test'}},res);
+  assert.equal(res.code,202);
+});

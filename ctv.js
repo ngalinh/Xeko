@@ -278,13 +278,24 @@
       if (/^\d+$/.test(l.assessment?.recipientId || '')) actions.append(link(`https://www.facebook.com/messages/t/${l.assessment.recipientId}`,'Mở Messenger ↗'));
       actions.append(link(l.url,'Xem hồ sơ ↗')); info.append(actions);
       if (l.retryAvailable) {
+        let profilePicker = null;
+        if (accounts.length > 1) {
+          profilePicker = element('select',undefined,'retry-profile');
+          profilePicker.setAttribute('aria-label','Tài khoản Facebook để gửi lại');
+          if (!accounts.some(a => a.key === c.profile)) { const current = element('option',accountName(c.profile)); current.value = c.profile; profilePicker.append(current); }
+          for (const a of accounts) { const option = element('option',a.name || a.key); option.value = a.key; profilePicker.append(option); }
+          profilePicker.value = c.profile;
+        }
         const retry = element('button',category === 'attention' ? '↻ Thử gửi lại' : 'Gửi khách này','secondary');
         retry.type='button';retry.dataset.retryLead=l.id;retry.disabled=busy || uncertain || ACTIVE.includes(c.state);
+        if (profilePicker) profilePicker.disabled = retry.disabled;
         retry.onclick=()=>{
           if(retry.disabled || selected?.id!==c.id)return;
           if(l.retryNeedsConfirmation && !window.confirm('Bạn đã kiểm tra Messenger và xác nhận khách chưa nhận bất kỳ ảnh hay tin nhắn nào của lượt gửi này? Thử lại sẽ gửi toàn bộ ảnh và nội dung đã duyệt.'))return;
-          action('retry-send',{leadId:l.id,previewToken:c.messagePreview.token,requestId:retryRequestId(),confirmedNotReceived:!!l.retryNeedsConfirmation});
+          const profile = profilePicker?.value;
+          action('retry-send',{leadId:l.id,previewToken:c.messagePreview.token,requestId:retryRequestId(),confirmedNotReceived:!!l.retryNeedsConfirmation,...(profile && profile !== c.profile ? {profile} : {})});
         };
+        if (profilePicker) actions.append(profilePicker);
         actions.append(retry);
       }
       if (l.error) {

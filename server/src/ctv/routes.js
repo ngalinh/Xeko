@@ -62,6 +62,7 @@ function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', pe
       if (!action && req.method === 'GET') return res.json(s.view(c));
       if (action) {
         const body = req.body || {};
+        if (action === 'retry-send' && body.profile !== undefined && !allowedProfile(body.profile)) return res.status(403).json({ error: 'Không có quyền dùng tài khoản này' });
         const result = {
           'add-brand': () => s.addBrand(c.id, owner, body),
           'approve-import': () => s.approveImport(c.id, owner),
