@@ -543,7 +543,16 @@ async function prepareImages(page, conversation, images, verify, box, report = (
         await page.bringToFront();
         await box.focus();
         await page.evaluate(async dataUrl => {
-          const source = await (await fetch(dataUrl)).blob();
+          // Facebook's CSP can block fetch() of data: URLs (connect-src), even
+          // though the same data: URL works fine as an <img src>. Decode by hand
+          // instead of fetching it, so the clipboard paste path never depends on
+          // a CSP exception that may not be granted.
+          const match = /^data:([^;]+);base64,(.*)$/s.exec(dataUrl);
+          if (!match) throw new Error('Không đọc được dữ liệu ảnh để dán');
+          const binary = atob(match[2]);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          const source = new Blob([bytes], { type: match[1] || 'image/png' });
           const bitmap = await createImageBitmap(source);
           const canvas = document.createElement('canvas'); canvas.width = bitmap.width; canvas.height = bitmap.height;
           canvas.getContext('2d').drawImage(bitmap, 0, 0); bitmap.close();
