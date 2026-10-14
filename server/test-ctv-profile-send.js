@@ -5,7 +5,7 @@ const { send, profileMessageButton, waitForMessageComposer } = require('./src/ct
 
 const target = 'https://www.facebook.com/customer';
 const image = {name:'photo.png', dataUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1cAAAAASUVORK5CYII='};
-function fixture({fullPage = false, wrongHeader = false, notFriends = false, redirect = false, draft = '', missingButton = false, changeAfterFill = false, receipt = true, imageReceipt = true, uploadFails = false, wrongAfterUpload = false, pendingImage = false, loseImageAfterFill = false} = {}) {
+function fixture({fullPage = false, wrongHeader = false, notFriends = false, redirect = false, draft = '', missingButton = false, changeAfterFill = false, receipt = true, imageReceipt = true, uploadFails = false, wrongAfterUpload = false, pendingImage = false, loseImageAfterFill = false, postSendBoxGlitch = false} = {}) {
   const actions = []; let url = target, text = draft, submitted = false, headerWrong = wrongHeader;
   let imageAttached = false, imageSent = false;
   const conversation = {
@@ -17,7 +17,7 @@ function fixture({fullPage = false, wrongHeader = false, notFriends = false, red
       : selector === '[role="row"]' ? {evaluateAll:async(_,text)=>text===undefined ? (imageSent && imageReceipt ? 1 : 0) : (submitted && receipt ? 1 : 0)}
       : {count:async()=>pendingImage ? 1 : 0},
   };
-  const box = {count: async () => 1, isVisible: async () => true, locator: () => conversation,
+  const box = {count: async () => (postSendBoxGlitch && submitted) ? 0 : 1, isVisible: async () => true, locator: () => conversation,
     scrollIntoViewIfNeeded: async () => {},
     getAttribute: async () => 'Write to Khách', isEditable: async () => true,
     innerText: async () => text, fill: async value => {actions.push('fill'); text = value; if (changeAfterFill) headerWrong = true; if (loseImageAfterFill) imageAttached = false;},
@@ -58,6 +58,11 @@ for(const options of [{uploadFails:true},{wrongAfterUpload:true},{pendingImage:t
   const f=fixture(options);
   await assert.rejects(send(f.page,{url:target,recipientId:'123'},'Hello',f.submit,()=>false,[image]));
   assert.ok(!f.actions.includes('reserve'));assert.ok(!f.actions.includes('Enter'));assert.ok(!f.actions.includes('fill'));
+});
+test('a benign DOM change right after sending (e.g. preview becoming a real thread) does not abort confirmation', async () => {
+  const f = fixture({postSendBoxGlitch:true, image:true});
+  const result = await send(f.page,{url:target,recipientId:'123'},'Hello',f.submit,()=>false,[image]);
+  assert.equal(result.state,'sent');
 });
 test('cancellation after combined submission never retries',async()=>{
   const f=fixture();
