@@ -106,7 +106,8 @@
   }
   function renderCaptionReview(v, leadId) {
     const container = element('div', undefined, 'caption-review');
-    container.append(element('p', v.provider === 'myjoy' ? 'MyJoy · ' + v.model + ' · Chỉ bio/caption · Không xác minh nguồn hàng Mỹ' : 'Quét từ khóa trên máy · Không AI · Không xác minh nguồn hàng Mỹ', 'muted'));
+    const seller = {yes:'Có',no:'Không'}[v.sellerUS] || 'Chưa đủ bằng chứng';
+    container.append(element('p', v.provider === 'myjoy' ? `MyJoy · ${v.model} · Chỉ bio/caption · Nguồn hàng Mỹ: ${seller}` : 'Quét từ khóa trên máy · Không AI · Không xác minh nguồn hàng Mỹ', 'muted'));
     container.append(element('p', v.reason));
     const rows = [{text: v.bioReview?.text || v.bio || '', spans: v.bioReview?.spans || [], bio: true}, ...(v.captionReviews || [])];
     rows.forEach((row, index) => {
@@ -446,7 +447,7 @@
     const checked = c.leads.filter(l => l.assessment || l.error).length;
     $('analysisProgress').textContent = `${checked}/${c.leads.length} hồ sơ đã xử lý${c.cancelled && c.state === 'analysis_review' ? ' · Đã dừng theo yêu cầu' : ''}`;
     $('analysisBar').max = c.leads.length || 1; $('analysisBar').value = checked;
-    stats('analysisStats',[[['keywords','myjoy'].includes(c.assessmentMode) ? 'Có dấu hiệu phù hợp' : 'AI đánh giá đạt',c.leads.filter(l=>['keywords','myjoy'].includes(c.assessmentMode) ? l.assessment?.suggestion?.startsWith('Có dấu hiệu phù hợp') : l.assessment?.eligible).length,'good'],['Có thể chọn soạn tin',c.leads.filter(canPick).length],['Cần kiểm tra',c.leads.filter(l=>l.state==='review').length,'warn'],['Đã bỏ qua',c.leads.filter(l=>l.state==='skipped').length]]);
+    stats('analysisStats',[[c.assessmentMode === 'keywords' ? 'Có dấu hiệu phù hợp' : 'AI đánh giá đạt',c.leads.filter(l=>c.assessmentMode === 'keywords' ? l.assessment?.suggestion?.startsWith('Có dấu hiệu phù hợp') : l.assessment?.eligible).length,'good'],['Có thể chọn soạn tin',c.leads.filter(canPick).length],['Cần kiểm tra',c.leads.filter(l=>l.state==='review').length,'warn'],['Đã bỏ qua',c.leads.filter(l=>l.state==='skipped').length]]);
     show('analysisWarning',!!c.error && !a.analysis);$('analysisWarning').textContent = c.error || '';
     show('retryAnalysis',!!canRetry(c));
     const retryBackendVisible = canRetry(c) && c.assessmentMode === 'myjoy';

@@ -106,19 +106,43 @@ test('login failures are sanitized and HTTP 401 permits a fresh login next time'
 });
 
 const snapshot = {personalEvidence:true,headerBio:'Shop thời trang',posts:['👜 Áo C.K có sẵn','Hôm nay đi cà phê, không bán hàng','Nước hoa Hermès có sẵn']};
-const answer = {captions:[
+const answer = {profileType:'personal',sellerUS:'unknown',confidence:0.4,sellerEvidence:[],captions:[
   {index:0,brands:[],salesSignal:false,salesEvidence:[]},
   {index:1,brands:[{name:'Calvin Klein',evidence:'C.K'}],salesSignal:true,salesEvidence:['Áo C.K có sẵn']},
   {index:2,brands:[],salesSignal:false,salesEvidence:[]},
   {index:3,brands:[{name:'Hermès',evidence:'Hermès'}],salesSignal:true,salesEvidence:['có sẵn']},
 ]};
-test('grounded AI aliases highlight original UTF-16 text without making recipients eligible', () => {
+test('grounded AI aliases highlight original UTF-16 text without making recipients eligible when sellerUS is unknown', () => {
   const result = parseReview(JSON.stringify(answer),evaluateCaptions(snapshot),'chat-model');
   assert.deepEqual(result.brands,['Calvin Klein','Hermès']);
   assert.equal(result.salesPostCount,2); assert.equal(result.sellerUS,'unknown'); assert.equal(result.eligible,false);
   assert.equal(result.manualOnly,true); assert.equal(result.captionReviews[1].spans.length,0);
   for (const row of [result.bioReview,...result.captionReviews]) for (const span of row.spans) assert.equal(row.text.slice(span.start,span.end),span.text);
   assert.equal(result.captionReviews[0].spans[0].text,'C.K');
+});
+test('MyJoy can decide sellerUS: high confidence yes with grounded evidence makes a personal profile eligible', () => {
+  const confident = {...answer, sellerUS:'yes', confidence:0.9, sellerEvidence:[{index:0,quote:'Shop thời trang'}]};
+  const result = parseReview(JSON.stringify(confident),evaluateCaptions(snapshot),'chat-model');
+  assert.equal(result.sellerUS,'yes'); assert.equal(result.confidence,0.9); assert.equal(result.eligible,true);
+  assert.match(result.reason,/Nguồn hàng Mỹ: Có/);
+  assert.ok(result.bioReview.spans.some(s => s.kind === 'retailer' && s.text === 'Shop thời trang'));
+});
+test('low confidence or a non-personal profile keeps sellerUS=yes from auto-qualifying', () => {
+  const base = evaluateCaptions(snapshot);
+  const lowConfidence = {...answer, sellerUS:'yes', confidence:0.6, sellerEvidence:[{index:3,quote:'Hermès'}]};
+  assert.equal(parseReview(JSON.stringify(lowConfidence),base,'chat-model').eligible,false);
+  const pageBase = evaluateCaptions({...snapshot, personalEvidence:false, pageEvidence:true});
+  const confident = {...answer, sellerUS:'yes', confidence:0.9, sellerEvidence:[{index:3,quote:'Hermès'}]};
+  assert.equal(parseReview(JSON.stringify(confident),pageBase,'chat-model').eligible,false);
+  const notPersonalType = {...confident, profileType:'page'};
+  assert.equal(parseReview(JSON.stringify(notPersonalType),base,'chat-model').eligible,false);
+});
+test('sellerUS=yes without grounded evidence, or evidence quoting text that is not present, is rejected', () => {
+  const base = evaluateCaptions(snapshot);
+  assert.throws(()=>parseReview(JSON.stringify({...answer, sellerUS:'yes', confidence:0.9, sellerEvidence:[]}),base,'chat-model'));
+  assert.throws(()=>parseReview(JSON.stringify({...answer, sellerUS:'yes', confidence:0.9, sellerEvidence:[{index:3,quote:'Gucci'}]}),base,'chat-model'));
+  assert.throws(()=>parseReview(JSON.stringify({...answer, profileType:'invalid'}),base,'chat-model'));
+  assert.throws(()=>parseReview(JSON.stringify({...answer, confidence:1.5}),base,'chat-model'));
 });
 test('missing/duplicate indices, hallucinated quotes, wrong types and incomplete JSON are rejected', () => {
   const base = evaluateCaptions(snapshot);
