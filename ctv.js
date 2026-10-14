@@ -337,6 +337,7 @@
     $('retryMyjoyBackend').disabled = !unlocked || retryMyjoyLoading;
     $('resolveUids').disabled = !unlocked || !modern || !['analysis_review','message_review'].includes(c.state) || !!c.approvals.send;
     $('approveImport').disabled = !unlocked || !modern || c.state !== 'import_review' || !c.leads.length;
+    $('cancelImport').disabled = !unlocked;
     $('selectAll').disabled = !unlocked || !modern || c.state !== 'analysis_review';
     const eligible = c?.leads.filter(l => canPick(l) && matchesAnalysis(l)) || [];
     $('selectAll').checked = eligible.length > 0 && eligible.every(l => picks.has(l.id));
@@ -449,6 +450,7 @@
     if (reset) $('importDetails').open = c.state === 'import_review';
     $('importApproval').textContent = approvalText(a.import,'Chỉ các link hợp lệ bên trên sẽ được quét theo chế độ đã chọn.');
     show('approveImport',modern && c.state === 'import_review');
+    show('cancelImport',modern && c.state === 'import_review');
     $('status1').textContent = a.import ? 'Đã duyệt' : 'Chờ duyệt'; $('status1').className = 'badge ' + (a.import ? 'good' : 'warn');
     const hasAnalysis = !!a.import || !modern;
     show('analysisEmpty',!hasAnalysis);show('analysisResult',hasAnalysis);
@@ -661,6 +663,7 @@
   }
   $('retryAnalysis').onclick=()=>{if(canRetry(selected) && window.confirm('Đọc lại các profile chưa bỏ qua và đánh giá lại theo chế độ đã chọn? Kết quả cũ và bản duyệt tin nhắn sẽ được bỏ; bạn cần duyệt lại trước khi gửi.')){picks.clear();const backend=selected.assessmentMode==='myjoy' && $('retryMyjoyBackend').value;action('retry-analysis', backend ? {myjoyBackend: backend} : undefined);}};
   $('approveImport').onclick=()=>action('approve-import');
+  $('cancelImport').onclick=()=>{if(selected)deleteCampaign(selected);};
   $('resolveUids').onclick=()=>action('resolve-uids');
   $('selectAll').onchange=()=>{for(const l of selected.leads.filter(l=>canPick(l)&&matchesAnalysis(l))){if($('selectAll').checked)picks.add(l.id);else picks.delete(l.id);}for(const box of $('analysisRows').querySelectorAll('input'))box.checked=picks.has(box.value);updateControls();};
   const searchText = value => String(value || '').normalize('NFD').replace(/\p{M}/gu,'').replace(/[đĐ]/g,'d').toLowerCase();
