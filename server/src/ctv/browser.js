@@ -45,7 +45,7 @@ async function selectRecipientConversation(page, id, target, cancelled) {
     }
     await page.waitForTimeout(1000);
   }
-  throw new Error('Không xác minh được hồ sơ ở tiêu đề hội thoại của người nhận; chưa gửi tin');
+  throw new Error('Không xác minh được hồ sơ ở tiêu đề hội thoại của người nhận; chưa gửi tin. Có thể khách đang ở mục "Tin nhắn chờ" vì tài khoản gửi chưa từng nhắn/kết bạn với khách — mở Messenger, chấp nhận hoặc bắt đầu hội thoại thủ công trước rồi thử gửi lại.');
 }
 
 async function assertSession(page) {
