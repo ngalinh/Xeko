@@ -30,10 +30,8 @@ function matchesRecipient(link, id, target) {
 // Runs in the page: Facebook shows this preview instead of a normal chat header
 // when the sending account has never been in a conversation with this person.
 function conversationNotFriendsNotice(root) {
-  const boxes = [...root.querySelectorAll('[contenteditable="true"][role="textbox"]')]
-    .filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden'
-      && e.closest('[role="dialog"], [role="main"], [role="complementary"]') === root);
-  if (boxes.length !== 1) return false;
+  // Do not require a matched composer box here: this limited preview can render
+  // its "Aa" field without the usual [role="textbox"] markup of a real chat.
   return /không phải là bạn bè trên Facebook|aren.t friends on Facebook/i.test(root.innerText || '');
 }
 async function selectRecipientConversation(page, id, target, cancelled) {
