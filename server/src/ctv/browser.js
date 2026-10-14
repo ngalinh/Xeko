@@ -5,6 +5,7 @@ const { resolveCurrentProfileUid } = require('./uid');
 const { imagePayloads } = require('./attachments');
 const { randomUUID } = require('crypto');
 const { withClipboard } = require('../utils/clipboard-queue');
+const { fillComposerCaption } = require('../playwright/fb-caption');
 // Messenger's Lexical composer label varies with recipient and language
 // (e.g. "Write to Linh Thảo US"). This selector is used only inside a verified chat.
 const COMPOSER = '[contenteditable="true"][role="textbox"]:visible';
@@ -26,6 +27,15 @@ function conversationHeaderLinks(root) {
 function matchesRecipient(link, id, target) {
   try { const uid = recipientId(link); return uid ? uid === id : profileUrl(link) === target; } catch { return false; }
 }
+// Runs in the page: Facebook shows this preview instead of a normal chat header
+// when the sending account has never been in a conversation with this person.
+function conversationNotFriendsNotice(root) {
+  const boxes = [...root.querySelectorAll('[contenteditable="true"][role="textbox"]')]
+    .filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden'
+      && e.closest('[role="dialog"], [role="main"], [role="complementary"]') === root);
+  if (boxes.length !== 1) return false;
+  return /không phải là bạn bè trên Facebook|aren.t friends on Facebook/i.test(root.innerText || '');
+}
 async function selectRecipientConversation(page, id, target, cancelled) {
   for (let attempt = 0; attempt < 30; attempt++) {
     if (cancelled()) throw new Error('Đã dừng trước khi gửi');
@@ -35,6 +45,9 @@ async function selectRecipientConversation(page, id, target, cancelled) {
       if (!await root.isVisible()) continue;
       const links = await root.evaluate(conversationHeaderLinks);
       if (links.some(link => matchesRecipient(link, id, target))) matches.push(root);
+      else if (await root.evaluate(conversationNotFriendsNotice)) {
+        throw new Error('Tài khoản gửi chưa là bạn bè/chưa từng nhắn tin với khách trên Facebook; Messenger chỉ hiện bản xem trước, không xác minh được để gửi tự động. Hãy kết bạn hoặc tự mở đầu hội thoại thủ công trước, hoặc đổi sang tài khoản đã quen biết khách.');
+      }
     }
     if (matches.length > 1) throw new Error('Có nhiều khung chat cùng người nhận; chưa gửi tin');
     if (matches.length === 1) {
@@ -590,8 +603,9 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
     await verify();
     if ((await box.innerText()).trim()) throw new Error('Ô soạn có bản nháp sau đính kèm ảnh; chưa gửi tin nhắn');
   }
-  await box.fill(message);
-  if ((await box.innerText()).trim() !== message.trim()) throw new Error('Nội dung trong ô soạn không khớp mẫu');
+  // Real clipboard paste (select-all then paste, like a human) survives Messenger's
+  // Lexical editor better than a synthetic fill; falls back to fill() only if it fails.
+  if (!await fillComposerCaption(page, box, message)) throw new Error('Nội dung trong ô soạn không khớp mẫu');
   await verify();
   const confirmedCount = () => conversation.locator('[role="row"]').evaluateAll((rows, text) => rows.filter(row => {
     const exact = [...row.querySelectorAll('[dir="auto"]')].some(e => e.textContent.trim() === text);
