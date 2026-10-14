@@ -19,6 +19,7 @@ function fixture({fullPage = false, wrongHeader = false, notFriends = false, red
       : {count:async()=>pendingImage ? 1 : 0},
   };
   const box = {count: async () => 1, isVisible: async () => true, locator: () => conversation,
+    scrollIntoViewIfNeeded: async () => {},
     getAttribute: async () => 'Write to Khách', isEditable: async () => true,
     innerText: async () => text, fill: async value => {actions.push('fill'); text = value; if (changeAfterFill) headerWrong = true; if (loseImageAfterFill) imageAttached = false;},
     press: async key => {actions.push(key); submitted = true; if(imageAttached){imageSent=true;actions.push('image sent');}},

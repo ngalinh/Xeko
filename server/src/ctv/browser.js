@@ -5,6 +5,7 @@ const { resolveCurrentProfileUid } = require('./uid');
 const { imagePayloads } = require('./attachments');
 const { randomUUID } = require('crypto');
 const { withClipboard } = require('../utils/clipboard-queue');
+const { fillComposerCaption } = require('../playwright/fb-caption');
 // Messenger's Lexical composer label varies with recipient and language
 // (e.g. "Write to Linh Thảo US"). This selector is used only inside a verified chat.
 const COMPOSER = '[contenteditable="true"][role="textbox"]:visible';
@@ -602,8 +603,9 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
     await verify();
     if ((await box.innerText()).trim()) throw new Error('Ô soạn có bản nháp sau đính kèm ảnh; chưa gửi tin nhắn');
   }
-  await box.fill(message);
-  if ((await box.innerText()).trim() !== message.trim()) throw new Error('Nội dung trong ô soạn không khớp mẫu');
+  // Real clipboard paste (select-all then paste, like a human) survives Messenger's
+  // Lexical editor better than a synthetic fill; falls back to fill() only if it fails.
+  if (!await fillComposerCaption(page, box, message)) throw new Error('Nội dung trong ô soạn không khớp mẫu');
   await verify();
   const confirmedCount = () => conversation.locator('[role="row"]').evaluateAll((rows, text) => rows.filter(row => {
     const exact = [...row.querySelectorAll('[dir="auto"]')].some(e => e.textContent.trim() === text);
