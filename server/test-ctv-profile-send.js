@@ -26,7 +26,8 @@ function fixture({fullPage = false, wrongHeader = false, notFriends = false, red
   const page = {
     goto: async value => {actions.push(value); url = redirect ? 'https://www.facebook.com/other' : value;},
     url: () => url, isClosed: () => false, waitForTimeout: async () => {},
-    evaluate: async fn => fn.name === 'pageNotFriendsPreview' ? (notFriends ? 'Linh Thảo US\nCác bạn không phải là bạn bè trên Facebook' : null) : undefined,
+    evaluate: async fn => fn.name === 'pageNotFriendsPreview' ? (notFriends ? 'Linh Thảo US\nCác bạn không phải là bạn bè trên Facebook' : null)
+      : fn.name === 'newThreadSentReceipt' ? submitted : undefined,
     waitForFunction: async fn => {
       assert.equal(fn, profileMessageButton);
       if (missingButton) throw Error('Message button timeout');

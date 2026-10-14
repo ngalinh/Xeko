@@ -42,6 +42,14 @@ function pageNotFriendsPreview() {
   for (let i = 0; i < 8 && container.parentElement; i++) container = container.parentElement;
   return (container.innerText || '').trim().slice(0, 2000);
 }
+// Runs in the page: a brand-new thread (first message to someone not yet a
+// friend) shows its receipt as plain visible text ("Đã gửi 8 phút trước"),
+// not inside a [role="row"] history item with a clean aria-label like an
+// established conversation. Confirmed via live DOM inspection.
+function newThreadSentReceipt() {
+  return [...document.querySelectorAll('span, div')].some(e =>
+    e.children.length === 0 && /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)\b/i.test((e.textContent || '').trim()));
+}
 function nameMatchesPreview(previewText, expectedName) {
   return !!expectedName && previewText !== null
     && normalized(previewText).value.includes(normalized(expectedName).value);
@@ -670,8 +678,11 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
     // (e.g. a "not friends" preview turning into a real thread right after the
     // first message) must not abort confirmation — just skip re-verifying this tick.
     if (media) { try { await verify(); } catch {} }
-    const textSent = await confirmedCount() > beforeCount;
-    const imagesSent = !media || await media.confirmedImages() >= media.before + media.count;
+    // A brand-new thread has no [role="row"] history to count receipts from;
+    // fall back to the plain-text "Đã gửi…"/"Sent…" caption shown under the bubble.
+    const bundleSent = nameMatchMode ? await page.evaluate(newThreadSentReceipt) : null;
+    const textSent = bundleSent !== null ? bundleSent : await confirmedCount() > beforeCount;
+    const imagesSent = bundleSent !== null ? bundleSent : (!media || await media.confirmedImages() >= media.before + media.count);
     if (textSent && imagesSent) { report('sent', 'Messenger đã xác nhận gửi'); return { state: 'sent', reason: media ? 'Messenger xác nhận ảnh và nội dung tin nhắn đã gửi/đã chuyển' : 'Messenger hiển thị trạng thái đã gửi/đã chuyển cho tin nhắn mới' }; }
     if (i > 0 && i % 5 === 0) report('confirm_waiting', `Vẫn đang chờ Messenger xác nhận… (${i}s)`);
   }
