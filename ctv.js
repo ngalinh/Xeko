@@ -184,21 +184,24 @@
     preview.append(details);
     return preview;
   }
-  function renderScanLog(lead) {
+  function renderActivityLog(lead, field, label, openSet) {
     const log = element('div', undefined, 'scan-log');
-    const entries = lead.scanLog || [], latest = entries.at(-1);
+    const entries = lead[field] || [], latest = entries.at(-1);
     if (!latest) return log;
     log.append(element('p', `${Math.round(latest.elapsedMs / 1000)}s · ${latest.message}`, 'muted'));
     const details = element('details');
-    details.open = openScanLogs.has(lead.id);
-    details.ontoggle = () => { if (details.open) openScanLogs.add(lead.id); else openScanLogs.delete(lead.id); };
-    details.append(element('summary', `Nhật ký quét (${entries.length})`));
+    details.open = openSet.has(lead.id);
+    details.ontoggle = () => { if (details.open) openSet.add(lead.id); else openSet.delete(lead.id); };
+    details.append(element('summary', `${label} (${entries.length})`));
     const list = element('ol');
     for (const entry of entries) list.append(element('li', `${Math.round(entry.elapsedMs / 1000)}s · ${entry.message}`));
     details.append(list); log.append(details);
     return log;
   }
+  function renderScanLog(lead) { return renderActivityLog(lead, 'scanLog', 'Nhật ký quét', openScanLogs); }
+  function renderSendLog(lead) { return renderActivityLog(lead, 'sendLog', 'Nhật ký gửi', openSendLogs); }
   const openScanLogs = new Set();
+  const openSendLogs = new Set();
   function selectionExplanation(l) {
     const v = l.assessment;
     if (!v?.eligible && ['page','group'].includes(v?.type)) return v.type === 'page'
@@ -298,6 +301,7 @@
         if (profilePicker) actions.append(profilePicker);
         actions.append(retry);
       }
+      info.append(renderSendLog(l));
       if (l.error) {
         const details = element('details',undefined,'send-diagnostic');
         const key = `${c.id}:${l.id}`;
