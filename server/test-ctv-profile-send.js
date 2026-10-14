@@ -26,13 +26,13 @@ function fixture({fullPage = false, wrongHeader = false, notFriends = false, red
   const page = {
     goto: async value => {actions.push(value); url = redirect ? 'https://www.facebook.com/other' : value;},
     url: () => url, isClosed: () => false, waitForTimeout: async () => {},
-    evaluate: async fn => fn.name === 'pageNotFriendsNotice' ? notFriends : undefined,
+    evaluate: async fn => fn.name === 'pageNotFriendsPreview' ? (notFriends ? 'Linh Thảo US\nCác bạn không phải là bạn bè trên Facebook' : null) : undefined,
     waitForFunction: async fn => {
       assert.equal(fn, profileMessageButton);
       if (missingButton) throw Error('Message button timeout');
       return {asElement: () => ({click: async () => {actions.push('click Message'); if (fullPage) url = 'https://www.facebook.com/messages/t/123';}}), dispose: async () => {}};
     },
-    locator: selector => selector.startsWith('[data-xeko') ? conversation : selector === '[role="dialog"], [role="main"], [role="complementary"]' ? {count:async()=>1,nth:()=>conversation} : {count: async () => 0, evaluateAll: async () => false},
+    locator: selector => selector.startsWith('[data-xeko') || selector === 'body' ? conversation : selector === '[role="dialog"], [role="main"], [role="complementary"]' ? {count:async()=>1,nth:()=>conversation} : {count: async () => 0, evaluateAll: async () => false},
   };
   return {page, actions, submit: () => actions.push('reserve')};
 }
@@ -144,4 +144,20 @@ test('send reports progress milestones for a quiet step-by-step log', async () =
   const events = [];
   await send(f.page, {actualUrl:target,recipientId:'123'}, 'Hello', f.submit, ()=>false, [], event => events.push(event.stage));
   assert.deepEqual(events, ['open','message_button','message_click','composer','typing','sending','confirming','sent']);
+});
+test('a Messenger "not friends" preview still sends when the recipient display name matches the scanned lead', async () => {
+  const f = fixture({notFriends:true});
+  const result = await send(f.page, {actualUrl:target,recipientId:'123',name:'Linh Thảo US'}, 'Hello', f.submit);
+  assert.equal(result.state,'sent');
+  assert.ok(f.actions.includes('fill'));
+});
+test('a Messenger "not friends" preview is still refused when the display name does not match the scanned lead', async () => {
+  const f = fixture({notFriends:true});
+  await assert.rejects(send(f.page,{actualUrl:target,recipientId:'123',name:'Người Khác'},'Hello',f.submit), /không khớp tên hồ sơ/);
+  assert.ok(!f.actions.includes('fill'));
+});
+test('a Messenger "not friends" preview is refused when no scanned name is available to compare', async () => {
+  const f = fixture({notFriends:true});
+  await assert.rejects(send(f.page,{actualUrl:target,recipientId:'123'},'Hello',f.submit), /không khớp tên hồ sơ/);
+  assert.ok(!f.actions.includes('fill'));
 });

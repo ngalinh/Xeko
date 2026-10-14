@@ -6,6 +6,7 @@ const { imagePayloads } = require('./attachments');
 const { randomUUID } = require('crypto');
 const { withClipboard } = require('../utils/clipboard-queue');
 const { fillComposerCaption } = require('../playwright/fb-caption');
+const { normalized } = require('./caption-review');
 // Messenger's Lexical composer label varies with recipient and language
 // (e.g. "Write to Linh Thảo US"). This selector is used only inside a verified chat.
 const COMPOSER = '[contenteditable="true"][role="textbox"]:visible';
@@ -30,17 +31,32 @@ function matchesRecipient(link, id, target) {
 // Runs in the page: Facebook shows this preview instead of a normal chat window
 // when the sending account has never been in a conversation with this person.
 // Confirmed via live DOM inspection that this preview sits outside every
-// [role="dialog"/"main"/"complementary"] container, so it must be checked
-// page-wide rather than scoped to a CHAT_ROOT candidate like the header match.
-function pageNotFriendsNotice() {
-  return /không phải là bạn bè trên Facebook|aren.t friends on Facebook/i.test(document.body.innerText || '');
+// [role="dialog"/"main"/"complementary"] container. There is no profile link to
+// verify against here, so the caller falls back to matching the displayed name —
+// weaker than the usual UID-link check; only used when the operator accepts that.
+function pageNotFriendsPreview() {
+  const notice = [...document.querySelectorAll('*')].find(e =>
+    e.children.length === 0 && /không phải là bạn bè trên Facebook|aren.t friends on Facebook/i.test(e.textContent || ''));
+  if (!notice) return null;
+  let container = notice;
+  for (let i = 0; i < 8 && container.parentElement; i++) container = container.parentElement;
+  return (container.innerText || '').trim().slice(0, 2000);
 }
-async function selectRecipientConversation(page, id, target, cancelled, report = () => {}) {
+function nameMatchesPreview(previewText, expectedName) {
+  return !!expectedName && previewText !== null
+    && normalized(previewText).value.includes(normalized(expectedName).value);
+}
+async function selectRecipientConversation(page, id, target, cancelled, report = () => {}, expectedName = '') {
   for (let attempt = 0; attempt < 30; attempt++) {
     if (cancelled()) throw new Error('Đã dừng trước khi gửi');
     if (attempt > 0 && attempt % 5 === 0) report('conversation_waiting', `Vẫn đang tìm đúng khung chat của khách… (${attempt}s)`);
-    if (await page.evaluate(pageNotFriendsNotice)) {
-      throw new Error('Tài khoản gửi chưa là bạn bè/chưa từng nhắn tin với khách trên Facebook; Messenger chỉ hiện bản xem trước, không xác minh được để gửi tự động. Hãy kết bạn hoặc tự mở đầu hội thoại thủ công trước, hoặc đổi sang tài khoản đã quen biết khách.');
+    const previewText = await page.evaluate(pageNotFriendsPreview);
+    if (previewText !== null) {
+      if (!nameMatchesPreview(previewText, expectedName)) {
+        throw new Error('Tài khoản gửi chưa là bạn bè/chưa từng nhắn tin với khách trên Facebook, và tên hiển thị trong bản xem trước không khớp tên hồ sơ đã quét; dừng để tránh gửi nhầm người. Hãy kiểm tra thủ công hoặc đổi sang tài khoản đã quen biết khách.');
+      }
+      report('not_friends_name_matched', `Chưa là bạn bè nhưng tên hiển thị khớp "${expectedName}"; tiếp tục gửi (xác minh theo tên, không có link hồ sơ để đối chiếu).`);
+      return { conversation: page.locator('body'), nameMatchMode: true };
     }
     const roots = page.locator(CHAT_ROOT), matches = [];
     for (let i = 0, n = await roots.count(); i < n; i++) {
@@ -54,7 +70,7 @@ async function selectRecipientConversation(page, id, target, cancelled, report =
       // Pin this DOM container; inserting/reordering another popup cannot retarget it.
       const token = randomUUID();
       await matches[0].evaluate((root, value) => root.setAttribute('data-xeko-recipient-chat', value), token);
-      return page.locator(`[data-xeko-recipient-chat="${token}"]`);
+      return { conversation: page.locator(`[data-xeko-recipient-chat="${token}"]`), nameMatchMode: false };
     }
     await page.waitForTimeout(1000);
   }
@@ -586,7 +602,8 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
     await button.asElement().click({ timeout: 10000 });
     report('message_click', 'Đã bấm Nhắn tin; đang xác định đúng khung chat');
   } finally { if (button) await button.dispose(); }
-  const conversation = await selectRecipientConversation(page, id, target, cancelled, report);
+  const expectedName = (lead.name || '').trim();
+  const { conversation, nameMatchMode } = await selectRecipientConversation(page, id, target, cancelled, report, expectedName);
   const box = conversation.locator(COMPOSER);
   report('composer', 'Đang chờ ô soạn tin sẵn sàng');
   await waitForMessageComposer(page, box, cancelled, 300000, true);
@@ -599,9 +616,15 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
       if (u.pathname.replace(/\/$/,'') !== `/messages/t/${id}`) throw new Error('Facebook chuyển sang hội thoại khác; đã dừng');
     } else if (profileUrl(page.url()) !== target && recipientId(page.url()) !== id) throw new Error('Facebook chuyển sang hồ sơ khác; đã dừng');
     if (await box.count() !== 1 || await conversation.count() !== 1) throw new Error('Không xác định được duy nhất hội thoại');
-    // Require a profile link in the conversation header, excluding message history.
-    const links = await conversation.evaluate(conversationHeaderLinks);
-    if (!links.some(link => matchesRecipient(link, id, target))) throw new Error('Không xác minh được hồ sơ ở tiêu đề hội thoại; đã dừng');
+    if (nameMatchMode) {
+      // No profile link exists in this "not friends" preview; re-check the name match.
+      const previewText = await page.evaluate(pageNotFriendsPreview);
+      if (!nameMatchesPreview(previewText, expectedName)) throw new Error('Không còn xác minh được đúng khách qua tên hiển thị trong bản xem trước; đã dừng');
+    } else {
+      // Require a profile link in the conversation header, excluding message history.
+      const links = await conversation.evaluate(conversationHeaderLinks);
+      if (!links.some(link => matchesRecipient(link, id, target))) throw new Error('Không xác minh được hồ sơ ở tiêu đề hội thoại; đã dừng');
+    }
   };
   await verify();
   if ((await box.innerText()).trim()) throw new Error('Hội thoại có bản nháp đang soạn; cần xử lý thủ công');
