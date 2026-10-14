@@ -320,9 +320,10 @@ class CtvService {
     c.approvals.send = { by: owner, at: new Date().toISOString(), token };
     c.cancelled = false; c.state = 'send_queued'; this.save(); this.enqueue(c, () => this.send(c)); return c;
   }
-  retrySend(id, owner, { leadId, previewToken, requestId, confirmedNotReceived = false } = {}) {
+  retrySend(id, owner, { leadId, previewToken, requestId, confirmedNotReceived = false, profile } = {}) {
     const c = this.staged(id, owner);
     if (typeof requestId !== 'string' || !/^[a-f0-9-]{36}$/.test(requestId)) fail('Mã lượt thử lại không hợp lệ');
+    if (profile !== undefined && !validProfileKey(profile)) fail('Tài khoản Facebook để gửi lại không hợp lệ');
     const lead = c.leads.find(l => l.id === leadId);
     if (!lead) fail('Không tìm thấy khách trong chiến dịch');
     if (lead.retryApproval?.requestId === requestId) return c;
@@ -335,7 +336,7 @@ class CtvService {
     if (reservation && reservation.campaignId !== c.id) fail('Người nhận đã có lượt gửi trong chiến dịch khác');
     if (contactHistory(this.data, { retryCampaignId: c.id }).has(lead)) fail('Khách đã có lịch sử gửi khác; không thể thử gửi lại');
     if ((lead.state === 'unconfirmed' || reservation) && confirmedNotReceived !== true) fail('Hãy kiểm tra Messenger và xác nhận khách chưa nhận bất kỳ ảnh hay tin nhắn nào của lượt này trước khi thử lại');
-    lead.retryApproval = { requestId, by: owner, at: new Date().toISOString(), previewToken, confirmedNotReceived: confirmedNotReceived === true, reservation: reservation ? { ...reservation } : null };
+    lead.retryApproval = { requestId, by: owner, at: new Date().toISOString(), previewToken, confirmedNotReceived: confirmedNotReceived === true, reservation: reservation ? { ...reservation } : null, profile: profile || undefined };
     lead.retryHistory = [...(lead.retryHistory || []), { ...lead.retryApproval, previousState: lead.state, previousError: lead.error }];
     lead.state = 'pending'; delete lead.error;
     c.cancelled = false; c.error = null; c.state = 'send_queued'; this.save();
@@ -359,7 +360,7 @@ class CtvService {
       if (!reservationAllowed()) { lead.state = 'duplicate'; this.save(); continue; }
       lead.message = m.message;
       try {
-        const result = await this.browser.withPage(c.profile, page => this.browser.send(page, lead.assessment, m.message, () => {
+        const result = await this.browser.withPage(retry?.profile || c.profile, page => this.browser.send(page, lead.assessment, m.message, () => {
           if (c.cancelled) throw new Error('Đã dừng trước khi gửi');
           if (!reservationAllowed()) throw new Error('Người nhận đã có lần gửi trước hoặc lượt thử lại đã thay đổi');
           this.data.reservations[m.recipientId] = { campaignId: c.id, url: lead.url, actualUrl: lead.assessment?.actualUrl, at: new Date().toISOString(), ...(retry ? { requestId: retry.requestId } : {}) };
