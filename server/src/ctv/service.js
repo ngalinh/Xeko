@@ -358,17 +358,24 @@ class CtvService {
         ? lead.retryApproval?.requestId === retry.requestId && JSON.stringify(this.data.reservations[m.recipientId] || null) === JSON.stringify(retry.reservation) && !contactHistory(this.data, { retryCampaignId: c.id }).has(lead)
         : !this.data.reservations[m.recipientId] && !contactHistory(this.data).has(lead);
       if (!reservationAllowed()) { lead.state = 'duplicate'; this.save(); continue; }
-      lead.message = m.message;
+      lead.message = m.message; lead.sendLog = [];
+      const sendStarted = Date.now();
+      const onProgress = event => {
+        lead.sendLog.push({ ...event, at: new Date().toISOString(), elapsedMs: Date.now() - sendStarted });
+        lead.sendLog = lead.sendLog.slice(-100);
+        this.save();
+      };
       try {
         const result = await this.browser.withPage(retry?.profile || c.profile, page => this.browser.send(page, lead.assessment, m.message, () => {
           if (c.cancelled) throw new Error('Đã dừng trước khi gửi');
           if (!reservationAllowed()) throw new Error('Người nhận đã có lần gửi trước hoặc lượt thử lại đã thay đổi');
           this.data.reservations[m.recipientId] = { campaignId: c.id, url: lead.url, actualUrl: lead.assessment?.actualUrl, at: new Date().toISOString(), ...(retry ? { requestId: retry.requestId } : {}) };
           lead.state = 'sending'; this.save();
-        }, () => c.cancelled, c.messagePreview.images || []), { keepOnError: true });
+        }, () => c.cancelled, c.messagePreview.images || [], onProgress), { keepOnError: true });
         lead.state = result.state; lead.error = result.reason; this.save();
         if (result.state !== 'sent') { c.state = 'needs_attention'; c.error = result.reason; this.save(); return; }
       } catch (e) {
+        onProgress({ stage: c.cancelled ? 'cancelled' : 'error', message: e.message });
         lead.state = lead.state === 'sending' ? 'unconfirmed' : 'review'; lead.error = e.message;
         c.state = c.cancelled && lead.state !== 'unconfirmed' ? 'cancelled' : 'needs_attention'; c.error = e.message; this.save(); return;
       }

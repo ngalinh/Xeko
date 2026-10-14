@@ -139,3 +139,9 @@ test('stop during composer stabilization cannot proceed to attachment or text',a
 
 
 
+test('send reports progress milestones for a quiet step-by-step log', async () => {
+  const f = fixture();
+  const events = [];
+  await send(f.page, {actualUrl:target,recipientId:'123'}, 'Hello', f.submit, ()=>false, [], event => events.push(event.stage));
+  assert.deepEqual(events, ['open','message_button','message_click','composer','typing','sending','confirming','sent']);
+});

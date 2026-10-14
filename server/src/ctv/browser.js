@@ -34,9 +34,10 @@ function conversationNotFriendsNotice(root) {
   // its "Aa" field without the usual [role="textbox"] markup of a real chat.
   return /không phải là bạn bè trên Facebook|aren.t friends on Facebook/i.test(root.innerText || '');
 }
-async function selectRecipientConversation(page, id, target, cancelled) {
+async function selectRecipientConversation(page, id, target, cancelled, report = () => {}) {
   for (let attempt = 0; attempt < 30; attempt++) {
     if (cancelled()) throw new Error('Đã dừng trước khi gửi');
+    if (attempt > 0 && attempt % 5 === 0) report('conversation_waiting', `Vẫn đang tìm đúng khung chat của khách… (${attempt}s)`);
     const roots = page.locator(CHAT_ROOT), matches = [];
     for (let i = 0, n = await roots.count(); i < n; i++) {
       const root = roots.nth(i);
@@ -475,9 +476,10 @@ function profileMessageButton() {
   return buttons.length === 1 ? buttons[0] : false;
 }
 
-async function prepareImages(page, conversation, images, verify, box) {
+async function prepareImages(page, conversation, images, verify, box, report = () => {}) {
   const payloads = imagePayloads(images);
   if (!payloads.length) return;
+  report('attach_start', `Đang đính kèm ${payloads.length} ảnh`);
   const removeSelector = '[role="button"][aria-label="Remove attachment"], [role="button"][aria-label="Remove photo"], [role="button"][aria-label="Remove image"], [role="button"][aria-label="Xóa ảnh"], button[aria-label="Remove attachment"], button[aria-label="Remove photo"]';
   if (await conversation.locator(removeSelector).count()) throw new Error('Hội thoại có ảnh đang soạn; cần xử lý thủ công');
   const input = conversation.locator('input[type="file"][accept*="image"]');
@@ -551,33 +553,41 @@ async function prepareImages(page, conversation, images, verify, box) {
     await verify();
     ready = await composerReady();
     if (ready) break;
+    if (i > 0 && i % 5 === 0) report('attach_waiting', `Vẫn đang chờ ảnh tải xong trong ô soạn… (${i}s)`);
     await page.waitForTimeout(1000);
   }
   if (!ready) throw new Error('Ảnh chưa tải xong trong ô soạn; chưa gửi ảnh hoặc tin nhắn');
   await verify();
+  report('attach_done', 'Ảnh đã sẵn sàng trong ô soạn');
   return { confirmedImages, composerReady, before, count: payloads.length };
 }
 
-async function send(page, lead, message, beforeSubmit, cancelled = () => false, images = []) {
+async function send(page, lead, message, beforeSubmit, cancelled = () => false, images = [], onProgress = () => {}) {
   // Validate before opening a browser or changing a conversation draft.
   imagePayloads(images);
   if (!/^\d+$/.test(lead.recipientId || '')) throw new Error('Không xác minh được ID người nhận; cần kiểm tra thủ công');
+  const started = Date.now();
+  const report = (stage, message, metadata = {}) => onProgress({ ...metadata, stage, message, elapsedMs: Date.now() - started, at: new Date().toISOString() });
   const id = lead.recipientId;
   const target = profileUrl(lead.actualUrl || lead.url);
   const check = () => { if (cancelled()) throw new Error('Đã dừng trước khi gửi'); };
   check();
+  report('open', 'Đang mở hồ sơ khách (tối đa 30 giây)');
   await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await assertSession(page);
   if (profileUrl(page.url()) !== target && recipientId(page.url()) !== id) throw new Error('Facebook chuyển sang hồ sơ khác; đã dừng');
   let button;
   try {
+    report('message_button', 'Đang tìm nút Nhắn tin trên hồ sơ (tối đa 30 giây)');
     button = await page.waitForFunction(profileMessageButton, null, { timeout: 30000 });
     check();
     if (profileUrl(page.url()) !== target && recipientId(page.url()) !== id) throw new Error('Facebook chuyển sang hồ sơ khác; đã dừng');
     await button.asElement().click({ timeout: 10000 });
+    report('message_click', 'Đã bấm Nhắn tin; đang xác định đúng khung chat');
   } finally { if (button) await button.dispose(); }
-  const conversation = await selectRecipientConversation(page, id, target, cancelled);
+  const conversation = await selectRecipientConversation(page, id, target, cancelled, report);
   const box = conversation.locator(COMPOSER);
+  report('composer', 'Đang chờ ô soạn tin sẵn sàng');
   await waitForMessageComposer(page, box, cancelled, 300000, true);
   if (await box.count() !== 1) throw new Error('Không xác định được duy nhất ô soạn của hội thoại');
   const verify = async () => {
@@ -596,13 +606,14 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
   if ((await box.innerText()).trim()) throw new Error('Hội thoại có bản nháp đang soạn; cần xử lý thủ công');
   let media;
   if (images.length) {
-    media = await prepareImages(page, conversation, images, verify, box);
+    media = await prepareImages(page, conversation, images, verify, box, report);
     await waitForMessageComposer(page, box, cancelled, 300000, true);
     await verify();
     if ((await box.innerText()).trim()) throw new Error('Ô soạn có bản nháp sau đính kèm ảnh; chưa gửi tin nhắn');
   }
   // Real clipboard paste (select-all then paste, like a human) survives Messenger's
   // Lexical editor better than a synthetic fill; falls back to fill() only if it fails.
+  report('typing', 'Đang nhập nội dung tin nhắn');
   if (!await fillComposerCaption(page, box, message)) throw new Error('Nội dung trong ô soạn không khớp mẫu');
   await verify();
   const confirmedCount = () => conversation.locator('[role="row"]').evaluateAll((rows, text) => rows.filter(row => {
@@ -615,15 +626,18 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
   await verify();
   // Durable reservation BEFORE Enter. Never automatically retry an ambiguous send.
   if (media && !await media.composerReady()) throw new Error('Ảnh trong ô soạn đã thay đổi hoặc chưa sẵn sàng; chưa gửi tin nhắn');
+  report('sending', 'Đang bấm gửi tin nhắn');
   beforeSubmit();
   await box.press('Enter');
+  report('confirming', `Đang chờ Messenger xác nhận đã gửi (tối đa ${media ? 45 : 15} giây)`);
   for (let i = 0; i < (media ? 45 : 15); i++) {
     if (cancelled()) return { state: 'unconfirmed', reason: 'Đã dừng sau thao tác gửi; cần kiểm tra Messenger. Không tự gửi lại.' };
     await page.waitForTimeout(1000);
     if (media) await verify();
     const textSent = await confirmedCount() > beforeCount;
     const imagesSent = !media || await media.confirmedImages() >= media.before + media.count;
-    if (textSent && imagesSent) return { state: 'sent', reason: media ? 'Messenger xác nhận ảnh và nội dung tin nhắn đã gửi/đã chuyển' : 'Messenger hiển thị trạng thái đã gửi/đã chuyển cho tin nhắn mới' };
+    if (textSent && imagesSent) { report('sent', 'Messenger đã xác nhận gửi'); return { state: 'sent', reason: media ? 'Messenger xác nhận ảnh và nội dung tin nhắn đã gửi/đã chuyển' : 'Messenger hiển thị trạng thái đã gửi/đã chuyển cho tin nhắn mới' }; }
+    if (i > 0 && i % 5 === 0) report('confirm_waiting', `Vẫn đang chờ Messenger xác nhận… (${i}s)`);
   }
   // DOM receipts differ across Messenger variants: uncertainty must remain explicit.
   return { state: 'unconfirmed', reason: media ? 'Đã thao tác gửi ảnh kèm nội dung nhưng chưa xác nhận đầy đủ. Kiểm tra Messenger; không tự gửi lại.' : 'Đã thao tác gửi; cần kiểm tra Messenger để xác nhận. Không tự gửi lại.' };

@@ -5,7 +5,7 @@ const { CtvService } = require('./src/ctv/service');
 const { mountCtv } = require('./src/ctv/routes');
 function setup(t, uncertain = false) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(),'ctv-retry-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
-  const sent=[], browser={withPage:async(_,fn)=>fn({}),send:async(_,lead,text,reserve,cancel,images)=>{reserve();sent.push({id:lead.recipientId,text,images});return {state:'sent'};}};
+  const sent=[], browser={withPage:async(_,fn)=>fn({}),send:async(_,lead,text,reserve,cancel,images,onProgress=()=>{})=>{onProgress({stage:'open',message:'Đang mở hồ sơ khách'});reserve();onProgress({stage:'sent',message:'Messenger đã xác nhận gửi'});sent.push({id:lead.recipientId,text,images});return {state:'sent'};}};
   const s=new CtvService({file:path.join(dir,'campaigns.json'),browser,pause:async()=>{}});
   const c=s.create({profile:'test',urls:['https://facebook.com/123','https://facebook.com/456']},'owner');
   c.state='needs_attention';c.leads.forEach((l,i)=>{l.assessment={recipientId:i?'456':'123',criteriaVersion:'us-website-products-v2'};l.state=i?'sent':uncertain?'unconfirmed':'review';});
@@ -102,4 +102,13 @@ test('retry-send on the worker itself rejects an alternate Facebook profile outs
   assert.equal(res.code,403);
   res=response();await handler({...req,body:{...request(),profile:'test'}},res);
   assert.equal(res.code,202);
+});
+test('a send attempt records its own progress log on the lead, reset on each new attempt', async t => {
+  const {s,c,request} = setup(t);
+  s.retrySend(c.id,'owner',request());
+  await settle(s);
+  const log = c.leads[0].sendLog;
+  assert.ok(Array.isArray(log) && log.length >= 2);
+  assert.equal(log[0].stage,'open'); assert.equal(log.at(-1).stage,'sent');
+  assert.ok(log.every(entry => Number.isFinite(entry.elapsedMs) && typeof entry.at === 'string'));
 });
