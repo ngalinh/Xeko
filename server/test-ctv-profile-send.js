@@ -12,7 +12,6 @@ function fixture({fullPage = false, wrongHeader = false, notFriends = false, red
     count: async () => 1,
     isVisible: async () => true,
     evaluate: async fn => fn.name === 'conversationHeaderLinks' ? (notFriends ? [] : [headerWrong ? 'https://www.facebook.com/999' : target])
-      : fn.name === 'conversationNotFriendsNotice' ? notFriends
       : fn.toString().includes('setAttribute') ? undefined : (imageAttached ? 1 : 0),
     locator: selector => selector.startsWith('[contenteditable') ? box : selector.startsWith('input') ? {count:async()=>1,setInputFiles:async files=>{actions.push('attach');assert.equal(files[0].mimeType,'image/png');assert.ok(Buffer.isBuffer(files[0].buffer));if(uploadFails)throw Error('upload failed');imageAttached=true;if(wrongAfterUpload)headerWrong=true;}}
       : selector === '[role="row"]' ? {evaluateAll:async(_,text)=>text===undefined ? (imageSent && imageReceipt ? 1 : 0) : (submitted && receipt ? 1 : 0)}
@@ -27,6 +26,7 @@ function fixture({fullPage = false, wrongHeader = false, notFriends = false, red
   const page = {
     goto: async value => {actions.push(value); url = redirect ? 'https://www.facebook.com/other' : value;},
     url: () => url, isClosed: () => false, waitForTimeout: async () => {},
+    evaluate: async fn => fn.name === 'pageNotFriendsNotice' ? notFriends : undefined,
     waitForFunction: async fn => {
       assert.equal(fn, profileMessageButton);
       if (missingButton) throw Error('Message button timeout');

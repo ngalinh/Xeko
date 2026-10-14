@@ -27,26 +27,27 @@ function conversationHeaderLinks(root) {
 function matchesRecipient(link, id, target) {
   try { const uid = recipientId(link); return uid ? uid === id : profileUrl(link) === target; } catch { return false; }
 }
-// Runs in the page: Facebook shows this preview instead of a normal chat header
+// Runs in the page: Facebook shows this preview instead of a normal chat window
 // when the sending account has never been in a conversation with this person.
-function conversationNotFriendsNotice(root) {
-  // Do not require a matched composer box here: this limited preview can render
-  // its "Aa" field without the usual [role="textbox"] markup of a real chat.
-  return /không phải là bạn bè trên Facebook|aren.t friends on Facebook/i.test(root.innerText || '');
+// Confirmed via live DOM inspection that this preview sits outside every
+// [role="dialog"/"main"/"complementary"] container, so it must be checked
+// page-wide rather than scoped to a CHAT_ROOT candidate like the header match.
+function pageNotFriendsNotice() {
+  return /không phải là bạn bè trên Facebook|aren.t friends on Facebook/i.test(document.body.innerText || '');
 }
 async function selectRecipientConversation(page, id, target, cancelled, report = () => {}) {
   for (let attempt = 0; attempt < 30; attempt++) {
     if (cancelled()) throw new Error('Đã dừng trước khi gửi');
     if (attempt > 0 && attempt % 5 === 0) report('conversation_waiting', `Vẫn đang tìm đúng khung chat của khách… (${attempt}s)`);
+    if (await page.evaluate(pageNotFriendsNotice)) {
+      throw new Error('Tài khoản gửi chưa là bạn bè/chưa từng nhắn tin với khách trên Facebook; Messenger chỉ hiện bản xem trước, không xác minh được để gửi tự động. Hãy kết bạn hoặc tự mở đầu hội thoại thủ công trước, hoặc đổi sang tài khoản đã quen biết khách.');
+    }
     const roots = page.locator(CHAT_ROOT), matches = [];
     for (let i = 0, n = await roots.count(); i < n; i++) {
       const root = roots.nth(i);
       if (!await root.isVisible()) continue;
       const links = await root.evaluate(conversationHeaderLinks);
       if (links.some(link => matchesRecipient(link, id, target))) matches.push(root);
-      else if (await root.evaluate(conversationNotFriendsNotice)) {
-        throw new Error('Tài khoản gửi chưa là bạn bè/chưa từng nhắn tin với khách trên Facebook; Messenger chỉ hiện bản xem trước, không xác minh được để gửi tự động. Hãy kết bạn hoặc tự mở đầu hội thoại thủ công trước, hoặc đổi sang tài khoản đã quen biết khách.');
-      }
     }
     if (matches.length > 1) throw new Error('Có nhiều khung chat cùng người nhận; chưa gửi tin');
     if (matches.length === 1) {
