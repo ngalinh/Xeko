@@ -544,8 +544,8 @@
     $('recipientSummary').textContent=`${a.analysis?.leadIds.length || 0} khách đã duyệt · Gửi từ ${accountName(c.profile)}`;
     show('reviewSelection',c.state==='message_review');show('prepareMessages',c.state==='message_review');
     show('messageComposer',!a.send);
-    $('messageStageHint').textContent = a.send ? 'Theo dõi trạng thái và kiểm tra kết quả từng khách.' : 'Xem từng tin nhắn trước khi duyệt gửi.';
-    show('messageArchive',!!c.messagePreview?.messages.length);
+    $('messageStageHint').textContent = a.send ? 'Theo dõi trạng thái và kiểm tra kết quả từng khách.' : 'Tích xác nhận bên dưới để duyệt gửi.';
+    show('messageArchive', false);
     const archiveMode = a.send ? 'sent' : 'preview';
     if (reset || $('messageArchive').dataset.mode !== archiveMode) $('messageArchive').open = !a.send;
     $('messageArchive').dataset.mode = archiveMode;
