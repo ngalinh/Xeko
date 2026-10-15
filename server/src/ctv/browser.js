@@ -34,12 +34,19 @@ function matchesRecipient(link, id, target) {
 // [role="dialog"/"main"/"complementary"] container. There is no profile link to
 // verify against here, so the caller falls back to matching the displayed name —
 // weaker than the usual UID-link check; only used when the operator accepts that.
-function pageNotFriendsPreview() {
+function pageNotFriendsPreview(token) {
   const notice = [...document.querySelectorAll('*')].find(e =>
     e.children.length === 0 && /không phải là bạn bè trên Facebook|aren.t friends on Facebook/i.test(e.textContent || ''));
   if (!notice) return null;
+  // Walk up only until the container encloses exactly one composer box, so later
+  // lookups (attach input, attach button) stay scoped to this popup instead of
+  // the whole page, which can have other hidden file inputs (feed composer, etc).
   let container = notice;
-  for (let i = 0; i < 8 && container.parentElement; i++) container = container.parentElement;
+  for (let i = 0; i < 20 && container.parentElement; i++) {
+    container = container.parentElement;
+    if (container.querySelectorAll('[contenteditable="true"][role="textbox"]').length === 1) break;
+  }
+  if (token) container.setAttribute('data-xeko-recipient-chat', token);
   return (container.innerText || '').trim().slice(0, 2000);
 }
 // Runs in the page: a brand-new thread (first message to someone not yet a
@@ -58,13 +65,14 @@ async function selectRecipientConversation(page, id, target, cancelled, report =
   for (let attempt = 0; attempt < 30; attempt++) {
     if (cancelled()) throw new Error('Đã dừng trước khi gửi');
     if (attempt > 0 && attempt % 5 === 0) report('conversation_waiting', `Vẫn đang tìm đúng khung chat của khách… (${attempt}s)`);
-    const previewText = await page.evaluate(pageNotFriendsPreview);
+    const previewToken = randomUUID();
+    const previewText = await page.evaluate(pageNotFriendsPreview, previewToken);
     if (previewText !== null) {
       if (!nameMatchesPreview(previewText, expectedName)) {
         throw new Error('Tài khoản gửi chưa là bạn bè/chưa từng nhắn tin với khách trên Facebook, và tên hiển thị trong bản xem trước không khớp tên hồ sơ đã quét; dừng để tránh gửi nhầm người. Hãy kiểm tra thủ công hoặc đổi sang tài khoản đã quen biết khách.');
       }
       report('not_friends_name_matched', `Chưa là bạn bè nhưng tên hiển thị khớp "${expectedName}"; tiếp tục gửi (xác minh theo tên, không có link hồ sơ để đối chiếu).`);
-      return { conversation: page.locator('body'), nameMatchMode: true };
+      return { conversation: page.locator(`[data-xeko-recipient-chat="${previewToken}"]`), nameMatchMode: true };
     }
     const roots = page.locator(CHAT_ROOT), matches = [];
     for (let i = 0, n = await roots.count(); i < n; i++) {

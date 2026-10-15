@@ -167,3 +167,13 @@ test('a Messenger "not friends" preview is refused when no scanned name is avail
   await assert.rejects(send(f.page,{actualUrl:target,recipientId:'123'},'Hello',f.submit), /không khớp tên hồ sơ/);
   assert.ok(!f.actions.includes('fill'));
 });
+test('a "not friends" preview scopes the conversation to a tagged container, not the whole page body', async () => {
+  const f = fixture({notFriends:true});
+  const selectors = [];
+  const originalLocator = f.page.locator;
+  f.page.locator = selector => { selectors.push(selector); return originalLocator(selector); };
+  const result = await send(f.page, {actualUrl:target,recipientId:'123',name:'Linh Thảo US'}, 'Hello', f.submit, ()=>false, [image]);
+  assert.equal(result.state,'sent');
+  assert.ok(!selectors.includes('body'));
+  assert.ok(selectors.some(s => s.startsWith('[data-xeko-recipient-chat=')));
+});
