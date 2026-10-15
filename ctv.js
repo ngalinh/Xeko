@@ -46,6 +46,7 @@
   let selected = null, epoch = 0, timer = null, busy = false, uncertain = false, retries = 0;
   let picks = new Set(), accounts = [], campaigns = [];
   let draftImages = [], readingImages = false;
+  let prepareTimer = null;
   let myjoyLoading = false;
   let retryMyjoyLoading = false, retryBackendCampaignId = null;
   const imageSignature = images => JSON.stringify((images || []).map(image => [image.name, image.dataUrl]));
@@ -59,7 +60,7 @@
         const remove = element('button', 'Xóa ảnh', 'secondary'); remove.type = 'button';
         remove.disabled = busy || readingImages || uncertain || selected?.state !== 'message_review';
         remove.setAttribute('aria-label', `Xóa ảnh ${image.name}`);
-        remove.onclick = () => { draftImages.splice(index, 1); $('confirmSend').checked = false; updateControls(); };
+        remove.onclick = () => { draftImages.splice(index, 1); $('confirmSend').checked = false; updateControls(); schedulePrepareMessages(); };
         card.append(remove);
       }
       gallery.append(card);
@@ -365,7 +366,7 @@
     $('sendButton').textContent = `Duyệt & gửi ${c?.messagePreview?.messages.length || 0} tin nhắn`;
     for (const id of ['stopAnalysis','stopSending']) $(id).disabled = !unlocked || !!c?.cancelled;
     $('messageLength').textContent = `${$('template').value.length}/2000`;
-    if (editing) $('previewHint').textContent = !c.messagePreview ? 'Tạo bản xem trước để kiểm tra từng người nhận và tin nhắn.' : fresh ? 'Đây là nội dung sẽ được gửi. Duyệt bên dưới để bắt đầu.' : 'Nội dung đã thay đổi. Hãy tạo lại bản xem trước trước khi duyệt gửi.';
+    if (editing) $('previewHint').textContent = !c.messagePreview ? 'Đang tạo bản xem trước để kiểm tra từng người nhận và tin nhắn…' : fresh ? 'Đây là nội dung sẽ được gửi. Duyệt bên dưới để bắt đầu.' : 'Nội dung đã thay đổi; bản xem trước đang tự cập nhật…';
     if (editing) {
       const blocked = c.leads.filter(l => c.approvals.analysis?.leadIds.includes(l.id) && l.blockedReason);
       if (blocked.length) {
@@ -437,7 +438,7 @@
       const option = element('option', c.myjoyBackend); option.value = c.myjoyBackend;
       $('myjoyBackend').replaceChildren(option);
     }
-    if (reset) { picks = new Set(c.approvals?.analysis?.leadIds || []); $('template').value = c.template || defaultTemplate; $('confirmSend').checked = false; $('sendSearch').value='';$('sendFilter').value='all';$('sendCampaignDiagnostic').open=false; }
+    if (reset) { picks = new Set(c.approvals?.analysis?.leadIds || []); $('template').value = c.template || defaultTemplate; $('confirmSend').checked = false; $('sendSearch').value='';$('sendFilter').value='all';$('sendCampaignDiagnostic').open=false; schedulePrepareMessages(); }
     if (c.state === 'analysis_review') picks = new Set([...picks].filter(id => c.leads.some(l => l.id === id && canPick(l))));
     else picks = new Set(c.approvals?.analysis?.leadIds || []);
     campaigns = [...campaigns.filter(x => x.id !== c.id), c]; renderHistory();
@@ -686,7 +687,7 @@
   $('analysisSearch').oninput=$('analysisFilter').onchange=()=>{applyAnalysisFilters();updateControls();};
   $('approveAnalysis').onclick=()=>action('approve-analysis',{leadIds:[...picks]});
   $('reviewSelection').onclick=()=>action('review-analysis');
-  $('template').oninput=()=>{$('confirmSend').checked=false;updateControls();};
+  $('template').oninput=()=>{$('confirmSend').checked=false;updateControls();schedulePrepareMessages();};
   $('addMessageImages').onclick = () => $('messageImages').click();
   async function addImageFiles(files) {
     const version = epoch;
@@ -703,7 +704,7 @@
       if (all.reduce((sum, image) => sum + atob(image.dataUrl.split(',')[1]).length, 0) > 4 * 1024 * 1024) throw new Error('Tổng ảnh đính kèm tối đa 4 MB');
       draftImages = all; notice();
     } catch (error) { if (epoch === version) notice(error.message, true); }
-    finally { readingImages = false; $('messageImages').value = ''; updateControls(); }
+    finally { readingImages = false; $('messageImages').value = ''; updateControls(); schedulePrepareMessages(); }
   }
   $('messageImages').onchange = () => addImageFiles([...$('messageImages').files]);
   $('messageComposer').addEventListener('paste', event => {
@@ -712,7 +713,16 @@
     event.preventDefault();
     addImageFiles(files);
   });
-  $('prepareMessages').onclick=()=>action('prepare-messages',{template:$('template').value,images:draftImages});
+  function schedulePrepareMessages() {
+    clearTimeout(prepareTimer);
+    prepareTimer = setTimeout(() => {
+      const c = selected;
+      if (!c || $('prepareMessages').disabled) return;
+      const fresh = c.messagePreview && $('template').value.trim() === c.template && imageSignature(draftImages) === imageSignature(c.messagePreview.images);
+      if (fresh) return;
+      action('prepare-messages', { template: $('template').value, images: draftImages });
+    }, 700);
+  }
   $('confirmSend').onchange=updateControls;
   $('sendButton').onclick=()=>{if(!$('sendButton').disabled)action('send',{previewToken:selected.messagePreview.token});};
   $('stopAnalysis').onclick=$('stopSending').onclick=()=>action('stop');
