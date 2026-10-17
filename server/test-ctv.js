@@ -513,6 +513,26 @@ test('test mode reuses a link already sent by a real campaign, but a second real
   assert.equal(secondReal.previouslyContacted.length,1);
 });
 
+test('test mode + none assessment auto-approves step 2 and jumps straight to message_review', async t => {
+  const {s,sent} = setup(t);
+  const c = s.create({...input(['https://facebook.com/555']),assessmentMode:'none',testMode:true},'owner');
+  s.approveImport(c.id,'owner');await settle(s);
+  assert.equal(c.state,'message_review');
+  assert.deepEqual(c.approvals.analysis.leadIds,[c.leads[0].id]);
+  s.prepareMessages(c.id,'owner','Chào {name}, mời bạn hợp tác CTV.');
+  const token = c.messagePreview.token;
+  s.sendApproved(c.id,'owner',token);await settle(s);
+  assert.equal(c.state,'completed');assert.equal(sent.length,1);
+});
+
+test('none assessment without test mode still waits for manual approval at step 2', async t => {
+  const {s} = setup(t);
+  const c = s.create({...input(['https://facebook.com/556']),assessmentMode:'none'},'owner');
+  s.approveImport(c.id,'owner');await settle(s);
+  assert.equal(c.state,'analysis_review');
+  assert.equal(c.approvals.analysis,undefined);
+});
+
 test('MyJoy campaign keeps owner/model, preserves manual approvals, and never persists credentials', async t => {
   const keys = {CTV_MYJOY_OWNER:'owner',CTV_MYJOY_USERNAME:'member',CTV_MYJOY_PASSWORD:'test-secret',CTV_MYJOY_URL:'https://myjoy.example'};
   const previous = Object.fromEntries(Object.keys(keys).map(k => [k,process.env[k]]));
