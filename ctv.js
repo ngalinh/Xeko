@@ -736,7 +736,7 @@
   $('newCampaign').onclick=()=>{if(busy)return;setHistoryOpen(false);epoch++;clearTimeout(timer);selected=null;uncertain=false;picks.clear();notice();viewStep(1);
     show('importForm',true);show('importResult',false);show('analysisEmpty',true);show('analysisResult',false);show('retryAnalysis',false);show('resolveUids',false);show('messageEmpty',true);show('messageResult',false);
     draftImages=[];$('messageImages').value='';
-    $('assessmentMode').value='keywords';$('campaignName').value='';$('urls').value='';$('file').value='';$('fileName').textContent='Hoặc dán dữ liệu vào ô phía trên';$('urls').oninput();$('template').value=defaultTemplate;$('confirmSend').checked=false;$('testMode').checked=false;
+    $('campaignName').value='';$('urls').value='';$('file').value='';$('fileName').textContent='Hoặc dán dữ liệu vào ô phía trên';$('urls').oninput();$('template').value=defaultTemplate;$('confirmSend').checked=false;
     const myjoyPlaceholder = element('option', 'Kết nối MyJoy để chọn AI'); myjoyPlaceholder.value = '';
     $('myjoyBackend').replaceChildren(myjoyPlaceholder);
     $('myjoyStatus').textContent = 'Kết nối MyJoy để tải danh sách AI cho chiến dịch mới.';
