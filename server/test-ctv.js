@@ -471,6 +471,42 @@ test('none mode (chỉ gửi, không quét) skips content assessment and still s
   assert.equal(c.state,'completed');assert.equal(sent.length,c.leads.length);
 });
 
+test('test mode requires exactly one link', t => {
+  const {s} = setup(t);
+  assert.throws(()=>s.create({...input(['https://facebook.com/123','https://facebook.com/456']),testMode:true},'owner'),/Chế độ thử/);
+  const c = s.create({...input(['https://facebook.com/123']),testMode:true},'owner');
+  assert.equal(c.testMode,true);
+});
+
+test('test mode skips the duplicate guard across repeated runs of the same link', async t => {
+  const {s,sent} = setup(t);
+  const url = ['https://facebook.com/999'];
+  const run = async () => {
+    const c = s.create({...input(url),testMode:true},'owner');
+    s.approveImport(c.id,'owner');await settle(s);
+    const token = prepared(s,c);
+    s.sendApproved(c.id,'owner',token);await settle(s);
+    return c;
+  };
+  const first = await run();
+  assert.equal(first.state,'completed');assert.equal(first.leads[0].state,'sent');
+  const second = await run();
+  assert.equal(second.leads.length,1);assert.equal(second.state,'completed');assert.equal(second.leads[0].state,'sent');
+  assert.equal(sent.length,2);
+});
+
+test('duplicate guard still blocks a real campaign reusing a link already sent by a real campaign, even via test mode', async t => {
+  const {s} = setup(t);
+  const url = ['https://facebook.com/777'];
+  const real = await analyzed(s,url);
+  const token = prepared(s,real);
+  s.sendApproved(real.id,'owner',token);await settle(s);
+  assert.equal(real.state,'completed');
+  const testAttempt = s.create({...input(url),testMode:true},'owner');
+  assert.equal(testAttempt.leads.length,0);
+  assert.equal(testAttempt.previouslyContacted.length,1);
+});
+
 test('MyJoy campaign keeps owner/model, preserves manual approvals, and never persists credentials', async t => {
   const keys = {CTV_MYJOY_OWNER:'owner',CTV_MYJOY_USERNAME:'member',CTV_MYJOY_PASSWORD:'test-secret',CTV_MYJOY_URL:'https://myjoy.example'};
   const previous = Object.fromEntries(Object.keys(keys).map(k => [k,process.env[k]]));

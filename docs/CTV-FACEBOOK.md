@@ -4,6 +4,8 @@ Vào **Gửi tin nhắn hàng loạt** trong menu Xeko. Nếu Xeko chạy trên 
 
 Mục **Cách đánh giá khách** ở bước 1 có 4 chế độ: AI (Gemini, đang ẩn trên UI), Không AI (quét từ khóa trên máy), MyJoy (AI đã kết nối trên MyJoy) và **Chỉ gửi, không quét**. Chế độ "Chỉ gửi, không quét" không đọc caption/bio và không đánh giá nội dung; worker chỉ mở profile một lượt để lấy tên và ID Facebook của người nhận (bắt buộc để mở đúng hội thoại Messenger), rồi cho vào thẳng bước 2 để chọn khách và sang bước 3 soạn/gửi tin. Mọi chốt duyệt thủ công, chống gửi trùng và xác minh ID trước Enter ở bước 3 vẫn áp dụng như các chế độ khác.
 
+Tick **Chế độ thử** ở bước 1 khi nhập đúng 1 link để test lại nhiều lần với cùng một người nhận: chiến dịch này bỏ qua chặn chống trùng (cả lúc nhập và lúc chọn khách) và không ghi vào lịch sử liên hệ chung, nên dùng lại được đúng link đó ở các chiến dịch thử tiếp theo. Chặn chống trùng chỉ được nới cho link **chưa từng được một chiến dịch thật (không tick Chế độ thử) gửi tới**; nếu link đã có lịch sử gửi thật, mọi chiến dịch sau — kể cả bật Chế độ thử — vẫn bị chặn như cũ. Chiến dịch thật (không tick) không đổi hành vi chặn trùng hiện có.
+
 ## 1. Nhập danh sách khách hàng
 
 Chọn Facebook cá nhân đã đăng nhập, đặt tên chiến dịch, dán dữ liệu hoặc nhập TXT/CSV có link. Bấm **Kiểm tra danh sách** để xem số link hợp lệ, link trùng được gộp và link bị loại cùng lý do. Chỉ link hồ sơ trực tiếp được nhận; tối đa 100 link mỗi lần. Các cột khác trong CSV chưa được nhập; nhãn khách hàng hiển thị phần đường dẫn Facebook (ví dụ `linhduongasale.auth`), link dạng `profile.php?id=...` hiển thị ID. Tên dùng trong biến `{name}` vẫn lấy từ hồ sơ.

@@ -111,6 +111,7 @@
           <div class="fields"><div><label for="campaignName">Tên chiến dịch</label><input id="campaignName" maxlength="100" placeholder="VD: Gửi tin nhắn hàng loạt tháng 9"></div><div><label for="profile">Tài khoản Facebook cá nhân</label><select id="profile"><option value="">Đang tải tài khoản…</option></select></div></div>
           <label for="urls">Danh sách link Facebook</label><textarea id="urls" rows="5" placeholder="https://www.facebook.com/ten.khach&#10;https://www.facebook.com/profile.php?id=..."></textarea>
           <div class="import-tools"><div><label class="file-label" for="file">↑ Chọn file TXT / CSV</label><input id="file" type="file" accept=".txt,.csv,text/plain,text/csv"><span id="fileName" class="muted">Hoặc dán dữ liệu vào ô phía trên</span></div><span id="count" class="muted">0 link</span></div>
+          <label class="check-label"><input id="testMode" type="checkbox"> Chế độ thử (chỉ 1 link, không chặn trùng, không lưu lịch sử liên hệ)</label>
           <p class="hint">Tối đa 100 link/lần. Tên khách lấy từ hồ sơ Facebook; các cột khác trong CSV không được nhập.</p>
           <div class="panel-footer"><span class="muted">Bước này chưa gọi AI và chưa gửi tin.</span><button id="importButton">Kiểm tra danh sách →</button></div>
         </div>
