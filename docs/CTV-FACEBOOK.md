@@ -6,6 +6,8 @@ Mục **Cách đánh giá khách** ở bước 1 có 4 chế độ: AI (Gemini, 
 
 Tick **Chế độ thử** ở bước 1 khi nhập đúng 1 link để test lại nhiều lần với cùng một người nhận: chiến dịch này bỏ qua toàn bộ chặn chống trùng (cả lúc nhập, lúc chọn khách và lúc gửi) cho đúng link đó, kể cả khi link đã có lịch sử gửi thật từ trước — vì đây là lựa chọn thủ công của người dùng cho một link cụ thể, không áp dụng hàng loạt. Lần gửi ở Chế độ thử vẫn được ghi vào lịch sử liên hệ chung như bình thường, nên một chiến dịch **thật** (không tick) sau đó cố dùng lại chính link này sẽ bị chặn như cũ — chặn chống trùng chỉ được nới khi chính chiến dịch đang chạy có tick Chế độ thử.
 
+Khi tick **đồng thời** Chế độ thử và "Chỉ gửi, không quét": sau khi duyệt bước 1, hệ thống tự duyệt luôn bước 2 (không có nội dung gì để xem) và chuyển thẳng sang bước 3 soạn tin — không cần bấm "Duyệt N khách & sang bước 3". Chỉ áp dụng khi có cả hai điều kiện; chiến dịch thật hoặc dùng chế độ đánh giá khác vẫn phải duyệt bước 2 như cũ.
+
 ## 1. Nhập danh sách khách hàng
 
 Chọn Facebook cá nhân đã đăng nhập, đặt tên chiến dịch, dán dữ liệu hoặc nhập TXT/CSV có link. Bấm **Kiểm tra danh sách** để xem số link hợp lệ, link trùng được gộp và link bị loại cùng lý do. Chỉ link hồ sơ trực tiếp được nhận; tối đa 100 link mỗi lần. Các cột khác trong CSV chưa được nhập; nhãn khách hàng hiển thị phần đường dẫn Facebook (ví dụ `linhduongasale.auth`), link dạng `profile.php?id=...` hiển thị ID. Tên dùng trong biến `{name}` vẫn lấy từ hồ sơ.

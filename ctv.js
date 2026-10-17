@@ -573,7 +573,10 @@
   }
   async function sync(id=selected?.id,version=epoch) {
     if(!id)return;
-    try{const c=await api(`/api/ctv/campaigns/${id}`);if(epoch!==version || selected?.id!==id)return;uncertain=false;retries=0;$('connection').textContent='Đã cập nhật '+new Date().toLocaleTimeString('vi-VN');render(c);}
+    try{const c=await api(`/api/ctv/campaigns/${id}`);if(epoch!==version || selected?.id!==id)return;uncertain=false;retries=0;$('connection').textContent='Đã cập nhật '+new Date().toLocaleTimeString('vi-VN');
+      const autoAdvanced = c.testMode && c.assessmentMode==='none' && c.state==='message_review' && selected?.state!=='message_review';
+      render(c); if(autoAdvanced) viewStep(3);
+    }
     catch(e){if(epoch!==version || selected?.id!==id)return;uncertain=true;retries++;$('connection').textContent='Mất kết nối. Đang tự thử tải lại trạng thái…';notice(e.message,true);updateControls();schedule();}
   }
   async function choose(id) {

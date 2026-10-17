@@ -260,6 +260,12 @@ class CtvService {
         await this.browser.closeInspection(c.profile);
         lastProgress?.({ stage: 'browser_closed', message: 'Đã đóng browser của tài khoản quét' });
         c.state = 'analysis_review';
+        // Chế độ thử + Chỉ gửi, không quét has nothing to review in step 2:
+        // auto-approve every usable lead and move straight to message_review.
+        if (c.testMode && c.assessmentMode === 'none' && !c.cancelled) {
+          const ids = c.leads.filter(l => l.state !== 'skipped' && !this.selectionBlocked(l, c)).map(l => l.id);
+          if (ids.length) this.approveAnalysis(c.id, c.owner, ids);
+        }
       } catch (error) {
         const message = `Không đóng được browser: ${error.message}`;
         c.error = [c.error, message].filter(Boolean).join(' · ');
