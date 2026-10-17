@@ -12,6 +12,7 @@ function fixture({fullPage = false, wrongHeader = false, notFriends = false, red
     count: async () => 1,
     isVisible: async () => true,
     evaluate: async fn => fn.name === 'conversationHeaderLinks' ? (notFriends ? [] : [headerWrong ? 'https://www.facebook.com/999' : target])
+      : fn.name === 'conversationHeaderDebug' ? {role: 'dialog', composerCount: 1, allLinkCount: 1, sampleLinks: [headerWrong ? 'https://www.facebook.com/999' : target]}
       : fn.toString().includes('setAttribute') ? undefined : (imageAttached ? 1 : 0),
     locator: selector => selector.startsWith('[contenteditable') ? box : selector.startsWith('input') ? {count:async()=>1,setInputFiles:async files=>{actions.push('attach');assert.equal(files[0].mimeType,'image/png');assert.ok(Buffer.isBuffer(files[0].buffer));if(uploadFails)throw Error('upload failed');imageAttached=true;if(wrongAfterUpload)headerWrong=true;}}
       : selector === '[role="row"]' ? {evaluateAll:async(_,text)=>text===undefined ? (imageSent && imageReceipt ? 1 : 0) : (submitted && receipt ? 1 : 0)}
@@ -103,6 +104,11 @@ for (const [options, error] of [
   const f = fixture(options);
   await assert.rejects(send(f.page, {actualUrl:target,recipientId:'123'}, 'Hello', f.submit), error);
   assert.ok(!f.actions.includes('reserve')); assert.ok(!f.actions.includes('Enter'));
+});
+test('timed-out header match includes a diagnostic summary of what was actually found, for troubleshooting', async () => {
+  const f = fixture({wrongHeader: true});
+  await assert.rejects(send(f.page, {actualUrl:target,recipientId:'123'}, 'Hello', f.submit),
+    /Chẩn đoán.*allLinkCount.*999/s);
 });
 test('cancellation before navigation and missing receipts never imply sent', async () => {
   const f = fixture();
