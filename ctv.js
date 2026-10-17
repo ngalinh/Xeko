@@ -84,6 +84,7 @@
   viewStep(1);
   const element = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
   function renderAssessment(v, leadId) {
+    if (v.provider === 'none') return element('p', 'Chế độ Chỉ gửi, không quét: không đọc caption/bio, không đánh giá nội dung. Đã lấy ID người nhận để gửi tin.', 'muted');
     if (['keywords','myjoy'].includes(v.provider)) return renderCaptionReview(v, leadId);
     const type = {personal:'Profile cá nhân',page:'Fanpage',group:'Group'}[v.type] || 'Chưa rõ loại';
     const seller = {yes:'Có',no:'Không'}[v.sellerUS] || 'Chưa rõ';
@@ -176,7 +177,7 @@
   function renderAssessmentPreview(v, leadId) {
     const preview = element('div');
     const seller = {yes:'Có',no:'Không'}[v.sellerUS] || 'Chưa đủ dữ liệu';
-    preview.append(element('p', ['keywords','myjoy'].includes(v.provider) ? v.suggestion || 'Quét caption — cần kiểm tra' : 'Seller bán sản phẩm trên website Mỹ: ' + seller, 'seller-verdict'));
+    preview.append(element('p', v.provider === 'none' ? 'Chỉ gửi, không quét nội dung' : ['keywords','myjoy'].includes(v.provider) ? v.suggestion || 'Quét caption — cần kiểm tra' : 'Seller bán sản phẩm trên website Mỹ: ' + seller, 'seller-verdict'));
     if (v.wholesaleRecruitment?.excluded) preview.append(element('p','Đã loại: tuyển CTV / đại lý / người nhận hàng bán lại','warning'));
     const details = element('details', undefined, 'assessment-details');
     const summary = element('summary');
@@ -448,7 +449,7 @@
     if (!modern) notice('Chiến dịch phiên bản cũ chỉ được xem. Tạo chiến dịch mới để dùng quy trình 3 bước có duyệt.',true);
     show('importForm',false);show('importResult',true);
     stats('importStats',[['Khách mới hợp lệ',c.leads.length,'good'],['Khách trùng đã gộp',c.duplicateCount || 0],['Đã có lịch sử gửi',c.previouslyContacted?.length || 0,'warn'],['Link bị loại',c.rejected?.length || 0,'warn']]);
-    $('importContext').textContent = `${c.name || 'Chiến dịch gửi tin nhắn hàng loạt'} · ${accountName(c.profile)} · ${c.assessmentMode === 'myjoy' ? 'MyJoy: ' + c.myjoyBackend : c.assessmentMode === 'keywords' ? 'Quét caption không AI' : 'AI đánh giá'} · Danh sách đã lưu cố định cho chiến dịch này.`;
+    $('importContext').textContent = `${c.name || 'Chiến dịch gửi tin nhắn hàng loạt'} · ${accountName(c.profile)} · ${c.assessmentMode === 'none' ? 'Chỉ gửi, không quét' : c.assessmentMode === 'myjoy' ? 'MyJoy: ' + c.myjoyBackend : c.assessmentMode === 'keywords' ? 'Quét caption không AI' : 'AI đánh giá'} · Danh sách đã lưu cố định cho chiến dịch này.`;
     $('importList').replaceChildren(...c.leads.map(l => { const li=element('li');li.append(link(l.url,customerLabel(l.url)));return li;}));
     $('rejectedList').replaceChildren(...(c.rejected || []).map(r => element('p',`${r.value} — ${r.reason}`,'warning')));
     $('rejectedList').append(...(c.previouslyContacted || []).map(url => element('p', `${url} — Đã có lịch sử gửi hoặc chưa xác nhận kết quả; tự động loại khỏi chiến dịch.`, 'warning')));
@@ -465,7 +466,7 @@
     const checked = c.leads.filter(l => l.assessment || l.error).length;
     $('analysisProgress').textContent = `${checked}/${c.leads.length} hồ sơ đã xử lý${c.cancelled && c.state === 'analysis_review' ? ' · Đã dừng theo yêu cầu' : ''}`;
     $('analysisBar').max = c.leads.length || 1; $('analysisBar').value = checked;
-    stats('analysisStats',[[c.assessmentMode === 'keywords' ? 'Có dấu hiệu phù hợp' : 'AI đánh giá đạt',c.leads.filter(l=>c.assessmentMode === 'keywords' ? l.assessment?.suggestion?.startsWith('Có dấu hiệu phù hợp') : l.assessment?.eligible).length,'good'],['Có thể chọn soạn tin',c.leads.filter(canPick).length],['Cần kiểm tra',c.leads.filter(l=>l.state==='review').length,'warn'],['Đã bỏ qua',c.leads.filter(l=>l.state==='skipped').length]]);
+    stats('analysisStats',[[c.assessmentMode === 'none' ? 'Đã lấy ID người nhận' : c.assessmentMode === 'keywords' ? 'Có dấu hiệu phù hợp' : 'AI đánh giá đạt',c.leads.filter(l=>c.assessmentMode === 'keywords' ? l.assessment?.suggestion?.startsWith('Có dấu hiệu phù hợp') : l.assessment?.eligible).length,'good'],['Có thể chọn soạn tin',c.leads.filter(canPick).length],['Cần kiểm tra',c.leads.filter(l=>l.state==='review').length,'warn'],['Đã bỏ qua',c.leads.filter(l=>l.state==='skipped').length]]);
     show('analysisWarning',!!c.error && !a.analysis);$('analysisWarning').textContent = c.error || '';
     show('retryAnalysis',!!canRetry(c));
     const retryBackendVisible = canRetry(c) && c.assessmentMode === 'myjoy';
@@ -475,7 +476,7 @@
     show('resolveUids',modern && !a.send && ['analysis_review','message_review'].includes(c.state) && c.leads.some(l=>l.state!=='skipped' && l.assessment && !l.assessment.recipientId));
     if (['uid_queued','resolving_uid'].includes(c.state)) $('analysisProgress').textContent = `${labels[c.state]} · ${c.leads.filter(l=>l.uidLookup?.state==='resolved').length} hồ sơ đã tìm được UID`;
     show('stopAnalysis',analyzing);show('approveAnalysis',modern && c.state === 'analysis_review');
-    $('analysisApproval').textContent = approvalText(a.analysis,c.assessmentMode === 'keywords' ? 'Đọc caption và từ khóa rồi tick chọn khách. Từ khóa không xác minh nguồn hàng Mỹ; cần xác minh người nhận trước khi gửi.' : 'Bạn có thể duyệt gửi khách đã chọn dù AI chưa đánh giá đạt. Cần xác minh người nhận trước khi gửi.');
+    $('analysisApproval').textContent = approvalText(a.analysis,c.assessmentMode === 'none' ? 'Không quét nội dung; tick chọn khách muốn gửi. Cần xác minh người nhận trước khi gửi.' : c.assessmentMode === 'keywords' ? 'Đọc caption và từ khóa rồi tick chọn khách. Từ khóa không xác minh nguồn hàng Mỹ; cần xác minh người nhận trước khi gửi.' : 'Bạn có thể duyệt gửi khách đã chọn dù AI chưa đánh giá đạt. Cần xác minh người nhận trước khi gửi.');
     $('analysisRows').replaceChildren();
     for (const [index, l] of c.leads.entries()) {
       const row = element('tr'), chooseCell = element('td'), customer = element('td'), uidCell = element('td'), fbName = element('td'), genderCell = element('td'), analysis = element('td'), result = element('td');

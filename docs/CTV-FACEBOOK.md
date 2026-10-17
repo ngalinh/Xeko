@@ -2,6 +2,8 @@
 
 Vào **Gửi tin nhắn hàng loạt** trong menu Xeko. Nếu Xeko chạy trên platform tại `https://ai.basso.vn/b/<bot-id>/`, trang gửi tin nhắn hàng loạt nằm tại `https://ai.basso.vn/b/<bot-id>/ctv.html`; không mở `https://ai.basso.vn/ctv.html` vì đó là gốc của platform. Khi Xeko chạy trực tiếp ở gốc một domain, dùng `/ctv.html` như trước. Không có chế độ AI đánh giá rồi tự gửi. Mỗi chiến dịch lưu danh sách, kết quả AI, bản xem trước và thời điểm/người duyệt từng bước.
 
+Mục **Cách đánh giá khách** ở bước 1 có 4 chế độ: AI (Gemini, đang ẩn trên UI), Không AI (quét từ khóa trên máy), MyJoy (AI đã kết nối trên MyJoy) và **Chỉ gửi, không quét**. Chế độ "Chỉ gửi, không quét" không đọc caption/bio và không đánh giá nội dung; worker chỉ mở profile một lượt để lấy tên và ID Facebook của người nhận (bắt buộc để mở đúng hội thoại Messenger), rồi cho vào thẳng bước 2 để chọn khách và sang bước 3 soạn/gửi tin. Mọi chốt duyệt thủ công, chống gửi trùng và xác minh ID trước Enter ở bước 3 vẫn áp dụng như các chế độ khác.
+
 ## 1. Nhập danh sách khách hàng
 
 Chọn Facebook cá nhân đã đăng nhập, đặt tên chiến dịch, dán dữ liệu hoặc nhập TXT/CSV có link. Bấm **Kiểm tra danh sách** để xem số link hợp lệ, link trùng được gộp và link bị loại cùng lý do. Chỉ link hồ sơ trực tiếp được nhận; tối đa 100 link mỗi lần. Các cột khác trong CSV chưa được nhập; nhãn khách hàng hiển thị phần đường dẫn Facebook (ví dụ `linhduongasale.auth`), link dạng `profile.php?id=...` hiển thị ID. Tên dùng trong biến `{name}` vẫn lấy từ hồ sơ.

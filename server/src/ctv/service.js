@@ -86,7 +86,7 @@ class CtvService {
   selectionBlocked(lead) {
     if (lead.state === 'skipped') return 'Đã bỏ qua trong chiến dịch này';
     if (contactHistory(this.data).has(lead)) return 'Khách đã có lần gửi trước hoặc chưa xác nhận kết quả; không gửi lại tự động';
-    if (lead.assessment && lead.assessment.criteriaVersion !== 'us-website-products-v2') return 'Kết quả dùng tiêu chí cũ. Hãy tạo chiến dịch mới và chạy AI lại trên worker đã cập nhật.';
+    if (lead.assessment && lead.assessment.provider !== 'none' && lead.assessment.criteriaVersion !== 'us-website-products-v2') return 'Kết quả dùng tiêu chí cũ. Hãy tạo chiến dịch mới và chạy AI lại trên worker đã cập nhật.';
     if (!lead.assessment) return 'Chưa có kết quả đánh giá';
     if (['keywords','myjoy'].includes(lead.assessment.provider) && lead.assessment.collectionBlocked) return 'Chưa đọc được caption; hãy quét lại trước khi chọn khách';
     if (lead.assessment.wholesaleRecruitment?.excluded) return 'Đã loại: có dấu hiệu nguồn sỉ tuyển CTV/đại lý hoặc người nhận hàng bán lại.';
@@ -107,7 +107,7 @@ class CtvService {
       const m = c.messagePreview?.messages.find(m => m.leadId === l.id), reservation = m && this.data.reservations[m.recipientId];
       const retryAvailable = retryStage && c.approvals.send.token === c.messagePreview?.token && c.approvals.analysis?.leadIds.includes(l.id)
         && ['review','failed','unconfirmed','pending','qualified'].includes(l.state) && m?.recipientId === l.assessment?.recipientId
-        && /^\d+$/.test(m?.recipientId || '') && l.assessment?.criteriaVersion === 'us-website-products-v2' && !l.assessment?.wholesaleRecruitment?.excluded
+        && /^\d+$/.test(m?.recipientId || '') && (l.assessment?.criteriaVersion === 'us-website-products-v2' || l.assessment?.provider === 'none') && !l.assessment?.wholesaleRecruitment?.excluded
         && (!reservation || reservation.campaignId === c.id) && !contactHistory(this.data, { retryCampaignId: c.id }).has(l);
       return { ...l, retryAvailable: !!retryAvailable, retryNeedsConfirmation: !!retryAvailable && (l.state === 'unconfirmed' || !!reservation), selectionBlockedReason: this.selectionBlocked(l), blockedReason: this.reasonBlocked(l) };
     }) };
@@ -116,7 +116,7 @@ class CtvService {
   }
   create(input, owner) {
     const assessmentMode = input.assessmentMode || 'ai';
-    if (!['ai','keywords','myjoy'].includes(assessmentMode)) throw new Error('Chế độ đánh giá không hợp lệ');
+    if (!['ai','keywords','myjoy','none'].includes(assessmentMode)) throw new Error('Chế độ đánh giá không hợp lệ');
     if (assessmentMode === 'myjoy') {
       require('./myjoy').configuration(owner);
       if (typeof input.myjoyBackend !== 'string' || !/^[\w.-]{1,100}$/.test(input.myjoyBackend)) throw new Error('Cần chọn AI MyJoy');
@@ -331,7 +331,7 @@ class CtvService {
     if (!c.approvals.send || c.approvals.send.token !== previewToken || c.messagePreview?.token !== previewToken) fail('Chỉ thử lại nội dung đã duyệt gửi');
     const message = c.messagePreview.messages.find(m => m.leadId === leadId);
     if (!message || !c.approvals.analysis?.leadIds.includes(leadId) || !['review','failed','unconfirmed','pending','qualified'].includes(lead.state)) fail('Khách này không được phép thử gửi lại');
-    if (lead.assessment?.recipientId !== message.recipientId || !/^\d+$/.test(message.recipientId) || lead.assessment.criteriaVersion !== 'us-website-products-v2' || lead.assessment.wholesaleRecruitment?.excluded) fail('Người nhận hoặc kết quả duyệt đã thay đổi');
+    if (lead.assessment?.recipientId !== message.recipientId || !/^\d+$/.test(message.recipientId) || (lead.assessment.criteriaVersion !== 'us-website-products-v2' && lead.assessment.provider !== 'none') || lead.assessment.wholesaleRecruitment?.excluded) fail('Người nhận hoặc kết quả duyệt đã thay đổi');
     const reservation = this.data.reservations[message.recipientId];
     if (reservation && reservation.campaignId !== c.id) fail('Người nhận đã có lượt gửi trong chiến dịch khác');
     if (contactHistory(this.data, { retryCampaignId: c.id }).has(lead)) fail('Khách đã có lịch sử gửi khác; không thể thử gửi lại');
