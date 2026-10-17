@@ -600,7 +600,11 @@
   async function action(name,body={}) {
     if(!selected || busy || uncertain)return;
     const id=selected.id,version=epoch;busy=true;clearTimeout(timer);updateControls();notice();
-    try{const c=await api(`/api/ctv/campaigns/${id}/${name}`,'POST',body);if(epoch!==version)return;uncertain=false;$('confirmSend').checked=false;render(c);if(name==='approve-import'||name==='review-analysis'||name==='retry-analysis'||name==='resolve-uids')viewStep(2);if(name==='approve-analysis')viewStep(3);}
+    try{const c=await api(`/api/ctv/campaigns/${id}/${name}`,'POST',body);if(epoch!==version)return;uncertain=false;$('confirmSend').checked=false;render(c);
+      const skipStep2=name==='approve-import' && c.testMode && c.assessmentMode==='none';
+      if(!skipStep2 && (name==='approve-import'||name==='review-analysis'||name==='retry-analysis'||name==='resolve-uids'))viewStep(2);
+      if(name==='approve-analysis')viewStep(3);
+    }
     catch(e){if(epoch!==version)return;notice(e.message,true);uncertain=true;await sync(id,version);}
     finally{busy=false;updateControls();schedule();}
   }
