@@ -500,6 +500,17 @@ test('header timeout does not scan a feed redirected to another profile', async 
 
 
 
+test('none mode skips caption scanning and gender reading, only resolving identity', async t => {
+  const mock=mediaPage(()=>['Bán sản phẩm Amazon.com số 1']);
+  mock.page.goto=async()=>{};
+  mock.page.waitForFunction=async()=>({jsonValue:async()=>({name:'Khách thử',headerBio:'',personalEvidence:true,messageLinks:[]}),dispose:async()=>{}});
+  const result=await inspect(mock.page,'https://facebook.com/123',{assessmentMode:'none'});
+  assert.equal(result.provider,'none');assert.equal(result.eligible,true);
+  assert.equal(mock.scrolls(),0);
+  assert.equal(result.selfDeclaredGender.status,'unknown');
+  assert.match(result.selfDeclaredGender.reason,/Chỉ gửi, không quét/);
+});
+
 test('caption mode reads text without inspecting images or invoking an AI transport', async t => {
   const oldFetch=global.fetch, oldProvider=process.env.CTV_AI_PROVIDER;
   t.after(()=>{global.fetch=oldFetch;if(oldProvider===undefined)delete process.env.CTV_AI_PROVIDER;else process.env.CTV_AI_PROVIDER=oldProvider;});

@@ -419,7 +419,8 @@ async function inspect(page, url, { onProgress = () => {}, cancelled = () => fal
   if (!snapshot.blocked && !snapshot.name && !snapshot.feedReady) throw new Error('Chưa đọc được tên Facebook hoặc bài viết để cuộn quét. Hãy thử lại khi hồ sơ tải xong.');
   // Header text can mount after the name. Capture it before any feed scroll,
   // retaining the saved header if Facebook temporarily unmounts the DOM.
-  for (let attempt = 0; !snapshot.blocked && !snapshot.headerBio && attempt < 4; attempt++) {
+  // Mode 'none' never reads bio/content, so skip this retry entirely.
+  for (let attempt = 0; assessmentMode !== 'none' && !snapshot.blocked && !snapshot.headerBio && attempt < 4; attempt++) {
     check();
     await page.waitForTimeout(750);
     await assertSession(page);
@@ -451,11 +452,14 @@ async function inspect(page, url, { onProgress = () => {}, cancelled = () => fal
     assessment.eligible = false;
     assessment.gateReason = 'Đã đọc bài viết nhưng chưa xác minh được tên Facebook. Hãy kiểm tra hồ sơ và Thử lại AI trước khi gửi.';
   }
-  report('complete', `Đánh giá xong: ${assessment.salesPostCount || 0}/3 bài có dấu hiệu bán hàng; ${assessment.eligible ? 'đạt điều kiện' : 'cần kiểm tra'}`);
-  report('gender', 'Đang đọc mục Giới tính tự khai trong phần Giới thiệu');
-  const selfDeclaredGender = snapshot.blocked ? { status: 'unknown', value: null, sourceUrl: target, checkedAt: new Date().toISOString(), reason: 'Hồ sơ không xem được.' } : await readSelfDeclaredGender(page, target, { check, assertSession });
-  check();
-  report('gender', selfDeclaredGender.status === 'self_declared' ? 'Đã đọc mục Giới tính tự khai' : 'Giới tính tự khai: chưa xác định');
+  report('complete', assessmentMode === 'none' ? 'Đã lấy ID người nhận; không đọc thêm nội dung nào khác' : `Đánh giá xong: ${assessment.salesPostCount || 0}/3 bài có dấu hiệu bán hàng; ${assessment.eligible ? 'đạt điều kiện' : 'cần kiểm tra'}`);
+  let selfDeclaredGender = { status: 'unknown', value: null, sourceUrl: target, checkedAt: new Date().toISOString(), reason: 'Chế độ Chỉ gửi, không quét: không đọc mục Giới thiệu.' };
+  if (assessmentMode !== 'none') {
+    report('gender', 'Đang đọc mục Giới tính tự khai trong phần Giới thiệu');
+    selfDeclaredGender = snapshot.blocked ? { status: 'unknown', value: null, sourceUrl: target, checkedAt: new Date().toISOString(), reason: 'Hồ sơ không xem được.' } : await readSelfDeclaredGender(page, target, { check, assertSession });
+    check();
+    report('gender', selfDeclaredGender.status === 'self_declared' ? 'Đã đọc mục Giới tính tự khai' : 'Giới tính tự khai: chưa xác định');
+  }
   return { selfDeclaredGender, url: target, actualUrl: actual, name: snapshot.name, bio: snapshot.headerBio || '', checkedAt: new Date().toISOString(), ...assessment, ...identity };
 }
 
