@@ -458,6 +458,19 @@ test('caption mode persists and reaches worker without enabling automatic select
 });
 
 
+test('none mode (chỉ gửi, không quét) skips content assessment and still sends', async t => {
+  let mode;
+  const {s,sent}=setup(t,{inspect:async(_,url,options)=>{mode=options.assessmentMode;return {eligible:true,provider:'none',url,actualUrl:url,name:'Khách '+recipientId(url),recipientId:recipientId(url)};}});
+  const c=s.create({...input(),assessmentMode:'none'},'owner');
+  s.approveImport(c.id,'owner');await settle(s);
+  assert.equal(mode,'none');assert.equal(c.assessmentMode,'none');
+  assert.equal(c.leads.every(l=>l.state==='qualified' && l.assessment.provider==='none' && !l.assessment.criteriaVersion),true);
+  assert.equal(s.selectionBlocked(c.leads[0]),'');
+  const token=prepared(s,c);
+  s.sendApproved(c.id,'owner',token);await settle(s);
+  assert.equal(c.state,'completed');assert.equal(sent.length,c.leads.length);
+});
+
 test('MyJoy campaign keeps owner/model, preserves manual approvals, and never persists credentials', async t => {
   const keys = {CTV_MYJOY_OWNER:'owner',CTV_MYJOY_USERNAME:'member',CTV_MYJOY_PASSWORD:'test-secret',CTV_MYJOY_URL:'https://myjoy.example'};
   const previous = Object.fromEntries(Object.keys(keys).map(k => [k,process.env[k]]));

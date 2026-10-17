@@ -435,11 +435,13 @@ async function inspect(page, url, { onProgress = () => {}, cancelled = () => fal
   report('uid', 'Đang đối chiếu UID với link hồ sơ');
   const identity = await resolveCurrentProfileUid(page, target, snapshot);
   report('uid', identity.recipientId ? `Đã xác định UID: ${identity.recipientId}` : identity.uidReason);
-  if (!snapshot.blocked) snapshot = await collectProfilePosts(page, snapshot, { report, check, captionsOnly: ['keywords','myjoy'].includes(assessmentMode) });
+  if (!snapshot.blocked && assessmentMode !== 'none') snapshot = await collectProfilePosts(page, snapshot, { report, check, captionsOnly: ['keywords','myjoy'].includes(assessmentMode) });
   if (profileUrl(page.url()) !== target) throw new Error('Link chuyển sang hồ sơ khác khi đọc bài viết');
   check();
-  report('assessment', assessmentMode === 'keywords' ? 'Đang đối chiếu từ khóa caption trên máy, không gọi AI' : 'Đang đánh giá dữ liệu bằng AI');
-  const assessment = assessmentMode === 'keywords'
+  report('assessment', assessmentMode === 'none' ? 'Không quét nội dung; chỉ lấy ID người nhận' : assessmentMode === 'keywords' ? 'Đang đối chiếu từ khóa caption trên máy, không gọi AI' : 'Đang đánh giá dữ liệu bằng AI');
+  const assessment = assessmentMode === 'none'
+    ? { eligible: true, provider: 'none' }
+    : assessmentMode === 'keywords'
     ? require('./caption-review').evaluateCaptions(snapshot, customBrands)
     : assessmentMode === 'myjoy'
     ? await require('./myjoy').evaluateMyJoy(snapshot, { owner, backendId: myjoyBackend, report, check })
