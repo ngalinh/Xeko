@@ -15,14 +15,11 @@ function identities(record) {
 // must not bypass contact history. Link aliases are joined only by known identity.
 function contactHistory(data, { retryCampaignId } = {}) {
   const records = Object.values(data.customers || {});
-  // Test-mode campaigns (single link, no duplicate guard) must never mark a
-  // link as contacted; real campaigns keep blocking exactly as before.
-  const isTest = campaignId => (data.campaigns || []).some(c => c.id === campaignId && c.testMode);
   const parent = new Map();
   const root = key => { if (!parent.has(key)) parent.set(key, key); if (parent.get(key) !== key) parent.set(key, root(parent.get(key))); return parent.get(key); };
-  const entries = records.map(record => ({ keys: identities(record), blocked: !isTest(record.campaignId) && (record.sent || record.state === 'sent' || record.messageState === 'sent'
-    || (!retryCampaignId || record.campaignId !== retryCampaignId) && (['sending','unconfirmed'].includes(record.state) || record.messageState === 'unconfirmed')) }));
-  for (const [uid, reservation] of Object.entries(data.reservations || {})) entries.push({ keys: identities({ ...reservation, uid }), blocked: !isTest(reservation.campaignId) && (!retryCampaignId || reservation.campaignId !== retryCampaignId) });
+  const entries = records.map(record => ({ keys: identities(record), blocked: record.sent || record.state === 'sent' || record.messageState === 'sent'
+    || (!retryCampaignId || record.campaignId !== retryCampaignId) && (['sending','unconfirmed'].includes(record.state) || record.messageState === 'unconfirmed') }));
+  for (const [uid, reservation] of Object.entries(data.reservations || {})) entries.push({ keys: identities({ ...reservation, uid }), blocked: !retryCampaignId || reservation.campaignId !== retryCampaignId });
   for (const {keys} of entries) for (const key of keys) parent.set(root(key), root(keys[0]));
   const blocked = new Set(entries.filter(e => e.blocked).flatMap(e => e.keys.map(root)));
   return {

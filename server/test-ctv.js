@@ -495,16 +495,22 @@ test('test mode skips the duplicate guard across repeated runs of the same link'
   assert.equal(sent.length,2);
 });
 
-test('duplicate guard still blocks a real campaign reusing a link already sent by a real campaign, even via test mode', async t => {
-  const {s} = setup(t);
+test('test mode reuses a link already sent by a real campaign, but a second real campaign is still blocked', async t => {
+  const {s,sent} = setup(t);
   const url = ['https://facebook.com/777'];
   const real = await analyzed(s,url);
   const token = prepared(s,real);
   s.sendApproved(real.id,'owner',token);await settle(s);
   assert.equal(real.state,'completed');
   const testAttempt = s.create({...input(url),testMode:true},'owner');
-  assert.equal(testAttempt.leads.length,0);
-  assert.equal(testAttempt.previouslyContacted.length,1);
+  assert.equal(testAttempt.leads.length,1);
+  s.approveImport(testAttempt.id,'owner');await settle(s);
+  const testToken = prepared(s,testAttempt);
+  s.sendApproved(testAttempt.id,'owner',testToken);await settle(s);
+  assert.equal(testAttempt.state,'completed');assert.equal(sent.length,2);
+  const secondReal = s.create({...input(url)},'owner');
+  assert.equal(secondReal.leads.length,0);
+  assert.equal(secondReal.previouslyContacted.length,1);
 });
 
 test('MyJoy campaign keeps owner/model, preserves manual approvals, and never persists credentials', async t => {
