@@ -83,6 +83,12 @@ class CtvService {
     if (c.workflowVersion !== 2) fail('Chiến dịch cũ chỉ được xem. Hãy tạo chiến dịch mới theo quy trình 3 bước.');
     return c;
   }
+  // A reservation only blocks reuse when it belongs to a non-test campaign;
+  // test-mode campaigns are meant to be re-run against the same link.
+  reservationBlocks(id) {
+    const r = id && this.data.reservations[id];
+    return !!r && !this.data.campaigns.find(c => c.id === r.campaignId)?.testMode;
+  }
   selectionBlocked(lead) {
     if (lead.state === 'skipped') return 'Đã bỏ qua trong chiến dịch này';
     if (contactHistory(this.data).has(lead)) return 'Khách đã có lần gửi trước hoặc chưa xác nhận kết quả; không gửi lại tự động';
@@ -90,8 +96,7 @@ class CtvService {
     if (!lead.assessment) return 'Chưa có kết quả đánh giá';
     if (['keywords','myjoy'].includes(lead.assessment.provider) && lead.assessment.collectionBlocked) return 'Chưa đọc được caption; hãy quét lại trước khi chọn khách';
     if (lead.assessment.wholesaleRecruitment?.excluded) return 'Đã loại: có dấu hiệu nguồn sỉ tuyển CTV/đại lý hoặc người nhận hàng bán lại.';
-    const id = lead.assessment.recipientId;
-    if (id && this.data.reservations[id]) return 'Đã có lần gửi trước hoặc chưa rõ trạng thái gửi';
+    if (this.reservationBlocks(lead.assessment.recipientId)) return 'Đã có lần gửi trước hoặc chưa rõ trạng thái gửi';
     return '';
   }
   reasonBlocked(lead) {
@@ -117,6 +122,8 @@ class CtvService {
   create(input, owner) {
     const assessmentMode = input.assessmentMode || 'ai';
     if (!['ai','keywords','myjoy','none'].includes(assessmentMode)) throw new Error('Chế độ đánh giá không hợp lệ');
+    const testMode = !!input.testMode;
+    if (testMode && (!Array.isArray(input.urls) || input.urls.length !== 1)) throw new Error('Chế độ thử chỉ nhận đúng 1 link');
     if (assessmentMode === 'myjoy') {
       require('./myjoy').configuration(owner);
       if (typeof input.myjoyBackend !== 'string' || !/^[\w.-]{1,100}$/.test(input.myjoyBackend)) throw new Error('Cần chọn AI MyJoy');
@@ -136,7 +143,7 @@ class CtvService {
         if (history.has({ url })) previouslyContacted.push(url); else urls.add(url);
       } catch (e) { rejected.push({ value: String(value).slice(0,2000), reason: e.message }); }
     }
-    const c = { id: crypto.randomUUID(), workflowVersion: 2, assessmentMode, ...(assessmentMode === 'myjoy' ? { myjoyBackend: input.myjoyBackend } : {}), owner, profile: input.profile,
+    const c = { id: crypto.randomUUID(), workflowVersion: 2, assessmentMode, testMode, ...(assessmentMode === 'myjoy' ? { myjoyBackend: input.myjoyBackend } : {}), owner, profile: input.profile,
       name: String(input.name || 'Chiến dịch gửi tin nhắn hàng loạt').trim().slice(0,100), createdAt: new Date().toISOString(),
       state: 'import_review', cancelled: false, importedCount: input.urls.length, duplicateCount, rejected, previouslyContacted, approvals: {},
       leads: [...urls].map(url => ({ id: crypto.randomUUID(), url, state: 'pending' })) };
@@ -356,7 +363,7 @@ class CtvService {
       const lead = c.leads.find(l => l.id === m.leadId);
       const reservationAllowed = () => retry
         ? lead.retryApproval?.requestId === retry.requestId && JSON.stringify(this.data.reservations[m.recipientId] || null) === JSON.stringify(retry.reservation) && !contactHistory(this.data, { retryCampaignId: c.id }).has(lead)
-        : !this.data.reservations[m.recipientId] && !contactHistory(this.data).has(lead);
+        : !this.reservationBlocks(m.recipientId) && !contactHistory(this.data).has(lead);
       if (!reservationAllowed()) { lead.state = 'duplicate'; this.save(); continue; }
       lead.message = m.message; lead.sendLog = [];
       const sendStarted = Date.now();

@@ -333,7 +333,7 @@
     const c = selected, unlocked = !busy && !uncertain, modern = c?.workflowVersion === 2;
     for(const button of $('sendRows').querySelectorAll('button[data-retry-lead]'))button.disabled=!unlocked || ACTIVE.includes(c?.state);
     const myjoyActive = $('assessmentMode').value === 'myjoy';
-    for (const id of ['campaignName','profile','assessmentMode','myjoyBackend','urls','file']) $(id).disabled = !!c || busy;
+    for (const id of ['campaignName','profile','assessmentMode','myjoyBackend','urls','file','testMode']) $(id).disabled = !!c || busy;
     $('myjoyConnect').disabled = !!c || busy || myjoyLoading || !myjoyActive;
     $('myjoyBackend').disabled ||= myjoyLoading || !myjoyActive;
     $('importButton').disabled = !!c || busy || !accounts.length || ($('assessmentMode').value === 'myjoy' && (myjoyLoading || !$('myjoyBackend').value));
@@ -435,6 +435,7 @@
     if (selected?.id !== c.id || selected?.messagePreview?.token !== c.messagePreview?.token) $('confirmSend').checked = false;
     selected = c;
     $('assessmentMode').value = c.assessmentMode || 'ai';
+    $('testMode').checked = !!c.testMode;
     if (c.assessmentMode === 'myjoy') {
       const option = element('option', c.myjoyBackend); option.value = c.myjoyBackend;
       $('myjoyBackend').replaceChildren(option);
@@ -449,7 +450,7 @@
     if (!modern) notice('Chiến dịch phiên bản cũ chỉ được xem. Tạo chiến dịch mới để dùng quy trình 3 bước có duyệt.',true);
     show('importForm',false);show('importResult',true);
     stats('importStats',[['Khách mới hợp lệ',c.leads.length,'good'],['Khách trùng đã gộp',c.duplicateCount || 0],['Đã có lịch sử gửi',c.previouslyContacted?.length || 0,'warn'],['Link bị loại',c.rejected?.length || 0,'warn']]);
-    $('importContext').textContent = `${c.name || 'Chiến dịch gửi tin nhắn hàng loạt'} · ${accountName(c.profile)} · ${c.assessmentMode === 'none' ? 'Chỉ gửi, không quét' : c.assessmentMode === 'myjoy' ? 'MyJoy: ' + c.myjoyBackend : c.assessmentMode === 'keywords' ? 'Quét caption không AI' : 'AI đánh giá'} · Danh sách đã lưu cố định cho chiến dịch này.`;
+    $('importContext').textContent = `${c.name || 'Chiến dịch gửi tin nhắn hàng loạt'} · ${accountName(c.profile)} · ${c.assessmentMode === 'none' ? 'Chỉ gửi, không quét' : c.assessmentMode === 'myjoy' ? 'MyJoy: ' + c.myjoyBackend : c.assessmentMode === 'keywords' ? 'Quét caption không AI' : 'AI đánh giá'}${c.testMode ? ' · Chế độ thử: không chặn trùng, không lưu lịch sử' : ''} · Danh sách đã lưu cố định cho chiến dịch này.`;
     $('importList').replaceChildren(...c.leads.map(l => { const li=element('li');li.append(link(l.url,customerLabel(l.url)));return li;}));
     $('rejectedList').replaceChildren(...(c.rejected || []).map(r => element('p',`${r.value} — ${r.reason}`,'warning')));
     $('rejectedList').append(...(c.previouslyContacted || []).map(url => element('p', `${url} — Đã có lịch sử gửi hoặc chưa xác nhận kết quả; tự động loại khỏi chiến dịch.`, 'warning')));
@@ -635,10 +636,11 @@
   $('urls').oninput=()=>{$('count').textContent=`${urlsFrom($('urls').value).length} link tìm thấy`;};
   $('file').onchange=async()=>{try{const f=$('file').files[0];if(!f)return;if(f.size>1000000)throw new Error('File vượt quá 1 MB');$('urls').value=await f.text();$('fileName').textContent=f.name;$('urls').oninput();}catch(e){notice(e.message,true);}};
   $('importButton').onclick=async()=>{
-    if(busy)return;const urls=urlsFrom($('urls').value);
+    if(busy)return;const urls=urlsFrom($('urls').value),testMode=$('testMode').checked;
     if(!$('profile').value || !urls.length || urls.length>100){notice('Chọn tài khoản và nhập từ 1 đến 100 link http/https để kiểm tra.',true);return;}
+    if(testMode && urls.length!==1){notice('Chế độ thử chỉ nhận đúng 1 link.',true);return;}
     busy=true;updateControls();notice();
-    try{const requestedMode=$('assessmentMode').value;const c=await api('/api/ctv/campaigns','POST',{name:$('campaignName').value,profile:$('profile').value,assessmentMode:requestedMode,myjoyBackend:$('myjoyBackend').value,urls});if(requestedMode !== 'ai' && c.assessmentMode !== requestedMode)throw new Error('Worker chưa hỗ trợ chế độ đã chọn. Hãy cập nhật worker trước; danh sách vừa tạo chưa được duyệt chạy.');epoch++;uncertain=false;render(c,true);}
+    try{const requestedMode=$('assessmentMode').value;const c=await api('/api/ctv/campaigns','POST',{name:$('campaignName').value,profile:$('profile').value,assessmentMode:requestedMode,myjoyBackend:$('myjoyBackend').value,urls,testMode});if(requestedMode !== 'ai' && c.assessmentMode !== requestedMode)throw new Error('Worker chưa hỗ trợ chế độ đã chọn. Hãy cập nhật worker trước; danh sách vừa tạo chưa được duyệt chạy.');epoch++;uncertain=false;render(c,true);}
     catch(e){notice(e.message,true);}finally{busy=false;updateControls();schedule();}
   };
   async function loadRetryBackends(c) {
@@ -734,7 +736,7 @@
   $('newCampaign').onclick=()=>{if(busy)return;setHistoryOpen(false);epoch++;clearTimeout(timer);selected=null;uncertain=false;picks.clear();notice();viewStep(1);
     show('importForm',true);show('importResult',false);show('analysisEmpty',true);show('analysisResult',false);show('retryAnalysis',false);show('resolveUids',false);show('messageEmpty',true);show('messageResult',false);
     draftImages=[];$('messageImages').value='';
-    $('assessmentMode').value='keywords';$('campaignName').value='';$('urls').value='';$('file').value='';$('fileName').textContent='Hoặc dán dữ liệu vào ô phía trên';$('urls').oninput();$('template').value=defaultTemplate;$('confirmSend').checked=false;
+    $('assessmentMode').value='keywords';$('campaignName').value='';$('urls').value='';$('file').value='';$('fileName').textContent='Hoặc dán dữ liệu vào ô phía trên';$('urls').oninput();$('template').value=defaultTemplate;$('confirmSend').checked=false;$('testMode').checked=false;
     const myjoyPlaceholder = element('option', 'Kết nối MyJoy để chọn AI'); myjoyPlaceholder.value = '';
     $('myjoyBackend').replaceChildren(myjoyPlaceholder);
     $('myjoyStatus').textContent = 'Kết nối MyJoy để tải danh sách AI cho chiến dịch mới.';
