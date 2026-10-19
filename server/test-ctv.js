@@ -130,7 +130,34 @@ test('cleanup runs after failure or stop and preserves scan errors', async t => 
   browser.closeInspection=async()=>{throw Error('close failed');};
   const e=await analyzed(s);
   assert.equal(e.state,'needs_attention'); assert.match(e.error,/AI unavailable.*close failed/);
-  assert.equal(e.leads[0].scanLog.at(-1).stage,'browser_close_error');
+  assert.equal(e.leads.at(-1).scanLog.at(-1).stage,'browser_close_error');
+});
+test('a scan error for one profile does not stop the rest of the batch', async t => {
+  const {s,browser}=setup(t);
+  const seen=[];
+  browser.inspect=async(_,url)=>{
+    seen.push(url);
+    if (url.endsWith('123')) throw new Error('Chưa đọc được tên Facebook sau 30 giây và chưa thấy bài viết để cuộn quét. Hãy kiểm tra hồ sơ đã tải xong rồi thử lại.');
+    return {url,actualUrl:url,name:'Khách '+recipientId(url),criteriaVersion:'us-website-products-v2',eligible:true,recipientId:recipientId(url)};
+  };
+  const c=await analyzed(s);
+  assert.deepEqual(seen,['https://www.facebook.com/123','https://www.facebook.com/456']);
+  assert.equal(c.leads[0].state,'review'); assert.match(c.leads[0].error,/Chưa đọc được tên/);
+  assert.equal(c.leads[1].state,'qualified');
+  assert.equal(c.state,'analysis_review');
+});
+test('a fatal Facebook session error stops the rest of the batch', async t => {
+  const {s,browser}=setup(t);
+  const seen=[];
+  browser.inspect=async(_,url)=>{
+    seen.push(url);
+    const e=new Error('Cần đăng nhập hoặc xử lý checkpoint trong Quản lý tài khoản'); e.fatal=true; throw e;
+  };
+  const c=await analyzed(s);
+  assert.deepEqual(seen,['https://www.facebook.com/123']);
+  assert.equal(c.leads[0].state,'review'); assert.match(c.leads[0].error,/Cần đăng nhập/);
+  assert.equal(c.leads[1].state,'pending');
+  assert.equal(c.state,'analysis_review');
 });
 test('review and retry stay locked until context close resolves', async t => {
   let release, closing;

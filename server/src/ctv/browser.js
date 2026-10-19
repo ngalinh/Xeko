@@ -119,8 +119,8 @@ async function selectRecipientConversation(page, id, target, cancelled, report =
 }
 
 async function assertSession(page) {
-  if (page.isClosed?.()) throw new Error('Tab Facebook đã đóng trước khi quét bài viết; hãy mở lại tài khoản và bấm Thử lại AI');
-  if (/\/(login|checkpoint|challenge|two_step_verification)(?:[/?]|$)/i.test(new URL(page.url()).pathname) || await page.locator('input[type="password"]').count()) throw new Error('Cần đăng nhập hoặc xử lý checkpoint trong Quản lý tài khoản');
+  if (page.isClosed?.()) { const e = new Error('Tab Facebook đã đóng trước khi quét bài viết; hãy mở lại tài khoản và bấm Thử lại AI'); e.fatal = true; throw e; }
+  if (/\/(login|checkpoint|challenge|two_step_verification)(?:[/?]|$)/i.test(new URL(page.url()).pathname) || await page.locator('input[type="password"]').count()) { const e = new Error('Cần đăng nhập hoặc xử lý checkpoint trong Quản lý tài khoản'); e.fatal = true; throw e; }
 }
 
 // Runs inside the page, both while waiting and when collecting the snapshot.
