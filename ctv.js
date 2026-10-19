@@ -303,7 +303,7 @@
         const retryRow = element('div',undefined,'send-retry-row');
         if (profilePicker) retryRow.append(profilePicker);
         retryRow.append(retry);
-        actions.append(retryRow);
+        heading.append(retryRow);
       }
       info.append(renderSendLog(l));
       if (l.error) {
