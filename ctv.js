@@ -281,7 +281,7 @@
       if (category === 'duplicate') info.append(element('p','Đã có lần liên hệ trước; lượt này không gửi lại.','send-explanation'));
       const actions = element('div',undefined,'send-row-actions');
       if (/^\d+$/.test(l.assessment?.recipientId || '')) actions.append(link(`https://www.facebook.com/messages/t/${l.assessment.recipientId}`,'Mở Messenger ↗'));
-      actions.append(link(l.url,'Xem hồ sơ ↗')); info.append(actions);
+      actions.append(link(l.url,'Xem hồ sơ ↗')); heading.append(actions);
       if (l.retryAvailable) {
         let profilePicker = null;
         if (accounts.length > 1) {
@@ -321,12 +321,8 @@
   function renderSendSummary(c, leads) {
     const active = ['send_queued','sending'].includes(c.state), attention = leads.filter(l=>sendCategory(l)==='attention').length;
     const sent = leads.filter(l=>l.state==='sent').length, pending = leads.filter(l=>sendCategory(l)==='pending').length;
-    const title = active ? c.cancelled ? 'Đang dừng gửi' : 'Đang gửi tin nhắn' : c.state==='needs_attention' || attention ? 'Lượt gửi cần kiểm tra' : c.cancelled || c.state==='cancelled' ? 'Đã dừng theo yêu cầu' : 'Đã kết thúc lượt gửi';
-    $('sendSummary').className = 'send-summary' + (!active && (attention || c.state==='needs_attention') ? ' needs-attention' : !active && sent===leads.length && sent ? ' complete' : '');
-    $('sendSummaryTitle').textContent = title;
     show('sendCampaignDiagnostic',!!c.error && !leads.some(l=>cleanDiagnostic(l.error)===cleanDiagnostic(c.error)));
     $('sendCampaignError').textContent = cleanDiagnostic(c.error);
-    $('sendSummaryText').textContent = active ? 'Trạng thái tự cập nhật. Bạn có thể dừng các tin tiếp theo.' : attention ? `${attention} khách cần kiểm tra. ${pending ? `${pending} khách chưa được gửi. ` : ''}Xem hướng dẫn tại từng khách bên dưới.` : c.error ? 'Không thể hoàn tất lượt gửi. Kiểm tra tài khoản Facebook và trạng thái các khách bên dưới.' : `${sent}/${leads.length} tin được xác nhận đã gửi.${pending ? ` Còn ${pending} khách chưa gửi.` : ''}`;
     stats('sendStats',[['Đã gửi',sent,'good'],[active?'Chờ / đang gửi':'Chưa gửi',pending],['Cần kiểm tra',attention,attention?'warn':''],['Tổng đã duyệt',leads.length]]);
     $('sendNote').textContent = 'Bạn có thể thử lại từng khách. Với lượt chưa rõ kết quả, hãy kiểm tra Messenger trước để tránh gửi trùng. Nội dung đã duyệt được lưu bên dưới.';
     renderSendRows(c);
@@ -545,7 +541,6 @@
     show('messageEmpty',!hasMessages);show('messageResult',hasMessages);
     $('status3').textContent=a.send?(labels[c.state] || c.state):hasMessages?'Chờ duyệt gửi':'Đang khóa';
     $('status3').className='badge '+(c.state==='needs_attention'?'warn':c.state==='completed'?'good':hasMessages?'blue':'');
-    $('recipientSummary').textContent=`${a.analysis?.leadIds.length || 0} khách đã duyệt · Gửi từ ${accountName(c.profile)}`;
     show('reviewSelection',c.state==='message_review');show('prepareMessages',c.state==='message_review');
     show('messageComposer',!a.send);
     $('messageStageHint').textContent = a.send ? 'Theo dõi trạng thái và kiểm tra kết quả từng khách.' : 'Tích xác nhận bên dưới để duyệt gửi.';

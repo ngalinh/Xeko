@@ -136,14 +136,14 @@
         <div class="panel-heading"><div class="title-row"><span class="number">03</span><div><h2 id="title3">Gửi tin nhắn hàng loạt</h2><p id="messageStageHint" class="muted">Xem từng tin nhắn trước khi duyệt gửi.</p></div></div><span class="badge" id="status3">Đang khóa</span></div>
         <div id="messageEmpty" class="empty"><span class="empty-icon">✉</span><h3>Chưa có khách được duyệt gửi</h3><p>Duyệt kết quả đánh giá ở bước 2 để mở phần soạn tin nhắn.</p></div>
         <div id="messageResult" hidden>
-          <div class="recipient-info"><p id="recipientSummary"></p><button id="reviewSelection" class="text-button">← Chọn lại khách</button></div>
+          <button id="reviewSelection" class="text-button">← Chọn lại khách</button>
           <div id="messageComposer" class="message-composer"><div class="composer-heading"><h3>Soạn tin nhắn</h3><span class="muted">Cá nhân hóa cho từng khách</span></div>
           <label for="template">Nội dung tin nhắn</label><textarea id="template" rows="5" maxlength="2000">Chào {name}, mình có thông tin muốn chia sẻ với bạn. Bạn có muốn nhận thêm thông tin không?</textarea>
           <div class="template-meta"><span class="muted">Dùng <code>{name}</code> để chèn tên khách.</span><span id="messageLength" class="muted"></span></div>
           <div class="message-attachments"><label for="messageImages">Ảnh đính kèm (không bắt buộc)</label><button id="addMessageImages" type="button" class="secondary">+ Thêm ảnh</button><input id="messageImages" type="file" accept="image/jpeg,image/png,image/webp" multiple aria-describedby="imageHint" hidden><p id="imageHint" class="muted">Tối đa 5 ảnh JPG, PNG hoặc WebP · 2 MB/ảnh · tổng 4 MB. Chọn ảnh hoặc dán ảnh bằng Ctrl+V trong ô soạn. Ảnh và nội dung được gửi cùng nhau một lần.</p><div id="imagePreviews" class="attachment-grid" aria-live="polite"></div></div>
           <div class="composer-footer"><p id="previewHint" class="hint">Chưa có bản xem trước. Chưa thể gửi tin.</p><button id="prepareMessages" hidden>Xem trước tin nhắn →</button></div></div>
           <div id="sendResult" hidden>
-            <div id="sendSummary" class="send-summary" role="status" aria-live="polite"><div><h3 id="sendSummaryTitle"></h3><p id="sendSummaryText"></p></div><button id="stopSending" class="secondary">Dừng gửi</button></div>
+            <button id="stopSending" class="secondary">Dừng gửi</button>
             <details id="sendCampaignDiagnostic" class="send-diagnostic" hidden><summary>Chi tiết lỗi chiến dịch</summary><pre id="sendCampaignError"></pre></details>
             <div id="sendStats" class="stats"></div>
             <div class="send-list-heading"><h3>Kết quả từng khách</h3><div class="send-filters"><label class="sr-only" for="sendSearch">Tìm khách theo tên, link hoặc UID</label><input id="sendSearch" type="search" placeholder="Tìm tên, link hoặc UID…"><label class="sr-only" for="sendFilter">Lọc trạng thái gửi</label><select id="sendFilter"><option value="all">Tất cả trạng thái</option><option value="attention">Cần kiểm tra</option><option value="sent">Đã gửi</option><option value="pending">Chờ / đang gửi</option><option value="duplicate">Đã liên hệ trước</option></select></div></div>
