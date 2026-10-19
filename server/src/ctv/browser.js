@@ -512,7 +512,7 @@ async function waitForMessageComposer(page, box, cancelled, timeoutMs = 300000, 
   const deadline = Date.now() + timeoutMs;
   while (true) {
     if (cancelled()) throw new Error('Đã dừng trước khi gửi');
-    if (page.isClosed()) throw new Error('Tab gửi tin Facebook đã đóng; chưa gửi tin');
+    if (page.isClosed()) { const e = new Error('Tab gửi tin Facebook đã đóng; chưa gửi tin'); e.fatal = true; throw e; }
     const authPage = /\/(login|checkpoint|challenge|two_step_verification)(?:[/?]|$)/i.test(new URL(page.url()).pathname);
     const blockers = page.locator('input[type="password"]:visible, [role="dialog"]:visible, [aria-modal="true"]:visible');
     const blocked = authPage || (allowChatDialog
@@ -525,7 +525,7 @@ async function waitForMessageComposer(page, box, cancelled, timeoutMs = 300000, 
       if (await box.count() === 1 && await box.isVisible() && await box.isEditable()
         && await box.getAttribute('aria-label') === before) return;
     }
-    if (Date.now() >= deadline) throw new Error('Đã chờ 5 phút nhưng Messenger chưa sẵn sàng. Hãy hoàn tất mật khẩu/PIN hoặc xác minh trong tab Facebook đang được giữ mở. Chưa gửi tin.');
+    if (Date.now() >= deadline) { const e = new Error('Đã chờ 5 phút nhưng Messenger chưa sẵn sàng. Hãy hoàn tất mật khẩu/PIN hoặc xác minh trong tab Facebook đang được giữ mở. Chưa gửi tin.'); e.fatal = true; throw e; }
     await page.waitForTimeout(1000);
   }
 }

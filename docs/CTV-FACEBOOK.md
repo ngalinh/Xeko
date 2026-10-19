@@ -38,7 +38,7 @@ Sửa nội dung phải tạo và duyệt bản xem trước mới. **Chọn l�
 
 Nếu Facebook yêu cầu mật khẩu/PIN hoặc hiện hộp thoại, worker chờ tối đa 5 phút để bạn xử lý trực tiếp trong browser. Nút dừng vẫn hoạt động trong lúc chờ. Khi hết thời gian hoặc gặp lỗi, tab được giữ mở; hệ thống không tự thử gửi lại. Sau khi mở khóa, worker kiểm tra lại đúng hội thoại trước khi soạn/gửi.
 
-Trước Enter, worker xác minh ID người nhận, URL và link hồ sơ ở tiêu đề hội thoại, ô soạn duy nhất và không có bản nháp. Lưu dấu chống trùng trước khi gửi. Chỉ ghi `sent` khi thấy tin mới đúng nội dung cùng dấu Sent/Delivered. Nếu không xác nhận được, ghi `unconfirmed`, dừng và không tự gửi lại. Nút dừng không thu hồi tin đã gửi.
+Trước Enter, worker xác minh ID người nhận, URL và link hồ sơ ở tiêu đề hội thoại, ô soạn duy nhất và không có bản nháp. Lưu dấu chống trùng trước khi gửi. Chỉ ghi `sent` khi thấy tin mới đúng nội dung cùng dấu Sent/Delivered. Nếu không xác nhận được, ghi `unconfirmed` và không tự gửi lại cho khách đó, nhưng vẫn gửi tiếp các khách còn lại trong đợt; chỉ dừng cả đợt khi gặp lỗi phiên Facebook thật sự (chưa đăng nhập, checkpoint, tab đã đóng hoặc quá 5 phút chờ Messenger mở khóa). Nút dừng không thu hồi tin đã gửi.
 
 ## Cấu hình và vận hành
 
