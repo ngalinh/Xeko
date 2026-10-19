@@ -321,12 +321,8 @@
   function renderSendSummary(c, leads) {
     const active = ['send_queued','sending'].includes(c.state), attention = leads.filter(l=>sendCategory(l)==='attention').length;
     const sent = leads.filter(l=>l.state==='sent').length, pending = leads.filter(l=>sendCategory(l)==='pending').length;
-    const title = active ? c.cancelled ? 'Đang dừng gửi' : 'Đang gửi tin nhắn' : c.state==='needs_attention' || attention ? 'Lượt gửi cần kiểm tra' : c.cancelled || c.state==='cancelled' ? 'Đã dừng theo yêu cầu' : 'Đã kết thúc lượt gửi';
-    $('sendSummary').className = 'send-summary' + (!active && (attention || c.state==='needs_attention') ? ' needs-attention' : !active && sent===leads.length && sent ? ' complete' : '');
-    $('sendSummaryTitle').textContent = title;
     show('sendCampaignDiagnostic',!!c.error && !leads.some(l=>cleanDiagnostic(l.error)===cleanDiagnostic(c.error)));
     $('sendCampaignError').textContent = cleanDiagnostic(c.error);
-    $('sendSummaryText').textContent = active ? 'Trạng thái tự cập nhật. Bạn có thể dừng các tin tiếp theo.' : attention ? `${attention} khách cần kiểm tra. ${pending ? `${pending} khách chưa được gửi. ` : ''}Xem hướng dẫn tại từng khách bên dưới.` : c.error ? 'Không thể hoàn tất lượt gửi. Kiểm tra tài khoản Facebook và trạng thái các khách bên dưới.' : `${sent}/${leads.length} tin được xác nhận đã gửi.${pending ? ` Còn ${pending} khách chưa gửi.` : ''}`;
     stats('sendStats',[['Đã gửi',sent,'good'],[active?'Chờ / đang gửi':'Chưa gửi',pending],['Cần kiểm tra',attention,attention?'warn':''],['Tổng đã duyệt',leads.length]]);
     $('sendNote').textContent = 'Bạn có thể thử lại từng khách. Với lượt chưa rõ kết quả, hãy kiểm tra Messenger trước để tránh gửi trùng. Nội dung đã duyệt được lưu bên dưới.';
     renderSendRows(c);
