@@ -28,6 +28,18 @@ function conversationHeaderLinks(root) {
 function matchesRecipient(link, id, target) {
   try { const uid = recipientId(link); return uid ? uid === id : profileUrl(link) === target; } catch { return false; }
 }
+// Runs in the page: only used to describe a timed-out match for diagnostics (never
+// for the pass/fail decision itself), so a future failure's "Chi tiết kỹ thuật" shows
+// what Facebook actually rendered instead of just "no match found".
+function conversationHeaderDebug(root) {
+  const boxes = [...root.querySelectorAll('[contenteditable="true"][role="textbox"]')]
+    .filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden'
+      && e.closest('[role="dialog"], [role="main"], [role="complementary"]') === root);
+  const allLinks = [...root.querySelectorAll('a[href]')]
+    .filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden')
+    .map(e => e.href);
+  return { role: root.getAttribute('role'), composerCount: boxes.length, allLinkCount: allLinks.length, sampleLinks: allLinks.slice(0, 3) };
+}
 // Runs in the page: Facebook shows this preview instead of a normal chat window
 // when the sending account has never been in a conversation with this person.
 // Confirmed via live DOM inspection that this preview sits outside every
@@ -90,7 +102,20 @@ async function selectRecipientConversation(page, id, target, cancelled, report =
     }
     await page.waitForTimeout(1000);
   }
-  throw new Error('Không xác minh được hồ sơ ở tiêu đề hội thoại của người nhận; chưa gửi tin. Có thể khách đang ở mục "Tin nhắn chờ" vì tài khoản gửi chưa từng nhắn/kết bạn với khách — mở Messenger, chấp nhận hoặc bắt đầu hội thoại thủ công trước rồi thử gửi lại.');
+  let debugSummary = '';
+  try {
+    const roots = page.locator(CHAT_ROOT), details = [];
+    for (let i = 0, n = await roots.count(); i < n; i++) {
+      const root = roots.nth(i);
+      if (!await root.isVisible()) continue;
+      const info = await root.evaluate(conversationHeaderDebug);
+      if (info && typeof info === 'object') details.push(info);
+    }
+    if (details.length) debugSummary = ` [Chẩn đoán: ${JSON.stringify(details.slice(0, 3))}]`;
+  } catch { /* chỉ phục vụ chẩn đoán; lỗi ở đây không được che mất lỗi chính */ }
+  const message = 'Không xác minh được hồ sơ ở tiêu đề hội thoại của người nhận; chưa gửi tin. Có thể khách đang ở mục "Tin nhắn chờ" vì tài khoản gửi chưa từng nhắn/kết bạn với khách — mở Messenger, chấp nhận hoặc bắt đầu hội thoại thủ công trước rồi thử gửi lại.' + debugSummary;
+  report('conversation_header_debug', debugSummary || '(không lấy được chẩn đoán khung chat)');
+  throw new Error(message);
 }
 
 async function assertSession(page) {

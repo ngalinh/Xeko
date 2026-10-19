@@ -212,7 +212,7 @@
     return l.selectionBlockedReason || l.blockedReason || v?.gateReason || 'Hồ sơ chưa đủ điều kiện để chọn.';
   }
   const urlsFrom = text => text.match(/https?:\/\/[^\s,"'<>]+/gi) || [];
-  const canPick = l => l.state !== 'skipped' && l.assessment?.criteriaVersion === 'us-website-products-v2' && !(l.selectionBlockedReason ?? l.blockedReason);
+  const canPick = l => l.state !== 'skipped' && (l.assessment?.criteriaVersion === 'us-website-products-v2' || l.assessment?.provider === 'none') && !(l.selectionBlockedReason ?? l.blockedReason);
   const canRetry = c => c?.workflowVersion === 2 && c.approvals?.import && c.leads.some(l => l.state !== 'skipped') && !c.approvals.send && ['analysis_review','message_review','interrupted','needs_attention'].includes(c.state);
   const accountName = key => accounts.find(a => a.key === key)?.name || key;
   function notice(message = '', error = false) { $('notice').textContent = message; $('notice').className = 'notice' + (error ? ' error' : ''); show('notice', !!message); }
