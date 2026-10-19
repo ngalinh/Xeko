@@ -709,7 +709,6 @@
     if(!selected)return;
     const visible=new Set(selected.leads.filter(matchesAnalysis).map(l=>l.id));
     for(const row of $('analysisRows').children) row.hidden=!visible.has(row.dataset.leadId);
-    $('analysisFilterCount').textContent=`Hiển thị ${visible.size}/${selected.leads.length} khách`;
     show('analysisFilterEmpty',visible.size===0);
   }
   $('analysisSearch').oninput=$('analysisFilter').onchange=()=>{applyAnalysisFilters();updateControls();};
