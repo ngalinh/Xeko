@@ -249,7 +249,10 @@ class CtvService {
           lead.state = lead.assessment.eligible ? 'qualified' : 'review'; this.save();
         } catch (e) {
           onProgress({ stage: c.cancelled ? 'cancelled' : 'error', message: e.message });
-          lead.state = 'review'; lead.error = e.message; c.error = e.message; this.save(); break;
+          lead.state = 'review'; lead.error = e.message; c.error = e.message; this.save();
+          // Errors scoped to one profile (slow load, bad link) must not block the
+          // rest of the batch; only a broken Facebook session is worth stopping for.
+          if (e.fatal) break;
         }
         if (lead !== c.leads[c.leads.length - 1]) await this.wait(c, 2);
       }
