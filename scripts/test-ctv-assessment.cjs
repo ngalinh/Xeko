@@ -8,14 +8,16 @@ const context = {element: (tag, text, cls) => ({tag, text, cls, children:[], app
 vm.createContext(context);
 vm.runInContext(source.slice(source.indexOf('  function renderAssessment('), source.indexOf('  const urlsFrom')), context);
 
-test('scan log shows elapsed time and preserves expansion on polling', () => {
+test('scan log stays collapsed by default; elapsed time only shows inside the expandable log', () => {
   const lead = {id:'lead-1', scanLog:[{elapsedMs:1250, message:'<img onerror=alert(1)>'}]};
   const rendered = context.renderScanLog(lead);
-  assert.equal(rendered.children[0].text, '1s · <img onerror=alert(1)>');
-  const details = rendered.children[1];
+  assert.equal(rendered.children.length, 1);
+  const details = rendered.children[0];
   assert.equal(details.open, false);
+  const list = details.children[1];
+  assert.equal(list.children[0].text, '1s · <img onerror=alert(1)>');
   details.open = true; details.ontoggle();
-  assert.equal(context.renderScanLog(lead).children[1].open, true);
+  assert.equal(context.renderScanLog(lead).children[0].open, true);
   assert.equal(context.renderScanLog({id:'legacy'}).children.length, 0);
 });
 test('preview defaults to a seller verdict and closed native details containing five sections', () => {
@@ -26,6 +28,15 @@ test('preview defaults to a seller verdict and closed native details containing 
   assert.equal(details.children[0].tag, 'summary');
   assert.deepEqual(details.children[0].children.map(n=>n.text), ['Xem chi tiết','Thu gọn']);
   assert.equal(details.children[1].children.length, 5);
+});
+test('preview merges the scan log into the same details so each row shows one expand toggle', () => {
+  const lead = {id:'lead-2', scanLog:[{elapsedMs:4000, message:'Đã lấy ID người nhận'}]};
+  const preview = context.renderAssessmentPreview({sellerUS:'yes',type:'page',confidence:1}, undefined, lead);
+  const details = preview.children[1];
+  assert.equal(details.children.length, 3);
+  const scanLog = details.children[2];
+  assert.equal(scanLog.children[0].tag, 'details');
+  assert.equal(scanLog.children[0].children[0].text, 'Nhật ký quét (1)');
 });
 test('unselectable Fanpage explains the personal-profile gate, not seller confidence', () => {
   assert.match(context.selectionExplanation({assessment:{eligible:false,type:'page',sellerUS:'yes',confidence:1}}), /Fanpage.*chỉ cho chọn profile cá nhân/);
