@@ -281,7 +281,7 @@
       if (category === 'duplicate') info.append(element('p','Đã có lần liên hệ trước; lượt này không gửi lại.','send-explanation'));
       const actions = element('div',undefined,'send-row-actions');
       if (/^\d+$/.test(l.assessment?.recipientId || '')) actions.append(link(`https://www.facebook.com/messages/t/${l.assessment.recipientId}`,'Mở Messenger ↗'));
-      actions.append(link(l.url,'Xem hồ sơ ↗')); info.append(actions);
+      actions.append(link(l.url,'Xem hồ sơ ↗')); heading.append(actions);
       if (l.retryAvailable) {
         let profilePicker = null;
         if (accounts.length > 1) {

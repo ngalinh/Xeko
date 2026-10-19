@@ -155,7 +155,7 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 .send-customer,.send-identity{min-width:0}.send-row-heading{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.send-avatar{display:grid;place-items:center;flex-shrink:0;width:38px;height:38px;border-radius:12px;background:#edf3ff;color:#416aaa;font-weight:700}
 .send-identity{flex:1}.send-identity>a{font-size:13px;font-weight:700;text-decoration:none;overflow-wrap:anywhere}.send-identity small{display:block;font-size:10px;color:var(--muted);margin-top:4px;overflow-wrap:anywhere}
 .send-row .send-explanation{margin:14px 0 10px;line-height:1.8;color:#66738a;font-size:12px}
-.send-row-actions{display:flex;flex-wrap:wrap;gap:18px;margin-top:14px}.send-row-actions a{font-size:11px;font-weight:600;text-decoration:none}.send-row-actions a:hover{text-decoration:underline}
+.send-row-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:0}.send-row-actions a{font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap}.send-row-actions a:hover{text-decoration:underline}
 /* Keep account and send controls together beside the customer heading. */
 .send-retry-row{display:flex;gap:10px;align-items:center;flex-wrap:nowrap;margin-left:auto;max-width:100%;min-width:0}
 .send-retry-row select{flex:1;width:160px;min-width:0;max-width:240px;min-height:32px;padding:6px 10px;font-size:12px}
