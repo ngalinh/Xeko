@@ -34,7 +34,7 @@ function fixture({fullPage = false, wrongHeader = false, notFriends = false, red
       if (missingButton) throw Error('Message button timeout');
       return {asElement: () => ({click: async () => {actions.push('click Message'); if (fullPage) url = 'https://www.facebook.com/messages/t/123';}}), dispose: async () => {}};
     },
-    locator: selector => selector.startsWith('[data-xeko') || selector === 'body' ? conversation : selector === '[role="dialog"], [role="main"], [role="complementary"]' ? {count:async()=>1,nth:()=>conversation} : {count: async () => 0, evaluateAll: async () => false},
+    locator: selector => selector.startsWith('[data-xeko') || selector === 'body' ? conversation : selector === '[role="dialog"], [role="main"], [role="complementary"], [data-xeko-chat-root]' ? {count:async()=>1,nth:()=>conversation} : {count: async () => 0, evaluateAll: async () => false},
   };
   return {page, actions, submit: () => actions.push('reserve')};
 }
