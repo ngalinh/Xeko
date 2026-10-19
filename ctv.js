@@ -190,7 +190,6 @@
     const log = element('div', undefined, 'scan-log');
     const entries = lead[field] || [], latest = entries.at(-1);
     if (!latest) return log;
-    log.append(element('p', `${Math.round(latest.elapsedMs / 1000)}s · ${latest.message}`, 'muted'));
     const details = element('details');
     details.open = openSet.has(lead.id);
     details.ontoggle = () => { if (details.open) openSet.add(lead.id); else openSet.delete(lead.id); };
