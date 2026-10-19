@@ -291,7 +291,7 @@
           for (const a of accounts) { const option = element('option',a.name || a.key); option.value = a.key; profilePicker.append(option); }
           profilePicker.value = c.profile;
         }
-        const retry = element('button',category === 'attention' ? '↻ Thử gửi lại' : 'Gửi khách này','secondary');
+        const retry = element('button',category === 'attention' ? '↻ Thử gửi lại' : 'Gửi khách này',category === 'attention' ? 'secondary retry-send' : 'secondary');
         retry.type='button';retry.dataset.retryLead=l.id;retry.disabled=busy || uncertain || ACTIVE.includes(c.state);
         if (profilePicker) profilePicker.disabled = retry.disabled;
         retry.onclick=()=>{
@@ -300,8 +300,10 @@
           const profile = profilePicker?.value;
           action('retry-send',{leadId:l.id,previewToken:c.messagePreview.token,requestId:retryRequestId(),confirmedNotReceived:!!l.retryNeedsConfirmation,...(profile && profile !== c.profile ? {profile} : {})});
         };
-        if (profilePicker) actions.append(profilePicker);
-        actions.append(retry);
+        const retryRow = element('div',undefined,'send-retry-row');
+        if (profilePicker) retryRow.append(profilePicker);
+        retryRow.append(retry);
+        info.append(retryRow);
       }
       info.append(renderSendLog(l));
       if (l.error) {

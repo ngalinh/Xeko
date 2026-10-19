@@ -156,6 +156,14 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 .send-identity{flex:1}.send-identity>a{font-size:13px;font-weight:700;text-decoration:none;overflow-wrap:anywhere}.send-identity small{display:block;font-size:10px;color:var(--muted);margin-top:4px;overflow-wrap:anywhere}
 .send-row .send-explanation{margin:14px 0 10px;line-height:1.8;color:#66738a;font-size:12px}
 .send-row-actions{display:flex;flex-wrap:wrap;gap:18px;margin-top:14px}.send-row-actions a{font-size:11px;font-weight:600;text-decoration:none}.send-row-actions a:hover{text-decoration:underline}
+/* Account picker and retry button share one row; retry matches the Thử lại AI pill. */
+.send-retry-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.send-retry-row select{flex:1;width:auto;min-width:150px;max-width:240px}
+.send-retry-row button.retry-send{flex-shrink:0;min-height:32px;padding:6px 14px;border:1px solid #bfdbfe;border-radius:6px;background:#eff6ff;color:#1e3a8a;font-size:12px;font-weight:600;line-height:18px;white-space:nowrap;box-shadow:none;transition:background .15s,border-color .15s}
+.send-retry-row button.retry-send:hover:not(:disabled){background:#dbeafe;border-color:#93c5fd}
+.send-retry-row button.retry-send:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+.send-retry-row button.retry-send:active:not(:disabled){background:#bfdbfe;border-color:#60a5fa}
+@media(pointer:coarse){.send-retry-row button.retry-send{min-height:44px}}
 .send-diagnostic{margin-top:14px;padding-top:6px;border-top:1px dashed #e2e8f0}.send-diagnostic summary{font-size:11px;color:#758399}.send-diagnostic pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;font-size:11px;line-height:1.7;padding:12px;background:#f5f7fb;border-radius:8px;color:#53657b;margin:4px 0 0}
 .send-empty{text-align:center;padding:28px;border:1px dashed #dce4ef;border-radius:12px;color:var(--muted);font-size:13px}#sendNote{margin-top:14px;font-size:11px}
 @media(max-width:600px){#sendStats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#sendStats .stat{padding:12px}.send-summary{padding:15px;align-items:flex-start;flex-direction:column}.send-summary h3{font-size:15px}.send-list-heading{align-items:stretch;flex-direction:column}.send-filters{flex-direction:column}#sendSearch{max-width:none}#sendFilter{width:100%}.send-row{padding:14px}.send-row-heading{gap:8px;flex-wrap:wrap}.send-row-heading .badge{margin-left:auto}.send-avatar{width:32px;height:32px}.send-identity{min-width:100px}.message-composer{padding:15px}.composer-footer{align-items:stretch;flex-direction:column}.composer-footer button{width:100%}.message-archive{padding:4px 12px}}

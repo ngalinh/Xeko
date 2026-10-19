@@ -291,11 +291,22 @@ test('cancel between recipients stops remaining batch',async t=>{
   const {s,sent}=setup(t);const c=await analyzed(s);const token=prepared(s,c);s.pause=async()=>{s.stop(c.id,'owner');};
   s.sendApproved(c.id,'owner',token);await settle(s);assert.equal(sent.length,1);assert.equal(c.state,'cancelled');
 });
-test('unconfirmed submission reserves recipient durably and stops the batch',async t=>{
+test('unconfirmed submission reserves recipient durably, and the batch still attempts the rest',async t=>{
   const {s,dir,browser}=setup(t,{send:async(_,a,m,reserve)=>{reserve();throw new Error('Lost response after Enter');}});
-  const c=await analyzed(s);s.sendApproved(c.id,'owner',prepared(s,c));await settle(s);assert.equal(c.leads[0].state,'unconfirmed');assert.equal(c.state,'needs_attention');
-  const restored=new CtvService({file:path.join(dir,'campaigns.json'),browser,pause:async()=>{}});assert.ok(restored.data.reservations['123']);
-  const d=await analyzed(restored);assert.equal(d.previouslyContacted.length,1);assert.ok(d.leads.every(l=>l.assessment.recipientId!=='123'));
+  const c=await analyzed(s);s.sendApproved(c.id,'owner',prepared(s,c));await settle(s);
+  assert.equal(c.leads[0].state,'unconfirmed');assert.equal(c.leads[1].state,'unconfirmed');assert.equal(c.state,'needs_attention');
+  const restored=new CtvService({file:path.join(dir,'campaigns.json'),browser,pause:async()=>{}});
+  assert.ok(restored.data.reservations['123']);assert.ok(restored.data.reservations['456']);
+  const d=restored.create(input(),'owner');assert.equal(d.previouslyContacted.length,2);assert.equal(d.leads.length,0);
+});
+test('a send error for one lead does not stop the rest of the batch, but a fatal session error does',async t=>{
+  const {s,browser}=setup(t,{send:async(_,a)=>{if(a.recipientId==='123')throw new Error('Không còn xác minh được đúng khách qua tên hiển thị trong bản xem trước; đã dừng');return {state:'sent'};}});
+  const c=await analyzed(s);s.sendApproved(c.id,'owner',prepared(s,c));await settle(s);
+  assert.equal(c.leads[0].state,'review');assert.match(c.leads[0].error,/Không còn xác minh được/);
+  assert.equal(c.leads[1].state,'sent');assert.equal(c.state,'needs_attention');
+  const {s:s2,browser:browser2}=setup(t,{send:async(_,a)=>{const e=new Error('Tab gửi tin Facebook đã đóng; chưa gửi tin');e.fatal=true;throw e;}});
+  const d=await analyzed(s2);s2.sendApproved(d.id,'owner',prepared(s2,d));await settle(s2);
+  assert.equal(d.leads[0].state,'review');assert.equal(d.leads[1].state,'qualified');assert.equal(d.state,'needs_attention');
 });
 test('restart preserves review stage and approved draft but cannot resume queued sends',async t=>{
   const {s,dir,browser}=setup(t);const c=await analyzed(s);prepared(s,c);const token=c.messagePreview.token;

@@ -386,11 +386,16 @@ class CtvService {
           lead.state = 'sending'; this.save();
         }, () => c.cancelled, c.messagePreview.images || [], onProgress), { keepOnError: true });
         lead.state = result.state; lead.error = result.reason; this.save();
-        if (result.state !== 'sent') { c.state = 'needs_attention'; c.error = result.reason; this.save(); return; }
+        // An unconfirmed send is ambiguous only for this lead's conversation;
+        // the rest of the batch still needs sending.
+        if (result.state !== 'sent') c.error = result.reason;
       } catch (e) {
         onProgress({ stage: c.cancelled ? 'cancelled' : 'error', message: e.message });
-        lead.state = lead.state === 'sending' ? 'unconfirmed' : 'review'; lead.error = e.message;
-        c.state = c.cancelled && lead.state !== 'unconfirmed' ? 'cancelled' : 'needs_attention'; c.error = e.message; this.save(); return;
+        lead.state = lead.state === 'sending' ? 'unconfirmed' : 'review'; lead.error = e.message; c.error = e.message;
+        if (c.cancelled) { c.state = lead.state !== 'unconfirmed' ? 'cancelled' : 'needs_attention'; this.save(); return; }
+        this.save();
+        // Only a broken Facebook session is worth stopping the whole batch for.
+        if (e.fatal) { c.state = 'needs_attention'; this.save(); return; }
       }
       if (m !== messages[messages.length - 1]) await this.wait(c, 5);
     }
