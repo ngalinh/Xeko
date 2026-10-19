@@ -4,6 +4,10 @@ const { chromium } = require('playwright');
 const { send } = require('./src/ctv/browser');
 
 const cases = [
+  { at: 'text', upload: 'input', roleless: true },
+  { at: 'open', upload: 'input', roleless: true, historyOnly: true },
+  { at: 'text', upload: 'input', roleless: true, replace: true },
+  { at: 'open', upload: 'input', roleless: true, duplicate: true },
   { at: 'open', upload: 'input' }, { at: 'attach', upload: 'input' },
   { at: 'text', upload: 'input' }, { at: 'text', upload: 'chooser' },
   { at: 'paste', upload: 'clipboard' }, { at: 'text', upload: 'input', fullPage: true },
@@ -33,7 +37,22 @@ for (const options of cases) test('recipient stays pinned with another popup: ' 
         const chat = options.fullPage ? document.querySelector('main') : document.createElement('section');
         chat.id = 'target'; chat.setAttribute('role', options.fullPage ? 'main' : 'dialog');
         chat.innerHTML = '<h2><a href="https://www.facebook.com/customer">Khách</a></h2><div id="history" role="log"></div><div id="photos"></div><div contenteditable="true" data-lexical-editor="true" role="textbox" aria-placeholder="Aa" aria-label="Nhắn tin cho Khách"></div>';
+        if (options.roleless) {
+          chat.removeAttribute('role');
+          // Avatar link is a sibling of the title, as in the supplied Facebook DOM.
+          chat.querySelector('h2 a').href = 'https://www.facebook.com/123/';
+          chat.querySelector('h2').before(chat.querySelector('h2 a'));
+          chat.querySelector('h2').textContent = 'Khách';
+          const close = document.createElement('button'); close.setAttribute('aria-label', 'Đóng đoạn chat'); chat.prepend(close);
+          const region = document.createElement('div'); region.setAttribute('role', 'region');
+          chat.append(region); region.append(chat.querySelector('[contenteditable]'));
+        }
         if (!options.fullPage) document.body.append(chat);
+        if (options.historyOnly) {
+          chat.querySelector('#history').append(chat.querySelector('a'));
+          // A correct link on the background profile must not identify this popup.
+          document.querySelector('main').insertAdjacentHTML('beforeend', '<a href="/123/">Khách</a>');
+        }
         const box = chat.querySelector('[contenteditable]'); let photos = [];
         function addPhoto(blob) {
           const img = new Image(); img.src = URL.createObjectURL(blob); img.style = 'width:120px;height:120px';
@@ -49,7 +68,7 @@ for (const options of cases) test('recipient stays pinned with another popup: ' 
           const button = document.createElement('button'); button.textContent = 'Attach a photo or video';
           button.onclick = () => addInput().click(); chat.append(button);
         }
-        box.oninput = () => { if(box.innerText) { window.events.push('target text'); if(options.at === 'text') popup(); if(options.replace)chat.querySelector('h2 a').href='https://www.facebook.com/999'; } };
+        box.oninput = () => { if(box.innerText) { window.events.push('target text'); if(options.at === 'text') popup(); if(options.replace)chat.querySelector('a').href='https://www.facebook.com/999'; } };
         box.onkeydown = async e => {
           if(e.key.toLowerCase() === 'v' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault(); window.events.push('target paste');
@@ -71,8 +90,8 @@ for (const options of cases) test('recipient stays pinned with another popup: ' 
     const dataUrl = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 120; c.height = 120; c.getContext('2d').fillRect(0,0,120,120); return c.toDataURL(); });
     let reserved = 0;
     const run = () => send(page, { url: 'https://www.facebook.com/customer', recipientId: '123' }, 'Hello', () => { reserved++; }, () => false, [{ name: 'photo.png', dataUrl }]);
-    if(options.replace || options.duplicate || options.ignoredPaste){
-      await assert.rejects(run(),options.replace ? /tiêu đề hội thoại/ : options.duplicate ? /nhiều khung chat/ : /chưa hiển thị ảnh vừa dán/);
+    if(options.replace || options.duplicate || options.ignoredPaste || options.historyOnly){
+      await assert.rejects(run(),options.replace || options.historyOnly ? /tiêu đề hội thoại/ : options.duplicate ? /nhiều khung chat/ : /chưa hiển thị ảnh vừa dán/);
       assert.equal(reserved,0);assert.ok(!(await page.evaluate(()=>window.events)).some(event=>event.includes('Enter') || event.startsWith('WRONG')));
       return;
     }

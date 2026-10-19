@@ -10,19 +10,45 @@ const { normalized } = require('./caption-review');
 // Messenger's Lexical composer label varies with recipient and language
 // (e.g. "Write to Linh Thảo US"). This selector is used only inside a verified chat.
 const COMPOSER = '[contenteditable="true"][role="textbox"]:visible';
-const CHAT_ROOT = '[role="dialog"], [role="main"], [role="complementary"]';
+const CHAT_ROOT = '[role="dialog"], [role="main"], [role="complementary"], [data-xeko-chat-root]';
+
+// Discover role-less Messenger popups without accepting a page-wide ancestor.
+// Mark only the smallest container with one composer, one history and chat controls.
+function discoverRecipientPopups() {
+  const visible = e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden';
+  const composer = '[contenteditable="true"][role="textbox"]';
+  for (const box of document.querySelectorAll(composer)) {
+    if (!visible(box) || box.closest('[role="dialog"], [role="complementary"]')) continue;
+    for (let root = box.parentElement; root && root !== document.body; root = root.parentElement) {
+      if (root.matches('main, [role="main"]')) break;
+      if ([...root.querySelectorAll(composer)].filter(visible).length !== 1) break;
+      const logs = [...root.querySelectorAll('[role="log"]')].filter(visible);
+      const close = [...root.querySelectorAll('[aria-label="Đóng đoạn chat"], [aria-label="Close chat"]')].some(visible);
+      const heading = [...root.querySelectorAll('h2, [role="heading"]')].some(e => visible(e) && !e.closest('[role="log"], [role="region"]'));
+      if (logs.length === 1 && close && heading) {
+        root.setAttribute('data-xeko-chat-root', '');
+        break;
+      }
+    }
+  }
+}
 
 // Only the header of the composer's nearest chat container can identify it.
 function conversationHeaderLinks(root) {
   const boxes = [...root.querySelectorAll('[contenteditable="true"][role="textbox"]')]
     .filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden'
-      && e.closest('[role="dialog"], [role="main"], [role="complementary"]') === root);
+      && e.closest('[role="dialog"], [role="main"], [role="complementary"], [data-xeko-chat-root]') === root);
   if (boxes.length !== 1) return [];
   const floating = root.getAttribute('role') !== 'main';
+  const roleless = root.hasAttribute('data-xeko-chat-root');
+  const logs = roleless ? [...root.querySelectorAll('[role="log"]')] : [];
+  if (roleless && logs.length !== 1) return [];
   return [...root.querySelectorAll(floating ? 'a[href]' : '[role="banner"] a[href], h1 a[href], h2 a[href], [role="heading"] a[href]')]
     .filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden'
       && !e.closest('[role="log"], [role="row"], [role="grid"], [role="article"], article')
-      && e.closest('[role="dialog"], [role="main"], [role="complementary"]') === root)
+      && (!roleless || (!e.closest('[role="region"]')
+        && !!(e.compareDocumentPosition(logs[0]) & Node.DOCUMENT_POSITION_FOLLOWING)))
+      && e.closest('[role="dialog"], [role="main"], [role="complementary"], [data-xeko-chat-root]') === root)
     .map(e => e.href);
 }
 function matchesRecipient(link, id, target) {
@@ -34,7 +60,7 @@ function matchesRecipient(link, id, target) {
 function conversationHeaderDebug(root) {
   const boxes = [...root.querySelectorAll('[contenteditable="true"][role="textbox"]')]
     .filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden'
-      && e.closest('[role="dialog"], [role="main"], [role="complementary"]') === root);
+      && e.closest('[role="dialog"], [role="main"], [role="complementary"], [data-xeko-chat-root]') === root);
   const allLinks = [...root.querySelectorAll('a[href]')]
     .filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden')
     .map(e => e.href);
@@ -77,6 +103,7 @@ async function selectRecipientConversation(page, id, target, cancelled, report =
   for (let attempt = 0; attempt < 30; attempt++) {
     if (cancelled()) throw new Error('Đã dừng trước khi gửi');
     if (attempt > 0 && attempt % 5 === 0) report('conversation_waiting', `Vẫn đang tìm đúng khung chat của khách… (${attempt}s)`);
+    await page.evaluate(discoverRecipientPopups);
     const previewToken = randomUUID();
     const previewText = await page.evaluate(pageNotFriendsPreview, previewToken);
     if (previewText !== null) {
