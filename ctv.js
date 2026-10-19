@@ -174,7 +174,7 @@
     };
     box.append(open, form); return box;
   }
-  function renderAssessmentPreview(v, leadId) {
+  function renderAssessmentPreview(v, leadId, lead) {
     const preview = element('div');
     const seller = {yes:'Có',no:'Không'}[v.sellerUS] || 'Chưa đủ dữ liệu';
     preview.append(element('p', v.provider === 'none' ? 'Chỉ gửi, không quét nội dung' : ['keywords','myjoy'].includes(v.provider) ? v.suggestion || 'Quét caption — cần kiểm tra' : 'Seller bán sản phẩm trên website Mỹ: ' + seller, 'seller-verdict'));
@@ -183,6 +183,7 @@
     const summary = element('summary');
     summary.append(element('span', 'Xem chi tiết', 'expand-label'), element('span', 'Thu gọn', 'collapse-label'));
     details.append(summary, renderAssessment(v, leadId));
+    if (lead) details.append(renderScanLog(lead));
     preview.append(details);
     return preview;
   }
@@ -506,8 +507,8 @@
           uidCell.append(findUid);
         }
       }
-      if(v) analysis.append(renderAssessmentPreview(v, l.id));
-      else analysis.append(element('p',l.error || 'Chưa có kết quả','muted'));
+      if(v) analysis.append(renderAssessmentPreview(v, l.id, l));
+      else { analysis.append(element('p',l.error || 'Chưa có kết quả','muted')); analysis.append(renderScanLog(l)); }
       if (c.assessmentMode === 'myjoy') {
         const attempts = l.aiUsageAttempts || [];
         if (!attempts.length) analysis.append(element('p', 'Usage MyJoy: Chưa có thông tin usage', 'muted'));
@@ -516,7 +517,6 @@
           analysis.append(element('p', `Usage MyJoy · ${usage.backendId} · Lượt ${index + 1}: ${myjoyUsageText(usage)}${suffix}`, 'muted'));
         });
       }
-      analysis.append(renderScanLog(l));
       if(v && !canPick(l)) {
         const reason = selectionExplanation(l);
         const note = element('p', reason, 'selection-explanation');

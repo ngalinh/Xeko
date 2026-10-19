@@ -29,6 +29,15 @@ test('preview defaults to a seller verdict and closed native details containing 
   assert.deepEqual(details.children[0].children.map(n=>n.text), ['Xem chi tiết','Thu gọn']);
   assert.equal(details.children[1].children.length, 5);
 });
+test('preview merges the scan log into the same details so each row shows one expand toggle', () => {
+  const lead = {id:'lead-2', scanLog:[{elapsedMs:4000, message:'Đã lấy ID người nhận'}]};
+  const preview = context.renderAssessmentPreview({sellerUS:'yes',type:'page',confidence:1}, undefined, lead);
+  const details = preview.children[1];
+  assert.equal(details.children.length, 3);
+  const scanLog = details.children[2];
+  assert.equal(scanLog.children[0].tag, 'details');
+  assert.equal(scanLog.children[0].children[0].text, 'Nhật ký quét (1)');
+});
 test('unselectable Fanpage explains the personal-profile gate, not seller confidence', () => {
   assert.match(context.selectionExplanation({assessment:{eligible:false,type:'page',sellerUS:'yes',confidence:1}}), /Fanpage.*chỉ cho chọn profile cá nhân/);
   assert.equal(context.selectionExplanation({assessment:{eligible:true},selectionBlockedReason:'Đã liên hệ'}), 'Đã liên hệ');
