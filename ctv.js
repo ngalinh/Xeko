@@ -45,6 +45,7 @@
   Object.assign(labels, {uid_queued:'Chờ tìm UID',resolving_uid:'Đang tìm UID'});
   let selected = null, epoch = 0, timer = null, busy = false, uncertain = false, retries = 0;
   let picks = new Set(), accounts = [], campaigns = [];
+  let sendPicks = new Set(), bulkSending = false;
   let draftImages = [], readingImages = false;
   let prepareTimer = null;
   let myjoyLoading = false;
@@ -214,6 +215,7 @@
   const urlsFrom = text => text.match(/https?:\/\/[^\s,"'<>]+/gi) || [];
   const canPick = l => l.state !== 'skipped' && (l.assessment?.criteriaVersion === 'us-website-products-v2' || l.assessment?.provider === 'none') && !(l.selectionBlockedReason ?? l.blockedReason);
   const canRetry = c => c?.workflowVersion === 2 && c.approvals?.import && c.leads.some(l => l.state !== 'skipped') && !c.approvals.send && ['analysis_review','message_review','interrupted','needs_attention'].includes(c.state);
+  const canBulkSend = l => l.retryAvailable && !l.retryNeedsConfirmation;
   const accountName = key => accounts.find(a => a.key === key)?.name || key;
   function notice(message = '', error = false) { $('notice').textContent = message; $('notice').className = 'notice' + (error ? ' error' : ''); show('notice', !!message); }
   async function api(url, method = 'GET', body) {
@@ -241,6 +243,11 @@
     if (['unconfirmed','review','failed'].includes(lead.state) || lead.error) return 'attention';
     return 'pending';
   }
+  function matchesSend(lead) {
+    const query = $('sendSearch').value.trim().toLocaleLowerCase('vi'), filter = $('sendFilter').value;
+    return (filter === 'all' || sendCategory(lead) === filter)
+      && [lead.assessment?.name,lead.url,lead.assessment?.recipientId].join(' ').toLocaleLowerCase('vi').includes(query);
+  }
   function cleanDiagnostic(value) {
     return String(value || '').replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '').trim();
   }
@@ -263,9 +270,7 @@
   function renderSendRows(c) {
     const approved = c.approvals?.analysis?.leadIds || [];
     const leads = c.leads.filter(l => approved.includes(l.id));
-    const query = $('sendSearch').value.trim().toLocaleLowerCase('vi'), filter = $('sendFilter').value;
-    const matches = leads.filter(l => (filter === 'all' || sendCategory(l) === filter)
-      && [l.assessment?.name,l.url,l.assessment?.recipientId].join(' ').toLocaleLowerCase('vi').includes(query));
+    const matches = leads.filter(matchesSend);
     $('sendListCount').textContent = `Hiển thị ${matches.length}/${leads.length} khách`;
     $('sendRows').replaceChildren(...matches.map(l => {
       const category = sendCategory(l), row = element('article',undefined,`send-row send-${category}`);
@@ -314,6 +319,14 @@
         details.append(element('summary','Chi tiết kỹ thuật'),element('pre',cleanDiagnostic(l.error)));
         info.append(details);
       }
+      if (canBulkSend(l)) {
+        row.classList.add('has-pick');
+        const pick = element('input'); pick.type = 'checkbox'; pick.className = 'send-pick'; pick.value = l.id;
+        pick.checked = sendPicks.has(l.id);
+        pick.setAttribute('aria-label', `Chọn ${name} để gửi hàng loạt`);
+        pick.onchange = () => { if (pick.checked) sendPicks.add(l.id); else sendPicks.delete(l.id); updateControls(); };
+        row.append(pick);
+      }
       row.append(info); return row;
     }));
     if (!matches.length) $('sendRows').append(element('p','Không có khách phù hợp với bộ lọc.','send-empty'));
@@ -330,6 +343,14 @@
   function updateControls() {
     const c = selected, unlocked = !busy && !uncertain, modern = c?.workflowVersion === 2;
     for(const button of $('sendRows').querySelectorAll('button[data-retry-lead]'))button.disabled=!unlocked || ACTIVE.includes(c?.state);
+    const sendEligible = (c?.approvals?.analysis?.leadIds ? c.leads.filter(l => c.approvals.analysis.leadIds.includes(l.id) && canBulkSend(l) && matchesSend(l)) : []);
+    for (const box of $('sendRows').querySelectorAll('.send-pick')) box.disabled = !unlocked || bulkSending || ACTIVE.includes(c?.state);
+    $('selectAllSend').checked = sendEligible.length > 0 && sendEligible.every(l => sendPicks.has(l.id));
+    $('selectAllSend').indeterminate = sendEligible.some(l => sendPicks.has(l.id)) && !$('selectAllSend').checked;
+    $('selectAllSend').disabled = !unlocked || bulkSending || ACTIVE.includes(c?.state) || !sendEligible.length;
+    $('sendSelectionCount').textContent = `${sendPicks.size} khách được chọn`;
+    $('sendSelectedButton').textContent = `Gửi đã chọn${sendPicks.size ? ' (' + sendPicks.size + ')' : ''}`;
+    $('sendSelectedButton').disabled = !unlocked || bulkSending || ACTIVE.includes(c?.state) || !sendPicks.size;
     const myjoyActive = $('assessmentMode').value === 'myjoy';
     for (const id of ['campaignName','profile','assessmentMode','myjoyBackend','urls','file','testMode']) $(id).disabled = !!c || busy;
     $('myjoyConnect').disabled = !!c || busy || myjoyLoading || !myjoyActive;
@@ -438,9 +459,10 @@
       const option = element('option', c.myjoyBackend); option.value = c.myjoyBackend;
       $('myjoyBackend').replaceChildren(option);
     }
-    if (reset) { picks = new Set(c.approvals?.analysis?.leadIds || []); $('template').value = c.template || defaultTemplate; $('confirmSend').checked = false; $('sendSearch').value='';$('sendFilter').value='all';$('sendCampaignDiagnostic').open=false; schedulePrepareMessages(); }
+    if (reset) { picks = new Set(c.approvals?.analysis?.leadIds || []); $('template').value = c.template || defaultTemplate; $('confirmSend').checked = false; $('sendSearch').value='';$('sendFilter').value='all';$('sendCampaignDiagnostic').open=false; sendPicks = new Set(); schedulePrepareMessages(); }
     if (c.state === 'analysis_review') picks = new Set([...picks].filter(id => c.leads.some(l => l.id === id && canPick(l))));
     else picks = new Set(c.approvals?.analysis?.leadIds || []);
+    sendPicks = new Set([...sendPicks].filter(id => c.leads.some(l => l.id === id && canBulkSend(l))));
     campaigns = [...campaigns.filter(x => x.id !== c.id), c]; renderHistory();
     $('currentName').textContent = c.name || 'Chiến dịch gửi tin nhắn hàng loạt'; $('currentProfile').textContent = `Tài khoản: ${accountName(c.profile)}`;
     $('currentState').textContent = labels[c.state] || c.state;
@@ -733,7 +755,31 @@
   $('sendButton').onclick=()=>{if(!$('sendButton').disabled)action('send',{previewToken:selected.messagePreview.token});};
   $('stopAnalysis').onclick=$('stopSending').onclick=()=>action('stop');
   $('refresh').onclick=()=>sync();
-  $('sendSearch').oninput=$('sendFilter').onchange=()=>{if(selected)renderSendRows(selected);};
+  $('sendSearch').oninput=$('sendFilter').onchange=()=>{if(selected){renderSendRows(selected);updateControls();}};
+  $('selectAllSend').onchange=()=>{
+    if(!selected)return;
+    const leads=selected.leads.filter(l=>selected.approvals?.analysis?.leadIds.includes(l.id) && canBulkSend(l) && matchesSend(l));
+    for(const l of leads){if($('selectAllSend').checked)sendPicks.add(l.id);else sendPicks.delete(l.id);}
+    for(const box of $('sendRows').querySelectorAll('.send-pick'))box.checked=sendPicks.has(box.value);
+    updateControls();
+  };
+  async function sendSelectedBulk() {
+    if (!selected || busy || uncertain || bulkSending || ACTIVE.includes(selected.state) || !sendPicks.size) return;
+    const campaignId = selected.id;
+    bulkSending = true; updateControls();
+    try {
+      for (const id of [...sendPicks]) {
+        if (!selected || selected.id !== campaignId || uncertain) break;
+        while (selected && selected.id === campaignId && !uncertain && (busy || ACTIVE.includes(selected.state))) await new Promise(r => setTimeout(r, 1000));
+        if (!selected || selected.id !== campaignId || uncertain) break;
+        const lead = selected.leads.find(l => l.id === id);
+        if (!lead || !canBulkSend(lead)) { sendPicks.delete(id); continue; }
+        sendPicks.delete(id);
+        await action('retry-send', { leadId: id, previewToken: selected.messagePreview.token, requestId: retryRequestId() });
+      }
+    } finally { bulkSending = false; updateControls(); }
+  }
+  $('sendSelectedButton').onclick = () => sendSelectedBulk();
   $('toggleHistory').onclick=()=>setHistoryOpen($('campaignHistory').hidden);
   $('closeHistory').onclick=()=>{setHistoryOpen(false);$('toggleHistory').focus();};
   $('newCampaign').onclick=()=>{if(busy)return;setHistoryOpen(false);epoch++;clearTimeout(timer);selected=null;uncertain=false;picks.clear();notice();viewStep(1);

@@ -147,8 +147,8 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 #step3 #sendResult{margin-top:0}
 #sendStats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0 26px}#sendStats .stat{min-width:0;padding:14px 16px}#sendStats .stat strong{font-size:24px}
 .send-list-heading{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}.send-list-heading h3{margin:0;font-size:14px}
-.send-filters{display:flex;gap:8px;flex:1;justify-content:flex-end;min-width:0}#sendSearch{max-width:245px;min-width:0}#sendFilter{width:auto;max-width:100%}#sendSearch,#sendFilter{font-size:12px;padding:10px 12px}
-#sendListCount{font-size:11px;margin:10px 0}.send-rows{gap:12px}.send-row{padding:18px;background:#fff;border:1px solid #e5ebf4;border-radius:12px;display:block}.send-row.send-attention{border-color:#eadcc0}
+.send-filters{display:flex;gap:8px;flex:1;flex-wrap:wrap;align-items:center;justify-content:flex-end;min-width:0}#sendSearch{max-width:245px;min-width:0}#sendFilter{width:auto;max-width:100%}#sendSearch,#sendFilter{font-size:12px;padding:10px 12px}
+#sendListCount{font-size:11px;margin:10px 0}.send-rows{gap:12px}.send-row{padding:18px;background:#fff;border:1px solid #e5ebf4;border-radius:12px;display:block;position:relative}.send-row.send-attention{border-color:#eadcc0}.send-row.has-pick{padding-left:50px}.send-row>input[type=checkbox]{position:absolute;top:18px;left:18px;margin:0}
 .send-customer,.send-identity{min-width:0}.send-row-heading{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.send-avatar{display:grid;place-items:center;flex-shrink:0;width:38px;height:38px;border-radius:12px;background:#edf3ff;color:#416aaa;font-weight:700}
 .send-identity{flex:1}.send-identity>a{font-size:13px;font-weight:700;text-decoration:none;overflow-wrap:anywhere}.send-identity small{display:block;font-size:10px;color:var(--muted);margin-top:4px;overflow-wrap:anywhere}
 .send-row .send-explanation{margin:14px 0 10px;line-height:1.8;color:#66738a;font-size:12px}
