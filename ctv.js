@@ -545,7 +545,6 @@
     show('messageEmpty',!hasMessages);show('messageResult',hasMessages);
     $('status3').textContent=a.send?(labels[c.state] || c.state):hasMessages?'Chờ duyệt gửi':'Đang khóa';
     $('status3').className='badge '+(c.state==='needs_attention'?'warn':c.state==='completed'?'good':hasMessages?'blue':'');
-    $('recipientSummary').textContent=`${a.analysis?.leadIds.length || 0} khách đã duyệt · Gửi từ ${accountName(c.profile)}`;
     show('reviewSelection',c.state==='message_review');show('prepareMessages',c.state==='message_review');
     show('messageComposer',!a.send);
     $('messageStageHint').textContent = a.send ? 'Theo dõi trạng thái và kiểm tra kết quả từng khách.' : 'Tích xác nhận bên dưới để duyệt gửi.';
