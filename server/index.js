@@ -2258,7 +2258,28 @@ function _completeZaloJob(jobId, { success, error }) {
 
 app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
   const LOCAL_URL = getLocalUrl();
-  if (!LOCAL_URL) return res.status(503).json({ error: 'Local server chưa kết nối' });
+  if (!LOCAL_URL) {
+    // Ghi log Failed ngay — nếu không, bài biến mất hoàn toàn khỏi dashboard vì
+    // chưa có dòng pending nào được tạo ở điểm này.
+    const { profile, zaloAccountName, groupName, message, batchId, website } = req.body;
+    postLogger.logPost({
+      profile: zaloAccountName || profile || 'zalo',
+      profileName: zaloAccountName || profile || 'Zalo',
+      platform: 'zalo',
+      target: 'group',
+      groupName: groupName || '',
+      message: message || '',
+      imageCount: (req.files || []).length,
+      success: false,
+      error: 'Local server chưa kết nối',
+      postUrl: null,
+      source: 'web',
+      images: null,
+      batchId: batchId || null,
+      website: website || null,
+    });
+    return res.status(503).json({ error: 'Local server chưa kết nối' });
+  }
 
   const imagePaths = (req.files || []).map(f => f.path);
   // Persist ảnh trước khi proxy — đảm bảo files còn tồn tại (ReadStream chưa consume)
@@ -2377,6 +2398,25 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
     const responseData = zaloPendingLogId ? { ...data, pendingLogId: zaloPendingLogId } : data;
     return res.status(response.status).json(responseData);
   } catch (e) {
+    // Fetch sang local lỗi/timeout giữa đường — chưa chắc local đã nhận hay chưa,
+    // nhưng vẫn phải ghi Failed để bài không biến mất khỏi dashboard.
+    const { profile, zaloAccountName, groupName, message, batchId, website } = req.body;
+    postLogger.logPost({
+      profile: zaloAccountName || profile || 'zalo',
+      profileName: zaloAccountName || profile || 'Zalo',
+      platform: 'zalo',
+      target: 'group',
+      groupName: groupName || '',
+      message: message || '',
+      imageCount: imagePaths.length,
+      success: false,
+      error: `Lỗi proxy Zalo post: ${e.message}`,
+      postUrl: null,
+      source: 'web',
+      images: zaloImageUrls,
+      batchId: batchId || null,
+      website: website || null,
+    });
     return res.status(500).json({ error: `Lỗi proxy Zalo post: ${e.message}` });
   } finally {
     cleanupFiles(imagePaths);
