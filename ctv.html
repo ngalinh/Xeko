@@ -99,7 +99,7 @@
   <div id="campaignWorkspace" class="workspace workspace-main-only">
     <div class="flow">
       <section class="panel" id="step1" aria-labelledby="title1">
-        <div class="panel-heading"><div class="title-row"><span class="number">01</span><div><h2 id="title1">Nhập danh sách khách hàng</h2><p class="muted">Xem lại link hợp lệ trước khi chuyển sang đánh giá.</p></div></div><span class="badge" id="status1">Chưa nhập</span></div>
+        <div class="panel-heading"><div class="title-row"><span class="number">01</span><div><h2 id="title1">Nhập danh sách khách hàng</h2></div></div><span class="badge" id="status1">Chưa nhập</span></div>
         <div id="importForm">
           <div class="assessment-row">
             <div><label for="assessmentMode">Cách đánh giá khách</label><select id="assessmentMode"><option value="keywords" selected>Không AI</option><option value="myjoy">MyJoy</option><option value="none">Chỉ gửi, không quét</option><option value="ai" hidden>Có AI</option></select><p class="hint">Chế độ caption đọc tối đa 5 bài, gợi ý brand và từ khóa; không đọc ảnh, không kết luận nguồn hàng Mỹ.</p></div>
@@ -111,10 +111,10 @@
           </div>
           <div class="fields"><div><label for="campaignName">Tên chiến dịch</label><input id="campaignName" maxlength="100" placeholder="VD: Gửi tin nhắn hàng loạt tháng 9"></div><div><label for="profile">Tài khoản Facebook cá nhân</label><select id="profile"><option value="">Đang tải tài khoản…</option></select></div></div>
           <label for="urls">Danh sách link Facebook</label><textarea id="urls" rows="5" placeholder="https://www.facebook.com/ten.khach&#10;https://www.facebook.com/profile.php?id=..."></textarea>
-          <div class="import-tools"><div><label class="file-label" for="file">↑ Chọn file TXT / CSV</label><input id="file" type="file" accept=".txt,.csv,text/plain,text/csv"><span id="fileName" class="muted">Hoặc dán dữ liệu vào ô phía trên</span></div><span id="count" class="muted">0 link</span></div>
+          <div class="import-tools"><div><label class="file-label" for="file">↑ Chọn file TXT / CSV</label><input id="file" type="file" accept=".txt,.csv,text/plain,text/csv"><span id="fileName" class="muted"></span></div><span id="count" class="muted">0 link</span></div>
           <label class="check-label"><input id="testMode" type="checkbox"> Chế độ thử (chỉ 1 link, không chặn trùng, không lưu lịch sử liên hệ)</label>
           <p class="hint">Tối đa 100 link/lần. Tên khách lấy từ hồ sơ Facebook; các cột khác trong CSV không được nhập.</p>
-          <div class="panel-footer"><span class="muted">Bước này chưa gọi AI và chưa gửi tin.</span><button id="importButton">Kiểm tra danh sách →</button></div>
+          <div class="panel-footer"><span class="muted"></span><button id="importButton">Kiểm tra danh sách →</button></div>
         </div>
         <div id="importResult" hidden><div id="importStats" class="stats"></div><p id="importContext" class="muted"></p><details id="importDetails"><summary>Xem danh sách sau kiểm tra</summary><ol id="importList" class="import-list"></ol><div id="rejectedList"></div></details><div class="panel-footer"><span id="importApproval" class="muted"></span><div><button id="cancelImport" class="secondary" hidden>← Huỷ & nhập lại</button> <button id="approveImport">Duyệt danh sách & quét khách →</button></div></div></div>
       </section>
