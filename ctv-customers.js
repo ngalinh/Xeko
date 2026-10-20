@@ -14,7 +14,6 @@
     $('customerSelectionCount').textContent = `${rows.length} khách đã chọn.`;
     $('customerSelectionStatus').textContent = profiles.size > 1 ? 'Mỗi chiến dịch dùng một tài khoản gửi. Hãy bỏ chọn khách thuộc tài khoản khác.' : rows.length > 100 ? 'Mỗi chiến dịch tối đa 100 khách. Hãy giảm số khách đã chọn.' : '';
     $('useCustomers').disabled = loading || !rows.length || profiles.size !== 1 || rows.length > 100;
-    $('clearCustomerSelection').disabled = !rows.length;
     const selectable = visible.filter(canSelect), count = selectable.filter(r => chosen.has(keyOf(r))).length;
     $('selectCustomerPage').checked = selectable.length > 0 && count === selectable.length;
     $('selectCustomerPage').indeterminate = count > 0 && count < selectable.length;
@@ -132,7 +131,6 @@
     for (const r of visible) { if ($('selectCustomerPage').checked && canSelect(r)) chosen.set(keyOf(r), r); else chosen.delete(keyOf(r)); }
     render();
   };
-  $('clearCustomerSelection').onclick = () => { chosen.clear(); render(); };
   $('useCustomers').onclick = () => {
     if ($('useCustomers').disabled) return;
     const detail = { customers: [...chosen.values()], accepted: false, error: '' };
