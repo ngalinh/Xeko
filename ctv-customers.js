@@ -50,7 +50,7 @@
       checkbox.setAttribute('aria-label', `Chọn ${r.assessment?.name || r.name || r.url} · ${r.profile}`);
       checkbox.onchange = () => { if (checkbox.checked && canSelect(r)) chosen.set(keyOf(r), r); else chosen.delete(keyOf(r)); updateSelection(); };
       choose.append(checkbox, String(page * pageSize + index + 1));
-      grid.append(field('Chọn', choose), field('Khách hàng', identity), field('UID', String(r.assessment?.recipientId || r.uid || 'Chưa xác định')), field('Giới tính', gender?.status === 'self_declared' && gender.value || 'Chưa xác định'), field('Tài khoản gửi', r.profile), field('Trạng thái', states));
+      grid.append(field('', choose), field('Khách hàng', identity), field('UID', String(r.assessment?.recipientId || r.uid || 'Chưa xác định')), field('Giới tính', gender?.status === 'self_declared' && gender.value || 'Chưa xác định'), field('Tài khoản gửi', r.profile), field('Trạng thái', states));
       const details = el('details'); details.append(el('summary', 'Thông tin đã lưu & chiến dịch'));
       details.append(el('p', `Nhập lần đầu: ${date(r.importedAt)} · Cập nhật: ${date(r.updatedAt)}`));
       details.append(el('p', r.campaigns.length ? `Chiến dịch: ${r.campaigns.map(c => c.name || c.id).join(' · ')}` : 'Nguồn: Thêm thủ công'));
