@@ -11,7 +11,7 @@
   function updateSelection() {
     for (const [key, row] of chosen) if (!canSelect(row)) chosen.delete(key);
     const rows = [...chosen.values()], profiles = new Set(rows.map(r => r.profile));
-    $('customerSelectionCount').textContent = `${rows.length} khách đã chọn (kể cả ngoài trang/bộ lọc hiện tại).`;
+    $('customerSelectionCount').textContent = `${rows.length} khách đã chọn.`;
     $('customerSelectionStatus').textContent = profiles.size > 1 ? 'Mỗi chiến dịch dùng một tài khoản gửi. Hãy bỏ chọn khách thuộc tài khoản khác.' : rows.length > 100 ? 'Mỗi chiến dịch tối đa 100 khách. Hãy giảm số khách đã chọn.' : '';
     $('useCustomers').disabled = loading || !rows.length || profiles.size !== 1 || rows.length > 100;
     $('clearCustomerSelection').disabled = !rows.length;
@@ -66,7 +66,7 @@
       if (r.error) details.append(el('p', `Lưu ý: ${r.error}`));
       card.append(grid, details); $('customerRecords').append(card);
     }
-    $('customerLibraryStatus').textContent = `${filtered.length}/${records.length} khách · ${records.filter(r => r.sent).length} đã gửi · ${records.filter(r => r.assessment).length} đã đánh giá. Khách trùng link được gộp theo từng tài khoản gửi.`;
+    $('customerLibraryStatus').textContent = `${filtered.length}/${records.length} khách · ${records.filter(r => r.sent).length} đã gửi · ${records.filter(r => r.assessment).length} đã đánh giá.`;
     if (!filtered.length) $('customerRecords').append(el('p', records.length ? 'Không có khách phù hợp bộ lọc.' : 'Chưa có dữ liệu khách hàng. Khách sẽ được lưu khi bạn nhập danh sách vào chiến dịch.', 'muted'));
     $('customerPage').textContent = `Trang ${page + 1}/${Math.max(1, Math.ceil(filtered.length / pageSize))}`;
     $('customerPrevious').disabled = page === 0; $('customerNext').disabled = (page + 1) * pageSize >= filtered.length;
