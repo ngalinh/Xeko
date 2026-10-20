@@ -89,10 +89,13 @@
     } catch (e) { $('customerLibraryStatus').textContent = `${loaded ? 'Dữ liệu đang hiển thị chưa được cập nhật. ' : ''}Không tải được dữ liệu khách hàng. Bấm Cập nhật để thử lại. ${e.name === 'AbortError' ? 'Kết nối quá thời gian chờ.' : e.message}`; }
     finally { clearTimeout(timeout); loading = false; $('refreshCustomers').disabled = false; updateSave(); updateSelection(); }
   }
-  function closeCreate() { if (saving) return; $('customerCreateForm').hidden=true; $('addCustomer').setAttribute('aria-expanded','false'); $('addCustomer').focus(); }
+  function closeCreate() { if (saving) return; $('customerCreateDialog').close(); }
+  $('customerCreateDialog').onclose = () => { $('addCustomer').setAttribute('aria-expanded','false'); $('addCustomer').focus(); };
+  $('customerCreateDialog').oncancel = event => { if (saving) event.preventDefault(); };
+  $('customerCreateDialog').onclick = event => { if (event.target === $('customerCreateDialog') && !saving) $('customerCreateDialog').close(); };
   $('addCustomer').onclick = async () => {
-    if (!$('customerCreateForm').hidden) { closeCreate(); return; }
-    $('customerCreateForm').hidden=false; $('addCustomer').setAttribute('aria-expanded','true');
+    if ($('customerCreateDialog').open) { closeCreate(); return; }
+    $('customerCreateDialog').showModal(); $('addCustomer').setAttribute('aria-expanded','true');
     accountsReady=false; updateSave(); $('customerCreateStatus').textContent='Đang tải tài khoản…';
     const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),15000);
     try {
@@ -105,7 +108,7 @@
       else if(accounts.length===1)$('newCustomerProfile').value=accounts[0].key;
       accountsReady=accounts.length>0;
       $('customerCreateStatus').textContent=accountsReady?'':'Chưa có tài khoản Facebook được cấp quyền. Hãy thêm tài khoản trước.';
-      if(!$('customerCreateForm').hidden)$('newCustomerName').focus();
+      if($('customerCreateDialog').open)$('newCustomerName').focus();
     } catch(e) { $('customerCreateStatus').textContent='Không tải được tài khoản. Đóng form và mở lại để thử lại.'; }
     finally {clearTimeout(timer);updateSave();}
   };
