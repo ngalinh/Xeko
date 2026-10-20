@@ -429,7 +429,8 @@
       const cell = (label, child, cls = '') => { const d=element('div',undefined,cls);d.dataset.label=label;d.append(child);return d; };
       const name = element('button', c.name || 'Chiến dịch gửi tin nhắn hàng loạt', 'secondary history-name');
       name.disabled=busy;name.onclick=()=>choose(c.id);
-      const identity=cell('Chiến dịch',name,'history-identity');identity.append(element('small',accountName(c.profile)));
+      const identity=cell('Chiến dịch',name,'history-identity');
+      const account=cell('Tài khoản đã gửi',element('span',accountName(c.profile)));
       const created = new Date(c.createdAt);
       const date=cell('Ngày tạo',element('span',created.toLocaleDateString('vi-VN')));date.append(element('small',created.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})));
       const sent=c.leads.filter(l=>l.state==='sent').length;
@@ -439,7 +440,7 @@
       const open=element('button','Mở','secondary history-open');open.disabled=busy;open.onclick=()=>choose(c.id);open.setAttribute('aria-label','Mở chiến dịch '+c.name);
       const remove=element('button','Xoá','secondary history-delete');remove.dataset.deleteState=c.state;remove.disabled=busy || category==='active';remove.onclick=()=>deleteCampaign(c);remove.setAttribute('aria-label','Xoá chiến dịch '+c.name);if(category==='active')remove.title='Dừng chiến dịch trước khi xoá';
       const actions=cell('Thao tác',open,'history-actions');actions.append(remove);
-      row.append(cell('STT',element('span',String(historyPage * historyPageSize+index+1)),'history-index'),identity,date,count,cell('Trạng thái',status),info,actions);$('campaigns').append(row);
+      row.append(cell('STT',element('span',String(historyPage * historyPageSize+index+1)),'history-index'),identity,account,date,count,cell('Trạng thái',status),info,actions);$('campaigns').append(row);
     }
     if (!visible.length) $('campaigns').append(element('p',campaigns.length?'Không có chiến dịch phù hợp. Thử đổi từ khoá hoặc bộ lọc.':'Chưa có chiến dịch. Bấm “Chiến dịch mới” để bắt đầu.','history-empty'));
     $('historyCount').textContent=visible.length+' / '+campaigns.length+' chiến dịch';
