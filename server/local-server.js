@@ -35,6 +35,20 @@ const { waitForPostTurn, finishPostTurn } = require('./src/utils/fb-post-pacing'
 const zaloQueue = require('./src/utils/zalo-queue');
 const { groupDelayMs } = require('./src/utils/post-delays');
 
+// An toàn cuối: lỗi race nội bộ của playwright-core (vd. "Object with guid ...
+// was not bound in the connection" khi page/context.close() trong lúc response
+// handler còn await response.text()) throw thẳng ngoài mọi try/catch của app và
+// sẽ crash cả tiến trình nếu không bắt ở đây. Log đầy đủ rồi exit có kiểm soát —
+// start.js (xem server.on('exit', ...)) sẽ thoát theo để PM2 restart sạch.
+process.on('uncaughtException', (err) => {
+  logger.error(`uncaughtException: ${err?.stack || err}`);
+  process.exit(1);
+});
+process.on('unhandledRejection', (err) => {
+  logger.error(`unhandledRejection: ${err?.stack || err}`);
+  process.exit(1);
+});
+
 // Fail-fast nếu LOCAL_API_KEY chưa đặt / còn placeholder mặc định.
 // Server local accept request từ tunnel public → key yếu = mở cửa.
 apiKey.assertConfigured('local-server');
