@@ -436,7 +436,10 @@
       const sent=c.leads.filter(l=>l.state==='sent').length;
       const count=cell('Khách hàng',element('strong',String(c.leads.length)));count.append(element('small',sent+' đã gửi'));
       const category=historyCategory(c), status=element('span',labels[c.state] || c.state,'badge '+({active:'blue',complete:'good',review:'warn',attention:'warn'}[category]));
-      const info=cell('Thông tin',element('span',cleanDiagnostic(c.error) || '—','muted'));
+      const diagnostic=cleanDiagnostic(c.error);
+      const infoText=element('span',diagnostic || '—','muted history-info-text');
+      if (diagnostic) infoText.title=diagnostic;
+      const info=cell('Thông tin',infoText);
       const open=element('button','Mở','secondary history-open');open.disabled=busy;open.onclick=()=>choose(c.id);open.setAttribute('aria-label','Mở chiến dịch '+c.name);
       const remove=element('button','Xoá','secondary history-delete');remove.dataset.deleteState=c.state;remove.disabled=busy || category==='active';remove.onclick=()=>deleteCampaign(c);remove.setAttribute('aria-label','Xoá chiến dịch '+c.name);if(category==='active')remove.title='Dừng chiến dịch trước khi xoá';
       const actions=cell('Thao tác',open,'history-actions');actions.append(remove);
