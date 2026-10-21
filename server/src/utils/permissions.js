@@ -28,7 +28,7 @@ function ensureFile() {
       }
     }
     const initial = {
-      users: {
+      users: SUPER_ADMIN_EMAIL ? {
         [SUPER_ADMIN_EMAIL]: {
           email: SUPER_ADMIN_EMAIL,
           isXekoAdmin: true,
@@ -36,19 +36,19 @@ function ensureFile() {
           profiles: [],
           createdAt: new Date().toISOString(),
         },
-      },
+      } : {},
     };
     fs.writeFileSync(PERMISSIONS_FILE, JSON.stringify(initial, null, 2));
   }
 }
 
 function load() {
-  ensureFile();
   try {
+    ensureFile();
     const raw = fs.readFileSync(PERMISSIONS_FILE, 'utf8');
     const parsed = JSON.parse(raw);
     if (!parsed.users) parsed.users = {};
-    if (!parsed.users[SUPER_ADMIN_EMAIL]) {
+    if (SUPER_ADMIN_EMAIL && !parsed.users[SUPER_ADMIN_EMAIL]) {
       parsed.users[SUPER_ADMIN_EMAIL] = {
         email: SUPER_ADMIN_EMAIL,
         isXekoAdmin: true,
@@ -57,7 +57,7 @@ function load() {
         createdAt: new Date().toISOString(),
       };
       save(parsed);
-    } else {
+    } else if (SUPER_ADMIN_EMAIL) {
       // Only lock isXekoAdmin; let allProfiles + profiles[] be user-editable for super-admin.
       parsed.users[SUPER_ADMIN_EMAIL].isXekoAdmin = true;
     }
@@ -118,10 +118,11 @@ async function restoreFromLocal() {
     if (res.status === 404) return false;
     if (!res.ok) {
       logger.warn(`permissions restoreFromLocal: HTTP ${res.status}`);
-      return false;
+      return null;
     }
     const data = await res.json();
-    if (!data || typeof data !== 'object' || !data.users) return false;
+    if (!data || typeof data !== 'object' || !data.users ||
+        typeof data.users !== 'object' || Array.isArray(data.users)) return null;
     save(data);
     logger.info(`permissions restored from LOCAL (${Object.keys(data.users).length} users)`);
     return true;
@@ -143,7 +144,8 @@ async function syncOnRegister({ maxRetries = 0, retryDelay = 3000 } = {}) {
     const result = await restoreFromLocal();
     if (result === true) return;
     if (result === null && attempt < maxRetries) continue; // network error, retry
-    await syncToLocal(load());
+    // Only a confirmed 404 permits bootstrapping; never overwrite after an error.
+    if (result === false) await syncToLocal(load());
     return;
   }
 }
@@ -156,7 +158,11 @@ function getUser(email) {
   const e = normalize(email);
   if (!e) return null;
   const data = load();
-  return data.users[e] || null;
+  const user = data.users[e];
+  if (isSuperAdmin(e)) {
+    return { email: e, allProfiles: true, profiles: [], ...user, isXekoAdmin: true };
+  }
+  return user || null;
 }
 
 function hasAccess(email) {
@@ -165,7 +171,7 @@ function hasAccess(email) {
 
 function isXekoAdmin(email) {
   const e = normalize(email);
-  if (e === SUPER_ADMIN_EMAIL) return true;
+  if (isSuperAdmin(e)) return true;
   const u = getUser(e);
   return !!(u && u.isXekoAdmin);
 }
@@ -244,7 +250,7 @@ function deleteUser(email) {
 }
 
 function isSuperAdmin(email) {
-  return normalize(email) === SUPER_ADMIN_EMAIL;
+  return !!SUPER_ADMIN_EMAIL && normalize(email) === SUPER_ADMIN_EMAIL;
 }
 
 // REMOTE coi như "trống" khi chỉ còn super-admin được seed sẵn (chưa có user

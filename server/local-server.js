@@ -61,6 +61,9 @@ const PERMISSIONS_DATA_DIR = process.env.XEKO_DATA_DIR
   ? path.resolve(process.env.XEKO_DATA_DIR)
   : path.resolve(__dirname, '..');
 const PERMISSIONS_FILE = path.join(PERMISSIONS_DATA_DIR, 'config/user-permissions.json');
+const { migratePermissionsFile } = require('./src/utils/permissions-file');
+// Preserve the existing store; migrate the documented legacy backup only if absent.
+migratePermissionsFile(PERMISSIONS_FILE, path.join(__dirname, 'config/user-permissions.json'));
 
 function loadZaloAccounts() {
   try {
