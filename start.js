@@ -72,6 +72,14 @@ const server = spawn('node', ['server/local-server.js'], {
 });
 server.on('error', e => console.error('Local server error:', e.message));
 
+// local-server.js crash (vd. lỗi race nội bộ playwright-core) chỉ làm chết tiến
+// trình con — nếu start.js (tiến trình PM2 theo dõi) không exit theo, PM2 vẫn
+// thấy 'xeko-local' đang chạy và KHÔNG tự restart, để Xeko treo im không rõ lý do.
+server.on('exit', (code, signal) => {
+  console.error(`Local server đã thoát (code=${code}, signal=${signal}) — thoát theo để PM2 restart.`);
+  process.exit(code ?? 1);
+});
+
 // Đợi server sẵn sàng rồi đăng ký URL.
 // Đăng ký lại ĐỊNH KỲ (heartbeat) vì cloud lưu URL trong RAM — mỗi khi cloud
 // restart/reload, URL bị xóa. Heartbeat đảm bảo local tự thông báo lại trong

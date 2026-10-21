@@ -2734,13 +2734,13 @@ async function scrapePost(postUrl) {
   // Gom payload GraphQL để lấy text + ảnh từ JSON (đáng tin hơn DOM rất nhiều).
   const graphqlBlobs = [];
 
-  let page;
+  let page, onNetImageResponse, onGraphqlResponse;
   try {
     page = await Promise.race([
       browser.newPage(),
       new Promise((_, r) => setTimeout(() => r(new Error('newPage timeout 30s — browser bị kẹt, thử lại lần sau')), 30000)),
     ]);
-    page.on('response', (response) => {
+    onNetImageResponse = (response) => {
       try {
         const url = response.url();
         if (!url.includes('fbcdn.net')) return;
@@ -2751,9 +2751,10 @@ async function scrapePost(postUrl) {
         if (!/\.(jpg|jpeg|png|webp)$/i.test(urlPath)) return;
         netImages.add(url);
       } catch {}
-    });
+    };
+    page.on('response', onNetImageResponse);
     // Bắt body các response GraphQL — chứa caption + URL ảnh dạng JSON có cấu trúc.
-    page.on('response', async (response) => {
+    onGraphqlResponse = async (response) => {
       try {
         const url = response.url();
         if (!/graphql/i.test(url)) return;
@@ -2763,7 +2764,8 @@ async function scrapePost(postUrl) {
         if (!body) return;
         for (const json of parseGraphQLBody(body)) graphqlBlobs.push(json);
       } catch {}
-    });
+    };
+    page.on('response', onGraphqlResponse);
     // bringToFront: tab mới tạo bởi newPage() là background tab —
     // Intersection Observer của FB không fire cho background tab
     // → ảnh lazy-load không render vào DOM nếu không bring to front
@@ -3201,6 +3203,11 @@ async function scrapePost(postUrl) {
     logger.error(`${tag} FAIL: ${e.message}`);
     return { success: false, error: e.message, type: postType, text: '', imageUrls: [], timestamp: null };
   } finally {
+    // Gỡ listener response trước khi đóng context — tránh race nội bộ
+    // playwright-core "Object with guid ... was not bound" khi context.close()
+    // chạy trong lúc handler còn await response.text() cho response đã bị dispose.
+    page?.off('response', onNetImageResponse);
+    page?.off('response', onGraphqlResponse);
     const _ctx = browsers[_profileKey];
     browsers[_profileKey] = null;
     await Promise.race([_ctx?.close(), new Promise(r => setTimeout(r, 10000))]).catch(() => {});

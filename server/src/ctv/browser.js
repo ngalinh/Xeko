@@ -725,7 +725,9 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
   await verify();
   const confirmedCount = () => conversation.locator('[role="row"]').evaluateAll((rows, text) => rows.filter(row => {
     const exact = [...row.querySelectorAll('[dir="auto"]')].some(e => e.textContent.trim() === text);
-    const receipt = [...row.querySelectorAll('[aria-label]')].some(e => /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)$/i.test(e.getAttribute('aria-label') || ''));
+    const pattern = /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)\b/i;
+    const receipt = [...row.querySelectorAll('[aria-label]')].some(e => pattern.test(e.getAttribute('aria-label') || ''))
+      || [...row.querySelectorAll('span, div')].some(e => e.children.length === 0 && pattern.test((e.textContent || '').trim()));
     return exact && receipt;
   }).length, message.trim());
   const beforeCount = await confirmedCount();
