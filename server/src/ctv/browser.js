@@ -157,9 +157,11 @@ async function assertSession(page) {
 function e2eeContinueButton() {
   const buttons = [...document.querySelectorAll('[role="button"], button')].filter(e =>
     e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden'
-    && /^(Continue|Tiếp tục)$/i.test((e.getAttribute('aria-label') || e.innerText || '').trim())
+    && /^(Continue|Tiếp tục)$/i.test((e.getAttribute('aria-label') || e.textContent || '').trim())
     && e.getAttribute('aria-disabled') !== 'true' && !e.disabled);
-  return buttons.length === 1 ? buttons[0] : false;
+  // Facebook can render more than one match (a11y duplicate, fade-in clone); take
+  // the first rather than bailing out, so a harmless duplicate never blocks the click.
+  return buttons[0] || false;
 }
 
 // Fallback for when the profile "Nhắn tin" popup path fails (e.g. the composer never
@@ -179,7 +181,19 @@ async function openThreadDirect(page, id, target, cancelled, report, expectedNam
     const el = handle.asElement();
     if (!el) { await handle.dispose(); break; }
     report('e2ee_continue', 'Đang bấm "Tiếp tục" để xác nhận mã hóa đầu cuối');
-    await el.click({ timeout: 10000 }).catch(() => {});
+    try {
+      await el.click({ timeout: 10000 });
+    } catch (clickError) {
+      // An overlay layer (Facebook's ripple/ink div) can sit on top and intercept
+      // the click; force bypasses that actionability check instead of silently
+      // giving up, which previously left this stuck with no diagnostic trail.
+      try { await el.click({ timeout: 10000, force: true }); }
+      catch (forceError) {
+        report('e2ee_continue_failed', `Không bấm được nút "Tiếp tục": ${forceError.message}`);
+        await handle.dispose();
+        break;
+      }
+    }
     await handle.dispose();
     await page.waitForTimeout(500);
   }
