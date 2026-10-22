@@ -175,11 +175,21 @@ async function openThreadDirect(page, id, target, cancelled, report, expectedNam
   await page.goto(`https://www.facebook.com/messages/t/${id}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await assertSession(page);
   if (new URL(page.url()).pathname.replace(/\/$/, '') !== `/messages/t/${id}`) throw new Error('Facebook chuyển sang hội thoại khác; đã dừng');
-  for (let i = 0; i < 15; i++) {
+  // Facebook's SPA can take several seconds after navigation to render the E2EE
+  // gate (if it shows at all); checking only a few times right away missed it,
+  // leaving the composer permanently blocked. Keep polling for up to ~60s, same
+  // order of magnitude as the composer wait below, so a late-rendering gate is
+  // still caught.
+  for (let i = 0; i < 60; i++) {
     if (cancelled()) throw new Error('Đã dừng trước khi gửi');
     const handle = await page.evaluateHandle(e2eeContinueButton);
     const el = handle.asElement();
-    if (!el) { await handle.dispose(); break; }
+    if (!el) {
+      await handle.dispose();
+      if (i > 0 && i % 10 === 0) report('e2ee_waiting', `Đang chờ màn xác nhận mã hóa đầu cuối hoặc ô soạn tin… (${i}s)`);
+      await page.waitForTimeout(1000);
+      continue;
+    }
     report('e2ee_continue', 'Đang bấm "Tiếp tục" để xác nhận mã hóa đầu cuối');
     try {
       await el.click({ timeout: 10000 });
@@ -196,6 +206,7 @@ async function openThreadDirect(page, id, target, cancelled, report, expectedNam
     }
     await handle.dispose();
     await page.waitForTimeout(500);
+    break;
   }
   return selectRecipientConversation(page, id, target, cancelled, report, expectedName);
 }
