@@ -87,14 +87,16 @@ function pageNotFriendsPreview(token) {
   if (token) container.setAttribute('data-xeko-recipient-chat', token);
   return (container.innerText || '').trim().slice(0, 2000);
 }
-// Runs in the page: Facebook's "new message" compose screen (reached by going
-// straight to /messages/t/<id> for someone with no existing thread) shows a
-// "Đến:"/"To:" recipient chip above the composer and no profile link anywhere
-// in the header. Confirmed via live diagnostics: composerCount:1, allLinkCount:0
-// inside role="main". No profile link exists to verify against, so match by the
-// chip's displayed name instead, same trust level as pageNotFriendsPreview.
-// Never clicks the chip itself — only reads its text; the composer box is
-// located and clicked separately by the normal send flow.
+// Runs in the page: two distinct Facebook screens render a composer with no
+// profile link anywhere in the header — confirmed via live diagnostics in both
+// (composerCount:1, allLinkCount:0 inside role="main"): (1) the "new message"
+// compose screen (reached by going straight to /messages/t/<id> for someone with
+// no existing thread) shows a "Đến:"/"To:" recipient chip; (2) a freshly opened
+// thread with zero messages shows a centered intro header (avatar + name as a
+// heading) instead. Neither has a profile link to verify against, so match by
+// whichever name text is available, same trust level as pageNotFriendsPreview.
+// Never clicks the chip/heading — only reads text; the composer box is located
+// and clicked separately by the normal send flow.
 function pageComposeRecipientPreview(token, expectedName) {
   if (!expectedName) return null;
   const visible = e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden';
@@ -104,8 +106,11 @@ function pageComposeRecipientPreview(token, expectedName) {
   if (!main || main.querySelector('a[href]')) return null;
   const label = [...main.querySelectorAll('*')].find(e => visible(e) && e.children.length === 0
     && /^(Đến|To)\s*:?$/i.test((e.textContent || '').trim()));
-  if (!label) return null;
-  let container = label;
+  const heading = !label && [...main.querySelectorAll('h1, h2, [role="heading"]')]
+    .find(e => visible(e) && !e.closest('[role="log"], [role="row"]') && (e.innerText || '').trim());
+  const anchor = label || heading;
+  if (!anchor) return null;
+  let container = anchor;
   for (let i = 0; i < 10 && container.parentElement && container !== main; i++) {
     container = container.parentElement;
     if (container.querySelectorAll('[contenteditable="true"][role="textbox"]').length === 1) break;
@@ -143,9 +148,9 @@ async function selectRecipientConversation(page, id, target, cancelled, report =
     const composeText = await page.evaluate(pageComposeRecipientPreview, composeToken, expectedName);
     if (composeText !== null) {
       if (!nameMatchesPreview(composeText, expectedName)) {
-        throw new Error('Màn "Soạn tin mới" hiện tên không khớp tên hồ sơ đã quét; dừng để tránh gửi nhầm người. Hãy kiểm tra thủ công.');
+        throw new Error('Không có link hồ sơ để xác minh (màn "Soạn tin mới" hoặc hội thoại mới chưa có tin nhắn) và tên hiển thị không khớp tên hồ sơ đã quét; dừng để tránh gửi nhầm người. Hãy kiểm tra thủ công.');
       }
-      report('compose_new_name_matched', `Màn "Soạn tin mới" (chưa có hội thoại) hiện tên khớp "${expectedName}"; tiếp tục gửi (xác minh theo tên, không có link hồ sơ để đối chiếu).`);
+      report('no_link_name_matched', `Không có link hồ sơ để xác minh nhưng tên hiển thị khớp "${expectedName}"; tiếp tục gửi (xác minh theo tên).`);
       return { conversation: page.locator(`[data-xeko-recipient-chat="${composeToken}"]`), nameMatchMode: true };
     }
     const roots = page.locator(CHAT_ROOT), matches = [];
