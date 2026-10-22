@@ -150,6 +150,42 @@ async function assertSession(page) {
   if (/\/(login|checkpoint|challenge|two_step_verification)(?:[/?]|$)/i.test(new URL(page.url()).pathname) || await page.locator('input[type="password"]').count()) { const e = new Error('Cần đăng nhập hoặc xử lý checkpoint trong Quản lý tài khoản'); e.fatal = true; throw e; }
 }
 
+// Runs in the page: Facebook's new end-to-end-encryption consent gate shows a lone
+// "Continue"/"Tiếp tục" button (both observed live) and blocks the composer from
+// appearing until accepted. Scoped to role=button/button so it can never match the
+// composer's own Send control.
+function e2eeContinueButton() {
+  const buttons = [...document.querySelectorAll('[role="button"], button')].filter(e =>
+    e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden'
+    && /^(Continue|Tiếp tục)$/i.test((e.getAttribute('aria-label') || e.innerText || '').trim())
+    && e.getAttribute('aria-disabled') !== 'true' && !e.disabled);
+  return buttons.length === 1 ? buttons[0] : false;
+}
+
+// Fallback for when the profile "Nhắn tin" popup path fails (e.g. the composer never
+// appears behind Facebook's E2EE consent gate): open the conversation straight from
+// its Messenger thread URL instead, accept the gate if shown, then hand off to the
+// same selectRecipientConversation used by the popup path so identity verification
+// (profile link, or name-match for a not-yet-a-friend preview) stays identical.
+async function openThreadDirect(page, id, target, cancelled, report, expectedName) {
+  if (cancelled()) throw new Error('Đã dừng trước khi gửi');
+  report('open_direct', 'Không mở được khung chat từ hồ sơ; đang thử mở trực tiếp hội thoại Messenger');
+  await page.goto(`https://www.facebook.com/messages/t/${id}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await assertSession(page);
+  if (new URL(page.url()).pathname.replace(/\/$/, '') !== `/messages/t/${id}`) throw new Error('Facebook chuyển sang hội thoại khác; đã dừng');
+  for (let i = 0; i < 15; i++) {
+    if (cancelled()) throw new Error('Đã dừng trước khi gửi');
+    const handle = await page.evaluateHandle(e2eeContinueButton);
+    const el = handle.asElement();
+    if (!el) { await handle.dispose(); break; }
+    report('e2ee_continue', 'Đang bấm "Tiếp tục" để xác nhận mã hóa đầu cuối');
+    await el.click({ timeout: 10000 }).catch(() => {});
+    await handle.dispose();
+    await page.waitForTimeout(500);
+  }
+  return selectRecipientConversation(page, id, target, cancelled, report, expectedName);
+}
+
 // Runs inside the page, both while waiting and when collecting the snapshot.
 function readProfileSnapshot(requireHeader = false) {
   const visible = e => !!e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden';
@@ -672,21 +708,27 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
   const target = profileUrl(lead.actualUrl || lead.url);
   const check = () => { if (cancelled()) throw new Error('Đã dừng trước khi gửi'); };
   check();
-  report('open', 'Đang mở hồ sơ khách (tối đa 30 giây)');
-  await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await assertSession(page);
-  if (profileUrl(page.url()) !== target && recipientId(page.url()) !== id) throw new Error('Facebook chuyển sang hồ sơ khác; đã dừng');
-  let button;
-  try {
-    report('message_button', 'Đang tìm nút Nhắn tin trên hồ sơ (tối đa 30 giây)');
-    button = await page.waitForFunction(profileMessageButton, null, { timeout: 30000 });
-    check();
-    if (profileUrl(page.url()) !== target && recipientId(page.url()) !== id) throw new Error('Facebook chuyển sang hồ sơ khác; đã dừng');
-    await button.asElement().click({ timeout: 10000 });
-    report('message_click', 'Đã bấm Nhắn tin; đang xác định đúng khung chat');
-  } finally { if (button) await button.dispose(); }
   const expectedName = (lead.name || '').trim();
-  const { conversation, nameMatchMode } = await selectRecipientConversation(page, id, target, cancelled, report, expectedName);
+  let conversation, nameMatchMode;
+  try {
+    report('open', 'Đang mở hồ sơ khách (tối đa 30 giây)');
+    await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await assertSession(page);
+    if (profileUrl(page.url()) !== target && recipientId(page.url()) !== id) throw new Error('Facebook chuyển sang hồ sơ khác; đã dừng');
+    let button;
+    try {
+      report('message_button', 'Đang tìm nút Nhắn tin trên hồ sơ (tối đa 30 giây)');
+      button = await page.waitForFunction(profileMessageButton, null, { timeout: 30000 });
+      check();
+      if (profileUrl(page.url()) !== target && recipientId(page.url()) !== id) throw new Error('Facebook chuyển sang hồ sơ khác; đã dừng');
+      await button.asElement().click({ timeout: 10000 });
+      report('message_click', 'Đã bấm Nhắn tin; đang xác định đúng khung chat');
+    } finally { if (button) await button.dispose(); }
+    ({ conversation, nameMatchMode } = await selectRecipientConversation(page, id, target, cancelled, report, expectedName));
+  } catch (popupError) {
+    if (popupError.fatal || cancelled()) throw popupError;
+    ({ conversation, nameMatchMode } = await openThreadDirect(page, id, target, cancelled, report, expectedName));
+  }
   const box = conversation.locator(COMPOSER);
   report('composer', 'Đang chờ ô soạn tin sẵn sàng');
   await waitForMessageComposer(page, box, cancelled, 300000, true);
