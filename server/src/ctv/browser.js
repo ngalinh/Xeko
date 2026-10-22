@@ -97,7 +97,7 @@ function pageNotFriendsPreview(token) {
 // whichever name text is available, same trust level as pageNotFriendsPreview.
 // Never clicks the chip/heading — only reads text; the composer box is located
 // and clicked separately by the normal send flow.
-function pageComposeRecipientPreview(token, expectedName) {
+function pageComposeRecipientPreview({ token, expectedName }) {
   if (!expectedName) return null;
   const visible = e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden';
   const composers = [...document.querySelectorAll('[contenteditable="true"][role="textbox"]')].filter(visible);
@@ -145,7 +145,7 @@ async function selectRecipientConversation(page, id, target, cancelled, report =
       return { conversation: page.locator(`[data-xeko-recipient-chat="${previewToken}"]`), nameMatchMode: true };
     }
     const composeToken = randomUUID();
-    const composeText = await page.evaluate(pageComposeRecipientPreview, composeToken, expectedName);
+    const composeText = await page.evaluate(pageComposeRecipientPreview, { token: composeToken, expectedName });
     if (composeText !== null) {
       if (!nameMatchesPreview(composeText, expectedName)) {
         throw new Error('Không có link hồ sơ để xác minh (màn "Soạn tin mới" hoặc hội thoại mới chưa có tin nhắn) và tên hiển thị không khớp tên hồ sơ đã quét; dừng để tránh gửi nhầm người. Hãy kiểm tra thủ công.');
