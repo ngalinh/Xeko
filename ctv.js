@@ -205,6 +205,18 @@
   function renderSendLog(lead) { return renderActivityLog(lead, 'sendLog', 'Nhật ký gửi', openSendLogs); }
   const openScanLogs = new Set();
   const openSendLogs = new Set();
+  const openSendMessages = new Set();
+  function renderSendMessage(lead, c) {
+    const m = c.messagePreview?.messages.find(m => m.leadId === lead.id);
+    if (!m) return null;
+    const details = element('details', undefined, 'send-message');
+    details.open = openSendMessages.has(lead.id);
+    details.ontoggle = () => { if (details.open) openSendMessages.add(lead.id); else openSendMessages.delete(lead.id); };
+    details.append(element('summary', 'Xem tin nhắn đã soạn'));
+    if (c.messagePreview.images?.length) details.append(element('p', `Ảnh đính kèm (${c.messagePreview.images.length} ảnh)`, 'muted'));
+    details.append(element('p', m.message));
+    return details;
+  }
   function selectionExplanation(l) {
     const v = l.assessment;
     if (!v?.eligible && ['page','group'].includes(v?.type)) return v.type === 'page'
@@ -284,6 +296,8 @@
       info.append(heading);
       if (category === 'attention') info.append(element('p',sendIssue(l),'send-explanation'));
       if (category === 'duplicate') info.append(element('p','Đã có lần liên hệ trước; lượt này không gửi lại.','send-explanation'));
+      const sendMessage = renderSendMessage(l, c);
+      if (sendMessage) info.append(sendMessage);
       const actions = element('div',undefined,'send-row-actions');
       if (/^\d+$/.test(l.assessment?.recipientId || '')) actions.append(link(`https://www.facebook.com/messages/t/${l.assessment.recipientId}`,'Mở Messenger ↗'));
       actions.append(link(l.url,'Xem hồ sơ ↗')); heading.append(actions);
