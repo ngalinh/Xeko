@@ -87,6 +87,32 @@ function pageNotFriendsPreview(token) {
   if (token) container.setAttribute('data-xeko-recipient-chat', token);
   return (container.innerText || '').trim().slice(0, 2000);
 }
+// Runs in the page: Facebook's "new message" compose screen (reached by going
+// straight to /messages/t/<id> for someone with no existing thread) shows a
+// "Đến:"/"To:" recipient chip above the composer and no profile link anywhere
+// in the header. Confirmed via live diagnostics: composerCount:1, allLinkCount:0
+// inside role="main". No profile link exists to verify against, so match by the
+// chip's displayed name instead, same trust level as pageNotFriendsPreview.
+// Never clicks the chip itself — only reads its text; the composer box is
+// located and clicked separately by the normal send flow.
+function pageComposeRecipientPreview(token, expectedName) {
+  if (!expectedName) return null;
+  const visible = e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden';
+  const composers = [...document.querySelectorAll('[contenteditable="true"][role="textbox"]')].filter(visible);
+  if (composers.length !== 1) return null;
+  const main = composers[0].closest('[role="main"]');
+  if (!main || main.querySelector('a[href]')) return null;
+  const label = [...main.querySelectorAll('*')].find(e => visible(e) && e.children.length === 0
+    && /^(Đến|To)\s*:?$/i.test((e.textContent || '').trim()));
+  if (!label) return null;
+  let container = label;
+  for (let i = 0; i < 10 && container.parentElement && container !== main; i++) {
+    container = container.parentElement;
+    if (container.querySelectorAll('[contenteditable="true"][role="textbox"]').length === 1) break;
+  }
+  if (token) container.setAttribute('data-xeko-recipient-chat', token);
+  return (container.innerText || '').trim().slice(0, 500);
+}
 // Runs in the page: a brand-new thread (first message to someone not yet a
 // friend) shows its receipt as plain visible text ("Đã gửi 8 phút trước"),
 // not inside a [role="row"] history item with a clean aria-label like an
@@ -112,6 +138,15 @@ async function selectRecipientConversation(page, id, target, cancelled, report =
       }
       report('not_friends_name_matched', `Chưa là bạn bè nhưng tên hiển thị khớp "${expectedName}"; tiếp tục gửi (xác minh theo tên, không có link hồ sơ để đối chiếu).`);
       return { conversation: page.locator(`[data-xeko-recipient-chat="${previewToken}"]`), nameMatchMode: true };
+    }
+    const composeToken = randomUUID();
+    const composeText = await page.evaluate(pageComposeRecipientPreview, composeToken, expectedName);
+    if (composeText !== null) {
+      if (!nameMatchesPreview(composeText, expectedName)) {
+        throw new Error('Màn "Soạn tin mới" hiện tên không khớp tên hồ sơ đã quét; dừng để tránh gửi nhầm người. Hãy kiểm tra thủ công.');
+      }
+      report('compose_new_name_matched', `Màn "Soạn tin mới" (chưa có hội thoại) hiện tên khớp "${expectedName}"; tiếp tục gửi (xác minh theo tên, không có link hồ sơ để đối chiếu).`);
+      return { conversation: page.locator(`[data-xeko-recipient-chat="${composeToken}"]`), nameMatchMode: true };
     }
     const roots = page.locator(CHAT_ROOT), matches = [];
     for (let i = 0, n = await roots.count(); i < n; i++) {
