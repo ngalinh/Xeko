@@ -709,26 +709,10 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
   const check = () => { if (cancelled()) throw new Error('Đã dừng trước khi gửi'); };
   check();
   const expectedName = (lead.name || '').trim();
-  let conversation, nameMatchMode;
-  try {
-    report('open', 'Đang mở hồ sơ khách (tối đa 30 giây)');
-    await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await assertSession(page);
-    if (profileUrl(page.url()) !== target && recipientId(page.url()) !== id) throw new Error('Facebook chuyển sang hồ sơ khác; đã dừng');
-    let button;
-    try {
-      report('message_button', 'Đang tìm nút Nhắn tin trên hồ sơ (tối đa 30 giây)');
-      button = await page.waitForFunction(profileMessageButton, null, { timeout: 30000 });
-      check();
-      if (profileUrl(page.url()) !== target && recipientId(page.url()) !== id) throw new Error('Facebook chuyển sang hồ sơ khác; đã dừng');
-      await button.asElement().click({ timeout: 10000 });
-      report('message_click', 'Đã bấm Nhắn tin; đang xác định đúng khung chat');
-    } finally { if (button) await button.dispose(); }
-    ({ conversation, nameMatchMode } = await selectRecipientConversation(page, id, target, cancelled, report, expectedName));
-  } catch (popupError) {
-    if (popupError.fatal || cancelled()) throw popupError;
-    ({ conversation, nameMatchMode } = await openThreadDirect(page, id, target, cancelled, report, expectedName));
-  }
+  // TẠM NGƯNG flow popup từ trang cá nhân (vào hồ sơ → bấm "Nhắn tin") để test
+  // trực tiếp flow mở thẳng facebook.com/messages/t/<id>. Bật lại bằng cách khôi
+  // phục khối try/catch cũ (xem git history) khi đã xác nhận ổn.
+  const { conversation, nameMatchMode } = await openThreadDirect(page, id, target, cancelled, report, expectedName);
   const box = conversation.locator(COMPOSER);
   report('composer', 'Đang chờ ô soạn tin sẵn sàng');
   await waitForMessageComposer(page, box, cancelled, 300000, true);
