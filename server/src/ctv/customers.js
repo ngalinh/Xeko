@@ -15,6 +15,7 @@ function captureCustomers(data) {
       messageState: lead.message ? lead.state : previous.messageState,
       error: lead.error || '',
       sent: previous.sent || lead.state === 'sent',
+      sentAt: previous.sentAt || (lead.state === 'sent' ? new Date().toISOString() : undefined),
     };
     const old = { ...previous }; delete old.updatedAt;
     record.updatedAt = JSON.stringify(old) === JSON.stringify(record)
@@ -37,7 +38,7 @@ function listCustomers(data, owner) {
       name: record.name || old?.name, uid: record.uid || old?.uid, notes: record.notes || old?.notes,
       manual: !!(record.manual || old?.manual),
       assessment: record.assessment || old?.assessment,
-      sent: !!(old?.sent || record.sent), state: record.state, error: record.error,
+      sent: !!(old?.sent || record.sent), sentAt: old?.sentAt || record.sentAt, state: record.state, error: record.error,
       message: record.message || old?.message,
       messageState: record.message ? record.messageState : old?.messageState,
       importedAt: old && old.importedAt < record.importedAt ? old.importedAt : record.importedAt,

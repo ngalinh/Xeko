@@ -458,7 +458,7 @@
       const open=element('button','Mở','secondary history-open');open.disabled=busy;open.onclick=()=>choose(c.id);open.setAttribute('aria-label','Mở chiến dịch '+c.name);
       const remove=element('button','Xoá','secondary history-delete');remove.dataset.deleteState=c.state;remove.disabled=busy || category==='active';remove.onclick=()=>deleteCampaign(c);remove.setAttribute('aria-label','Xoá chiến dịch '+c.name);if(category==='active')remove.title='Dừng chiến dịch trước khi xoá';
       const actions=cell('Thao tác',open,'history-actions');actions.append(remove);
-      row.append(cell('STT',element('span',String(historyPage * historyPageSize+index+1)),'history-index'),identity,account,date,count,sentCell,cell('Trạng thái',status),info,actions);$('campaigns').append(row);
+      row.append(cell('STT',element('span',String(historyPage * historyPageSize+index+1)),'history-index'),date,identity,account,count,sentCell,cell('Trạng thái',status),info,actions);$('campaigns').append(row);
     }
     if (!visible.length) $('campaigns').append(element('p',campaigns.length?'Không có chiến dịch phù hợp. Thử đổi từ khoá hoặc bộ lọc.':'Chưa có chiến dịch. Bấm “Chiến dịch mới” để bắt đầu.','history-empty'));
     $('historyCount').textContent=visible.length+' / '+campaigns.length+' chiến dịch';
