@@ -12,6 +12,13 @@ const { normalized } = require('./caption-review');
 const COMPOSER = '[contenteditable="true"][role="textbox"]:visible';
 const CHAT_ROOT = '[role="dialog"], [role="main"], [role="complementary"], [data-xeko-chat-root]';
 
+// Facebook renders a thread's URL as /messages/t/<id> normally, but switches to
+// /messages/e2ee/t/<id> once the end-to-end-encryption consent gate ("Tiếp tục")
+// has been accepted for that thread. Both refer to the same conversation.
+function isThreadPath(pathname, id) {
+  return pathname.replace(/\/$/, '') === `/messages/t/${id}` || pathname.replace(/\/$/, '') === `/messages/e2ee/t/${id}`;
+}
+
 // Discover role-less Messenger popups without accepting a page-wide ancestor.
 // Mark only the smallest container with one composer, one history and chat controls.
 function discoverRecipientPopups() {
@@ -214,7 +221,7 @@ async function openThreadDirect(page, id, target, cancelled, report, expectedNam
   report('open_direct', 'Không mở được khung chat từ hồ sơ; đang thử mở trực tiếp hội thoại Messenger');
   await page.goto(`https://www.facebook.com/messages/t/${id}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await assertSession(page);
-  if (new URL(page.url()).pathname.replace(/\/$/, '') !== `/messages/t/${id}`) throw new Error('Facebook chuyển sang hội thoại khác; đã dừng');
+  if (!isThreadPath(new URL(page.url()).pathname, id)) throw new Error('Facebook chuyển sang hội thoại khác; đã dừng');
   // Facebook's SPA can take several seconds after navigation to render the E2EE
   // gate (if it shows at all); checking only a few times right away missed it,
   // leaving the composer permanently blocked. Keep polling for up to ~60s, same
@@ -787,7 +794,7 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
     const u = new URL(page.url());
     if (u.hostname !== 'www.facebook.com') throw new Error('Facebook chuyển sang hội thoại khác; đã dừng');
     if (u.pathname.startsWith('/messages/')) {
-      if (u.pathname.replace(/\/$/,'') !== `/messages/t/${id}`) throw new Error('Facebook chuyển sang hội thoại khác; đã dừng');
+      if (!isThreadPath(u.pathname, id)) throw new Error('Facebook chuyển sang hội thoại khác; đã dừng');
     } else if (profileUrl(page.url()) !== target && recipientId(page.url()) !== id) throw new Error('Facebook chuyển sang hồ sơ khác; đã dừng');
     if (await box.count() !== 1 || await conversation.count() !== 1) throw new Error('Không xác định được duy nhất hội thoại');
     if (nameMatchMode) {
