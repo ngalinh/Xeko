@@ -322,6 +322,16 @@
         const retryRow = element('div',undefined,'send-retry-row');
         if (profilePicker) retryRow.append(profilePicker);
         retryRow.append(retry);
+        if (l.state === 'unconfirmed') {
+          const markSentBtn = element('button','✓ Đánh dấu đã gửi','secondary mark-sent');
+          markSentBtn.type='button';markSentBtn.disabled=busy || uncertain || ACTIVE.includes(c.state);
+          markSentBtn.onclick=()=>{
+            if(markSentBtn.disabled || selected?.id!==c.id)return;
+            if(!window.confirm('Xác nhận bạn đã tự kiểm tra Messenger và thấy tin nhắn (và ảnh nếu có) đã gửi tới khách này?'))return;
+            action('mark-sent',{leadId:l.id});
+          };
+          retryRow.append(markSentBtn);
+        }
         heading.append(retryRow);
       }
       info.append(renderSendLog(l));
