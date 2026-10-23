@@ -44,6 +44,16 @@ test('image submission failure retains reservation and blocks a second attempt',
   s.sendApproved(c.id,'owner',c.messagePreview.token);assert.equal(s.running.size,0);
 });
 
+test('mark-sent flips an unconfirmed lead to sent and blocks reuse or unknown leads', async t => {
+  const {s,browser}=setup(t),c=await analyzed(s);prepared(s,c);
+  browser.send=async(_,lead,message,reserve)=>{reserve();throw Error('Chưa xác nhận');};
+  s.sendApproved(c.id,'owner',c.messagePreview.token);await settle(s);
+  assert.equal(c.leads[0].state,'unconfirmed');
+  assert.throws(()=>s.markSent(c.id,'owner',{leadId:'missing'}));
+  s.markSent(c.id,'owner',{leadId:c.leads[0].id});
+  assert.equal(c.leads[0].state,'sent');assert.ok(c.leads[0].manualConfirm.by);
+  assert.throws(()=>s.markSent(c.id,'owner',{leadId:c.leads[0].id}));
+});
 test('UID lookup preserves AI, invalidates approvals and runs in account queue without sending', async t => {
   const {s,browser,sent,inspected}=setup(t);
   const c=await analyzed(s); const oldToken=prepared(s,c);

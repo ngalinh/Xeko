@@ -1,6 +1,6 @@
 const path = require('path');
 const { CtvService } = require('./service');
-const ACTIONS = ['approve-import', 'approve-analysis', 'review-analysis', 'prepare-messages', 'send', 'retry-send', 'stop', 'retry-analysis', 'resolve-uids', 'delete', 'skip-lead', 'add-brand'];
+const ACTIONS = ['approve-import', 'approve-analysis', 'review-analysis', 'prepare-messages', 'send', 'retry-send', 'mark-sent', 'stop', 'retry-analysis', 'resolve-uids', 'delete', 'skip-lead', 'add-brand'];
 const campaignPath = /^\/api\/ctv\/campaigns\/([a-f0-9-]+)(?:\/([a-z-]+))?$/;
 
 function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', permissions, service: providedService, fetchFn = fetch } = {}) {
@@ -71,6 +71,7 @@ function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', pe
           'prepare-messages': () => s.prepareMessages(c.id, owner, body.template, body.images),
           'send': () => s.sendApproved(c.id, owner, body.previewToken),
           'retry-send': () => s.retrySend(c.id, owner, body),
+          'mark-sent': () => s.markSent(c.id, owner, body),
           'stop': () => s.stop(c.id, owner),
           'retry-analysis': () => s.retryAnalysis(c.id, owner, body.myjoyBackend),
           'resolve-uids': () => s.resolveUids(c.id, owner, body.leadId),
