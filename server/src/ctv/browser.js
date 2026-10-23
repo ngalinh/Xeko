@@ -210,6 +210,17 @@ function e2eeContinueButton() {
   // the first rather than bailing out, so a harmless duplicate never blocks the click.
   return buttons[0] || false;
 }
+// Runs in the page: many threads (e.g. the "not friends" preview, which has no
+// E2EE gate at all) never show the "Tiếp tục" button; once the composer is
+// already visible and not stuck behind an unrelated dialog, there's nothing
+// left to wait for inside the E2EE-gate loop below.
+function composerUnblocked() {
+  const visible = e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden';
+  const boxes = [...document.querySelectorAll('[contenteditable="true"][role="textbox"]')].filter(visible);
+  if (boxes.length !== 1) return false;
+  const blockers = [...document.querySelectorAll('[role="dialog"], [aria-modal="true"]')].filter(visible);
+  return blockers.every(b => b.querySelector('[contenteditable="true"][role="textbox"]'));
+}
 
 // Fallback for when the profile "Nhắn tin" popup path fails (e.g. the composer never
 // appears behind Facebook's E2EE consent gate): open the conversation straight from
@@ -233,6 +244,7 @@ async function openThreadDirect(page, id, target, cancelled, report, expectedNam
     const el = handle.asElement();
     if (!el) {
       await handle.dispose();
+      if (await page.evaluate(composerUnblocked)) break;
       if (i > 0 && i % 10 === 0) report('e2ee_waiting', `Đang chờ màn xác nhận mã hóa đầu cuối hoặc ô soạn tin… (${i}s)`);
       await page.waitForTimeout(1000);
       continue;
