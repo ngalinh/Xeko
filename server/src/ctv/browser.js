@@ -793,13 +793,23 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
     check();
     const u = new URL(page.url());
     if (u.hostname !== 'www.facebook.com') throw new Error('Facebook chuyển sang hội thoại khác; đã dừng');
-    if (u.pathname.startsWith('/messages/')) {
+    if (nameMatchMode) {
+      // No profile link exists for any name-matched state (not-friends preview,
+      // "Soạn tin mới" compose chip, or empty-thread heading), and each can sit on
+      // a different URL shape (/messages/t/<id>, /messages/e2ee/t/<id>, or even
+      // /messages/new?... for the compose screen) — confirmed live. The identity
+      // check below (re-reading the matched name) is what actually guards this.
+      if (!u.pathname.startsWith('/messages/')) throw new Error('Facebook chuyển sang hội thoại khác; đã dừng');
+    } else if (u.pathname.startsWith('/messages/')) {
       if (!isThreadPath(u.pathname, id)) throw new Error('Facebook chuyển sang hội thoại khác; đã dừng');
     } else if (profileUrl(page.url()) !== target && recipientId(page.url()) !== id) throw new Error('Facebook chuyển sang hồ sơ khác; đã dừng');
     if (await box.count() !== 1 || await conversation.count() !== 1) throw new Error('Không xác định được duy nhất hội thoại');
     if (nameMatchMode) {
-      // No profile link exists in this "not friends" preview; re-check the name match.
-      const previewText = await page.evaluate(pageNotFriendsPreview);
+      // Re-check whichever name-matched state is currently showing; the two
+      // preview readers are mutually exclusive (not-friends text vs. compose
+      // chip/heading), so try the first and fall back to the second.
+      let previewText = await page.evaluate(pageNotFriendsPreview);
+      if (previewText === null) previewText = await page.evaluate(pageComposeRecipientPreview, { expectedName });
       if (!nameMatchesPreview(previewText, expectedName)) throw new Error('Không còn xác minh được đúng khách qua tên hiển thị trong bản xem trước; đã dừng');
     } else {
       // Require a profile link in the conversation header, excluding message history.
