@@ -41,8 +41,8 @@
       const link = el('a', r.url); link.href = r.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; identity.append(el('br'), link);
       const states = el('div');
       states.append(el('span', r.sent ? 'Đã gửi tin nhắn' : r.state === 'unconfirmed' ? 'Chưa xác nhận gửi' : r.assessment ? (r.assessment.provider === 'keywords' ? 'Đã quét caption' : 'Đã đánh giá AI') : r.manual ? 'Thêm thủ công' : 'Đã nhập', 'badge'));
-      if (attention(r)) states.append(el('p', 'Cần kiểm tra', 'muted'));
-      if (!canSelect(r)) states.append(el('p', 'Đã có lịch sử gửi / chưa xác nhận. Không chọn gửi lại.', 'muted'));
+      const note = !canSelect(r) ? 'Có lịch sử gửi; không chọn gửi lại.' : attention(r) ? 'Cần kiểm tra' : '';
+      if (note) states.append(el('p', note, 'muted'));
       const gender=r.assessment?.selfDeclaredGender;
       const choose = el('label', null, 'check-label'), checkbox = el('input');
       checkbox.type = 'checkbox'; checkbox.disabled = !canSelect(r); checkbox.checked = canSelect(r) && chosen.has(keyOf(r));
