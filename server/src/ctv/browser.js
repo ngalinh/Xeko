@@ -902,6 +902,17 @@ function createBrowserAdapter(playwright = require('../playwright/post')) {
         if (!keepOpen && !(keepOnError && failed)) {
           pages.delete(profile);
           await page.close().catch(() => {});
+          // launchPersistentContext always starts with one "about:blank" tab that
+          // nothing here ever opens or reuses; once the working tab above closes,
+          // it's the only thing left on screen and looks like the browser never
+          // closed after sending. Clean up stray blank tabs, but never the tab an
+          // open inspection session for this profile is still using.
+          try {
+            const kept = inspectionPages.get(profile);
+            for (const p of browser.pages()) {
+              if (p !== kept && !p.isClosed() && p.url() === 'about:blank') await p.close().catch(() => {});
+            }
+          } catch { /* context may already be closed; nothing to clean up */ }
         }
       }
     },
