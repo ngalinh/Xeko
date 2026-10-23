@@ -161,6 +161,11 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 .send-retry-row button.retry-send:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
 .send-retry-row button.retry-send:active:not(:disabled){background:#bfdbfe;border-color:#60a5fa}
 @media(pointer:coarse){.send-retry-row button.retry-send{min-height:44px}}
+.send-retry-row button.mark-sent{flex-shrink:0;min-height:32px;padding:6px 14px;border:1px solid #bce4d2;border-radius:6px;background:#e6f6ed;color:#1b6b45;font-size:12px;font-weight:600;line-height:18px;white-space:nowrap;box-shadow:none;transition:background .15s,border-color .15s}
+.send-retry-row button.mark-sent:hover:not(:disabled){background:#d2f0df;border-color:#8cd4ae}
+.send-retry-row button.mark-sent:focus-visible{outline:2px solid #237047;outline-offset:3px}
+.send-retry-row button.mark-sent:active:not(:disabled){background:#bce4d2;border-color:#6bc295}
+@media(pointer:coarse){.send-retry-row button.mark-sent{min-height:44px}}
 .send-diagnostic{margin-top:14px;padding-top:6px;border-top:1px dashed #e2e8f0}.send-diagnostic summary{font-size:11px;color:#758399}.send-diagnostic pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;font-size:11px;line-height:1.7;padding:12px;background:#f5f7fb;border-radius:8px;color:#53657b;margin:4px 0 0}
 .send-message{margin-top:14px;padding-top:6px;border-top:1px dashed #e2e8f0}.send-message summary{font-size:11px;color:#758399}.send-message p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.7;padding:12px;background:#f5f8ff;border-radius:8px;color:#345676;margin:6px 0 0}
 .send-empty{text-align:center;padding:28px;border:1px dashed #dce4ef;border-radius:12px;color:var(--muted);font-size:13px}#sendNote{margin-top:14px;font-size:11px}
