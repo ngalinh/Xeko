@@ -434,7 +434,7 @@
   }
   document.addEventListener('ctv:view', event => setPageView(event.detail));
   function setHistoryOpen(open) { setPageView(open ? 'history' : 'workflow'); }
-  let historyPage = 0;
+  let historyPage = 0, historyPicks = new Set();
   const historyPageSize = 10;
   function historyCategory(c) {
     if (ACTIVE.concat(['running','queued']).includes(c.state)) return 'active';
@@ -468,13 +468,46 @@
       const open=element('button','Mở','secondary history-open');open.disabled=busy;open.onclick=()=>choose(c.id);open.setAttribute('aria-label','Mở chiến dịch '+c.name);
       const remove=element('button','Xoá','secondary history-delete');remove.dataset.deleteState=c.state;remove.disabled=busy || category==='active';remove.onclick=()=>deleteCampaign(c);remove.setAttribute('aria-label','Xoá chiến dịch '+c.name);if(category==='active')remove.title='Dừng chiến dịch trước khi xoá';
       const actions=cell('Thao tác',open,'history-actions');actions.append(remove);
-      row.append(cell('STT',element('span',String(historyPage * historyPageSize+index+1)),'history-index'),date,identity,account,count,sentCell,cell('Trạng thái',status),info,actions);$('campaigns').append(row);
+      const pick=element('input');pick.type='checkbox';pick.disabled=busy||category==='active';pick.checked=historyPicks.has(c.id);
+      pick.setAttribute('aria-label','Chọn chiến dịch '+c.name);
+      pick.onchange=()=>{if(pick.checked)historyPicks.add(c.id);else historyPicks.delete(c.id);updateHistorySelection();};
+      row.append(cell('',pick,'history-pick'),cell('STT',element('span',String(historyPage * historyPageSize+index+1)),'history-index'),date,identity,account,count,sentCell,cell('Trạng thái',status),info,actions);
+      $('campaigns').append(row);
     }
     if (!visible.length) $('campaigns').append(element('p',campaigns.length?'Không có chiến dịch phù hợp. Thử đổi từ khoá hoặc bộ lọc.':'Chưa có chiến dịch. Bấm “Chiến dịch mới” để bắt đầu.','history-empty'));
     $('historyCount').textContent=visible.length+' / '+campaigns.length+' chiến dịch';
     $('historyPage').textContent='Trang '+(historyPage+1)+'/'+Math.max(1,Math.ceil(visible.length/historyPageSize));
     $('historyPrevious').disabled=historyPage===0;$('historyNext').disabled=(historyPage+1)*historyPageSize>=visible.length;
+    const pageDeletable=visible.slice(historyPage*historyPageSize,(historyPage+1)*historyPageSize).filter(c=>historyCategory(c)!=='active');
+    const pageSelectedCount=pageDeletable.filter(c=>historyPicks.has(c.id)).length;
+    $('historySelectAll').disabled=busy||!pageDeletable.length;
+    $('historySelectAll').checked=pageDeletable.length>0&&pageSelectedCount===pageDeletable.length;
+    $('historySelectAll').indeterminate=pageSelectedCount>0&&pageSelectedCount<pageDeletable.length;
+    $('historySelectAll').onchange=()=>{
+      for(const c of pageDeletable){if($('historySelectAll').checked)historyPicks.add(c.id);else historyPicks.delete(c.id);}
+      renderHistory();
+    };
+    updateHistorySelection();
   }
+  function updateHistorySelection(){
+    for(const id of [...historyPicks])if(!campaigns.some(c=>c.id===id&&historyCategory(c)!=='active'))historyPicks.delete(id);
+    $('deleteSelectedHistory').disabled=busy||!historyPicks.size;
+    $('deleteSelectedHistory').textContent=historyPicks.size?`Xoá đã chọn (${historyPicks.size})`:'Xoá đã chọn';
+  }
+  async function deleteSelectedCampaigns(){
+    if(busy||!historyPicks.size)return;
+    const ids=[...historyPicks];
+    if(!window.confirm(`Xoá ${ids.length} chiến dịch đã chọn? Không thể khôi phục. Dữ liệu khách hàng và lịch sử chống gửi trùng vẫn được giữ.`))return;
+    busy=true;clearTimeout(timer);updateControls();notice();
+    const failed=[];
+    for(const id of ids){
+      try{await api(`/api/ctv/campaigns/${id}/delete`,'POST',{});campaigns=campaigns.filter(item=>item.id!==id);historyPicks.delete(id);}
+      catch(e){failed.push(e.message);}
+    }
+    busy=false;updateControls();renderHistory();
+    notice(failed.length?`Đã xoá ${ids.length-failed.length}/${ids.length} chiến dịch. Lỗi: ${failed[0]}`:`Đã xoá ${ids.length} chiến dịch.`,!!failed.length);
+  }
+  $('deleteSelectedHistory').onclick=deleteSelectedCampaigns;
   $('historySearch').oninput=$('historyFilter').onchange=()=>{historyPage=0;renderHistory();};
   $('historyPrevious').onclick=()=>{historyPage--;renderHistory();};
   $('historyNext').onclick=()=>{historyPage++;renderHistory();};
