@@ -144,6 +144,43 @@ test('sellerUS=yes without grounded evidence, or evidence quoting text that is n
   assert.throws(()=>parseReview(JSON.stringify({...answer, profileType:'invalid'}),base,'chat-model'));
   assert.throws(()=>parseReview(JSON.stringify({...answer, confidence:1.5}),base,'chat-model'));
 });
+for (const quote of ['Tuyển CTV bán hàng nhận hàng giá sỉ, chiết khấu theo doanh số.', 'Tuyển đại lý toàn quốc, nguồn hàng sỉ cho đối tác bán lại.']) {
+  test('grounded wholesale recruitment excludes an otherwise eligible seller via MyJoy: '+quote, () => {
+    const base = evaluateCaptions({...snapshot, headerBio: quote});
+    const confident = {...answer, sellerUS:'yes', confidence:0.9, sellerEvidence:[{index:0,quote}],
+      wholesaleRecruitment:{verdict:'yes',confidence:0.96,reason:'Tuyển mạng lưới',evidence:[quote]}};
+    const result = parseReview(JSON.stringify(confident),base,'chat-model');
+    assert.equal(result.sellerUS,'yes'); assert.equal(result.eligible,false);
+    assert.equal(result.wholesaleRecruitment.excluded,true); assert.deepEqual(result.wholesaleRecruitment.evidence,[quote]);
+    assert.match(result.gateReason,/nguồn sỉ/);
+  });
+}
+test('fabricated or short recruitment evidence cannot exclude via MyJoy', () => {
+  const base = evaluateCaptions(snapshot);
+  const confident = {...answer, sellerUS:'yes', confidence:0.9, sellerEvidence:[{index:0,quote:'Shop thời trang'}],
+    wholesaleRecruitment:{verdict:'yes',confidence:1,reason:'Sỉ lớn',evidence:['Tuyển đại lý toàn quốc giá sỉ','CTV']}};
+  const result = parseReview(JSON.stringify(confident),base,'chat-model');
+  assert.equal(result.eligible,true); assert.equal(result.wholesaleRecruitment.excluded,false); assert.equal(result.wholesaleRecruitment.verdict,'unknown');
+});
+test('low confidence recruitment remains unexcluded via MyJoy', () => {
+  const quote = 'Tuyển CTV bán hàng, liên hệ để biết thêm.';
+  const base = evaluateCaptions({...snapshot, headerBio: quote});
+  const confident = {...answer, sellerUS:'yes', confidence:0.9, sellerEvidence:[{index:0,quote}],
+    wholesaleRecruitment:{verdict:'yes',confidence:0.6,reason:'Chưa rõ',evidence:[quote]}};
+  const result = parseReview(JSON.stringify(confident),base,'chat-model');
+  assert.equal(result.wholesaleRecruitment.excluded,false);
+});
+test('a recruitment field absent from the MyJoy answer keeps the previous eligibility', () => {
+  const confident = {...answer, sellerUS:'yes', confidence:0.9, sellerEvidence:[{index:0,quote:'Shop thời trang'}]};
+  const result = parseReview(JSON.stringify(confident),evaluateCaptions(snapshot),'chat-model');
+  assert.equal(result.eligible,true); assert.equal(result.wholesaleRecruitment.excluded,false); assert.equal(result.wholesaleRecruitment.verdict,'unknown');
+});
+test('an invalid recruitment shape is rejected like other malformed MyJoy fields', () => {
+  const base = evaluateCaptions(snapshot);
+  for (const bad of [{verdict:'maybe',confidence:0.9,reason:'x',evidence:[]}, {verdict:'yes',confidence:1.5,reason:'x',evidence:[]}, {verdict:'yes',confidence:0.9,reason:123,evidence:[]}, {verdict:'yes',confidence:0.9,reason:'x',evidence:[1]}]) {
+    assert.throws(()=>parseReview(JSON.stringify({...answer, wholesaleRecruitment:bad}),base,'chat-model'));
+  }
+});
 test('missing/duplicate indices, hallucinated quotes, wrong types and incomplete JSON are rejected', () => {
   const base = evaluateCaptions(snapshot);
   const cases = [null,{}, {captions:answer.captions.slice(1)}, {captions:answer.captions.map(p=>({...p,index:0}))}];
