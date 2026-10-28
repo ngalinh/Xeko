@@ -7,6 +7,11 @@ const { captureCustomers, listCustomers, addManualCustomer } = require('./custom
 const { contactHistory } = require('./contact-history');
 const ACTIVE = ['analysis_queued', 'analyzing', 'uid_queued', 'resolving_uid', 'send_queued', 'sending'];
 const fail = message => { const e = new Error(message); e.status = 409; throw e; };
+// Mỗi tin nhắn trong một chiến dịch được render từ cùng một mẫu; thêm một hậu tố
+// ngẫu nhiên (emoji hoặc dấu câu) cho từng khách để nội dung không giống nhau
+// 100%, tránh bị Messenger đánh dấu là tin nhắn hàng loạt giống nhau (spam).
+const MESSAGE_VARIATIONS = ['😊', '🙂', '😄', '❤️', '👍', '🥰', '.', '..', '...'];
+const withRandomVariation = message => `${message} ${MESSAGE_VARIATIONS[Math.floor(Math.random() * MESSAGE_VARIATIONS.length)]}`;
 
 class CtvService {
   constructor({ file, browser, queue = fn => fn(), pause = ms => new Promise(r => setTimeout(r, ms)) }) {
@@ -319,7 +324,7 @@ class CtvService {
       const l = c.leads.find(l => l.id === id);
       const blocked = this.reasonBlocked(l, c);
       if (blocked) fail(blocked);
-      return { leadId: id, recipientId: l.assessment.recipientId, name: l.assessment.name || 'bạn', url: l.url, message: renderMessage(template, l.assessment.name) };
+      return { leadId: id, recipientId: l.assessment.recipientId, name: l.assessment.name || 'bạn', url: l.url, message: withRandomVariation(renderMessage(template, l.assessment.name)) };
     });
     c.template = template.trim(); c.messagePreview = { token: crypto.randomUUID(), createdAt: new Date().toISOString(), images: attachments, messages };
     this.save(); return c;
