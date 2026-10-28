@@ -322,15 +322,19 @@
         const retryRow = element('div',undefined,'send-retry-row');
         if (profilePicker) retryRow.append(profilePicker);
         retryRow.append(retry);
-        if (l.state === 'unconfirmed') {
-          const markSentBtn = element('button','✓ Đánh dấu đã gửi','secondary mark-sent');
-          markSentBtn.type='button';markSentBtn.disabled=busy || uncertain || ACTIVE.includes(c.state);
-          markSentBtn.onclick=()=>{
-            if(markSentBtn.disabled || selected?.id!==c.id)return;
+        if (['unconfirmed','review','failed'].includes(l.state)) {
+          const statusPicker = element('select',undefined,'mark-status');
+          statusPicker.setAttribute('aria-label',`Chọn trạng thái sau khi tự kiểm tra cho ${name}`);
+          statusPicker.disabled = busy || uncertain || ACTIVE.includes(c.state);
+          const placeholder = element('option','Chọn trạng thái sau khi kiểm tra…'); placeholder.value=''; statusPicker.append(placeholder);
+          const sentOption = element('option','✓ Đã gửi (đã tự kiểm tra Messenger)'); sentOption.value='sent'; statusPicker.append(sentOption);
+          statusPicker.onchange=()=>{
+            const value = statusPicker.value; statusPicker.value='';
+            if(!value || statusPicker.disabled || selected?.id!==c.id)return;
             if(!window.confirm('Xác nhận bạn đã tự kiểm tra Messenger và thấy tin nhắn (và ảnh nếu có) đã gửi tới khách này?'))return;
             action('mark-sent',{leadId:l.id});
           };
-          retryRow.append(markSentBtn);
+          retryRow.append(statusPicker);
         }
         heading.append(retryRow);
       }
