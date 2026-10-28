@@ -5,7 +5,7 @@ const { resolveCurrentProfileUid } = require('./uid');
 const { imagePayloads } = require('./attachments');
 const { randomUUID } = require('crypto');
 const { withClipboard } = require('../utils/clipboard-queue');
-const { fillComposerCaption } = require('../playwright/fb-caption');
+const { fillComposerCaption, normalizeCaption } = require('../playwright/fb-caption');
 const { normalized } = require('./caption-review');
 // Messenger's Lexical composer label varies with recipient and language
 // (e.g. "Write to Linh Thảo US"). This selector is used only inside a verified chat.
@@ -831,18 +831,20 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
   };
   await verify();
   if ((await box.innerText()).trim()) throw new Error('Hội thoại có bản nháp đang soạn; cần xử lý thủ công');
+  // Real clipboard paste (select-all then paste, like a human) survives Messenger's
+  // Lexical editor better than a synthetic fill; falls back to fill() only if it fails.
+  // Must run before attaching images: select-all here would also select an already
+  // attached image chip, and the paste would wipe it instead of just replacing text.
+  report('typing', 'Đang nhập nội dung tin nhắn');
+  if (!await fillComposerCaption(page, box, message)) throw new Error('Nội dung trong ô soạn không khớp mẫu');
+  await verify();
   let media;
   if (images.length) {
     media = await prepareImages(page, conversation, images, verify, box, report);
     await waitForMessageComposer(page, box, cancelled, 300000, true);
     await verify();
-    if ((await box.innerText()).trim()) throw new Error('Ô soạn có bản nháp sau đính kèm ảnh; chưa gửi tin nhắn');
+    if (normalizeCaption(await box.innerText()) !== normalizeCaption(message)) throw new Error('Nội dung trong ô soạn đã thay đổi sau khi đính kèm ảnh; chưa gửi tin nhắn');
   }
-  // Real clipboard paste (select-all then paste, like a human) survives Messenger's
-  // Lexical editor better than a synthetic fill; falls back to fill() only if it fails.
-  report('typing', 'Đang nhập nội dung tin nhắn');
-  if (!await fillComposerCaption(page, box, message)) throw new Error('Nội dung trong ô soạn không khớp mẫu');
-  await verify();
   const confirmedCount = () => conversation.locator('[role="row"]').evaluateAll((rows, text) => rows.filter(row => {
     const exact = [...row.querySelectorAll('[dir="auto"]')].some(e => e.textContent.trim() === text);
     const pattern = /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)\b/i;
