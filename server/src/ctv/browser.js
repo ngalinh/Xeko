@@ -872,10 +872,15 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
     // first message) must not abort confirmation — just skip re-verifying this tick.
     if (media) { try { await verify(); } catch {} }
     // A brand-new thread has no [role="row"] history to count receipts from;
-    // fall back to the plain-text "Đã gửi…"/"Sent…" caption shown under the bubble.
+    // fall back to the plain-text "Đã gửi…"/"Sent…" caption shown under the bubble
+    // for the TEXT part only. This caption appears as soon as Messenger submits the
+    // message client-side — it says nothing about whether a clipboard-pasted image
+    // finished uploading to Facebook's servers, so it must never stand in for image
+    // confirmation (that previously let a campaign report "sent" with an image that
+    // then vanished on reload because the upload hadn't actually completed).
     const bundleSent = nameMatchMode ? await page.evaluate(newThreadSentReceipt) : null;
     const textSent = bundleSent !== null ? bundleSent : await confirmedCount() > beforeCount;
-    const imagesSent = bundleSent !== null ? bundleSent : (!media || await media.confirmedImages() >= media.before + media.count);
+    const imagesSent = !media || await media.confirmedImages() >= media.before + media.count;
     if (textSent && imagesSent) { report('sent', 'Messenger đã xác nhận gửi'); return { state: 'sent', reason: media ? 'Messenger xác nhận ảnh và nội dung tin nhắn đã gửi/đã chuyển' : 'Messenger hiển thị trạng thái đã gửi/đã chuyển cho tin nhắn mới' }; }
     if (i > 0 && i % 5 === 0) report('confirm_waiting', `Vẫn đang chờ Messenger xác nhận… (${i}s)`);
   }
