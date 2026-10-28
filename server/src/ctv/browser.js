@@ -265,7 +265,10 @@ async function openThreadDirect(page, id, target, cancelled, report, expectedNam
     }
     await handle.dispose();
     await page.waitForTimeout(500);
-    break;
+    // Đừng coi một lần bấm là chắc chắn thành công: nếu nút vẫn còn (click bị
+    // nuốt bởi overlay, hoặc Facebook cần xác nhận lần nữa) thì vòng lặp phải
+    // phát hiện ở lượt kế tiếp và bấm lại, thay vì thoát ngay rồi để
+    // waitForMessageComposer âm thầm chờ 5 phút không có ô soạn tin nào xuất hiện.
   }
   return selectRecipientConversation(page, id, target, cancelled, report, expectedName);
 }
