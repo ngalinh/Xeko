@@ -831,9 +831,11 @@
     bulkSending = true; updateControls();
     try {
       for (const id of [...sendPicks]) {
-        if (!selected || selected.id !== campaignId || uncertain) break;
+        if (!selected || selected.id !== campaignId || uncertain || selected.cancelled) break;
         while (selected && selected.id === campaignId && !uncertain && (busy || ACTIVE.includes(selected.state))) await new Promise(r => setTimeout(r, 1000));
-        if (!selected || selected.id !== campaignId || uncertain) break;
+        // Nút Dừng chỉ chặn lượt gửi đang chạy; nếu không kiểm tra cancelled ở đây,
+        // vòng lặp vẫn tiếp tục gửi cho khách kế tiếp (và server tự bật lại cancelled=false).
+        if (!selected || selected.id !== campaignId || uncertain || selected.cancelled) break;
         const lead = selected.leads.find(l => l.id === id);
         if (!lead || !canBulkSend(lead)) { sendPicks.delete(id); continue; }
         sendPicks.delete(id);
