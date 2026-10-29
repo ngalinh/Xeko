@@ -19,14 +19,16 @@ function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', pe
       const allowed = remote ? permissions.getAllowedProfileKeys(owner) : null;
       const allowedProfile = profile => allowed === null || allowed.includes(profile);
       const customers = req.path === '/api/ctv/customers';
+      const customersDelete = req.path === '/api/ctv/customers/delete';
       const myjoy = req.path === '/api/ctv/myjoy/backends';
       if (myjoy && req.method !== 'GET') return res.status(405).json({ error: 'Thao tác không được hỗ trợ' });
       if (customers && !['GET','POST'].includes(req.method)) return res.status(405).json({ error: 'Thao tác không được hỗ trợ' });
-      if (customers && req.method === 'POST' && (typeof req.body?.profile !== 'string' || !req.body.profile)) return res.status(400).json({ error: 'Cần chọn tài khoản quản lý' });
-      if (customers && req.method === 'POST' && !allowedProfile(req.body.profile)) return res.status(403).json({ error: 'Không có quyền dùng tài khoản này' });
+      if (customersDelete && req.method !== 'POST') return res.status(405).json({ error: 'Thao tác không được hỗ trợ' });
+      if ((customers || customersDelete) && req.method === 'POST' && (typeof req.body?.profile !== 'string' || !req.body.profile)) return res.status(400).json({ error: 'Cần chọn tài khoản quản lý' });
+      if ((customers || customersDelete) && req.method === 'POST' && !allowedProfile(req.body.profile)) return res.status(403).json({ error: 'Không có quyền dùng tài khoản này' });
       const collection = req.path === '/api/ctv/campaigns';
       const match = req.path.match(campaignPath);
-      if ((!myjoy && !customers && !collection && (!match || (match[2] && !ACTIONS.includes(match[2])))) || !['GET','POST'].includes(req.method) || (match?.[2] && req.method !== 'POST')) return res.status(404).json({ error: 'Không tìm thấy thao tác' });
+      if ((!myjoy && !customers && !customersDelete && !collection && (!match || (match[2] && !ACTIONS.includes(match[2])))) || !['GET','POST'].includes(req.method) || (match?.[2] && req.method !== 'POST')) return res.status(404).json({ error: 'Không tìm thấy thao tác' });
       const local = remote && getLocalUrl();
       if (remote && process.env.PLAYWRIGHT_LOCAL_URL && !local) return res.status(503).json({ error: 'Máy chạy Playwright chưa kết nối' });
       if (local) {
@@ -52,6 +54,7 @@ function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', pe
         if (req.method === 'POST') return res.status(201).json(s.addCustomer(req.body, owner));
         return res.json(s.listCustomers(owner).filter(c => allowedProfile(c.profile)));
       }
+      if (customersDelete) { s.deleteCustomer(req.body, owner); return res.json({ ok: true }); }
       if (collection) {
         if (req.method === 'GET') return res.json(s.data.campaigns.filter(c => c.owner === owner && allowedProfile(c.profile)).map(c => s.view(c, false)));
         if (!allowedProfile(req.body.profile)) return res.status(403).json({ error: 'Không có quyền dùng tài khoản này' });

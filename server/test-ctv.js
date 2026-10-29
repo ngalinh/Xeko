@@ -54,6 +54,17 @@ test('mark-sent flips an unconfirmed lead to sent and blocks reuse or unknown le
   assert.equal(c.leads[0].state,'sent');assert.ok(c.leads[0].manualConfirm.by);
   assert.throws(()=>s.markSent(c.id,'owner',{leadId:c.leads[0].id}));
 });
+test('mark-sent also accepts state:"failed" to record a confirmed non-delivery, keeping the lead retryable', async t => {
+  const {s,browser}=setup(t),c=await analyzed(s);prepared(s,c);
+  browser.send=async(_,lead,message,reserve)=>{reserve();throw Error('Chưa xác nhận');};
+  s.sendApproved(c.id,'owner',c.messagePreview.token);await settle(s);
+  assert.equal(c.leads[0].state,'unconfirmed');
+  assert.throws(()=>s.markSent(c.id,'owner',{leadId:c.leads[0].id,state:'bogus'}));
+  s.markSent(c.id,'owner',{leadId:c.leads[0].id,state:'failed'});
+  assert.equal(c.leads[0].state,'failed');assert.equal(c.leads[0].manualConfirm.to,'failed');assert.ok(c.leads[0].error);
+  s.markSent(c.id,'owner',{leadId:c.leads[0].id,state:'sent'});
+  assert.equal(c.leads[0].state,'sent');assert.equal(c.leads[0].error,undefined);
+});
 test('UID lookup preserves AI, invalidates approvals and runs in account queue without sending', async t => {
   const {s,browser,sent,inspected}=setup(t);
   const c=await analyzed(s); const oldToken=prepared(s,c);

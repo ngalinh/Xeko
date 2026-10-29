@@ -78,6 +78,33 @@ test('manual validation rejects invalid profile, URL, UID and oversized text', t
   for(const patch of [{profile:''},{profile:'../bad'},{url:'https://evil.test/a'},{uid:'abc'},{uid:'1234'},{name:'x'.repeat(151)},{notes:'x'.repeat(2001)}])assert.throws(()=>s.addCustomer({...input,...patch},'owner'));
   assert.equal(s.listCustomers('owner').length,0);
 });
+test('deleteCustomer hides manual and campaign-sourced customers without losing dedup history', t => {
+  const s = setup(t), c = create(s);
+  c.leads[0].state = 'sent'; s.save();
+  const campaignRow = s.listCustomers('owner')[0];
+  s.deleteCustomer({ profile: campaignRow.profile, url: campaignRow.url }, 'owner');
+  assert.equal(s.listCustomers('owner').length, 0);
+  // Campaign data itself is untouched: a later save() must not resurrect the row
+  // beyond what dedup needs, and the duplicate-send block must still apply.
+  s.save();
+  assert.equal(s.listCustomers('owner').length, 0);
+  const { contactHistory } = require('./src/ctv/contact-history');
+  assert.equal(contactHistory(s.data).has({ url: c.leads[0].url, assessment: c.leads[0].assessment }), true);
+  const manual = s.addCustomer({ profile: 'account', url: 'https://facebook.com/manual.customer', name: 'Thủ công' }, 'owner');
+  s.deleteCustomer({ profile: manual.profile, url: manual.url }, 'owner');
+  assert.equal(s.listCustomers('owner').some(r => r.url === manual.url), false);
+  assert.throws(() => s.deleteCustomer({ profile: 'account', url: 'https://facebook.com/unknown' }, 'owner'), /Không tìm thấy/);
+  assert.throws(() => s.deleteCustomer({ profile: campaignRow.profile, url: campaignRow.url }, 'intruder'), /Không tìm thấy/);
+});
+test('customer delete endpoint enforces method, owner and allowed account', async t => {
+  const s = setup(t), c = create(s);
+  const row = s.listCustomers('owner')[0];
+  const base = { path: '/api/ctv/customers/delete', method: 'POST', headers: { 'x-ctv-owner': 'owner' }, body: { profile: row.profile, url: row.url } };
+  assert.equal((await request({ service: s }, { ...base, method: 'GET' })).code, 405);
+  assert.equal((await request({ service: s, remote: true, permissions: { getAllowedProfileKeys: () => ['other'] } }, { ...base, headers: {}, user: { email: 'owner' } })).code, 403);
+  assert.equal((await request({ service: s }, base)).code, 200);
+  assert.equal(s.listCustomers('owner').length, 0);
+});
 test('manual POST enforces owner/profile directly and before cloud forwarding',async t=>{
   const s=setup(t),body={profile:'account',url:'https://facebook.com/new.customer',name:'New'};
   const direct=await request({service:s},{method:'POST',body});assert.equal(direct.code,201);assert.equal(direct.body.name,'New');
