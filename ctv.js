@@ -242,7 +242,7 @@
   function badge(text, style = '') { return element('span', text, `badge ${style}`); }
   function stats(id, values) { $(id).replaceChildren(...values.map(([label, count, cls]) => { const s = element('div',undefined,`stat ${cls || ''}`);s.append(element('strong',String(count)),element('span',label));return s;})); }
   let customersSnapshot = null;
-  function renderOverviewStats() { const c = customersSnapshot; stats('overviewStats',[['Khách hàng trong kho',c?c.length:'—'],['Đã gửi tin nhắn',c?c.filter(r=>r.sent).length:'—','good'],['Đã đánh giá',c?c.filter(r=>r.assessment).length:'—'],['Chiến dịch đã tạo',campaigns.length]]); }
+  function renderOverviewStats() { const c = customersSnapshot; stats('overviewStats',[['KH trong dữ liệu',c?c.length:'—'],['Đã gửi tin nhắn',c?c.filter(r=>r.sent).length:'—','good'],['Đã đánh giá',c?c.filter(r=>r.assessment).length:'—'],['Chiến dịch đã tạo',campaigns.length]]); }
   function link(url, name) { const a = element('a',name || url); a.href=url; a.target='_blank';a.rel='noopener noreferrer';return a; }
   function customerLabel(value) {
     try {
