@@ -40,18 +40,19 @@
       const card = el('article', null, 'customer-record'), grid = el('div', null, 'customer-record-grid');
       const identity = el('div'); identity.append(el('strong', r.assessment?.name || r.name || 'Chưa có tên Facebook'));
       const link = el('a', r.url); link.href = r.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; identity.append(el('br'), link);
-      const states = el('div');
+      const states = el('div'), statusRow = el('div', null, 'customer-status-row');
       const stateLabel = r.sent ? 'Đã gửi tin nhắn' : r.state === 'unconfirmed' ? 'Chưa xác nhận gửi' : r.assessment ? (r.assessment.provider === 'keywords' ? 'Đã quét caption' : 'Đã đánh giá AI') : r.manual ? 'Thêm thủ công' : 'Đã nhập';
       const stateColor = r.sent ? 'good' : r.state === 'unconfirmed' ? 'warn' : r.assessment ? 'blue' : '';
-      states.append(el('span', stateLabel, 'badge' + (stateColor ? ' ' + stateColor : '')));
-      const note = !canSelect(r) ? 'Có lịch sử gửi; không chọn gửi lại.' : attention(r) ? 'Cần kiểm tra' : '';
-      if (note) states.append(el('p', note, 'muted'));
+      statusRow.append(el('span', stateLabel, 'badge' + (stateColor ? ' ' + stateColor : '')));
       const removeBtn = el('button', 'Xoá', 'secondary customer-delete');
       removeBtn.type = 'button';
       removeBtn.disabled = deleting.has(keyOf(r));
       removeBtn.setAttribute('aria-label', `Xoá ${r.assessment?.name || r.name || r.url} khỏi dữ liệu khách hàng`);
       removeBtn.onclick = () => deleteCustomer(r);
-      states.append(removeBtn);
+      statusRow.append(removeBtn);
+      states.append(statusRow);
+      const note = !canSelect(r) ? 'Có lịch sử gửi; không chọn gửi lại.' : attention(r) ? 'Cần kiểm tra' : '';
+      if (note) states.append(el('p', note, 'muted'));
       const gender=r.assessment?.selfDeclaredGender;
       const choose = el('label', null, 'check-label'), checkbox = el('input');
       checkbox.type = 'checkbox'; checkbox.disabled = !canSelect(r); checkbox.checked = canSelect(r) && chosen.has(keyOf(r));
@@ -152,6 +153,7 @@
   $('toggleCustomers').onclick = () => { const open = $('customerLibrary').hidden; document.dispatchEvent(new CustomEvent('ctv:view', { detail: open ? 'customers' : 'workflow' })); if (open) load(); };
   $('closeCustomers').onclick = () => { document.dispatchEvent(new CustomEvent('ctv:view', { detail: 'workflow' })); $('toggleCustomers').focus(); };
   $('refreshCustomers').onclick = load;
+  document.addEventListener('ctv:customers-changed', () => { if (!$('customerLibrary').hidden && !loading) load(); });
   $('selectCustomerPage').onchange = () => {
     for (const r of visible) { if ($('selectCustomerPage').checked && canSelect(r)) chosen.set(keyOf(r), r); else chosen.delete(keyOf(r)); }
     render();
