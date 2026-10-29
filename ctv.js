@@ -333,9 +333,9 @@
           const statusPicker = element('select',undefined,'mark-status');
           statusPicker.setAttribute('aria-label',`Chọn trạng thái sau khi tự kiểm tra cho ${name}`);
           statusPicker.disabled = busy || uncertain;
-          const placeholder = element('option','Chọn trạng thái sau khi kiểm tra…'); placeholder.value=''; statusPicker.append(placeholder);
-          const sentOption = element('option','✓ Đã gửi (đã tự kiểm tra Messenger)'); sentOption.value='sent'; statusPicker.append(sentOption);
-          const notSentOption = element('option','✗ Chưa gửi (đã tự kiểm tra Messenger)'); notSentOption.value='failed'; statusPicker.append(notSentOption);
+          const placeholder = element('option','Đổi trạng thái…'); placeholder.value=''; statusPicker.append(placeholder);
+          const sentOption = element('option','✓ Đã gửi'); sentOption.value='sent'; statusPicker.append(sentOption);
+          const notSentOption = element('option','✗ Chưa gửi'); notSentOption.value='failed'; statusPicker.append(notSentOption);
           const confirmText = { sent: 'Xác nhận bạn đã tự kiểm tra Messenger và thấy tin nhắn (và ảnh nếu có) đã gửi tới khách này?', failed: 'Xác nhận bạn đã tự kiểm tra Messenger và thấy tin nhắn (và ảnh nếu có) CHƯA gửi tới khách này? Khách sẽ chuyển về trạng thái cần kiểm tra để có thể thử gửi lại.' };
           statusPicker.onchange=()=>{
             const value = statusPicker.value; statusPicker.value='';
