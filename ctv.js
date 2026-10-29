@@ -241,6 +241,8 @@
   }
   function badge(text, style = '') { return element('span', text, `badge ${style}`); }
   function stats(id, values) { $(id).replaceChildren(...values.map(([label, count, cls]) => { const s = element('div',undefined,`stat ${cls || ''}`);s.append(element('strong',String(count)),element('span',label));return s;})); }
+  let customersSnapshot = null;
+  function renderOverviewStats() { const c = customersSnapshot; stats('overviewStats',[['Khách hàng trong kho',c?c.length:'—'],['Đã gửi tin nhắn',c?c.filter(r=>r.sent).length:'—','good'],['Đã đánh giá',c?c.filter(r=>r.assessment).length:'—'],['Chiến dịch đã tạo',campaigns.length]]); }
   function link(url, name) { const a = element('a',name || url); a.href=url; a.target='_blank';a.rel='noopener noreferrer';return a; }
   function customerLabel(value) {
     try {
@@ -479,6 +481,7 @@
       $('campaigns').append(row);
     }
     if (!visible.length) $('campaigns').append(element('p',campaigns.length?'Không có chiến dịch phù hợp. Thử đổi từ khoá hoặc bộ lọc.':'Chưa có chiến dịch. Bấm “Chiến dịch mới” để bắt đầu.','history-empty'));
+    renderOverviewStats();
     $('historyCount').textContent=visible.length+' / '+campaigns.length+' chiến dịch';
     $('historyPage').textContent='Trang '+(historyPage+1)+'/'+Math.max(1,Math.ceil(visible.length/historyPageSize));
     $('historyPrevious').disabled=historyPage===0;$('historyNext').disabled=(historyPage+1)*historyPageSize>=visible.length;
@@ -880,12 +883,13 @@
     $('campaignName').focus();
   });
   (async()=>{
-    const results=await Promise.allSettled([api('/api/accounts'),api('/api/ctv/campaigns')]);
+    const results=await Promise.allSettled([api('/api/accounts'),api('/api/ctv/campaigns'),api('/api/ctv/customers')]);
     if(results[0].status==='fulfilled'){
       const data=results[0].value;accounts=data.facebook || [];$('profile').replaceChildren(element('option',accounts.length?'Chọn Facebook cá nhân':'Chưa có tài khoản Facebook'));$('profile').firstChild.value='';
       for(const a of accounts){const option=element('option',a.name || a.key);option.value=a.key;$('profile').append(option);}show('demoBanner',data.demo===true);
     }else notice('Không tải được tài khoản. '+results[0].reason.message,true);
     if(results[1].status==='fulfilled'){campaigns=results[1].value;renderHistory();}else{$('campaigns').textContent='Chưa tải được lịch sử. Hãy tải lại trang.';notice(results[1].reason.message,true);}
+    if(results[2].status==='fulfilled'){customersSnapshot=results[2].value;renderOverviewStats();}
     updateControls();
   })();
 })();
