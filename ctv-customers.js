@@ -153,6 +153,7 @@
   $('toggleCustomers').onclick = () => { const open = $('customerLibrary').hidden; document.dispatchEvent(new CustomEvent('ctv:view', { detail: open ? 'customers' : 'workflow' })); if (open) load(); };
   $('closeCustomers').onclick = () => { document.dispatchEvent(new CustomEvent('ctv:view', { detail: 'workflow' })); $('toggleCustomers').focus(); };
   $('refreshCustomers').onclick = load;
+  document.addEventListener('ctv:customers-changed', () => { if (!$('customerLibrary').hidden && !loading) load(); });
   $('selectCustomerPage').onchange = () => {
     for (const r of visible) { if ($('selectCustomerPage').checked && canSelect(r)) chosen.set(keyOf(r), r); else chosen.delete(keyOf(r)); }
     render();

@@ -696,6 +696,10 @@
     if(!selected || busy || uncertain)return;
     const id=selected.id,version=epoch;busy=true;clearTimeout(timer);updateControls();notice();
     try{const c=await api(`/api/ctv/campaigns/${id}/${name}`,'POST',body);if(epoch!==version)return;uncertain=false;$('confirmSend').checked=false;render(c);
+      // Chiến dịch tự cập nhật qua render(c); nhưng panel Dữ liệu khách hàng là
+      // module riêng với snapshot khách hàng tải sẵn, phải báo riêng để không
+      // hiển thị trạng thái cũ sau khi đổi tay Đã gửi/Chưa gửi ở đây.
+      if(name==='mark-sent')document.dispatchEvent(new CustomEvent('ctv:customers-changed'));
       const skipStep2=name==='approve-import' && c.testMode && c.assessmentMode==='none';
       if(!skipStep2 && (name==='approve-import'||name==='review-analysis'||name==='retry-analysis'||name==='resolve-uids'))viewStep(2);
       if(name==='approve-analysis')viewStep(3);
