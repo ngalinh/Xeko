@@ -380,6 +380,7 @@
   function updateControls() {
     const c = selected, unlocked = !busy && !uncertain, modern = c?.workflowVersion === 2;
     for(const button of $('sendRows').querySelectorAll('button[data-retry-lead]'))button.disabled=!unlocked || ACTIVE.includes(c?.state);
+    for(const select of $('sendRows').querySelectorAll('select.mark-status'))select.disabled=!unlocked;
     const sendEligible = (c?.approvals?.analysis?.leadIds ? c.leads.filter(l => c.approvals.analysis.leadIds.includes(l.id) && canBulkSend(l) && matchesSend(l)) : []);
     for (const box of $('sendRows').querySelectorAll('.send-pick')) box.disabled = !unlocked || bulkSending || ACTIVE.includes(c?.state);
     $('selectAllSend').checked = sendEligible.length > 0 && sendEligible.every(l => sendPicks.has(l.id));
