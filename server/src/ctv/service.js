@@ -369,17 +369,23 @@ class CtvService {
   // 'unconfirmed' (bot pressed Enter but Messenger's receipt never confirmed),
   // 'review' (an automatic safety check — e.g. recipient name mismatch — blocked
   // sending), and 'failed' (the send attempt threw). In every case the operator
-  // is expected to have opened Messenger themselves and visually confirmed the
-  // message (and image, if any) reached the right person before calling this;
-  // the confirm prompt in the UI records that expectation.
-  markSent(id, owner, { leadId } = {}) {
+  // is expected to have opened Messenger themselves and visually confirmed whether
+  // the message (and image, if any) reached the right person before calling this;
+  // the confirm prompt in the UI records that expectation. `state` lets the
+  // operator record either outcome: 'sent' if it did reach the customer, or
+  // 'failed' if they confirmed it did not (leaving the lead retryable, same as
+  // an automatic failure).
+  markSent(id, owner, { leadId, state = 'sent' } = {}) {
     const c = this.staged(id, owner);
     const lead = c.leads.find(l => l.id === leadId);
     if (!lead) fail('Không tìm thấy khách trong chiến dịch');
-    if (!['unconfirmed', 'review', 'failed'].includes(lead.state)) fail('Chỉ đánh dấu đã gửi được cho khách đang ở trạng thái cần kiểm tra');
+    if (!['unconfirmed', 'review', 'failed'].includes(lead.state)) fail('Chỉ chỉnh được trạng thái cho khách đang ở trạng thái cần kiểm tra');
+    if (!['sent', 'failed'].includes(state)) fail('Trạng thái không hợp lệ');
     const previousState = lead.state;
-    lead.state = 'sent'; delete lead.error;
-    lead.manualConfirm = { by: owner, at: new Date().toISOString(), from: previousState };
+    lead.state = state;
+    if (state === 'sent') delete lead.error;
+    else lead.error = 'Đã tự kiểm tra Messenger: chưa thấy tin nhắn (và ảnh nếu có) gửi tới khách này.';
+    lead.manualConfirm = { by: owner, at: new Date().toISOString(), from: previousState, to: state };
     this.save();
     return c;
   }
