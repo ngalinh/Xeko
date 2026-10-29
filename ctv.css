@@ -190,6 +190,7 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 
 /* Campaign history is accessible from the page actions without leaving the workflow. */
 .campaign-actions{display:flex;align-items:center;justify-content:flex-end;gap:16px;flex-wrap:wrap}
+.page-header{margin-bottom:26px}
 .campaign-actions button{white-space:nowrap}
 .campaign-actions button:not(.text-button){padding:9px 16px;font-size:13px}
 .campaign-history{margin-bottom:24px}
