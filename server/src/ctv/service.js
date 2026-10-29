@@ -3,7 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { normalizeImages } = require('./attachments');
 const { validProfileKey, profileUrl, renderMessage } = require('./rules');
-const { captureCustomers, listCustomers, addManualCustomer } = require('./customers');
+const { captureCustomers, listCustomers, addManualCustomer, hideCustomer } = require('./customers');
 const { contactHistory } = require('./contact-history');
 const ACTIVE = ['analysis_queued', 'analyzing', 'uid_queued', 'resolving_uid', 'send_queued', 'sending'];
 const fail = message => { const e = new Error(message); e.status = 409; throw e; };
@@ -67,6 +67,9 @@ class CtvService {
   addCustomer(input, owner) {
     const record = addManualCustomer(this.data, input, owner); this.save();
     return this.listCustomers(owner).find(r => r.profile === record.profile && r.url === record.url);
+  }
+  deleteCustomer(input, owner) {
+    hideCustomer(this.data, input, owner); this.save();
   }
   listCustomers(owner) {
     const history = contactHistory(this.data);

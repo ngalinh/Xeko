@@ -25,11 +25,13 @@ function captureCustomers(data) {
 }
 
 function listCustomers(data, owner) {
+  const hidden = new Set(data.hiddenCustomers?.[owner] || []);
   const groups = new Map();
   // Group identical Facebook links per sending account, keeping account permissions intact.
   for (const record of Object.values(data.customers || {}).filter(r => r.owner === owner)
     .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))) {
     const key = JSON.stringify([record.profile, record.url]);
+    if (hidden.has(key)) continue;
     const old = groups.get(key);
     const campaigns = new Map((old?.campaigns || []).map(c => [c.id, c]));
     if (record.campaignId) campaigns.set(record.campaignId, { id: record.campaignId, name: record.campaignName });
@@ -63,4 +65,21 @@ function addManualCustomer(data, input, owner) {
   data.customers ||= {}; data.customers['manual:'+crypto.randomUUID()] = record;
   return record;
 }
-module.exports = { captureCustomers, listCustomers, addManualCustomer };
+
+// Xoá khỏi danh sách hiển thị, không xoá record gốc: record từ chiến dịch sẽ được
+// captureCustomers() tái tạo lại ở lần save() kế tiếp, và lịch sử liên hệ (chống
+// gửi trùng) vẫn phải đọc đúng từ data.customers/data.reservations như cũ.
+function hideCustomer(data, input, owner) {
+  if (!input || typeof input !== 'object') throw new Error('Dữ liệu không hợp lệ');
+  const { profile, url } = input;
+  if (typeof profile !== 'string' || !profile) throw new Error('Thiếu tài khoản quản lý');
+  if (typeof url !== 'string' || !url) throw new Error('Thiếu link khách hàng');
+  const exists = Object.values(data.customers || {}).some(r => r.owner === owner && r.profile === profile && r.url === url);
+  if (!exists) throw new Error('Không tìm thấy khách hàng');
+  data.hiddenCustomers ||= {};
+  const set = new Set(data.hiddenCustomers[owner] || []);
+  set.add(JSON.stringify([profile, url]));
+  data.hiddenCustomers[owner] = [...set];
+}
+
+module.exports = { captureCustomers, listCustomers, addManualCustomer, hideCustomer };

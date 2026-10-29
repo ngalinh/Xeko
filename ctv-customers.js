@@ -5,6 +5,7 @@
   let records = [], page = 0, loading = false, loaded = false;
   const pageSize = 25;
   const chosen = new Map();
+  const deleting = new Set();
   const keyOf = r => JSON.stringify([r.profile, r.url]);
   const canSelect = r => !r.sendBlocked && !r.sent && !['sent', 'sending', 'unconfirmed'].includes(r.state);
   let visible = [];
@@ -45,6 +46,12 @@
       states.append(el('span', stateLabel, 'badge' + (stateColor ? ' ' + stateColor : '')));
       const note = !canSelect(r) ? 'Có lịch sử gửi; không chọn gửi lại.' : attention(r) ? 'Cần kiểm tra' : '';
       if (note) states.append(el('p', note, 'muted'));
+      const removeBtn = el('button', 'Xoá', 'secondary customer-delete');
+      removeBtn.type = 'button';
+      removeBtn.disabled = deleting.has(keyOf(r));
+      removeBtn.setAttribute('aria-label', `Xoá ${r.assessment?.name || r.name || r.url} khỏi dữ liệu khách hàng`);
+      removeBtn.onclick = () => deleteCustomer(r);
+      states.append(removeBtn);
       const gender=r.assessment?.selfDeclaredGender;
       const choose = el('label', null, 'check-label'), checkbox = el('input');
       checkbox.type = 'checkbox'; checkbox.disabled = !canSelect(r); checkbox.checked = canSelect(r) && chosen.has(keyOf(r));
@@ -90,6 +97,19 @@
       render();
     } catch (e) { $('customerLibraryStatus').textContent = `${loaded ? 'Dữ liệu đang hiển thị chưa được cập nhật. ' : ''}Không tải được dữ liệu khách hàng. Bấm Cập nhật để thử lại. ${e.name === 'AbortError' ? 'Kết nối quá thời gian chờ.' : e.message}`; }
     finally { clearTimeout(timeout); loading = false; $('refreshCustomers').disabled = false; updateSave(); updateSelection(); }
+  }
+  async function deleteCustomer(r) {
+    const key = keyOf(r);
+    if (deleting.has(key)) return;
+    if (!window.confirm(`Xoá ${r.assessment?.name || r.name || r.url} khỏi danh sách? Khách sẽ không hiện nữa, nhưng lịch sử gửi (nếu có) vẫn được giữ để chặn gửi trùng.`)) return;
+    deleting.add(key); chosen.delete(key); render();
+    const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetch(`${base}/api/ctv/customers/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: r.profile, url: r.url }), signal: controller.signal });
+      const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Không xoá được khách hàng');
+      deleting.delete(key); await load();
+    } catch (e) { deleting.delete(key); $('customerLibraryStatus').textContent = `Không xoá được khách hàng. ${e.name === 'AbortError' ? 'Kết nối quá thời gian chờ.' : e.message}`; render(); }
+    finally { clearTimeout(timeout); }
   }
   function closeCreate() { if (saving) return; $('customerCreateDialog').close(); }
   $('customerCreateDialog').onclose = () => { $('addCustomer').setAttribute('aria-expanded','false'); $('addCustomer').focus(); };
