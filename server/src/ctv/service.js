@@ -362,17 +362,21 @@ class CtvService {
     this.enqueue(c, () => this.send(c, [message], approval));
     return c;
   }
-  // Only from 'unconfirmed': that state means the bot already pressed Enter and
-  // the message very likely went through, just unconfirmed by DOM receipt. Other
-  // attention states (review/failed) can mean nothing was ever typed/sent, so
-  // they're not safe to flip to 'sent' here.
+  // Covers all three "cần kiểm tra" states the send step can leave a lead in:
+  // 'unconfirmed' (bot pressed Enter but Messenger's receipt never confirmed),
+  // 'review' (an automatic safety check — e.g. recipient name mismatch — blocked
+  // sending), and 'failed' (the send attempt threw). In every case the operator
+  // is expected to have opened Messenger themselves and visually confirmed the
+  // message (and image, if any) reached the right person before calling this;
+  // the confirm prompt in the UI records that expectation.
   markSent(id, owner, { leadId } = {}) {
     const c = this.staged(id, owner);
     const lead = c.leads.find(l => l.id === leadId);
     if (!lead) fail('Không tìm thấy khách trong chiến dịch');
-    if (lead.state !== 'unconfirmed') fail('Chỉ đánh dấu đã gửi được cho khách đang ở trạng thái chưa xác nhận');
+    if (!['unconfirmed', 'review', 'failed'].includes(lead.state)) fail('Chỉ đánh dấu đã gửi được cho khách đang ở trạng thái cần kiểm tra');
+    const previousState = lead.state;
     lead.state = 'sent'; delete lead.error;
-    lead.manualConfirm = { by: owner, at: new Date().toISOString(), from: 'unconfirmed' };
+    lead.manualConfirm = { by: owner, at: new Date().toISOString(), from: previousState };
     this.save();
     return c;
   }

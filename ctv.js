@@ -241,6 +241,8 @@
   }
   function badge(text, style = '') { return element('span', text, `badge ${style}`); }
   function stats(id, values) { $(id).replaceChildren(...values.map(([label, count, cls]) => { const s = element('div',undefined,`stat ${cls || ''}`);s.append(element('strong',String(count)),element('span',label));return s;})); }
+  let customersSnapshot = null;
+  function renderOverviewStats() { const c = customersSnapshot; stats('overviewStats',[['Khách hàng trong kho',c?c.length:'—'],['Đã gửi tin nhắn',c?c.filter(r=>r.sent).length:'—','good'],['Đã đánh giá',c?c.filter(r=>r.assessment).length:'—'],['Chiến dịch đã tạo',campaigns.length]]); }
   function link(url, name) { const a = element('a',name || url); a.href=url; a.target='_blank';a.rel='noopener noreferrer';return a; }
   function customerLabel(value) {
     try {
@@ -322,15 +324,19 @@
         const retryRow = element('div',undefined,'send-retry-row');
         if (profilePicker) retryRow.append(profilePicker);
         retryRow.append(retry);
-        if (l.state === 'unconfirmed') {
-          const markSentBtn = element('button','✓ Đánh dấu đã gửi','secondary mark-sent');
-          markSentBtn.type='button';markSentBtn.disabled=busy || uncertain || ACTIVE.includes(c.state);
-          markSentBtn.onclick=()=>{
-            if(markSentBtn.disabled || selected?.id!==c.id)return;
+        if (['unconfirmed','review','failed'].includes(l.state)) {
+          const statusPicker = element('select',undefined,'mark-status');
+          statusPicker.setAttribute('aria-label',`Chọn trạng thái sau khi tự kiểm tra cho ${name}`);
+          statusPicker.disabled = busy || uncertain || ACTIVE.includes(c.state);
+          const placeholder = element('option','Chọn trạng thái sau khi kiểm tra…'); placeholder.value=''; statusPicker.append(placeholder);
+          const sentOption = element('option','✓ Đã gửi (đã tự kiểm tra Messenger)'); sentOption.value='sent'; statusPicker.append(sentOption);
+          statusPicker.onchange=()=>{
+            const value = statusPicker.value; statusPicker.value='';
+            if(!value || statusPicker.disabled || selected?.id!==c.id)return;
             if(!window.confirm('Xác nhận bạn đã tự kiểm tra Messenger và thấy tin nhắn (và ảnh nếu có) đã gửi tới khách này?'))return;
             action('mark-sent',{leadId:l.id});
           };
-          retryRow.append(markSentBtn);
+          retryRow.append(statusPicker);
         }
         heading.append(retryRow);
       }
@@ -475,6 +481,7 @@
       $('campaigns').append(row);
     }
     if (!visible.length) $('campaigns').append(element('p',campaigns.length?'Không có chiến dịch phù hợp. Thử đổi từ khoá hoặc bộ lọc.':'Chưa có chiến dịch. Bấm “Chiến dịch mới” để bắt đầu.','history-empty'));
+    renderOverviewStats();
     $('historyCount').textContent=visible.length+' / '+campaigns.length+' chiến dịch';
     $('historyPage').textContent='Trang '+(historyPage+1)+'/'+Math.max(1,Math.ceil(visible.length/historyPageSize));
     $('historyPrevious').disabled=historyPage===0;$('historyNext').disabled=(historyPage+1)*historyPageSize>=visible.length;
@@ -876,12 +883,13 @@
     $('campaignName').focus();
   });
   (async()=>{
-    const results=await Promise.allSettled([api('/api/accounts'),api('/api/ctv/campaigns')]);
+    const results=await Promise.allSettled([api('/api/accounts'),api('/api/ctv/campaigns'),api('/api/ctv/customers')]);
     if(results[0].status==='fulfilled'){
       const data=results[0].value;accounts=data.facebook || [];$('profile').replaceChildren(element('option',accounts.length?'Chọn Facebook cá nhân':'Chưa có tài khoản Facebook'));$('profile').firstChild.value='';
       for(const a of accounts){const option=element('option',a.name || a.key);option.value=a.key;$('profile').append(option);}show('demoBanner',data.demo===true);
     }else notice('Không tải được tài khoản. '+results[0].reason.message,true);
     if(results[1].status==='fulfilled'){campaigns=results[1].value;renderHistory();}else{$('campaigns').textContent='Chưa tải được lịch sử. Hãy tải lại trang.';notice(results[1].reason.message,true);}
+    if(results[2].status==='fulfilled'){customersSnapshot=results[2].value;renderOverviewStats();}
     updateControls();
   })();
 })();
