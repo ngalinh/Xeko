@@ -303,31 +303,36 @@
       const actions = element('div',undefined,'send-row-actions');
       if (/^\d+$/.test(l.assessment?.recipientId || '')) actions.append(link(`https://www.facebook.com/messages/t/${l.assessment.recipientId}`,'Mở Messenger ↗'));
       actions.append(link(l.url,'Xem hồ sơ ↗')); heading.append(actions);
-      if (l.retryAvailable) {
-        let profilePicker = null;
-        if (accounts.length > 1) {
-          profilePicker = element('select',undefined,'retry-profile');
-          profilePicker.setAttribute('aria-label','Tài khoản Facebook để gửi lại');
-          if (!accounts.some(a => a.key === c.profile)) { const current = element('option',accountName(c.profile)); current.value = c.profile; profilePicker.append(current); }
-          for (const a of accounts) { const option = element('option',a.name || a.key); option.value = a.key; profilePicker.append(option); }
-          profilePicker.value = c.profile;
-        }
-        const retry = element('button',category === 'attention' ? '↻ Thử gửi lại' : 'Gửi khách này','secondary retry-send');
-        retry.type='button';retry.dataset.retryLead=l.id;retry.disabled=busy || uncertain || ACTIVE.includes(c.state);
-        if (profilePicker) profilePicker.disabled = retry.disabled;
-        retry.onclick=()=>{
-          if(retry.disabled || selected?.id!==c.id)return;
-          if(l.retryNeedsConfirmation && !window.confirm('Bạn đã kiểm tra Messenger và xác nhận khách chưa nhận bất kỳ ảnh hay tin nhắn nào của lượt gửi này? Thử lại sẽ gửi toàn bộ ảnh và nội dung đã duyệt.'))return;
-          const profile = profilePicker?.value;
-          action('retry-send',{leadId:l.id,previewToken:c.messagePreview.token,requestId:retryRequestId(),confirmedNotReceived:!!l.retryNeedsConfirmation,...(profile && profile !== c.profile ? {profile} : {})});
-        };
+      {
         const retryRow = element('div',undefined,'send-retry-row');
-        if (profilePicker) retryRow.append(profilePicker);
-        retryRow.append(retry);
+        if (l.retryAvailable) {
+          let profilePicker = null;
+          if (accounts.length > 1) {
+            profilePicker = element('select',undefined,'retry-profile');
+            profilePicker.setAttribute('aria-label','Tài khoản Facebook để gửi lại');
+            if (!accounts.some(a => a.key === c.profile)) { const current = element('option',accountName(c.profile)); current.value = c.profile; profilePicker.append(current); }
+            for (const a of accounts) { const option = element('option',a.name || a.key); option.value = a.key; profilePicker.append(option); }
+            profilePicker.value = c.profile;
+          }
+          const retry = element('button',category === 'attention' ? '↻ Thử gửi lại' : 'Gửi khách này','secondary retry-send');
+          retry.type='button';retry.dataset.retryLead=l.id;retry.disabled=busy || uncertain || ACTIVE.includes(c.state);
+          if (profilePicker) profilePicker.disabled = retry.disabled;
+          retry.onclick=()=>{
+            if(retry.disabled || selected?.id!==c.id)return;
+            if(l.retryNeedsConfirmation && !window.confirm('Bạn đã kiểm tra Messenger và xác nhận khách chưa nhận bất kỳ ảnh hay tin nhắn nào của lượt gửi này? Thử lại sẽ gửi toàn bộ ảnh và nội dung đã duyệt.'))return;
+            const profile = profilePicker?.value;
+            action('retry-send',{leadId:l.id,previewToken:c.messagePreview.token,requestId:retryRequestId(),confirmedNotReceived:!!l.retryNeedsConfirmation,...(profile && profile !== c.profile ? {profile} : {})});
+          };
+          if (profilePicker) retryRow.append(profilePicker);
+          retryRow.append(retry);
+        }
+        // Đánh dấu thủ công không đụng tới browser automation của lead khác đang
+        // chạy trong cùng chiến dịch, nên không cần chờ chiến dịch dừng hẳn
+        // (khác retry-send, vốn phải chờ vì sẽ mở lại trình duyệt để gửi).
         if (['unconfirmed','review','failed'].includes(l.state)) {
           const statusPicker = element('select',undefined,'mark-status');
           statusPicker.setAttribute('aria-label',`Chọn trạng thái sau khi tự kiểm tra cho ${name}`);
-          statusPicker.disabled = busy || uncertain || ACTIVE.includes(c.state);
+          statusPicker.disabled = busy || uncertain;
           const placeholder = element('option','Chọn trạng thái sau khi kiểm tra…'); placeholder.value=''; statusPicker.append(placeholder);
           const sentOption = element('option','✓ Đã gửi (đã tự kiểm tra Messenger)'); sentOption.value='sent'; statusPicker.append(sentOption);
           statusPicker.onchange=()=>{
@@ -338,7 +343,7 @@
           };
           retryRow.append(statusPicker);
         }
-        heading.append(retryRow);
+        if (retryRow.childElementCount) heading.append(retryRow);
       }
       info.append(renderSendLog(l));
       if (l.error) {
