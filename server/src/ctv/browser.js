@@ -699,14 +699,17 @@ async function prepareImages(page, conversation, images, verify, box, report = (
   const input = conversation.locator('input[type="file"][accept*="image"]');
   const inputCount = await input.count();
   if (inputCount > 1) throw new Error('Không xác định được duy nhất ô đính kèm ảnh trong hội thoại');
-  // Facebook's real receipt aria-label carries trailing text (e.g. a timestamp),
-  // never just the bare word; an exact-match regex here previously matched
-  // nothing in production, so imagesSent never became true and every image
-  // send stayed 'unconfirmed' however long it waited.
+  // Confirmed live via DevTools: Facebook's real 'Đã gửi'/'Sent' receipt is a
+  // leaf <span> holding plain text, not an aria-label — checking only
+  // [aria-label] here (unlike confirmedCount below, which already checks both)
+  // meant the receipt was never found, so imagesSent stayed false and every
+  // image send sat at 'unconfirmed' for the full wait regardless of outcome.
   const confirmedImages = () => conversation.locator('[role="row"]').evaluateAll(rows => {
     const photos = new Set();
+    const pattern = /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)\b/i;
     for (const row of rows) {
-      const receipt = [...row.querySelectorAll('[aria-label]')].some(e => /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)\b/i.test(e.getAttribute('aria-label') || ''));
+      const receipt = [...row.querySelectorAll('[aria-label]')].some(e => pattern.test(e.getAttribute('aria-label') || ''))
+        || [...row.querySelectorAll('span, div')].some(e => e.children.length === 0 && pattern.test((e.textContent || '').trim()));
       if (!receipt) continue;
       for (const img of row.querySelectorAll('img')) {
         const r = img.getBoundingClientRect();

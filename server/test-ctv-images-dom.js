@@ -4,11 +4,11 @@ const {chromium}=require('playwright');
 const {send}=require('./src/ctv/browser');
 const image={name:'photo.png',dataUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1cAAAAASUVORK5CYII='};
 
-// Facebook's real receipt aria-label carries trailing text (a timestamp, e.g.
-// "Sent 2:30 PM" / "Đã gửi 15:40"), not the bare word the loop above uses —
-// an exact-match regex against image receipts missed this and left every
-// image send stuck at 'unconfirmed' forever, no matter how long it waited.
-test('image receipt with trailing timestamp text still confirms the send',async()=>{
+// Confirmed live via DevTools: Facebook's real 'Đã gửi'/'Sent' receipt is a
+// leaf <span> holding plain text, no aria-label at all — a check that only
+// looked at [aria-label] (as confirmedImages() used to) never found it, so
+// every image send sat at 'unconfirmed' for the full wait regardless of outcome.
+test('plain-text receipt span (no aria-label) still confirms an image send',async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.CTV_TEST_BROWSER_CHANNEL ? {channel:process.env.CTV_TEST_BROWSER_CHANNEL} : {})});
  try{
   const page=await browser.newPage();
@@ -23,7 +23,7 @@ test('image receipt with trailing timestamp text still confirms the send',async(
     box.onkeydown=e=>{if(e.key!=='Enter')return;e.preventDefault();const row=document.createElement('div');row.setAttribute('role','row');
      window.actions.push('combined Enter');photos.forEach(img=>row.append(img));photos=[];
      const text=document.createElement('span');text.setAttribute('dir','auto');text.textContent=box.innerText;row.append(text);box.innerText='';
-     const status=document.createElement('span');status.setAttribute('aria-label','Sent 2:30 PM');row.append(status);
+     const status=document.createElement('span');status.textContent='Đã gửi ';row.append(status);
      dialog.querySelector('#history').append(row);
     };
    };
