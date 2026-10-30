@@ -440,12 +440,18 @@ async function readPostMedia(page, { cache = new Map(), report = () => {}, check
     if (!await article.isVisible()) continue;
     // :visible includes off-screen posts. Filter before limiting the batch so
     // a growing feed cannot keep us reading its first ten posts forever.
-    const inViewport = await article.evaluate(e => {
-      const r = e.getBoundingClientRect();
-      return r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
-    }, undefined, { timeout: 1500 });
+    // Facebook's live feed can make this selector slow to re-resolve; a single
+    // slow post must not abort the whole scan, so skip it instead of throwing.
+    let inViewport, pinned;
+    try {
+      inViewport = await article.evaluate(e => {
+        const r = e.getBoundingClientRect();
+        return r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
+      }, undefined, { timeout: 1500 });
+      pinned = inViewport && await article.evaluate(isPostPinned, undefined, { timeout: 1500 });
+    } catch { check(); report('post_skipped', 'Bỏ qua bài: không đọc kịp vị trí/trạng thái ghim'); continue; }
     if (!inViewport) continue;
-    if (await article.evaluate(isPostPinned, undefined, { timeout: 1500 })) {
+    if (pinned) {
       report('pinned_skipped', 'Bỏ qua bài đã ghim');
       continue;
     }
@@ -460,14 +466,17 @@ async function readPostMedia(page, { cache = new Map(), report = () => {}, check
       }, undefined, { timeout: 1000 }); } catch {}
     }
     await dismissContentInfoDialog(page, { check, report });
-    const caption = await article.evaluate(e => {
-      const bodies = [...e.querySelectorAll('[data-ad-preview="message"], [data-ad-comet-preview="message"]')];
-      // Album titles are outside the message block but belong to this post.
-      const albums = [...e.querySelectorAll('a[href*="/media/set"], a[href*="/albums/"], a[href*="set=a."]')]
-        .map(a => (a.innerText || '').trim()).filter(Boolean);
-      return [...new Set([...albums, ...(bodies.length ? bodies.map(b => b.innerText || '') : [e.innerText || ''])])]
-        .join('\n').trim().slice(0,6000);
-    }, undefined, { timeout: 1500 });
+    let caption;
+    try {
+      caption = await article.evaluate(e => {
+        const bodies = [...e.querySelectorAll('[data-ad-preview="message"], [data-ad-comet-preview="message"]')];
+        // Album titles are outside the message block but belong to this post.
+        const albums = [...e.querySelectorAll('a[href*="/media/set"], a[href*="/albums/"], a[href*="set=a."]')]
+          .map(a => (a.innerText || '').trim()).filter(Boolean);
+        return [...new Set([...albums, ...(bodies.length ? bodies.map(b => b.innerText || '') : [e.innerText || ''])])]
+          .join('\n').trim().slice(0,6000);
+      }, undefined, { timeout: 1500 });
+    } catch { check(); report('post_skipped', 'Bỏ qua bài: không đọc kịp nội dung'); continue; }
     if (captionsOnly) { if (caption) records.push({ caption, images: [] }); continue; }
     const cached = caption && cache.get(caption);
     if (cached) { records.push(cached); continue; }
