@@ -421,6 +421,16 @@ class CtvService {
         // An unconfirmed send is ambiguous only for this lead's conversation;
         // the rest of the batch still needs sending.
         if (result.state !== 'sent') c.error = result.reason;
+        else {
+          // Nhắc khách bằng bình luận trên chính bài viết; lỗi ở đây không được
+          // coi là gửi tin thất bại (tin đã xác nhận gửi) và không ghi vào sendLog
+          // vì đó là log riêng cho tiến trình gửi tin, không phải bước này.
+          let commented;
+          try { commented = await this.browser.comment(retry?.profile || c.profile, lead.url, 'chị ơi, check tin nhắn em nhé'); }
+          catch (e) { commented = { success: false, error: e.message }; }
+          if (commented?.success) delete lead.commentError; else lead.commentError = commented?.error || 'Không bình luận được trên bài viết';
+          this.save();
+        }
       } catch (e) {
         onProgress({ stage: c.cancelled ? 'cancelled' : 'error', message: e.message });
         lead.state = lead.state === 'sending' ? 'unconfirmed' : 'review'; lead.error = e.message; c.error = e.message;
