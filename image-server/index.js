@@ -12,6 +12,8 @@ if (!API_KEY) {
 }
 const PUBLIC_URL = (process.env.PUBLIC_URL || '').replace(/\/+$/, '');
 const UPLOADS_DIR = path.resolve(process.env.UPLOADS_DIR || './data/uploads');
+const MAX_FILES = parseInt(process.env.MAX_FILES || '20', 10);
+const MAX_FILE_SIZE_MB = parseInt(process.env.MAX_FILE_SIZE_MB || '25', 10);
 
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
@@ -42,8 +44,8 @@ const upload = multer({
     },
   }),
   limits: {
-    fileSize: 25 * 1024 * 1024,
-    files: 20,
+    fileSize: MAX_FILE_SIZE_MB * 1024 * 1024,
+    files: MAX_FILES,
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/') || ACCEPTED_IMAGE_EXTS.test(file.originalname)) {
