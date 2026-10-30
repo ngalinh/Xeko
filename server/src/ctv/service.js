@@ -426,7 +426,7 @@ class CtvService {
           // coi là gửi tin thất bại (tin đã xác nhận gửi) và không ghi vào sendLog
           // vì đó là log riêng cho tiến trình gửi tin, không phải bước này.
           let commented;
-          try { commented = await this.browser.comment(retry?.profile || c.profile, lead.url, 'chị ơi, check tin nhắn em nhé'); }
+          try { commented = await this.browser.comment(retry?.profile || c.profile, lead.url, 'Chị ơi, chị check tn e với ạ'); }
           catch (e) { commented = { success: false, error: e.message }; }
           if (commented?.success) { lead.commentedAt = new Date().toISOString(); delete lead.commentError; } else lead.commentError = commented?.error || 'Không bình luận được trên bài viết';
           this.save();
