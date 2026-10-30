@@ -10,7 +10,7 @@ const fail = message => { const e = new Error(message); e.status = 409; throw e;
 // Mỗi tin nhắn trong một chiến dịch được render từ cùng một mẫu; thêm một hậu tố
 // ngẫu nhiên (emoji hoặc dấu câu) cho từng khách để nội dung không giống nhau
 // 100%, tránh bị Messenger đánh dấu là tin nhắn hàng loạt giống nhau (spam).
-const MESSAGE_VARIATIONS = ['😊', '🙂', '😄', '❤️', '👍', '🥰', '.', '..', '...'];
+const MESSAGE_VARIATIONS = ['😊', '😄', '❤️', '👍', '🥰', '.', '..', '...'];
 const withRandomVariation = message => `${message} ${MESSAGE_VARIATIONS[Math.floor(Math.random() * MESSAGE_VARIATIONS.length)]}`;
 
 class CtvService {
