@@ -269,7 +269,7 @@ test('only selected recipients receive exact approved previews; send retry is id
   const {s,sent}=setup(t);const c=await analyzed(s);
   s.approveAnalysis(c.id,'owner',[c.leads[1].id]);s.prepareMessages(c.id,'owner','Chào {name}');const token=c.messagePreview.token;
   assert.equal(sent.length,0);s.sendApproved(c.id,'owner',token);s.sendApproved(c.id,'owner',token);await settle(s);
-  assert.equal(sent.length,1);assert.equal(sent[0].id,'456');assert.match(sent[0].message,/^Chào Khách 456 (😊|🙂|😄|❤️|👍|🥰|\.{1,3})$/);assert.equal(c.state,'completed');
+  assert.equal(sent.length,1);assert.equal(sent[0].id,'456');assert.match(sent[0].message,/^Chào Khách 456 (😊|😄|❤️|👍|🥰|\.{1,3})$/);assert.equal(c.state,'completed');
   s.sendApproved(c.id,'owner',token);await settle(s);assert.equal(sent.length,1);assert.ok(c.approvals.send.at);
 });
 test('changed message and changed selection invalidate old preview approval',async t=>{

@@ -30,6 +30,22 @@ Mỗi khách có **Nhật ký quét** ngay trong cột AI đánh giá, cập nh�
 
 Bộ quét chỉ đọc bài trong vùng đang xem (không giới hạn vào 10 bài đầu DOM), tái sử dụng ảnh đã chụp cho caption trùng và không kéo trang ngược lên để chụp ảnh ngoài màn hình. Dừng thu thập khi đủ 5 caption có dấu hiệu bán hàng, 3 lượt không có bài mới, 12 lượt cuộn hoặc hết ngân sách 60 giây đọc bài. Thao tác đang chạy có thể kết thúc muộn hơn ngân sách một khoảng timeout ngắn; dữ liệu đã đọc được giữ lại. Thời gian mở trang/chờ header (tối đa 30 giây mỗi bước) và gọi AI (45 giây/lần, tối đa 2 lần nếu phản hồi sai định dạng) tính riêng. Nút dừng được kiểm tra giữa các thao tác đọc và trước/sau AI; cần chờ thao tác hiện tại kết thúc. Đây là mẫu bài thu thập được, không phải toàn bộ lịch sử profile.
 
+### Quy tắc quét bổ sung: phân biệt Page và profile cá nhân
+
+Đây là đặc tả cho AI/agent triển khai bộ quét và kiểm tra kết quả. Việc bổ sung tài liệu **chưa làm worker tự mở About hoặc chặn gửi Page**; cần cập nhật code và kiểm thử trước khi coi quy tắc này đã hoạt động. Hiện bộ quét nhận diện dấu hiệu minh bạch trên nội dung đã đọc, nhưng Page chưa bị chặn tuyệt đối khi duyệt thủ công.
+
+1. Kiểm tra trang hồ sơ chính trước. Tìm mục giao diện **Tính minh bạch của Trang / Độ minh bạch của Trang / Page transparency** thuộc đúng hồ sơ đang quét. Không lấy cụm từ xuất hiện trong bài viết, bình luận hay nội dung chia sẻ làm bằng chứng loại tài khoản.
+2. Nếu chưa xác định được loại tài khoản, mở tab **Giới thiệu / About** của chính hồ sơ đó, chờ nội dung tải rồi tìm mục minh bạch. Xác minh vẫn là cùng người nhận; không theo liên kết sang hồ sơ khác. Giới hạn thời gian chờ và hỗ trợ dừng; không lặp vô hạn khi thiếu tab, bị khóa, yêu cầu đăng nhập hoặc tải lỗi.
+3. Có mục minh bạch của Trang: kết luận `profileType=page`, giữ trích dẫn và URL nguồn làm bằng chứng. Bằng chứng giao diện rõ ràng này phải được giữ khi hợp nhất kết quả; AI không được đổi thành `personal` chỉ vì caption giống người bán cá nhân.
+4. Không thấy mục minh bạch **không đồng nghĩa là cá nhân**. Chỉ kết luận `personal` khi có dấu hiệu giao diện cá nhân rõ ràng, như Thêm bạn bè/Bạn bè/Hủy lời mời của đúng hồ sơ, và không có bằng chứng Page mâu thuẫn. Thiếu dữ liệu hoặc dấu hiệu mâu thuẫn chưa giải thích được: trả `unknown` (Chưa xác định loại tài khoản), ghi rõ lý do.
+5. Không phân loại chỉ từ URL, tên shop, số người theo dõi, nút Nhắn tin/Theo dõi, bài bán hàng hoặc chế độ chuyên nghiệp. Profile cá nhân cũng có thể có các đặc điểm này. Sau khi đọc About, quay lại trang bài viết nếu cần tiếp tục đánh giá sản phẩm; giữ riêng bằng chứng loại tài khoản và bằng chứng bán hàng.
+
+AI đánh giá chỉ dùng dữ liệu bộ quét cung cấp; lời nhắc AI không tự click About. Bộ quét phải thu thập và chuyển bằng chứng trên cho mọi nhà cung cấp AI dùng trong flow.
+
+**Yêu cầu lọc gửi khi triển khai:** Page đã xác định phải hiện “Bỏ qua — Facebook Page”, không được chọn gửi; backend phải chặn cả duyệt, tạo bản xem trước, gửi và thử gửi lại. Chế độ “Chỉ gửi, không quét” hiện bỏ qua phân loại, nên chưa bảo đảm loại Page; muốn áp dụng quy tắc cho mọi chế độ phải bổ sung kiểm tra loại tài khoản ở chế độ này, không coi việc lấy được tên/ID là đã xác minh cá nhân.
+
+**Các ca cần kiểm thử khi sửa code:** Page có dấu hiệu ngay trang chính; Page chỉ hiện dấu hiệu sau khi mở About; profile cá nhân có chế độ chuyên nghiệp; không có About hoặc tải lỗi trả unknown; cụm “Page transparency” trong bài viết không bị nhận nhầm; chuyển hướng sang hồ sơ khác không được dùng làm bằng chứng; AI trả personal trái bằng chứng Page vẫn giữ page; Page bị chặn ở backend kể cả duyệt thủ công và thử gửi lại.
+
 ## 3. Gửi tin nhắn hàng loạt
 
 Soạn tin nhắn, dùng `{name}` để chèn tên. Bấm **Tạo bản xem trước** để xem nội dung chính xác cho từng khách đã duyệt. Kiểm tra danh sách/nội dung, đánh dấu xác nhận, rồi bấm **Duyệt & gửi N tin nhắn**. Gửi lần lượt, có kết quả từng khách và nút dừng.

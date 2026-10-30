@@ -934,6 +934,7 @@ function createBrowserAdapter(playwright = require('../playwright/post')) {
       inspectionPages.delete(profile);
     },
     inspect, send, resolveUid,
+    comment: (profile, postUrl, message) => playwright.postComment({ postUrl, message, profile }),
   };
 }
 module.exports = { closeContentInfoDialog, dismissContentInfoDialog, profileMessageButton, waitForMessageComposer, createBrowserAdapter, inspect, send, resolveUid, readProfileSnapshot, collectProfilePosts, readPostMedia, scrollProfileFeed };
