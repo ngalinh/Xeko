@@ -480,8 +480,9 @@
       if (diagnostic) infoText.title=diagnostic;
       const info=cell('Thông tin',infoText);
       const open=element('button','Mở','secondary history-open');open.disabled=busy;open.onclick=()=>choose(c.id);open.setAttribute('aria-label','Mở chiến dịch '+c.name);
+      const rename=element('button','Sửa','secondary history-rename');rename.disabled=busy;rename.type='button';rename.onclick=()=>renameCampaign(c);rename.setAttribute('aria-label','Đổi tên chiến dịch '+c.name);
       const remove=element('button','Xoá','secondary history-delete');remove.dataset.deleteState=c.state;remove.disabled=busy || category==='active';remove.onclick=()=>deleteCampaign(c);remove.setAttribute('aria-label','Xoá chiến dịch '+c.name);if(category==='active')remove.title='Dừng chiến dịch trước khi xoá';
-      const actions=cell('Thao tác',open,'history-actions');actions.append(remove);
+      const actions=cell('Thao tác',open,'history-actions');actions.append(rename,remove);
       const pick=element('input');pick.type='checkbox';pick.disabled=busy||category==='active';pick.checked=historyPicks.has(c.id);
       pick.setAttribute('aria-label','Chọn chiến dịch '+c.name);
       pick.onchange=()=>{if(pick.checked)historyPicks.add(c.id);else historyPicks.delete(c.id);updateHistorySelection();};
@@ -690,6 +691,21 @@
       if(selected?.id===c.id) $('newCampaign').onclick();
       else renderHistory();
       notice('Đã xoá chiến dịch.');
+    } catch(e) { notice(e.message,true); }
+    finally { busy=false; updateControls(); schedule(); }
+  }
+  async function renameCampaign(c) {
+    if (busy) return;
+    const name = window.prompt('Tên chiến dịch:', c.name || '');
+    if (name === null || name.trim() === (c.name || '').trim()) return;
+    busy=true; clearTimeout(timer); updateControls(); notice();
+    try {
+      const updated = await api(`/api/ctv/campaigns/${c.id}/rename`, 'POST', {name});
+      const index = campaigns.findIndex(item=>item.id===c.id);
+      if (index>=0) campaigns[index]=updated;
+      busy=false;
+      if (selected?.id===c.id) render(updated); else renderHistory();
+      notice('Đã đổi tên chiến dịch.');
     } catch(e) { notice(e.message,true); }
     finally { busy=false; updateControls(); schedule(); }
   }

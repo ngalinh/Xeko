@@ -183,6 +183,12 @@ class CtvService {
     }
     c.state = 'analysis_queued'; this.save(); this.enqueue(c, () => this.analyze(c)); return c;
   }
+  rename(id, owner, name) {
+    const c = this.get(id, owner);
+    const trimmed = String(name || '').trim();
+    c.name = (trimmed || 'Chiến dịch gửi tin nhắn hàng loạt').slice(0,100);
+    this.save(); return c;
+  }
   deleteCampaign(id, owner) {
     const c = this.get(id, owner);
     if (ACTIVE.includes(c.state) || ['running', 'queued'].includes(c.state)) fail('Hãy dừng chiến dịch và chờ xử lý xong trước khi xoá');

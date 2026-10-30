@@ -420,6 +420,16 @@ test('delete is owner scoped and persists removal without clearing send reservat
   assert.equal(d.leads.length,0); assert.equal(d.previouslyContacted.length,2);
   assert.throws(()=>restored.approveImport(d.id,'owner'));
 });
+test('rename is owner scoped, trims/truncates the name, and falls back to the default on empty input', async t => {
+  const {s} = setup(t); const c = s.create(input(),'owner');
+  assert.throws(()=>s.rename(c.id,'other','Tên mới'));
+  const renamed = s.rename(c.id,'owner','  Tên mới  ');
+  assert.equal(renamed.name,'Tên mới');
+  const truncated = s.rename(c.id,'owner','x'.repeat(150));
+  assert.equal(truncated.name.length,100);
+  const reset = s.rename(c.id,'owner','   ');
+  assert.equal(reset.name,'Chiến dịch gửi tin nhắn hàng loạt');
+});
 test('retry and delete API actions enforce ownership and state', async t => {
   const {s}=setup(t); const c=await analyzed(s); let handler;
   mountCtv({all:(p,h)=>handler=h},{service:s});

@@ -46,6 +46,19 @@ AI đánh giá chỉ dùng dữ liệu bộ quét cung cấp; lời nhắc AI kh
 
 **Các ca cần kiểm thử khi sửa code:** Page có dấu hiệu ngay trang chính; Page chỉ hiện dấu hiệu sau khi mở About; profile cá nhân có chế độ chuyên nghiệp; không có About hoặc tải lỗi trả unknown; cụm “Page transparency” trong bài viết không bị nhận nhầm; chuyển hướng sang hồ sơ khác không được dùng làm bằng chứng; AI trả personal trái bằng chứng Page vẫn giữ page; Page bị chặn ở backend kể cả duyệt thủ công và thử gửi lại.
 
+### Quy tắc quét bổ sung: đã nhắn tin hoặc đã là bạn bè
+
+**Hiện trạng:** Xeko đã chặn gửi trùng theo lịch sử gửi và dấu giữ chỗ lưu trong hệ thống (trừ Chế độ thử). Chưa có chốt loại khách chỉ vì đã có tin nhắn cũ trong Messenger hoặc đã là bạn bè trên Facebook. Dấu hiệu “Bạn bè/Friends” hiện chỉ hỗ trợ nhận diện profile cá nhân. Các yêu cầu dưới đây là đặc tả cần triển khai và kiểm thử, chưa phải hành vi đang hoạt động.
+
+- Với đúng tài khoản Facebook sẽ gửi, kiểm tra quan hệ ở vùng thao tác của đúng hồ sơ. Có trạng thái **Bạn bè / Friends**: bỏ qua với lý do **“Đã là bạn bè”**. Không nhầm với “Thêm bạn bè”, “Bạn chung”, số bạn bè, lời mời đang chờ hoặc chữ xuất hiện trong bài viết.
+- Mở đúng hội thoại Messenger, xác minh người nhận và chờ lịch sử tải trước khi soạn hay đính kèm ảnh. Có tin nhắn cũ thực sự từ một trong hai phía, kể cả ảnh/tệp: bỏ qua với lý do **“Đã có lịch sử nhắn tin”**, kể cả tin được gửi ngoài Xeko. Nút Nhắn tin, hội thoại rỗng, lời giới thiệu, thông báo hệ thống hoặc bản nháp không phải bằng chứng đã nhắn tin.
+- Không thấy tin hoặc nút Bạn bè khi nội dung chưa tải, bị khóa PIN, thiếu quyền hoặc lỗi không có nghĩa là chưa từng liên hệ/chưa là bạn bè. Lưu **“Chưa xác định — cần kiểm tra”** và chưa cho gửi cho đến khi kiểm tra được; không để AI suy đoán từ tên hay nội dung bán hàng.
+- Lưu kết quả, lý do, thời điểm kiểm tra và tài khoản gửi; hiển thị đồng bộ tại chiến dịch và Dữ liệu khách hàng. Kết quả về bạn bè/lịch sử Messenger thuộc cặp tài khoản gửi–người nhận; đổi tài khoản gửi phải kiểm tra lại. Giữ nguyên chặn chống trùng chung đã có của Xeko.
+- Áp dụng cho mọi chế độ, gồm **Chỉ gửi, không quét**, và cả thử gửi lại. Loại khỏi lựa chọn gửi khi đã biết; backend chặn duyệt/tạo preview/gửi với kết quả bị loại hoặc chưa xác minh. Worker kiểm tra lại trước khi soạn/gửi để phát hiện liên hệ mới sau bước quét. Không đánh dấu “Đã gửi” cho chiến dịch hiện tại chỉ vì phát hiện tin cũ; ghi “Bỏ qua” cùng lý do.
+- Chế độ thử hiện chỉ được mô tả là ngoại lệ chống trùng trong Xeko; không mặc định dùng ngoại lệ này để vượt hai chốt mới về bạn bè và lịch sử Messenger.
+
+**Các ca cần kiểm thử khi sửa code:** đã là bạn bè nhưng chưa chat; chưa là bạn bè nhưng có tin cũ; chỉ có tin đến hoặc ảnh/tệp; lịch sử gửi ngoài Xeko; hội thoại mới rỗng; lời giới thiệu/thông báo hệ thống không bị nhận nhầm; lịch sử tải chậm hoặc khóa PIN; đổi tài khoản gửi; có tin mới sau quét; duyệt thủ công/thử gửi lại/Chỉ gửi không quét không vượt chốt; trạng thái bỏ qua và lý do khớp giữa chiến dịch và Dữ liệu khách hàng.
+
 ## 3. Gửi tin nhắn hàng loạt
 
 Soạn tin nhắn, dùng `{name}` để chèn tên. Bấm **Tạo bản xem trước** để xem nội dung chính xác cho từng khách đã duyệt. Kiểm tra danh sách/nội dung, đánh dấu xác nhận, rồi bấm **Duyệt & gửi N tin nhắn**. Gửi lần lượt, có kết quả từng khách và nút dừng.
