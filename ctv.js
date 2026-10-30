@@ -293,7 +293,7 @@
       const heading = element('div',undefined,'send-row-heading'), identity = element('div',undefined,'send-identity');
       identity.append(link(l.url,name),element('small',l.assessment?.recipientId ? `UID ${l.assessment.recipientId}` : customerLabel(l.url)));
       heading.append(avatar,identity);
-      const state = l.state === 'unconfirmed' ? 'Chưa xác nhận' : category === 'attention' ? 'Cần kiểm tra' : category === 'duplicate' ? 'Đã liên hệ trước' : l.state === 'sending' ? 'Đang gửi' : category === 'sent' ? (l.commentedAt ? 'Đã gửi mess, Đã cmt' : 'Đã gửi mess') : c.cancelled || c.state === 'needs_attention' ? 'Chưa gửi' : 'Chờ gửi';
+      const state = l.state === 'unconfirmed' ? 'Chưa xác nhận' : category === 'attention' ? 'Cần kiểm tra' : category === 'duplicate' ? 'Đã liên hệ trước' : l.state === 'sending' ? 'Đang gửi' : category === 'sent' ? (l.commentedAt ? 'Đã gửi mess & cmt' : 'Đã gửi mess') : c.cancelled || c.state === 'needs_attention' ? 'Chưa gửi' : 'Chờ gửi';
       heading.append(badge(state,category === 'attention' ? 'warn' : category === 'sent' ? 'good' : ''));
       info.append(heading);
       if (category === 'attention') info.append(element('p',sendIssue(l),'send-explanation'));
