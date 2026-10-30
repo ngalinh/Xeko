@@ -173,6 +173,17 @@ test('a Messenger "not friends" preview is refused when no scanned name is avail
   await assert.rejects(send(f.page,{actualUrl:target,recipientId:'123'},'Hello',f.submit), /không khớp tên hồ sơ/);
   assert.ok(!f.actions.includes('fill'));
 });
+test('a scanned name carrying Facebook\'s own "(tên cũ)" suffix still matches a preview showing only the current name', async () => {
+  const f = fixture({notFriends:true});
+  const result = await send(f.page, {actualUrl:target,recipientId:'123',name:'Linh Thảo US (Tên Cũ)'}, 'Hello', f.submit);
+  assert.equal(result.state,'sent');
+  assert.ok(f.actions.includes('fill'));
+});
+test('a scanned name that is only a parenthetical never falls back to an empty, always-matching primary name', async () => {
+  const f = fixture({notFriends:true});
+  await assert.rejects(send(f.page,{actualUrl:target,recipientId:'123',name:'(Tên Cũ)'},'Hello',f.submit), /không khớp tên hồ sơ/);
+  assert.ok(!f.actions.includes('fill'));
+});
 test('a "not friends" preview scopes the conversation to a tagged container, not the whole page body', async () => {
   const f = fixture({notFriends:true});
   const selectors = [];
