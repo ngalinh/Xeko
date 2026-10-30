@@ -1,6 +1,6 @@
 const path = require('path');
 const { CtvService } = require('./service');
-const ACTIONS = ['approve-import', 'approve-analysis', 'review-analysis', 'prepare-messages', 'send', 'retry-send', 'mark-sent', 'stop', 'retry-analysis', 'resolve-uids', 'delete', 'skip-lead', 'add-brand'];
+const ACTIONS = ['approve-import', 'approve-analysis', 'review-analysis', 'prepare-messages', 'send', 'retry-send', 'mark-sent', 'stop', 'retry-analysis', 'resolve-uids', 'delete', 'skip-lead', 'add-brand', 'rename'];
 const campaignPath = /^\/api\/ctv\/campaigns\/([a-f0-9-]+)(?:\/([a-z-]+))?$/;
 
 function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', permissions, service: providedService, fetchFn = fetch } = {}) {
@@ -80,6 +80,7 @@ function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', pe
           'resolve-uids': () => s.resolveUids(c.id, owner, body.leadId),
           'skip-lead': () => s.skipLead(c.id, owner, body.leadId),
           'delete': () => s.deleteCampaign(c.id, owner),
+          'rename': () => s.rename(c.id, owner, body.name),
         }[action]();
         return res.status(['approve-import','send','retry-send','retry-analysis','resolve-uids'].includes(action) ? 202 : 200).json(s.view(result));
       }
