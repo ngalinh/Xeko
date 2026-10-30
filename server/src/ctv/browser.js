@@ -698,7 +698,7 @@ function profileMessageButton() {
   return buttons.length === 1 ? buttons[0] : false;
 }
 
-async function prepareImages(page, conversation, images, verify, box, report = () => {}) {
+async function prepareImages(page, conversation, images, verify, box, report = () => {}, nameMatchMode = false) {
   const payloads = imagePayloads(images);
   if (!payloads.length) return;
   report('attach_start', `Đang đính kèm ${payloads.length} ảnh`);
@@ -707,25 +707,43 @@ async function prepareImages(page, conversation, images, verify, box, report = (
   const input = conversation.locator('input[type="file"][accept*="image"]');
   const inputCount = await input.count();
   if (inputCount > 1) throw new Error('Không xác định được duy nhất ô đính kèm ảnh trong hội thoại');
-  // Confirmed live via DevTools: Facebook's real 'Đã gửi'/'Sent' receipt is a
-  // leaf <span> holding plain text, not an aria-label — checking only
-  // [aria-label] here (unlike confirmedCount below, which already checks both)
-  // meant the receipt was never found, so imagesSent stayed false and every
-  // image send sat at 'unconfirmed' for the full wait regardless of outcome.
-  const confirmedImages = () => conversation.locator('[role="row"]').evaluateAll(rows => {
-    const photos = new Set();
-    const pattern = /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)\b/i;
-    for (const row of rows) {
-      const receipt = [...row.querySelectorAll('[aria-label]')].some(e => pattern.test(e.getAttribute('aria-label') || ''))
-        || [...row.querySelectorAll('span, div')].some(e => e.children.length === 0 && pattern.test((e.textContent || '').trim()));
-      if (!receipt) continue;
-      for (const img of row.querySelectorAll('img')) {
-        const r = img.getBoundingClientRect();
-        if (img.complete && img.naturalWidth > 0 && r.width >= 80 && r.height >= 80) photos.add(img.currentSrc || img.src);
-      }
-    }
-    return photos.size;
-  });
+  // Confirmed live via DevTools, twice: an established conversation wraps each
+  // message in [role="row"] (checked below), but a brand-new thread/not-yet-friends
+  // preview (nameMatchMode) never does — the receipt and image sit in sibling
+  // role="presentation" divs with no row ancestor at all, so row-scoping here
+  // always found zero and left every image send 'unconfirmed' no matter what the
+  // receipt-text pattern matched. Since nameMatchMode is always a thread with no
+  // prior history (true for both screens it covers), scoping to the whole
+  // conversation instead of a row is safe: nothing earlier can be mistaken for
+  // this send. Still requires a real receipt AND real loaded images (not just
+  // the receipt by itself) — the thing the exact-before-this fix stayed clear of.
+  const confirmedImages = nameMatchMode
+    ? () => conversation.evaluate(root => {
+        const pattern = /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)\b/i;
+        const receipt = [...root.querySelectorAll('[aria-label]')].some(e => pattern.test(e.getAttribute('aria-label') || ''))
+          || [...root.querySelectorAll('span, div')].some(e => e.children.length === 0 && pattern.test((e.textContent || '').trim()));
+        if (!receipt) return 0;
+        const photos = new Set();
+        for (const img of root.querySelectorAll('img')) {
+          const r = img.getBoundingClientRect();
+          if (img.complete && img.naturalWidth > 0 && r.width >= 80 && r.height >= 80) photos.add(img.currentSrc || img.src);
+        }
+        return photos.size;
+      })
+    : () => conversation.locator('[role="row"]').evaluateAll(rows => {
+        const photos = new Set();
+        const pattern = /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)\b/i;
+        for (const row of rows) {
+          const receipt = [...row.querySelectorAll('[aria-label]')].some(e => pattern.test(e.getAttribute('aria-label') || ''))
+            || [...row.querySelectorAll('span, div')].some(e => e.children.length === 0 && pattern.test((e.textContent || '').trim()));
+          if (!receipt) continue;
+          for (const img of row.querySelectorAll('img')) {
+            const r = img.getBoundingClientRect();
+            if (img.complete && img.naturalWidth > 0 && r.width >= 80 && r.height >= 80) photos.add(img.currentSrc || img.src);
+          }
+        }
+        return photos.size;
+      });
   const before = await confirmedImages();
   const previewCount = () => conversation.evaluate(root => [...root.querySelectorAll('img')].filter(img => {
     const r = img.getBoundingClientRect();
@@ -858,7 +876,7 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
   await verify();
   let media;
   if (images.length) {
-    media = await prepareImages(page, conversation, images, verify, box, report);
+    media = await prepareImages(page, conversation, images, verify, box, report, nameMatchMode);
     await waitForMessageComposer(page, box, cancelled, 300000, true);
     await verify();
     if (normalizeCaption(await box.innerText()) !== normalizeCaption(message)) throw new Error('Nội dung trong ô soạn đã thay đổi sau khi đính kèm ảnh; chưa gửi tin nhắn');
