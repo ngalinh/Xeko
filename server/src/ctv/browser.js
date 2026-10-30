@@ -134,8 +134,16 @@ function newThreadSentReceipt() {
     e.children.length === 0 && /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)\b/i.test((e.textContent || '').trim()));
 }
 function nameMatchesPreview(previewText, expectedName) {
-  return !!expectedName && previewText !== null
-    && normalized(previewText).value.includes(normalized(expectedName).value);
+  if (!expectedName || previewText === null) return false;
+  const preview = normalized(previewText).value;
+  if (preview.includes(normalized(expectedName).value)) return true;
+  // A scanned name can carry Facebook's own "(tên cũ)" suffix after a profile
+  // rename; Messenger's compose/new-thread preview only ever shows the current
+  // name, never the old one, so that exact containment check always misses.
+  // Fall back to just the text before a trailing "(...)" — never to an empty
+  // string, which would match any preview and defeat the safety check.
+  const primary = expectedName.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  return !!primary && primary !== expectedName.trim() && preview.includes(normalized(primary).value);
 }
 async function selectRecipientConversation(page, id, target, cancelled, report = () => {}, expectedName = '') {
   for (let attempt = 0; attempt < 30; attempt++) {
