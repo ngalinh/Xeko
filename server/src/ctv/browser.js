@@ -717,19 +717,34 @@ async function prepareImages(page, conversation, images, verify, box, report = (
   // conversation instead of a row is safe: nothing earlier can be mistaken for
   // this send. Still requires a real receipt AND real loaded images (not just
   // the receipt by itself) — the thing the exact-before-this fix stayed clear of.
+  // Locator.evaluate() (singular) auto-waits up to its timeout for the element
+  // to be attached before running — fine elsewhere in this file where the
+  // tagged container is expected to still be there, but fatal here: after
+  // Enter is pressed, Facebook can re-render the new-thread/not-yet-friends
+  // preview into a real thread and drop the originally tagged node, so this
+  // call waited the default 30s then threw, aborting the whole send attempt
+  // instead of just leaving this one poll unconfirmed. A short timeout plus a
+  // catch turns "can't find it right now" back into "not confirmed yet",
+  // consistent with how verify() already swallows this same situation above.
   const confirmedImages = nameMatchMode
-    ? () => conversation.evaluate(root => {
-        const pattern = /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)\b/i;
-        const receipt = [...root.querySelectorAll('[aria-label]')].some(e => pattern.test(e.getAttribute('aria-label') || ''))
-          || [...root.querySelectorAll('span, div')].some(e => e.children.length === 0 && pattern.test((e.textContent || '').trim()));
-        if (!receipt) return 0;
-        const photos = new Set();
-        for (const img of root.querySelectorAll('img')) {
-          const r = img.getBoundingClientRect();
-          if (img.complete && img.naturalWidth > 0 && r.width >= 80 && r.height >= 80) photos.add(img.currentSrc || img.src);
+    ? async () => {
+        try {
+          return await conversation.evaluate(root => {
+            const pattern = /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)\b/i;
+            const receipt = [...root.querySelectorAll('[aria-label]')].some(e => pattern.test(e.getAttribute('aria-label') || ''))
+              || [...root.querySelectorAll('span, div')].some(e => e.children.length === 0 && pattern.test((e.textContent || '').trim()));
+            if (!receipt) return 0;
+            const photos = new Set();
+            for (const img of root.querySelectorAll('img')) {
+              const r = img.getBoundingClientRect();
+              if (img.complete && img.naturalWidth > 0 && r.width >= 80 && r.height >= 80) photos.add(img.currentSrc || img.src);
+            }
+            return photos.size;
+          }, undefined, { timeout: 2000 });
+        } catch {
+          return 0;
         }
-        return photos.size;
-      })
+      }
     : () => conversation.locator('[role="row"]').evaluateAll(rows => {
         const photos = new Set();
         const pattern = /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)\b/i;
