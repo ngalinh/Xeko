@@ -14,7 +14,8 @@ function loggerHarness(t) {
     id INTEGER PRIMARY KEY, timestamp TEXT, profile TEXT, profile_name TEXT,
     platform TEXT, target TEXT, group_name TEXT, group_id TEXT, message TEXT,
     image_count INTEGER, success INTEGER, error TEXT, post_url TEXT, source TEXT,
-    images TEXT, batch_id TEXT, job_id TEXT, website TEXT, retry_at TEXT, retry_count INTEGER
+    images TEXT, batch_id TEXT, job_id TEXT, website TEXT, retry_at TEXT, retry_count INTEGER,
+    owner_email TEXT
   )`);
   const mod = { exports: {} };
   vm.runInNewContext(source('src/database/post-logger.js'), {

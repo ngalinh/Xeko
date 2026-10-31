@@ -450,6 +450,9 @@ const cancelledJobIds = new Set();
 // jobId → profile key, chỉ dùng để permission-scope endpoint hủy job all/allgroup ở dưới
 // (giống cancelledPendingIds nhưng job này không có DB row để tra profile).
 const jobProfileMap = new Map();
+// jobId → email người tạo job — cho phép người tạo tự dừng job của mình dù không có quyền
+// profile, cùng cơ chế owner_email ở post_logs (job all/allgroup không có DB row).
+const jobOwnerMap = new Map();
 
 function createJob() {
   const id = crypto.randomBytes(8).toString('hex');
@@ -756,6 +759,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
       batchId,
       jobId,
       website,
+      ownerEmail: req.user && req.user.email,
     });
     res.json({ jobId, status: 'pending', pendingLogId });
 
@@ -787,6 +791,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   // Multi-target jobs (all / allgroup): không pre-insert, dùng in-memory _activeRepostJobs như cũ
   const jobId = createJob();
   jobProfileMap.set(jobId, _gateProfileKey);
+  jobOwnerMap.set(jobId, req.user && req.user.email);
   res.json({ jobId, status: 'pending' });
 
   const targetDesc = target === 'group' ? `group:${groupId}` : (target || 'personal');
@@ -808,6 +813,7 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
     .finally(() => {
       cancelledJobIds.delete(jobId);
       jobProfileMap.delete(jobId);
+      jobOwnerMap.delete(jobId);
       cleanupFiles(imagePaths);
     });
 });
@@ -1724,15 +1730,17 @@ function _forwardZaloCancel(row) {
 // chừng — chỉ đánh dấu "Đã dừng" trong lịch sử ngay lập tức, còn thao tác thực tế trên nền
 // tảng (Facebook/Zalo) vẫn có thể tiếp tục chạy tới khi xong.
 // Danh sách "Đang đăng" hiện chung cho mọi nhân viên (không lọc theo người tạo), nên chỉ
-// cho phép dừng bài dùng profile mà chính người bấm đang được cấp quyền sử dụng — tránh
-// 1 nhân viên lỡ tay dừng bài của đồng nghiệp đang dùng profile họ không có quyền.
+// cho phép dừng bài dùng profile mà chính người bấm đang được cấp quyền sử dụng, HOẶC chính
+// người bấm là người đã tạo bài đó (owner_email) — tránh 1 nhân viên lỡ tay dừng bài của
+// đồng nghiệp đang dùng profile họ không có quyền, nhưng vẫn cho tự dừng bài mình tạo.
 app.post('/api/pending/:id/cancel', (req, res) => {
   const id = Number(req.params.id);
   if (!id) return res.status(400).json({ error: 'ID không hợp lệ' });
   try {
     const row = postLogger.getPendingPosts().find(r => r.id === id);
+    const isOwner = !!(row && row.owner_email && row.owner_email === req.user.email);
     const allowed = permissions.getAllowedProfileKeys(req.user.email);
-    if (allowed !== null && row && !allowed.includes(row.profile)) {
+    if (allowed !== null && row && !allowed.includes(row.profile) && !isOwner) {
       return res.status(403).json({ error: 'Bạn không có quyền dừng bài đăng của tài khoản này' });
     }
     cancelledPendingIds.add(id);
@@ -1749,16 +1757,19 @@ app.post('/api/pending/:id/cancel', (req, res) => {
 
 // Dừng cùng lúc TẤT CẢ bài "Đang đăng" của 1 tài khoản (profile) — dùng khi phát hiện nội
 // dung sai giữa lúc đăng nhiều nơi bằng cùng 1 tài khoản. Cùng phạm vi quyền như endpoint
-// /:id/cancel ở trên: chỉ dừng được tài khoản mà người bấm đang được cấp quyền sử dụng.
+// /:id/cancel ở trên: chỉ dừng được tài khoản mà người bấm đang được cấp quyền sử dụng, hoặc
+// từng bài cụ thể do chính người bấm tạo (lọc theo owner_email ở vòng for bên dưới).
 app.post('/api/pending/cancel-by-profile', (req, res) => {
   const profile = typeof req.body?.profile === 'string' ? req.body.profile.trim() : '';
   if (!profile) return res.status(400).json({ error: 'Thiếu profile' });
   try {
     const allowed = permissions.getAllowedProfileKeys(req.user.email);
-    if (allowed !== null && !allowed.includes(profile)) {
+    const hasProfileAccess = allowed === null || allowed.includes(profile);
+    const rows = postLogger.getPendingPosts().filter(r => r.profile === profile
+      && (hasProfileAccess || r.owner_email === req.user.email));
+    if (!hasProfileAccess && rows.length === 0) {
       return res.status(403).json({ error: 'Bạn không có quyền dừng bài đăng của tài khoản này' });
     }
-    const rows = postLogger.getPendingPosts().filter(r => r.profile === profile);
     let updated = 0;
     for (const row of rows) {
       cancelledPendingIds.add(row.id);
@@ -1779,7 +1790,8 @@ app.post('/api/pending/cancel-by-profile', (req, res) => {
 // đăng tuần tự nhiều group trong CÙNG 1 request nên không có pending DB row riêng từng group
 // để dùng /api/pending/:id/cancel ở trên. Đánh dấu jobId bị dừng vào cancelledJobIds; group
 // đang đăng dở (đã bắt đầu thao tác trình duyệt) vẫn đăng xong, các group CHƯA tới lượt sẽ
-// bị bỏ qua. Cùng phạm vi quyền: chỉ dừng được job dùng profile mà người bấm đang có quyền.
+// bị bỏ qua. Cùng phạm vi quyền: chỉ dừng được job dùng profile mà người bấm đang có quyền,
+// hoặc job do chính người bấm tạo (jobOwnerMap).
 app.post('/api/job/:id/cancel', (req, res) => {
   const id = req.params.id;
   if (!id) return res.status(400).json({ error: 'ID không hợp lệ' });
@@ -1788,8 +1800,9 @@ app.post('/api/job/:id/cancel', (req, res) => {
     return res.status(404).json({ error: 'Job không tồn tại hoặc đã xong' });
   }
   try {
+    const isOwner = jobOwnerMap.get(id) === req.user.email;
     const allowed = permissions.getAllowedProfileKeys(req.user.email);
-    if (allowed !== null) {
+    if (allowed !== null && !isOwner) {
       const jobProfile = jobProfileMap.get(id);
       if (jobProfile == null || !allowed.includes(jobProfile)) {
         return res.status(403).json({ error: 'Bạn không có quyền dừng bài đăng của tài khoản này' });
@@ -2344,6 +2357,7 @@ app.post('/api/zalo/post', upload.array('images', 20), async (req, res) => {
         batchId: batchId || null,
         jobId: data.jobId,
         website: website || null,
+        ownerEmail: req.user && req.user.email,
       };
       // Retry 1 lần để qua được lỗi DB-busy tạm thời; log full stack để lần sau
       // còn truy được nguyên nhân nếu lỗi mang tính hệ thống (schema/constraint).

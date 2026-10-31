@@ -70,5 +70,10 @@ if (!cols.includes('retry_count')) {
 if (!cols.includes('website')) {
   db.exec(`ALTER TABLE post_logs ADD COLUMN website TEXT`);
 }
+// owner_email: email người tạo bài (req.user.email) — cho phép người tạo tự dừng bài
+// của mình dù không có quyền profile, xem /api/pending/:id/cancel
+if (!cols.includes('owner_email')) {
+  db.exec(`ALTER TABLE post_logs ADD COLUMN owner_email TEXT`);
+}
 
 module.exports = db;
