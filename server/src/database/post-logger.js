@@ -8,8 +8,8 @@ const insertStmt = db.prepare(`
 `);
 
 const insertPendingStmt = db.prepare(`
-  INSERT INTO post_logs (timestamp, profile, profile_name, platform, target, group_name, group_id, message, image_count, success, error, post_url, source, images, batch_id, job_id, website)
-  VALUES (@timestamp, @profile, @profileName, @platform, @target, @groupName, @groupId, @message, @imageCount, -1, null, null, @source, @images, @batchId, @jobId, @website)
+  INSERT INTO post_logs (timestamp, profile, profile_name, platform, target, group_name, group_id, message, image_count, success, error, post_url, source, images, batch_id, job_id, website, owner_email)
+  VALUES (@timestamp, @profile, @profileName, @platform, @target, @groupName, @groupId, @message, @imageCount, -1, null, null, @source, @images, @batchId, @jobId, @website, @ownerEmail)
 `);
 
 const completePendingStmt = db.prepare(
@@ -97,7 +97,7 @@ function logPost({ profile, profileName, platform, target, groupName, groupId, m
   });
 }
 
-function insertPendingPost({ profile, profileName, platform, target, groupName, groupId, message, imageCount, source, images, batchId, jobId, website }) {
+function insertPendingPost({ profile, profileName, platform, target, groupName, groupId, message, imageCount, source, images, batchId, jobId, website, ownerEmail }) {
   _bustHistoryCache();
   const result = insertPendingStmt.run({
     timestamp: new Date().toISOString(),
@@ -114,6 +114,7 @@ function insertPendingPost({ profile, profileName, platform, target, groupName, 
     batchId: batchId || null,
     jobId: jobId || null,
     website: website || null,
+    ownerEmail: ownerEmail || null,
   });
   return result.lastInsertRowid;
 }
