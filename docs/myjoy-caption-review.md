@@ -22,10 +22,12 @@ Khởi động lại worker sau khi cấu hình theo quy trình vận hành hi�
 1. Tạo chiến dịch mới, chọn **Đánh giá caption qua MyJoy**.
 2. Bấm **Kết nối / tải lại danh sách AI**, chọn một AI đang sẵn sàng.
 3. Nhập hoặc chọn khách từ thư viện, kiểm tra danh sách rồi duyệt quét.
-4. Xeko gửi bio và tối đa 5 caption, nhận brand và dấu hiệu bán hàng, highlight nguyên văn bằng chứng.
+4. Xeko gửi bio, tối đa 5 caption và ảnh thu thập được (nếu có), nhận brand và dấu hiệu bán hàng, highlight nguyên văn bằng chứng.
 5. Đọc kết quả và tự chọn khách. Duyệt người nhận và tin nhắn vẫn là các bước riêng như trước.
 
-Không tự chọn khách, không tự gửi tin, không kết luận nguồn hàng Mỹ, không phân tích ảnh. Không tự lưu các brand do AI suy luận vào từ điển riêng; thao tác thêm brand bằng tay vẫn thuộc chế độ từ khoá. Chế độ MyJoy chưa đánh giá tuyển CTV/đại lý: cần tự kiểm tra tiêu chí đó.
+Không tự chọn khách, không tự gửi tin, không kết luận nguồn hàng Mỹ. Không tự lưu các brand do AI suy luận vào từ điển riêng; thao tác thêm brand bằng tay vẫn thuộc chế độ từ khoá. Chế độ MyJoy chưa đánh giá tuyển CTV/đại lý: cần tự kiểm tra tiêu chí đó.
+
+**Ảnh (thử nghiệm, chưa xác minh với MyJoy thật):** worker chụp tối đa 2 ảnh/bài (tối đa 5 bài, như chế độ AI Gemini) và gửi kèm sang MyJoy qua field `images` riêng trong message `task` của `/ws/agent` — không nhúng ảnh vào nội dung chat text. Chưa biết backend AI trên MyJoy có đọc được field này hay bỏ qua; cần kiểm tra bằng một chiến dịch thật trước khi tin tưởng kết quả liên quan đến ảnh. Gửi ảnh khách hàng sang MyJoy nghĩa là chia sẻ dữ liệu đó cho tài khoản MyJoy đang cấu hình (`CTV_MYJOY_USERNAME`); chỉ bật chế độ MyJoy khi đã chấp nhận điều này.
 
 ## AI và quyền truy cập
 
@@ -39,7 +41,7 @@ Mỗi profile mở kết nối với panel ID ngẫu nhiên, không dùng lại 
 - JSON sai, thiếu caption, bằng chứng không khớp, ngắt kết nối hoặc quá 180 giây: báo lỗi để người dùng xử lý. Không tự gửi lại yêu cầu có thể đã tiêu tốn hạn mức.
 - Bấm dừng: Xeko gửi lệnh dừng đúng panel của lượt quét. Nếu mạng đã ngắt, không thể bảo đảm MyJoy nhận lệnh dừng; hãy kiểm tra lượt đang chạy trên MyJoy trước khi thử lại.
 - Hết phiên đăng nhập: lần kết nối sau đăng nhập lại. Lỗi từ xa được thay bằng thông báo chung để tránh lộ token, đường dẫn máy chủ hoặc nội dung riêng.
-- Chế độ này gửi nội dung bio/caption đến MyJoy và AI đã chọn. Người vận hành cần chọn đúng máy MyJoy và tài khoản được phép xử lý dữ liệu đó.
+- Chế độ này gửi nội dung bio/caption và ảnh thu thập được (nếu có) đến MyJoy và AI đã chọn. Người vận hành cần chọn đúng máy MyJoy và tài khoản được phép xử lý dữ liệu đó.
 
 ## Kiểm chứng
 
