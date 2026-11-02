@@ -2001,11 +2001,15 @@ async function qpStep4OpenShareToGroups(page, steps) {
   // FB modal portal có thể stack DOM theo thứ tự khác → dialog mới chưa chắc là last.
   try {
     await page.waitForFunction(() => {
-      // Check 1: bất kỳ dialog nào chứa "Chọn nhóm" + có checkbox
+      // Check 1: bất kỳ dialog nào chứa "Chọn nhóm"/"Chia sẻ lên nhóm" + có checkbox.
+      // FB hiện dùng "Chia sẻ lên nhóm" làm tiêu đề dialog con y hệt tên row trong
+      // composer — bắt buộc kèm điều kiện có checkbox để không nhầm 2 dialog.
       const dialogs = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
       for (const d of dialogs) {
         const text = d.textContent || '';
-        if (text.includes('Chọn nhóm') || text.includes('Choose groups') || text.includes('Choose group')) {
+        const isShareText = text.includes('Chọn nhóm') || text.includes('Choose groups') || text.includes('Choose group')
+          || text.includes('Chia sẻ lên nhóm') || text.includes('Share to groups') || text.includes('Share to Groups');
+        if (isShareText) {
           const hasCb = d.querySelectorAll('input[type="checkbox"], [role="checkbox"]').length > 0;
           if (hasCb) return true;
         }
@@ -2098,12 +2102,15 @@ async function _qpPickOneGroup(page, keyword) {
   let foundInDom = false;
   for (let i = 0; i < 20; i++) {
     const result = await page.evaluate((k) => {
-      // Inline tìm share dialog (chứa "Chọn nhóm")
+      // Inline tìm share dialog (chứa "Chọn nhóm"/"Chia sẻ lên nhóm" + có checkbox —
+      // tránh nhầm với row "Chia sẻ lên nhóm" trong composer, vốn không có checkbox)
       const ds = document.querySelectorAll('div[role="dialog"], [role="alertdialog"], [aria-modal="true"]');
       let d = null;
       for (const cand of ds) {
         const t = cand.textContent || '';
-        if (t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')) {
+        const isShareText = t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')
+          || t.includes('Chia sẻ lên nhóm') || t.includes('Share to groups') || t.includes('Share to Groups');
+        if (isShareText && cand.querySelectorAll('input[type="checkbox"], [role="checkbox"]').length > 0) {
           d = cand; break;
         }
       }
@@ -2138,7 +2145,9 @@ async function _qpPickOneGroup(page, keyword) {
     let d = null;
     for (const cand of ds) {
       const t = cand.textContent || '';
-      if (t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')) {
+      const isShareText = t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')
+        || t.includes('Chia sẻ lên nhóm') || t.includes('Share to groups') || t.includes('Share to Groups');
+      if (isShareText && cand.querySelectorAll('input[type="checkbox"], [role="checkbox"]').length > 0) {
         d = cand; break;
       }
     }
@@ -2162,7 +2171,9 @@ async function _qpPickOneGroup(page, keyword) {
   }
 
   // B3: Playwright accessibility locator strategies — scope vào dialog chứa "Chọn nhóm"
-  const dialog = page.locator('div[role="dialog"]').filter({ hasText: 'Chọn nhóm' }).first();
+  const dialog = page.locator('div[role="dialog"]')
+    .filter({ hasText: /Chọn nhóm|Choose groups?|Chia sẻ lên nhóm|Share to groups/i })
+    .filter({ has: page.locator('input[type="checkbox"], [role="checkbox"]') }).first();
   const startRe = new RegExp('^' + escapedKw + '(\\s|$|,)', 'i');
   const exactRe = new RegExp('^' + escapedKw + '$', 'i');
 
@@ -2187,7 +2198,9 @@ async function _qpPickOneGroup(page, keyword) {
         let d = null;
         for (const cand of ds) {
           const t = cand.textContent || '';
-          if (t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')) {
+          const isShareText = t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')
+            || t.includes('Chia sẻ lên nhóm') || t.includes('Share to groups') || t.includes('Share to Groups');
+          if (isShareText && cand.querySelectorAll('input[type="checkbox"], [role="checkbox"]').length > 0) {
             d = cand; break;
           }
         }
@@ -2225,7 +2238,9 @@ async function _qpPickOneGroup(page, keyword) {
         let d = null;
         for (const cand of ds) {
           const t = cand.textContent || '';
-          if (t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')) {
+          const isShareText = t.includes('Chọn nhóm') || t.includes('Choose groups') || t.includes('Choose group')
+            || t.includes('Chia sẻ lên nhóm') || t.includes('Share to groups') || t.includes('Share to Groups');
+          if (isShareText && cand.querySelectorAll('input[type="checkbox"], [role="checkbox"]').length > 0) {
             d = cand; break;
           }
         }
@@ -2311,7 +2326,8 @@ async function qpStep6Submit(page, steps, shouldCancel = null) {
 
   // Không bấm Đăng khi popup chọn nhóm vẫn mở, kể cả nhánh fallback.
   const groupDialog = page.locator('[role="dialog"]:visible, [role="alertdialog"]:visible, [aria-modal="true"]:visible')
-    .filter({ hasText: /Chọn nhóm|Choose groups?/i }).last();
+    .filter({ hasText: /Chọn nhóm|Choose groups?|Chia sẻ lên nhóm|Share to groups/i })
+    .filter({ has: page.locator('input[type="checkbox"], [role="checkbox"]') }).last();
   if (await groupDialog.isVisible()) {
     if (!(await _qpCloseShareGroupsDialog(page))) {
       return { success: false, error: 'Không đóng được popup chọn nhóm bằng nút X — chưa bấm Đăng' };
@@ -2382,7 +2398,8 @@ async function qpStep6Submit(page, steps, shouldCancel = null) {
 // Luôn xác minh đã quay về trình soạn bài trước khi tiếp tục.
 async function _qpCloseShareGroupsDialog(page, confirmSelection = false) {
   const dialog = page.locator('[role="dialog"]:visible, [role="alertdialog"]:visible, [aria-modal="true"]:visible')
-    .filter({ hasText: /Chọn nhóm|Choose groups?/i }).last();
+    .filter({ hasText: /Chọn nhóm|Choose groups?|Chia sẻ lên nhóm|Share to groups/i })
+    .filter({ has: page.locator('input[type="checkbox"], [role="checkbox"]') }).last();
   for (const label of (confirmSelection ? ['Xong', 'Done'] : ['Đóng', 'Close'])) {
     const button = dialog.getByRole('button', { name: label, exact: true }).first();
     if (!(await button.isVisible().catch(() => false))) continue;
