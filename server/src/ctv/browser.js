@@ -754,18 +754,27 @@ async function prepareImages(page, conversation, images, verify, box, report = (
           return 0;
         }
       }
+    // An established conversation can render a single Enter's image+caption as two
+    // adjacent [role="row"]s (image row, then text row) with Messenger's receipt
+    // caption shown only on the last one — requiring the receipt and image in the
+    // SAME row then never found it, leaving the send 'unconfirmed' even once Messenger
+    // had already delivered it. Also check the row immediately before a receipted one,
+    // instead of scanning the whole conversation (which could wrongly count unrelated
+    // older photos already sitting in an established conversation's history).
     : () => conversation.locator('[role="row"]').evaluateAll(rows => {
-        const photos = new Set();
         const pattern = /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)\b/i;
-        for (const row of rows) {
-          const receipt = [...row.querySelectorAll('[aria-label]')].some(e => pattern.test(e.getAttribute('aria-label') || ''))
-            || [...row.querySelectorAll('span, div')].some(e => e.children.length === 0 && pattern.test((e.textContent || '').trim()));
-          if (!receipt) continue;
-          for (const img of row.querySelectorAll('img')) {
-            const r = img.getBoundingClientRect();
-            if (img.complete && img.naturalWidth > 0 && r.width >= 80 && r.height >= 80) photos.add(img.currentSrc || img.src);
-          }
-        }
+        const hasReceipt = row => [...row.querySelectorAll('[aria-label]')].some(e => pattern.test(e.getAttribute('aria-label') || ''))
+          || [...row.querySelectorAll('span, div')].some(e => e.children.length === 0 && pattern.test((e.textContent || '').trim()));
+        const photosOf = row => [...row.querySelectorAll('img')].filter(img => {
+          const r = img.getBoundingClientRect();
+          return img.complete && img.naturalWidth > 0 && r.width >= 80 && r.height >= 80;
+        }).map(img => img.currentSrc || img.src);
+        const photos = new Set();
+        rows.forEach((row, i) => {
+          if (!hasReceipt(row)) return;
+          photosOf(row).forEach(src => photos.add(src));
+          if (i > 0) photosOf(rows[i - 1]).forEach(src => photos.add(src));
+        });
         return photos.size;
       });
   const before = await confirmedImages();

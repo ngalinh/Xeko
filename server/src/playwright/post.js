@@ -3402,42 +3402,40 @@ async function postComment({ postUrl, message, imagePaths, profile }) {
       'div[contenteditable="true"][aria-label*="Viết bình luận"]',
     ];
 
-    let commentBox = null;
-    for (const sel of commentBoxSelectors) {
-      try {
-        const boxes = await page.$$(sel);
-        for (const box of boxes) {
-          const visible = await box.isVisible().catch(() => false);
-          if (visible) { commentBox = box; break; }
-        }
-        if (commentBox) break;
-      } catch { continue; }
-    }
-
-    // Nếu chưa thấy ô comment: thử click nút "Bình luận" để expand
-    if (!commentBox) {
-      const triggerSelectors = [
-        'div[aria-label*="Bình luận"]',
-        'div[aria-label*="Comment"]',
-        'span:has-text("Bình luận")',
-        'span:has-text("Comment")',
-      ];
-      for (const sel of triggerSelectors) {
-        try {
-          const el = await page.$(sel);
-          if (el) { await el.click({ force: true }); await randomDelay(1000, 1500); break; }
-        } catch { continue; }
-      }
-      // Thử lại tìm ô comment sau khi click trigger
+    const findCommentBox = async () => {
       for (const sel of commentBoxSelectors) {
         try {
           const boxes = await page.$$(sel);
           for (const box of boxes) {
             const visible = await box.isVisible().catch(() => false);
-            if (visible) { commentBox = box; break; }
+            if (visible) return box;
           }
-          if (commentBox) break;
         } catch { continue; }
+      }
+      return null;
+    };
+
+    // Trang hồ sơ (không phải link bài viết cụ thể) thường chưa tải bài nào có ô
+    // bình luận ngay trong viewport đầu tiên; cuộn và thử lại vài lần trước khi bỏ cuộc.
+    let commentBox = null;
+    for (let attempt = 0; attempt < 6 && !commentBox; attempt++) {
+      if (attempt > 0) { await page.mouse.wheel(0, 900); await randomDelay(1200, 1800); }
+      commentBox = await findCommentBox();
+      // Nếu chưa thấy ô comment: thử click nút "Bình luận" để expand
+      if (!commentBox) {
+        const triggerSelectors = [
+          'div[aria-label*="Bình luận"]',
+          'div[aria-label*="Comment"]',
+          'span:has-text("Bình luận")',
+          'span:has-text("Comment")',
+        ];
+        for (const sel of triggerSelectors) {
+          try {
+            const el = await page.$(sel);
+            if (el) { await el.click({ force: true }); await randomDelay(1000, 1500); break; }
+          } catch { continue; }
+        }
+        commentBox = await findCommentBox();
       }
     }
 

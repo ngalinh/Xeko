@@ -387,6 +387,10 @@ class CtvService {
     else lead.error = 'Đã tự kiểm tra Messenger: chưa thấy tin nhắn (và ảnh nếu có) gửi tới khách này.';
     lead.manualConfirm = { by: owner, at: new Date().toISOString(), from: previousState, to: state };
     this.save();
+    // Tự động gửi đã dừng ở đây (operator tự xác nhận qua Messenger), nhưng vẫn
+    // cần nhắc khách bằng bình luận như lượt gửi tự động thành công; chạy nền qua
+    // hàng đợi theo tài khoản, không chặn phản hồi thao tác này.
+    if (state === 'sent') this.enqueue(c, () => this.remindBySend(lead, lead.retryApproval?.profile || c.profile));
     return c;
   }
   stop(id, owner) {
@@ -394,6 +398,16 @@ class CtvService {
     if (ACTIVE.includes(c.state)) { c.cancelled = true; this.save(); } return c;
   }
   async wait(c, seconds) { for (let i = 0; i < seconds && !c.cancelled; i++) await this.pause(1000); }
+  // Nhắc khách bằng bình luận công khai để khách chú ý và check tin nhắn; lỗi ở
+  // đây không được coi là gửi tin thất bại và không ghi vào sendLog (log riêng
+  // cho tiến trình gửi tin, không phải bước này).
+  async remindBySend(lead, profile) {
+    let commented;
+    try { commented = await this.browser.comment(profile, lead.url, 'Chị ơi, chị check tn e nhé ạ'); }
+    catch (e) { commented = { success: false, error: e.message }; }
+    if (commented?.success) { lead.commentedAt = new Date().toISOString(); delete lead.commentError; } else lead.commentError = commented?.error || 'Không bình luận được trên bài viết';
+    this.save();
+  }
   async send(c, messages = c.messagePreview.messages, retry = null) {
     c.state = 'sending'; this.save();
     for (const m of messages) {
@@ -421,16 +435,7 @@ class CtvService {
         // An unconfirmed send is ambiguous only for this lead's conversation;
         // the rest of the batch still needs sending.
         if (result.state !== 'sent') c.error = result.reason;
-        else {
-          // Nhắc khách bằng bình luận trên chính bài viết; lỗi ở đây không được
-          // coi là gửi tin thất bại (tin đã xác nhận gửi) và không ghi vào sendLog
-          // vì đó là log riêng cho tiến trình gửi tin, không phải bước này.
-          let commented;
-          try { commented = await this.browser.comment(retry?.profile || c.profile, lead.url, 'Chị ơi, chị check tn e nhé ạ'); }
-          catch (e) { commented = { success: false, error: e.message }; }
-          if (commented?.success) { lead.commentedAt = new Date().toISOString(); delete lead.commentError; } else lead.commentError = commented?.error || 'Không bình luận được trên bài viết';
-          this.save();
-        }
+        else await this.remindBySend(lead, retry?.profile || c.profile);
       } catch (e) {
         onProgress({ stage: c.cancelled ? 'cancelled' : 'error', message: e.message });
         lead.state = lead.state === 'sending' ? 'unconfirmed' : 'review'; lead.error = e.message; c.error = e.message;
