@@ -23,6 +23,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 
 const playwright = require('./src/playwright/post');
+const ig = require('./src/playwright/post-instagram');
 const { queuePost } = require('./src/utils/post-queue');
 const salework = require('./src/playwright/salework');
 const sessionCheck = require('./src/utils/session-check');
@@ -346,6 +347,60 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   }, true);
 });
 
+// ===== ĐĂNG BÀI INSTAGRAM =====
+app.post('/api/post-instagram', upload.array('images', 10), async (req, res) => {
+  const { message, profile } = req.body;
+  const imagePaths = (req.files || []).map(f => f.path);
+
+  if (!profile) {
+    cleanupFiles(imagePaths);
+    return res.status(400).json({ error: 'Chưa chọn tài khoản Instagram' });
+  }
+  if (imagePaths.length === 0) {
+    cleanupFiles(imagePaths);
+    return res.status(400).json({ error: 'Instagram yêu cầu ít nhất 1 ảnh' });
+  }
+  if (!ig.profileExists(profile)) {
+    cleanupFiles(imagePaths);
+    return res.status(400).json({ error: `Tài khoản Instagram "${profile}" không tồn tại` });
+  }
+
+  const rl = rateLimit.checkHourly(`ig:${profile}`);
+  if (!rl.ok) {
+    cleanupFiles(imagePaths);
+    res.setHeader('Retry-After', Math.ceil(rl.retryAfterMs / 1000));
+    return res.status(429).json({ error: rl.reason, retryAfterMs: rl.retryAfterMs });
+  }
+
+  const jobId = createJob();
+  res.json({ jobId, status: 'pending' });
+
+  queueWorkerJob(jobId, `ig:${profile}`, async () => {
+    const _igTimeoutId = setTimeout(() => {
+      const j = postJobs.get(jobId);
+      if (j && j.status === 'pending') {
+        logger.error(`[job ${jobId}] TIMEOUT sau 9 phút — force setJobError`);
+        setJobError(jobId, 'Timeout: Playwright bị kẹt quá 9 phút. Có thể đã đăng thành công — kiểm tra Instagram trước khi đăng lại.');
+      }
+    }, 9 * 60 * 1000);
+
+    const shouldCancel = () => cancelledFbJobIds.has(jobId);
+
+    try {
+      if (shouldCancel()) { setJobResult(jobId, { success: false, cancelled: true }); return; }
+      const result = await ig.postToFeed(profile, message || '', imagePaths, shouldCancel);
+      setJobResult(jobId, { success: result.success, error: result.error, cancelled: !!result.cancelled });
+    } catch (error) {
+      logger.error(`Lỗi job Instagram ${jobId}: ${error.message}`);
+      setJobError(jobId, error.message);
+    } finally {
+      cancelledFbJobIds.delete(jobId);
+      clearTimeout(_igTimeoutId);
+      cleanupFiles(imagePaths);
+    }
+  }, true);
+});
+
 // ===== DO-COMMENT: execute comment only, no DB logging (called by cloud via playwright-proxy) =====
 app.post('/api/do-comment', upload.array('images', 10), async (req, res) => {
   const { postUrl, profile, message } = req.body;
@@ -620,6 +675,44 @@ app.post('/api/accounts', (req, res) => {
     return;
   }
 
+  if (type === 'instagram') {
+    const igProfileDir = path.resolve(__dirname, `playwright-data/ig-${key}`);
+    const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
+    try {
+      const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8')) : {};
+      meta[key] = { name, instagram: true, proxy: (proxy || '').trim() };
+      fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2));
+    } catch {}
+
+    res.json({ success: true, message: `Đang mở Chromium cho Instagram "${name}". Đăng nhập xong thì đóng cửa sổ.` });
+
+    (async () => {
+      try {
+        const { safeLaunchPersistentContext } = require('./src/utils/playwright-launch');
+        if (!fs.existsSync(igProfileDir)) fs.mkdirSync(igProfileDir, { recursive: true });
+        const proxyOpt = parseProxy(proxy);
+        if (proxyOpt) logger.info(`Instagram "${name}" dùng proxy: ${proxyOpt.server}`);
+        const browser = await safeLaunchPersistentContext(igProfileDir, {
+          headless: false,
+          slowMo: 500,
+          viewport: null,
+          args: ['--start-maximized'],
+          ...(proxyOpt ? { proxy: proxyOpt } : {}),
+        });
+        const page = browser.pages()[0] || await browser.newPage();
+        await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        loginHistory.addEntry(key, name, 'login', 'Mở Chromium đăng nhập Instagram thủ công');
+        browser.on('close', () => {
+          loginHistory.addEntry(key, name, 'login', 'Đã đóng trình duyệt Instagram - session được lưu');
+        });
+      } catch (e) {
+        logger.error(`Lỗi mở Chromium Instagram cho "${name}": ${e.message}`);
+        loginHistory.addEntry(key, name, 'session_expired', `Không mở được Chromium: ${e.message}`);
+      }
+    })();
+    return;
+  }
+
   // Facebook (default)
   // Lưu tên hiển thị + email + proxy vào meta ngay (trước khi launch browser)
   const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
@@ -727,6 +820,38 @@ app.post('/api/accounts/:key/login', (req, res) => {
     return;
   }
 
+  const isInstagram = !!profileMeta.instagram;
+  if (isInstagram) {
+    const igProfileDir = path.resolve(__dirname, `playwright-data/ig-${key}`);
+    res.json({ success: true, message: `Đang mở Chromium cho Instagram "${name}". Đăng nhập xong thì đóng cửa sổ.` });
+
+    (async () => {
+      try {
+        const { safeLaunchPersistentContext } = require('./src/utils/playwright-launch');
+        if (!fs.existsSync(igProfileDir)) fs.mkdirSync(igProfileDir, { recursive: true });
+        const proxyOpt = parseProxy(profileMeta.proxy);
+        if (proxyOpt) logger.info(`Instagram "${name}" dùng proxy: ${proxyOpt.server}`);
+        const browser = await safeLaunchPersistentContext(igProfileDir, {
+          headless: false,
+          slowMo: 500,
+          viewport: null,
+          args: ['--start-maximized'],
+          ...(proxyOpt ? { proxy: proxyOpt } : {}),
+        });
+        const page = browser.pages()[0] || await browser.newPage();
+        await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        loginHistory.addEntry(key, name, 'login', 'Mở lại trình duyệt Instagram để đăng nhập');
+        browser.on('close', () => {
+          loginHistory.addEntry(key, name, 'login', 'Đã đóng trình duyệt Instagram - session được lưu');
+        });
+      } catch (e) {
+        logger.error(`Lỗi mở Chromium re-login Instagram "${name}": ${e.message}`);
+        loginHistory.addEntry(key, name, 'session_expired', `Không mở được Chromium: ${e.message}`);
+      }
+    })();
+    return;
+  }
+
   res.json({ success: true, message: `Đang mở Chromium cho "${name}". Đăng nhập xong thì đóng cửa sổ.` });
 
   (async () => {
@@ -779,6 +904,9 @@ app.delete('/api/accounts/:type/:key', (req, res) => {
       // Delete per-account Salework profile so setup runs again on re-add
       const saleworkProfileDir = salework.getSaleworkProfile(key);
       if (fs.existsSync(saleworkProfileDir)) fs.rmSync(saleworkProfileDir, { recursive: true, force: true });
+    } else if (type === 'instagram') {
+      const igProfileDir = path.resolve(__dirname, `playwright-data/ig-${key}`);
+      if (fs.existsSync(igProfileDir)) fs.rmSync(igProfileDir, { recursive: true, force: true });
     } else {
       return res.status(400).json({ error: 'Loại không hợp lệ' });
     }
@@ -806,7 +934,8 @@ app.get('/api/accounts', (req, res) => {
       .filter(e => e.isDirectory()
         && !knownNonProfiles.includes(e.name)
         && !e.name.startsWith('.')
-        && !e.name.startsWith('salework')) // exclude salework and salework-{key} folders
+        && !e.name.startsWith('salework') // exclude salework and salework-{key} folders
+        && !e.name.startsWith('ig-')) // exclude Instagram ig-{key} folders
       .map(e => ({
         key: e.name,
         name: meta[e.name]?.name || e.name,
@@ -814,9 +943,20 @@ app.get('/api/accounts', (req, res) => {
         proxy: meta[e.name]?.proxy || '',
       }));
 
+    const igProfiles = entries
+      .filter(e => e.isDirectory() && e.name.startsWith('ig-'))
+      .map(e => {
+        const key = e.name.slice('ig-'.length);
+        return {
+          key,
+          name: meta[key]?.name || key,
+          proxy: meta[key]?.proxy || '',
+        };
+      });
+
     const zaloAccounts = loadZaloAccounts();
 
-    res.json({ facebook: fbProfiles, zalo: zaloAccounts });
+    res.json({ facebook: fbProfiles, zalo: zaloAccounts, instagram: igProfiles });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

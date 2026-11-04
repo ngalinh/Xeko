@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Đăng bài Instagram — Xeko</title>
+<style>
+  :root { color-scheme: light; }
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: #f5f6f8; margin: 0; padding: 24px; color: #1c1e21; }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .hint { color: #65676b; font-size: 13px; margin-bottom: 20px; }
+  .card { background: #fff; border: 1px solid #dadde1; border-radius: 10px; padding: 18px; margin-bottom: 20px; }
+  .card h2 { font-size: 15px; margin: 0 0 12px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 10px 0 4px; }
+  input[type=text], input[type=password], textarea, select {
+    width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #ccd0d5;
+    border-radius: 6px; font-size: 14px; font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 80px; }
+  button {
+    background: #1877f2; color: #fff; border: none; border-radius: 6px; padding: 9px 16px;
+    font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px;
+  }
+  button.secondary { background: #e4e6eb; color: #1c1e21; }
+  button.danger { background: #fa383e; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .acc-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+  .acc-row:last-child { border-bottom: none; }
+  .acc-row .actions button { margin: 0 0 0 6px; padding: 5px 10px; font-size: 12px; }
+  .status { margin-top: 12px; font-size: 13px; padding: 10px; border-radius: 6px; white-space: pre-wrap; }
+  .status.ok { background: #e3f6e5; color: #1a7431; }
+  .status.err { background: #fde2e1; color: #c0292e; }
+  .status.pending { background: #fff4d6; color: #8a6400; }
+  .muted { color: #65676b; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Đăng bài Instagram (feed)</h1>
+  <p class="hint">
+    Trang thử nghiệm riêng cho Instagram — tách khỏi dashboard chính để không ảnh hưởng tới
+    luồng Facebook/Zalo đang chạy. Đăng nhập 1 lần/tài khoản, session được lưu lại.
+  </p>
+
+  <div class="card">
+    <h2>1. Tài khoản Instagram</h2>
+    <div id="accList" class="muted">Đang tải danh sách tài khoản...</div>
+    <label>Key (không dấu, không trùng, dùng làm tên thư mục profile)</label>
+    <input type="text" id="accKey" placeholder="tram">
+    <label>Tên hiển thị</label>
+    <input type="text" id="accName" placeholder="Trâm Instagram">
+    <label>Proxy (tuỳ chọn, dạng host:port hoặc user:pass@host:port)</label>
+    <input type="text" id="accProxy" placeholder="">
+    <button id="btnAddAcc">Thêm tài khoản &amp; mở Chromium đăng nhập</button>
+    <div id="accStatus"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. Soạn bài &amp; đăng</h2>
+    <label>Tài khoản đăng</label>
+    <select id="postProfile"></select>
+    <label>Caption</label>
+    <textarea id="postCaption" placeholder="Nội dung bài viết..."></textarea>
+    <label>Ảnh (chọn 1 hoặc nhiều ảnh)</label>
+    <input type="file" id="postImages" accept="image/*" multiple>
+    <button id="btnPost">Đăng bài</button>
+    <div id="postStatus"></div>
+  </div>
+</div>
+
+<script>
+const BASE_URL = window.location.pathname.replace(/\/[^/]*$/, '').replace(/\/$/, '');
+
+function setStatus(el, text, cls) {
+  el.className = 'status' + (cls ? ' ' + cls : '');
+  el.textContent = text;
+}
+
+async function loadAccounts() {
+  const listEl = document.getElementById('accList');
+  const selectEl = document.getElementById('postProfile');
+  try {
+    const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), { cache: 'no-store' });
+    const data = await res.json();
+    const accounts = data.instagram || [];
+    selectEl.innerHTML = '';
+    if (accounts.length === 0) {
+      listEl.textContent = 'Chưa có tài khoản Instagram nào — thêm ở form dưới.';
+      selectEl.innerHTML = '<option value="">(chưa có tài khoản)</option>';
+      return;
+    }
+    listEl.innerHTML = '';
+    for (const acc of accounts) {
+      const row = document.createElement('div');
+      row.className = 'acc-row';
+      row.innerHTML = `<span>${acc.name} <span class="muted">(${acc.key})</span></span>
+        <span class="actions">
+          <button class="secondary" data-login="${acc.key}">Đăng nhập lại</button>
+          <button class="danger" data-delete="${acc.key}">Xoá</button>
+        </span>`;
+      listEl.appendChild(row);
+      const opt = document.createElement('option');
+      opt.value = acc.key;
+      opt.textContent = `${acc.name} (${acc.key})`;
+      selectEl.appendChild(opt);
+    }
+    listEl.querySelectorAll('[data-login]').forEach(btn => btn.addEventListener('click', () => reloginAccount(btn.dataset.login)));
+    listEl.querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', () => deleteAccount(btn.dataset.delete)));
+  } catch (e) {
+    listEl.textContent = 'Lỗi tải danh sách tài khoản: ' + e.message;
+  }
+}
+
+async function reloginAccount(key) {
+  const statusEl = document.getElementById('accStatus');
+  setStatus(statusEl, 'Đang mở Chromium...', 'pending');
+  try {
+    const res = await fetch(BASE_URL + `/api/accounts/${encodeURIComponent(key)}/login`, { method: 'POST' });
+    const data = await res.json();
+    setStatus(statusEl, data.message || data.error || 'Xong', data.error ? 'err' : 'ok');
+  } catch (e) {
+    setStatus(statusEl, 'Lỗi: ' + e.message, 'err');
+  }
+}
+
+async function deleteAccount(key) {
+  if (!confirm(`Xoá tài khoản Instagram "${key}"? Session đăng nhập sẽ mất, phải đăng nhập lại từ đầu nếu thêm lại.`)) return;
+  const statusEl = document.getElementById('accStatus');
+  try {
+    const res = await fetch(BASE_URL + `/api/accounts/instagram/${encodeURIComponent(key)}`, { method: 'DELETE' });
+    const data = await res.json();
+    setStatus(statusEl, data.message || data.error || 'Xong', data.error ? 'err' : 'ok');
+    loadAccounts();
+  } catch (e) {
+    setStatus(statusEl, 'Lỗi: ' + e.message, 'err');
+  }
+}
+
+document.getElementById('btnAddAcc').addEventListener('click', async () => {
+  const statusEl = document.getElementById('accStatus');
+  const key = document.getElementById('accKey').value.trim();
+  const name = document.getElementById('accName').value.trim();
+  const proxy = document.getElementById('accProxy').value.trim();
+  if (!key || !name) {
+    setStatus(statusEl, 'Thiếu key hoặc tên hiển thị', 'err');
+    return;
+  }
+  setStatus(statusEl, 'Đang gửi yêu cầu...', 'pending');
+  try {
+    const res = await fetch(BASE_URL + '/api/accounts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'instagram', key, name, proxy }),
+    });
+    const data = await res.json();
+    setStatus(statusEl, data.message || data.error || 'Xong', data.error ? 'err' : 'ok');
+    if (!data.error) loadAccounts();
+  } catch (e) {
+    setStatus(statusEl, 'Lỗi: ' + e.message, 'err');
+  }
+});
+
+async function pollJob(jobId, statusEl) {
+  for (let i = 0; i < 180; i++) { // tối đa ~9 phút (180 * 3s)
+    await new Promise(r => setTimeout(r, 3000));
+    const res = await fetch(BASE_URL + `/api/job/${jobId}`);
+    if (!res.ok) { setStatus(statusEl, 'Job không tồn tại hoặc đã hết hạn', 'err'); return; }
+    const job = await res.json();
+    if (job.status === 'pending') { setStatus(statusEl, 'Đang đăng bài, chờ Playwright xử lý...', 'pending'); continue; }
+    if (job.status === 'failed') { setStatus(statusEl, '❌ ' + job.error, 'err'); return; }
+    if (job.status === 'done') {
+      if (job.result && job.result.success) setStatus(statusEl, '✅ Đăng bài thành công.', 'ok');
+      else setStatus(statusEl, '❌ ' + (job.result?.error || 'Thất bại không rõ lý do'), 'err');
+      return;
+    }
+  }
+  setStatus(statusEl, 'Hết thời gian theo dõi job — kiểm tra lại Instagram.', 'err');
+}
+
+document.getElementById('btnPost').addEventListener('click', async () => {
+  const statusEl = document.getElementById('postStatus');
+  const profile = document.getElementById('postProfile').value;
+  const message = document.getElementById('postCaption').value;
+  const files = document.getElementById('postImages').files;
+  if (!profile) { setStatus(statusEl, 'Chưa chọn tài khoản', 'err'); return; }
+  if (!files || files.length === 0) { setStatus(statusEl, 'Chưa chọn ảnh', 'err'); return; }
+
+  const fd = new FormData();
+  fd.append('profile', profile);
+  fd.append('message', message);
+  for (const f of files) fd.append('images', f);
+
+  const btn = document.getElementById('btnPost');
+  btn.disabled = true;
+  setStatus(statusEl, 'Đang gửi...', 'pending');
+  try {
+    const res = await fetch(BASE_URL + '/api/post-instagram', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) { setStatus(statusEl, '❌ ' + data.error, 'err'); return; }
+    await pollJob(data.jobId, statusEl);
+  } catch (e) {
+    setStatus(statusEl, 'Lỗi: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+loadAccounts();
+</script>
+</body>
+</html>
