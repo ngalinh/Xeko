@@ -44,10 +44,8 @@ async function run({ mode = 'now', personal = true, groups = ['101', '102'], fai
     channelSel: { fb: [{ id: 'personal' }, { id: 'cat', groupKeys: groups.map((_, i) => `key${i}`) }] },
   });
   assert.deepEqual(errors, []);
-  const share = groups.length > 0 && (mode === 'quickfb' || (personal && mode !== 'schedule' && groups.length <= 9));
-  assert.deepEqual(requests.map(r => [r.target, r.groupId || null]), share
-    ? [['personal-share-groups', null]]
-    : [...(personal ? [['personal', null]] : []), ...groups.map(id => ['group', id])]);
+  assert.deepEqual(requests.map(r => [r.target, r.groupId || null]),
+    [...(personal ? [['personal', null]] : []), ...groups.map(id => ['group', id])]);
   assert.deepEqual(events, requests.flatMap((_, i) => [`submit:${i + 1}`, `poll:${i + 1}`, `done:${i + 1}`]));
   for (const request of requests) {
     assert.equal(request.message, 'Nội dung');
@@ -55,17 +53,17 @@ async function run({ mode = 'now', personal = true, groups = ['101', '102'], fai
     assert.equal(request.website, 'https://example.com/product');
     assert.equal(request.batchId, 'batch-test');
     assert.deepEqual(request.images, ['image-a', 'image-b']);
-    if (share) {
-      assert.deepEqual(JSON.parse(request.groupKeywords), groups.slice(0, 9).map((_, i) => `Group ${i}`));
-    } else {
-      assert.equal(request.groupKeywords, undefined);
-    }
+    assert.equal(request.groupKeywords, undefined);
   }
 }
-test('chat shares profile post to selected groups in order without duplicate posts', () => run());
-test('quickfb shares profile post to selected groups', () => run({ mode: 'quickfb' }));
+test('chat posts separately to profile and each selected group like repost', () => run());
+test('quickfb posts separately to every selected destination', () => run({ mode: 'quickfb' }));
 test('profile only creates one post', () => run({ groups: [] }));
 test('groups only does not create a profile post', () => run({ personal: false }));
 test('more than nine groups are all posted', () => run({ groups: Array.from({ length: 12 }, (_, i) => String(100 + i)) }));
 test('failed group does not skip remaining destinations', () => run({ personal: false, failedJob: '2' }));
-test('nine groups use the share dialog', () => run({ groups: Array.from({ length: 9 }, (_, i) => String(100 + i)) }));
+test('nine groups each receive a separate post', () => run({ groups: Array.from({ length: 9 }, (_, i) => String(100 + i)) }));
+
+test('quickfb groups only never adds a personal post', () => run({ mode: 'quickfb', personal: false }));
+test('quickfb keeps all groups beyond nine', () => run({ mode: 'quickfb', groups: Array.from({ length: 12 }, (_, i) => String(100 + i)) }));
+test('personal failure still attempts all selected groups', () => run({ failedJob: '1' }));
