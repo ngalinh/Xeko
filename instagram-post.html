@@ -86,6 +86,7 @@ async function loadAccounts() {
     const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), { cache: 'no-store' });
     const data = await res.json();
     const accounts = data.instagram || [];
+    const selectedProfile = selectEl.value || new URLSearchParams(location.search).get('profile');
     selectEl.innerHTML = '';
     if (accounts.length === 0) {
       listEl.textContent = 'Chưa có tài khoản Instagram nào — thêm ở form dưới.';
@@ -107,6 +108,7 @@ async function loadAccounts() {
       opt.textContent = `${acc.name} (${acc.key})`;
       selectEl.appendChild(opt);
     }
+    if (accounts.some(acc => acc.key === selectedProfile)) selectEl.value = selectedProfile;
     listEl.querySelectorAll('[data-login]').forEach(btn => btn.addEventListener('click', () => reloginAccount(btn.dataset.login)));
     listEl.querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', () => deleteAccount(btn.dataset.delete)));
   } catch (e) {

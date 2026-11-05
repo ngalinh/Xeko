@@ -4362,6 +4362,15 @@
             <span style="font-size:12px; font-weight:700; color:#1877f2; text-transform:uppercase; letter-spacing:0.5px;">Facebook</span>
           </div>
           <div id="fbProfileList" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(440px,1fr)); gap:8px; margin-bottom:20px;"></div>
+          <section aria-label="Tài khoản Instagram" style="margin-top:20px;">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <h3 style="flex:1;font-size:15px;">Instagram</h3>
+              <button class="pc-btn pc-btn-edit" onclick="openAddAccountModal('instagram')">+ Thêm Instagram</button>
+              <button class="pc-btn pc-btn-edit" onclick="location.href=BASE_URL+'/instagram-post.html'">Đăng thử Instagram</button>
+            </div>
+            <p style="font-size:12px;color:#888;">Đăng nhập trên máy chạy backend Xeko, sau đó chọn tài khoản để đăng ảnh thử.</p>
+            <div id="igProfileList" style="display:grid;gap:8px;"></div>
+          </section>
           <div id="sessionResults" style="display:flex; flex-direction:column; gap:10px; margin-top:16px;"></div>
         </div>
 
@@ -5175,6 +5184,7 @@
         <select id="newAccType" style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
           <option value="facebook">Facebook</option>
           <option value="zalo">Zalo</option>
+          <option value="instagram">Instagram</option>
         </select>
       </div>
       <div style="margin-bottom:14px;">
@@ -9834,7 +9844,11 @@
       if (e.target === this) closeProxyModal();
     });
 
-    async function openAddAccountModal() {
+    async function openAddAccountModal(type) {
+      if (type) {
+        document.getElementById('newAccType').value = type;
+        document.getElementById('newAccType').dispatchEvent(new Event('change'));
+      }
       await fetchProxies();
       fillProxySelect(document.getElementById('newAccProxyId'), '');
       document.getElementById('addAccountModal').style.display = 'flex';
@@ -9851,7 +9865,9 @@
       document.getElementById('newAccZaloFields').style.display = isZalo ? 'block' : 'none';
       document.getElementById('newAccNote').textContent = isZalo
         ? '* Chromium sẽ mở zalo.basso.vn để bạn đăng nhập. Chỉ cần đăng nhập 1 lần cho tất cả tài khoản Zalo.'
-        : '* Lần đầu thêm tài khoản, Chromium sẽ mở lên để bạn đăng nhập thủ công.';
+        : this.value === 'instagram'
+          ? '* Instagram: cửa sổ đăng nhập mở trên máy chạy backend Xeko. Nếu dùng từ xa, bạn cần truy cập máy đó để đăng nhập; sau đó đóng cửa sổ để lưu phiên.'
+          : '* Lần đầu thêm tài khoản, Chromium sẽ mở lên để bạn đăng nhập thủ công.';
     });
 
     async function renderProfileList() {
@@ -9864,6 +9880,34 @@
 
         const avatarColors = ['#3B82F6','#8B5CF6','#10B981','#F59E0B','#EF4444','#EC4899','#06B6D4'];
         const getAvatarColor = name => avatarColors[Math.abs((name||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % avatarColors.length];
+
+        const igContainer = document.getElementById('igProfileList');
+        igContainer.replaceChildren();
+        const igAccounts = data.instagram || [];
+        if (!igAccounts.length) igContainer.textContent = 'Chưa có tài khoản Instagram. Bấm + Thêm Instagram để bắt đầu.';
+        for (const account of igAccounts) {
+          const card = document.createElement('div');
+          card.className = 'profile-card';
+          const info = document.createElement('div');
+          info.className = 'info';
+          info.textContent = `${account.name} (${account.key})`;
+          card.appendChild(info);
+          const actions = document.createElement('div');
+          actions.className = 'pc-actions';
+          for (const [label, action] of [
+            ['Đăng nhập', button => loginProfile(account.key, button)],
+            ['Đăng thử', () => { location.href = BASE_URL + '/instagram-post.html?profile=' + encodeURIComponent(account.key); }],
+            ['Xoá', () => deleteProfile('instagram', account.key, account.name)],
+          ]) {
+            const button = document.createElement('button');
+            button.className = 'pc-btn pc-btn-edit';
+            button.textContent = label;
+            button.addEventListener('click', () => action(button));
+            actions.appendChild(button);
+          }
+          card.appendChild(actions);
+          igContainer.appendChild(card);
+        }
 
         // FB profiles
         fbContainer.innerHTML = data.facebook.map(p => {
