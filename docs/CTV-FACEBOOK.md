@@ -73,7 +73,7 @@ Trước Enter, worker xác minh ID người nhận, URL và link hồ sơ ở t
 
 ## Cấu hình và vận hành
 
-- Cửa sổ Facebook dùng kích thước nội dung theo cửa sổ thực tế và yêu cầu Chromium mở tối đa. Nếu hệ điều hành không tự phóng to, có thể phóng to thủ công; giao diện sẽ co giãn theo cửa sổ. Sau khi cập nhật worker, đóng cửa sổ Facebook cũ khi không có tác vụ đang chạy rồi mở lại tài khoản để áp dụng.
+- Cửa sổ Facebook dùng kích thước nội dung theo cửa sổ thực tế và yêu cầu Chromium mở tối đa trong vùng làm việc của màn hình hiện tại (kể cả RDP), không ép cửa sổ thành 1920×1080 khiến nút Đăng bị khuất trên màn hình nhỏ. Nếu hệ điều hành không tự phóng to, có thể phóng to thủ công; giao diện sẽ co giãn theo cửa sổ. Sau khi cập nhật worker, đóng cửa sổ Facebook cũ khi không có tác vụ đang chạy rồi mở lại tài khoản để áp dụng.
 
 - Mặc định đặt `GEMINI_API_KEY` trên máy thực thi Playwright. Nếu dùng cloud/local, key cần trên local worker. Chế độ API dùng `gemini-2.5-flash`. Có thể chọn chế độ thử nghiệm `CTV_AI_PROVIDER=gemini-web` để dùng phiên Google đã đăng nhập, không cần API key; xem [cách thiết lập Gemini web](gemini-web.md). Cấu hình trên máy thực thi Playwright. Nội dung nhìn thấy trên profile được gửi đến Gemini để đánh giá.
 - Node.js 18+; giữ cấu hình `LOCAL_API_KEY`, đăng nhập Basso và phân quyền tài khoản. API cloud kiểm tra quyền trên tài khoản lưu trong chiến dịch trước mọi thao tác.

@@ -16,22 +16,21 @@ const { checkProxy } = require('../utils/proxy-health');
 // Browser context theo profile key
 const browsers = {};
 
-// '--start-maximized' phụ thuộc hệ điều hành tôn trọng cờ này; qua RDP với độ
-// phân giải nhỏ, cửa sổ chỉ to bằng màn hình RDP, khiến ảnh bài viết lớn bị
-// cắt khỏi viewport (bộ đọc ảnh CTV yêu cầu ảnh nằm trọn trong viewport).
-// Ép kích thước qua CDP sau khi mở làm phương án dự phòng, không phụ thuộc OS.
-// Best-effort: lỗi ở đây không được làm hỏng luồng mở browser chính.
-async function forceWindowBounds(ctx) {
+// Maximize within the current display's work area, including smaller RDP screens.
+// Keep viewport: null so Facebook lays out dialogs within the visible window.
+// Best-effort: window management must not prevent opening the browser.
+async function fitWindowToScreen(ctx) {
+  let cdp;
   try {
     const page = ctx.pages()[0] || await ctx.waitForEvent('page', { timeout: 5000 });
-    const cdp = await ctx.newCDPSession(page);
+    cdp = await ctx.newCDPSession(page);
     const { windowId } = await cdp.send('Browser.getWindowForTarget');
-    // Chrome bỏ qua width/height khi windowState đang maximized/minimized;
-    // phải chuyển về 'normal' trước rồi mới set kích thước cụ thể.
     await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } });
-    await cdp.send('Browser.setWindowBounds', { windowId, bounds: { left: 0, top: 0, width: 1920, height: 1080, windowState: 'normal' } });
+    await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'maximized' } });
   } catch (e) {
-    logger.warn(`Không ép được kích thước cửa sổ Chromium qua CDP: ${e.message}`);
+    logger.warn(`Không điều chỉnh được cửa sổ Chromium theo màn hình: ${e.message}`);
+  } finally {
+    if (cdp) await cdp.detach().catch(() => {});
   }
 }
 
@@ -139,7 +138,7 @@ async function getBrowser(profileKey) {
           ...(proxy ? { proxy } : {}),
         });
 
-        await forceWindowBounds(ctx);
+        await fitWindowToScreen(ctx);
 
         // Khi user đóng tay cửa sổ Chromium, clear cache để lần sau tạo mới.
         ctx.once('close', () => {
