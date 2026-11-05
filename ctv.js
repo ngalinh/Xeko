@@ -290,6 +290,8 @@
       heading.append(badge(state,category === 'attention' ? 'warn' : category === 'sent' ? 'good' : ''));
       info.append(heading);
       if (category === 'attention') info.append(element('p',sendIssue(l),'send-explanation'));
+      if (l.commentError) info.append(element('p',`Chưa bình luận được trên hồ sơ: ${l.commentError}`,'send-explanation'));
+      if (l.state === 'unconfirmed') info.append(element('p','Bình luận nhắc khách chỉ chạy sau khi xác nhận tin nhắn đã gửi. Nếu đã thấy tin trong Messenger, chọn xác nhận đã gửi bên dưới.','send-explanation'));
       if (category === 'duplicate') info.append(element('p','Đã có lần liên hệ trước; lượt này không gửi lại.','send-explanation'));
       const sendMessage = renderSendMessage(l, c);
       if (sendMessage) info.append(sendMessage);
