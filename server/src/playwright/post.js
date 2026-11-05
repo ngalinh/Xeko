@@ -3431,8 +3431,15 @@ async function postComment({ postUrl, message, imagePaths, profile }) {
         ];
         for (const sel of triggerSelectors) {
           try {
-            const el = await page.$(sel);
-            if (el) { await el.click({ force: true }); await randomDelay(1000, 1500); break; }
+            const candidates = await page.$$(sel);
+            for (const el of candidates) {
+              if (!await el.isVisible().catch(() => false)) continue;
+              await el.click();
+              await randomDelay(1000, 1500);
+              commentBox = await findCommentBox();
+              if (commentBox) break;
+            }
+            if (commentBox) break;
           } catch { continue; }
         }
         commentBox = await findCommentBox();
@@ -3451,6 +3458,10 @@ async function postComment({ postUrl, message, imagePaths, profile }) {
     if (message) {
       await pasteText(page, message);
       await randomDelay(400, 800);
+      const normalize = text => text.replace(/\s+/g, ' ').trim();
+      if (normalize(await commentBox.innerText()) !== normalize(message)) {
+        throw new Error('Nội dung chưa vào đúng ô bình luận; chưa gửi bình luận');
+      }
     }
 
     // Upload ảnh SAU và ĐỢI upload XONG (preview mới + hết spinner) rồi mới gửi.
@@ -3476,7 +3487,7 @@ async function postComment({ postUrl, message, imagePaths, profile }) {
     }
 
     // Submit: Ctrl+Enter là an toàn nhất trên FB comment
-    await page.keyboard.press('Control+Enter');
+    await commentBox.press('Control+Enter');
     await randomDelay(2000, 3000);
 
     // Verify: nếu ô comment vẫn còn text HOẶC ảnh vẫn còn trong khung soạn → thử Enter thường
@@ -3485,8 +3496,14 @@ async function postComment({ postUrl, message, imagePaths, profile }) {
     if ((remaining && remaining.trim()) || stillHasImg) {
       await commentBox.click({ force: true }).catch(() => {});
       await randomDelay(300, 500);
-      await page.keyboard.press('Enter');
+      await commentBox.press('Enter');
       await randomDelay(1500, 2500);
+    }
+
+    // Do not report success while Facebook still holds an unsent draft.
+    const draft = await commentBox.textContent();
+    if ((draft || '').trim() || (hasImages && await countPreviewImages(page) > baselineImgs)) {
+      throw new Error('Facebook chưa gửi bình luận: nội dung hoặc ảnh vẫn còn trong ô soạn');
     }
 
     logger.info(`${tag} Seeding thành công`);
