@@ -6,17 +6,24 @@ function identifyProfile({ target, actualUrl, scripts = [], messageLinks = [], b
   const unresolved = reason => ({ recipientId: null, uidStatus: 'unresolved', uidReason: reason });
   if (blocked) return unresolved(blocked);
   target = profileUrl(target);
-  if (profileUrl(actualUrl) !== target) return unresolved('Link chuyển sang hồ sơ khác; cần kiểm tra lại link');
+  const actual = profileUrl(actualUrl);
+  const targetId = recipientId(target);
+  // Facebook rewrites a bare numeric-ID link to the profile's own vanity
+  // username URL for the same person; tolerate only that normalization,
+  // never an arbitrary redirect to a different profile.
+  if (actual !== target && !targetId) return unresolved('Link chuyển sang hồ sơ khác; cần kiểm tra lại link');
   const ids = new Map();
   const add = (id, source) => { if (typeof id === 'string' && /^\d+$/.test(id)) ids.set(id, source); };
-  add(recipientId(target), 'profile_url');
+  if (actual === target) add(targetId, 'profile_url');
   const matches = value => {
-    try { return typeof value === 'string' && profileUrl(value) === target; } catch { return false; }
+    try { return typeof value === 'string' && profileUrl(value) === actual; } catch { return false; }
   };
   let visited = 0;
   const walk = (node, depth = 0) => {
     if (!node || typeof node !== 'object' || depth > 60 || ++visited > 100000) return;
-    if (node.__typename === 'User' && (matches(node.url) || matches(node.profile_url))) {
+    // When the URL was normalized, only trust a node that is both the page's
+    // own profile (matched by current URL) and carries the exact ID requested.
+    if (node.__typename === 'User' && (matches(node.url) || matches(node.profile_url)) && (actual === target || node.id === targetId)) {
       add(node.id, 'profile_data');
     }
     for (const value of Object.values(node)) walk(value, depth + 1);

@@ -22,6 +22,20 @@ test('normalizes supported profile URLs and retains IDs as exact strings', () =>
   assert.equal(identify(user('123','https://m.facebook.com/Customer/?ref=profile')).recipientId,'123');
   assert.equal(identify({}, {target:'https://facebook.com/profile.php?id=123',actualUrl:'https://www.facebook.com/profile.php?id=123&ref=a'}).recipientId,'123');
 });
+test('a bare numeric-UID link resolves after Facebook redirects it to the same profile\'s vanity username', () => {
+  const result = identifyProfile({target:'https://www.facebook.com/100003289594902',
+    actualUrl:'https://www.facebook.com/phuong.chau.142',
+    scripts:[JSON.stringify(user('100003289594902','https://www.facebook.com/phuong.chau.142'))]});
+  assert.equal(result.recipientId,'100003289594902');
+  assert.equal(result.uidSource,'profile_data');
+});
+test('a numeric-UID redirect to a vanity URL whose page ID differs stays unresolved', () => {
+  const result = identifyProfile({target:'https://www.facebook.com/100003289594902',
+    actualUrl:'https://www.facebook.com/phuong.chau.142',
+    scripts:[JSON.stringify(user('999999999999999','https://www.facebook.com/phuong.chau.142'))]});
+  assert.equal(result.recipientId,null);
+  assert.ok(result.uidReason);
+});
 test('conflicts, redirects, blocked profiles and malformed scripts stay unresolved', () => {
   for (const result of [identify([user('111'),user('222')]),
     identify(user('111'),{messageLinks:['https://www.facebook.com/messages/t/222']}),

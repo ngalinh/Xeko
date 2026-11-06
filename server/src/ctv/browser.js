@@ -623,13 +623,17 @@ async function inspect(page, url, { onProgress = () => {}, cancelled = () => fal
   }
   await assertSession(page);
   const actual = profileUrl(page.url());
-  if (actual !== target) throw new Error('Link chuyển sang hồ sơ khác; hãy kiểm tra và nhập lại link chính xác');
+  // A bare numeric-UID link legitimately redirects to the profile's own vanity
+  // username URL; resolveCurrentProfileUid below verifies that redirect still
+  // points at the same person. Any other mismatch (including a redirect to a
+  // different numeric ID) is rejected immediately, same as before.
+  if (actual !== target && (!recipientId(target) || recipientId(actual))) throw new Error('Link chuyển sang hồ sơ khác; hãy kiểm tra và nhập lại link chính xác');
   report('header_ready', `Tên: ${snapshot.name ? 'đã đọc' : 'chưa đọc được'}; bio: ${(snapshot.headerBio || '').length} ký tự${snapshot.blocked ? '; hồ sơ bị khóa/không xem được' : ''}`);
   report('uid', 'Đang đối chiếu UID với link hồ sơ');
   const identity = await resolveCurrentProfileUid(page, target, snapshot);
   report('uid', identity.recipientId ? `Đã xác định UID: ${identity.recipientId}` : identity.uidReason);
   if (!snapshot.blocked && assessmentMode !== 'none') snapshot = await collectProfilePosts(page, snapshot, { report, check, captionsOnly: assessmentMode === 'keywords' });
-  if (profileUrl(page.url()) !== target) throw new Error('Link chuyển sang hồ sơ khác khi đọc bài viết');
+  if (profileUrl(page.url()) !== actual) throw new Error('Link chuyển sang hồ sơ khác khi đọc bài viết');
   check();
   report('assessment', assessmentMode === 'none' ? 'Không quét nội dung; chỉ lấy ID người nhận' : assessmentMode === 'keywords' ? 'Đang đối chiếu từ khóa caption trên máy, không gọi AI' : 'Đang đánh giá dữ liệu bằng AI');
   const assessment = assessmentMode === 'none'
