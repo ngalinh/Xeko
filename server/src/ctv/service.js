@@ -435,7 +435,12 @@ class CtvService {
         // An unconfirmed send is ambiguous only for this lead's conversation;
         // the rest of the batch still needs sending.
         if (result.state !== 'sent') c.error = result.reason;
-        else await this.remindBySend(lead, retry?.profile || c.profile);
+        // Enter was pressed either way ('sent' and 'unconfirmed' both come from
+        // past the reservation above); only Messenger's own receipt rendering in
+        // time is uncertain, not whether the message went out. Don't let that
+        // rendering lag — common when sending to many leads back-to-back — skip
+        // the reminder comment for leads further down the batch.
+        if (result.state === 'sent' || result.state === 'unconfirmed') await this.remindBySend(lead, retry?.profile || c.profile);
       } catch (e) {
         onProgress({ stage: c.cancelled ? 'cancelled' : 'error', message: e.message });
         lead.state = lead.state === 'sending' ? 'unconfirmed' : 'review'; lead.error = e.message; c.error = e.message;

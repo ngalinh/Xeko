@@ -286,12 +286,12 @@
       const heading = element('div',undefined,'send-row-heading'), identity = element('div',undefined,'send-identity');
       identity.append(link(l.url,name),element('small',l.assessment?.recipientId ? `UID ${l.assessment.recipientId}` : customerLabel(l.url)));
       heading.append(avatar,identity);
-      const state = l.state === 'unconfirmed' ? 'Chưa xác nhận' : category === 'attention' ? 'Cần kiểm tra' : category === 'duplicate' ? 'Đã liên hệ trước' : l.state === 'sending' ? 'Đang gửi' : category === 'sent' ? (l.commentedAt ? 'Đã gửi mess & cmt' : 'Đã gửi mess') : c.cancelled || c.state === 'needs_attention' ? 'Chưa gửi' : 'Chờ gửi';
+      const state = l.state === 'unconfirmed' ? (l.commentedAt ? 'Chưa xác nhận tin & đã cmt' : 'Chưa xác nhận') : category === 'attention' ? 'Cần kiểm tra' : category === 'duplicate' ? 'Đã liên hệ trước' : l.state === 'sending' ? 'Đang gửi' : category === 'sent' ? (l.commentedAt ? 'Đã gửi mess & cmt' : 'Đã gửi mess') : c.cancelled || c.state === 'needs_attention' ? 'Chưa gửi' : 'Chờ gửi';
       heading.append(badge(state,category === 'attention' ? 'warn' : category === 'sent' ? 'good' : ''));
       info.append(heading);
       if (category === 'attention') info.append(element('p',sendIssue(l),'send-explanation'));
       if (l.commentError) info.append(element('p',`Chưa bình luận được trên hồ sơ: ${l.commentError}`,'send-explanation'));
-      if (l.state === 'unconfirmed') info.append(element('p','Bình luận nhắc khách chỉ chạy sau khi xác nhận tin nhắn đã gửi. Nếu đã thấy tin trong Messenger, chọn xác nhận đã gửi bên dưới.','send-explanation'));
+      if (l.state === 'unconfirmed' && !l.commentedAt && !l.commentError) info.append(element('p','Chưa thử bình luận nhắc khách cho lượt này. Nếu đã thấy tin trong Messenger, chọn xác nhận đã gửi bên dưới để thử lại.','send-explanation'));
       if (category === 'duplicate') info.append(element('p','Đã có lần liên hệ trước; lượt này không gửi lại.','send-explanation'));
       const sendMessage = renderSendMessage(l, c);
       if (sendMessage) info.append(sendMessage);

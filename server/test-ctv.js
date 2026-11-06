@@ -320,6 +320,20 @@ test('unconfirmed submission reserves recipient durably, and the batch still att
   assert.ok(restored.data.reservations['123']);assert.ok(restored.data.reservations['456']);
   const d=restored.create(input(),'owner');assert.equal(d.previouslyContacted.length,2);assert.equal(d.leads.length,0);
 });
+test('a send that returns unconfirmed (Enter pressed, receipt just slow to render) still gets the reminder comment',async t=>{
+  const commented=[];
+  const {s,browser}=setup(t,{send:async(_,a,m,reserve)=>{reserve();return {state:'unconfirmed',reason:'Chưa xác nhận đầy đủ'};},
+    comment:async(profile,url,message)=>{commented.push({profile,url,message});return {success:true};}});
+  const c=await analyzed(s);s.sendApproved(c.id,'owner',prepared(s,c));await settle(s);
+  assert.equal(c.leads[0].state,'unconfirmed');assert.equal(c.leads[1].state,'unconfirmed');
+  assert.equal(commented.length,2);assert.ok(c.leads[0].commentedAt);assert.ok(c.leads[1].commentedAt);
+});
+test('a failed reminder comment after an unconfirmed send records commentError without blocking the batch',async t=>{
+  const {s,browser}=setup(t,{send:async(_,a,m,reserve)=>{reserve();return {state:'unconfirmed',reason:'Chưa xác nhận đầy đủ'};},
+    comment:async()=>{throw new Error('Không tìm thấy ô bình luận trên trang');}});
+  const c=await analyzed(s);s.sendApproved(c.id,'owner',prepared(s,c));await settle(s);
+  assert.equal(c.leads[0].state,'unconfirmed');assert.equal(c.leads[0].commentError,'Không tìm thấy ô bình luận trên trang');assert.ok(!c.leads[0].commentedAt);
+});
 test('a send error for one lead does not stop the rest of the batch, but a fatal session error does',async t=>{
   const {s,browser}=setup(t,{send:async(_,a)=>{if(a.recipientId==='123')throw new Error('Không còn xác minh được đúng khách qua tên hiển thị trong bản xem trước; đã dừng');return {state:'sent'};}});
   const c=await analyzed(s);s.sendApproved(c.id,'owner',prepared(s,c));await settle(s);
