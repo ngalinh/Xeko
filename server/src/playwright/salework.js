@@ -727,19 +727,34 @@ async function sendMessage(page, message, imagePaths = [], shouldCancel = null, 
     before.pendingSources = [...(before.threadSources || []), ...(before.composerSources || [])]
       .filter(src => /^(blob:|data:)/.test(src) && !oldLocal.has(src));
     logger.info(`[basso][verify] trước khi gửi ảnh: ${JSON.stringify(before)}`);
-    _throwIfCancelled();
-    if (!(await clickSend(page, verifyTarget))) {
-      throw new Error('Không tìm thấy nút Gửi ảnh — chưa gửi.');
+
+    // Bấm Gửi rồi chờ xác nhận. Nếu hết thời gian chờ mà ảnh VẪN còn kẹt trong ô
+    // soạn (chưa rời đi đâu — upload lên Zalo bị treo/thất bại), CHẮC CHẮN chưa
+    // gửi đi nên an toàn tự bấm Gửi lại thêm vài lần trước khi báo lỗi, đỡ phải
+    // chờ nhân viên tự bấm Repost. Nếu ô soạn đã trống nhưng không xác nhận được
+    // ảnh mới, kết quả MƠ HỒ (có thể đã lên nhóm) → dừng ngay, không tự gửi lại.
+    const MAX_IMAGE_SEND_ATTEMPTS = 3;
+    let imageResult = { sent: false, stillInDraft: true };
+    for (let sendAttempt = 1; sendAttempt <= MAX_IMAGE_SEND_ATTEMPTS; sendAttempt++) {
+      _throwIfCancelled();
+      if (!(await clickSend(page, verifyTarget))) {
+        throw new Error('Không tìm thấy nút Gửi ảnh — chưa gửi.');
+      }
+      try {
+        imageResult = await waitImageSent(page, imagePaths.length, before);
+      } catch (e) {
+        logger.warn(`[basso] Xác minh ảnh lỗi: ${e.message}`);
+        imageResult = { sent: false, stillInDraft: false };
+      }
+      if (imageResult.sent || !imageResult.stillInDraft) break;
+      logger.warn(`[basso] Ảnh vẫn còn kẹt trong ô soạn sau lần Gửi ${sendAttempt}/${MAX_IMAGE_SEND_ATTEMPTS} — thử bấm Gửi lại`);
+      await sleep(5000);
     }
-    let imageSent = false;
-    try {
-      imageSent = await waitImageSent(page, imagePaths.length, before);
-    } catch (e) {
-      logger.warn(`[basso] Xác minh ảnh lỗi: ${e.message}`);
-    }
-    if (!imageSent) {
-      const err = new Error('Đã bấm Gửi ảnh nhưng chưa xác nhận được kết quả. Có thể album đã lên nhóm; không tự gửi lại album hoặc gửi text. Kiểm tra nhóm trước khi đăng lại.');
-      err.deliveryUnknown = true;
+    if (!imageResult.sent) {
+      const err = new Error(imageResult.stillInDraft
+        ? `Ảnh vẫn còn kẹt trong ô soạn sau ${MAX_IMAGE_SEND_ATTEMPTS} lần bấm Gửi — chưa gửi được, đã dừng. Thử đăng lại.`
+        : 'Đã bấm Gửi ảnh nhưng chưa xác nhận được kết quả. Có thể album đã lên nhóm; không tự gửi lại album hoặc gửi text. Kiểm tra nhóm trước khi đăng lại.');
+      if (!imageResult.stillInDraft) err.deliveryUnknown = true;
       throw err;
     }
     sentAny = true;
@@ -866,21 +881,27 @@ function _imageDeliveryReady(before, after, expected = 1) {
 }
 
 async function waitImageSent(page, expected = 1, before = null) {
-  if (!before) return false;
+  if (!before) return { sent: false, stillInDraft: false };
   // Chờ đủ ảnh mới và composer trống trước khi gửi text.
+  let lastState = null;
   for (let attempt = 0; attempt < 60; attempt++) {
     const after = await _imageThreadState(page).catch(e => {
       logger.warn(`[basso][verify] Không đọc được trạng thái: ${e.message}`);
       return null;
     });
+    if (after) lastState = after;
     if (after && _imageDeliveryReady(before, after, expected)) {
       logger.info(`[basso][verify] Đã xác nhận đủ ảnh mới trong lịch sử; chuyển sang text (album=${expected}, threadImages=${after.threadSources.length})`);
-      return true;
+      return { sent: true };
     }
     await sleep(500);
   }
-  logger.warn('[basso][verify] Chưa xác nhận đủ ảnh mới sau 30s; không gửi text hoặc gửi lại album');
-  return false;
+  // Ảnh VẪN còn kẹt trong ô soạn (chưa rời đi đâu) = chắc chắn chưa gửi, an toàn để
+  // caller tự bấm Gửi lại. Composer đã trống nhưng không xác nhận được ảnh mới = kết
+  // quả mơ hồ (có thể đã lên nhóm), caller KHÔNG được tự gửi lại trong trường hợp đó.
+  const stillInDraft = !!(lastState && lastState.composerSources && lastState.composerSources.length > 0);
+  logger.warn(`[basso][verify] Chưa xác nhận đủ ảnh mới sau 30s; không gửi text hoặc gửi lại album (stillInDraft=${stillInDraft})`);
+  return { sent: false, stillInDraft };
 }
 
 const { withGroupPostGap } = require('../utils/zalo-group-pacing');
