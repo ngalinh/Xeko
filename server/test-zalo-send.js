@@ -44,7 +44,7 @@ for (const outcome of ['timeout', 'exception', 'success']) {
     c.clickSend = async () => { sends++; return true; };
     c.waitImageSent = async () => {
       if (outcome === 'exception') throw new Error('DOM detached');
-      return outcome === 'success';
+      return { sent: outcome === 'success', stillInDraft: false };
     };
     const page = {
       locator: () => ({ first: () => ({ waitFor: async () => {} }) }),
@@ -128,12 +128,17 @@ for (const scenario of ['detached-previews', 'virtualized-image', 'draft-cleared
     const page = { locator: () => ({ first: () => field }),
       waitForFunction: async () => {}, waitForLoadState: async () => {} };
     const run = c.sendMessage(page, 'caption', Array(7).fill('photo.jpg'), null, async () => {});
-    if (scenario !== 'full-album') {
-      await assert.rejects(run, e => e.deliveryUnknown === true);
-      assert.deepEqual(events, ['attach', 'send']);
-    } else {
+    if (scenario === 'full-album') {
       await run;
       assert.deepEqual(events, ['attach', 'send', 'caption', 'send']);
+    } else if (scenario === 'draft-remains') {
+      // Ảnh còn kẹt trong ô soạn ở MỌI lần thử → chắc chắn chưa gửi, tự bấm Gửi lại
+      // đủ số lần tối đa rồi mới báo lỗi (không phải case mơ hồ deliveryUnknown).
+      await assert.rejects(run, e => e.deliveryUnknown === undefined);
+      assert.deepEqual(events, ['attach', 'send', 'send', 'send']);
+    } else {
+      await assert.rejects(run, e => e.deliveryUnknown === true);
+      assert.deepEqual(events, ['attach', 'send']);
     }
   });
 }
