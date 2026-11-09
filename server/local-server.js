@@ -693,6 +693,7 @@ app.post('/api/accounts', (req, res) => {
         const proxyOpt = parseProxy(proxy);
         if (proxyOpt) logger.info(`Instagram "${name}" dùng proxy: ${proxyOpt.server}`);
         const browser = await safeLaunchPersistentContext(igProfileDir, {
+          stealth: false,
           headless: false,
           slowMo: 500,
           viewport: null,
@@ -832,6 +833,7 @@ app.post('/api/accounts/:key/login', (req, res) => {
         const proxyOpt = parseProxy(profileMeta.proxy);
         if (proxyOpt) logger.info(`Instagram "${name}" dùng proxy: ${proxyOpt.server}`);
         const browser = await safeLaunchPersistentContext(igProfileDir, {
+          stealth: false,
           headless: false,
           slowMo: 500,
           viewport: null,

@@ -114,12 +114,15 @@ async function safeLaunch(opts = {}) {
 
 const { createProfileLauncher } = require('./profile-context');
 const safeLaunchPersistentContext = createProfileLauncher(async (userDataDir, opts = {}) => {
+  // Wrapper-only option: Instagram opts out without changing other platforms.
+  const { stealth = true, ...launchOptions } = opts;
+  const browserType = stealth === false ? require('playwright').chromium : chromium;
   try {
-    return await chromium.launchPersistentContext(userDataDir, opts);
+    return await browserType.launchPersistentContext(userDataDir, launchOptions);
   } catch (e) {
     if (!isMissingBrowserError(e)) throw e;
     await ensureBrowsers();
-    return await chromium.launchPersistentContext(userDataDir, opts);
+    return await browserType.launchPersistentContext(userDataDir, launchOptions);
   }
 });
 

@@ -46,6 +46,7 @@ function waitForEnter(message) {
     console.log(`\n=== Chưa có profile Instagram "${profileKey}" — mở Chromium để đăng nhập thủ công ===\n`);
     fs.mkdirSync(profileDir, { recursive: true });
     const browser = await safeLaunchPersistentContext(profileDir, {
+      stealth: false,
       headless: false,
       viewport: null,
       args: ['--start-maximized'],
