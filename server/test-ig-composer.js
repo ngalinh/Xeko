@@ -52,7 +52,7 @@ function waitForEnter(message) {
       args: ['--start-maximized'],
     });
     const page = browser.pages()[0] || await browser.newPage();
-    await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await waitForEnter('Đăng nhập Instagram xong trong cửa sổ Chromium rồi quay lại đây, nhấn Enter để tiếp tục...\n');
     await browser.close();
   }

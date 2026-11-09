@@ -701,7 +701,7 @@ app.post('/api/accounts', (req, res) => {
           ...(proxyOpt ? { proxy: proxyOpt } : {}),
         });
         const page = browser.pages()[0] || await browser.newPage();
-        await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
         loginHistory.addEntry(key, name, 'login', 'Mở Chromium đăng nhập Instagram thủ công');
         browser.on('close', () => {
           loginHistory.addEntry(key, name, 'login', 'Đã đóng trình duyệt Instagram - session được lưu');
@@ -841,7 +841,7 @@ app.post('/api/accounts/:key/login', (req, res) => {
           ...(proxyOpt ? { proxy: proxyOpt } : {}),
         });
         const page = browser.pages()[0] || await browser.newPage();
-        await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
         loginHistory.addEntry(key, name, 'login', 'Mở lại trình duyệt Instagram để đăng nhập');
         browser.on('close', () => {
           loginHistory.addEntry(key, name, 'login', 'Đã đóng trình duyệt Instagram - session được lưu');
