@@ -490,9 +490,12 @@ async function readPostMedia(page, { cache = new Map(), report = () => {}, check
         check();
         const usable = await img.evaluate(e => {
           const r = e.getBoundingClientRect();
+          // Partial overlap, same as how a post itself counts as "in viewport" —
+          // requiring full containment made nearly every image on a longer post
+          // (taller than the remaining screen) get skipped while scrolling.
           return e.complete && e.naturalWidth >= 150 && e.naturalHeight >= 150
-            && r.width >= 120 && r.height >= 120 && r.top >= 0 && r.bottom <= innerHeight
-            && r.left >= 0 && r.right <= innerWidth;
+            && r.width >= 120 && r.height >= 120
+            && r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
         }, undefined, { timeout: 1500 });
         if (!usable || !await img.isVisible()) continue;
         const bytes = await img.screenshot({ type: 'jpeg', quality: 65, timeout: 2500 });
