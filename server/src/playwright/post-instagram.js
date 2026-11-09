@@ -52,6 +52,7 @@ async function getBrowser(profileKey) {
 
   const { userAgent } = getProfileDeviceFingerprint(`ig-${profileKey}`);
   const ctx = await safeLaunchPersistentContext(userDataDir, {
+    stealth: false,
     headless: false,
     slowMo: config.playwright.slowMo,
     viewport: null,

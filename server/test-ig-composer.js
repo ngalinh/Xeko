@@ -46,12 +46,13 @@ function waitForEnter(message) {
     console.log(`\n=== Chưa có profile Instagram "${profileKey}" — mở Chromium để đăng nhập thủ công ===\n`);
     fs.mkdirSync(profileDir, { recursive: true });
     const browser = await safeLaunchPersistentContext(profileDir, {
+      stealth: false,
       headless: false,
       viewport: null,
       args: ['--start-maximized'],
     });
     const page = browser.pages()[0] || await browser.newPage();
-    await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await waitForEnter('Đăng nhập Instagram xong trong cửa sổ Chromium rồi quay lại đây, nhấn Enter để tiếp tục...\n');
     await browser.close();
   }
