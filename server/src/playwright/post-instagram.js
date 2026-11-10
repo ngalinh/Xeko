@@ -8,15 +8,16 @@ const config = require('../../config/default');
 const logger = require('../utils/logger');
 const { randomDelay, humanType } = require('../utils/delay');
 const { getProfileDeviceFingerprint } = require('../utils/device-fingerprint');
+const { parseProxy } = require('../utils/proxy');
 
 // GIAI ĐOẠN 1 (script thủ công, chưa gắn UI/route): module độc lập với
 // src/playwright/post.js (Facebook) — profile Instagram lưu riêng ở
 // playwright-data/ig-<key> để không lẫn session với tài khoản Facebook cùng tên.
-// Chưa làm proxy-per-account, chuẩn hoá ảnh hay hàng đợi nhiều tài khoản song
-// song: những phần đó chỉ thêm khi xác nhận Instagram thực sự cần, tránh đoán
-// trước cho vấn đề chưa gặp.
+// Chuẩn hoá ảnh hay hàng đợi nhiều tài khoản song song: những phần đó chỉ thêm
+// khi xác nhận Instagram thực sự cần, tránh đoán trước cho vấn đề chưa gặp.
 
 const browsers = {};
+const METAFILE = path.resolve(__dirname, '../../config/profiles-meta.json');
 
 function profileDirFor(profileKey) {
   return path.resolve(__dirname, `../../playwright-data/ig-${profileKey}`);
@@ -24,6 +25,19 @@ function profileDirFor(profileKey) {
 
 function profileExists(profileKey) {
   return fs.existsSync(profileDirFor(profileKey));
+}
+
+// Đăng nhập thủ công (xem local-server.js) mở Chromium qua proxy của account nếu
+// có cấu hình — session instagram.com bị gắn với IP đó. Nếu lúc đăng bài mở lại
+// cùng profile bằng IP khác (không proxy), Instagram coi là thiết bị lạ và bắt
+// đăng nhập lại, dù vừa đăng nhập đúng tài khoản. Phải dùng cùng proxy ở cả hai nơi.
+function proxyForProfile(profileKey) {
+  try {
+    const meta = JSON.parse(fs.readFileSync(METAFILE, 'utf8'));
+    return parseProxy(meta[profileKey]?.proxy);
+  } catch {
+    return null;
+  }
 }
 
 async function getBrowser(profileKey) {
@@ -51,6 +65,7 @@ async function getBrowser(profileKey) {
   }
 
   const { userAgent } = getProfileDeviceFingerprint(`ig-${profileKey}`);
+  const proxyOpt = proxyForProfile(profileKey);
   const ctx = await safeLaunchPersistentContext(userDataDir, {
     stealth: false,
     headless: false,
@@ -59,6 +74,7 @@ async function getBrowser(profileKey) {
     userAgent,
     args: ['--disable-blink-features=AutomationControlled', '--no-sandbox', '--start-maximized'],
     permissions: ['clipboard-read', 'clipboard-write'],
+    ...(proxyOpt ? { proxy: proxyOpt } : {}),
   });
   ctx.once('close', () => { if (browsers[profileKey] === ctx) browsers[profileKey] = null; });
   browsers[profileKey] = ctx;
