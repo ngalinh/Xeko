@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lấy ảnh RedNote — Xeko (test)</title>
+<style>
+  :root { color-scheme: light; }
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: #f5f6f8; margin: 0; padding: 24px; color: #1c1e21; }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .hint { color: #65676b; font-size: 13px; margin-bottom: 20px; }
+  .card { background: #fff; border: 1px solid #dadde1; border-radius: 10px; padding: 18px; margin-bottom: 20px; }
+  input[type=text] {
+    width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #ccd0d5;
+    border-radius: 6px; font-size: 14px; font-family: inherit;
+  }
+  button {
+    background: #1877f2; color: #fff; border: none; border-radius: 6px; padding: 9px 16px;
+    font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px;
+  }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .status { font-size: 13px; color: #65676b; margin-top: 10px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top: 16px; }
+  .grid img { width: 100%; border-radius: 8px; border: 1px solid #dadde1; display: block; }
+  .error { color: #fa383e; font-size: 13px; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Lấy ảnh RedNote (test nội bộ)</h1>
+  <div class="hint">Dán link 1 bài viết RedNote (Xiaohongshu) công khai để lấy ảnh tham khảo mẫu. Không cần đăng nhập.</div>
+  <div class="card">
+    <input type="text" id="url" placeholder="https://www.rednote.com/discovery/item/...">
+    <button id="go">Lấy ảnh</button>
+    <div class="status" id="status"></div>
+    <div class="error" id="error"></div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+<script>
+const BASE_URL = window.location.pathname.replace(/\/[^/]*$/, '').replace(/\/$/, '');
+
+const $ = (id) => document.getElementById(id);
+const btn = $('go');
+
+function setStatus(msg) { $('status').textContent = msg || ''; }
+function setError(msg) { $('error').textContent = msg || ''; }
+
+async function pollJob(jobId) {
+  for (;;) {
+    const res = await fetch(BASE_URL + `/api/job/${jobId}`);
+    const data = await res.json();
+    if (data.status === 'pending') {
+      await new Promise((r) => setTimeout(r, 1500));
+      continue;
+    }
+    return data;
+  }
+}
+
+btn.addEventListener('click', async () => {
+  const url = $('url').value.trim();
+  if (!url) { setError('Chưa nhập link'); return; }
+
+  btn.disabled = true;
+  setError('');
+  $('grid').innerHTML = '';
+  setStatus('Đang lấy ảnh...');
+
+  try {
+    const res = await fetch(BASE_URL + '/api/rednote/fetch-images', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Lỗi không rõ');
+
+    const result = await pollJob(data.jobId);
+    if (result.error) throw new Error(result.error);
+    if (!result.images || result.images.length === 0) {
+      setStatus('Không tìm thấy ảnh nào.');
+      return;
+    }
+
+    setStatus(`Tìm thấy ${result.images.length} ảnh:`);
+    const grid = $('grid');
+    for (const src of result.images) {
+      const img = document.createElement('img');
+      img.src = src;
+      img.loading = 'lazy';
+      grid.append(img);
+    }
+  } catch (e) {
+    setStatus('');
+    setError('❌ ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
