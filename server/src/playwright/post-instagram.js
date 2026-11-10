@@ -7,7 +7,6 @@ const fs = require('fs');
 const config = require('../../config/default');
 const logger = require('../utils/logger');
 const { randomDelay, humanType } = require('../utils/delay');
-const { getProfileDeviceFingerprint } = require('../utils/device-fingerprint');
 const { parseProxy } = require('../utils/proxy');
 
 // GIAI ĐOẠN 1 (script thủ công, chưa gắn UI/route): module độc lập với
@@ -27,7 +26,7 @@ function profileExists(profileKey) {
   return fs.existsSync(profileDirFor(profileKey));
 }
 
-// Đăng nhập thủ công (xem local-server.js) mở Chromium qua proxy của account nếu
+// Đăng nhập thủ công (xem local-server.js) mở Google Chrome qua proxy của account nếu
 // có cấu hình — session instagram.com bị gắn với IP đó. Nếu lúc đăng bài mở lại
 // cùng profile bằng IP khác (không proxy), Instagram coi là thiết bị lạ và bắt
 // đăng nhập lại, dù vừa đăng nhập đúng tài khoản. Phải dùng cùng proxy ở cả hai nơi.
@@ -61,18 +60,17 @@ async function getBrowser(profileKey) {
 
   const userDataDir = profileDirFor(profileKey);
   if (!fs.existsSync(userDataDir)) {
-    throw new Error(`Profile Instagram "${profileKey}" không tồn tại — mở Chromium đăng nhập thủ công trước (xem server/test-ig-composer.js).`);
+    throw new Error(`Profile Instagram "${profileKey}" không tồn tại — mở Google Chrome đăng nhập thủ công trước (xem server/test-ig-composer.js).`);
   }
 
-  const { userAgent } = getProfileDeviceFingerprint(`ig-${profileKey}`);
   const proxyOpt = proxyForProfile(profileKey);
   const ctx = await safeLaunchPersistentContext(userDataDir, {
     stealth: false,
+    channel: 'chrome',
     headless: false,
     slowMo: config.playwright.slowMo,
     viewport: null,
-    userAgent,
-    args: ['--disable-blink-features=AutomationControlled', '--no-sandbox', '--start-maximized'],
+    args: ['--start-maximized'],
     permissions: ['clipboard-read', 'clipboard-write'],
     ...(proxyOpt ? { proxy: proxyOpt } : {}),
   });
