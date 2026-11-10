@@ -684,7 +684,7 @@ app.post('/api/accounts', (req, res) => {
       fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2));
     } catch {}
 
-    res.json({ success: true, message: `Đang mở Chromium cho Instagram "${name}". Đăng nhập xong thì đóng cửa sổ.` });
+    res.json({ success: true, message: `Đang mở Google Chrome cho Instagram "${name}". Đăng nhập xong thì đóng cửa sổ.` });
 
     (async () => {
       try {
@@ -694,6 +694,7 @@ app.post('/api/accounts', (req, res) => {
         if (proxyOpt) logger.info(`Instagram "${name}" dùng proxy: ${proxyOpt.server}`);
         const browser = await safeLaunchPersistentContext(igProfileDir, {
           stealth: false,
+          channel: 'chrome',
           headless: false,
           slowMo: 500,
           viewport: null,
@@ -702,12 +703,12 @@ app.post('/api/accounts', (req, res) => {
         });
         const page = browser.pages()[0] || await browser.newPage();
         await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-        loginHistory.addEntry(key, name, 'login', 'Mở Chromium đăng nhập Instagram thủ công');
+        loginHistory.addEntry(key, name, 'login', 'Mở Google Chrome đăng nhập Instagram thủ công');
         browser.on('close', () => {
           loginHistory.addEntry(key, name, 'login', 'Đã đóng trình duyệt Instagram - session được lưu');
         });
       } catch (e) {
-        logger.error(`Lỗi mở Chromium Instagram cho "${name}": ${e.message}`);
+        logger.error(`Lỗi mở Google Chrome Instagram cho "${name}": ${e.message}`);
         loginHistory.addEntry(key, name, 'session_expired', `Không mở được Chromium: ${e.message}`);
       }
     })();
@@ -824,7 +825,7 @@ app.post('/api/accounts/:key/login', (req, res) => {
   const isInstagram = !!profileMeta.instagram;
   if (isInstagram) {
     const igProfileDir = path.resolve(__dirname, `playwright-data/ig-${key}`);
-    res.json({ success: true, message: `Đang mở Chromium cho Instagram "${name}". Đăng nhập xong thì đóng cửa sổ.` });
+    res.json({ success: true, message: `Đang mở Google Chrome cho Instagram "${name}". Đăng nhập xong thì đóng cửa sổ.` });
 
     (async () => {
       try {
@@ -834,6 +835,7 @@ app.post('/api/accounts/:key/login', (req, res) => {
         if (proxyOpt) logger.info(`Instagram "${name}" dùng proxy: ${proxyOpt.server}`);
         const browser = await safeLaunchPersistentContext(igProfileDir, {
           stealth: false,
+          channel: 'chrome',
           headless: false,
           slowMo: 500,
           viewport: null,
@@ -847,7 +849,7 @@ app.post('/api/accounts/:key/login', (req, res) => {
           loginHistory.addEntry(key, name, 'login', 'Đã đóng trình duyệt Instagram - session được lưu');
         });
       } catch (e) {
-        logger.error(`Lỗi mở Chromium re-login Instagram "${name}": ${e.message}`);
+        logger.error(`Lỗi mở Google Chrome re-login Instagram "${name}": ${e.message}`);
         loginHistory.addEntry(key, name, 'session_expired', `Không mở được Chromium: ${e.message}`);
       }
     })();

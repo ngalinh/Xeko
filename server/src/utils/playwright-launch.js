@@ -120,7 +120,11 @@ const safeLaunchPersistentContext = createProfileLauncher(async (userDataDir, op
   try {
     return await browserType.launchPersistentContext(userDataDir, launchOptions);
   } catch (e) {
-    if (!isMissingBrowserError(e)) throw e;
+    // A branded channel must never fall back to bundled Chromium or install it.
+    if (launchOptions.channel === 'chrome' && /Executable doesn'?t exist|distribution 'chrome' is not found|executable.*not found/i.test(e?.message || '')) {
+      throw new Error('Không tìm thấy Google Chrome trên máy chạy Xeko. Hãy cài Google Chrome rồi mở lại tài khoản Instagram.', { cause: e });
+    }
+    if (launchOptions.channel || !isMissingBrowserError(e)) throw e;
     await ensureBrowsers();
     return await browserType.launchPersistentContext(userDataDir, launchOptions);
   }
