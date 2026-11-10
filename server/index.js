@@ -13,6 +13,7 @@ const playwright = process.env.PLAYWRIGHT_LOCAL_URL
 const postLogger = require('./src/database/post-logger');
 const seedStore = require('./src/database/seed-store');
 const { queuePost } = require('./src/utils/post-queue');
+const { fetchRednoteImages } = require('./src/rednote/fetch-images');
 const { groupDelayMs } = require('./src/utils/post-delays');
 const retryQueue = require('./src/utils/retry-queue');
 
@@ -890,6 +891,28 @@ app.post('/api/fb-scrape', async (req, res) => {
       setJobError(jobId, e.message);
     }
   }, profile || playwright.getActiveProfile().key);
+});
+
+// ===== RESEARCH NỘI BỘ: lấy ảnh từ 1 link bài viết RedNote (Xiaohongshu) =====
+// Không cần login/profile — bài public. Dùng Playwright riêng (không qua
+// profile Facebook/Instagram) nên chạy trực tiếp tại đây, không proxy về máy local.
+app.post('/api/rednote/fetch-images', async (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: 'Thiếu url bài viết' });
+
+  const jobId = createJob();
+  res.json({ jobId, status: 'pending' });
+  logger.info(`[rednote] job ${jobId} — url=${url}`);
+
+  queuePost(async () => {
+    try {
+      const images = await fetchRednoteImages(url);
+      setJobResult(jobId, { success: images.length > 0, images });
+    } catch (e) {
+      logger.error(`[rednote] job ${jobId} FAILED: ${e.message}`);
+      setJobError(jobId, e.message);
+    }
+  }, 'rednote');
 });
 
 // ===== TEST: FB Quick Post v2 (dev only) — ASYNC JOB pattern =====
