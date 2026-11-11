@@ -235,7 +235,24 @@
   function badge(text, style = '') { return element('span', text, `badge ${style}`); }
   function stats(id, values) { $(id).replaceChildren(...values.map(([label, count, cls]) => { const s = element('div',undefined,`stat ${cls || ''}`);s.append(element('strong',String(count)),element('span',label));return s;})); }
   let customersSnapshot = null;
-  function renderOverviewStats() { const c = customersSnapshot; stats('overviewStats',[['KH trong dữ liệu',c?c.length:'—'],['Đã gửi tin nhắn',c?c.filter(r=>r.sent).length:'—','good'],['Đã đánh giá',c?c.filter(r=>r.assessment).length:'—'],['Chiến dịch đã tạo',campaigns.length]]); }
+  function overviewRange() {
+    const from = $('overviewFrom')?.value || '', to = $('overviewTo')?.value || '';
+    return { from, to, active: !!(from || to) };
+  }
+  function overviewInRange(range, iso) {
+    if (!iso) return false;
+    const day = iso.slice(0, 10);
+    return (!range.from || day >= range.from) && (!range.to || day <= range.to);
+  }
+  function renderOverviewStats() {
+    const c = customersSnapshot, range = overviewRange();
+    const imported = c ? (range.active ? c.filter(r => overviewInRange(range, r.importedAt)) : c) : null;
+    const sentFiltered = c ? c.filter(r => r.sent && (!range.active || overviewInRange(range, r.sentAt))) : null;
+    const assessedFiltered = c ? c.filter(r => r.assessment && (!range.active || overviewInRange(range, r.updatedAt))) : null;
+    const campaignsFiltered = range.active ? campaigns.filter(x => overviewInRange(range, x.createdAt)) : campaigns;
+    stats('overviewStats',[['KH trong dữ liệu',imported?imported.length:'—'],['Đã gửi tin nhắn',sentFiltered?sentFiltered.length:'—','good'],['Đã đánh giá',assessedFiltered?assessedFiltered.length:'—'],['Chiến dịch đã tạo',campaignsFiltered.length]]);
+  }
+  function clearOverviewFilter() { $('overviewFrom').value=''; $('overviewTo').value=''; renderOverviewStats(); }
   function link(url, name) { const a = element('a',name || url); a.href=url; a.target='_blank';a.rel='noopener noreferrer';return a; }
   function customerLabel(value) {
     try {

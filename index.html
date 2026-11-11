@@ -969,6 +969,7 @@
     .pc-btn-login.pc-btn-zalo { background: #e8f4ff; border-color: #b3d9ff; color: #1E3A8A; }
     .pc-btn-del   { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
     .pc-btn .xi { width: 15px; height: 15px; }
+    .pc-btn-text { width: auto; height: auto; padding: 6px 10px; white-space: nowrap; }
 
     /* ===== DARK MODE ===== */
     [data-theme="dark"] { color-scheme: dark; }
@@ -1383,6 +1384,7 @@
       }
       .pc-btn { width: 44px; height: 44px; border-radius: 10px; }
       .pc-btn .xi { width: 18px; height: 18px; }
+      .pc-btn-text { width: auto; height: auto; padding: 8px 12px; }
 
       /* Cài đặt kênh: Group list toolbar — wrap compactly */
       #pageSession .group-filter-tabs button { padding: 5px 10px !important; font-size: 11px !important; }
@@ -4365,8 +4367,8 @@
           <section aria-label="Tài khoản Instagram" style="margin-top:20px;">
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
               <h3 style="flex:1;font-size:15px;">Instagram</h3>
-              <button class="pc-btn pc-btn-edit" onclick="openAddAccountModal('instagram')">+ Thêm Instagram</button>
-              <button class="pc-btn pc-btn-edit" onclick="location.href=BASE_URL+'/instagram-post.html'">Đăng thử Instagram</button>
+              <button class="pc-btn pc-btn-edit pc-btn-text" onclick="openAddAccountModal('instagram')">+ Thêm Instagram</button>
+              <button class="pc-btn pc-btn-edit pc-btn-text" onclick="location.href=BASE_URL+'/instagram-post.html'">Đăng thử Instagram</button>
             </div>
             <p style="font-size:12px;color:#888;">Đăng nhập trên máy chạy backend Xeko, sau đó chọn tài khoản để đăng ảnh thử.</p>
             <div id="igProfileList" style="display:grid;gap:8px;"></div>
@@ -9900,7 +9902,7 @@
             ['Xoá', () => deleteProfile('instagram', account.key, account.name)],
           ]) {
             const button = document.createElement('button');
-            button.className = 'pc-btn pc-btn-edit';
+            button.className = 'pc-btn pc-btn-edit pc-btn-text';
             button.textContent = label;
             button.addEventListener('click', () => action(button));
             actions.appendChild(button);
