@@ -70,7 +70,7 @@ async function getBrowser(profileKey) {
     headless: false,
     slowMo: config.playwright.slowMo,
     viewport: null,
-    args: ['--start-maximized'],
+    args: ['--start-maximized', '--disable-blink-features=AutomationControlled'],
     permissions: ['clipboard-read', 'clipboard-write'],
     ...(proxyOpt ? { proxy: proxyOpt } : {}),
   });

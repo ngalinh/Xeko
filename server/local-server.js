@@ -698,7 +698,7 @@ app.post('/api/accounts', (req, res) => {
           headless: false,
           slowMo: 500,
           viewport: null,
-          args: ['--start-maximized'],
+          args: ['--start-maximized', '--disable-blink-features=AutomationControlled'],
           ...(proxyOpt ? { proxy: proxyOpt } : {}),
         });
         const page = browser.pages()[0] || await browser.newPage();
@@ -839,7 +839,7 @@ app.post('/api/accounts/:key/login', (req, res) => {
           headless: false,
           slowMo: 500,
           viewport: null,
-          args: ['--start-maximized'],
+          args: ['--start-maximized', '--disable-blink-features=AutomationControlled'],
           ...(proxyOpt ? { proxy: proxyOpt } : {}),
         });
         const page = browser.pages()[0] || await browser.newPage();
