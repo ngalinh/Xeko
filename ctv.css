@@ -279,7 +279,7 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 .send-dashboard-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;align-items:start}
 .send-dash-chart-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
 .send-dash-chart-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-.send-dash-chart-filters input,.send-dash-chart-filters select{width:auto;padding:7px 9px;font-size:12px}
+#sendChartFrom,#sendChartTo{width:150px;padding:7px 9px;font-size:12px}#sendChartDays{width:auto;padding:7px 9px;font-size:12px}
 .send-dash-canvas-wrap{position:relative;height:220px}
 .chart-toggle-group{display:flex;gap:4px}
 .chart-toggle{padding:5px 12px;font-size:12px;font-weight:600;border-radius:8px;background:transparent;color:var(--muted);border:1px solid transparent;cursor:pointer}
