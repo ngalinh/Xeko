@@ -562,13 +562,16 @@
     for (const button of $('campaigns').querySelectorAll('button')) button.disabled = busy || (button.dataset.deleteState && ACTIVE.concat(['running','queued']).includes(button.dataset.deleteState));
   }
   function setPageView(view) {
-    if (!['workflow', 'history', 'customers'].includes(view)) return;
+    if (!['workflow', 'history', 'customers', 'dashboard'].includes(view)) return;
     show('workflowSteps', view === 'workflow');
     show('campaignWorkspace', view === 'workflow');
     show('campaignHistory', view === 'history');
     show('customerLibrary', view === 'customers');
+    show('sendDashboard', view === 'dashboard');
     $('toggleHistory').setAttribute('aria-expanded', String(view === 'history'));
     $('toggleCustomers').setAttribute('aria-expanded', String(view === 'customers'));
+    $('toggleDashboard').setAttribute('aria-expanded', String(view === 'dashboard'));
+    if (view === 'dashboard') { renderSendDashSummary(); renderSendStatByAccount(); loadSendDashChart(); }
   }
   document.addEventListener('ctv:view', event => setPageView(event.detail));
   function setHistoryOpen(open) { setPageView(open ? 'history' : 'workflow'); }
@@ -1004,6 +1007,7 @@
   $('sendSelectedButton').onclick = () => sendSelectedBulk();
   $('toggleHistory').onclick=()=>setHistoryOpen($('campaignHistory').hidden);
   $('closeHistory').onclick=()=>{setHistoryOpen(false);$('toggleHistory').focus();};
+  $('toggleDashboard').onclick=()=>setPageView($('sendDashboard').hidden ? 'dashboard' : 'workflow');
   $('newCampaign').onclick=()=>{if(busy)return;setHistoryOpen(false);epoch++;clearTimeout(timer);selected=null;uncertain=false;picks.clear();notice();viewStep(1);
     show('importForm',true);show('importResult',false);show('analysisEmpty',true);show('analysisResult',false);show('retryAnalysis',false);show('resolveUids',false);show('messageEmpty',true);show('messageResult',false);
     draftImages=[];$('messageImages').value='';
@@ -1040,7 +1044,7 @@
       for(const a of accounts){const option=element('option',a.name || a.key);option.value=a.key;$('profile').append(option);}show('demoBanner',data.demo===true);
     }else notice('Không tải được tài khoản. '+results[0].reason.message,true);
     if(results[1].status==='fulfilled'){campaigns=results[1].value;renderHistory();}else{$('campaigns').textContent='Chưa tải được lịch sử. Hãy tải lại trang.';notice(results[1].reason.message,true);}
-    if(results[2].status==='fulfilled'){customersSnapshot=results[2].value;renderOverviewStats();renderSendDashSummary();renderSendStatByAccount();loadSendDashChart();}
+    if(results[2].status==='fulfilled'){customersSnapshot=results[2].value;renderOverviewStats();renderSendDashSummary();renderSendStatByAccount();}
     updateControls();
   })();
 })();
