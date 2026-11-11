@@ -442,12 +442,23 @@
           const placeholder = element('option','Đổi trạng thái…'); placeholder.value=''; statusPicker.append(placeholder);
           const sentOption = element('option','✓ Đã gửi'); sentOption.value='sent'; statusPicker.append(sentOption);
           const notSentOption = element('option','✗ Chưa gửi'); notSentOption.value='failed'; statusPicker.append(notSentOption);
-          const confirmText = { sent: 'Xác nhận bạn đã tự kiểm tra Messenger và thấy tin nhắn (và ảnh nếu có) đã gửi tới khách này?', failed: 'Xác nhận bạn đã tự kiểm tra Messenger và thấy tin nhắn (và ảnh nếu có) CHƯA gửi tới khách này? Khách sẽ chuyển về trạng thái cần kiểm tra để có thể thử gửi lại.' };
+          const duplicateOption = element('option','Đã nhắn tin trước đó'); duplicateOption.value='duplicate'; statusPicker.append(duplicateOption);
+          const blockedOption = element('option','Bị block/lỗi'); blockedOption.value='blocked'; statusPicker.append(blockedOption);
+          const confirmText = {
+            sent: 'Xác nhận bạn đã tự kiểm tra Messenger và thấy tin nhắn (và ảnh nếu có) đã gửi tới khách này?',
+            failed: 'Xác nhận bạn đã tự kiểm tra Messenger và thấy tin nhắn (và ảnh nếu có) CHƯA gửi tới khách này? Khách sẽ chuyển về trạng thái cần kiểm tra để có thể thử gửi lại.',
+            duplicate: 'Xác nhận khách này đã được nhắn tin từ trước (trùng lặp), không gửi lại lần này? Khách sẽ chuyển về trạng thái cần kiểm tra để có thể thử gửi lại.',
+            blocked: 'Xác nhận việc gửi bị chặn hoặc gặp lỗi (ví dụ tài khoản bị hạn chế)? Khách sẽ chuyển về trạng thái cần kiểm tra để có thể thử gửi lại.',
+          };
+          const notSentReasons = {
+            duplicate: 'Khách đã được nhắn tin từ trước (trùng lặp).',
+            blocked: 'Tài khoản bị chặn gửi tin nhắn hoặc gặp lỗi khi gửi.',
+          };
           statusPicker.onchange=()=>{
             const value = statusPicker.value; statusPicker.value='';
             if(!value || statusPicker.disabled || selected?.id!==c.id)return;
             if(!window.confirm(confirmText[value]))return;
-            action('mark-sent',{leadId:l.id,state:value});
+            action('mark-sent',{leadId:l.id,state:value==='sent'?'sent':'failed',reason:notSentReasons[value]});
           };
           retryRow.append(statusPicker);
         }
@@ -989,6 +1000,11 @@
   $('toggleHistory').onclick=()=>setHistoryOpen($('campaignHistory').hidden);
   $('closeHistory').onclick=()=>{setHistoryOpen(false);$('toggleHistory').focus();};
   $('toggleDashboard').onclick=()=>setPageView($('sendDashboard').hidden ? 'dashboard' : 'workflow');
+  $('sendChartTypeBar').onclick=()=>setSendChartType('bar');
+  $('sendChartTypeLine').onclick=()=>setSendChartType('line');
+  $('sendChartFrom').onchange=loadSendDashChart;
+  $('sendChartTo').onchange=loadSendDashChart;
+  $('sendChartDays').onchange=sendChartDaysPreset;
   $('newCampaign').onclick=()=>{if(busy)return;setHistoryOpen(false);epoch++;clearTimeout(timer);selected=null;uncertain=false;picks.clear();notice();viewStep(1);
     show('importForm',true);show('importResult',false);show('analysisEmpty',true);show('analysisResult',false);show('retryAnalysis',false);show('resolveUids',false);show('messageEmpty',true);show('messageResult',false);
     draftImages=[];$('messageImages').value='';

@@ -375,16 +375,17 @@ class CtvService {
   // operator record either outcome: 'sent' if it did reach the customer, or
   // 'failed' if they confirmed it did not (leaving the lead retryable, same as
   // an automatic failure).
-  markSent(id, owner, { leadId, state = 'sent' } = {}) {
+  markSent(id, owner, { leadId, state = 'sent', reason } = {}) {
     const c = this.staged(id, owner);
     const lead = c.leads.find(l => l.id === leadId);
     if (!lead) fail('Không tìm thấy khách trong chiến dịch');
     if (!['unconfirmed', 'review', 'failed'].includes(lead.state)) fail('Chỉ chỉnh được trạng thái cho khách đang ở trạng thái cần kiểm tra');
     if (!['sent', 'failed'].includes(state)) fail('Trạng thái không hợp lệ');
+    if (reason !== undefined && (typeof reason !== 'string' || reason.length > 300)) fail('Lý do không hợp lệ');
     const previousState = lead.state;
     lead.state = state;
     if (state === 'sent') delete lead.error;
-    else lead.error = 'Đã tự kiểm tra Messenger: chưa thấy tin nhắn (và ảnh nếu có) gửi tới khách này.';
+    else lead.error = reason || 'Đã tự kiểm tra Messenger: chưa thấy tin nhắn (và ảnh nếu có) gửi tới khách này.';
     lead.manualConfirm = { by: owner, at: new Date().toISOString(), from: previousState, to: state };
     this.save();
     // Tự động gửi đã dừng ở đây (operator tự xác nhận qua Messenger), nhưng vẫn
