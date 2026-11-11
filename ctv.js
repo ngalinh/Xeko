@@ -851,16 +851,23 @@
     if (!selected || busy || uncertain || bulkSending || ACTIVE.includes(selected.state) || !sendPicks.size) return;
     const campaignId = selected.id;
     bulkSending = true; updateControls();
+    // Một chiến dịch "Đã dừng" từ trước giữ cờ cancelled=true cho tới khi có lượt
+    // gửi/thử lại đầu tiên thực sự chạy (server mới reset về false). Nếu kiểm tra
+    // cancelled ngay từ khách đầu tiên, lượt gửi hàng loạt mới sẽ luôn bị chặn dù
+    // người dùng chưa hề bấm Dừng ở lượt này. Chỉ coi cancelled là tín hiệu "vừa
+    // bị dừng giữa chừng" sau khi đã thực sự gửi được ít nhất 1 khách trong lượt này.
+    let started = false;
     try {
       for (const id of [...sendPicks]) {
-        if (!selected || selected.id !== campaignId || uncertain || selected.cancelled) break;
+        if (!selected || selected.id !== campaignId || uncertain || (started && selected.cancelled)) break;
         while (selected && selected.id === campaignId && !uncertain && (busy || ACTIVE.includes(selected.state))) await new Promise(r => setTimeout(r, 1000));
         // Nút Dừng chỉ chặn lượt gửi đang chạy; nếu không kiểm tra cancelled ở đây,
         // vòng lặp vẫn tiếp tục gửi cho khách kế tiếp (và server tự bật lại cancelled=false).
-        if (!selected || selected.id !== campaignId || uncertain || selected.cancelled) break;
+        if (!selected || selected.id !== campaignId || uncertain || (started && selected.cancelled)) break;
         const lead = selected.leads.find(l => l.id === id);
         if (!lead || !canBulkSend(lead)) { sendPicks.delete(id); continue; }
         sendPicks.delete(id);
+        started = true;
         await action('retry-send', { leadId: id, previewToken: selected.messagePreview.token, requestId: retryRequestId() });
       }
     } finally { bulkSending = false; updateControls(); }
