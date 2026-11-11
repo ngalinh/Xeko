@@ -989,6 +989,11 @@
   $('toggleHistory').onclick=()=>setHistoryOpen($('campaignHistory').hidden);
   $('closeHistory').onclick=()=>{setHistoryOpen(false);$('toggleHistory').focus();};
   $('toggleDashboard').onclick=()=>setPageView($('sendDashboard').hidden ? 'dashboard' : 'workflow');
+  $('sendChartTypeBar').onclick=()=>setSendChartType('bar');
+  $('sendChartTypeLine').onclick=()=>setSendChartType('line');
+  $('sendChartFrom').onchange=loadSendDashChart;
+  $('sendChartTo').onchange=loadSendDashChart;
+  $('sendChartDays').onchange=sendChartDaysPreset;
   $('newCampaign').onclick=()=>{if(busy)return;setHistoryOpen(false);epoch++;clearTimeout(timer);selected=null;uncertain=false;picks.clear();notice();viewStep(1);
     show('importForm',true);show('importResult',false);show('analysisEmpty',true);show('analysisResult',false);show('retryAnalysis',false);show('resolveUids',false);show('messageEmpty',true);show('messageResult',false);
     draftImages=[];$('messageImages').value='';
