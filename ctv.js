@@ -253,6 +253,118 @@
     stats('overviewStats',[['KH trong dữ liệu',imported?imported.length:'—'],['Đã gửi tin nhắn',sentFiltered?sentFiltered.length:'—','good'],['Đã đánh giá',assessedFiltered?assessedFiltered.length:'—'],['Chiến dịch đã tạo',campaignsFiltered.length]]);
   }
   function clearOverviewFilter() { $('overviewFrom').value=''; $('overviewTo').value=''; renderOverviewStats(); }
+  function sendOutcome(record) { if (record.sent) return 'success'; if (record.error) return 'fail'; return null; }
+  function sendDayOf(record) { return record.sent ? (record.sentAt || '').slice(0, 10) : (record.updatedAt || '').slice(0, 10); }
+  function renderSendDashSummary() {
+    const c = customersSnapshot;
+    const attempts = c ? c.filter(r => sendOutcome(r)) : null;
+    const today = new Date().toISOString().slice(0, 10);
+    const todayAttempts = attempts ? attempts.filter(r => sendDayOf(r) === today) : null;
+    stats('sendDashSummary', [
+      ['Hôm nay', todayAttempts ? todayAttempts.length : '—'],
+      ['Thành công', todayAttempts ? todayAttempts.filter(r => r.sent).length : '—', 'good'],
+      ['Thất bại', todayAttempts ? todayAttempts.filter(r => !r.sent).length : '—', 'warn'],
+      ['Tổng cộng tất cả', attempts ? attempts.length : '—'],
+    ]);
+  }
+  function renderSendStatByAccount() {
+    const el = $('sendStatByAccount');
+    if (!el) return;
+    el.replaceChildren();
+    const c = customersSnapshot;
+    if (!c) { el.append(element('div', 'Đang tải…', 'muted')); return; }
+    const byProfile = {};
+    for (const r of c) {
+      const outcome = sendOutcome(r);
+      if (!outcome) continue;
+      byProfile[r.profile] ||= { total: 0, success: 0, fail: 0 };
+      byProfile[r.profile].total++;
+      byProfile[r.profile][outcome]++;
+    }
+    const rows = Object.entries(byProfile).sort((a, b) => b[1].total - a[1].total);
+    if (!rows.length) { el.append(element('div', 'Chưa có dữ liệu', 'muted')); return; }
+    for (const [profile, s] of rows) {
+      const row = element('div', undefined, 'send-account-row');
+      const head = element('div', undefined, 'send-account-row-head');
+      const nums = element('span', undefined, 'send-account-nums');
+      nums.append(element('strong', String(s.total)), element('span', `✓${s.success}`, 'ok'), element('span', `✗${s.fail}`, 'bad'));
+      head.append(element('span', accountName(profile)), nums);
+      row.append(head);
+      el.append(row);
+    }
+  }
+  let _sendChartType = 'bar', _sendDashChart = null;
+  const SEND_CHART_PALETTE = ['#245ddd', '#60a5fa', '#34d399', '#f59e0b', '#f472b6', '#a78bfa', '#f87171'];
+  function setSendChartType(type) {
+    _sendChartType = type;
+    $('sendChartTypeBar')?.classList.toggle('active', type === 'bar');
+    $('sendChartTypeLine')?.classList.toggle('active', type === 'line');
+    loadSendDashChart();
+  }
+  function sendChartDaysPreset() {
+    const days = $('sendChartDays')?.value;
+    if (!days) return;
+    const to = new Date(), from = new Date();
+    from.setDate(from.getDate() - (Number(days) - 1));
+    const fmt = d => d.toISOString().slice(0, 10);
+    $('sendChartFrom').value = fmt(from);
+    $('sendChartTo').value = fmt(to);
+    loadSendDashChart();
+  }
+  function loadSendDashChart() {
+    const canvas = $('sendDashChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    const c = customersSnapshot || [];
+    const fromEl = $('sendChartFrom'), toEl = $('sendChartTo');
+    let from = fromEl?.value, to = toEl?.value;
+    if (!from || !to) {
+      const days = $('sendChartDays')?.value || 7;
+      const toD = new Date(), fromD = new Date();
+      fromD.setDate(fromD.getDate() - (Number(days) - 1));
+      from = fromD.toISOString().slice(0, 10); to = toD.toISOString().slice(0, 10);
+      if (fromEl) fromEl.value = from; if (toEl) toEl.value = to;
+    }
+    const dateSet = new Set();
+    const cursor = new Date(from + 'T00:00:00Z'), stop = new Date(to + 'T00:00:00Z');
+    while (cursor <= stop) { dateSet.add(cursor.toISOString().slice(0, 10)); cursor.setUTCDate(cursor.getUTCDate() + 1); }
+    const byProfileDay = {};
+    for (const r of c) {
+      if (!sendOutcome(r)) continue;
+      const day = sendDayOf(r);
+      if (!day || day < from || day > to) continue;
+      byProfileDay[r.profile] ||= {};
+      byProfileDay[r.profile][day] = (byProfileDay[r.profile][day] || 0) + 1;
+    }
+    const dates = [...dateSet].sort();
+    const profiles = Object.keys(byProfileDay);
+    const datasets = profiles.map((p, i) => ({
+      label: accountName(p),
+      data: dates.map(d => byProfileDay[p][d] || 0),
+      backgroundColor: SEND_CHART_PALETTE[i % SEND_CHART_PALETTE.length] + (_sendChartType === 'bar' ? 'cc' : '22'),
+      borderColor: SEND_CHART_PALETTE[i % SEND_CHART_PALETTE.length],
+      borderWidth: _sendChartType === 'line' ? 2 : 0,
+      pointRadius: _sendChartType === 'line' ? 3 : 0,
+      fill: _sendChartType === 'line',
+      tension: 0.3,
+    }));
+    if (_sendDashChart) { _sendDashChart.destroy(); _sendDashChart = null; }
+    _sendDashChart = new Chart(canvas, {
+      type: _sendChartType === 'line' ? 'line' : 'bar',
+      data: { labels: dates.map(d => d.slice(5)), datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12, font: { size: 12 } } },
+          tooltip: { callbacks: { title: t => dates[t[0].dataIndex] } },
+        },
+        scales: {
+          x: { stacked: _sendChartType === 'bar', grid: { display: false }, ticks: { font: { size: 11 } } },
+          y: { stacked: _sendChartType === 'bar', beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: '#f3f4f6' } },
+        },
+      },
+    });
+  }
   function link(url, name) { const a = element('a',name || url); a.href=url; a.target='_blank';a.rel='noopener noreferrer';return a; }
   function customerLabel(value) {
     try {
@@ -928,7 +1040,7 @@
       for(const a of accounts){const option=element('option',a.name || a.key);option.value=a.key;$('profile').append(option);}show('demoBanner',data.demo===true);
     }else notice('Không tải được tài khoản. '+results[0].reason.message,true);
     if(results[1].status==='fulfilled'){campaigns=results[1].value;renderHistory();}else{$('campaigns').textContent='Chưa tải được lịch sử. Hãy tải lại trang.';notice(results[1].reason.message,true);}
-    if(results[2].status==='fulfilled'){customersSnapshot=results[2].value;renderOverviewStats();}
+    if(results[2].status==='fulfilled'){customersSnapshot=results[2].value;renderOverviewStats();renderSendDashSummary();renderSendStatByAccount();loadSendDashChart();}
     updateControls();
   })();
 })();

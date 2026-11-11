@@ -271,3 +271,28 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 #closeHistory,#deleteSelectedHistory{white-space:nowrap;flex-shrink:0}
 #deleteSelectedHistory{border-color:#fecaca;background:transparent;color:#b91c1c}
 #deleteSelectedHistory:hover:not(:disabled){background:#fef2f2}
+
+
+/* Dashboard thống kê gửi tin nhắn (cards + chart + theo tài khoản) */
+.send-dashboard-heading{margin:28px 0 14px}
+.send-dashboard-heading p{margin:4px 0 0}
+.send-dashboard-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;align-items:start}
+.send-dash-chart-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.send-dash-chart-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.send-dash-chart-filters input,.send-dash-chart-filters select{width:auto;padding:7px 9px;font-size:12px}
+.send-dash-canvas-wrap{position:relative;height:220px}
+.chart-toggle-group{display:flex;gap:4px}
+.chart-toggle{padding:5px 12px;font-size:12px;font-weight:600;border-radius:8px;background:transparent;color:var(--muted);border:1px solid transparent;cursor:pointer}
+.chart-toggle.active{background:#eaf0ff;color:var(--blue)}
+.send-dash-byaccount{max-height:360px;overflow-y:auto}
+.send-account-row{padding:10px 0;border-top:1px solid var(--line)}
+.send-account-row:first-child{border-top:0;padding-top:0}
+.send-account-row-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;font-weight:600}
+.send-account-nums{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-variant-numeric:tabular-nums;font-weight:400}
+.send-account-nums .ok{color:#16a34a;font-weight:600}
+.send-account-nums .bad{color:#dc2626;font-weight:600}
+@media(max-width:600px){
+  .send-dashboard-grid{grid-template-columns:1fr}
+  .send-dash-canvas-wrap{height:180px}
+  .send-dash-byaccount{max-height:none}
+}
