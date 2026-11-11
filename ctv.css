@@ -274,7 +274,7 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 
 
 /* Dashboard thống kê gửi tin nhắn (cards + chart + theo tài khoản) */
-.send-dashboard-heading{margin:28px 0 14px}
+.send-dashboard-heading{margin:0 0 14px}
 .send-dashboard-heading p{margin:4px 0 0}
 .send-dashboard-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;align-items:start}
 .send-dash-chart-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
