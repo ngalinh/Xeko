@@ -39,7 +39,7 @@
     for (const [index, r] of visible.entries()) {
       const card = el('article', null, 'customer-record'), grid = el('div', null, 'customer-record-grid');
       const identity = el('div'); identity.append(el('strong', r.assessment?.name || r.name || 'Chưa có tên Facebook'));
-      const link = el('a', r.url); link.href = r.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; identity.append(el('br'), link);
+      const link = el('a', r.url); link.href = r.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
       const states = el('div'), statusRow = el('div', null, 'customer-status-row');
       const stateLabel = r.sent ? 'Đã gửi tin nhắn' : r.state === 'unconfirmed' ? 'Chưa xác nhận gửi' : r.assessment ? (r.assessment.provider === 'keywords' ? 'Đã quét caption' : 'Đã đánh giá AI') : r.manual ? 'Thêm thủ công' : 'Đã nhập';
       const stateColor = r.sent ? 'good' : r.state === 'unconfirmed' ? 'warn' : r.assessment ? 'blue' : '';
@@ -59,7 +59,7 @@
       checkbox.setAttribute('aria-label', `Chọn ${r.assessment?.name || r.name || r.url} · ${r.profile}`);
       checkbox.onchange = () => { if (checkbox.checked && canSelect(r)) chosen.set(keyOf(r), r); else chosen.delete(keyOf(r)); updateSelection(); };
       choose.append(checkbox, String(page * pageSize + index + 1));
-      grid.append(field('', choose), field('Khách hàng', identity), field('UID', String(r.assessment?.recipientId || r.uid || 'Chưa xác định')), field('Giới tính', gender?.status === 'self_declared' && gender.value || 'Chưa xác định'), field('Tài khoản gửi', r.profile), field('Ngày gửi', date(r.sentAt)), field('Trạng thái', states));
+      grid.append(field('', choose), field('Khách hàng', identity), field('Link FB', link), field('UID', String(r.assessment?.recipientId || r.uid || 'Chưa xác định')), field('Tài khoản gửi', r.profile), field('Ngày gửi', date(r.sentAt)), field('Trạng thái', states));
       const details = el('details'); details.append(el('summary', 'Thông tin đã lưu & chiến dịch'));
       details.append(el('p', `Nhập lần đầu: ${date(r.importedAt)} · Cập nhật: ${date(r.updatedAt)}`));
       details.append(el('p', r.campaigns.length ? `Chiến dịch: ${r.campaigns.map(c => c.name || c.id).join(' · ')}` : 'Nguồn: Thêm thủ công'));
