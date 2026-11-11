@@ -235,24 +235,6 @@
   function badge(text, style = '') { return element('span', text, `badge ${style}`); }
   function stats(id, values) { $(id).replaceChildren(...values.map(([label, count, cls]) => { const s = element('div',undefined,`stat ${cls || ''}`);s.append(element('strong',String(count)),element('span',label));return s;})); }
   let customersSnapshot = null;
-  function overviewRange() {
-    const from = $('overviewFrom')?.value || '', to = $('overviewTo')?.value || '';
-    return { from, to, active: !!(from || to) };
-  }
-  function overviewInRange(range, iso) {
-    if (!iso) return false;
-    const day = iso.slice(0, 10);
-    return (!range.from || day >= range.from) && (!range.to || day <= range.to);
-  }
-  function renderOverviewStats() {
-    const c = customersSnapshot, range = overviewRange();
-    const imported = c ? (range.active ? c.filter(r => overviewInRange(range, r.importedAt)) : c) : null;
-    const sentFiltered = c ? c.filter(r => r.sent && (!range.active || overviewInRange(range, r.sentAt))) : null;
-    const assessedFiltered = c ? c.filter(r => r.assessment && (!range.active || overviewInRange(range, r.updatedAt))) : null;
-    const campaignsFiltered = range.active ? campaigns.filter(x => overviewInRange(range, x.createdAt)) : campaigns;
-    stats('overviewStats',[['KH trong dữ liệu',imported?imported.length:'—'],['Đã gửi tin nhắn',sentFiltered?sentFiltered.length:'—','good'],['Đã đánh giá',assessedFiltered?assessedFiltered.length:'—'],['Chiến dịch đã tạo',campaignsFiltered.length]]);
-  }
-  function clearOverviewFilter() { $('overviewFrom').value=''; $('overviewTo').value=''; renderOverviewStats(); }
   function sendOutcome(record) { if (record.sent) return 'success'; if (record.error) return 'fail'; return null; }
   function sendDayOf(record) { return record.sent ? (record.sentAt || '').slice(0, 10) : (record.updatedAt || '').slice(0, 10); }
   function renderSendDashSummary() {
@@ -617,7 +599,6 @@
       $('campaigns').append(row);
     }
     if (!visible.length) $('campaigns').append(element('p',campaigns.length?'Không có chiến dịch phù hợp. Thử đổi từ khoá hoặc bộ lọc.':'Chưa có chiến dịch. Bấm “Chiến dịch mới” để bắt đầu.','history-empty'));
-    renderOverviewStats();
     $('historyCount').textContent=visible.length+' / '+campaigns.length+' chiến dịch';
     $('historyPage').textContent='Trang '+(historyPage+1)+'/'+Math.max(1,Math.ceil(visible.length/historyPageSize));
     $('historyPrevious').disabled=historyPage===0;$('historyNext').disabled=(historyPage+1)*historyPageSize>=visible.length;
@@ -1044,7 +1025,7 @@
       for(const a of accounts){const option=element('option',a.name || a.key);option.value=a.key;$('profile').append(option);}show('demoBanner',data.demo===true);
     }else notice('Không tải được tài khoản. '+results[0].reason.message,true);
     if(results[1].status==='fulfilled'){campaigns=results[1].value;renderHistory();}else{$('campaigns').textContent='Chưa tải được lịch sử. Hãy tải lại trang.';notice(results[1].reason.message,true);}
-    if(results[2].status==='fulfilled'){customersSnapshot=results[2].value;renderOverviewStats();renderSendDashSummary();renderSendStatByAccount();}
+    if(results[2].status==='fulfilled'){customersSnapshot=results[2].value;renderSendDashSummary();renderSendStatByAccount();}
     updateControls();
   })();
 })();
