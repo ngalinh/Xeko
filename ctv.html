@@ -65,6 +65,7 @@
 <main>
   <div class="panel page-header">
   <div class="page-heading"><div><p class="eyebrow">KHÔNG GIAN LÀM VIỆC / FACEBOOK</p><h1>Gửi tin nhắn hàng loạt</h1><p class="muted">Từ danh sách khách hàng đến tin nhắn hàng loạt — bạn duyệt ở mỗi bước.</p></div><div class="campaign-actions"><button id="newCampaign">＋ Chiến dịch mới</button><button id="toggleHistory" class="secondary" aria-expanded="false" aria-controls="campaignHistory">Lịch sử chiến dịch</button><button id="toggleCustomers" class="secondary" aria-expanded="false" aria-controls="customerLibrary">Dữ liệu khách hàng</button></div></div>
+  <div class="customer-filters" id="overviewFilters"><div><label for="overviewFrom">Từ ngày</label><input id="overviewFrom" type="date" onchange="renderOverviewStats()"></div><div><label for="overviewTo">Đến ngày</label><input id="overviewTo" type="date" onchange="renderOverviewStats()"></div><button id="overviewFilterClear" class="secondary" type="button" onclick="clearOverviewFilter()">Xoá lọc</button></div>
   <div id="overviewStats" class="stats"></div>
   </div>
   <section id="campaignHistory" class="panel campaign-history" aria-labelledby="historyTitle" hidden>
