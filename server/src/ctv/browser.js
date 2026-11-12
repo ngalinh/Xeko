@@ -921,8 +921,11 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
   beforeSubmit();
   await box.press('Enter');
   // Theo yêu cầu: không chờ Messenger xác nhận receipt nữa (cơ chế đó từng báo
-  // sai "chưa xác nhận" dù tin đã gửi thật) — bấm Enter xong coi như đã gửi,
-  // chuyển ngay sang bước bình luận nhắc khách.
+  // sai "chưa xác nhận" dù tin đã gửi thật) — bấm Enter xong coi như đã gửi.
+  // Nhưng ảnh vẫn cần thời gian tải lên máy chủ Facebook; đóng trang ngay sau
+  // Enter có thể cắt ngang lúc ảnh chưa tải xong. Chờ thêm một khoảng cố định
+  // (không kiểm tra DOM) trước khi coi là xong, chỉ khi có ảnh đính kèm.
+  if (media) await page.waitForTimeout(10000);
   report('sent', 'Đã bấm gửi tin nhắn');
   return { state: 'sent', reason: media ? 'Đã bấm gửi tin nhắn kèm ảnh' : 'Đã bấm gửi tin nhắn' };
 }
