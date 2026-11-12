@@ -435,7 +435,7 @@
         // Đánh dấu thủ công không đụng tới browser automation của lead khác đang
         // chạy trong cùng chiến dịch, nên không cần chờ chiến dịch dừng hẳn
         // (khác retry-send, vốn phải chờ vì sẽ mở lại trình duyệt để gửi).
-        if (['unconfirmed','review','failed'].includes(l.state)) {
+        if (['unconfirmed','review','failed','pending','qualified'].includes(l.state)) {
           const statusPicker = element('select',undefined,'mark-status');
           statusPicker.setAttribute('aria-label',`Chọn trạng thái sau khi tự kiểm tra cho ${name}`);
           statusPicker.disabled = busy || uncertain;
