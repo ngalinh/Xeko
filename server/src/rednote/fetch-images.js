@@ -7,8 +7,8 @@ async function fetchRednoteImages(url) {
   const browser = await safeLaunch({ headless: true });
   try {
     const page = await browser.newPage();
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(2500);
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 18000 });
+    await page.waitForTimeout(2000);
 
     const metaImages = await page.$$eval(
       'meta[property="og:image"]',

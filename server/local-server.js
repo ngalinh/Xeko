@@ -23,6 +23,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 
 const playwright = require('./src/playwright/post');
+const { fetchRednoteImages } = require('./src/rednote/fetch-images');
 const ig = require('./src/playwright/post-instagram');
 const { queuePost } = require('./src/utils/post-queue');
 const salework = require('./src/playwright/salework');
@@ -345,6 +346,22 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
       cleanupFiles(imagePaths);
     }
   }, true);
+});
+
+// ===== RESEARCH NỘI BỘ: lấy ảnh từ 1 link bài viết RedNote (Xiaohongshu) =====
+// Chạy tại đây (máy có Chromium thật) — cloud (ai.basso.vn) proxy HTTP về route này
+// qua playwright-proxy.js vì container cloud không có đủ lib hệ thống để chạy Chromium.
+app.post('/api/rednote/fetch-images', async (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: 'Thiếu url bài viết' });
+
+  try {
+    const images = await queuePost(() => fetchRednoteImages(url), 'rednote');
+    res.json({ images });
+  } catch (e) {
+    logger.error(`[rednote] fetch-images FAILED: ${e.message}`);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ===== ĐĂNG BÀI INSTAGRAM =====
