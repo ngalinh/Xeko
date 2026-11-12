@@ -356,8 +356,8 @@ app.post('/api/rednote/fetch-images', async (req, res) => {
   if (!url) return res.status(400).json({ error: 'Thiếu url bài viết' });
 
   try {
-    const images = await queuePost(() => fetchRednoteImages(url), 'rednote');
-    res.json({ images });
+    const result = await queuePost(() => fetchRednoteImages(url), 'rednote');
+    res.json(result);
   } catch (e) {
     logger.error(`[rednote] fetch-images FAILED: ${e.message}`);
     res.status(500).json({ error: e.message });
