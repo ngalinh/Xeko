@@ -29,10 +29,12 @@
   function render() {
     const query = $('customerSearch').value.trim().toLocaleLowerCase('vi-VN');
     const status = $('customerStatus').value, account = $('customerAccount').value;
+    const dateFrom = $('customerDateFrom').value, dateTo = $('customerDateTo').value;
     const filtered = records.filter(r => (account === 'all' || r.profile === account)
       && (!query || [r.url, r.assessment?.name || r.name, r.assessment?.recipientId || r.uid].some(v => String(v || '').toLocaleLowerCase('vi-VN').includes(query)))
       && (status === 'all' || status === 'available' && canSelect(r) || status === 'contacted' && !canSelect(r) || status === 'sent' && r.sent || status === 'assessed' && r.assessment
-        || status === 'manual' && r.manual || status === 'imported' && !r.assessment && !r.sent || status === 'attention' && attention(r)));
+        || status === 'manual' && r.manual || status === 'imported' && !r.assessment && !r.sent || status === 'attention' && attention(r))
+      && (!dateFrom || r.sentAt?.slice(0, 10) >= dateFrom) && (!dateTo || r.sentAt?.slice(0, 10) <= dateTo));
     page = Math.min(page, Math.max(0, Math.ceil(filtered.length / pageSize) - 1));
     $('customerRecords').replaceChildren();
     visible = filtered.slice(page * pageSize, (page + 1) * pageSize);
@@ -145,7 +147,7 @@
       const body={name:$('newCustomerName').value,url:$('newCustomerUrl').value,uid:$('newCustomerUid').value,profile:$('newCustomerProfile').value,notes:$('newCustomerNotes').value};
       const response=await fetch(base+'/api/ctv/customers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal});
       const data=await response.json();if(!response.ok)throw new Error(data.error || 'Không lưu được khách hàng');
-      $('customerCreateForm').reset();$('customerSearch').value='';$('customerStatus').value='all';$('customerAccount').value='all';page=0;
+      $('customerCreateForm').reset();$('customerSearch').value='';$('customerStatus').value='all';$('customerAccount').value='all';$('customerDateFrom').value='';$('customerDateTo').value='';page=0;
       saving=false;closeCreate();await load();$('customerCreateStatus').textContent='';
     } catch(e) { $('customerCreateStatus').textContent=e.name==='AbortError'?'Chưa xác nhận lưu thành công. Bấm Cập nhật để kiểm tra trước khi thử lại.':e.message; }
     finally {clearTimeout(timer);saving=false;updateSave();$('cancelAddCustomer').disabled=false;$('addCustomer').disabled=false;$('refreshCustomers').disabled=loading;}
@@ -165,7 +167,7 @@
     if (detail.accepted) { chosen.clear(); render(); }
     else $('customerSelectionStatus').textContent = detail.error || 'Chưa thể mở chiến dịch. Vui lòng thử lại.';
   };
-  $('customerSearch').oninput = $('customerStatus').onchange = $('customerAccount').onchange = () => { page = 0; render(); };
+  $('customerSearch').oninput = $('customerStatus').onchange = $('customerAccount').onchange = $('customerDateFrom').onchange = $('customerDateTo').onchange = () => { page = 0; render(); };
   $('customerPrevious').onclick = () => { page--; render(); };
   $('customerNext').onclick = () => { page++; render(); };
 })();
