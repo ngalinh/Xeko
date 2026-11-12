@@ -379,7 +379,7 @@ class CtvService {
     const c = this.staged(id, owner);
     const lead = c.leads.find(l => l.id === leadId);
     if (!lead) fail('Không tìm thấy khách trong chiến dịch');
-    if (!['unconfirmed', 'review', 'failed'].includes(lead.state)) fail('Chỉ chỉnh được trạng thái cho khách đang ở trạng thái cần kiểm tra');
+    if (!['unconfirmed', 'review', 'failed', 'pending', 'qualified'].includes(lead.state)) fail('Chỉ chỉnh được trạng thái cho khách chưa gửi hoặc đang cần kiểm tra');
     if (!['sent', 'failed'].includes(state)) fail('Trạng thái không hợp lệ');
     if (reason !== undefined && (typeof reason !== 'string' || reason.length > 300)) fail('Lý do không hợp lệ');
     const previousState = lead.state;

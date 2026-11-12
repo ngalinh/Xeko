@@ -65,6 +65,12 @@ test('mark-sent also accepts state:"failed" to record a confirmed non-delivery, 
   s.markSent(c.id,'owner',{leadId:c.leads[0].id,state:'sent'});
   assert.equal(c.leads[0].state,'sent');assert.equal(c.leads[0].error,undefined);
 });
+test('mark-sent also works for a lead never attempted yet, when the operator already sent it manually outside the tool', async t => {
+  const {s}=setup(t),c=await analyzed(s);prepared(s,c);
+  assert.equal(c.leads[0].state,'qualified');
+  s.markSent(c.id,'owner',{leadId:c.leads[0].id});
+  assert.equal(c.leads[0].state,'sent');assert.ok(c.leads[0].manualConfirm.by);assert.equal(c.leads[0].manualConfirm.from,'qualified');
+});
 test('UID lookup preserves AI, invalidates approvals and runs in account queue without sending', async t => {
   const {s,browser,sent,inspected}=setup(t);
   const c=await analyzed(s); const oldToken=prepared(s,c);
