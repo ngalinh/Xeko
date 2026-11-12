@@ -4,7 +4,8 @@ const { safeLaunch } = require('../utils/playwright-launch');
 // RedNote (Xiaohongshu) là SPA — ảnh được JS render vào <meta property="og:image">
 // (và lặp lại trong DOM bài viết) sau khi trang load, không có trong HTML tĩnh ban đầu.
 async function fetchRednoteImages(url) {
-  const browser = await safeLaunch({ headless: true });
+  // headed (không headless) — để sếp xem trực tiếp trên VPS Windows lúc debug/chạy
+  const browser = await safeLaunch({ headless: false, args: ['--start-maximized'] });
   try {
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 18000 });
