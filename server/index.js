@@ -13,7 +13,6 @@ const playwright = process.env.PLAYWRIGHT_LOCAL_URL
 const postLogger = require('./src/database/post-logger');
 const seedStore = require('./src/database/seed-store');
 const { queuePost } = require('./src/utils/post-queue');
-const { fetchRednoteImages } = require('./src/rednote/fetch-images');
 const { groupDelayMs } = require('./src/utils/post-delays');
 const retryQueue = require('./src/utils/retry-queue');
 
@@ -906,7 +905,7 @@ app.post('/api/rednote/fetch-images', async (req, res) => {
 
   queuePost(async () => {
     try {
-      const images = await fetchRednoteImages(url);
+      const images = await playwright.fetchRednoteImages(url);
       setJobResult(jobId, { success: images.length > 0, images });
     } catch (e) {
       logger.error(`[rednote] job ${jobId} FAILED: ${e.message}`);

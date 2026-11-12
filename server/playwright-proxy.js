@@ -147,6 +147,13 @@ function profileExists(_profileName) {
   return true;
 }
 
+// RedNote fetch-images chạy trên máy local (Windows VPS có Chromium thật) —
+// container cloud không có đủ lib hệ thống (libnspr4...) để chạy Chromium headless.
+async function fetchRednoteImages(url) {
+  const r = await callLocal('POST', '/api/rednote/fetch-images', { url });
+  return r.images || [];
+}
+
 // Poll /api/zalo/status/:id trên máy local cho đến khi job Zalo xong
 async function pollZaloLocalJob(jobId, maxWaitMs = 10 * 60 * 1000) {
   let start = Date.now();
@@ -317,4 +324,5 @@ module.exports = {
   scrapePost,
   postToZaloGroup,
   closeBrowser,
+  fetchRednoteImages,
 };

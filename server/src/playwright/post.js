@@ -12,6 +12,7 @@ const funMsg = require('../utils/fun-messages');
 const { getFbProxyForProfile } = require('../utils/proxy');
 const { getProfileDeviceFingerprint } = require('../utils/device-fingerprint');
 const { checkProxy } = require('../utils/proxy-health');
+const { fetchRednoteImages } = require('../rednote/fetch-images');
 
 // Browser context theo profile key
 const browsers = {};
@@ -3515,4 +3516,4 @@ async function postComment({ postUrl, message, imagePaths, profile }) {
   }
 }
 
-module.exports = { getBrowser, setProfile, profileExists, getActiveProfile, postToPersonal, postToGroup, postToPage, postPersonalAndShareToGroups, quickPostToPersonalAndGroups, scrapePost, closeBrowser, postComment };
+module.exports = { getBrowser, setProfile, profileExists, getActiveProfile, postToPersonal, postToGroup, postToPage, postPersonalAndShareToGroups, quickPostToPersonalAndGroups, scrapePost, closeBrowser, postComment, fetchRednoteImages };
