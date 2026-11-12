@@ -404,7 +404,7 @@ class CtvService {
   // cho tiến trình gửi tin, không phải bước này).
   async remindBySend(lead, profile) {
     let commented;
-    try { commented = await this.browser.comment(profile, lead.url, 'Chị ơi, chị check tn e nhé ạ'); }
+    try { commented = await this.browser.comment(profile, lead.assessment?.actualUrl || lead.url, 'Chị ơi, chị check tn e nhé ạ'); }
     catch (e) { commented = { success: false, error: e.message }; }
     if (commented?.success) { lead.commentedAt = new Date().toISOString(); delete lead.commentError; } else lead.commentError = commented?.error || 'Không bình luận được trên bài viết';
     this.save();
