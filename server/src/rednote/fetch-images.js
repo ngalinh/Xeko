@@ -9,7 +9,7 @@ async function fetchRednoteImages(url) {
   try {
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 18000 });
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(8000); // debug: để đủ thời gian xem/chụp màn hình cửa sổ Chrome thật
 
     const metaImages = await page.$$eval(
       'meta[property="og:image"]',
