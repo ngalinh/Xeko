@@ -125,14 +125,6 @@ function pageComposeRecipientPreview({ token, expectedName }) {
   if (token) container.setAttribute('data-xeko-recipient-chat', token);
   return (container.innerText || '').trim().slice(0, 500);
 }
-// Runs in the page: a brand-new thread (first message to someone not yet a
-// friend) shows its receipt as plain visible text ("Đã gửi 8 phút trước"),
-// not inside a [role="row"] history item with a clean aria-label like an
-// established conversation. Confirmed via live DOM inspection.
-function newThreadSentReceipt() {
-  return [...document.querySelectorAll('span, div')].some(e =>
-    e.children.length === 0 && /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)\b/i.test((e.textContent || '').trim()));
-}
 function nameMatchesPreview(previewText, expectedName) {
   if (!expectedName || previewText === null) return false;
   const preview = normalized(previewText).value;
@@ -921,14 +913,6 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
     await verify();
     if (normalizeCaption(await box.innerText()) !== normalizeCaption(message)) throw new Error('Nội dung trong ô soạn đã thay đổi sau khi đính kèm ảnh; chưa gửi tin nhắn');
   }
-  const confirmedCount = () => conversation.locator('[role="row"]').evaluateAll((rows, text) => rows.filter(row => {
-    const exact = [...row.querySelectorAll('[dir="auto"]')].some(e => e.textContent.trim() === text);
-    const pattern = /^(Sent|Delivered|Đã gửi|Đã chuyển|Đã nhận)\b/i;
-    const receipt = [...row.querySelectorAll('[aria-label]')].some(e => pattern.test(e.getAttribute('aria-label') || ''))
-      || [...row.querySelectorAll('span, div')].some(e => e.children.length === 0 && pattern.test((e.textContent || '').trim()));
-    return exact && receipt;
-  }).length, message.trim());
-  const beforeCount = await confirmedCount();
   if (cancelled()) { await box.fill(''); throw new Error('Đã dừng trước khi gửi'); }
   await verify();
   // Durable reservation BEFORE Enter. Never automatically retry an ambiguous send.
@@ -936,29 +920,11 @@ async function send(page, lead, message, beforeSubmit, cancelled = () => false, 
   report('sending', 'Đang bấm gửi tin nhắn');
   beforeSubmit();
   await box.press('Enter');
-  report('confirming', `Đang chờ Messenger xác nhận đã gửi (tối đa ${media ? 45 : 15} giây)`);
-  for (let i = 0; i < (media ? 45 : 15); i++) {
-    if (cancelled()) return { state: 'unconfirmed', reason: 'Đã dừng sau thao tác gửi; cần kiểm tra Messenger. Không tự gửi lại.' };
-    await page.waitForTimeout(1000);
-    // The message was already sent before this loop starts; a benign DOM change
-    // (e.g. a "not friends" preview turning into a real thread right after the
-    // first message) must not abort confirmation — just skip re-verifying this tick.
-    if (media) { try { await verify(); } catch {} }
-    // A brand-new thread has no [role="row"] history to count receipts from;
-    // fall back to the plain-text "Đã gửi…"/"Sent…" caption shown under the bubble
-    // for the TEXT part only. This caption appears as soon as Messenger submits the
-    // message client-side — it says nothing about whether a clipboard-pasted image
-    // finished uploading to Facebook's servers, so it must never stand in for image
-    // confirmation (that previously let a campaign report "sent" with an image that
-    // then vanished on reload because the upload hadn't actually completed).
-    const bundleSent = nameMatchMode ? await page.evaluate(newThreadSentReceipt) : null;
-    const textSent = bundleSent !== null ? bundleSent : await confirmedCount() > beforeCount;
-    const imagesSent = !media || await media.confirmedImages() >= media.before + media.count;
-    if (textSent && imagesSent) { report('sent', 'Messenger đã xác nhận gửi'); return { state: 'sent', reason: media ? 'Messenger xác nhận ảnh và nội dung tin nhắn đã gửi/đã chuyển' : 'Messenger hiển thị trạng thái đã gửi/đã chuyển cho tin nhắn mới' }; }
-    if (i > 0 && i % 5 === 0) report('confirm_waiting', `Vẫn đang chờ Messenger xác nhận… (${i}s)`);
-  }
-  // DOM receipts differ across Messenger variants: uncertainty must remain explicit.
-  return { state: 'unconfirmed', reason: media ? 'Đã thao tác gửi ảnh kèm nội dung nhưng chưa xác nhận đầy đủ. Kiểm tra Messenger; không tự gửi lại.' : 'Đã thao tác gửi; cần kiểm tra Messenger để xác nhận. Không tự gửi lại.' };
+  // Theo yêu cầu: không chờ Messenger xác nhận receipt nữa (cơ chế đó từng báo
+  // sai "chưa xác nhận" dù tin đã gửi thật) — bấm Enter xong coi như đã gửi,
+  // chuyển ngay sang bước bình luận nhắc khách.
+  report('sent', 'Đã bấm gửi tin nhắn');
+  return { state: 'sent', reason: media ? 'Đã bấm gửi tin nhắn kèm ảnh' : 'Đã bấm gửi tin nhắn' };
 }
 
 function createBrowserAdapter(playwright = require('../playwright/post')) {
