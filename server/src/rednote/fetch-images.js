@@ -9,7 +9,10 @@ async function fetchRednoteImages(url) {
   // headed (không headless) — để sếp xem trực tiếp trên VPS Windows lúc debug/chạy
   const browser = await safeLaunch({ headless: false, args: ['--start-maximized'] });
   try {
-    const page = await browser.newPage();
+    // viewport: null — khớp kích thước cửa sổ thật (--start-maximized), Playwright
+    // mặc định ép viewport ~1280x720 bất kể cửa sổ OS được maximize hay không.
+    const context = await browser.newContext({ viewport: null });
+    const page = await context.newPage();
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 12000 });
     // Best-effort: đợi trang hết gọi API ngầm (SPA), nhưng không chặn nếu trang
     // có polling/analytics chạy mãi không bao giờ "idle".
@@ -37,7 +40,20 @@ async function fetchRednoteImages(url) {
         .map((el) => el.src)
         .filter(Boolean)
     );
-    return [...new Set(sizedImages)];
+    if (sizedImages.length > 0) return [...new Set(sizedImages)];
+
+    // Fallback 3: RedNote/Xiaohongshu thường hiển thị ảnh bài viết qua CSS
+    // background-image trên <div> (carousel), không phải thẻ <img>.
+    const bgImages = await page.$$eval('*', (els) =>
+      els
+        .filter((el) => el.offsetWidth > 200 && el.offsetHeight > 200)
+        .map((el) => {
+          const m = getComputedStyle(el).backgroundImage.match(/url\(["']?([^"')]+)["']?\)/);
+          return m ? m[1] : null;
+        })
+        .filter(Boolean)
+    );
+    return [...new Set(bgImages)];
   } finally {
     await browser.close();
   }
