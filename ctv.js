@@ -594,7 +594,7 @@
       const sent=c.leads.filter(l=>l.state==='sent').length;
       const count=cell('Khách hàng',element('strong',String(c.leads.length)));
       const sentCell=cell('Đã gửi',element('strong',String(sent)));
-      const category=historyCategory(c), status=element('span',labels[c.state] || c.state,'badge '+({active:'blue',complete:'good',review:'warn',attention:'warn'}[category]));
+      const category=historyCategory(c);
       const diagnostic=cleanDiagnostic(c.error);
       const infoText=element('span',diagnostic || '—','muted history-info-text');
       if (diagnostic) infoText.title=diagnostic;
@@ -606,7 +606,7 @@
       const pick=element('input');pick.type='checkbox';pick.disabled=busy||category==='active';pick.checked=historyPicks.has(c.id);
       pick.setAttribute('aria-label','Chọn chiến dịch '+c.name);
       pick.onchange=()=>{if(pick.checked)historyPicks.add(c.id);else historyPicks.delete(c.id);updateHistorySelection();};
-      row.append(cell('',pick,'history-pick'),cell('STT',element('span',String(historyPage * historyPageSize+index+1)),'history-index'),date,identity,account,count,sentCell,cell('Trạng thái',status),info,actions);
+      row.append(cell('',pick,'history-pick'),cell('STT',element('span',String(historyPage * historyPageSize+index+1)),'history-index'),date,identity,account,count,sentCell,info,actions);
       $('campaigns').append(row);
     }
     if (!visible.length) $('campaigns').append(element('p',campaigns.length?'Không có chiến dịch phù hợp. Thử đổi từ khoá hoặc bộ lọc.':'Chưa có chiến dịch. Bấm “Chiến dịch mới” để bắt đầu.','history-empty'));
