@@ -334,6 +334,15 @@ test('a failed reminder comment after an unconfirmed send records commentError w
   const c=await analyzed(s);s.sendApproved(c.id,'owner',prepared(s,c));await settle(s);
   assert.equal(c.leads[0].state,'unconfirmed');assert.equal(c.leads[0].commentError,'Không tìm thấy ô bình luận trên trang');assert.ok(!c.leads[0].commentedAt);
 });
+test('reminder comment targets the resolved actualUrl, not the raw imported link (redirect/share links differ)',async t=>{
+  const commented=[];
+  const {s}=setup(t,{
+    inspect:async(_,url)=>({url,actualUrl:url+'-resolved',name:'Khách '+recipientId(url),criteriaVersion:'us-website-products-v2',eligible:true,recipientId:recipientId(url)}),
+    comment:async(profile,url)=>{commented.push(url);return {success:true};},
+  });
+  const c=await analyzed(s);s.sendApproved(c.id,'owner',prepared(s,c));await settle(s);
+  assert.deepEqual(commented,['https://www.facebook.com/123-resolved','https://www.facebook.com/456-resolved']);
+});
 test('a send error for one lead does not stop the rest of the batch, but a fatal session error does',async t=>{
   const {s,browser}=setup(t,{send:async(_,a)=>{if(a.recipientId==='123')throw new Error('Không còn xác minh được đúng khách qua tên hiển thị trong bản xem trước; đã dừng');return {state:'sent'};}});
   const c=await analyzed(s);s.sendApproved(c.id,'owner',prepared(s,c));await settle(s);
