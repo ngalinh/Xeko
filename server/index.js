@@ -905,8 +905,8 @@ app.post('/api/rednote/fetch-images', async (req, res) => {
 
   queuePost(async () => {
     try {
-      const images = await playwright.fetchRednoteImages(url);
-      setJobResult(jobId, { success: images.length > 0, images });
+      const result = await playwright.fetchRednoteImages(url);
+      setJobResult(jobId, { success: result.images.length > 0, images: result.images, debug: result.debug });
     } catch (e) {
       logger.error(`[rednote] job ${jobId} FAILED: ${e.message}`);
       setJobError(jobId, e.message);

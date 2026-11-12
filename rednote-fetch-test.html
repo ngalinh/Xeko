@@ -81,6 +81,12 @@ btn.addEventListener('click', async () => {
     if (result.error) throw new Error(result.error);
     if (!result.images || result.images.length === 0) {
       setStatus('Không tìm thấy ảnh nào.');
+      if (result.debug) {
+        const pre = document.createElement('pre');
+        pre.style.cssText = 'white-space:pre-wrap;font-size:12px;color:#65676b;margin-top:8px;';
+        pre.textContent = JSON.stringify(result.debug, null, 2);
+        $('grid').append(pre);
+      }
       return;
     }
 
