@@ -1059,141 +1059,69 @@ async function submitPost(page, shouldCancel = null) {
   // Phải attach listener TRƯỚC khi click — response GraphQL về sau vài trăm ms
   const listener = listenForPostUrl(page, { timeoutMs: 25000, debug: false });
 
-  // Bấm nút "Đăng"/"Tiếp" CHẮC TAY bằng nhiều chiến lược (giống qpStep6Submit).
-  // Nút "Đăng" của FB lúc là div[aria-label="Đăng"], lúc chỉ là <span>Đăng</span>
-  // bọc trong role=button KHÔNG kèm aria-label — nên chỉ dò aria-label sẽ trượt
-  // (đúng lỗi đã thấy: hộp thoại còn mở, nút Đăng sẵn sàng mà bot không bấm được).
-  // Ưu tiên "Đăng" (submit cuối) trước "Tiếp" (chuyển màn của bài cá nhân).
-  // Nhắm ĐÚNG hộp thoại composer theo tiêu đề, dùng .last() trong nhóm đã khớp
-  // (bài cá nhân qua 2 màn: "Tạo bài viết" → "Cài đặt bài viết", dialog của màn
-  // sau luôn render sau) — KHÔNG đòi dialog phải chứa đúng 1 ô nhập như
-  // resolvePostSurface, vì màn "Cài đặt bài viết" không có ô nhập nào cả.
-  const clickPostButton = async () => {
-    await page.evaluate(() => {
-      document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
-    });
-    const composer = page.locator('div[role="dialog"]')
-      .filter({ hasText: /Tạo bài viết|Create post|Cài đặt bài viết|Post settings/i });
-    const dialog = (await composer.count().catch(() => 0)) ? composer.last() : page.locator('div[role="dialog"]').last();
-
-    // A. aria-label exact, bỏ qua nút disabled.
-    for (const lbl of ['Đăng', 'Post', 'Tiếp', 'Next']) {
-      try {
-        const el = dialog.locator(`[aria-label="${lbl}"]:not([aria-disabled="true"])`).first();
-        if (await el.count()) { await el.click({ force: true, timeout: 2500 }); return `aria=${lbl}`; }
-      } catch {}
-    }
-    // B. getByRole(button, name exact) — bắt được nút accessible-name không có aria-label.
-    for (const lbl of ['Đăng', 'Post', 'Tiếp', 'Next']) {
-      try {
-        const el = dialog.getByRole('button', { name: lbl, exact: true }).first();
-        if (await el.count()) { await el.click({ force: true, timeout: 2500 }); return `role=${lbl}`; }
-      } catch {}
-    }
-    // B2. text exact → leo lên [role="button"] gần nhất.
-    for (const lbl of ['Đăng', 'Post', 'Tiếp', 'Next']) {
-      try {
-        const el = dialog.getByText(lbl, { exact: true })
-          .locator('xpath=ancestor-or-self::*[@role="button"][1]').first();
-        if ((await el.count()) && (await el.getAttribute('aria-disabled')) !== 'true') {
-          await el.click({ force: true, timeout: 2500 }); return `text=${lbl}`;
-        }
-      } catch {}
-    }
-    // C. DỰ PHÒNG cuối: quét mọi div[role="dialog"] khớp tiêu đề (ưu tiên), leo
-    // span/div text lên role="button".
-    const viaDom = await page.evaluate(() => {
-      const all = Array.from(document.querySelectorAll('div[role="dialog"]'));
-      const titled = all.filter(d => /Tạo bài viết|Create post|Cài đặt bài viết|Post settings/i.test(d.textContent || ''));
-      const scopes = (titled.length ? titled : all).reverse();
-      for (const dlg of scopes) {
-        for (const want of ['Đăng', 'Post', 'Tiếp', 'Next']) {
-          for (const s of dlg.querySelectorAll('span, div')) {
-            if ((s.textContent || '').trim() !== want) continue;
-            let el = s;
-            for (let i = 0; i < 8 && el; i++, el = el.parentElement) {
-              if (el.getAttribute && el.getAttribute('role') === 'button' && el.getAttribute('aria-disabled') !== 'true') {
-                const r = el.getBoundingClientRect();
-                if (r.width > 0 && r.height > 0) { el.scrollIntoView({ block: 'center' }); el.click(); return want; }
-              }
-            }
-          }
-        }
-      }
-      return null;
-    });
-    if (viaDom) return `dom=${viaDom}`;
-    logger.warn('submitPost: không tìm thấy nút Đăng/Tiếp trong dialog composer');
-    await _diagPostSurfaceWalk(page);
-    return null;
-  };
-  await page.evaluate(() => {
-    document.querySelectorAll('div[role="dialog"]').forEach(d => d.scrollTop = d.scrollHeight);
-  });
-  await randomDelay(800, 1200);
-
-  // Vòng lặp: bấm "Tiếp"/"Đăng" rồi chờ dấu hiệu thành công —
-  //  (1) hộp thoại tạo bài đóng, HOẶC (2) bắt được postUrl từ GraphQL.
-  // Bài cá nhân qua 2 màn (Tạo bài viết → Cài đặt bài viết): bấm "Tiếp" KHÔNG
-  // làm hộp thoại đóng → KHÔNG chờ đóng (phí ~6s), chỉ chờ nút "Đăng" hiện rồi
-  // bấm ngay (nhanh như bản cũ). Chỉ khi bấm "Đăng" mới chờ hộp thoại đóng hẳn.
+  // Định vị khung soạn bài bằng resolvePostSurface — hàm này xử lý được cả
+  // hộp thoại giữa màn hình (bài cá nhân qua 2 màn "Tạo bài viết" → "Cài đặt
+  // bài viết") LẪN composer FULL-PAGE không có div[role="dialog"] nào cả (hồ
+  // sơ chuyên trang/professional profile mở "Tạo bài viết" như 1 trang riêng,
+  // không phải overlay — xem comment ở qpStep3ClickNext). Cách cũ chỉ tìm nút
+  // trong div[role="dialog"] nên luôn trượt với composer dạng full-page này —
+  // đúng lỗi "không bấm được nút Đăng" dù nút hiện rõ trên màn hình.
+  // Ưu tiên bấm "Đăng" (submit cuối) trước "Tiếp" (chuyển màn của bài cá nhân) —
+  // composer full-page không có bước "Tiếp", đi thẳng "Đăng".
   let success = false;
   let lastClick = null;
   for (let i = 0; i < 6; i++) {
-    // Kiểm tra "⏹ Dừng" NGAY TRƯỚC mỗi lần bấm — QUAN TRỌNG nhất ở vòng lặp NÀY: sau khi
-    // bấm "Tiếp" ở lần trước, người dùng đang đứng ở màn "Cài đặt bài viết" (đúng lúc dễ
-    // phát hiện gõ sai nội dung nhất) — lần bấm "Đăng" kế tiếp mới là submit THẬT. Trước
-    // đây checkpoint chỉ nằm ở NGOÀI submitPost() (trước khi gọi hàm này lần đầu) nên nếu
-    // bấm Dừng sau khi submitPost() đã bắt đầu chạy (thường chỉ 1-2s sau khi gõ xong) thì
-    // vẫn cứ đăng — vòng lặp bên trong không có cách nào biết mà dừng lại.
+    let surface;
+    try {
+      surface = await resolvePostSurface(page, { requireEditor: false, timeout: 4000 });
+    } catch (e) {
+      // resolvePostSurface tự chờ/poll bên trong suốt timeout rồi mới timeout —
+      // lặp lại ở đây vô ích (DOM không đổi), coi như thất bại hẳn ngay.
+      logger.warn(`submitPost: ${e.message}`);
+      await _diagPostSurfaceWalk(page);
+      return { success: false, cancelled: true, error: e.message };
+    }
+
+    // Kiểm tra "⏹ Dừng" NGAY SAU KHI resolve xong, TRƯỚC mỗi lần bấm — QUAN TRỌNG
+    // nhất ở vòng lặp NÀY: sau khi bấm "Tiếp" ở lần trước, người dùng đang đứng ở
+    // màn "Cài đặt bài viết" (đúng lúc dễ phát hiện gõ sai nội dung nhất) — lần
+    // bấm "Đăng" kế tiếp mới là submit THẬT.
     if (typeof shouldCancel === 'function' && shouldCancel()) {
       logger.info(`submitPost: đã bị dừng theo yêu cầu người dùng ở lần ${i + 1} — không bấm tiếp`);
       try { await page.keyboard.press('Escape'); } catch {}
       return { success: false, cancelled: true };
     }
-    const clicked = await clickPostButton();
-    if (clicked) lastClick = clicked;
-    logger.info(`submitPost: lần ${i + 1}${clicked ? ` đã bấm "${clicked.slice(5)}"` : ' — chưa bấm được nút'}`);
 
-    // Không thấy nút (có thể đang render) → chờ ngắn rồi thử lại, đừng phí 6s.
-    if (!clicked) { await randomDelay(500, 900); continue; }
-
-    // Vừa bấm "Tiếp"/"Next" → chuyển sang màn "Cài đặt bài viết". Chờ NGẮN cho
-    // nút "Đăng" xuất hiện rồi sang vòng sau bấm ngay (không chờ hộp thoại đóng).
-    if (/Tiếp|Next/i.test(clicked)) {
-      await page.waitForFunction(() => {
-        const dialogs = document.querySelectorAll('div[role="dialog"]');
-        const dlg = dialogs[dialogs.length - 1];
-        if (!dlg) return false;
-        if (dlg.querySelector('[aria-label="Đăng"],[aria-label="Post"]')) return true;
-        for (const s of dlg.querySelectorAll('span, div')) {
-          const t = (s.textContent || '').trim();
-          if (t === 'Đăng' || t === 'Post') return true;
-        }
-        return false;
-      }, { timeout: 4000 }).catch(() => {});
-      continue;
+    let clicked = null;
+    for (const lbl of ['Đăng', 'Post', 'Tiếp', 'Next']) {
+      const btn = surface.getByRole('button', { name: lbl, exact: true });
+      if (!(await btn.count().catch(() => 0))) continue;
+      try {
+        await btn.click({ force: true, timeout: 2500 });
+        clicked = lbl;
+        break;
+      } catch {}
     }
+    if (clicked) lastClick = clicked;
+    logger.info(`submitPost: lần ${i + 1}${clicked ? ` đã bấm "${clicked}"` : ' — chưa bấm được nút'}`);
+
+    // resolvePostSurface đã đảm bảo có nút khớp regex Đăng/Post/Tiếp/Next trong
+    // surface — không bấm được là bất thường (vd click bị chặn), khỏi lặp vô ích.
+    if (!clicked) break;
+
+    // Vừa bấm "Tiếp"/"Next" → chuyển sang màn "Cài đặt bài viết", resolve lại ở vòng sau.
+    if (clicked === 'Tiếp' || clicked === 'Next') continue;
 
     // Vừa bấm "Đăng"/"Post" (submit cuối) → bài THẬT SỰ được gửi từ đây, nên BÂY GIỜ
     // mới bắt đầu đếm timeout listener (không phải từ lúc mở composer — bài cá nhân
     // qua 2 màn, đếm sớm sẽ hết giờ trước khi đăng xong → mất link).
     listener.arm();
-    // Vừa bấm "Đăng"/"Post" (submit cuối) → chờ hộp thoại composer ĐÓNG hẳn.
-    const closed = await page.waitForFunction(() => {
-      const dialogs = document.querySelectorAll('div[role="dialog"]');
-      for (const d of dialogs) {
-        const t = d.textContent || '';
-        if (t.includes('Tạo bài viết') || t.includes('Create post') || t.includes('Create Post') ||
-            t.includes('Cài đặt bài viết') || t.includes('Post settings') || t.includes('Post Settings')) return false;
-      }
-      return true;
-    }, { timeout: 5000 }).then(() => true).catch(() => false);
+    const closed = await surface.waitFor({ state: 'hidden', timeout: 5000 }).then(() => true).catch(() => false);
     if (closed) { success = true; break; }
     await randomDelay(600, 1000);
   }
 
-  // postUrl bắt được = bài ĐÃ được tạo, kể cả khi phát hiện đóng hộp thoại chập chờn.
+  // postUrl bắt được = bài ĐÃ được tạo, kể cả khi phát hiện đóng composer chập chờn.
   listener.arm(); // an toàn: nếu vòng lặp không vào nhánh "Đăng" cuối thì vẫn đếm từ đây
   const postUrl = await listener.promise;
   if (postUrl) success = true;
@@ -1201,11 +1129,11 @@ async function submitPost(page, shouldCancel = null) {
   if (!success) {
     const shot = `debug-failed-${Date.now()}.png`;
     await page.screenshot({ path: path.resolve(__dirname, `../../logs/${shot}`) }).catch(() => {});
-    logger.warn(`submitPost: thất bại — hộp thoại không đóng & không bắt được postUrl (lastClick=${lastClick || 'none'}, screenshot=${shot})`);
+    logger.warn(`submitPost: thất bại — composer không đóng & không bắt được postUrl (lastClick=${lastClick || 'none'}, screenshot=${shot})`);
     return { success: false, screenshot: shot };
   }
 
-  if (!postUrl) logger.warn('submitPost: thành công (hộp thoại đóng) nhưng không bắt được postUrl từ GraphQL');
+  if (!postUrl) logger.warn('submitPost: thành công (composer đóng) nhưng không bắt được postUrl từ GraphQL');
   return { success: true, postUrl };
 }
 
