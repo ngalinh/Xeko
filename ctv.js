@@ -582,8 +582,9 @@
   }
   function renderHistory() {
     const query = $('historySearch').value.trim().toLocaleLowerCase('vi-VN'), filter = $('historyFilter').value;
+    const dateFrom = $('historyFrom').value, dateTo = $('historyTo').value;
     const sorted = [...campaigns].sort((a,b) => b.createdAt.localeCompare(a.createdAt));
-    const visible = sorted.filter(c => (!query || [c.name,c.profile,accountName(c.profile)].some(v => String(v || '').toLocaleLowerCase('vi-VN').includes(query))) && (filter === 'all' || historyCategory(c) === filter));
+    const visible = sorted.filter(c => (!query || [c.name,c.profile,accountName(c.profile)].some(v => String(v || '').toLocaleLowerCase('vi-VN').includes(query))) && (filter === 'all' || historyCategory(c) === filter) && (!dateFrom || c.createdAt.slice(0,10) >= dateFrom) && (!dateTo || c.createdAt.slice(0,10) <= dateTo));
     historyPage = Math.min(historyPage, Math.max(0, Math.ceil(visible.length / historyPageSize) - 1));
     $('campaigns').replaceChildren();
     for (const [index,c] of visible.slice(historyPage * historyPageSize, (historyPage + 1) * historyPageSize).entries()) {
@@ -647,7 +648,7 @@
     notice(failed.length?`Đã xoá ${ids.length-failed.length}/${ids.length} chiến dịch. Lỗi: ${failed[0]}`:`Đã xoá ${ids.length} chiến dịch.`,!!failed.length);
   }
   $('deleteSelectedHistory').onclick=deleteSelectedCampaigns;
-  $('historySearch').oninput=$('historyFilter').onchange=()=>{historyPage=0;renderHistory();};
+  $('historySearch').oninput=$('historyFilter').onchange=$('historyFrom').onchange=$('historyTo').onchange=()=>{historyPage=0;renderHistory();};
   $('historyPrevious').onclick=()=>{historyPage--;renderHistory();};
   $('historyNext').onclick=()=>{historyPage++;renderHistory();};
   function render(c, reset = false) {
