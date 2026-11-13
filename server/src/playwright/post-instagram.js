@@ -1,5 +1,5 @@
 'use strict';
-const { resolveNewPostEntry, resolveDialogButton, resolveFileInput, resolveCaptionStep } = require('./ig-composer');
+const { resolveNewPostEntry, resolveDialogButton, resolveFileInput, resolveCaptionStep, resolveFloatingMenuItem } = require('./ig-composer');
 const { safeLaunchPersistentContext } = require('../utils/playwright-launch');
 const { withClipboard } = require('../utils/clipboard-queue');
 const path = require('path');
@@ -175,7 +175,7 @@ async function postToFeed(profileKey, message, imagePaths = [], shouldCancel = n
       const ratioBtn = await resolveDialogButton(page, '^(Chọn kích thước cắt|Select crop)$', { timeout: 6000 });
       await ratioBtn.click();
       await randomDelay(400, 800);
-      const original = await resolveDialogButton(page, '^(Original|Gốc)$', { timeout: 4000 });
+      const original = await resolveFloatingMenuItem(page, '^(Original|Gốc)$', { timeout: 4000 });
       await original.click();
       await randomDelay(400, 800);
       logger.info(`${tag} đã chọn tỷ lệ Original (không cắt ảnh)`);
