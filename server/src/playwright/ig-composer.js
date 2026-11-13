@@ -32,7 +32,10 @@ function findDialogButton({ token, textRe }) {
   for (const dialog of dialogs) {
     const buttons = [...dialog.querySelectorAll('button, [role="button"]')].filter(visible);
     for (const btn of buttons) {
-      const label = (btn.getAttribute('aria-label') || btn.textContent || '').trim();
+      // Nút icon-only (vd chọn tỷ lệ cắt ảnh) không có text — label nằm trên
+      // svg[aria-label] lồng bên trong, không phải trên chính thẻ button.
+      const svgLabel = btn.querySelector('svg[aria-label]')?.getAttribute('aria-label') || '';
+      const label = (btn.getAttribute('aria-label') || svgLabel || btn.textContent || '').trim();
       if (re.test(label) && btn.getAttribute('aria-disabled') !== 'true' && !btn.disabled) {
         btn.setAttribute('data-xeko-ig', token);
         return true;
