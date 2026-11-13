@@ -914,6 +914,63 @@ app.post('/api/rednote/fetch-images', async (req, res) => {
   }, 'rednote');
 });
 
+// ===== ĐĂNG BÀI INSTAGRAM =====
+// Instagram chỉ chạy được trên máy local (Chrome thật, chưa hỗ trợ chạy trên cloud).
+// Proxy nguyên request POST + polling job sang local-server.js thay vì chạy executePost
+// ở cloud như Facebook, vì postToFeed() instagram chưa được tách thành các bước nhỏ
+// proxy qua callLocal() như playwright-proxy.js làm cho Facebook.
+app.post('/api/post-instagram', upload.array('images', 10), async (req, res) => {
+  const { message, profile } = req.body;
+  const imagePaths = (req.files || []).map(f => f.path);
+
+  if (!getLocalUrl()) {
+    cleanupFiles(imagePaths);
+    return res.status(503).json({ error: 'Chưa cấu hình PLAYWRIGHT_LOCAL_URL — không có máy nào để đăng Instagram.' });
+  }
+
+  try {
+    const LOCAL_URL = getLocalUrl();
+    const FormData = require('form-data');
+    const form = new FormData();
+    form.append('profile', profile || '');
+    form.append('message', message || '');
+    for (const p of imagePaths) {
+      form.append('images', fs.createReadStream(p), { filename: path.basename(p) });
+    }
+    const fetchFn = await getFetch();
+    const response = await fetchFn(`${LOCAL_URL}/api/post-instagram`, {
+      method: 'POST',
+      headers: { ...form.getHeaders(), 'x-api-key': LOCAL_API_KEY },
+      body: form,
+    });
+    const data = await response.json();
+    return res.status(response.status).json(data);
+  } catch (e) {
+    return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
+  } finally {
+    cleanupFiles(imagePaths);
+  }
+});
+
+// Polling riêng cho job Instagram — KHÔNG dùng chung /api/job/:id vì jobId sinh ra
+// từ job store của local-server.js, không nằm trong postJobs (job store của cloud).
+app.get('/api/post-instagram-job/:id', async (req, res) => {
+  if (!getLocalUrl()) {
+    return res.status(503).json({ error: 'Chưa cấu hình PLAYWRIGHT_LOCAL_URL.' });
+  }
+  try {
+    const LOCAL_URL = getLocalUrl();
+    const fetchFn = await getFetch();
+    const response = await fetchFn(`${LOCAL_URL}/api/job/${encodeURIComponent(req.params.id)}`, {
+      headers: { 'x-api-key': LOCAL_API_KEY },
+    });
+    const data = await response.json();
+    return res.status(response.status).json(data);
+  } catch (e) {
+    return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
+  }
+});
+
 // ===== TEST: FB Quick Post v2 (dev only) — ASYNC JOB pattern =====
 // Test có thể chạy > 2 phút → cloud proxy nginx 502 nếu sync.
 // Trả jobId ngay, chạy background, UI poll /api/job/:id.
