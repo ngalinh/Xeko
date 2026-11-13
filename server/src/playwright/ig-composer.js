@@ -71,6 +71,30 @@ function findCaptionStep({ token }) {
   return false;
 }
 
+// Menu chọn tỷ lệ cắt ảnh (Original/1:1/4:5/16:9) được Instagram render ra NGOÀI
+// [role="dialog"] (menu nổi/portal riêng) — không dùng findDialogButton (chỉ tìm
+// trong dialog) mà tìm trên toàn trang.
+function findFloatingMenuItem({ token, textRe }) {
+  const re = new RegExp(textRe, 'i');
+  const visible = el => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+  const els = [...document.querySelectorAll('[role="button"], [role="menuitem"], button, li')].filter(visible);
+  for (const el of els) {
+    const svgLabel = el.querySelector('svg[aria-label]')?.getAttribute('aria-label') || '';
+    const label = (el.getAttribute('aria-label') || svgLabel || el.textContent || '').trim();
+    if (re.test(label)) {
+      el.setAttribute('data-xeko-ig', token);
+      return true;
+    }
+  }
+  return false;
+}
+
+async function resolveFloatingMenuItem(page, textRe, { timeout = 10000 } = {}) {
+  const token = randomUUID();
+  await page.waitForFunction(findFloatingMenuItem, { token, textRe }, { timeout });
+  return page.locator(`[data-xeko-ig="${token}"]`);
+}
+
 async function resolveNewPostEntry(page, { timeout = 10000 } = {}) {
   const token = randomUUID();
   await page.waitForFunction(findNewPostEntry, { token }, { timeout });
@@ -98,4 +122,4 @@ async function resolveCaptionStep(page, { timeout = 10000 } = {}) {
   };
 }
 
-module.exports = { resolveNewPostEntry, resolveDialogButton, resolveFileInput, resolveCaptionStep };
+module.exports = { resolveNewPostEntry, resolveDialogButton, resolveFileInput, resolveCaptionStep, resolveFloatingMenuItem };
