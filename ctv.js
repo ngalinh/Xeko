@@ -309,17 +309,17 @@
     const cursor = new Date(from + 'T00:00:00Z'), stop = new Date(to + 'T00:00:00Z');
     while (cursor <= stop) { dateSet.add(cursor.toISOString().slice(0, 10)); cursor.setUTCDate(cursor.getUTCDate() + 1); }
     const byOutcomeDay = { success: {}, fail: {} };
-    let total = 0;
+    const outcomeTotal = { success: 0, fail: 0 };
     for (const r of c) {
       const outcome = sendOutcome(r);
       if (!outcome) continue;
       const day = sendDayOf(r);
       if (!day || day < from || day > to) continue;
       byOutcomeDay[outcome][day] = (byOutcomeDay[outcome][day] || 0) + 1;
-      total++;
+      outcomeTotal[outcome]++;
     }
     const totalEl = $('sendChartTotal');
-    if (totalEl) totalEl.textContent = `Tổng: ${total}`;
+    if (totalEl) totalEl.textContent = `Tổng: ${outcomeTotal.success + outcomeTotal.fail} · ${outcomeTotal.success} thành công · ${outcomeTotal.fail} thất bại`;
     const dates = [...dateSet].sort();
     const outcomeStyle = { success: { label: 'Thành công', color: '#34d399' }, fail: { label: 'Thất bại', color: '#f87171' } };
     const datasets = ['success', 'fail'].map(outcome => ({
