@@ -96,10 +96,12 @@ async function getBrowser(profileKey) {
       await Promise.race([probe.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {});
       return browsers[key];
     } catch {
-      await Promise.race([
-        browsers[key].close(),
-        new Promise(r => setTimeout(r, 10000)),
-      ]).catch(() => {});
+      if (browsers[key]) {
+        await Promise.race([
+          browsers[key].close(),
+          new Promise(r => setTimeout(r, 10000)),
+        ]).catch(() => {});
+      }
       browsers[key] = null;
     }
   }
