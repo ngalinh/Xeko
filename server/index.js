@@ -929,22 +929,12 @@ app.post('/api/post-instagram', upload.array('images', 10), async (req, res) => 
   }
 
   try {
-    const LOCAL_URL = getLocalUrl();
-    const FormData = require('form-data');
-    const form = new FormData();
-    form.append('profile', profile || '');
-    form.append('message', message || '');
-    for (const p of imagePaths) {
-      form.append('images', fs.createReadStream(p), { filename: path.basename(p) });
-    }
-    const fetchFn = await getFetch();
-    const response = await fetchFn(`${LOCAL_URL}/api/post-instagram`, {
-      method: 'POST',
-      headers: { ...form.getHeaders(), 'x-api-key': LOCAL_API_KEY },
-      body: form,
-    });
-    const data = await response.json();
-    return res.status(response.status).json(data);
+    // callLocal() buffer toàn bộ multipart + set Content-Length trước khi gửi
+    // (xem playwright-proxy.js) — tự gửi FormData không Content-Length qua tunnel
+    // bị cắt giữa chừng, Multer báo "Unexpected end of form".
+    const { callLocal } = require('./playwright-proxy');
+    const data = await callLocal('POST', '/api/post-instagram', { profile: profile || '', message: message || '' }, imagePaths);
+    return res.json(data);
   } catch (e) {
     return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
   } finally {
