@@ -276,7 +276,6 @@
     }
   }
   let _sendChartType = 'bar', _sendDashChart = null;
-  const SEND_CHART_PALETTE = ['#245ddd', '#60a5fa', '#34d399', '#f59e0b', '#f472b6', '#a78bfa', '#f87171'];
   function setSendChartType(type) {
     _sendChartType = type;
     $('sendChartTypeBar')?.classList.toggle('active', type === 'bar');
@@ -309,25 +308,25 @@
     const dateSet = new Set();
     const cursor = new Date(from + 'T00:00:00Z'), stop = new Date(to + 'T00:00:00Z');
     while (cursor <= stop) { dateSet.add(cursor.toISOString().slice(0, 10)); cursor.setUTCDate(cursor.getUTCDate() + 1); }
-    const byProfileDay = {};
+    const byOutcomeDay = { success: {}, fail: {} };
     let total = 0;
     for (const r of c) {
-      if (!sendOutcome(r)) continue;
+      const outcome = sendOutcome(r);
+      if (!outcome) continue;
       const day = sendDayOf(r);
       if (!day || day < from || day > to) continue;
-      byProfileDay[r.profile] ||= {};
-      byProfileDay[r.profile][day] = (byProfileDay[r.profile][day] || 0) + 1;
+      byOutcomeDay[outcome][day] = (byOutcomeDay[outcome][day] || 0) + 1;
       total++;
     }
     const totalEl = $('sendChartTotal');
     if (totalEl) totalEl.textContent = `Tổng: ${total}`;
     const dates = [...dateSet].sort();
-    const profiles = Object.keys(byProfileDay);
-    const datasets = profiles.map((p, i) => ({
-      label: accountName(p),
-      data: dates.map(d => byProfileDay[p][d] || 0),
-      backgroundColor: SEND_CHART_PALETTE[i % SEND_CHART_PALETTE.length] + (_sendChartType === 'bar' ? 'cc' : '22'),
-      borderColor: SEND_CHART_PALETTE[i % SEND_CHART_PALETTE.length],
+    const outcomeStyle = { success: { label: 'Thành công', color: '#34d399' }, fail: { label: 'Thất bại', color: '#f87171' } };
+    const datasets = ['success', 'fail'].map(outcome => ({
+      label: outcomeStyle[outcome].label,
+      data: dates.map(d => byOutcomeDay[outcome][d] || 0),
+      backgroundColor: outcomeStyle[outcome].color + (_sendChartType === 'bar' ? 'cc' : '22'),
+      borderColor: outcomeStyle[outcome].color,
       borderWidth: _sendChartType === 'line' ? 2 : 0,
       pointRadius: _sendChartType === 'line' ? 3 : 0,
       fill: _sendChartType === 'line',
