@@ -77,7 +77,7 @@
       if (r.error) details.append(el('p', `Lưu ý: ${r.error}`));
       card.append(grid, details); $('customerRecords').append(card);
     }
-    $('customerLibraryStatus').textContent = `${filtered.length}/${records.length} khách · ${records.filter(r => r.sent).length} đã gửi · ${records.filter(r => r.assessment).length} đã đánh giá.`;
+    $('customerLibraryStatus').textContent = `${filtered.length}/${records.length} khách · ${filtered.filter(r => r.sent).length} đã gửi · ${filtered.filter(r => r.assessment).length} đã đánh giá.`;
     if (!filtered.length) $('customerRecords').append(el('p', records.length ? 'Không có khách phù hợp bộ lọc.' : 'Chưa có dữ liệu khách hàng. Khách sẽ được lưu khi bạn nhập danh sách vào chiến dịch.', 'muted'));
     $('customerPage').textContent = `Trang ${page + 1}/${Math.max(1, Math.ceil(filtered.length / pageSize))}`;
     $('customerPrevious').disabled = page === 0; $('customerNext').disabled = (page + 1) * pageSize >= filtered.length;
