@@ -540,7 +540,7 @@
     $('sendButton').disabled = !fresh || !unlocked || !$('confirmSend').checked;
     $('sendButton').textContent = `Duyệt & gửi ${c?.messagePreview?.messages.length || 0} tin nhắn`;
     for (const id of ['stopAnalysis','stopSending']) $(id).disabled = !unlocked || !!c?.cancelled;
-    $('messageLength').textContent = `${$('template').value.length}/2000`;
+    $('messageLength').textContent = `${$('template').value.length}/6000`;
     if (editing) $('previewHint').textContent = !c.messagePreview ? 'Đang tạo bản xem trước để kiểm tra từng người nhận và tin nhắn…' : fresh ? 'Đây là nội dung sẽ được gửi. Duyệt bên dưới để bắt đầu.' : 'Nội dung đã thay đổi; bản xem trước đang tự cập nhật…';
     if (editing) {
       const blocked = c.leads.filter(l => c.approvals.analysis?.leadIds.includes(l.id) && l.blockedReason);

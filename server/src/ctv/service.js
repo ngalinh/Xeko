@@ -12,6 +12,14 @@ const fail = message => { const e = new Error(message); e.status = 409; throw e;
 // 100%, tránh bị Messenger đánh dấu là tin nhắn hàng loạt giống nhau (spam).
 const MESSAGE_VARIATIONS = ['😊', '😄', '❤️', '👍', '🥰', '.', '..', '...'];
 const withRandomVariation = message => `${message} ${MESSAGE_VARIATIONS[Math.floor(Math.random() * MESSAGE_VARIATIONS.length)]}`;
+// Cho soạn nhiều nội dung cho cùng một chiến dịch, tách nhau bằng một dòng chỉ
+// chứa '---'; mỗi khách sẽ được random 1 trong các nội dung đó khi soạn tin,
+// để tin gửi hàng loạt không giống nhau 100% (tránh Messenger đánh dấu spam).
+const splitTemplateVariants = template => {
+  const parts = template.split(/\n\s*---\s*\n/).map(p => p.trim()).filter(Boolean);
+  return parts.length ? parts : [template.trim()];
+};
+const pickRandom = list => list[Math.floor(Math.random() * list.length)];
 
 class CtvService {
   constructor({ file, browser, queue = fn => fn(), pause = ms => new Promise(r => setTimeout(r, ms)) }) {
@@ -321,13 +329,14 @@ class CtvService {
   prepareMessages(id, owner, template, images = []) {
     const c = this.staged(id, owner);
     if (c.state !== 'message_review' || !c.approvals.analysis) fail('Cần duyệt kết quả AI trước khi soạn tin');
-    renderMessage(template, 'bạn');
+    const variants = splitTemplateVariants(template);
+    for (const v of variants) renderMessage(v, 'bạn');
     const attachments = normalizeImages(images);
     const messages = c.approvals.analysis.leadIds.map(id => {
       const l = c.leads.find(l => l.id === id);
       const blocked = this.reasonBlocked(l, c);
       if (blocked) fail(blocked);
-      return { leadId: id, recipientId: l.assessment.recipientId, name: l.assessment.name || 'bạn', url: l.url, message: withRandomVariation(renderMessage(template, l.assessment.name)) };
+      return { leadId: id, recipientId: l.assessment.recipientId, name: l.assessment.name || 'bạn', url: l.url, message: withRandomVariation(renderMessage(pickRandom(variants), l.assessment.name)) };
     });
     c.template = template.trim(); c.messagePreview = { token: crypto.randomUUID(), createdAt: new Date().toISOString(), images: attachments, messages };
     this.save(); return c;

@@ -30,6 +30,22 @@ test('images are fixed in preview, restored and forwarded only after approval',a
   browser.send=async(_,lead,message,reserve,cancelled,images)=>{calls++;assert.equal(images[0].dataUrl,sampleImage.dataUrl);reserve();return {state:'sent'};};
   assert.equal(calls,0);s.sendApproved(c.id,'owner',c.messagePreview.token);await settle(s);assert.equal(calls,2);
 });
+test('multiple message contents separated by --- are randomized per lead, each drawn from the given set',async t=>{
+  const {s}=setup(t),c=await analyzed(s,['https://facebook.com/123','https://facebook.com/456']);
+  s.approveAnalysis(c.id,'owner',c.leads.map(l=>l.id));
+  s.prepareMessages(c.id,'owner','Chào {name}, mẫu A.\n---\n{name} ơi, mẫu B.\n---\nMẫu C gửi {name}.');
+  for(const m of c.messagePreview.messages){
+    const name=c.leads.find(l=>l.id===m.leadId).assessment.name;
+    const variants=[`Chào ${name}, mẫu A.`,`${name} ơi, mẫu B.`,`Mẫu C gửi ${name}.`];
+    assert.ok(variants.some(v=>new RegExp(`^${v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')} (😊|😄|❤️|👍|🥰|\\.{1,3})$`).test(m.message)),m.message);
+  }
+});
+test('an invalid variant among multiple message contents blocks preparing any of them',async t=>{
+  const {s}=setup(t),c=await analyzed(s);
+  s.approveAnalysis(c.id,'owner',c.leads.map(l=>l.id));
+  assert.throws(()=>s.prepareMessages(c.id,'owner','Chào {name}\n---\nXin chào {other}'));
+  assert.equal(c.messagePreview,undefined);
+});
 test('invalid and oversized attachments cannot replace a valid preview',async t=>{
   const {s}=setup(t),c=await analyzed(s);const token=prepared(s,c);
   for(const images of [null,{},Array(6).fill(sampleImage),[{name:'x',dataUrl:'data:image/svg+xml;base64,PHN2Zz4='}],[{name:'x',dataUrl:'data:image/png;base64,YWJj'}],[{name:'x',dataUrl:'data:image/png;base64,'+Buffer.alloc(2*1024*1024+1).toString('base64')}]]){
