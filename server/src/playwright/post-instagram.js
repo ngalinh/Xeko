@@ -174,9 +174,13 @@ async function postToFeed(profileKey, message, imagePaths = [], shouldCancel = n
     try {
       const ratioBtn = await resolveDialogButton(page, '^(Chọn kích thước cắt|Select crop)$', { timeout: 6000 });
       await ratioBtn.click();
-      await randomDelay(400, 800);
-      const original = await resolveFloatingMenuItem(page, '^(Original|Gốc)$', { timeout: 4000 });
-      await original.click();
+      await randomDelay(500, 900);
+      // Click chuột vào đúng phần tử "Original" đã thử nhiều cách dò DOM (scope
+      // dialog, scope toàn trang, loại bản aria-hidden) đều không ăn — menu dạng
+      // listbox này thường tự đưa focus vào mục đầu tiên ("Original" luôn đứng
+      // đầu) ngay khi mở, nên dùng phím Enter thay vì click chuột.
+      await resolveFloatingMenuItem(page, '^(Original|Gốc)$', { timeout: 4000 });
+      await page.keyboard.press('Enter');
       await randomDelay(400, 800);
       logger.info(`${tag} đã chọn tỷ lệ Original (không cắt ảnh)`);
     } catch (e) {
