@@ -311,6 +311,7 @@ async function postComment({ postUrl, message, imagePaths = [], profile }) {
 }
 
 module.exports = {
+  callLocal,
   setProfile,
   profileExists,
   getActiveProfile,
