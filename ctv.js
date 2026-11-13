@@ -310,13 +310,17 @@
     const cursor = new Date(from + 'T00:00:00Z'), stop = new Date(to + 'T00:00:00Z');
     while (cursor <= stop) { dateSet.add(cursor.toISOString().slice(0, 10)); cursor.setUTCDate(cursor.getUTCDate() + 1); }
     const byProfileDay = {};
+    let total = 0;
     for (const r of c) {
       if (!sendOutcome(r)) continue;
       const day = sendDayOf(r);
       if (!day || day < from || day > to) continue;
       byProfileDay[r.profile] ||= {};
       byProfileDay[r.profile][day] = (byProfileDay[r.profile][day] || 0) + 1;
+      total++;
     }
+    const totalEl = $('sendChartTotal');
+    if (totalEl) totalEl.textContent = `Tổng: ${total}`;
     const dates = [...dateSet].sort();
     const profiles = Object.keys(byProfileDay);
     const datasets = profiles.map((p, i) => ({
