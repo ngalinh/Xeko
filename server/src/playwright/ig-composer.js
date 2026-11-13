@@ -8,7 +8,7 @@ const { randomUUID } = require('crypto');
 
 function findNewPostEntry({ token }) {
   const visible = el => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
-  const re = /^(Tạo bài viết|New post)$/i;
+  const re = /^(Tạo bài viết|New post|Create)$/i;
   const els = [...document.querySelectorAll('a, div[role="button"], button')].filter(visible);
   for (const el of els) {
     const label = (el.getAttribute('aria-label') || el.textContent || '').trim();
