@@ -8,10 +8,13 @@ const { randomUUID } = require('crypto');
 
 function findNewPostEntry({ token }) {
   const visible = el => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
-  const re = /^(Tạo bài viết|New post|Create)$/i;
+  const re = /^(Tạo bài viết|Bài viết mới|New post|Create)$/i;
   const els = [...document.querySelectorAll('a, div[role="button"], button')].filter(visible);
   for (const el of els) {
-    const label = (el.getAttribute('aria-label') || el.textContent || '').trim();
+    // Sidebar thu gọn (chỉ icon) không có text span hiển thị — nhãn thật nằm trên
+    // svg[aria-label] lồng bên trong, không phải trên chính thẻ a/button.
+    const svgLabel = el.querySelector('svg[aria-label]')?.getAttribute('aria-label') || '';
+    const label = (el.getAttribute('aria-label') || svgLabel || el.textContent || '').trim();
     if (re.test(label)) {
       el.setAttribute('data-xeko-ig', token);
       return true;
