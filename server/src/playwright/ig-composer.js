@@ -76,7 +76,13 @@ function findCaptionStep({ token }) {
 // trong dialog) mà tìm trên toàn trang.
 function findFloatingMenuItem({ token, textRe }) {
   const re = new RegExp(textRe, 'i');
-  const visible = el => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+  // Instagram giữ lại bản cũ của menu trong DOM khi đang chuyển động (transition
+  // đóng/mở), đánh dấu bằng aria-hidden="true" trên 1 wrapper cha — bản đó vẫn có
+  // getClientRects() > 0 (chưa unmount) nên dễ bị click nhầm thay vì bản đang hiện
+  // thật (aria-hidden="false"). Loại các phần tử nằm trong wrapper aria-hidden="true".
+  const visible = el => el.getClientRects().length > 0
+    && getComputedStyle(el).visibility !== 'hidden'
+    && !el.closest('[aria-hidden="true"]');
   const els = [...document.querySelectorAll('[role="button"], [role="menuitem"], button, li')].filter(visible);
   for (const el of els) {
     const svgLabel = el.querySelector('svg[aria-label]')?.getAttribute('aria-label') || '';
