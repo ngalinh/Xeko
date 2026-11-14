@@ -15221,7 +15221,10 @@
           .then(r => r.ok ? r.json() : null)
           .then(profilesData => {
             if (!profilesData) return;
-            _allProfilesCache = profilesData.facebook || [];
+            _allProfilesCache = [
+              ...(profilesData.facebook || []).map(p => ({ ...p, type: 'facebook' })),
+              ...(profilesData.instagram || []).map(p => ({ ...p, type: 'instagram' })),
+            ];
             const newMap = {};
             _allProfilesCache.forEach(p => { newMap[p.key] = p.name; });
             renderPermissionsTable(users, superAdmin, newMap);
@@ -15332,15 +15335,20 @@
       const wrap = document.getElementById('permProfilesList');
       const sel = new Set(selected || []);
       if (!_allProfilesCache.length) {
-        wrap.innerHTML = '<div style="padding:10px; text-align:center; color:#999; font-size:13px;">Chưa có profile FB nào.</div>';
+        wrap.innerHTML = '<div style="padding:10px; text-align:center; color:#999; font-size:13px;">Chưa có profile nào.</div>';
         return;
       }
-      wrap.innerHTML = _allProfilesCache.map(p => `
+      wrap.innerHTML = _allProfilesCache.map(p => {
+        const badge = p.type === 'instagram'
+          ? '<span style="font-size:11px; color:#fff; background:#E1306C; border-radius:4px; padding:1px 5px; margin-right:4px;">IG</span>'
+          : '<span style="font-size:11px; color:#fff; background:#1877F2; border-radius:4px; padding:1px 5px; margin-right:4px;">FB</span>';
+        return `
         <label style="display:flex; align-items:center; gap:8px; padding:6px 8px; cursor:pointer; border-radius:6px;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
           <input type="checkbox" class="perm-profile-cb" value="${escapeAttr(p.key)}" ${sel.has(p.key) ? 'checked' : ''} style="width:16px; height:16px;">
-          <span style="font-size:13px;"><strong>${escapeHtml(p.name)}</strong> <span style="color:#999;">· ${escapeHtml(p.key)}</span></span>
+          <span style="font-size:13px;">${badge}<strong>${escapeHtml(p.name)}</strong> <span style="color:#999;">· ${escapeHtml(p.key)}</span></span>
         </label>
-      `).join('');
+      `;
+      }).join('');
     }
 
     function togglePermAllProfiles() {
