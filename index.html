@@ -12923,7 +12923,7 @@
         // Loại bỏ in-memory rows đã có pending DB row (tránh hiển thị 2 dòng cho cùng 1 job)
         const _pendingDbJobIdSet = new Set((data.pending || []).map(r => r.job_id).filter(Boolean));
         const repostHtml = _activeRepostJobs.filter(job => {
-          const jid = job.zaloJobId || job.jobId;
+          const jid = job.zaloJobId || job.igJobId || job.jobId;
           return !jid || !_pendingDbJobIdSet.has(jid);
         }).map(job => {
           const ch = job.ch;
@@ -13313,6 +13313,7 @@
           const seedCell = (row) => seedCellForRows([row], row.id);
 
           const noiDangLabel = (row) => {
+            if (row.platform === 'instagram') return 'Instagram';
             const platform = row.platform === 'zalo' ? 'Zalo' : 'FB';
             const target = row.target === 'personal' ? 'Profile' : row.target === 'group' ? 'Group' : row.target === 'page' ? 'Page' : (row.target === 'personal-share-groups' || row.target === 'personal+groups') ? 'Profile + Groups' : (row.target || (row.platform === 'zalo' ? 'Group' : ''));
             return target ? `${platform} - ${target}` : platform;
