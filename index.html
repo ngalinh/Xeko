@@ -4365,15 +4365,15 @@
           </div>
           <div id="fbProfileList" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(440px,1fr)); gap:8px; margin-bottom:20px;"></div>
           <section aria-label="Tài khoản Instagram" style="margin-top:20px;">
-            <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px; padding-bottom:8px; border-bottom:1.5px solid #fce7f3; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px; padding-bottom:8px; border-bottom:1.5px solid #f5e6fb; flex-wrap:wrap;">
               <div style="display:flex; align-items:center; gap:8px; flex:1;">
-                <svg class="xi" style="width:16px;height:16px;color:#E1306C;"><use href="#ic-camera"/></svg>
-                <span style="font-size:12px; font-weight:700; color:#E1306C; text-transform:uppercase; letter-spacing:0.5px;">Instagram</span>
+                <svg class="xi" style="width:16px;height:16px;color:#833AB4;"><use href="#ic-camera"/></svg>
+                <span style="font-size:12px; font-weight:700; color:#833AB4; text-transform:uppercase; letter-spacing:0.5px;">Instagram</span>
               </div>
               <button onclick="openAddAccountModal('instagram')"
-                style="padding:8px 14px; background:#E1306C; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">+ Thêm Instagram</button>
+                style="padding:8px 14px; background:#833AB4; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">+ Thêm Instagram</button>
               <button onclick="location.href=BASE_URL+'/instagram-post.html'"
-                style="padding:8px 14px; background:#fff; color:#E1306C; border:1px solid #fbcfe8; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">Đăng thử Instagram</button>
+                style="padding:8px 14px; background:#fff; color:#833AB4; border:1px solid #d9b3ec; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">Đăng thử Instagram</button>
             </div>
             <p style="font-size:12px;color:#888;margin-top:0;">Đăng nhập trên máy chạy backend Xeko, sau đó chọn tài khoản để đăng ảnh thử.</p>
             <div id="igProfileList" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(440px,1fr)); gap:8px;"></div>
@@ -6406,8 +6406,8 @@
     // Pill badge "FB" / "Zalo" hiển thị trước tên tài khoản cho gọn & đẹp.
     // Dùng chung cho summary chọn kênh và bảng lịch sử dashboard.
     function platBadge(platform) {
-      const bg = platform === 'zalo' ? '#e8f0ff' : (platform === 'instagram' ? '#fce7f3' : '#e8f0fe');
-      const color = platform === 'zalo' ? '#2563EB' : (platform === 'instagram' ? '#E1306C' : '#1877f2');
+      const bg = platform === 'zalo' ? '#e8f0ff' : (platform === 'instagram' ? '#f5e6fb' : '#e8f0fe');
+      const color = platform === 'zalo' ? '#2563EB' : (platform === 'instagram' ? '#833AB4' : '#1877f2');
       const label = platform === 'zalo' ? 'Zalo' : (platform === 'instagram' ? 'IG' : 'FB');
       return `<span style="display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:34px;font-size:10px;line-height:1.4;font-weight:700;padding:1px 6px;border-radius:20px;flex-shrink:0;white-space:nowrap;vertical-align:middle;background:${bg};color:${color};">${label}</span>`;
     }
@@ -6893,7 +6893,7 @@
       // Instagram chips — chỉ hiện tài khoản IG đã gán cho profile này qua tab
       // "Kênh" (giống FB group/Zalo), không hiện tất cả tài khoản IG có trong hệ thống.
       if ((p.instagram || []).length > 0) {
-        panelHtml += `<div class="chip-section-label" style="color:#E1306C;font-weight:700;">${xekoIcon('camera')} Instagram</div>`;
+        panelHtml += `<div class="chip-section-label" style="color:#833AB4;font-weight:700;">${xekoIcon('camera')} Instagram</div>`;
         for (const ig of p.instagram) {
           panelHtml += `<label class="channel-item ch-instagram" data-panel="${pid}" data-platform="instagram" data-profile="${currentProfile}" data-chid="${escapeHtml(ig.key)}">
             <span class="ch-dot"></span><input type="checkbox" onchange="onChannelChange(${pid})"> ${xekoIcon('camera')} ${escapeHtml(ig.name || ig.key)}
@@ -7064,7 +7064,7 @@
         const blocks = [];
         if (fbLines.length) blocks.push(sectionLabel('fb', 'FACEBOOK', '#1877f2') + '<br>' + fbLines.join('<br>'));
         if (zaloLines.length) blocks.push(sectionLabel('zalo', 'ZALO', '#2563EB') + '<br>' + zaloLines.join('<br>'));
-        if (igLines.length) blocks.push(sectionLabel('camera', 'INSTAGRAM', '#E1306C') + '<br>' + igLines.join('<br>'));
+        if (igLines.length) blocks.push(sectionLabel('camera', 'INSTAGRAM', '#833AB4') + '<br>' + igLines.join('<br>'));
         summaryParts.push(`<strong>${pLabel}:</strong><br>${blocks.join('<br>')}`);
       }
       return summaryParts.join('<br>');
@@ -9053,7 +9053,7 @@
 
     function renderContentRow(item, stt) {
       const platformLabel = { all: 'Chung', facebook: 'Facebook', zalo: 'Zalo', tiktok: 'TikTok', instagram: 'Instagram', threads: 'Threads' }[item.platform] || item.platform;
-      const platformColor = { all: '#6B7280', facebook: '#1877F2', zalo: '#0068FF', tiktok: '#010101', instagram: '#E1306C', threads: '#1C1C1C' }[item.platform] || '#6B7280';
+      const platformColor = { all: '#6B7280', facebook: '#1877F2', zalo: '#0068FF', tiktok: '#010101', instagram: '#833AB4', threads: '#1C1C1C' }[item.platform] || '#6B7280';
       const platformBg   = { all: '#F3F4F6', facebook: '#EFF6FF', zalo: '#EFF6FF', tiktok: '#F3F4F6', instagram: '#FDF2F8', threads: '#F3F4F6' }[item.platform] || '#F3F4F6';
       const preview = item.body.length > 100 ? item.body.slice(0, 100) + '…' : item.body;
       const tagsHtml = (item.tags || []).map(t =>
@@ -9874,8 +9874,8 @@
       return `<div style="display:flex; flex-wrap:wrap; gap:4px;">` + accs.map(a => {
         const isFb = a.type === 'facebook';
         const isIg = a.type === 'instagram';
-        const bg = isFb ? '#e8f1ff' : isIg ? '#fce7f3' : '#e8f4ff';
-        const color = isFb ? '#1877f2' : isIg ? '#E1306C' : '#2563EB';
+        const bg = isFb ? '#e8f1ff' : isIg ? '#f5e6fb' : '#e8f4ff';
+        const color = isFb ? '#1877f2' : isIg ? '#833AB4' : '#2563EB';
         const icon = isFb
           ? '<img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:11px;height:11px;">'
           : isIg
@@ -11112,11 +11112,11 @@
         </span>`).join('');
 
       const igChips = igAccountsAssigned.map(g => `
-        <span style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:#fce7f3; color:#E1306C; border:1px solid #fbcfe8; border-radius:99px; font-size:11px; font-weight:600; white-space:nowrap;">
+        <span style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:#f5e6fb; color:#833AB4; border:1px solid #d9b3ec; border-radius:99px; font-size:11px; font-weight:600; white-space:nowrap;">
           <svg class="xi" style="width:11px;height:11px;flex-shrink:0;"><use href="#ic-camera"/></svg>
           ${escapeHtml(g.name || g.key)}
           <button onclick="removeProfileGroup('${escapeHtml(p.key)}','instagram','${escapeHtml(g.key)}')"
-            style="width:14px;height:14px;border-radius:99px;border:none;background:rgba(225,48,108,0.15);color:#E1306C;cursor:pointer;font-size:11px;display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1;flex-shrink:0;">×</button>
+            style="width:14px;height:14px;border-radius:99px;border:none;background:rgba(131,58,180,0.15);color:#833AB4;cursor:pointer;font-size:11px;display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1;flex-shrink:0;">×</button>
         </span>`).join('');
 
       const isExpanded = expandedProfiles.has(p.key);
@@ -11132,7 +11132,7 @@
       if (pageCount > 0) summaryBadges.push(`<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; background:#faf5ff; color:#7c3aed; border:1px solid #e9d5ff; border-radius:99px; font-size:11px; font-weight:600;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-file"/></svg> ${pageCount} page</span>`);
       if (zaloCount > 0) summaryBadges.push(`<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; background:#e0f2fe; color:#0369a1; border:1px solid #BAE6FD; border-radius:99px; font-size:11px; font-weight:600;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-zalo"/></svg>${zaloCount} group</span>`);
       const igCount = assignedIgKeys.length;
-      if (igCount > 0) summaryBadges.push(`<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; background:#fce7f3; color:#E1306C; border:1px solid #fbcfe8; border-radius:99px; font-size:11px; font-weight:600;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-camera"/></svg>${igCount} tài khoản</span>`);
+      if (igCount > 0) summaryBadges.push(`<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; background:#f5e6fb; color:#833AB4; border:1px solid #d9b3ec; border-radius:99px; font-size:11px; font-weight:600;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-camera"/></svg>${igCount} tài khoản</span>`);
 
       return `
         <div style="${borderStyle} border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:10px;">
@@ -11180,7 +11180,7 @@
               </div>` : ''}
               ${igChips ? `
               <div style="display:flex; flex-wrap:wrap; align-items:center; gap:5px;">
-                <span style="display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; color:#E1306C; flex-shrink:0; min-width:28px;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-camera"/></svg>IG</span>
+                <span style="display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; color:#833AB4; flex-shrink:0; min-width:28px;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-camera"/></svg>IG</span>
                 ${igChips}
               </div>` : ''}
             </div>` : ''}
@@ -11288,14 +11288,14 @@
         const isPage = g._type === 'page';
         const isInstagram = g._type === 'instagram';
         const checked = isFb ? assignedFb.has(g.key) : isPage ? assignedPages.has(g.key) : isInstagram ? assignedIg.has(g.key) : assignedZalo.has(g.key);
-        const accent = isFb ? '#1877f2' : isPage ? '#7c3aed' : isInstagram ? '#E1306C' : '#0369a1';
-        const bg = checked ? (isFb ? '#EFF6FF' : isPage ? '#faf5ff' : isInstagram ? '#fce7f3' : '#e0f2fe') : '#fff';
+        const accent = isFb ? '#1877f2' : isPage ? '#7c3aed' : isInstagram ? '#833AB4' : '#0369a1';
+        const bg = checked ? (isFb ? '#EFF6FF' : isPage ? '#faf5ff' : isInstagram ? '#f5e6fb' : '#e0f2fe') : '#fff';
         const badge = isFb
           ? `<span style="background:#e8f1ff;color:#1877f2;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;">FB</span>`
           : isPage
             ? `<span style="background:#f3e8ff;color:#7c3aed;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;">Page</span>`
             : isInstagram
-              ? `<span style="background:#fce7f3;color:#E1306C;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;">IG</span>`
+              ? `<span style="background:#f5e6fb;color:#833AB4;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;">IG</span>`
               : `<span style="background:#e0f2fe;color:#0369a1;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;">Zalo</span>`;
         return `
           <label style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:7px; cursor:pointer; background:${bg}; user-select:none;">
@@ -15612,7 +15612,7 @@
       }
       wrap.innerHTML = _allProfilesCache.map(p => {
         const badge = p.type === 'instagram'
-          ? '<span style="font-size:11px; color:#fff; background:#E1306C; border-radius:4px; padding:1px 5px; margin-right:4px;">IG</span>'
+          ? '<span style="font-size:11px; color:#fff; background:#833AB4; border-radius:4px; padding:1px 5px; margin-right:4px;">IG</span>'
           : '<span style="font-size:11px; color:#fff; background:#1877F2; border-radius:4px; padding:1px 5px; margin-right:4px;">FB</span>';
         return `
         <label style="display:flex; align-items:center; gap:8px; padding:6px 8px; cursor:pointer; border-radius:6px;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
