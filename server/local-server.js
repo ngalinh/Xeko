@@ -1007,7 +1007,10 @@ app.put('/api/accounts/:key', (req, res) => {
     }
     const metaFile = path.resolve(__dirname, 'config/profiles-meta.json');
     const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8')) : {};
+    // Giữ nguyên các field khác (vd instagram:true) thay vì ghi đè toàn bộ —
+    // tránh account Instagram bị mất cờ nhận diện khi sửa tên/proxy.
     meta[key] = {
+      ...meta[key],
       name,
       email: email || '',
       password: password || meta[key]?.password || '',

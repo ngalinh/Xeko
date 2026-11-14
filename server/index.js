@@ -1423,7 +1423,9 @@ app.put('/api/accounts/:key', async (req, res) => {
     }
     const meta = loadProfilesMeta();
     const proxyTrimmed = typeof proxy === 'string' ? proxy.trim() : undefined;
+    // Giữ nguyên các field khác (vd instagram:true) thay vì ghi đè toàn bộ.
     meta[key] = {
+      ...meta[key],
       name,
       email: email || '',
       password: password || (meta[key] && meta[key].password) || '',
