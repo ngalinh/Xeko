@@ -920,7 +920,7 @@ app.post('/api/rednote/fetch-images', async (req, res) => {
 // ở cloud như Facebook, vì postToFeed() instagram chưa được tách thành các bước nhỏ
 // proxy qua callLocal() như playwright-proxy.js làm cho Facebook.
 app.post('/api/post-instagram', upload.array('images', 10), async (req, res) => {
-  const { message, profile } = req.body;
+  const { message, profile, profileName, batchId } = req.body;
   const imagePaths = (req.files || []).map(f => f.path);
 
   if (!getLocalUrl()) {
@@ -929,12 +929,35 @@ app.post('/api/post-instagram', upload.array('images', 10), async (req, res) => 
   }
 
   try {
+    // Lưu ảnh để Kho content hiển thị thumbnail, giống FB (persistImages tự
+    // fallback local nếu không có IMAGE_SERVER_URL).
+    const imageUrls = await persistImages(imagePaths);
+
     // callLocal() buffer toàn bộ multipart + set Content-Length trước khi gửi
     // (xem playwright-proxy.js) — tự gửi FormData không Content-Length qua tunnel
     // bị cắt giữa chừng, Multer báo "Unexpected end of form".
     const { callLocal } = require('./playwright-proxy');
     const data = await callLocal('POST', '/api/post-instagram', { profile: profile || '', message: message || '' }, imagePaths);
-    return res.json(data);
+
+    // Ghi pending row vào Kho content ngay khi local nhận job (giống FB) — hoàn
+    // tất (success/error) sẽ được cập nhật ở route polling bên dưới khi job xong.
+    let pendingLogId = null;
+    if (data && data.jobId) {
+      pendingLogId = postLogger.insertPendingPost({
+        profile: profile || '',
+        profileName: profileName || profile || '',
+        platform: 'instagram',
+        target: 'feed',
+        message: message || '',
+        imageCount: imagePaths.length,
+        source: 'web',
+        images: imageUrls,
+        batchId: batchId || null,
+        jobId: data.jobId,
+        ownerEmail: req.user && req.user.email,
+      });
+    }
+    return res.json({ ...data, pendingLogId });
   } catch (e) {
     return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
   } finally {
@@ -955,6 +978,14 @@ app.get('/api/post-instagram-job/:id', async (req, res) => {
       headers: { 'x-api-key': LOCAL_API_KEY },
     });
     const data = await response.json();
+    // completePendingByJobId chỉ update row còn pending (success=-1) nên gọi lại
+    // nhiều lần khi poll liên tục vẫn an toàn, không ghi đè kết quả đã có.
+    if (data && data.status === 'done') {
+      const r = data.result || {};
+      postLogger.completePendingByJobId(req.params.id, { success: !!r.success, error: r.error || null });
+    } else if (data && data.status === 'failed') {
+      postLogger.completePendingByJobId(req.params.id, { success: false, error: data.error || 'Lỗi không rõ' });
+    }
     return res.status(response.status).json(data);
   } catch (e) {
     return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
@@ -1298,6 +1329,7 @@ app.get('/api/accounts', async (req, res) => {
       const data = await response.json();
       if (!wantAll && req.user) {
         if (Array.isArray(data.facebook)) data.facebook = permissions.filterProfiles(req.user.email, data.facebook);
+        if (Array.isArray(data.instagram)) data.instagram = permissions.filterProfiles(req.user.email, data.instagram);
         // Zalo accounts have different keys from FB profiles — never filter them by FB profile keys
       }
       return res.json(data);

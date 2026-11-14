@@ -6399,8 +6399,10 @@
     // Pill badge "FB" / "Zalo" hiển thị trước tên tài khoản cho gọn & đẹp.
     // Dùng chung cho summary chọn kênh và bảng lịch sử dashboard.
     function platBadge(platform) {
-      const isZalo = platform === 'zalo';
-      return `<span style="display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:34px;font-size:10px;line-height:1.4;font-weight:700;padding:1px 6px;border-radius:20px;flex-shrink:0;white-space:nowrap;vertical-align:middle;background:${isZalo ? '#e8f0ff' : '#e8f0fe'};color:${isZalo ? '#2563EB' : '#1877f2'};">${isZalo ? 'Zalo' : 'FB'}</span>`;
+      const bg = platform === 'zalo' ? '#e8f0ff' : (platform === 'instagram' ? '#fce7f3' : '#e8f0fe');
+      const color = platform === 'zalo' ? '#2563EB' : (platform === 'instagram' ? '#E1306C' : '#1877f2');
+      const label = platform === 'zalo' ? 'Zalo' : (platform === 'instagram' ? 'IG' : 'FB');
+      return `<span style="display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:34px;font-size:10px;line-height:1.4;font-weight:700;padding:1px 6px;border-radius:20px;flex-shrink:0;white-space:nowrap;vertical-align:middle;background:${bg};color:${color};">${label}</span>`;
     }
 
     function buildPhotoGrid(photos) {
@@ -6810,6 +6812,7 @@
       }
       disablePrevButtons();
       await loadChannels();
+      await loadIgAccounts();
       channelPanelId++;
       const pid = channelPanelId;
       const modeEmoji = postMode === 'now' ? '✏️' : (postMode === 'quickfb' ? '⚡' : '🕐');
@@ -6874,6 +6877,18 @@
         for (const ch of p.zalo) {
           panelHtml += `<label class="channel-item ch-zalo" data-panel="${pid}" data-platform="zalo" data-profile="${currentProfile}" data-chid="${ch.id}" data-zalo-account="${p.zaloAccount}">
             <span class="ch-dot"></span><input type="checkbox" onchange="onChannelChange(${pid})"> ${ch.icon} ${ch.name}
+          </label>`;
+        }
+      }
+
+      // Instagram chips — tài khoản IG không gắn với profile FB đang chọn (độc
+      // lập, lấy từ _igAccountsCache), nhưng vẫn gắn data-profile=currentProfile
+      // để autoSaveChannelSelection() gom đúng theo profile đang soạn bài.
+      if (_igAccountsCache.length > 0) {
+        panelHtml += `<div class="chip-section-label" style="color:#E1306C;font-weight:700;">${xekoIcon('camera')} Instagram</div>`;
+        for (const ig of _igAccountsCache) {
+          panelHtml += `<label class="channel-item ch-instagram" data-panel="${pid}" data-platform="instagram" data-profile="${currentProfile}" data-chid="${escapeHtml(ig.key)}">
+            <span class="ch-dot"></span><input type="checkbox" onchange="onChannelChange(${pid})"> ${xekoIcon('camera')} ${escapeHtml(ig.name || ig.key)}
           </label>`;
         }
       }
@@ -6961,9 +6976,11 @@
         const profile = item.dataset.profile;
         const platform = item.dataset.platform;
         if (!profile || !platform) return;
-        if (!selected[profile]) selected[profile] = { fb: [], fbPages: [], zalo: [], zaloAccount: '' };
+        if (!selected[profile]) selected[profile] = { fb: [], fbPages: [], zalo: [], zaloAccount: '', instagram: [] };
         const chid = item.dataset.chid;
-        if (platform === 'zalo') {
+        if (platform === 'instagram') {
+          selected[profile].instagram.push({ id: chid });
+        } else if (platform === 'zalo') {
           selected[profile].zaloAccount = item.dataset.zaloAccount || '';
           selected[profile].zalo.push({ id: chid });
         } else if (chid && chid.startsWith('page:')) {
@@ -7648,6 +7665,61 @@
       }
     }
 
+    // Polling job Instagram — đơn giản hơn pollZaloJob (không có kênh SSE push
+    // riêng cho Instagram), chỉ HTTP poll /api/post-instagram-job/:id. Job local
+    // có timeout tối đa 9 phút nên cho poll tới ~10 phút (200 x 3s).
+    async function pollInstagramJob(jobId, igName, progressRow = null, dashRowId = null, silent = false) {
+      const finishDone = (success, error) => {
+        if (!silent) {
+          const okMsg = `✅ Instagram <strong>${igName}</strong> đăng xong rồi nha!`;
+          const errMsg = `❌ Huhu Instagram <strong>${igName}</strong> hỏng mất rồi: ${error || 'Không rõ lý do'}`;
+          if (success) {
+            if (progressRow) morphBot(progressRow, okMsg, 'success'); else addBot(okMsg);
+          } else {
+            if (progressRow) morphBot(progressRow, errMsg, 'error'); else addBot(errMsg);
+          }
+        }
+        if (dashRowId) {
+          _updateDashRowDone(dashRowId, success);
+          const el = document.getElementById(dashRowId);
+          if (el) el.removeAttribute('id');
+        }
+        if (dashRowId && dashRowId.startsWith('pending-log-') && typeof loadDashHistory === 'function') {
+          loadDashHistory({ noSkeleton: true });
+        }
+      };
+
+      try {
+        const maxTries = 200; // ~10 phút (200 x 3s)
+        for (let i = 0; i < maxTries; i++) {
+          await sleepOrVisible(3000);
+          try {
+            const r = await fetch(`${BASE_URL}/api/post-instagram-job/${jobId}`);
+            if (!r.ok) continue;
+            const d = await r.json();
+            if (d.status === 'done') {
+              const success = !!(d.result && d.result.success);
+              const error = d.result && d.result.error;
+              finishDone(success, error);
+              return success ? true : 'failed';
+            }
+            if (d.status === 'failed') {
+              finishDone(false, d.error);
+              return 'failed';
+            }
+          } catch {}
+        }
+        if (!silent) {
+          const timeoutMsg = `⏳ Instagram <strong>${igName}</strong> đang xử lý lâu hơn thường lệ. Bạn xem kết quả ở tab <strong>Kho content</strong> nha.`;
+          if (progressRow) morphBot(progressRow, timeoutMsg, 'progress'); else addBot(timeoutMsg);
+        }
+        return 'timeout';
+      } catch (e) {
+        if (!silent) addBot(botSystemError(`Instagram ${igName}`, e));
+        return 'error';
+      }
+    }
+
     // ===== Multi-tab coordination =====
     // Server co mutex per profile o Playwright nen khong loi data, nhung 2 tab
     // cung post 1 profile thi tab sau phai cho tab truoc xong (cham UX). Show
@@ -7835,7 +7907,8 @@
       const hasZaloSelection = (zaloSelCheck.zalo || []).length > 0;
       const hasCustomFbSelection = (window._customGroupIds || []).length > 0;
       const hasFbPageSelection = (zaloSelCheck.fbPages || []).length > 0;
-      if (!currentTarget && !hasZaloSelection && !hasCustomFbSelection && !hasFbPageSelection) {
+      const hasIgSelection = (zaloSelCheck.instagram || []).length > 0;
+      if (!currentTarget && !hasZaloSelection && !hasCustomFbSelection && !hasFbPageSelection && !hasIgSelection) {
         addBot('Bạn chọn nơi đăng giúp Xeko với nè!', [
           { label: `${xekoIcon('pin')} Chọn nơi đăng`, handler: () => showTargetSelect() },
         ]);
@@ -8028,6 +8101,10 @@
             if (_zg) _destLabels.push(`Zalo ${_zg.name}`);
           }
         }
+        for (const _ig of ((channelSel || {}).instagram || [])) {
+          const _igAcc = _igAccountsCache.find(x => x.key === _ig.id);
+          if (_igAcc) _destLabels.push(`Instagram ${_igAcc.name || _igAcc.key}`);
+        }
         if (_destLabels.length) {
           const _list = _destLabels.map(s => `<strong>${s}</strong>`).join(', ');
           const _webNote = website ? ` 🔗 (có kèm link sản phẩm).` : '';
@@ -8107,6 +8184,42 @@
               }
             } catch (ze) {
               addBot(botSystemError(`đăng Group Zalo ${g.name}`, ze));
+            }
+          }
+        }
+
+        // === Gửi request Instagram SỚM (giống Zalo) ===
+        // Tài khoản IG đã tick ở panel "Chọn nơi đăng" (độc lập khỏi target/groupId
+        // của FB) — mỗi tài khoản gửi 1 request riêng, poll kết quả qua
+        // pollInstagramJob(), Dashboard (Kho content) là nguồn sự thật.
+        const igAccounts = ((channelSel || {}).instagram || []);
+        const igPollPromises = [];
+        if (igAccounts.length > 0) {
+          for (const ig of igAccounts) {
+            const igAcc = _igAccountsCache.find(x => x.key === ig.id);
+            if (!igAcc) continue;
+            try {
+              const igf = new FormData();
+              igf.append('profile', igAcc.key);
+              igf.append('profileName', igAcc.name || igAcc.key);
+              igf.append('message', message);
+              igf.append('batchId', sessionBatchId);
+              await appendImages(igf, filesToUpload);
+              const igr = await fetch(BASE_URL + '/api/post-instagram', { method: 'POST', body: igf });
+              const igd = await parseJson(igr);
+              if (igd.jobId) {
+                pushPendingJob({ kind: 'instagram', jobId: igd.jobId, profile: igAcc.key, label: `Instagram ${igAcc.name || igAcc.key}`, message, imageCount: (filesToUpload || []).length, pendingLogId: igd.pendingLogId || null });
+                _setPendingJobThumbs(igd.jobId, filesToUpload);
+                _refreshDashIfActive(false, true);
+                igPollPromises.push(
+                  pollInstagramJob(igd.jobId, igAcc.name || igAcc.key, null, igd.pendingLogId ? ('pending-log-' + igd.pendingLogId) : null, true)
+                    .finally(() => { removePendingJob(igd.jobId); _refreshDashIfActive(true, true); })
+                );
+              } else if (igd.error) {
+                addBot(`⚠️ Instagram ${igAcc.name || igAcc.key}: ${igd.error}`);
+              }
+            } catch (ie) {
+              addBot(botSystemError(`đăng Instagram ${igAcc.name || igAcc.key}`, ie));
             }
           }
         }
@@ -8259,6 +8372,13 @@
             if (zr === true) successCount += 1;
             else if (zr === 'timeout') unconfirmedCount += 1;
             // 'failed' / 'cancelled' → không tính vào đâu cả (fail thật / đã hủy)
+          }
+        }
+        if (igPollPromises.length > 0) {
+          const igResults = await Promise.all(igPollPromises);
+          for (const ir of igResults) {
+            if (ir === true) successCount += 1;
+            else if (ir === 'timeout') unconfirmedCount += 1;
           }
         }
 
@@ -10323,6 +10443,20 @@
 
     // ===== CHANNEL SETTINGS =====
     let channelsData = { fbGroups: [], fbPages: [], zaloGroups: [], profileChannels: {} };
+    let _igAccountsCache = [];
+
+    // Tài khoản Instagram không gắn với 1 profile FB cụ thể như group/page — load
+    // riêng từ /api/accounts, không qua /api/channels (dữ liệu channels chỉ có FB/Zalo).
+    async function loadIgAccounts() {
+      try {
+        const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), { cache: 'no-store' });
+        const data = await parseJson(res);
+        _igAccountsCache = (data && data.instagram) || [];
+      } catch (e) {
+        _igAccountsCache = [];
+        console.error('Lỗi tải tài khoản Instagram:', e);
+      }
+    }
 
     function getFbGroupDisplayName(groupId) {
       if (!groupId) return '';
@@ -12438,7 +12572,8 @@
         const pad = n => String(n).padStart(2, '0');
         return jobs.map(j => {
           const isZalo = (j.kind === 'zalo');
-          const platform = isZalo ? 'zalo' : 'facebook';
+          const isInstagram = (j.kind === 'instagram');
+          const platform = isZalo ? 'zalo' : (isInstagram ? 'instagram' : 'facebook');
           const acc = j.profileName || j.profile || j.account || '-';
           const msg = j.message ? (j.message.length > 60 ? j.message.slice(0, 60) + '…' : j.message) : '(đang đăng…)';
           let noiDang;
@@ -15221,7 +15356,10 @@
           .then(r => r.ok ? r.json() : null)
           .then(profilesData => {
             if (!profilesData) return;
-            _allProfilesCache = profilesData.facebook || [];
+            _allProfilesCache = [
+              ...(profilesData.facebook || []).map(p => ({ ...p, type: 'facebook' })),
+              ...(profilesData.instagram || []).map(p => ({ ...p, type: 'instagram' })),
+            ];
             const newMap = {};
             _allProfilesCache.forEach(p => { newMap[p.key] = p.name; });
             renderPermissionsTable(users, superAdmin, newMap);
@@ -15332,15 +15470,20 @@
       const wrap = document.getElementById('permProfilesList');
       const sel = new Set(selected || []);
       if (!_allProfilesCache.length) {
-        wrap.innerHTML = '<div style="padding:10px; text-align:center; color:#999; font-size:13px;">Chưa có profile FB nào.</div>';
+        wrap.innerHTML = '<div style="padding:10px; text-align:center; color:#999; font-size:13px;">Chưa có profile nào.</div>';
         return;
       }
-      wrap.innerHTML = _allProfilesCache.map(p => `
+      wrap.innerHTML = _allProfilesCache.map(p => {
+        const badge = p.type === 'instagram'
+          ? '<span style="font-size:11px; color:#fff; background:#E1306C; border-radius:4px; padding:1px 5px; margin-right:4px;">IG</span>'
+          : '<span style="font-size:11px; color:#fff; background:#1877F2; border-radius:4px; padding:1px 5px; margin-right:4px;">FB</span>';
+        return `
         <label style="display:flex; align-items:center; gap:8px; padding:6px 8px; cursor:pointer; border-radius:6px;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
           <input type="checkbox" class="perm-profile-cb" value="${escapeAttr(p.key)}" ${sel.has(p.key) ? 'checked' : ''} style="width:16px; height:16px;">
-          <span style="font-size:13px;"><strong>${escapeHtml(p.name)}</strong> <span style="color:#999;">· ${escapeHtml(p.key)}</span></span>
+          <span style="font-size:13px;">${badge}<strong>${escapeHtml(p.name)}</strong> <span style="color:#999;">· ${escapeHtml(p.key)}</span></span>
         </label>
-      `).join('');
+      `;
+      }).join('');
     }
 
     function togglePermAllProfiles() {
