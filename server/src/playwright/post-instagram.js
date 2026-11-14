@@ -168,6 +168,23 @@ async function postToFeed(profileKey, message, imagePaths = [], shouldCancel = n
     logger.info(`${tag} đã chọn ${imagePaths.length} ảnh`);
     await randomDelay(1000, 2000);
 
+    // Chọn tỷ lệ "Original" để giữ đúng kích thước ảnh, tránh Instagram tự cắt
+    // vuông. 5 lần thử trước (dò DOM scope dialog/toàn trang, loại bản
+    // aria-hidden, phím Enter) đều không bấm trúng — đổi hẳn cách tiếp cận:
+    // dùng locator text gốc của Playwright (đã xử lý sẵn các trường hợp DOM
+    // phức tạp) + force:true để bắn thẳng click, bỏ qua việc tự dò phần tử.
+    // Không chặn đăng bài nếu bước này vẫn lỗi — dùng tỷ lệ mặc định.
+    try {
+      const ratioBtn = await resolveDialogButton(page, '^(Chọn kích thước cắt|Select crop)$', { timeout: 6000 });
+      await ratioBtn.click();
+      await randomDelay(500, 900);
+      await page.getByText(/^(Original|Gốc)$/i, { exact: true }).last().click({ force: true, timeout: 4000 });
+      await randomDelay(400, 800);
+      logger.info(`${tag} đã chọn tỷ lệ Original (không cắt ảnh)`);
+    } catch (e) {
+      logger.warn(`${tag} không chọn được tỷ lệ Original, dùng mặc định: ${e.message}`);
+    }
+
     const cropNext = await resolveDialogButton(page, '^(Tiếp|Next)$');
     await cropNext.click();
     await randomDelay(800, 1500);
