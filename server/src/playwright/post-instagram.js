@@ -1,5 +1,5 @@
 'use strict';
-const { resolveNewPostEntry, resolveDialogButton, resolveFileInput, resolveCaptionStep, resolveFloatingMenuItem } = require('./ig-composer');
+const { resolveNewPostEntry, resolveDialogButton, resolveFileInput, resolveCaptionStep } = require('./ig-composer');
 const { safeLaunchPersistentContext } = require('../utils/playwright-launch');
 const { withClipboard } = require('../utils/clipboard-queue');
 const path = require('path');
@@ -169,18 +169,16 @@ async function postToFeed(profileKey, message, imagePaths = [], shouldCancel = n
     await randomDelay(1000, 2000);
 
     // Chọn tỷ lệ "Original" để giữ đúng kích thước ảnh, tránh Instagram tự cắt
-    // vuông. Không chặn đăng bài nếu bước này lỗi (label/vị trí nút có thể đổi
-    // theo UI) — bỏ qua, dùng tỷ lệ mặc định của Instagram.
+    // vuông. 5 lần thử trước (dò DOM scope dialog/toàn trang, loại bản
+    // aria-hidden, phím Enter) đều không bấm trúng — đổi hẳn cách tiếp cận:
+    // dùng locator text gốc của Playwright (đã xử lý sẵn các trường hợp DOM
+    // phức tạp) + force:true để bắn thẳng click, bỏ qua việc tự dò phần tử.
+    // Không chặn đăng bài nếu bước này vẫn lỗi — dùng tỷ lệ mặc định.
     try {
       const ratioBtn = await resolveDialogButton(page, '^(Chọn kích thước cắt|Select crop)$', { timeout: 6000 });
       await ratioBtn.click();
       await randomDelay(500, 900);
-      // Click chuột vào đúng phần tử "Original" đã thử nhiều cách dò DOM (scope
-      // dialog, scope toàn trang, loại bản aria-hidden) đều không ăn — menu dạng
-      // listbox này thường tự đưa focus vào mục đầu tiên ("Original" luôn đứng
-      // đầu) ngay khi mở, nên dùng phím Enter thay vì click chuột.
-      await resolveFloatingMenuItem(page, '^(Original|Gốc)$', { timeout: 4000 });
-      await page.keyboard.press('Enter');
+      await page.getByText(/^(Original|Gốc)$/i, { exact: true }).last().click({ force: true, timeout: 4000 });
       await randomDelay(400, 800);
       logger.info(`${tag} đã chọn tỷ lệ Original (không cắt ảnh)`);
     } catch (e) {
