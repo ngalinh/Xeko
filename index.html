@@ -4365,13 +4365,18 @@
           </div>
           <div id="fbProfileList" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(440px,1fr)); gap:8px; margin-bottom:20px;"></div>
           <section aria-label="Tài khoản Instagram" style="margin-top:20px;">
-            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-              <h3 style="flex:1;font-size:15px;">Instagram</h3>
-              <button class="pc-btn pc-btn-edit pc-btn-text" onclick="openAddAccountModal('instagram')">+ Thêm Instagram</button>
-              <button class="pc-btn pc-btn-edit pc-btn-text" onclick="location.href=BASE_URL+'/instagram-post.html'">Đăng thử Instagram</button>
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px; padding-bottom:8px; border-bottom:1.5px solid #fce7f3; flex-wrap:wrap;">
+              <div style="display:flex; align-items:center; gap:8px; flex:1;">
+                <svg class="xi" style="width:16px;height:16px;color:#E1306C;"><use href="#ic-camera"/></svg>
+                <span style="font-size:12px; font-weight:700; color:#E1306C; text-transform:uppercase; letter-spacing:0.5px;">Instagram</span>
+              </div>
+              <button onclick="openAddAccountModal('instagram')"
+                style="padding:8px 14px; background:#E1306C; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">+ Thêm Instagram</button>
+              <button onclick="location.href=BASE_URL+'/instagram-post.html'"
+                style="padding:8px 14px; background:#fff; color:#E1306C; border:1px solid #fbcfe8; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">Đăng thử Instagram</button>
             </div>
-            <p style="font-size:12px;color:#888;">Đăng nhập trên máy chạy backend Xeko, sau đó chọn tài khoản để đăng ảnh thử.</p>
-            <div id="igProfileList" style="display:grid;gap:8px;"></div>
+            <p style="font-size:12px;color:#888;margin-top:0;">Đăng nhập trên máy chạy backend Xeko, sau đó chọn tài khoản để đăng ảnh thử.</p>
+            <div id="igProfileList" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(440px,1fr)); gap:8px;"></div>
           </section>
           <div id="sessionResults" style="display:flex; flex-direction:column; gap:10px; margin-top:16px;"></div>
         </div>
@@ -10011,25 +10016,52 @@
         const igAccounts = data.instagram || [];
         if (!igAccounts.length) igContainer.textContent = 'Chưa có tài khoản Instagram. Bấm + Thêm Instagram để bắt đầu.';
         for (const account of igAccounts) {
+          const initial = (account.name || '?')[0].toUpperCase();
+          const avatarColor = getAvatarColor(account.name);
+
           const card = document.createElement('div');
           card.className = 'profile-card';
+
+          const avatar = document.createElement('div');
+          avatar.style.cssText = `width:40px; height:40px; background:${avatarColor}; border-radius:99px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; font-weight:700; flex-shrink:0;`;
+          avatar.textContent = initial;
+          card.appendChild(avatar);
+
           const info = document.createElement('div');
           info.className = 'info';
-          info.textContent = `${account.name} (${account.key})`;
+          info.style.minWidth = '0';
+          const nameEl = document.createElement('div');
+          nameEl.className = 'name';
+          nameEl.textContent = account.name;
+          const detailEl = document.createElement('div');
+          detailEl.className = 'detail';
+          detailEl.style.cssText = 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap;';
+          detailEl.title = account.key;
+          detailEl.textContent = account.key;
+          info.appendChild(nameEl);
+          info.appendChild(detailEl);
           card.appendChild(info);
+
           const actions = document.createElement('div');
           actions.className = 'pc-actions';
-          for (const [label, action] of [
-            ['Đăng nhập', button => loginProfile(account.key, button)],
-            ['Đăng thử', () => { location.href = BASE_URL + '/instagram-post.html?profile=' + encodeURIComponent(account.key); }],
-            ['Xoá', () => deleteProfile('instagram', account.key, account.name)],
-          ]) {
-            const button = document.createElement('button');
-            button.className = 'pc-btn pc-btn-edit pc-btn-text';
-            button.textContent = label;
-            button.addEventListener('click', () => action(button));
-            actions.appendChild(button);
-          }
+          const loginBtn = document.createElement('button');
+          loginBtn.className = 'pc-btn pc-btn-edit';
+          loginBtn.title = 'Mở Chrome kiểm tra đăng nhập';
+          loginBtn.innerHTML = `${xekoIcon('key')}<span class="pc-btn-label">Đăng nhập</span>`;
+          loginBtn.addEventListener('click', () => loginProfile(account.key, loginBtn));
+          const testBtn = document.createElement('button');
+          testBtn.className = 'pc-btn pc-btn-edit';
+          testBtn.title = 'Đăng ảnh thử';
+          testBtn.innerHTML = `${xekoIcon('camera')}<span class="pc-btn-label">Đăng thử</span>`;
+          testBtn.addEventListener('click', () => { location.href = BASE_URL + '/instagram-post.html?profile=' + encodeURIComponent(account.key); });
+          const delBtn = document.createElement('button');
+          delBtn.className = 'pc-btn pc-btn-del';
+          delBtn.title = 'Xoá';
+          delBtn.innerHTML = `${xekoIcon('trash')}<span class="pc-btn-label">Xoá</span>`;
+          delBtn.addEventListener('click', () => deleteProfile('instagram', account.key, account.name));
+          actions.appendChild(loginBtn);
+          actions.appendChild(testBtn);
+          actions.appendChild(delBtn);
           card.appendChild(actions);
           igContainer.appendChild(card);
         }
