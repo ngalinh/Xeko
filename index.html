@@ -4483,6 +4483,8 @@
             style="flex:1; padding:5px 8px; border:none; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; background:transparent; color:#64748b;">Facebook</button>
           <button id="pickerTabZalo" onclick="setPickerTab('zalo')"
             style="flex:1; padding:5px 8px; border:none; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; background:transparent; color:#64748b;">Zalo</button>
+          <button id="pickerTabInstagram" onclick="setPickerTab('instagram')"
+            style="flex:1; padding:5px 8px; border:none; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; background:transparent; color:#64748b;">Instagram</button>
         </div>
         <select id="pickerCategoryFilter" onchange="setPickerCategory(this.value)"
           style="width:100%; padding:5px 8px; border:1px solid #ddd; border-radius:7px; font-size:12px; background:#fff; color:#555; margin-bottom:6px; box-sizing:border-box; outline:none;">
@@ -6763,6 +6765,7 @@
       const fbPageKeys = cfg.fbPages || [];
       const zaloGroupKeys = cfg.zaloGroups || [];
       const zaloAccount = cfg.zaloAccount || '';
+      const igKeys = cfg.instagram || [];
       const allFbGroups = channelsData.fbGroups || [];
       const allFbPages = channelsData.fbPages || [];
       const allZaloGroups = channelsData.zaloGroups || [];
@@ -6782,6 +6785,7 @@
           .filter(g => zaloGroupKeys.includes(g.key))
           .map(g => ({ id: g.key, name: g.name, icon: xekoIcon('chat') })),
         zaloAccount,
+        instagram: (_igAccountsCache || []).filter(g => igKeys.includes(g.key)),
       };
     }
 
@@ -6881,12 +6885,11 @@
         }
       }
 
-      // Instagram chips — tài khoản IG không gắn với profile FB đang chọn (độc
-      // lập, lấy từ _igAccountsCache), nhưng vẫn gắn data-profile=currentProfile
-      // để autoSaveChannelSelection() gom đúng theo profile đang soạn bài.
-      if (_igAccountsCache.length > 0) {
+      // Instagram chips — chỉ hiện tài khoản IG đã gán cho profile này qua tab
+      // "Kênh" (giống FB group/Zalo), không hiện tất cả tài khoản IG có trong hệ thống.
+      if ((p.instagram || []).length > 0) {
         panelHtml += `<div class="chip-section-label" style="color:#E1306C;font-weight:700;">${xekoIcon('camera')} Instagram</div>`;
-        for (const ig of _igAccountsCache) {
+        for (const ig of p.instagram) {
           panelHtml += `<label class="channel-item ch-instagram" data-panel="${pid}" data-platform="instagram" data-profile="${currentProfile}" data-chid="${escapeHtml(ig.key)}">
             <span class="ch-dot"></span><input type="checkbox" onchange="onChannelChange(${pid})"> ${xekoIcon('camera')} ${escapeHtml(ig.name || ig.key)}
           </label>`;
@@ -10986,6 +10989,7 @@
         const data = await parseJson(res);
         profilesCache = data.facebook || [];
         setZaloAccountCaches(data.zalo);
+        await loadIgAccounts();
         renderProfileGrid();
       } catch (e) {
         errorEl.style.display = '';
@@ -11004,11 +11008,12 @@
     }
 
     function renderProfileCard(p) {
-      const pCh = (channelsData.profileChannels || {})[p.key] || { fbGroups: [], fbPages: [], zaloGroups: [], zaloAccount: '' };
+      const pCh = (channelsData.profileChannels || {})[p.key] || { fbGroups: [], fbPages: [], zaloGroups: [], zaloAccount: '', instagram: [] };
       const assignedFbKeys = pCh.fbGroups || [];
       const assignedPageKeys = pCh.fbPages || [];
       const assignedZaloKeys = pCh.zaloGroups || [];
-      const totalCount = assignedFbKeys.length + assignedPageKeys.length + assignedZaloKeys.length;
+      const assignedIgKeys = pCh.instagram || [];
+      const totalCount = assignedFbKeys.length + assignedPageKeys.length + assignedZaloKeys.length + assignedIgKeys.length;
       const isEmpty = totalCount === 0;
 
       const avatarColors = ['#3B82F6','#8B5CF6','#10B981','#F59E0B','#EF4444','#EC4899','#06B6D4'];
@@ -11023,6 +11028,7 @@
       const fbGroups = (channelsData.fbGroups || []).filter(g => assignedFbKeys.includes(g.key));
       const fbPages = (channelsData.fbPages || []).filter(g => assignedPageKeys.includes(g.key));
       const zaloGroups = (channelsData.zaloGroups || []).filter(g => assignedZaloKeys.includes(g.key));
+      const igAccountsAssigned = (_igAccountsCache || []).filter(g => assignedIgKeys.includes(g.key));
 
       const pageChips = fbPages.map(g => `
         <span style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:#faf5ff; color:#7c3aed; border:1px solid #e9d5ff; border-radius:99px; font-size:11px; font-weight:600; white-space:nowrap;">
@@ -11047,6 +11053,14 @@
             style="width:14px;height:14px;border-radius:99px;border:none;background:rgba(3,105,161,0.15);color:#0369a1;cursor:pointer;font-size:11px;display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1;flex-shrink:0;">×</button>
         </span>`).join('');
 
+      const igChips = igAccountsAssigned.map(g => `
+        <span style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:#fce7f3; color:#E1306C; border:1px solid #fbcfe8; border-radius:99px; font-size:11px; font-weight:600; white-space:nowrap;">
+          <svg class="xi" style="width:11px;height:11px;flex-shrink:0;"><use href="#ic-camera"/></svg>
+          ${escapeHtml(g.name || g.key)}
+          <button onclick="removeProfileGroup('${escapeHtml(p.key)}','instagram','${escapeHtml(g.key)}')"
+            style="width:14px;height:14px;border-radius:99px;border:none;background:rgba(225,48,108,0.15);color:#E1306C;cursor:pointer;font-size:11px;display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1;flex-shrink:0;">×</button>
+        </span>`).join('');
+
       const isExpanded = expandedProfiles.has(p.key);
       const borderStyle = isEmpty
         ? 'border:1.5px dashed #FCD34D; background:#FFFBEB;'
@@ -11059,6 +11073,8 @@
       if (fbCount > 0) summaryBadges.push(`<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; background:#EFF6FF; color:#1877f2; border:1px solid #BFDBFE; border-radius:99px; font-size:11px; font-weight:600;"><img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" style="width:11px;height:11px;">${fbCount} group</span>`);
       if (pageCount > 0) summaryBadges.push(`<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; background:#faf5ff; color:#7c3aed; border:1px solid #e9d5ff; border-radius:99px; font-size:11px; font-weight:600;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-file"/></svg> ${pageCount} page</span>`);
       if (zaloCount > 0) summaryBadges.push(`<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; background:#e0f2fe; color:#0369a1; border:1px solid #BAE6FD; border-radius:99px; font-size:11px; font-weight:600;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-zalo"/></svg>${zaloCount} group</span>`);
+      const igCount = assignedIgKeys.length;
+      if (igCount > 0) summaryBadges.push(`<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; background:#fce7f3; color:#E1306C; border:1px solid #fbcfe8; border-radius:99px; font-size:11px; font-weight:600;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-camera"/></svg>${igCount} tài khoản</span>`);
 
       return `
         <div style="${borderStyle} border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:10px;">
@@ -11104,6 +11120,11 @@
                 <span style="display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; color:#0369a1; flex-shrink:0; min-width:28px;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-zalo"/></svg>Zalo</span>
                 ${zaloChips}
               </div>` : ''}
+              ${igChips ? `
+              <div style="display:flex; flex-wrap:wrap; align-items:center; gap:5px;">
+                <span style="display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; color:#E1306C; flex-shrink:0; min-width:28px;"><svg class="xi" style="width:11px;height:11px;"><use href="#ic-camera"/></svg>IG</span>
+                ${igChips}
+              </div>` : ''}
             </div>` : ''}
           </div>`}
         </div>`;
@@ -11141,7 +11162,7 @@
     function setPickerTab(tab) {
       pickerTab = tab;
       pickerCategoryFilter = '';
-      ['all','fb','zalo'].forEach(t => {
+      ['all','fb','zalo','instagram'].forEach(t => {
         const btn = document.getElementById('pickerTab' + t.charAt(0).toUpperCase() + t.slice(1));
         if (!btn) return;
         btn.style.background = t === tab ? '#3B82F6' : 'transparent';
@@ -11159,8 +11180,9 @@
       const select = document.getElementById('pickerCategoryFilter');
       if (!select) return;
       let all = [];
-      if (pickerTab !== 'zalo') all.push(...(channelsData.fbGroups || []), ...(channelsData.fbPages || []));
-      if (pickerTab !== 'fb') all.push(...(channelsData.zaloGroups || []));
+      if (pickerTab === 'all' || pickerTab === 'fb') all.push(...(channelsData.fbGroups || []), ...(channelsData.fbPages || []));
+      if (pickerTab === 'all' || pickerTab === 'zalo') all.push(...(channelsData.zaloGroups || []));
+      // Instagram không có category — tab 'instagram' luôn chỉ có "Tất cả phân loại".
       const cats = [...new Set(all.map(g => (g.category || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
       const hasUncategorized = all.some(g => !(g.category || '').trim());
       const opts = ['<option value="">Tất cả phân loại</option>'];
@@ -11176,17 +11198,22 @@
       const container = document.getElementById('pickerList');
       if (!container || !pickerProfileKey) return;
       const q = (document.getElementById('pickerSearch').value || '').toLowerCase().trim();
-      const pCh = (channelsData.profileChannels || {})[pickerProfileKey] || { fbGroups: [], fbPages: [], zaloGroups: [] };
+      const pCh = (channelsData.profileChannels || {})[pickerProfileKey] || { fbGroups: [], fbPages: [], zaloGroups: [], instagram: [] };
       const assignedFb = new Set(pCh.fbGroups || []);
       const assignedPages = new Set(pCh.fbPages || []);
       const assignedZalo = new Set(pCh.zaloGroups || []);
+      const assignedIg = new Set(pCh.instagram || []);
 
       populatePickerCategoryOptions();
 
-      let fbGroups = pickerTab !== 'zalo' ? (channelsData.fbGroups || []).map(g => ({ ...g, _type: 'fb' })) : [];
-      let fbPages = pickerTab !== 'zalo' ? (channelsData.fbPages || []).map(g => ({ ...g, _type: 'page' })) : [];
-      let zaloGroups = pickerTab !== 'fb' ? (channelsData.zaloGroups || []).map(g => ({ ...g, _type: 'zalo' })) : [];
-      let items = [...fbGroups, ...fbPages, ...zaloGroups];
+      const showFb = pickerTab === 'all' || pickerTab === 'fb';
+      const showZalo = pickerTab === 'all' || pickerTab === 'zalo';
+      const showIg = pickerTab === 'all' || pickerTab === 'instagram';
+      let fbGroups = showFb ? (channelsData.fbGroups || []).map(g => ({ ...g, _type: 'fb' })) : [];
+      let fbPages = showFb ? (channelsData.fbPages || []).map(g => ({ ...g, _type: 'page' })) : [];
+      let zaloGroups = showZalo ? (channelsData.zaloGroups || []).map(g => ({ ...g, _type: 'zalo' })) : [];
+      let igAccounts = showIg ? (_igAccountsCache || []).map(g => ({ ...g, _type: 'instagram' })) : [];
+      let items = [...fbGroups, ...fbPages, ...zaloGroups, ...igAccounts];
       if (pickerCategoryFilter === '__none__') {
         items = items.filter(g => !(g.category || '').trim());
       } else if (pickerCategoryFilter) {
@@ -11201,14 +11228,17 @@
       container.innerHTML = items.map(g => {
         const isFb = g._type === 'fb';
         const isPage = g._type === 'page';
-        const checked = isFb ? assignedFb.has(g.key) : isPage ? assignedPages.has(g.key) : assignedZalo.has(g.key);
-        const accent = isFb ? '#1877f2' : isPage ? '#7c3aed' : '#0369a1';
-        const bg = checked ? (isFb ? '#EFF6FF' : isPage ? '#faf5ff' : '#e0f2fe') : '#fff';
+        const isInstagram = g._type === 'instagram';
+        const checked = isFb ? assignedFb.has(g.key) : isPage ? assignedPages.has(g.key) : isInstagram ? assignedIg.has(g.key) : assignedZalo.has(g.key);
+        const accent = isFb ? '#1877f2' : isPage ? '#7c3aed' : isInstagram ? '#E1306C' : '#0369a1';
+        const bg = checked ? (isFb ? '#EFF6FF' : isPage ? '#faf5ff' : isInstagram ? '#fce7f3' : '#e0f2fe') : '#fff';
         const badge = isFb
           ? `<span style="background:#e8f1ff;color:#1877f2;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;">FB</span>`
           : isPage
             ? `<span style="background:#f3e8ff;color:#7c3aed;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;">Page</span>`
-            : `<span style="background:#e0f2fe;color:#0369a1;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;">Zalo</span>`;
+            : isInstagram
+              ? `<span style="background:#fce7f3;color:#E1306C;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;">IG</span>`
+              : `<span style="background:#e0f2fe;color:#0369a1;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;">Zalo</span>`;
         return `
           <label style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:7px; cursor:pointer; background:${bg}; user-select:none;">
             <input type="checkbox" ${checked ? 'checked' : ''} accent-color="${accent}"
@@ -11229,10 +11259,11 @@
     }
 
     async function toggleProfileChannel(profileKey, platform, channelKey, checked) {
-      const pCh = (channelsData.profileChannels || {})[profileKey] || { fbGroups: [], fbPages: [], zaloGroups: [], zaloAccount: '' };
+      const pCh = (channelsData.profileChannels || {})[profileKey] || { fbGroups: [], fbPages: [], zaloGroups: [], zaloAccount: '', instagram: [] };
       if (!pCh.fbGroups) pCh.fbGroups = [];
       if (!pCh.fbPages) pCh.fbPages = [];
       if (!pCh.zaloGroups) pCh.zaloGroups = [];
+      if (!pCh.instagram) pCh.instagram = [];
       if (platform === 'fb') {
         if (checked && !pCh.fbGroups.includes(channelKey)) pCh.fbGroups.push(channelKey);
         if (!checked) pCh.fbGroups = pCh.fbGroups.filter(k => k !== channelKey);
@@ -11244,6 +11275,10 @@
       if (platform === 'zalo') {
         if (checked && !pCh.zaloGroups.includes(channelKey)) pCh.zaloGroups.push(channelKey);
         if (!checked) pCh.zaloGroups = pCh.zaloGroups.filter(k => k !== channelKey);
+      }
+      if (platform === 'instagram') {
+        if (checked && !pCh.instagram.includes(channelKey)) pCh.instagram.push(channelKey);
+        if (!checked) pCh.instagram = pCh.instagram.filter(k => k !== channelKey);
       }
       if (!channelsData.profileChannels) channelsData.profileChannels = {};
       channelsData.profileChannels[profileKey] = pCh;
