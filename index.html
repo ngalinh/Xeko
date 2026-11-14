@@ -13940,7 +13940,7 @@
     }
 
     function _getAccountGroups(profileKey) {
-      const pCh = (channelsData.profileChannels || {})[profileKey] || { fbGroups: [], fbPages: [], zaloGroups: [] };
+      const pCh = (channelsData.profileChannels || {})[profileKey] || { fbGroups: [], fbPages: [], zaloGroups: [], instagram: [] };
       const fbGroups = (pCh.fbGroups || [])
         .map(k => (channelsData.fbGroups || []).find(g => g.key === k))
         .filter(Boolean)
@@ -13953,7 +13953,11 @@
         .map(k => (channelsData.zaloGroups || []).find(g => g.key === k))
         .filter(Boolean)
         .map(g => ({ ...g, _platform: 'zalo', _zaloAccount: pCh.zaloAccount || '' }));
-      return [...fbGroups, ...fbPages, ...zaloGroups];
+      const igAccounts = (pCh.instagram || [])
+        .map(k => (_igAccountsCache || []).find(g => g.key === k))
+        .filter(Boolean)
+        .map(g => ({ ...g, _platform: 'instagram', _kind: 'instagram' }));
+      return [...fbGroups, ...fbPages, ...zaloGroups, ...igAccounts];
     }
 
     function _renderRepostChannelList() {
@@ -13963,13 +13967,14 @@
         { type: 'personal', platform: 'fb', label: `${xekoIcon('home')} Profile`, sub: '' },
         ...groups.map(g => {
           const isPage = g._kind === 'page';
+          const isInstagram = g._kind === 'instagram';
           return {
-            type: isPage ? 'page' : 'group', platform: g._platform,
+            type: isPage ? 'page' : isInstagram ? 'instagram' : 'group', platform: g._platform,
             key: g.key, id: g.id, name: g.name,
             category: (g._platform === 'fb' && !isPage) ? ((g.category || '').trim() || 'Chưa phân loại') : '',
             zaloAccount: g._zaloAccount || '',
-            label: (isPage ? xekoIcon('file') + ' ' : g._platform === 'zalo' ? xekoIcon('chat') + ' ' : xekoIcon('users') + ' ') + (g.name || g.key),
-            sub: g._platform === 'zalo' ? 'Zalo' : (g.id || ''),
+            label: (isPage ? xekoIcon('file') + ' ' : isInstagram ? xekoIcon('camera') + ' ' : g._platform === 'zalo' ? xekoIcon('chat') + ' ' : xekoIcon('users') + ' ') + (g.name || g.key),
+            sub: g._platform === 'zalo' ? 'Zalo' : isInstagram ? 'Instagram' : (g.id || ''),
           };
         })
       ];
@@ -13993,8 +13998,10 @@
             ? `${xekoIcon('home')} Profile`
             : ch.type === 'page'
               ? `${xekoIcon('file')} ${ch.name || ch.key || ''}`
-              : (ch.platform === 'zalo' ? xekoIcon('chat') + ' ' : xekoIcon('users') + ' ') + (ch.name || ch.key || ''),
-          sub: ch.platform === 'zalo' ? (ch.zaloAccount ? 'Zalo · ' + ch.zaloAccount : 'Zalo') : (ch.id || ''),
+              : ch.type === 'instagram'
+                ? `${xekoIcon('camera')} ${ch.name || ch.key || ''}`
+                : (ch.platform === 'zalo' ? xekoIcon('chat') + ' ' : xekoIcon('users') + ' ') + (ch.name || ch.key || ''),
+          sub: ch.platform === 'zalo' ? (ch.zaloAccount ? 'Zalo · ' + ch.zaloAccount : 'Zalo') : ch.type === 'instagram' ? 'Instagram' : (ch.id || ''),
         });
       }
 
@@ -14039,6 +14046,11 @@
         .filter(x => x.o.type === 'group' && x.o.platform === 'zalo' && x.o.category !== '__orphan__')
         .map(x => x.i);
       if (zaloIdxs.length) sections.push({ key: 'zalo', name: xekoIcon('chat') + ' Zalo', idxs: zaloIdxs });
+      const igIdxs = options
+        .map((o, i) => ({ o, i }))
+        .filter(x => x.o.type === 'instagram' && x.o.category !== '__orphan__')
+        .map(x => x.i);
+      if (igIdxs.length) sections.push({ key: 'instagram', name: xekoIcon('camera') + ' Instagram', idxs: igIdxs });
       window._repostSections = sections;
 
       let html = '';
@@ -14167,6 +14179,7 @@
         const res = await fetch(BASE_URL + '/api/accounts?_t=' + Date.now(), {cache: 'no-store'});
         const data = await parseJson(res);
         const profiles = data.facebook || [];
+        _igAccountsCache = data.instagram || [];
         const sel = document.getElementById('repostProfile');
         // Mặc định chọn TÀI KHOẢN ĐANG dùng (currentProfile) chứ không phải tài
         // khoản của bài gốc — repost là user hiện tại đăng lại, không phải tác
@@ -14431,6 +14444,12 @@
             const d = await parseJson(res);
             const isAsync = !!(d.jobId && d.processing);
             jobs.push({ ch, zaloJobId: isAsync ? d.jobId : null, pendingLogId: d.pendingLogId || null, done: !isAsync, ok: isAsync ? undefined : !!d.success });
+          } else if (ch.platform === 'instagram') {
+            fd.append('profile', ch.key || ch.id || '');
+            fd.append('profileName', ch.name || ch.key || '');
+            const res = await fetch(BASE_URL + '/api/post-instagram', { method: 'POST', body: fd });
+            const d = await parseJson(res);
+            jobs.push({ ch, igJobId: d.jobId || null, pendingLogId: d.pendingLogId || null, done: !d.jobId, ok: d.jobId ? undefined : false });
           } else {
             fd.append('target', ch.type === 'group' ? 'group' : ch.type === 'page' ? 'page' : 'personal');
             if (ch.type === 'group' || ch.type === 'page') fd.append('groupId', ch.id || ch.key || '');
@@ -14496,6 +14515,14 @@
             account: job.ch.zaloAccount || '',
             pendingLogId: job.pendingLogId || null,
           });
+        } else if (job.igJobId) {
+          pushPendingJob({
+            kind: 'instagram',
+            jobId: job.igJobId,
+            tempId: job.tempId,
+            label: `Instagram ${job.ch.name || job.ch.key || ''}`,
+            pendingLogId: job.pendingLogId || null,
+          });
         }
       });
 
@@ -14520,10 +14547,10 @@
           const [_tPart = '-', _dPart = ''] = (timeLabel || '').split(' ');
           const _optRows = jobs.filter(j => !j.done && j.tempId).map(job => {
             const ch = job.ch || {};
-            const platformLabel = ch.platform === 'zalo' ? 'Zalo' : 'FB';
-            const targetLabel = ch.type === 'group' ? 'Group' : 'Profile';
-            const isPersonal = ch.type !== 'group';
-            const groupId = ch.platform === 'zalo' ? (ch.name || '-') : (ch.id || ch.key || '-');
+            const platformLabel = ch.platform === 'zalo' ? 'Zalo' : ch.platform === 'instagram' ? 'Instagram' : 'FB';
+            const targetLabel = ch.type === 'group' ? 'Group' : ch.type === 'instagram' ? 'Tài khoản' : 'Profile';
+            const isPersonal = ch.type !== 'group' && ch.type !== 'instagram';
+            const groupId = ch.platform === 'zalo' || ch.platform === 'instagram' ? (ch.name || '-') : (ch.id || ch.key || '-');
             return `<tr id="opt-${job.tempId}" data-optimistic-repost="1" style="border-bottom:1px solid #BFDBFE; background:#f0f9ff; border-left:3px solid #2563EB;">
               <td style="padding:8px 10px;"><svg style="width:14px;height:14px;color:#1E3A8A;" aria-hidden="true"><use href="#ic-clock"/></svg></td>
               <td style="padding:8px 12px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${_msgShort}</td>
@@ -14569,6 +14596,20 @@
               }
               d = d || { success: false, error: 'Timeout' };
               job.ok = !!d.success;
+            } else if (job.igJobId) {
+              // Instagram: poll /api/post-instagram-job/:id (giống main post flow)
+              let deadline = Date.now() + 10 * 60 * 1000;
+              let d;
+              while (Date.now() < deadline) {
+                await sleepOrVisible(3000);
+                try {
+                  const sr = await fetch(`${BASE_URL}/api/post-instagram-job/${job.igJobId}`);
+                  if (!sr.ok) continue;
+                  const sd = await parseJson(sr);
+                  if (sd.status === 'done' || sd.status === 'failed') { d = sd; break; }
+                } catch {}
+              }
+              job.ok = !!(d && d.status === 'done' && d.result && d.result.success);
             } else {
               // FB: dùng pollJob (SSE + HTTP)
               const d = job.jobId ? await pollJob(job.jobId) : job.initial;
@@ -14585,6 +14626,7 @@
           }
           if (job.jobId) removePendingJob(job.jobId);
           if (job.zaloJobId) removePendingJob(job.zaloJobId);
+          if (job.igJobId) removePendingJob(job.igJobId);
           // Reload dashboard để cập nhật pending row → done (áp dụng cả 2 path)
           loadDashHistory({ noSkeleton: true });
         }
