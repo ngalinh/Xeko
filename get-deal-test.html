@@ -48,7 +48,7 @@
         <label><input type="radio" name="engine" value="webkit"> WebKit</label>
       </div>
     </fieldset>
-    <div class="status">Phiên bản giao diện: product-images-v1</div>
+    <div class="status">Phiên bản giao diện: product-images-v2</div>
     <button id="go">Check deal</button>
     <div class="status" id="status"></div>
     <div class="error" id="error"></div>
@@ -83,7 +83,7 @@ btn.addEventListener('click', async () => {
   $('images').replaceChildren();
   $('images-status').textContent = '';
   $('debug').textContent = '';
-  setStatus('Đang mở trang bằng ' + engineLabel + ' và chụp ảnh...');
+  setStatus('Đang mở trang bằng ' + engineLabel + ' và tự bấm ảnh thu nhỏ để gom ảnh sản phẩm...');
 
   try {
     const res = await fetch(BASE_URL + '/api/get-deal', {

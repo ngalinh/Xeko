@@ -4,7 +4,7 @@ const { safeLaunch } = require('../utils/playwright-launch');
 const { firefox, webkit } = require('playwright');
 const { parseProxy } = require('../utils/proxy');
 const logger = require('../utils/logger');
-const { collectProductImages } = require('./product-images');
+const { collectGalleryImages } = require('./product-images');
 
 const DEAL_SCREENSHOT_DIR = path.resolve(__dirname, '../../logs/deals');
 
@@ -110,7 +110,7 @@ async function getDeal(url, opts = {}) {
     }
 
     const price = await extractPrice(page);
-    const images = await page.evaluate(collectProductImages);
+    const { images, gallery } = await collectGalleryImages(page);
 
     const fileName = `${Date.now()}.png`;
     await page.screenshot({ path: path.join(DEAL_SCREENSHOT_DIR, fileName), fullPage: false });
@@ -118,6 +118,7 @@ async function getDeal(url, opts = {}) {
     // Thong tin debug — de biet trang thuc su tra ve gi (bi redirect, bi chan
     // bang ma loi, hay chi la chua render kip) thay vi doan mo qua anh chup.
     const debug = {
+      gallery,
       finalUrl: page.url(),
       httpStatus: mainResponse ? mainResponse.status() : null,
       pageTitle: await page.title().catch(() => null),
