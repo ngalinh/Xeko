@@ -60,7 +60,9 @@ async function registerUrl(localUrl, { silent = false } = {}) {
     if (!silent) console.log('[✓] Đã đăng ký URL với remote server:', data.message);
   } catch (e) {
     // Heartbeat luôn log lỗi (cloud có thể đang down) nhưng im khi thành công
-    console.error('[✗] Không đăng ký được URL:', e.message);
+    // e.cause chứa lý do thật (ECONNREFUSED/ETIMEDOUT/ENOTFOUND...) — "fetch failed" của
+    // undici không tự in ra, phải log riêng mới tra được nguyên nhân rớt mạng.
+    console.error('[✗] Không đăng ký được URL:', e.message, e.cause ? `(cause: ${e.cause})` : '');
   }
 }
 
