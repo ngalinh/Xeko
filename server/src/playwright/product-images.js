@@ -18,6 +18,11 @@ function collectProductImages() {
         url.searchParams.set('wid', String(width));
         url.searchParams.delete('hei');
         url.searchParams.set('qlt', '90');
+        url.searchParams.set('fmt', 'jpg');
+        url.searchParams.set('op_sharpen', '1');
+        url.searchParams.set('fit', 'fit,1');
+        url.searchParams.delete('dpr');
+        url.searchParams.sort();
       }
       images.add(url.href);
     } catch { /* Ignore malformed image metadata. */ }
@@ -41,6 +46,12 @@ function collectProductImages() {
     '[id*="productImages"] img',
     '[class*="image-grid"] img',
     '[class*="imageGrid"] img',
+    '[data-testid*="product-gallery"] img',
+    '[class*="product-gallery"] source',
+    '[class*="product-images"] source',
+    '[id*="productImages"] source',
+    '[class*="image-grid"] source',
+    '[class*="imageGrid"] source',
   ];
   for (const img of document.querySelectorAll(selectors.join(','))) {
     const zoom = img.getAttribute('data-zoom-image') || img.getAttribute('data-large-image') ||

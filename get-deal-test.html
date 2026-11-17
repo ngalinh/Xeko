@@ -48,7 +48,7 @@
         <label><input type="radio" name="engine" value="webkit"> WebKit</label>
       </div>
     </fieldset>
-    <div class="status">Phiên bản giao diện: product-images-hq-v3</div>
+    <div class="status">Phiên bản giao diện: product-images-hq-v4</div>
     <button id="go">Check deal</button>
     <div class="status" id="status"></div>
     <div class="error" id="error"></div>
@@ -104,6 +104,7 @@ btn.addEventListener('click', async () => {
       ? 'Ảnh sản phẩm: ' + images.length + ' — ưu tiên bản lớn/ảnh zoom; bấm để mở và lưu ảnh.'
       : 'Chưa tìm thấy ảnh sản phẩm trong dữ liệu trang.';
     images.forEach((src, index) => {
+      const item = document.createElement('div');
       const link = document.createElement('a');
       link.href = src;
       link.target = '_blank';
@@ -117,7 +118,41 @@ btn.addEventListener('click', async () => {
         link.append(document.createTextNode(' (không tải được bản xem trước)'));
       });
       link.append(img, document.createTextNode('Mở ảnh lớn ' + (index + 1)));
-      $('images').append(link);
+      const download = document.createElement('button');
+      download.type = 'button';
+      download.textContent = 'Tải ảnh ' + (index + 1);
+      const feedback = document.createElement('div');
+      feedback.className = 'status';
+      download.addEventListener('click', async () => {
+        download.disabled = true;
+        feedback.textContent = 'Đang tải ảnh lớn...';
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000);
+        try {
+          const response = await fetch(src, { signal: controller.signal(), credentials: 'omit' });
+          if (!response.ok) throw new Error('HTTP ' + response.status);
+          const blob = await response.blob();
+          if (!blob.size || !blob.type.startsWith('image/')) throw new Error('Không nhận được ảnh');
+          const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
+            'image/avif': 'avif', 'image/gif': 'gif' }[blob.type] || 'img';
+          const objectUrl = URL.createObjectURL(blob);
+          const save = document.createElement('a');
+          save.href = objectUrl;
+          save.download = 'san-pham-' + (index + 1) + '.' + ext;
+          document.body.append(save);
+          save.click();
+          save.remove();
+          setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+          feedback.textContent = 'Đã gửi ảnh tới trình duyệt để lưu.';
+        } catch {
+          feedback.textContent = 'Không tải trực tiếp được. Bấm “Mở ảnh lớn” phía trên, rồi chọn “Lưu hình ảnh thành…”.';
+        } finally {
+          clearTimeout(timeout);
+          download.disabled = false;
+        }
+      });
+      item.append(link, download, feedback);
+      $('images').append(item);
     });
 
     if (data.debug) {
