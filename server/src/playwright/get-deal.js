@@ -4,6 +4,7 @@ const { safeLaunch } = require('../utils/playwright-launch');
 const { firefox, webkit } = require('playwright');
 const { parseProxy } = require('../utils/proxy');
 const logger = require('../utils/logger');
+const { collectProductImages } = require('./product-images');
 
 const DEAL_SCREENSHOT_DIR = path.resolve(__dirname, '../../logs/deals');
 
@@ -109,6 +110,7 @@ async function getDeal(url, opts = {}) {
     }
 
     const price = await extractPrice(page);
+    const images = await page.evaluate(collectProductImages);
 
     const fileName = `${Date.now()}.png`;
     await page.screenshot({ path: path.join(DEAL_SCREENSHOT_DIR, fileName), fullPage: false });
@@ -124,7 +126,7 @@ async function getDeal(url, opts = {}) {
     };
 
     logger.info(`[get-deal] ${url} (engine=${engine}) -> price=${price || '(không đọc được)'} debug=${JSON.stringify(debug)}`);
-    return { price, screenshotFile: fileName, debug: { ...debug, engine } };
+    return { price, images, screenshotFile: fileName, debug: { ...debug, engine } };
   } finally {
     await browser.close();
   }

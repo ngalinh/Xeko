@@ -27,13 +27,16 @@
   .price { font-size: 22px; font-weight: 700; color: #1c1e21; margin-top: 14px; }
   .shot { margin-top: 12px; }
   .shot img { max-width: 100%; border-radius: 8px; border: 1px solid #dadde1; display: block; }
+  .product-images { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .product-images img { width: 100%; height: 180px; object-fit: contain; }
+  .product-images a { overflow-wrap: anywhere; font-size: 13px; }
   .error { color: #fa383e; font-size: 13px; margin-top: 10px; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Check deal sản phẩm (test nội bộ)</h1>
-  <div class="hint">Dán link 1 trang sản phẩm (Macy's, hoặc web bán lẻ tương tự) để lấy giá + screenshot. Chạy thật trên VPS qua local-server.</div>
+  <div class="hint">Dán link 1 trang sản phẩm (Macy's, hoặc web bán lẻ tương tự) để lấy giá + ảnh sản phẩm + screenshot. Chạy thật trên VPS qua local-server.</div>
   <div class="card">
     <input type="text" id="url" placeholder="https://www.macys.com/shop/product/...">
     <input type="text" id="proxy" placeholder="(tuy chon) proxy: user:pass@host:port" style="margin-top:8px;">
@@ -45,11 +48,13 @@
         <label><input type="radio" name="engine" value="webkit"> WebKit</label>
       </div>
     </fieldset>
-    <div class="status">Phiên bản giao diện: engines-v2</div>
+    <div class="status">Phiên bản giao diện: product-images-v1</div>
     <button id="go">Check deal</button>
     <div class="status" id="status"></div>
     <div class="error" id="error"></div>
     <div class="price" id="price"></div>
+    <p id="images-status" class="status"></p>
+    <div id="images" class="product-images"></div>
     <div class="shot" id="shot"></div>
     <pre class="status" id="debug" style="white-space:pre-wrap;background:#f5f6f8;padding:8px;border-radius:6px;margin-top:10px;"></pre>
   </div>
@@ -75,6 +80,8 @@ btn.addEventListener('click', async () => {
   setError('');
   $('price').textContent = '';
   $('shot').innerHTML = '';
+  $('images').replaceChildren();
+  $('images-status').textContent = '';
   $('debug').textContent = '';
   setStatus('Đang mở trang bằng ' + engineLabel + ' và chụp ảnh...');
 
@@ -89,6 +96,29 @@ btn.addEventListener('click', async () => {
 
     setStatus('Xong — trình duyệt đã chọn: ' + engineLabel + '.');
     $('price').textContent = data.price ? ('Giá đọc được: ' + data.price) : 'Không đọc được giá trên trang này.';
+
+    const images = (Array.isArray(data.images) ? data.images : []).filter(src => {
+      try { return ['http:', 'https:'].includes(new URL(src).protocol); } catch { return false; }
+    });
+    $('images-status').textContent = images.length
+      ? 'Ảnh sản phẩm: ' + images.length + ' — bấm để mở ảnh nguồn.'
+      : 'Chưa tìm thấy ảnh sản phẩm trong dữ liệu trang.';
+    images.forEach((src, index) => {
+      const link = document.createElement('a');
+      link.href = src;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = 'Ảnh sản phẩm ' + (index + 1);
+      img.loading = 'lazy';
+      img.addEventListener('error', () => {
+        img.remove();
+        link.append(document.createTextNode(' (không tải được bản xem trước)'));
+      });
+      link.append(img, document.createTextNode('Mở ảnh ' + (index + 1)));
+      $('images').append(link);
+    });
 
     if (data.debug) {
       $('debug').textContent = JSON.stringify(data.debug, null, 2);
