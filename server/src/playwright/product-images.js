@@ -9,6 +9,16 @@ function collectProductImages() {
       const url = new URL(value, document.baseURI);
       if (!['http:', 'https:'].includes(url.protocol)) return;
       url.hash = '';
+      // Macy's Scene7 image service: replace thumbnail sizing, preserve crop/color.
+      // Do not rewrite other hosts or signed URLs.
+      if (/^(slimages\.macysassets\.com|slimages\.macys\.com)$/.test(url.hostname) &&
+          url.pathname.startsWith('/is/image/') &&
+          ![...url.searchParams.keys()].some(key => /sign|token|auth/i.test(key))) {
+        const width = Math.max(2000, Number(url.searchParams.get('wid')) || 0);
+        url.searchParams.set('wid', String(width));
+        url.searchParams.delete('hei');
+        url.searchParams.set('qlt', '90');
+      }
       images.add(url.href);
     } catch { /* Ignore malformed image metadata. */ }
   }
@@ -33,8 +43,18 @@ function collectProductImages() {
     '[class*="imageGrid"] img',
   ];
   for (const img of document.querySelectorAll(selectors.join(','))) {
-    add(img.getAttribute('data-zoom-image') || img.getAttribute('data-src') ||
-      img.getAttribute('content') || img.currentSrc || img.getAttribute('src') || img.getAttribute('href'));
+    const zoom = img.getAttribute('data-zoom-image') || img.getAttribute('data-large-image') ||
+      img.getAttribute('data-full-image');
+    // Choose the largest declared responsive candidate, not the viewport thumbnail.
+    const srcset = img.getAttribute('data-srcset') || img.getAttribute('srcset') || '';
+    const candidates = srcset.split(',').map(part => {
+      const match = part.trim().match(/^(\S+)\s+(\d+(?:\.\d+)?)(w|x)$/);
+      return match ? { url: match[1], size: Number(match[2]), unit: match[3] } : null;
+    }).filter(Boolean);
+    const widths = candidates.filter(item => item.unit === 'w');
+    const largest = (widths.length ? widths : candidates).sort((a, b) => b.size - a.size)[0];
+    add(zoom || (largest && largest.url) || img.getAttribute('content') ||
+      img.getAttribute('data-src') || img.currentSrc || img.getAttribute('src') || img.getAttribute('href'));
   }
   if (!images.size) {
     for (const meta of document.querySelectorAll('meta[property="og:image"], meta[property="og:image:secure_url"]')) add(meta.content);

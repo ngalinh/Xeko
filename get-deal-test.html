@@ -48,7 +48,7 @@
         <label><input type="radio" name="engine" value="webkit"> WebKit</label>
       </div>
     </fieldset>
-    <div class="status">Phiên bản giao diện: product-images-v2</div>
+    <div class="status">Phiên bản giao diện: product-images-hq-v3</div>
     <button id="go">Check deal</button>
     <div class="status" id="status"></div>
     <div class="error" id="error"></div>
@@ -101,7 +101,7 @@ btn.addEventListener('click', async () => {
       try { return ['http:', 'https:'].includes(new URL(src).protocol); } catch { return false; }
     });
     $('images-status').textContent = images.length
-      ? 'Ảnh sản phẩm: ' + images.length + ' — bấm để mở ảnh nguồn.'
+      ? 'Ảnh sản phẩm: ' + images.length + ' — ưu tiên bản lớn/ảnh zoom; bấm để mở và lưu ảnh.'
       : 'Chưa tìm thấy ảnh sản phẩm trong dữ liệu trang.';
     images.forEach((src, index) => {
       const link = document.createElement('a');
@@ -116,7 +116,7 @@ btn.addEventListener('click', async () => {
         img.remove();
         link.append(document.createTextNode(' (không tải được bản xem trước)'));
       });
-      link.append(img, document.createTextNode('Mở ảnh ' + (index + 1)));
+      link.append(img, document.createTextNode('Mở ảnh lớn ' + (index + 1)));
       $('images').append(link);
     });
 
