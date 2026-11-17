@@ -166,6 +166,12 @@ app.get('/sw.js', (req, res) => {
   }
 });
 
+// Keep the diagnostic UI fresh, including when served under a gateway prefix.
+app.get('/get-deal-test.html', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, '../get-deal-test.html'));
+});
+
 app.use(express.static(path.join(__dirname, '../')));
 
 async function getFetch() {

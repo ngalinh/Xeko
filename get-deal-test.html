@@ -20,6 +20,9 @@
     font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px;
   }
   button:disabled { opacity: .5; cursor: not-allowed; }
+  .engines { margin: 14px 0 0; padding: 12px; border: 1px solid #ccd0d5; border-radius: 6px; }
+  .engine-options { display: flex; flex-wrap: wrap; gap: 10px; }
+  .engine-options label { display: flex; align-items: center; gap: 6px; padding: 10px; background: #f5f6f8; border-radius: 6px; cursor: pointer; }
   .status { font-size: 13px; color: #65676b; margin-top: 10px; }
   .price { font-size: 22px; font-weight: 700; color: #1c1e21; margin-top: 14px; }
   .shot { margin-top: 12px; }
@@ -34,12 +37,15 @@
   <div class="card">
     <input type="text" id="url" placeholder="https://www.macys.com/shop/product/...">
     <input type="text" id="proxy" placeholder="(tuy chon) proxy: user:pass@host:port" style="margin-top:8px;">
-    <label for="engine" style="display:block;margin-top:8px;">Trình duyệt</label>
-    <select id="engine" style="margin-top:8px; width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid #ccd0d5; border-radius:6px; font-size:14px;">
-      <option value="chromium">Chromium (mặc định)</option>
-      <option value="firefox">Firefox</option>
-      <option value="webkit">WebKit</option>
-    </select>
+    <fieldset class="engines" id="engines">
+      <legend>Chọn trình duyệt</legend>
+      <div class="engine-options">
+        <label><input type="radio" name="engine" value="chromium" checked> Chromium</label>
+        <label><input type="radio" name="engine" value="firefox"> Firefox</label>
+        <label><input type="radio" name="engine" value="webkit"> WebKit</label>
+      </div>
+    </fieldset>
+    <div class="status">Phiên bản giao diện: engines-v2</div>
     <button id="go">Check deal</button>
     <div class="status" id="status"></div>
     <div class="error" id="error"></div>
@@ -61,23 +67,27 @@ btn.addEventListener('click', async () => {
   const url = $('url').value.trim();
   if (!url) { setError('Chưa nhập link'); return; }
 
+  const selectedEngine = document.querySelector('input[name="engine"]:checked');
+  const engine = selectedEngine.value;
+  const engineLabel = selectedEngine.parentElement.textContent.trim();
   btn.disabled = true;
+  $('engines').disabled = true;
   setError('');
   $('price').textContent = '';
   $('shot').innerHTML = '';
   $('debug').textContent = '';
-  setStatus('Đang mở trang bằng ' + $('engine').selectedOptions[0].textContent + ' và chụp ảnh...');
+  setStatus('Đang mở trang bằng ' + engineLabel + ' và chụp ảnh...');
 
   try {
     const res = await fetch(BASE_URL + '/api/get-deal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, proxy: $('proxy').value.trim() || undefined, engine: $('engine').value }),
+      body: JSON.stringify({ url, proxy: $('proxy').value.trim() || undefined, engine }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Lỗi không rõ');
 
-    setStatus('Xong.');
+    setStatus('Xong — trình duyệt đã chọn: ' + engineLabel + '.');
     $('price').textContent = data.price ? ('Giá đọc được: ' + data.price) : 'Không đọc được giá trên trang này.';
 
     if (data.debug) {
@@ -94,6 +104,7 @@ btn.addEventListener('click', async () => {
     setError('❌ ' + e.message);
   } finally {
     btn.disabled = false;
+    $('engines').disabled = false;
   }
 });
 </script>
