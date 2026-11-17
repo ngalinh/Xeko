@@ -53,6 +53,11 @@ function collectProductImages() {
     '[class*="image-grid"] source',
     '[class*="imageGrid"] source',
   ];
+  // Macy's picture component can sit outside the named gallery containers.
+  // Scope this fallback to Macy's; the class is generic on other storefronts.
+  if (/(^|\.)macys\.com$/.test(new URL(document.baseURI).hostname)) {
+    selectors.push('img.picture-image');
+  }
   for (const img of document.querySelectorAll(selectors.join(','))) {
     const zoom = img.getAttribute('data-zoom-image') || img.getAttribute('data-large-image') ||
       img.getAttribute('data-full-image');

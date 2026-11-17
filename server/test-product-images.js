@@ -28,6 +28,32 @@ for (const asset of [first, second]) {
 }
 assert.ok(images.includes(signed), 'Preserve signed URLs');
 assert.ok(images.includes(other), 'Do not rewrite other CDNs');
+// Regression: the supplied Macy's picture element has no known gallery parent.
+const pictureAsset = 'https://slimages.macysassets.com/is/image/MCY/products/5/optimized/39320745_fpx.tif';
+let includeThumbnail = true;
+let pictureAttributes = { 'data-src': pictureAsset, src: pictureAsset + '?wid=1500' };
+global.document = {
+  baseURI: 'https://www.macys.com/shop/product/test',
+  querySelectorAll(selector) {
+    if (!selector.split(',').includes('img.picture-image')) return [];
+    return [
+      { getAttribute: name => pictureAttributes[name] || null },
+      ...(includeThumbnail ? [{ getAttribute: name => name === 'src' ? pictureAsset + '?wid=100' : null }] : []),
+    ];
+  },
+};
+let pictures = collectProductImages();
+assert.equal(pictures.length, 1, 'Collect and deduplicate pictures outside gallery containers');
+assert.equal(new URL(pictures[0]).pathname, new URL(pictureAsset).pathname);
+assert.equal(new URL(pictures[0]).searchParams.get('wid'), '2000');
+assert.equal(new URL(pictures[0]).searchParams.get('fmt'), 'jpg');
+includeThumbnail = false;
+pictureAttributes = { 'data-src': pictureAsset };
+assert.deepEqual(collectProductImages(), pictures, 'Collect lazy images before src loads');
+pictureAttributes = { src: pictureAsset + '?wid=1500' };
+assert.deepEqual(collectProductImages(), pictures, 'Fall back to src without data-src');
+global.document.baseURI = 'https://example.com/product';
+assert.deepEqual(collectProductImages(), [], 'Do not collect generic picture classes on other sites');
 delete global.document;
 
 (async () => {
