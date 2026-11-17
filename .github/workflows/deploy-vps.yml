@@ -90,7 +90,10 @@ jobs:
 
             Push-Location $serverDir
             try {
-              npx playwright install chromium
+              if (-not $env:PLAYWRIGHT_BROWSERS_PATH) {
+                $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $serverDir '.playwright-browsers'
+              }
+              npx playwright install chromium firefox webkit
               if ($LASTEXITCODE -ne 0) { throw "Playwright install failed with exit code $LASTEXITCODE" }
             } finally {
               Pop-Location

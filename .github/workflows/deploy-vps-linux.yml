@@ -67,7 +67,8 @@ jobs:
 
           npm --prefix "$APP_DIR/server" ci --omit=dev
 
-          (cd "$APP_DIR/server" && npx playwright install chromium)
+          export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$APP_DIR/server/.playwright-browsers}"
+          (cd "$APP_DIR/server" && npx playwright install chromium firefox webkit)
 
           (cd "$APP_DIR" && pm2 startOrReload ecosystem.config.js --only xeko-local --update-env)
           pm2 save

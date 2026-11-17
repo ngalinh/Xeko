@@ -16,7 +16,7 @@ Workflow `.github/workflows/deploy-vps.yml` deploy commit mới của nhánh `ma
 
 - GitHub Actions self-hosted runner được đăng ký với custom label `vps`.
 
-Workflow tự chạy `npx playwright install chromium`; không cần cài Chromium thủ công.
+Workflow tự cài Chromium, Firefox và WebKit vào `server/.playwright-browsers` (hoặc `PLAYWRIGHT_BROWSERS_PATH` nếu đã cấu hình), cùng đường dẫn ứng dụng sử dụng. Trang `get-deal-test.html` cho phép chọn engine và gắn proxy cho từng lần thử.
 
 ## Đăng ký GitHub Actions runner
 
@@ -69,10 +69,10 @@ Workflow `.github/workflows/deploy-vps-linux.yml` deploy commit mới của nhá
   ```
 
 - GitHub Actions self-hosted runner đăng ký tại repository Xeko, đủ label `self-hosted`, `Linux`, `X64`, `vps-linux`.
-- Playwright chromium cần thêm thư viện hệ thống (khác Windows). Sau lần deploy đầu tiên, chạy tay 1 lần (và lại sau khi distro cập nhật lớn):
+- Playwright Chromium/Firefox/WebKit cần thêm thư viện hệ thống (khác Windows). Sau lần deploy đầu tiên, chạy tay 1 lần (và lại sau khi distro cập nhật lớn):
 
   ```bash
-  cd /opt/xeko/server && npx playwright install-deps chromium
+  cd /opt/xeko/server && npx playwright install-deps chromium firefox webkit
   ```
 
 ### Đăng ký GitHub Actions runner

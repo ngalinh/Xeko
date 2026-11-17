@@ -57,14 +57,19 @@ function homepageOf(url) {
 // trang chủ trước để có cookie/session giống người dùng thật rồi mới qua
 // trang sản phẩm — không đảm bảo luôn qua được (bot-management ngày càng
 // tinh vi), nhưng tăng cơ hội so với gọi thẳng URL.
-// Chromium di qua safeLaunch (co stealth plugin + tu cai lai browser neu thieu).
-// Firefox/WebKit dung playwright goc — khong co stealth plugin tuong duong, va
-// phai da cai san tren may (npx playwright install firefox webkit) hoac se loi
-// ro rang "Executable doesn't exist" — khong tu cai nhu chromium.
+// Chromium dùng wrapper hiện có; Firefox/WebKit dùng Playwright trực tiếp.
+// Workflow deploy cài cả ba engine vào cùng PLAYWRIGHT_BROWSERS_PATH.
 async function launchBrowser(engine, launchOpts) {
-  if (engine === 'firefox') return firefox.launch(launchOpts);
-  if (engine === 'webkit') return webkit.launch(launchOpts);
-  return safeLaunch(launchOpts);
+  try {
+    if (engine === 'firefox') return await firefox.launch(launchOpts);
+    if (engine === 'webkit') return await webkit.launch(launchOpts);
+    return await safeLaunch(launchOpts);
+  } catch (error) {
+    if (/Executable doesn'?t exist|Looks like Playwright was just installed/i.test(error.message || '')) {
+      throw new Error(`Chưa cài trình duyệt ${engine} trên máy chạy Xeko. Cần chạy lại workflow deploy để cài đủ browser.`, { cause: error });
+    }
+    throw error;
+  }
 }
 
 async function getDeal(url, opts = {}) {

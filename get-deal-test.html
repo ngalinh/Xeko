@@ -34,8 +34,9 @@
   <div class="card">
     <input type="text" id="url" placeholder="https://www.macys.com/shop/product/...">
     <input type="text" id="proxy" placeholder="(tuy chon) proxy: user:pass@host:port" style="margin-top:8px;">
+    <label for="engine" style="display:block;margin-top:8px;">Trình duyệt</label>
     <select id="engine" style="margin-top:8px; width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid #ccd0d5; border-radius:6px; font-size:14px;">
-      <option value="chromium">Chromium (mac dinh)</option>
+      <option value="chromium">Chromium (mặc định)</option>
       <option value="firefox">Firefox</option>
       <option value="webkit">WebKit</option>
     </select>
@@ -64,7 +65,8 @@ btn.addEventListener('click', async () => {
   setError('');
   $('price').textContent = '';
   $('shot').innerHTML = '';
-  setStatus('Đang mở trang và chụp ảnh...');
+  $('debug').textContent = '';
+  setStatus('Đang mở trang bằng ' + $('engine').selectedOptions[0].textContent + ' và chụp ảnh...');
 
   try {
     const res = await fetch(BASE_URL + '/api/get-deal', {

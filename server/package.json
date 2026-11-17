@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "gemini:login": "node gemini-login.js",
-    "playwright:install": "npx playwright install chromium"
+    "playwright:install": "npx playwright install chromium firefox webkit"
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
