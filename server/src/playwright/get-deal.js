@@ -72,15 +72,24 @@ async function getDeal(url, opts = {}) {
     const homepage = homepageOf(url);
     if (homepage && homepage !== url) {
       try {
-        await page.goto(homepage, { waitUntil: 'domcontentloaded', timeout: 20000 });
+        await page.goto(homepage, { waitUntil: 'load', timeout: 45000 });
         await page.waitForTimeout(randomDelayMs(1500, 3000));
       } catch (e) {
         logger.warn(`[get-deal] mở trang chủ thất bại, bỏ qua bước khởi động: ${e.message}`);
       }
     }
 
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(randomDelayMs(2000, 4000));
+    await page.goto(url, { waitUntil: 'load', timeout: 45000 });
+    await page.waitForTimeout(randomDelayMs(3000, 5000));
+
+    // Proxy (nhat la residential) thuong cham hon ket noi thang — trang co the
+    // chua kip render xong khi het thoi gian cho ban dau. Neu body con gan nhu
+    // trong, cho them 1 lan nua truoc khi chup/bo cuoc.
+    let bodyText = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
+    if (bodyText.trim().length < 50) {
+      await page.waitForTimeout(5000);
+      bodyText = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
+    }
 
     const price = await extractPrice(page);
 
