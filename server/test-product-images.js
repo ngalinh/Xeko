@@ -58,6 +58,35 @@ pictureAttributes = { src: pictureAsset + '?wid=1500' };
 assert.deepEqual(collectProductImages(), pictures, 'Fall back to src without data-src');
 global.document.baseURI = 'https://example.com/product';
 assert.deepEqual(collectProductImages(), [], 'Do not collect generic picture classes on other sites');
+// Regression: gallery images/source elements need not repeat the product name.
+const galleryAsset = base + '39320750_fpx.tif';
+const recommendedAsset = 'https://example.com/recommendation.jpg';
+let headingText = "Created For Macy’s - 5-Piece Self Care Saviors Set";
+const galleryNode = (attrs, recommended = false) => ({
+  closest: selector => selector.includes('recommend') ? (recommended ? {} : null) : {},
+  getAttribute: name => attrs[name] || null,
+});
+global.document = {
+  baseURI: 'https://www.macys.com/shop/product/test',
+  querySelectorAll(selector) {
+    if (selector === 'h1') return [{ textContent: headingText }];
+    if (!selector.includes('img.picture-image')) return [];
+    return [
+      galleryNode({ 'data-src': pictureAsset }),
+      galleryNode({ srcset: galleryAsset + '?wid=1500 1500w' }),
+      galleryNode({ src: recommendedAsset }, true),
+      { closest: () => null, getAttribute: name => ({ alt: '5-Piece Self Care Saviors Set', src: first })[name] || null },
+      { closest: () => null, getAttribute: name => name === 'src' ? other : null },
+    ];
+  },
+};
+const galleryImages = collectProductImages();
+assert.equal(galleryImages.length, 3, 'Keep unlabelled gallery images and sources, plus matching standalone product image');
+assert.ok(galleryImages.some(src => src.startsWith(galleryAsset)));
+assert.ok(!galleryImages.includes(recommendedAsset), 'Exclude recommendations even inside a gallery');
+assert.ok(!galleryImages.includes(other), 'Reject unlabelled standalone images');
+headingText = '';
+assert.equal(collectProductImages().length, 2, 'Gallery still works without a heading; standalone images require identity');
 delete global.document;
 
 (async () => {

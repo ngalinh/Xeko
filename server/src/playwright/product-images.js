@@ -3,15 +3,20 @@ function collectProductImages() {
   const images = new Set();
   const isMacys = /(^|\.)macys\.com$/.test(new URL(document.baseURI).hostname);
   const normalizeName = value => String(value || '').toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    .replace(/['’]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
   const heading = document.querySelectorAll('h1')[0];
   const productName = normalizeName(heading && heading.textContent);
   const matchesName = value => {
     const name = normalizeName(value);
-    return !!productName && (name === productName || name.endsWith(' ' + productName));
+    return !!productName && !!name && (name === productName || name.endsWith(' ' + productName) || productName.endsWith(' ' + name));
   };
   const excluded = '[class*="recommend"], [id*="recommend"], [class*="carousel" i][aria-label*="recommend" i], ' +
     '[class*="recently"], [id*="recently"], [class*="sponsored"], [class*="similar"], [class*="related"]';
+  const galleryRoots = [
+    '[class*="product-gallery"]', '[class*="product-images"]',
+    '[id*="productImages"]', '[data-testid*="product-gallery"]',
+    '[class*="image-grid"]', '[class*="imageGrid"]',
+  ].join(',');
   function add(value) {
     if (Array.isArray(value)) return value.forEach(add);
     if (value && typeof value === 'object') return add(value.contentUrl || value.url || value['@id']);
@@ -71,9 +76,12 @@ function collectProductImages() {
     selectors.push('img.picture-image');
   }
   for (const img of document.querySelectorAll(selectors.join(','))) {
-    // Macy's reuses picture/gallery components for recommendations. Only accept
-    // images labelled for the current product, even outside the main gallery.
-    if (isMacys && (!matchesName(img.getAttribute('alt')) || img.closest(excluded))) continue;
+    // Gallery thumbnails and picture sources often have no alt. Their gallery
+    // supplies context; standalone picture components still need product identity.
+    if (isMacys) {
+      if (img.closest(excluded)) continue;
+      if (!img.closest(galleryRoots) && !matchesName(img.getAttribute('alt'))) continue;
+    }
     const zoom = img.getAttribute('data-zoom-image') || img.getAttribute('data-large-image') ||
       img.getAttribute('data-full-image');
     // Choose the largest declared responsive candidate, not the viewport thumbnail.
