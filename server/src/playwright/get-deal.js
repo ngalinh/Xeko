@@ -79,7 +79,7 @@ async function getDeal(url, opts = {}) {
       }
     }
 
-    await page.goto(url, { waitUntil: 'load', timeout: 45000 });
+    const mainResponse = await page.goto(url, { waitUntil: 'load', timeout: 45000 });
     await page.waitForTimeout(randomDelayMs(3000, 5000));
 
     // Proxy (nhat la residential) thuong cham hon ket noi thang — trang co the
@@ -96,8 +96,18 @@ async function getDeal(url, opts = {}) {
     const fileName = `${Date.now()}.png`;
     await page.screenshot({ path: path.join(DEAL_SCREENSHOT_DIR, fileName), fullPage: false });
 
-    logger.info(`[get-deal] ${url} -> price=${price || '(không đọc được)'}`);
-    return { price, screenshotFile: fileName };
+    // Thong tin debug — de biet trang thuc su tra ve gi (bi redirect, bi chan
+    // bang ma loi, hay chi la chua render kip) thay vi doan mo qua anh chup.
+    const debug = {
+      finalUrl: page.url(),
+      httpStatus: mainResponse ? mainResponse.status() : null,
+      pageTitle: await page.title().catch(() => null),
+      bodyTextLength: bodyText.trim().length,
+      bodyTextPreview: bodyText.trim().slice(0, 300),
+    };
+
+    logger.info(`[get-deal] ${url} -> price=${price || '(không đọc được)'} debug=${JSON.stringify(debug)}`);
+    return { price, screenshotFile: fileName, debug };
   } finally {
     await browser.close();
   }

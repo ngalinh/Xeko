@@ -39,6 +39,7 @@
     <div class="error" id="error"></div>
     <div class="price" id="price"></div>
     <div class="shot" id="shot"></div>
+    <pre class="status" id="debug" style="white-space:pre-wrap;background:#f5f6f8;padding:8px;border-radius:6px;margin-top:10px;"></pre>
   </div>
 </div>
 <script>
@@ -71,6 +72,10 @@ btn.addEventListener('click', async () => {
 
     setStatus('Xong.');
     $('price').textContent = data.price ? ('Giá đọc được: ' + data.price) : 'Không đọc được giá trên trang này.';
+
+    if (data.debug) {
+      $('debug').textContent = JSON.stringify(data.debug, null, 2);
+    }
 
     if (data.screenshotFile) {
       const img = document.createElement('img');
