@@ -2125,6 +2125,28 @@ async function proxyToLocal(req, res, method, path, body = null) {
 
 app.post('/api/restart', (req, res) => proxyToLocal(req, res, 'POST', '/api/restart'));
 
+app.post('/api/get-deal', (req, res) => proxyToLocal(req, res, 'POST', '/api/get-deal', req.body));
+
+app.get('/api/get-deal-image', async (req, res) => {
+  const file = req.query.file ? String(req.query.file) : '';
+  if (!getLocalUrl()) {
+    return res.status(503).json({ error: 'Local server chua ket noi' });
+  }
+  try {
+    const LOCAL_URL = getLocalUrl();
+    const fetchFn = await getFetch();
+    const qs = file ? `?file=${encodeURIComponent(path.basename(file))}` : '';
+    const r = await fetchFn(`${LOCAL_URL}/api/get-deal-image${qs}`, { headers: { 'x-api-key': LOCAL_API_KEY } });
+    if (!r.ok) {
+      return res.status(r.status).json({ error: 'Khong lay duoc anh san pham tu may local' });
+    }
+    res.set('Content-Type', r.headers.get('content-type') || 'image/png');
+    res.send(Buffer.from(await r.arrayBuffer()));
+  } catch (e) {
+    res.status(502).json({ error: `Khong ket noi duoc may local: ${e.message}` });
+  }
+});
+
 // ===== KHO CONTENT =====
 const contentStore = require('./src/database/content-store');
 
