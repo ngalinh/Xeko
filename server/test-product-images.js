@@ -9,10 +9,11 @@ const attributes = { srcset: second + '?wid=100 100w, ' + second + '?wid=1500&fm
 global.document = {
   baseURI: 'https://www.macys.com/shop/product/test',
   querySelectorAll(selector) {
+    if (selector === 'h1') return [{ textContent: 'Test product' }];
     if (selector === 'script[type="application/ld+json"]') return [{ textContent: JSON.stringify({
-      '@type': 'Product', image: [first, first + '?fmt=webp&wid=100&hei=100&dpr=2', signed, other],
-    }) }];
-    if (selector.includes('source')) return [{ getAttribute: name => attributes[name] || null }];
+      '@type': 'Product', name: 'Test product', image: [first, first + '?fmt=webp&wid=100&hei=100&dpr=2', signed, other],
+    }) }, { textContent: JSON.stringify({ '@type': 'Product', name: 'Recommended item', image: 'https://example.com/unrelated.jpg' }) }];
+    if (selector.includes('source')) return [{ closest: () => null, getAttribute: name => name === 'alt' ? 'Test product' : attributes[name] || null }];
     return [];
   },
 };
@@ -35,15 +36,18 @@ let pictureAttributes = { 'data-src': pictureAsset, src: pictureAsset + '?wid=15
 global.document = {
   baseURI: 'https://www.macys.com/shop/product/test',
   querySelectorAll(selector) {
+    if (selector === 'h1') return [{ textContent: '5-Piece Self Care Saviors Set' }];
     if (!selector.split(',').includes('img.picture-image')) return [];
     return [
-      { getAttribute: name => pictureAttributes[name] || null },
-      ...(includeThumbnail ? [{ getAttribute: name => name === 'src' ? pictureAsset + '?wid=100' : null }] : []),
+      { closest: () => null, getAttribute: name => name === 'alt' ? 'Unrelated recommended product' : name === 'src' ? other : null },
+      { closest: () => ({}), getAttribute: name => name === 'alt' ? '5-Piece Self Care Saviors Set' : name === 'src' ? other : null },
+      { closest: () => null, getAttribute: name => name === 'alt' ? "Created For Macy's - 5-Piece Self Care Saviors Set" : pictureAttributes[name] || null },
+      ...(includeThumbnail ? [{ closest: () => null, getAttribute: name => name === 'alt' ? '5-Piece Self Care Saviors Set' : name === 'src' ? pictureAsset + '?wid=100' : null }] : []),
     ];
   },
 };
 let pictures = collectProductImages();
-assert.equal(pictures.length, 1, 'Collect and deduplicate pictures outside gallery containers');
+assert.equal(pictures.length, 1, 'Keep current product pictures, excluding unrelated and recommendation images');
 assert.equal(new URL(pictures[0]).pathname, new URL(pictureAsset).pathname);
 assert.equal(new URL(pictures[0]).searchParams.get('wid'), '2000');
 assert.equal(new URL(pictures[0]).searchParams.get('fmt'), 'jpg');

@@ -1,6 +1,17 @@
 // Runs inside the product page; only collect product metadata/gallery images.
 function collectProductImages() {
   const images = new Set();
+  const isMacys = /(^|\.)macys\.com$/.test(new URL(document.baseURI).hostname);
+  const normalizeName = value => String(value || '').toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  const heading = document.querySelectorAll('h1')[0];
+  const productName = normalizeName(heading && heading.textContent);
+  const matchesName = value => {
+    const name = normalizeName(value);
+    return !!productName && (name === productName || name.endsWith(' ' + productName));
+  };
+  const excluded = '[class*="recommend"], [id*="recommend"], [class*="carousel" i][aria-label*="recommend" i], ' +
+    '[class*="recently"], [id*="recently"], [class*="sponsored"], [class*="similar"], [class*="related"]';
   function add(value) {
     if (Array.isArray(value)) return value.forEach(add);
     if (value && typeof value === 'object') return add(value.contentUrl || value.url || value['@id']);
@@ -31,7 +42,8 @@ function collectProductImages() {
     if (!value || typeof value !== 'object') return;
     if (Array.isArray(value)) return value.forEach(visit);
     const types = [].concat(value['@type'] || []);
-    if (types.some(type => /(^|[/#])Product$/.test(type))) add(value.image);
+    if (types.some(type => /(^|[/#])Product$/.test(type)) &&
+        (!isMacys || matchesName(value.name))) add(value.image);
     Object.values(value).forEach(visit);
   }
   for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
@@ -55,10 +67,13 @@ function collectProductImages() {
   ];
   // Macy's picture component can sit outside the named gallery containers.
   // Scope this fallback to Macy's; the class is generic on other storefronts.
-  if (/(^|\.)macys\.com$/.test(new URL(document.baseURI).hostname)) {
+  if (isMacys) {
     selectors.push('img.picture-image');
   }
   for (const img of document.querySelectorAll(selectors.join(','))) {
+    // Macy's reuses picture/gallery components for recommendations. Only accept
+    // images labelled for the current product, even outside the main gallery.
+    if (isMacys && (!matchesName(img.getAttribute('alt')) || img.closest(excluded))) continue;
     const zoom = img.getAttribute('data-zoom-image') || img.getAttribute('data-large-image') ||
       img.getAttribute('data-full-image');
     // Choose the largest declared responsive candidate, not the viewport thumbnail.
@@ -103,7 +118,7 @@ async function collectGalleryImages(page, { maxClicks = 20, budgetMs = 15000 } =
       if (!await thumb.isVisible()) continue;
       // A thumbnail wrapper may contain a link. Do not navigate away.
       const unsafe = await thumb.evaluate(el => !!el.closest('a') ||
-        !!el.querySelector('a') || /video|play|360/i.test(el.getAttribute('aria-label') || ''));
+        !!el.querySelector('a') || !!el.closest('[class*="recommend"], [id*="recommend"], [class*="recently"], [class*="related"], [class*="similar"]') || /video|play|360/i.test(el.getAttribute('aria-label') || ''));
       if (unsafe) continue;
       await thumb.click({ timeout: Math.min(1500, Math.max(1, budgetMs - (Date.now() - started))), noWaitAfter: true });
       clicked++;
