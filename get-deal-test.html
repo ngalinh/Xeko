@@ -34,6 +34,11 @@
   <div class="card">
     <input type="text" id="url" placeholder="https://www.macys.com/shop/product/...">
     <input type="text" id="proxy" placeholder="(tuy chon) proxy: user:pass@host:port" style="margin-top:8px;">
+    <select id="engine" style="margin-top:8px; width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid #ccd0d5; border-radius:6px; font-size:14px;">
+      <option value="chromium">Chromium (mac dinh)</option>
+      <option value="firefox">Firefox</option>
+      <option value="webkit">WebKit</option>
+    </select>
     <button id="go">Check deal</button>
     <div class="status" id="status"></div>
     <div class="error" id="error"></div>
@@ -65,7 +70,7 @@ btn.addEventListener('click', async () => {
     const res = await fetch(BASE_URL + '/api/get-deal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, proxy: $('proxy').value.trim() || undefined }),
+      body: JSON.stringify({ url, proxy: $('proxy').value.trim() || undefined, engine: $('engine').value }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Lỗi không rõ');

@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const { safeLaunch } = require('../utils/playwright-launch');
+const { firefox, webkit } = require('playwright');
 const { parseProxy } = require('../utils/proxy');
 const logger = require('../utils/logger');
 
@@ -56,10 +57,21 @@ function homepageOf(url) {
 // trang chủ trước để có cookie/session giống người dùng thật rồi mới qua
 // trang sản phẩm — không đảm bảo luôn qua được (bot-management ngày càng
 // tinh vi), nhưng tăng cơ hội so với gọi thẳng URL.
+// Chromium di qua safeLaunch (co stealth plugin + tu cai lai browser neu thieu).
+// Firefox/WebKit dung playwright goc — khong co stealth plugin tuong duong, va
+// phai da cai san tren may (npx playwright install firefox webkit) hoac se loi
+// ro rang "Executable doesn't exist" — khong tu cai nhu chromium.
+async function launchBrowser(engine, launchOpts) {
+  if (engine === 'firefox') return firefox.launch(launchOpts);
+  if (engine === 'webkit') return webkit.launch(launchOpts);
+  return safeLaunch(launchOpts);
+}
+
 async function getDeal(url, opts = {}) {
   ensureDealDir();
   const proxy = parseProxy(opts.proxy) || undefined;
-  const browser = await safeLaunch({ headless: false, proxy });
+  const engine = ['firefox', 'webkit'].includes(opts.engine) ? opts.engine : 'chromium';
+  const browser = await launchBrowser(engine, { headless: false, proxy });
   try {
     const context = await browser.newContext({
       viewport: { width: 1366, height: 1600 },
@@ -106,8 +118,8 @@ async function getDeal(url, opts = {}) {
       bodyTextPreview: bodyText.trim().slice(0, 300),
     };
 
-    logger.info(`[get-deal] ${url} -> price=${price || '(không đọc được)'} debug=${JSON.stringify(debug)}`);
-    return { price, screenshotFile: fileName, debug };
+    logger.info(`[get-deal] ${url} (engine=${engine}) -> price=${price || '(không đọc được)'} debug=${JSON.stringify(debug)}`);
+    return { price, screenshotFile: fileName, debug: { ...debug, engine } };
   } finally {
     await browser.close();
   }
