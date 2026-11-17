@@ -33,6 +33,7 @@
   <div class="hint">Dán link 1 trang sản phẩm (Macy's, hoặc web bán lẻ tương tự) để lấy giá + screenshot. Chạy thật trên VPS qua local-server.</div>
   <div class="card">
     <input type="text" id="url" placeholder="https://www.macys.com/shop/product/...">
+    <input type="text" id="proxy" placeholder="(tuy chon) proxy: user:pass@host:port" style="margin-top:8px;">
     <button id="go">Check deal</button>
     <div class="status" id="status"></div>
     <div class="error" id="error"></div>
@@ -63,7 +64,7 @@ btn.addEventListener('click', async () => {
     const res = await fetch(BASE_URL + '/api/get-deal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ url, proxy: $('proxy').value.trim() || undefined }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Lỗi không rõ');

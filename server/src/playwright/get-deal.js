@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const { safeLaunch } = require('../utils/playwright-launch');
+const { parseProxy } = require('../utils/proxy');
 const logger = require('../utils/logger');
 
 const DEAL_SCREENSHOT_DIR = path.resolve(__dirname, '../../logs/deals');
@@ -32,15 +33,54 @@ async function extractPrice(page) {
   return null;
 }
 
-// Mở 1 URL sản phẩm, chụp screenshot + đọc giá hiển thị trên trang.
-// Không cần profile/login — mỗi lần chạy mở browser ẩn danh riêng.
-async function getDeal(url) {
-  ensureDealDir();
-  const browser = await safeLaunch({ headless: true });
+function randomDelayMs(min, max) {
+  return min + Math.floor(Math.random() * (max - min));
+}
+
+function homepageOf(url) {
   try {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 1600 } });
+    const u = new URL(url);
+    return `${u.protocol}//${u.host}/`;
+  } catch {
+    return null;
+  }
+}
+
+// Mở 1 URL sản phẩm, chụp screenshot + đọc giá hiển thị trên trang.
+// Không cần profile/login — mỗi lần chạy mở browser riêng.
+//
+// Các web bán lẻ lớn (Macy's...) dùng bot-management (Akamai/PerimeterX) hay
+// chặn request tới thẳng 1 trang sản phẩm mà không có cookie/session/referrer
+// nào trước đó, và hay phát hiện được Chrome chạy headless. Để giảm khả năng
+// bị chặn: chạy headed (không phải headless), set locale/timezone Mỹ, và ghé
+// trang chủ trước để có cookie/session giống người dùng thật rồi mới qua
+// trang sản phẩm — không đảm bảo luôn qua được (bot-management ngày càng
+// tinh vi), nhưng tăng cơ hội so với gọi thẳng URL.
+async function getDeal(url, opts = {}) {
+  ensureDealDir();
+  const proxy = parseProxy(opts.proxy) || undefined;
+  const browser = await safeLaunch({ headless: false, proxy });
+  try {
+    const context = await browser.newContext({
+      viewport: { width: 1366, height: 1600 },
+      locale: 'en-US',
+      timezoneId: 'America/New_York',
+      extraHTTPHeaders: { 'Accept-Language': 'en-US,en;q=0.9' },
+    });
+    const page = await context.newPage();
+
+    const homepage = homepageOf(url);
+    if (homepage && homepage !== url) {
+      try {
+        await page.goto(homepage, { waitUntil: 'domcontentloaded', timeout: 20000 });
+        await page.waitForTimeout(randomDelayMs(1500, 3000));
+      } catch (e) {
+        logger.warn(`[get-deal] mở trang chủ thất bại, bỏ qua bước khởi động: ${e.message}`);
+      }
+    }
+
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(randomDelayMs(2000, 4000));
 
     const price = await extractPrice(page);
 
