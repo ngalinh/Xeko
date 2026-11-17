@@ -56,7 +56,7 @@ function mountCtv(app, { remote = false, getLocalUrl = () => '', apiKey = '', pe
       }
       if (customersDelete) { s.deleteCustomer(req.body, owner); return res.json({ ok: true }); }
       if (collection) {
-        if (req.method === 'GET') return res.json(s.data.campaigns.filter(c => c.owner === owner && allowedProfile(c.profile)).map(c => s.view(c, false)));
+        if (req.method === 'GET') return res.json(s.list(owner, allowedProfile));
         if (!allowedProfile(req.body.profile)) return res.status(403).json({ error: 'Không có quyền dùng tài khoản này' });
         return res.status(201).json(s.view(s.create(req.body, owner)));
       }

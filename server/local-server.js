@@ -27,6 +27,7 @@ const { fetchRednoteImages } = require('./src/rednote/fetch-images');
 const ig = require('./src/playwright/post-instagram');
 const { queuePost } = require('./src/utils/post-queue');
 const salework = require('./src/playwright/salework');
+const { getDeal, DEAL_SCREENSHOT_DIR } = require('./src/playwright/get-deal');
 const sessionCheck = require('./src/utils/session-check');
 const loginHistory = require('./src/utils/login-history');
 const logger = require('./src/utils/logger');
@@ -1317,6 +1318,44 @@ app.get('/api/screenshot', (req, res) => {
     res.sendFile(target);
   } else {
     res.status(404).json({ error: 'Không có ảnh lỗi (có thể đã bị xoá hoặc ghi đè)' });
+  }
+});
+
+function isHttpUrl(u) {
+  return typeof u === 'string' && (u.toLowerCase().startsWith('http://') || u.toLowerCase().startsWith('https://'));
+}
+
+function isSafePngName(name) {
+  if (typeof name !== 'string' || !name || name !== path.basename(name)) return false;
+  const allowedChars = /^[A-Za-z0-9._-]+$/;
+  return allowedChars.test(name) && name.toLowerCase().endsWith('.png');
+}
+
+// ===== GET DEAL (check gia + screenshot san pham tren web Macy's...) =====
+app.post('/api/get-deal', async (req, res) => {
+  const { url } = req.body || {};
+  if (!isHttpUrl(url)) {
+    return res.status(400).json({ error: 'url khong hop le' });
+  }
+  try {
+    const result = await getDeal(String(url));
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ?file=<ten file>.png tra ve anh san pham da chup boi /api/get-deal
+app.get('/api/get-deal-image', (req, res) => {
+  const safe = path.basename(String(req.query.file || ''));
+  if (!isSafePngName(safe)) {
+    return res.status(400).json({ error: 'Ten anh khong hop le' });
+  }
+  const target = path.join(DEAL_SCREENSHOT_DIR, safe);
+  if (fs.existsSync(target)) {
+    res.sendFile(target);
+  } else {
+    res.status(404).json({ error: 'Khong tim thay anh' });
   }
 });
 
