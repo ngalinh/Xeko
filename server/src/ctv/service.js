@@ -86,7 +86,7 @@ class CtvService {
   save() {
     captureCustomers(this.data);
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    fs.writeFileSync(`${this.file}.tmp`, JSON.stringify(this.data, null, 2));
+    fs.writeFileSync(`${this.file}.tmp`, JSON.stringify(this.data));
     fs.renameSync(`${this.file}.tmp`, this.file);
   }
   get(id, owner) {
@@ -102,9 +102,13 @@ class CtvService {
   // A reservation blocks reuse unless the campaign doing the checking is in
   // test mode: test mode is meant to be re-run against the same link.
   reservationBlocks(id) { return !!(id && this.data.reservations[id]); }
-  selectionBlocked(lead, c) {
+  list(owner, allowedProfile) {
+    const history = contactHistory(this.data);
+    return this.data.campaigns.filter(c => c.owner === owner && allowedProfile(c.profile)).map(c => this.view(c, false, history));
+  }
+  selectionBlocked(lead, c, history = contactHistory(this.data)) {
     if (lead.state === 'skipped') return 'Đã bỏ qua trong chiến dịch này';
-    if (!c?.testMode && contactHistory(this.data).has(lead)) return 'Khách đã có lần gửi trước hoặc chưa xác nhận kết quả; không gửi lại tự động';
+    if (!c?.testMode && history.has(lead)) return 'Khách đã có lần gửi trước hoặc chưa xác nhận kết quả; không gửi lại tự động';
     if (lead.assessment && lead.assessment.provider !== 'none' && lead.assessment.criteriaVersion !== 'us-website-products-v2') return 'Kết quả dùng tiêu chí cũ. Hãy tạo chiến dịch mới và chạy AI lại trên worker đã cập nhật.';
     if (!lead.assessment) return 'Chưa có kết quả đánh giá';
     if (['keywords','myjoy'].includes(lead.assessment.provider) && lead.assessment.collectionBlocked) return 'Chưa đọc được caption; hãy quét lại trước khi chọn khách';
@@ -112,22 +116,26 @@ class CtvService {
     if (!c?.testMode && this.reservationBlocks(lead.assessment.recipientId)) return 'Đã có lần gửi trước hoặc chưa rõ trạng thái gửi';
     return '';
   }
-  reasonBlocked(lead, c) {
-    const reason = this.selectionBlocked(lead, c);
+  reasonBlocked(lead, c, history = contactHistory(this.data)) {
+    const reason = this.selectionBlocked(lead, c, history);
     if (reason) return reason;
     // AI qualification is advisory; the operator approves recipients explicitly.
     if (!/^\d+$/.test(lead.assessment.recipientId || '')) return 'Chưa xác minh được ID người nhận. Hãy bấm Tìm UID ở bước 2 trước khi gửi.';
     return '';
   }
-  view(c, includeImageData = true) {
+  // history dùng chung cho mọi lead/chiến dịch trong 1 lần gọi; tránh dựng lại
+  // union-find trên toàn bộ data.customers nhiều lần khi liệt kê danh sách
+  // chiến dịch (đây là nguyên nhân chính khiến trang Lịch sử chiến dịch chậm).
+  view(c, includeImageData = true, history = contactHistory(this.data)) {
     const retryStage = !!c.approvals.send && ['needs_attention','interrupted','cancelled','completed'].includes(c.state);
+    const retryHistory = !c.testMode && retryStage ? contactHistory(this.data, { retryCampaignId: c.id }) : null;
     const view = { ...c, leads: c.leads.map(l => {
       const m = c.messagePreview?.messages.find(m => m.leadId === l.id), reservation = m && this.data.reservations[m.recipientId];
       const retryAvailable = retryStage && c.approvals.send.token === c.messagePreview?.token && c.approvals.analysis?.leadIds.includes(l.id)
         && ['review','failed','unconfirmed','pending','qualified'].includes(l.state) && m?.recipientId === l.assessment?.recipientId
         && /^\d+$/.test(m?.recipientId || '') && (l.assessment?.criteriaVersion === 'us-website-products-v2' || l.assessment?.provider === 'none') && !l.assessment?.wholesaleRecruitment?.excluded
-        && (!reservation || reservation.campaignId === c.id) && (c.testMode || !contactHistory(this.data, { retryCampaignId: c.id }).has(l));
-      return { ...l, retryAvailable: !!retryAvailable, retryNeedsConfirmation: !!retryAvailable && (l.state === 'unconfirmed' || !!reservation), selectionBlockedReason: this.selectionBlocked(l, c), blockedReason: this.reasonBlocked(l, c) };
+        && (!reservation || reservation.campaignId === c.id) && (c.testMode || !retryHistory.has(l));
+      return { ...l, retryAvailable: !!retryAvailable, retryNeedsConfirmation: !!retryAvailable && (l.state === 'unconfirmed' || !!reservation), selectionBlockedReason: this.selectionBlocked(l, c, history), blockedReason: this.reasonBlocked(l, c, history) };
     }) };
     if (!includeImageData && c.messagePreview) view.messagePreview = { ...c.messagePreview, images: (c.messagePreview.images || []).map(({ dataUrl, ...image }) => image) };
     return view;
