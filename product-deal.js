@@ -10,6 +10,20 @@ let currentDeal = null;
 function setStatus(msg) { $('status').textContent = msg || ''; }
 function setError(msg) { $('error').textContent = msg || ''; }
 
+// Nhớ proxy đã nhập lần trước để khỏi phải gõ lại mỗi lần lấy deal.
+const PROXY_STORAGE_KEY = 'xeko-deal-proxy';
+try {
+  const savedProxy = localStorage.getItem(PROXY_STORAGE_KEY);
+  if (savedProxy) $('proxy').value = savedProxy;
+} catch {}
+$('proxy').addEventListener('input', () => {
+  try {
+    const v = $('proxy').value.trim();
+    if (v) localStorage.setItem(PROXY_STORAGE_KEY, v);
+    else localStorage.removeItem(PROXY_STORAGE_KEY);
+  } catch {}
+});
+
 btn.addEventListener('click', async () => {
   const url = $('url').value.trim();
   if (!url) { setError('Chưa nhập link'); return; }
