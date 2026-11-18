@@ -1,6 +1,6 @@
 # Bản nháp từ ảnh sản phẩm
 
-Trên `get-deal-test.html` (nhãn `product-draft-v1`), chạy Check deal như trước. Chọn 1–20 ảnh, kiểm tra tên sản phẩm, nhập thông tin đã xác minh và giá bán shop nếu có. Bấm **AI tạo & lưu bản nháp**.
+Trên `get-deal-test.html` (nhãn `product-draft-v2`), chạy Check deal như trước. Chọn 1–20 ảnh, kiểm tra tên sản phẩm, nhập thông tin đã xác minh và giá bán shop nếu có. Bấm **AI tạo & lưu bản nháp**.
 
 Server tải ảnh từ CDN Macy’s vào kho ảnh Xeko, dùng Gemini đã cấu hình (`GEMINI_API_KEY`) với tối đa 5 ảnh để viết nội dung. Tất cả ảnh được chọn được lưu kèm bài trong **Kho content**, gắn tag `ban-nhap-san-pham`. Giá đọc từ web chỉ là giá tham khảo. Mở Kho content để chỉnh sửa, kiểm tra thông tin và chủ động chọn đăng/lên lịch theo luồng có sẵn. Thao tác tạo nháp không tạo lịch hay gọi hàng đợi đăng bài.
 
@@ -13,3 +13,5 @@ node --test server/test-product-draft.js server/test-product-images.js server/te
 ```
 
 Cần thử trên môi trường triển khai để xác nhận kết nối CDN, Gemini và ảnh được dùng lại khi mở bài trong Kho content.
+
+Nút “Mở bản nháp vừa tạo để duyệt” mở `?page=drafts&draft=<id>` và hiển thị trình sửa đúng bài sau khi tải danh sách. Trong Kho content/Dashboard, chọn “Mở bản nháp / bài mẫu” để xem lại bài đã lưu. Kho content mặc định vẫn hiển thị lịch sử đăng bài.

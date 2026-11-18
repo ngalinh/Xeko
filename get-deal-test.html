@@ -48,7 +48,7 @@
         <label><input type="radio" name="engine" value="webkit"> WebKit</label>
       </div>
     </fieldset>
-    <div class="status">Phiên bản giao diện: product-draft-v1</div>
+    <div class="status">Phiên bản giao diện: product-draft-v2</div>
     <button id="go">Check deal</button>
     <div class="status" id="status"></div>
     <div class="error" id="error"></div>
@@ -66,7 +66,7 @@
       <button id="create-draft" type="button">AI tạo &amp; lưu bản nháp</button>
       <div id="draft-status" class="status" role="status"></div>
       <pre id="draft-preview" style="white-space:pre-wrap"></pre>
-      <a id="draft-library" hidden>Mở Xeko → Kho content để duyệt bài</a>
+      <a id="draft-library" hidden>Mở bản nháp vừa tạo để duyệt</a>
     </section>
     <div class="shot" id="shot"></div>
     <pre class="status" id="debug" style="white-space:pre-wrap;background:#f5f6f8;padding:8px;border-radius:6px;margin-top:10px;"></pre>
@@ -203,7 +203,7 @@ btn.addEventListener('click', async () => {
     $('engines').disabled = false;
   }
 });
-$('draft-library').href = BASE_URL + '/';
+$('draft-library').href = BASE_URL + '/?page=drafts';
 $('create-draft').addEventListener('click', async () => {
   const images = [...document.querySelectorAll('.draft-image:checked')].map(el => el.value);
   const title = $('draft-title').value.trim();
@@ -224,6 +224,7 @@ $('create-draft').addEventListener('click', async () => {
     if (!response.ok) throw new Error(data.error || 'Không lưu được bản nháp');
     $('draft-preview').textContent = data.item.body;
     $('draft-status').textContent = 'Đã lưu bản nháp #' + data.item.id + ' với ' + data.item.images.length + ' ảnh trong Kho content. Chưa đăng bài.';
+    $('draft-library').href = BASE_URL + '/?page=drafts&draft=' + encodeURIComponent(data.item.id);
     $('draft-library').hidden = false;
   } catch (error) {
     $('draft-status').textContent = error.message + ' Nếu mất kết nối, kiểm tra Kho content trước khi tạo lại để tránh trùng bài.';
