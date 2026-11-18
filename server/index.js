@@ -2363,6 +2363,24 @@ app.post('/api/ai/suggest', upload.array('images', 5), async (req, res) => {
   }
 });
 
+// Create a passive content-library draft only; posting remains a separate user action.
+const { createProductDraft } = require('./src/ai/product-draft');
+app.post('/api/product-drafts', async (req, res) => {
+  if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: 'AI chưa được cấu hình (thiếu GEMINI_API_KEY)' });
+  try {
+    const guides = JSON.parse(settingsStore.get('ai_content_guides', 'null')) || {};
+    const style = ['short', 'detailed', 'story'].includes(req.body.style) ? req.body.style : 'short';
+    const item = await createProductDraft(req.body, {
+      guide: guides[`${style}|`] || guides['short|'] || settingsStore.get('ai_content_guide', ''),
+      suggestContent, persistImages, create: value => contentStore.create(value),
+    });
+    res.json({ item });
+  } catch (err) {
+    logger.warn('Product draft failed: ' + err.message);
+    res.status(400).json({ error: 'Không tạo được bản nháp. Kiểm tra tên, ảnh CDN Macy’s và cấu hình/hạn mức AI rồi thử lại.' });
+  }
+});
+
 // ===== ZALO POST =====
 // Metadata lưu tạm khi job Zalo đang xử lý (processing: true) để ghi log khi done
 const _pendingZaloLogs = new Map(); // jobId → metadata

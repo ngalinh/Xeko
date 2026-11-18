@@ -48,13 +48,26 @@
         <label><input type="radio" name="engine" value="webkit"> WebKit</label>
       </div>
     </fieldset>
-    <div class="status">Phiên bản giao diện: product-images-hq-v4</div>
+    <div class="status">Phiên bản giao diện: product-draft-v1</div>
     <button id="go">Check deal</button>
     <div class="status" id="status"></div>
     <div class="error" id="error"></div>
     <div class="price" id="price"></div>
     <p id="images-status" class="status"></p>
     <div id="images" class="product-images"></div>
+    <section id="draft-panel" hidden>
+      <h2 style="font-size:18px">Tạo bản nháp sản phẩm</h2>
+      <label>Tên sản phẩm<input type="text" id="draft-title"></label>
+      <label>Thông tin đã xác minh / giá bán của shop
+        <textarea id="draft-description" rows="4" style="width:100%;box-sizing:border-box"></textarea>
+      </label>
+      <label>Phong cách <select id="draft-style"><option value="short">Ngắn gọn</option><option value="detailed">Chi tiết</option><option value="story">Kể chuyện</option></select></label>
+      <p class="status">Chọn tối đa 20 ảnh phía trên. Gemini dùng tối đa 5 ảnh để viết; bản nháp giữ tất cả ảnh đã chọn. Bài được lưu trong Kho content để bạn sửa và duyệt trước khi chọn đăng/lên lịch.</p>
+      <button id="create-draft" type="button">AI tạo &amp; lưu bản nháp</button>
+      <div id="draft-status" class="status" role="status"></div>
+      <pre id="draft-preview" style="white-space:pre-wrap"></pre>
+      <a id="draft-library" hidden>Mở Xeko → Kho content để duyệt bài</a>
+    </section>
     <div class="shot" id="shot"></div>
     <pre class="status" id="debug" style="white-space:pre-wrap;background:#f5f6f8;padding:8px;border-radius:6px;margin-top:10px;"></pre>
   </div>
@@ -64,6 +77,7 @@ const BASE_URL = window.location.pathname.replace(/\/[^/]*$/, '').replace(/\/$/,
 
 const $ = (id) => document.getElementById(id);
 const btn = $('go');
+let currentDeal = null;
 
 function setStatus(msg) { $('status').textContent = msg || ''; }
 function setError(msg) { $('error').textContent = msg || ''; }
@@ -75,6 +89,11 @@ btn.addEventListener('click', async () => {
   const selectedEngine = document.querySelector('input[name="engine"]:checked');
   const engine = selectedEngine.value;
   const engineLabel = selectedEngine.parentElement.textContent.trim();
+  currentDeal = null;
+  $('draft-panel').hidden = true;
+  $('draft-status').textContent = '';
+  $('draft-preview').textContent = '';
+  $('draft-library').hidden = true;
   btn.disabled = true;
   $('engines').disabled = true;
   setError('');
@@ -103,6 +122,11 @@ btn.addEventListener('click', async () => {
     $('images-status').textContent = images.length
       ? 'Ảnh sản phẩm: ' + images.length + ' — ưu tiên bản lớn/ảnh zoom; bấm để mở và lưu ảnh.'
       : 'Chưa tìm thấy ảnh sản phẩm trong dữ liệu trang.';
+    currentDeal = { price: data.price, images };
+    $('draft-title').value = data.debug?.pageTitle || '';
+    $('draft-description').value = '';
+    $('draft-panel').hidden = !images.length;
+    $('create-draft').disabled = false;
     images.forEach((src, index) => {
       const item = document.createElement('div');
       const link = document.createElement('a');
@@ -151,7 +175,14 @@ btn.addEventListener('click', async () => {
           download.disabled = false;
         }
       });
-      item.append(link, download, feedback);
+      const choice = document.createElement('label');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'draft-image';
+      checkbox.value = src;
+      checkbox.checked = index < 20;
+      choice.append(checkbox, document.createTextNode(' Dùng ảnh ' + (index + 1)));
+      item.append(choice, link, download, feedback);
       $('images').append(item);
     });
 
@@ -171,6 +202,33 @@ btn.addEventListener('click', async () => {
     btn.disabled = false;
     $('engines').disabled = false;
   }
+});
+$('draft-library').href = BASE_URL + '/';
+$('create-draft').addEventListener('click', async () => {
+  const images = [...document.querySelectorAll('.draft-image:checked')].map(el => el.value);
+  const title = $('draft-title').value.trim();
+  if (!title || !images.length || images.length > 20) {
+    $('draft-status').textContent = 'Nhập tên sản phẩm và chọn từ 1 đến 20 ảnh.';
+    return;
+  }
+  $('create-draft').disabled = true;
+  btn.disabled = true;
+  $('draft-status').textContent = 'Đang tải ảnh, nhờ AI viết và lưu bản nháp…';
+  try {
+    const response = await fetch(BASE_URL + '/api/product-drafts', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, images, price: currentDeal?.price,
+        description: $('draft-description').value, style: $('draft-style').value }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Không lưu được bản nháp');
+    $('draft-preview').textContent = data.item.body;
+    $('draft-status').textContent = 'Đã lưu bản nháp #' + data.item.id + ' với ' + data.item.images.length + ' ảnh trong Kho content. Chưa đăng bài.';
+    $('draft-library').hidden = false;
+  } catch (error) {
+    $('draft-status').textContent = error.message + ' Nếu mất kết nối, kiểm tra Kho content trước khi tạo lại để tránh trùng bài.';
+    $('create-draft').disabled = false;
+  } finally { btn.disabled = false; }
 });
 </script>
 </body>
