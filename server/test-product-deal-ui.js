@@ -31,14 +31,19 @@ for (const file of ['index.html', 'get-deal-test.html']) {
 
     // Giá sản phẩm là 1 mục riêng, hiện sau khi lấy deal.
     assert.equal(get('price-section').hidden, false);
+    assert.equal(get('price-section').classList.contains('no-price'), false);
     assert.equal(get('price').textContent, '$99');
 
-    // Thanh công cụ Chọn tất cả / Bỏ chọn tất cả / Tải tất cả ảnh.
+    // Hình ảnh sản phẩm là 1 mục riêng, có thanh công cụ Chọn tất cả / Bỏ chọn tất cả / Tải tất cả ảnh + đếm số đã chọn.
+    assert.equal(get('images-section').hidden, false);
     assert.equal(get('images-toolbar').hidden, false);
+    assert.equal(get('images-selected-count').textContent, 'Đã chọn 2/2 ảnh');
     get('images-select-none').click();
     assert.deepEqual([...root.querySelectorAll('.draft-image')].map(cb => cb.checked), [false, false]);
+    assert.equal(get('images-selected-count').textContent, 'Đã chọn 0/2 ảnh');
     get('images-select-all').click();
     assert.deepEqual([...root.querySelectorAll('.draft-image')].map(cb => cb.checked), [true, true]);
+    assert.equal(get('images-selected-count').textContent, 'Đã chọn 2/2 ảnh');
 
     // Link ảnh N (không phải "Mở ảnh lớn N") và nút tải chỉ còn icon.
     const firstLink = root.querySelectorAll('.deal-image a')[0];

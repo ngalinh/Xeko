@@ -4651,13 +4651,17 @@
       <div class="field-label">Giá sản phẩm</div>
       <div class="price" id="deal-price" data-deal-id="price"></div>
     </section>
-    <p id="deal-images-status" data-deal-id="images-status" class="status"></p>
-    <div class="images-toolbar" data-deal-id="images-toolbar" hidden>
-      <button type="button" data-deal-id="images-select-all">Chọn tất cả ảnh</button>
-      <button type="button" data-deal-id="images-select-none">Bỏ chọn tất cả</button>
-      <button type="button" data-deal-id="images-download-all">Tải tất cả ảnh</button>
-    </div>
-    <div id="deal-images" data-deal-id="images" class="product-images"></div>
+    <section class="images-section" data-deal-id="images-section" hidden>
+      <div class="field-label">Hình ảnh sản phẩm</div>
+      <p id="deal-images-status" data-deal-id="images-status" class="status"></p>
+      <div class="images-toolbar" data-deal-id="images-toolbar" hidden>
+        <button type="button" data-deal-id="images-select-all">Chọn tất cả ảnh</button>
+        <button type="button" data-deal-id="images-select-none">Bỏ chọn tất cả</button>
+        <span class="images-selected-count" data-deal-id="images-selected-count"></span>
+        <button type="button" data-deal-id="images-download-all">Tải tất cả ảnh</button>
+      </div>
+      <div id="deal-images" data-deal-id="images" class="product-images"></div>
+    </section>
     <section id="deal-draft-panel" data-deal-id="draft-panel" hidden>
       <h2 style="font-size:18px">Tạo bản nháp sản phẩm</h2>
       <label>Tên sản phẩm<input type="text" id="deal-draft-title" data-deal-id="draft-title"></label>

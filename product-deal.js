@@ -11,6 +11,15 @@ let currentDownloads = []; // hàm tải từng ảnh, dùng lại cho nút "T�
 function setStatus(msg) { $('status').textContent = msg || ''; }
 function setError(msg) { $('error').textContent = msg || ''; }
 
+function updateSelectedCount() {
+  const total = root.querySelectorAll('.draft-image').length;
+  const checked = root.querySelectorAll('.draft-image:checked').length;
+  $('images-selected-count').textContent = total ? ('Đã chọn ' + checked + '/' + total + ' ảnh') : '';
+}
+$('images').addEventListener('change', (e) => {
+  if (e.target.classList.contains('draft-image')) updateSelectedCount();
+});
+
 // Nhớ proxy đã nhập lần trước để khỏi phải gõ lại mỗi lần lấy deal.
 const PROXY_STORAGE_KEY = 'xeko-deal-proxy';
 try {
@@ -41,8 +50,11 @@ btn.addEventListener('click', async () => {
   $('engines').disabled = true;
   setError('');
   $('price-section').hidden = true;
+  $('price-section').classList.remove('no-price');
   $('price').textContent = '';
+  $('images-section').hidden = true;
   $('images-toolbar').hidden = true;
+  $('images-selected-count').textContent = '';
   $('shot').innerHTML = '';
   $('images').replaceChildren();
   $('images-status').textContent = '';
@@ -60,11 +72,13 @@ btn.addEventListener('click', async () => {
 
     setStatus('Xong — trình duyệt đã chọn: ' + engineLabel + '.');
     $('price-section').hidden = false;
+    $('price-section').classList.toggle('no-price', !data.price);
     $('price').textContent = data.price || 'Không đọc được giá trên trang này.';
 
     const images = (Array.isArray(data.images) ? data.images : []).filter(src => {
       try { return ['http:', 'https:'].includes(new URL(src).protocol); } catch { return false; }
     });
+    $('images-section').hidden = false;
     $('images-status').textContent = images.length
       ? 'Ảnh sản phẩm: ' + images.length + ' — ưu tiên bản lớn/ảnh zoom; bấm để mở và lưu ảnh.'
       : 'Chưa tìm thấy ảnh sản phẩm trong dữ liệu trang.';
@@ -139,6 +153,7 @@ btn.addEventListener('click', async () => {
       item.append(choice, link, download, feedback);
       $('images').append(item);
     });
+    updateSelectedCount();
 
     if (data.debug) {
       $('debug').textContent = JSON.stringify(data.debug, null, 2);
@@ -159,9 +174,11 @@ btn.addEventListener('click', async () => {
 });
 $('images-select-all').addEventListener('click', () => {
   root.querySelectorAll('.draft-image').forEach(cb => { cb.checked = true; });
+  updateSelectedCount();
 });
 $('images-select-none').addEventListener('click', () => {
   root.querySelectorAll('.draft-image').forEach(cb => { cb.checked = false; });
+  updateSelectedCount();
 });
 $('images-download-all').addEventListener('click', async () => {
   const allBtn = $('images-download-all');
