@@ -4739,10 +4739,8 @@
             <col style="width:44px;">
             <col style="width:auto;">
             <col style="width:110px;">
-            <col style="width:120px;">
             <col style="width:130px;">
             <col style="width:180px;">
-            <col style="width:95px;">
             <col style="width:90px;">
             <col style="width:140px;">
           </colgroup>
@@ -4751,12 +4749,10 @@
               <th style="padding:10px 14px; text-align:center; font-weight:600; color:#374151;"><input type="checkbox" id="contentSelectAll" onchange="contentToggleAll(this.checked)" style="cursor:pointer; width:14px; height:14px;"></th>
               <th style="padding:10px 14px; text-align:center; font-weight:600; color:#374151; white-space:nowrap;">STT</th>
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Nội dung</th>
-              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Hình ảnh</th>
-              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Phân loại</th>
-              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Profile</th>
+              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Ảnh</th>
+              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Tài khoản</th>
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;" title="Nơi dự kiến đăng đã chọn trong bản nháp">Nơi đăng</th>
-              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Kênh đăng</th>
-              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151; white-space:nowrap;">Ngày tháng</th>
+              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151; white-space:nowrap;">Thời gian</th>
               <th style="padding:10px 14px; text-align:center; font-weight:600; color:#374151;">Thao tác</th>
             </tr>
           </thead>
@@ -9133,9 +9129,6 @@
     }
 
     function renderContentRow(item, stt) {
-      const platformLabel = { all: 'Chung', facebook: 'Facebook', zalo: 'Zalo', tiktok: 'TikTok', instagram: 'Instagram', threads: 'Threads' }[item.platform] || item.platform;
-      const platformColor = { all: '#6B7280', facebook: '#1877F2', zalo: '#0068FF', tiktok: '#010101', instagram: '#833AB4', threads: '#1C1C1C' }[item.platform] || '#6B7280';
-      const platformBg   = { all: '#F3F4F6', facebook: '#EFF6FF', zalo: '#EFF6FF', tiktok: '#F3F4F6', instagram: '#FDF2F8', threads: '#F3F4F6' }[item.platform] || '#F3F4F6';
       const preview = item.body.length > 100 ? item.body.slice(0, 100) + '…' : item.body;
       const tagsHtml = (item.tags || []).map(t =>
         `<span style="display:inline-block;padding:2px 6px;background:#F3F4F6;border-radius:99px;font-size:11px;color:#555;">${escapeHtml(t)}</span>`
@@ -9178,11 +9171,6 @@
           }).join('')
         : '<span style="color:#9ca3af;font-size:12px;">Chưa chọn</span>';
 
-      // Phân loại
-      const catHtml = item.category
-        ? `<span style="display:inline-block;padding:2px 8px;background:#FEF3C7;border-radius:99px;font-size:11px;color:#92400E;">${escapeHtml(item.category)}</span>`
-        : `<span style="color:#ccc;font-size:11px;">—</span>`;
-
       const odd = stt % 2 === 0 ? 'background:#fafafa;' : '';
 
       const ctipData = escapeHtml(JSON.stringify({body: item.body}));
@@ -9194,12 +9182,8 @@
           ${tagsHtml ? `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;">${tagsHtml}</div>` : ''}
         </td>
         <td style="padding:10px 14px;">${imgHtml}</td>
-        <td style="padding:10px 14px;">${catHtml}</td>
         <td style="padding:10px 14px;">${profileHtml}</td>
         <td style="padding:10px 14px;">${destinationsHtml}</td>
-        <td style="padding:10px 14px;">
-          <span style="font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;background:${platformBg};color:${platformColor};">${platformLabel}</span>
-        </td>
         <td style="padding:10px 14px; font-size:12px; color:#888; white-space:nowrap;">${dt}</td>
         <td style="padding:10px 14px; text-align:center; white-space:nowrap;">
           <button onclick="useContent(${item.id})" title="Dùng để đăng bài"
