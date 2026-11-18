@@ -4801,16 +4801,23 @@
       </div>
 
       <div style="display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap; align-items:flex-start;">
-        <div style="flex:1.5; min-width:150px; position:relative;" id="contentProfileDropWrap">
+        <div style="flex:1; min-width:150px;">
           <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Tài khoản (tuỳ chọn)</label>
-          <button type="button" id="contentProfileDropBtn" onclick="toggleContentProfileDrop()"
+          <select id="contentAccountSelect" onchange="_onContentAccountChange()"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none; background:#fff; cursor:pointer;">
+            <option value="">-- Chọn tài khoản --</option>
+          </select>
+        </div>
+        <div style="flex:1.5; min-width:150px; position:relative;" id="contentDestDropWrap">
+          <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Nơi đăng (tuỳ chọn)</label>
+          <button type="button" id="contentDestDropBtn" onclick="toggleContentDestDrop()"
             style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; outline:none; background:#fff; cursor:pointer; text-align:left; display:flex; justify-content:space-between; align-items:center; color:#555;">
-            <span id="contentProfileDropLabel" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; color:#aaa;">Tất cả</span>
+            <span id="contentDestDropLabel" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; color:#aaa;">Chọn tài khoản trước</span>
             <span style="opacity:0.5; font-size:10px; flex-shrink:0; margin-left:4px;">▾</span>
           </button>
-          <div id="contentProfileDropPanel" style="display:none; position:absolute; top:calc(100% + 2px); left:0; right:0; background:#fff; border:1px solid #ddd; border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,0.12); z-index:200; max-height:200px; overflow-y:auto; padding:4px 0;">
-            <div id="contentProfileCheckboxes" style="display:flex; flex-direction:column; padding:4px 6px; gap:1px;">
-              <span style="font-size:12px; color:#aaa; padding:4px 6px;">Đang tải profiles...</span>
+          <div id="contentDestDropPanel" style="display:none; position:absolute; top:calc(100% + 2px); left:0; right:0; background:#fff; border:1px solid #ddd; border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,0.12); z-index:200; max-height:200px; overflow-y:auto; padding:4px 0;">
+            <div id="contentDestCheckboxes" style="display:flex; flex-direction:column; padding:4px 6px; gap:1px;">
+              <span style="font-size:12px; color:#aaa; padding:4px 6px;">Chọn tài khoản trước</span>
             </div>
           </div>
         </div>
@@ -9059,6 +9066,7 @@
     let _contentItems = [];
     let _contentImageList = []; // {kind:'existing',url} | {kind:'new',file} theo đúng thứ tự hiển thị/lưu
     let _contentProfilesCache = []; // cache profiles từ /api/accounts
+    let _contentChannelsCache = { fbGroups: [], profileChannels: {} }; // cache nhóm + gán nhóm theo tài khoản từ /api/channels
 
     async function loadContents() {
       const search = (document.getElementById('contentSearch') || {}).value || '';
@@ -9206,42 +9214,86 @@
           ...(data.zalo || []).map(p => ({ ...p, type: 'zalo' })),
           ...(channels.fbGroups || []).map(g => ({ ...g, type: 'fbgroup' })),
         ];
+        _contentChannelsCache = { fbGroups: channels.fbGroups || [], profileChannels: channels.profileChannels || {} };
       } catch (e) { _contentProfilesCache = []; }
     }
 
-    function _renderProfileCheckboxes(selectedKeys) {
-      const wrap = document.getElementById('contentProfileCheckboxes');
-      if (!_contentProfilesCache.length) {
-        wrap.innerHTML = '<span style="font-size:12px;color:#aaa;padding:4px 6px;">Chưa có profile nào</span>';
-        _updateContentProfileLabel();
+    function _contentAccounts() {
+      return _contentProfilesCache.filter(p => p.type === 'facebook' || p.type === 'zalo');
+    }
+
+    // Suy luận tài khoản + nơi đăng đã chọn từ profiles[] lưu sẵn (có thể là dữ liệu cũ
+    // trộn chung tài khoản/nhóm), rồi dựng lại 2 ô Tài khoản + Nơi đăng theo tài khoản đó.
+    function _initContentDestinationPicker(selectedKeys) {
+      const accounts = _contentAccounts();
+      let accountKey = selectedKeys.find(k => accounts.some(a => a.key === k)) || '';
+      if (!accountKey) {
+        const groupKey = selectedKeys.find(k => !accounts.some(a => a.key === k));
+        if (groupKey) {
+          const owner = accounts.find(a => ((_contentChannelsCache.profileChannels || {})[a.key] || {}).fbGroups?.includes(groupKey));
+          if (owner) accountKey = owner.key;
+        }
+      }
+      _renderAccountOptions(accountKey);
+      _renderDestinationCheckboxes(accountKey, selectedKeys);
+    }
+
+    function _renderAccountOptions(selectedKey) {
+      const sel = document.getElementById('contentAccountSelect');
+      const accounts = _contentAccounts();
+      sel.innerHTML = '<option value="">-- Chọn tài khoản --</option>' +
+        accounts.map(a => `<option value="${escapeHtml(a.key)}" ${a.key === selectedKey ? 'selected' : ''}>${escapeHtml(a.name || a.key)}${a.type === 'zalo' ? ' (Zalo)' : ''}</option>`).join('');
+    }
+
+    function _onContentAccountChange() {
+      const sel = document.getElementById('contentAccountSelect');
+      _renderDestinationCheckboxes(sel.value, []);
+    }
+
+    function _renderDestinationCheckboxes(accountKey, selectedKeys) {
+      const wrap = document.getElementById('contentDestCheckboxes');
+      const label = document.getElementById('contentDestDropLabel');
+      const btn = document.getElementById('contentDestDropBtn');
+      if (!accountKey) {
+        wrap.innerHTML = '<span style="font-size:12px;color:#aaa;padding:4px 6px;">Chọn tài khoản trước</span>';
+        if (label) { label.textContent = 'Chọn tài khoản trước'; label.style.color = '#aaa'; }
+        if (btn) btn.disabled = true;
         return;
       }
-      wrap.innerHTML = _contentProfilesCache.map(p => {
-        const checked = selectedKeys.includes(p.key) ? 'checked' : '';
-        const badgeColor = p.type === 'zalo' ? '#0068FF' : '#1877F2';
-        const badgeIcon = p.type === 'zalo'
+      if (btn) btn.disabled = false;
+      const account = _contentAccounts().find(a => a.key === accountKey);
+      const assignedGroupKeys = ((_contentChannelsCache.profileChannels || {})[accountKey] || {}).fbGroups || [];
+      const groups = (_contentChannelsCache.fbGroups || []).filter(g => assignedGroupKeys.includes(g.key));
+      const items = [
+        { key: accountKey, name: 'Trang cá nhân' + (account ? ' — ' + (account.name || account.key) : ''), isGroup: false },
+        ...groups.map(g => ({ key: g.key, name: g.name || g.key, isGroup: true })),
+      ];
+      wrap.innerHTML = items.map(it => {
+        const checked = selectedKeys.includes(it.key) ? 'checked' : '';
+        const badgeColor = (!it.isGroup && account?.type === 'zalo') ? '#0068FF' : '#1877F2';
+        const badgeIcon = !it.isGroup && account?.type === 'zalo'
           ? `<svg class="xi" style="width:13px;height:13px;color:${badgeColor};flex-shrink:0;"><use href="#ic-zalo"/></svg>`
-          : p.type === 'fbgroup'
+          : it.isGroup
           ? `<svg class="xi" style="width:13px;height:13px;color:${badgeColor};flex-shrink:0;"><use href="#ic-users"/></svg>`
           : `<svg class="xi" style="width:13px;height:13px;color:${badgeColor};flex-shrink:0;"><use href="#ic-fb"/></svg>`;
         return `<label style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:6px;cursor:pointer;font-size:13px;user-select:none;${checked ? 'background:#EFF6FF;' : ''}"
             onmouseover="if(!this.querySelector('input').checked)this.style.background='#f9fafb'"
             onmouseout="if(!this.querySelector('input').checked)this.style.background=''">
-          <input type="checkbox" name="contentProfiles" value="${escapeHtml(p.key)}" data-name="${escapeHtml(p.name || p.key)}" ${checked}
+          <input type="checkbox" name="contentDest" value="${escapeHtml(it.key)}" data-name="${escapeHtml(it.name)}" ${checked}
             style="margin:0;width:14px;height:14px;cursor:pointer;flex-shrink:0;"
-            onchange="_updateContentProfileLabel();this.closest('label').style.background=this.checked?'#EFF6FF':''">
-          ${badgeIcon} ${escapeHtml(p.name || p.key)}${p.type === 'fbgroup' ? ' <span style="color:#9ca3af;font-size:11px;">· Nhóm</span>' : ''}
+            onchange="_updateContentDestLabel();this.closest('label').style.background=this.checked?'#EFF6FF':''">
+          ${badgeIcon} ${escapeHtml(it.name)}${it.isGroup ? ' <span style="color:#9ca3af;font-size:11px;">· Nhóm</span>' : ''}
         </label>`;
       }).join('');
-      _updateContentProfileLabel();
+      _updateContentDestLabel();
     }
 
-    function _updateContentProfileLabel() {
-      const checked = document.querySelectorAll('#contentProfileCheckboxes input[name="contentProfiles"]:checked');
-      const label = document.getElementById('contentProfileDropLabel');
+    function _updateContentDestLabel() {
+      const checked = document.querySelectorAll('#contentDestCheckboxes input[name="contentDest"]:checked');
+      const label = document.getElementById('contentDestDropLabel');
       if (!label) return;
       if (checked.length === 0) {
-        label.textContent = 'Tất cả';
+        label.textContent = 'Chưa chọn';
         label.style.color = '#aaa';
       } else {
         label.textContent = Array.from(checked).map(cb => cb.dataset.name || cb.value).join(', ');
@@ -9249,10 +9301,10 @@
       }
     }
 
-    function toggleContentProfileDrop() {
-      const panel = document.getElementById('contentProfileDropPanel');
-      const btn = document.getElementById('contentProfileDropBtn');
-      if (!panel) return;
+    function toggleContentDestDrop() {
+      const panel = document.getElementById('contentDestDropPanel');
+      const btn = document.getElementById('contentDestDropBtn');
+      if (!panel || btn.disabled) return;
       const isOpen = panel.style.display === 'block';
       panel.style.display = isOpen ? 'none' : 'block';
       if (btn) btn.style.borderColor = isOpen ? '#ddd' : '#3B82F6';
@@ -9278,7 +9330,7 @@
         editId.value = id;
         bodyInput.value = item.body;
         tagsInput.value = (item.tags || []).join(', ');
-        _renderProfileCheckboxes(item.profiles || []);
+        _initContentDestinationPicker(item.profiles || []);
         _contentImageList = (item.images || []).map(url => ({ kind: 'existing', url }));
         renderContentImgPreview();
       } else {
@@ -9286,7 +9338,7 @@
         editId.value = '';
         bodyInput.value = '';
         tagsInput.value = '';
-        _renderProfileCheckboxes([]);
+        _initContentDestinationPicker([]);
         _contentImageList = [];
         renderContentImgPreview();
       }
@@ -9391,7 +9443,7 @@
       const errEl = document.getElementById('contentModalError');
       const saveBtn = document.getElementById('contentSaveBtn');
       const selectedProfiles = Array.from(
-        document.querySelectorAll('#contentProfileCheckboxes input[name="contentProfiles"]:checked')
+        document.querySelectorAll('#contentDestCheckboxes input[name="contentDest"]:checked')
       ).map(cb => cb.value);
 
       if (!body)  { errEl.textContent = 'Vui lòng nhập nội dung bài viết.'; errEl.style.display = 'block'; return; }
@@ -12113,9 +12165,9 @@
       if (!e.target.closest('.msel')) {
         document.querySelectorAll('.msel-panel').forEach(p => p.classList.remove('open'));
       }
-      if (!e.target.closest('#contentProfileDropWrap')) {
-        const panel = document.getElementById('contentProfileDropPanel');
-        const btn = document.getElementById('contentProfileDropBtn');
+      if (!e.target.closest('#contentDestDropWrap')) {
+        const panel = document.getElementById('contentDestDropPanel');
+        const btn = document.getElementById('contentDestDropBtn');
         if (panel && panel.style.display === 'block') {
           panel.style.display = 'none';
           if (btn) btn.style.borderColor = '#ddd';
