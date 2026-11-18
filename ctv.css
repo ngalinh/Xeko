@@ -140,7 +140,7 @@ td .selection-explanation{margin-top:10px;color:#865e20;font-size:11px;line-heig
 .composer-heading,.composer-footer{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
 .composer-heading{margin-bottom:20px}.composer-heading h3{margin:0}.composer-heading .muted{font-size:11px}
 .composer-footer{border-top:1px solid var(--line);padding-top:14px}.composer-footer .hint{flex:1;min-width:160px;margin:0}
-#step3 #template{min-height:150px;background:#f9fbff}.template-meta{margin-bottom:18px}
+#step3 #template{min-height:150px;background:#f9fbff}.template-meta{margin-bottom:18px}.template-picker{display:flex;align-items:center;gap:10px;margin-bottom:16px}.template-picker select{flex:1}
 .message-archive{margin-top:22px;border:1px solid var(--line);border-radius:12px;padding:4px 16px;background:#fff}
 .message-archive>summary{font-weight:600;padding:14px 0;color:#344762}.message-archive .message-previews{margin:0 0 12px;max-height:500px;overflow:auto}
 .message-archive .message-card{background:#f8faff}.message-archive .message-card p{margin-bottom:0}

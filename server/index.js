@@ -11,6 +11,7 @@ const playwright = process.env.PLAYWRIGHT_LOCAL_URL
   ? require('./playwright-proxy')
   : require('./src/playwright/post');
 const postLogger = require('./src/database/post-logger');
+const messageTemplateStore = require('./src/database/message-template-store');
 const seedStore = require('./src/database/seed-store');
 const { queuePost } = require('./src/utils/post-queue');
 const { groupDelayMs } = require('./src/utils/post-delays');
@@ -1735,6 +1736,55 @@ app.get('/api/schedule-image/:id/:index', (req, res) => {
     res.sendFile(path.resolve(imgPath));
   } else {
     res.status(404).json({ error: 'File không tồn tại' });
+  }
+});
+
+// === Mẫu tin nhắn đã lưu (CTV soạn tin) ===
+app.get('/api/message-templates', (req, res) => {
+  try {
+    res.json(messageTemplateStore.list(req.user.email));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/message-templates', (req, res) => {
+  try {
+    const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+    const content = typeof req.body?.content === 'string' ? req.body.content.trim() : '';
+    if (!name) return res.status(400).json({ error: 'Thiếu tên mẫu' });
+    if (!content) return res.status(400).json({ error: 'Thiếu nội dung mẫu' });
+    res.status(201).json(messageTemplateStore.create(req.user.email, { name, content }));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/message-templates/:id', (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+    const content = typeof req.body?.content === 'string' ? req.body.content.trim() : '';
+    if (!id) return res.status(400).json({ error: 'ID không hợp lệ' });
+    if (!name) return res.status(400).json({ error: 'Thiếu tên mẫu' });
+    if (!content) return res.status(400).json({ error: 'Thiếu nội dung mẫu' });
+    const result = messageTemplateStore.update(id, req.user.email, { name, content });
+    if (!result.changes) return res.status(404).json({ error: 'Không tìm thấy mẫu' });
+    res.json({ updated: result.changes });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/message-templates/:id', (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'ID không hợp lệ' });
+    const result = messageTemplateStore.remove(id, req.user.email);
+    if (!result.changes) return res.status(404).json({ error: 'Không tìm thấy mẫu' });
+    res.json({ deleted: result.changes });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 

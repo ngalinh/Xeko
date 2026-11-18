@@ -37,7 +37,7 @@
   const defaultTemplate = $('template').value;
   Object.assign(labels, {uid_queued:'Chờ tìm UID',resolving_uid:'Đang tìm UID'});
   let selected = null, epoch = 0, timer = null, busy = false, uncertain = false, retries = 0;
-  let picks = new Set(), accounts = [], campaigns = [];
+  let picks = new Set(), accounts = [], campaigns = [], savedTemplates = [];
   let sendPicks = new Set(), bulkSending = false;
   let draftImages = [], readingImages = false;
   let prepareTimer = null;
@@ -928,6 +928,46 @@
   $('approveAnalysis').onclick=()=>action('approve-analysis',{leadIds:[...picks]});
   $('reviewSelection').onclick=()=>action('review-analysis');
   $('template').oninput=()=>{$('confirmSend').checked=false;updateControls();schedulePrepareMessages();};
+  function renderTemplatePicker() {
+    const sel = $('templatePicker');
+    const cur = sel.value;
+    sel.replaceChildren(element('option', '— Chọn mẫu đã lưu —'));
+    sel.firstChild.value = '';
+    for (const tpl of savedTemplates) { const o = element('option', tpl.name); o.value = tpl.id; sel.append(o); }
+    sel.value = savedTemplates.some(tpl => String(tpl.id) === cur) ? cur : '';
+    $('deleteTemplateBtn').disabled = !sel.value;
+  }
+  async function loadTemplates() {
+    try { savedTemplates = await api('/api/message-templates'); renderTemplatePicker(); } catch (e) { /* khong lam gian doan luong soan tin */ }
+  }
+  $('templatePicker').onchange = () => {
+    const tpl = savedTemplates.find(tpl => String(tpl.id) === $('templatePicker').value);
+    $('deleteTemplateBtn').disabled = !tpl;
+    if (!tpl) return;
+    $('template').value = tpl.content;
+    $('template').oninput();
+  };
+  $('saveTemplateBtn').onclick = async () => {
+    const content = $('template').value.trim();
+    if (!content) { notice('Chưa có nội dung để lưu thành mẫu.', true); return; }
+    const picked = savedTemplates.find(tpl => String(tpl.id) === $('templatePicker').value);
+    const name = window.prompt('Đặt tên cho mẫu tin nhắn:', picked ? picked.name : '');
+    if (!name || !name.trim()) return;
+    try {
+      let id = picked ? picked.id : null;
+      if (picked) await api('/api/message-templates/' + picked.id, 'PUT', { name: name.trim(), content });
+      else { const created = await api('/api/message-templates', 'POST', { name: name.trim(), content }); id = created.id; }
+      await loadTemplates();
+      $('templatePicker').value = id;
+      $('deleteTemplateBtn').disabled = false;
+      notice('Đã lưu mẫu tin nhắn.');
+    } catch (e) { notice('Lưu mẫu thất bại: ' + e.message, true); }
+  };
+  $('deleteTemplateBtn').onclick = async () => {
+    const tpl = savedTemplates.find(tpl => String(tpl.id) === $('templatePicker').value);
+    if (!tpl || !window.confirm(`Xoá mẫu "${tpl.name}"?`)) return;
+    try { await api('/api/message-templates/' + tpl.id, 'DELETE'); await loadTemplates(); } catch (e) { notice('Xoá mẫu thất bại: ' + e.message, true); }
+  };
   $('addMessageImages').onclick = () => $('messageImages').click();
   async function addImageFiles(files) {
     const version = epoch;
@@ -1039,13 +1079,14 @@
     $('campaignName').focus();
   });
   (async()=>{
-    const results=await Promise.allSettled([api('/api/accounts'),api('/api/ctv/campaigns'),api('/api/ctv/customers')]);
+    const results=await Promise.allSettled([api('/api/accounts'),api('/api/ctv/campaigns'),api('/api/ctv/customers'),api('/api/message-templates')]);
     if(results[0].status==='fulfilled'){
       const data=results[0].value;accounts=data.facebook || [];$('profile').replaceChildren(element('option',accounts.length?'Chọn Facebook cá nhân':'Chưa có tài khoản Facebook'));$('profile').firstChild.value='';
       for(const a of accounts){const option=element('option',a.name || a.key);option.value=a.key;$('profile').append(option);}show('demoBanner',data.demo===true);
     }else notice('Không tải được tài khoản. '+results[0].reason.message,true);
     if(results[1].status==='fulfilled'){campaigns=results[1].value;renderHistory();}else{$('campaigns').textContent='Chưa tải được lịch sử. Hãy tải lại trang.';notice(results[1].reason.message,true);}
     if(results[2].status==='fulfilled'){customersSnapshot=results[2].value;renderSendDashSummary();renderSendStatByAccount();}
+    if(results[3].status==='fulfilled'){savedTemplates=results[3].value;renderTemplatePicker();}
     updateControls();
   })();
 })();
