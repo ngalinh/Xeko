@@ -1,236 +1,41 @@
 <!DOCTYPE html>
-<html lang="vi">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Check deal sản phẩm — Xeko (test)</title>
-<style>
-  :root { color-scheme: light; }
-  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: #f5f6f8; margin: 0; padding: 24px; color: #1c1e21; }
-  .wrap { max-width: 720px; margin: 0 auto; }
-  h1 { font-size: 20px; margin-bottom: 4px; }
-  .hint { color: #65676b; font-size: 13px; margin-bottom: 20px; }
-  .card { background: #fff; border: 1px solid #dadde1; border-radius: 10px; padding: 18px; margin-bottom: 20px; }
-  input[type=text] {
-    width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #ccd0d5;
-    border-radius: 6px; font-size: 14px; font-family: inherit;
-  }
-  button {
-    background: #1877f2; color: #fff; border: none; border-radius: 6px; padding: 9px 16px;
-    font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px;
-  }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  .engines { margin: 14px 0 0; padding: 12px; border: 1px solid #ccd0d5; border-radius: 6px; }
-  .engine-options { display: flex; flex-wrap: wrap; gap: 10px; }
-  .engine-options label { display: flex; align-items: center; gap: 6px; padding: 10px; background: #f5f6f8; border-radius: 6px; cursor: pointer; }
-  .status { font-size: 13px; color: #65676b; margin-top: 10px; }
-  .price { font-size: 22px; font-weight: 700; color: #1c1e21; margin-top: 14px; }
-  .shot { margin-top: 12px; }
-  .shot img { max-width: 100%; border-radius: 8px; border: 1px solid #dadde1; display: block; }
-  .product-images { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
-  .product-images img { width: 100%; height: 180px; object-fit: contain; }
-  .product-images a { overflow-wrap: anywhere; font-size: 13px; }
-  .error { color: #fa383e; font-size: 13px; margin-top: 10px; }
-</style>
-</head>
-<body>
-<div class="wrap">
-  <h1>Check deal sản phẩm (test nội bộ)</h1>
-  <div class="hint">Dán link 1 trang sản phẩm (Macy's, hoặc web bán lẻ tương tự) để lấy giá + ảnh sản phẩm + screenshot. Chạy thật trên VPS qua local-server.</div>
+<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Lấy deal — Xeko</title><link rel="stylesheet" href="product-deal.css"><style>body{margin:0;background:#f1f5fb;font-family:Inter,Segoe UI,sans-serif}</style></head><body>
+<div class="deal-workspace" data-deal-app>
+  <h2>Lấy thông tin sản phẩm</h2>
+  <div class="hint">Dán link sản phẩm, chọn ảnh và để AI viết bản nháp. Bạn duyệt trước khi đăng.</div>
   <div class="card">
-    <input type="text" id="url" placeholder="https://www.macys.com/shop/product/...">
-    <input type="text" id="proxy" placeholder="(tuy chon) proxy: user:pass@host:port" style="margin-top:8px;">
-    <fieldset class="engines" id="engines">
+    <label class="field-label" for="deal-url">Link sản phẩm</label><input type="text" id="deal-url" data-deal-id="url" placeholder="https://www.macys.com/shop/product/...">
+    <details class="deal-options"><summary>Cấu hình trình duyệt &amp; proxy</summary><label class="field-label" for="deal-proxy">Proxy (tuỳ chọn)</label><input type="text" id="deal-proxy" data-deal-id="proxy" placeholder="(tuy chon) proxy: user:pass@host:port" style="margin-top:8px;">
+    <fieldset class="engines" id="deal-engines" data-deal-id="engines">
       <legend>Chọn trình duyệt</legend>
       <div class="engine-options">
         <label><input type="radio" name="engine" value="chromium" checked> Chromium</label>
         <label><input type="radio" name="engine" value="firefox"> Firefox</label>
         <label><input type="radio" name="engine" value="webkit"> WebKit</label>
       </div>
-    </fieldset>
-    <div class="status">Phiên bản giao diện: product-draft-v2</div>
-    <button id="go">Check deal</button>
-    <div class="status" id="status"></div>
-    <div class="error" id="error"></div>
-    <div class="price" id="price"></div>
-    <p id="images-status" class="status"></p>
-    <div id="images" class="product-images"></div>
-    <section id="draft-panel" hidden>
+    </fieldset></details>
+
+    <button id="deal-go" data-deal-id="go">Lấy deal</button>
+    <div class="status" role="status" aria-live="polite" id="deal-status" data-deal-id="status"></div>
+    <div class="error" role="alert" id="deal-error" data-deal-id="error"></div>
+    <div class="price" id="deal-price" data-deal-id="price"></div>
+    <p id="deal-images-status" data-deal-id="images-status" class="status"></p>
+    <div id="deal-images" data-deal-id="images" class="product-images"></div>
+    <section id="deal-draft-panel" data-deal-id="draft-panel" hidden>
       <h2 style="font-size:18px">Tạo bản nháp sản phẩm</h2>
-      <label>Tên sản phẩm<input type="text" id="draft-title"></label>
+      <label>Tên sản phẩm<input type="text" id="deal-draft-title" data-deal-id="draft-title"></label>
       <label>Thông tin đã xác minh / giá bán của shop
-        <textarea id="draft-description" rows="4" style="width:100%;box-sizing:border-box"></textarea>
+        <textarea id="deal-draft-description" data-deal-id="draft-description" rows="4" style="width:100%;box-sizing:border-box"></textarea>
       </label>
-      <label>Phong cách <select id="draft-style"><option value="short">Ngắn gọn</option><option value="detailed">Chi tiết</option><option value="story">Kể chuyện</option></select></label>
+      <label>Phong cách <select id="deal-draft-style" data-deal-id="draft-style"><option value="short">Ngắn gọn</option><option value="detailed">Chi tiết</option><option value="story">Kể chuyện</option></select></label>
       <p class="status">Chọn tối đa 20 ảnh phía trên. Gemini dùng tối đa 5 ảnh để viết; bản nháp giữ tất cả ảnh đã chọn. Bài được lưu trong Kho content để bạn sửa và duyệt trước khi chọn đăng/lên lịch.</p>
-      <button id="create-draft" type="button">AI tạo &amp; lưu bản nháp</button>
-      <div id="draft-status" class="status" role="status"></div>
-      <pre id="draft-preview" style="white-space:pre-wrap"></pre>
-      <a id="draft-library" hidden>Mở bản nháp vừa tạo để duyệt</a>
+      <button id="deal-create-draft" data-deal-id="create-draft" type="button">AI tạo &amp; lưu bản nháp</button>
+      <div id="deal-draft-status" data-deal-id="draft-status" class="status" role="status"></div>
+      <pre id="deal-draft-preview" data-deal-id="draft-preview" style="white-space:pre-wrap"></pre>
+      <a id="deal-draft-library" data-deal-id="draft-library" hidden>Mở bản nháp vừa tạo để duyệt</a>
     </section>
-    <div class="shot" id="shot"></div>
-    <pre class="status" id="debug" style="white-space:pre-wrap;background:#f5f6f8;padding:8px;border-radius:6px;margin-top:10px;"></pre>
+    <details class="deal-options"><summary>Ảnh chụp trang &amp; thông tin kiểm tra</summary><div class="shot" id="deal-shot" data-deal-id="shot"></div>
+    <pre class="status" id="deal-debug" data-deal-id="debug" style="white-space:pre-wrap;padding:8px;border-radius:6px;margin-top:10px;"></pre></details>
   </div>
 </div>
-<script>
-const BASE_URL = window.location.pathname.replace(/\/[^/]*$/, '').replace(/\/$/, '');
-
-const $ = (id) => document.getElementById(id);
-const btn = $('go');
-let currentDeal = null;
-
-function setStatus(msg) { $('status').textContent = msg || ''; }
-function setError(msg) { $('error').textContent = msg || ''; }
-
-btn.addEventListener('click', async () => {
-  const url = $('url').value.trim();
-  if (!url) { setError('Chưa nhập link'); return; }
-
-  const selectedEngine = document.querySelector('input[name="engine"]:checked');
-  const engine = selectedEngine.value;
-  const engineLabel = selectedEngine.parentElement.textContent.trim();
-  currentDeal = null;
-  $('draft-panel').hidden = true;
-  $('draft-status').textContent = '';
-  $('draft-preview').textContent = '';
-  $('draft-library').hidden = true;
-  btn.disabled = true;
-  $('engines').disabled = true;
-  setError('');
-  $('price').textContent = '';
-  $('shot').innerHTML = '';
-  $('images').replaceChildren();
-  $('images-status').textContent = '';
-  $('debug').textContent = '';
-  setStatus('Đang mở trang bằng ' + engineLabel + ' và tự bấm ảnh thu nhỏ để gom ảnh sản phẩm...');
-
-  try {
-    const res = await fetch(BASE_URL + '/api/get-deal', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, proxy: $('proxy').value.trim() || undefined, engine }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Lỗi không rõ');
-
-    setStatus('Xong — trình duyệt đã chọn: ' + engineLabel + '.');
-    $('price').textContent = data.price ? ('Giá đọc được: ' + data.price) : 'Không đọc được giá trên trang này.';
-
-    const images = (Array.isArray(data.images) ? data.images : []).filter(src => {
-      try { return ['http:', 'https:'].includes(new URL(src).protocol); } catch { return false; }
-    });
-    $('images-status').textContent = images.length
-      ? 'Ảnh sản phẩm: ' + images.length + ' — ưu tiên bản lớn/ảnh zoom; bấm để mở và lưu ảnh.'
-      : 'Chưa tìm thấy ảnh sản phẩm trong dữ liệu trang.';
-    currentDeal = { price: data.price, images };
-    $('draft-title').value = data.debug?.pageTitle || '';
-    $('draft-description').value = '';
-    $('draft-panel').hidden = !images.length;
-    $('create-draft').disabled = false;
-    images.forEach((src, index) => {
-      const item = document.createElement('div');
-      const link = document.createElement('a');
-      link.href = src;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      const img = document.createElement('img');
-      img.src = src;
-      img.alt = 'Ảnh sản phẩm ' + (index + 1);
-      img.loading = 'lazy';
-      img.addEventListener('error', () => {
-        img.remove();
-        link.append(document.createTextNode(' (không tải được bản xem trước)'));
-      });
-      link.append(img, document.createTextNode('Mở ảnh lớn ' + (index + 1)));
-      const download = document.createElement('button');
-      download.type = 'button';
-      download.textContent = 'Tải ảnh ' + (index + 1);
-      const feedback = document.createElement('div');
-      feedback.className = 'status';
-      download.addEventListener('click', async () => {
-        download.disabled = true;
-        feedback.textContent = 'Đang tải ảnh lớn...';
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30000);
-        try {
-          const response = await fetch(src, { signal: controller.signal(), credentials: 'omit' });
-          if (!response.ok) throw new Error('HTTP ' + response.status);
-          const blob = await response.blob();
-          if (!blob.size || !blob.type.startsWith('image/')) throw new Error('Không nhận được ảnh');
-          const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
-            'image/avif': 'avif', 'image/gif': 'gif' }[blob.type] || 'img';
-          const objectUrl = URL.createObjectURL(blob);
-          const save = document.createElement('a');
-          save.href = objectUrl;
-          save.download = 'san-pham-' + (index + 1) + '.' + ext;
-          document.body.append(save);
-          save.click();
-          save.remove();
-          setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
-          feedback.textContent = 'Đã gửi ảnh tới trình duyệt để lưu.';
-        } catch {
-          feedback.textContent = 'Không tải trực tiếp được. Bấm “Mở ảnh lớn” phía trên, rồi chọn “Lưu hình ảnh thành…”.';
-        } finally {
-          clearTimeout(timeout);
-          download.disabled = false;
-        }
-      });
-      const choice = document.createElement('label');
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.className = 'draft-image';
-      checkbox.value = src;
-      checkbox.checked = index < 20;
-      choice.append(checkbox, document.createTextNode(' Dùng ảnh ' + (index + 1)));
-      item.append(choice, link, download, feedback);
-      $('images').append(item);
-    });
-
-    if (data.debug) {
-      $('debug').textContent = JSON.stringify(data.debug, null, 2);
-    }
-
-    if (data.screenshotFile) {
-      const img = document.createElement('img');
-      img.src = BASE_URL + '/api/get-deal-image?file=' + encodeURIComponent(data.screenshotFile);
-      $('shot').append(img);
-    }
-  } catch (e) {
-    setStatus('');
-    setError('❌ ' + e.message);
-  } finally {
-    btn.disabled = false;
-    $('engines').disabled = false;
-  }
-});
-$('draft-library').href = BASE_URL + '/?page=drafts';
-$('create-draft').addEventListener('click', async () => {
-  const images = [...document.querySelectorAll('.draft-image:checked')].map(el => el.value);
-  const title = $('draft-title').value.trim();
-  if (!title || !images.length || images.length > 20) {
-    $('draft-status').textContent = 'Nhập tên sản phẩm và chọn từ 1 đến 20 ảnh.';
-    return;
-  }
-  $('create-draft').disabled = true;
-  btn.disabled = true;
-  $('draft-status').textContent = 'Đang tải ảnh, nhờ AI viết và lưu bản nháp…';
-  try {
-    const response = await fetch(BASE_URL + '/api/product-drafts', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, images, price: currentDeal?.price,
-        description: $('draft-description').value, style: $('draft-style').value }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Không lưu được bản nháp');
-    $('draft-preview').textContent = data.item.body;
-    $('draft-status').textContent = 'Đã lưu bản nháp #' + data.item.id + ' với ' + data.item.images.length + ' ảnh trong Kho content. Chưa đăng bài.';
-    $('draft-library').href = BASE_URL + '/?page=drafts&draft=' + encodeURIComponent(data.item.id);
-    $('draft-library').hidden = false;
-  } catch (error) {
-    $('draft-status').textContent = error.message + ' Nếu mất kết nối, kiểm tra Kho content trước khi tạo lại để tránh trùng bài.';
-    $('create-draft').disabled = false;
-  } finally { btn.disabled = false; }
-});
-</script>
-</body>
-</html>
+<script src="product-deal.js"></script></body></html>

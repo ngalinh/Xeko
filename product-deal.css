@@ -1,0 +1,38 @@
+
+.deal-workspace { --deal-bg:#fff; --deal-text:#1e293b; --deal-muted:#64748b; --deal-line:#dbe4f0; --deal-soft:#f1f5fb; padding:24px; width:100%; max-width:1180px; margin:0 auto; box-sizing:border-box; color:var(--deal-text); font-family:inherit; }
+.deal-workspace * { box-sizing:border-box; }
+.deal-workspace h2 { font-size:20px; margin:0 0 8px; letter-spacing:-.4px; }
+.deal-workspace .hint { color:var(--deal-muted); font-size:13px; margin-bottom:24px; line-height:1.7; }
+.deal-workspace .card { background:var(--deal-bg); border:1px solid var(--deal-line); border-radius:16px; padding:24px; }
+.deal-workspace input[type=text], .deal-workspace textarea, .deal-workspace select { width:100%; background:var(--deal-bg); color:var(--deal-text); border:1px solid var(--deal-line); border-radius:8px; padding:12px; font:inherit; font-size:14px; margin-top:8px; }
+.deal-workspace textarea { resize:vertical; min-height:120px; line-height:1.7; }
+.deal-workspace button, .deal-workspace [data-deal-id=draft-library] { display:inline-block; background:#3b82f6; color:white; border:0; border-radius:8px; padding:11px 18px; font:inherit; font-size:13px; font-weight:600; cursor:pointer; margin-top:14px; text-decoration:none; }
+.deal-workspace button:hover { background:#2563eb; }
+.deal-workspace button:disabled { opacity:.55; cursor:wait; }
+.deal-workspace :focus-visible { outline:2px solid #3b82f6; outline-offset:3px; }
+.deal-workspace [hidden] { display:none !important; }
+.deal-workspace .field-label, .deal-workspace [data-deal-id=draft-panel] > label { display:block; font-size:13px; font-weight:600; margin-top:16px; }
+.deal-workspace .deal-options { border-top:1px solid var(--deal-line); padding-top:14px; margin-top:18px; font-size:13px; }
+.deal-workspace summary { color:var(--deal-muted); cursor:pointer; padding:4px 0; }
+.deal-workspace .engines { border:0; padding:12px 0 0; margin:10px 0; }
+.deal-workspace .engine-options { display:flex; flex-wrap:wrap; gap:12px; margin-top:8px; }
+.deal-workspace .engine-options label { display:flex; align-items:center; gap:8px; background:var(--deal-soft); padding:10px 14px; border-radius:8px; cursor:pointer; }
+.deal-workspace input[type=checkbox], .deal-workspace input[type=radio] { accent-color:#3b82f6; }
+.deal-workspace .status { color:var(--deal-muted); font-size:13px; line-height:1.7; margin-top:12px; }
+.deal-workspace .error { color:#dc2626; font-size:13px; margin-top:12px; }
+.deal-workspace .price { font-size:22px; font-weight:700; margin-top:20px; }
+.deal-workspace .price:empty, .deal-workspace .error:empty, .deal-workspace .status:empty { display:none; }
+.deal-workspace .product-images { display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:16px; margin-top:16px; }
+.deal-workspace .deal-image { min-width:0; padding:12px; border:1px solid var(--deal-line); border-radius:12px; }
+.deal-workspace .deal-image:has(input:checked) { border-color:#3b82f6; background:var(--deal-soft); }
+.deal-workspace .deal-image label { display:block; font-size:13px; margin-bottom:12px; }
+.deal-workspace .deal-image img { width:100%; height:190px; object-fit:contain; background:#fff; border-radius:8px; margin-bottom:8px; }
+.deal-workspace a { color:#2563eb; font-size:13px; overflow-wrap:anywhere; }
+.deal-workspace .deal-image button { background:var(--deal-bg); color:#2563eb; border:1px solid var(--deal-line); padding:8px 12px; }
+.deal-workspace [data-deal-id=draft-panel] { border-top:1px solid var(--deal-line); margin-top:28px; padding-top:24px; }
+.deal-workspace [data-deal-id=draft-preview]:not(:empty) { background:var(--deal-soft); padding:20px; border-radius:10px; font:inherit; line-height:1.8; }
+.deal-workspace .shot img { max-width:100%; border-radius:10px; margin-top:16px; }
+.deal-workspace pre { overflow-wrap:anywhere; }
+[data-theme=dark] .deal-workspace { --deal-bg:#1e293b; --deal-text:#e2e8f0; --deal-muted:#94a3b8; --deal-line:#334155; --deal-soft:#172033; }
+#pageDeals .deal-scroll { flex:1; min-height:0; overflow-y:auto; }
+@media(max-width:600px) { .deal-workspace { padding:16px; } .deal-workspace .card { padding:16px; } .deal-workspace .product-images { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; } .deal-workspace .deal-image img { height:140px; } .content-library-tabs { flex-wrap:wrap; } }

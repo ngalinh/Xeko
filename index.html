@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Xeko - Auto Post Content</title>
 
+  <link rel="stylesheet" href="product-deal.css">
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#f6f5fe" media="(prefers-color-scheme: light)">
@@ -490,9 +491,6 @@
       .content-library-tabs { align-self:stretch; }
       .content-library-tabs button { flex:1; padding:10px 8px; }
     }
-    #archiveBanner { display:none; }
-    #pageDashboard[data-view="content"] #archiveBanner { display:flex; }
-    [data-theme="dark"] #archiveBanner { background:#2e2a1a !important; border-color:#4a3a2a !important; color:#fcd34d !important; }
 
     /* Image preview */
     .image-preview {
@@ -4630,6 +4628,55 @@
     </div>
   </div><!-- end pageSpyBaiViet -->
 
+<div class="page" id="pageDeals">
+    <div class="header">
+      <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
+      <div class="header-info"><h1>Kho content</h1><span>Từ sản phẩm đến bài viết của bạn</span></div>
+    </div>
+    <nav class="content-library-tabs" aria-label="Kho content">
+      <button type="button" onclick="switchPage('content')">Kho content</button>
+      <button type="button" onclick="switchPage('drafts')">Bản nháp / Bài mẫu</button>
+      <button type="button" aria-current="page" onclick="switchPage('deals')">Lấy deal</button>
+    </nav>
+    <div class="deal-scroll"><div class="deal-workspace" data-deal-app>
+  <h2>Lấy thông tin sản phẩm</h2>
+  <div class="hint">Dán link sản phẩm, chọn ảnh và để AI viết bản nháp. Bạn duyệt trước khi đăng.</div>
+  <div class="card">
+    <label class="field-label" for="deal-url">Link sản phẩm</label><input type="text" id="deal-url" data-deal-id="url" placeholder="https://www.macys.com/shop/product/...">
+    <details class="deal-options"><summary>Cấu hình trình duyệt &amp; proxy</summary><label class="field-label" for="deal-proxy">Proxy (tuỳ chọn)</label><input type="text" id="deal-proxy" data-deal-id="proxy" placeholder="(tuy chon) proxy: user:pass@host:port" style="margin-top:8px;">
+    <fieldset class="engines" id="deal-engines" data-deal-id="engines">
+      <legend>Chọn trình duyệt</legend>
+      <div class="engine-options">
+        <label><input type="radio" name="engine" value="chromium" checked> Chromium</label>
+        <label><input type="radio" name="engine" value="firefox"> Firefox</label>
+        <label><input type="radio" name="engine" value="webkit"> WebKit</label>
+      </div>
+    </fieldset></details>
+
+    <button id="deal-go" data-deal-id="go">Lấy deal</button>
+    <div class="status" role="status" aria-live="polite" id="deal-status" data-deal-id="status"></div>
+    <div class="error" role="alert" id="deal-error" data-deal-id="error"></div>
+    <div class="price" id="deal-price" data-deal-id="price"></div>
+    <p id="deal-images-status" data-deal-id="images-status" class="status"></p>
+    <div id="deal-images" data-deal-id="images" class="product-images"></div>
+    <section id="deal-draft-panel" data-deal-id="draft-panel" hidden>
+      <h2 style="font-size:18px">Tạo bản nháp sản phẩm</h2>
+      <label>Tên sản phẩm<input type="text" id="deal-draft-title" data-deal-id="draft-title"></label>
+      <label>Thông tin đã xác minh / giá bán của shop
+        <textarea id="deal-draft-description" data-deal-id="draft-description" rows="4" style="width:100%;box-sizing:border-box"></textarea>
+      </label>
+      <label>Phong cách <select id="deal-draft-style" data-deal-id="draft-style"><option value="short">Ngắn gọn</option><option value="detailed">Chi tiết</option><option value="story">Kể chuyện</option></select></label>
+      <p class="status">Chọn tối đa 20 ảnh phía trên. Gemini dùng tối đa 5 ảnh để viết; bản nháp giữ tất cả ảnh đã chọn. Bài được lưu trong Kho content để bạn sửa và duyệt trước khi chọn đăng/lên lịch.</p>
+      <button id="deal-create-draft" data-deal-id="create-draft" type="button">AI tạo &amp; lưu bản nháp</button>
+      <div id="deal-draft-status" data-deal-id="draft-status" class="status" role="status"></div>
+      <pre id="deal-draft-preview" data-deal-id="draft-preview" style="white-space:pre-wrap"></pre>
+      <a id="deal-draft-library" data-deal-id="draft-library" hidden>Mở bản nháp vừa tạo để duyệt</a>
+    </section>
+    <details class="deal-options"><summary>Ảnh chụp trang &amp; thông tin kiểm tra</summary><div class="shot" id="deal-shot" data-deal-id="shot"></div>
+    <pre class="status" id="deal-debug" data-deal-id="debug" style="white-space:pre-wrap;padding:8px;border-radius:6px;margin-top:10px;"></pre></details>
+  </div>
+</div>
+</div></div>
   <!-- PAGE: Kho content -->
   <div class="page" id="pageContent">
     <div class="header">
@@ -4644,6 +4691,7 @@
     <nav class="content-library-tabs" aria-label="Kho content">
       <button type="button" onclick="switchPage('content')">Kho content</button>
       <button type="button" aria-current="page" onclick="switchPage('drafts')">Bản nháp / Bài mẫu</button>
+      <button type="button" onclick="switchPage('deals')">Lấy deal</button>
     </nav>
 
     <div style="padding:20px; width:100%; box-sizing:border-box;">
@@ -4926,15 +4974,11 @@
     <nav class="content-library-tabs" aria-label="Kho content">
       <button type="button" aria-current="page" onclick="switchPage('content')">Kho content</button>
       <button type="button" onclick="switchPage('drafts')">Bản nháp / Bài mẫu</button>
+      <button type="button" onclick="switchPage('deals')">Lấy deal</button>
     </nav>
 
     <!-- Thống kê -->
     <div id="dashPanelStats" style="flex:1; overflow-y:auto; padding:20px;">
-      <!-- Banner Kho lưu trữ (chỉ hiện ở chế độ archive) -->
-      <div id="archiveBanner" style="align-items:center; gap:10px; background:#FEF3C7; border:1px solid #FDE68A; color:#92400E; border-radius:12px; padding:12px 16px; margin-bottom:20px; font-size:13px; line-height:1.5;">
-        <svg class="xi xi-md" style="flex-shrink:0;"><use href="#ic-scroll"/></svg>
-        <span>Mục <strong>Kho content</strong> — <strong>toàn bộ bài đã đăng</strong> (mọi thời điểm). Số liệu tổng hợp xem ở tab <strong>Dashboard</strong>. Bạn vẫn tìm kiếm, lọc, đăng lại và seeding bình thường.</span>
-      </div>
       <!-- Summary Cards (Schedulkan-style: icon-circle + number + label) -->
       <div id="dashSummary" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:14px; margin-bottom:24px;">
         <div class="dash-card dash-card-today" style="background:#d8ebf7; border:none; border-radius:14px; padding:16px; display:flex; align-items:center; gap:12px;">
@@ -8868,6 +8912,7 @@
         // Kho content: dùng lại trang Dashboard ở "chế độ content" (toàn bộ bài đã đăng, ẩn thống kê)
         content: { page: 'pageDashboard', nav: 'navContent' },
         drafts: { page: 'pageContent', nav: 'navContent' },
+        deals: { page: 'pageDeals', nav: 'navContent' },
         guide: { page: 'pageGuide', nav: 'navGuide' },
       };
 
@@ -8913,7 +8958,7 @@
 
       // Sync mobile bottom nav
       document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
-      const mobileMap = { post: 'Post', calendar: 'Dashboard', dashboard: 'Dashboard', session: 'Session', spy: 'Spy', content: 'Content', drafts: 'Content' };
+      const mobileMap = { post: 'Post', calendar: 'Dashboard', dashboard: 'Dashboard', session: 'Session', spy: 'Spy', content: 'Content', drafts: 'Content', deals: 'Content' };
       const mobileBtn = document.getElementById('mobileNav' + (mobileMap[pg] || ''));
       if (mobileBtn) mobileBtn.classList.add('active');
       // Close sidebar if open
@@ -11475,7 +11520,7 @@
       try { localStorage.removeItem('xeko_pending_jobs_v1'); } catch {}
       // Xác định trang đang active để reload về đúng trang, không về dashboard mặc định
       const activePage = document.querySelector('.page.active');
-      const pageIdMap = { pageDangBai: 'post', pageDashboard: 'dashboard', pageSession: 'session', pageSpyBaiViet: 'spy', pageContent: 'content', pagePermissions: 'permissions' };
+      const pageIdMap = { pageDangBai: 'post', pageDashboard: 'dashboard', pageSession: 'session', pageSpyBaiViet: 'spy', pageContent: 'drafts', pageDeals: 'deals', pagePermissions: 'permissions' };
       const currentPg = activePage ? (pageIdMap[activePage.id] || null) : null;
       if (currentPg && currentPg !== 'dashboard') {
         const url = new URL(location.href);
@@ -15924,6 +15969,7 @@
       }
     })();
   </script>
+<script src="product-deal.js"></script>
 </body>
 </html>
 
