@@ -4737,7 +4737,7 @@
           <colgroup>
             <col style="width:40px;">
             <col style="width:44px;">
-            <col style="width:auto;">
+            <col style="width:320px;">
             <col style="width:110px;">
             <col style="width:130px;">
             <col style="width:180px;">
@@ -9106,7 +9106,7 @@
 
     function renderContentRow(item, stt) {
       const preview = item.body.length > 100 ? item.body.slice(0, 100) + '…' : item.body;
-      const tagsHtml = (item.tags || []).map(t =>
+      const tagsHtml = (item.tags || []).filter(t => t !== 'ban-nhap-san-pham').map(t =>
         `<span style="display:inline-block;padding:2px 6px;background:#F3F4F6;border-radius:99px;font-size:11px;color:#555;">${escapeHtml(t)}</span>`
       ).join(' ');
       const dt = new Date(item.updatedAt).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' });

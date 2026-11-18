@@ -57,7 +57,7 @@ Chỉ dùng thông tin được cung cấp hoặc nhìn thấy rõ trong ảnh. 
     const images = await deps.persistImages(files);
     if (images.length !== files.length) throw new Error('Chưa lưu đủ ảnh, chưa tạo bản nháp.');
     // Content library is passive: no post queue, profile assignment or schedule.
-    return deps.create({ title, body, images, tags: ['ban-nhap-san-pham'], platform: 'all', profiles: [] });
+    return deps.create({ title, body, images, tags: [], platform: 'all', profiles: [] });
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }
