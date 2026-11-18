@@ -13163,7 +13163,7 @@
             if (/net::err_|err_timed_out|err_connection|err_proxy|err_tunnel|err_socks|err_name_not_resolved|err_internet_disconnected|err_network_changed|err_address_unreachable|err_empty_response/.test(e))
               return { color:'#3730a3', bg:'#e0e7ff', emoji:'🔌', label:'Mất kết nối', tip:'Máy đăng bài không mở được Facebook/Zalo (proxy hoặc mạng chậm/bị chặn). Bài chưa đăng — kiểm tra proxy/mạng rồi đăng lại.' };
             if (/timeout|không xác nhận|không bắt được posturl|quá 10 phút|job không còn tồn tại|chưa xong/.test(e))
-              return { color:'#92400e', bg:'#fef3c7', emoji:'⚠️', label:'Cần kiểm tra', tip:'Không xác nhận được kết quả — bài CÓ THỂ đã đăng. Kiểm tra Facebook/Zalo trước khi đăng lại để tránh trùng bài.' };
+              return { color:'#9a3412', bg:'#ffedd5', emoji:'⚠️', label:'Cần kiểm tra', tip:'Không xác nhận được kết quả — bài CÓ THỂ đã đăng. Kiểm tra Facebook/Zalo trước khi đăng lại để tránh trùng bài.' };
             if (/hết hạn|session profile|chưa đăng nhập/.test(e))
               return { color:'#9a3412', bg:'#ffedd5', emoji:'🔑', label:'Hết phiên', tip:'Phiên đăng nhập đã hết hạn — mở lại tài khoản để đăng nhập rồi đăng lại.' };
             return null;
