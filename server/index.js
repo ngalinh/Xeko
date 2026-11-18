@@ -1778,6 +1778,21 @@ app.delete('/api/post-history/bulk', (req, res) => {
   }
 });
 
+// Xác nhận thủ công 1 bài "Cần kiểm tra" là ĐÃ đăng thành công (người dùng tự
+// kiểm tra trên FB/Zalo) — dùng khi hệ thống mất dấu kết quả (poll quá 10 phút
+// hoặc job biến mất do server restart) dù bài thật sự đã đăng xong.
+app.post('/api/post-history/:id/confirm', (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'ID không hợp lệ' });
+    const result = postLogger.confirmSuccess(id);
+    if (!result.changes) return res.status(404).json({ error: 'Không tìm thấy bài' });
+    res.json({ updated: result.changes });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.delete('/api/post-history/:id', (req, res) => {
   try {
     const result = postLogger.deleteById(Number(req.params.id));

@@ -462,6 +462,15 @@ function getDailyByProfile({ days = 30, from, to } = {}) {
   `).all(days);
 }
 
+// Xác nhận thủ công 1 row "Cần kiểm tra" (ambiguous) là ĐÃ đăng thành công —
+// dùng khi người dùng tự kiểm tra trên FB/Zalo thấy bài đã lên, không đụng
+// tới post_url/profile hiện có (có thể đã có hoặc chưa, không ghi đè).
+const confirmSuccessStmt = db.prepare(`UPDATE post_logs SET success=1, error=NULL WHERE id=@id`);
+function confirmSuccess(id) {
+  _bustHistoryCache();
+  return confirmSuccessStmt.run({ id });
+}
+
 function deleteById(id) {
   _bustHistoryCache();
   return db.prepare('DELETE FROM post_logs WHERE id = ?').run(id);
@@ -537,4 +546,4 @@ function getByProfileStats({ profile, platform, target, groupId, from, to } = {}
   return db.prepare(sql).all(params);
 }
 
-module.exports = { logPost, insertPendingPost, completePendingPost, completePendingByJobId, completePostById, markRetryWaiting, failRetryWaiting, getRetryWaiting, getPendingPosts, cleanupStalePending, markTimedOutPending, getPostHistory, getPostHistorySessions, getStatistics, getDailyByProfile, getByProfileStats, deleteById, deleteByIds, deleteByFilter, updateWebsiteByIds };
+module.exports = { logPost, insertPendingPost, completePendingPost, completePendingByJobId, completePostById, confirmSuccess, markRetryWaiting, failRetryWaiting, getRetryWaiting, getPendingPosts, cleanupStalePending, markTimedOutPending, getPostHistory, getPostHistorySessions, getStatistics, getDailyByProfile, getByProfileStats, deleteById, deleteByIds, deleteByFilter, updateWebsiteByIds };

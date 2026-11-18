@@ -13247,7 +13247,10 @@
               return failBlock(badge, humanizeFailReason(row.error), row.error);
             }
             const tip = `${c.tip}${row.error ? '\n\nChi tiết: ' + row.error : ''}`;
-            const badge = `<span style="background:${c.bg}; color:${c.color}; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${tip.replace(/"/g,'&quot;')}">${c.emoji} ${c.label}</span>`;
+            const confirmBtn = c.label === 'Cần kiểm tra'
+              ? ` <button type="button" onclick="event.stopPropagation(); confirmDashRowPosted(${row.id})" title="Đã tự kiểm tra trên FB/Zalo, bài đã đăng — đánh dấu Done" style="margin-left:4px; padding:2px 8px; border:1px solid #9a3412; border-radius:999px; background:#fff; color:#9a3412; font-size:10px; font-weight:600; cursor:pointer; white-space:nowrap;">Đã đăng rồi</button>`
+              : '';
+            const badge = `<span style="background:${c.bg}; color:${c.color}; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; display:inline-block;" title="${tip.replace(/"/g,'&quot;')}">${c.emoji} ${c.label}</span>${confirmBtn}`;
             return failBlock(badge, c.tip, tip);
           };
           const statusBadgeFor = (row) => row.success === 2
@@ -13922,6 +13925,20 @@
         alert('❌ Xóa thất bại: ' + e.message);
         btn.disabled = false;
         btn.textContent = 'Xóa';
+      }
+    }
+
+    // Xác nhận thủ công bài "Cần kiểm tra" là ĐÃ đăng (người dùng tự kiểm tra
+    // trên FB/Zalo) — dùng khi hệ thống mất dấu kết quả dù bài đã đăng xong.
+    async function confirmDashRowPosted(rowId) {
+      if (!confirm('Xác nhận bài này ĐÃ đăng thành công lên Facebook/Zalo?\n\nTrạng thái sẽ đổi sang Done.')) return;
+      try {
+        const res = await fetch(BASE_URL + '/api/post-history/' + rowId + '/confirm', { method: 'POST' });
+        const data = await parseJson(res);
+        if (!res.ok) throw new Error(data.error || 'Lỗi');
+        loadDashHistory({ noSkeleton: true });
+      } catch (e) {
+        alert('❌ Xác nhận thất bại: ' + e.message);
       }
     }
 
