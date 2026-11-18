@@ -91,8 +91,9 @@ delete global.document;
 
 (async () => {
   let current = 0;
+  let polls = 0;
   const page = {
-    evaluate: async () => current ? [images[0], images[3]] : [images[0]],
+    evaluate: async () => current && ++polls >= 4 ? [images[0], images[3]] : [images[0]],
     waitForTimeout: async () => {},
     locator: () => ({
       count: async () => 2,
@@ -104,5 +105,6 @@ delete global.document;
   assert.equal(result.images.length, 2, 'Collect additional images after clicking');
   assert.equal(result.gallery.clicked, 1, 'Skip unsafe thumbnail');
   assert.equal(result.gallery.failed, 0);
+  assert.equal(polls, 4, 'Wait for delayed gallery updates beyond the old fixed delay');
   console.log('Product image extraction and gallery checks passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

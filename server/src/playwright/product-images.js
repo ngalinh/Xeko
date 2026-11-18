@@ -1,17 +1,30 @@
 // Runs inside the product page; only collect product metadata/gallery images.
-function collectProductImages() {
+function collectProductImages({ markThumbnails = false } = {}) {
   const images = new Set();
   const isMacys = /(^|\.)macys\.com$/.test(new URL(document.baseURI).hostname);
   const normalizeName = value => String(value || '').toLowerCase()
     .replace(/['’]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-  const heading = document.querySelectorAll('h1')[0];
-  const productName = normalizeName(heading && heading.textContent);
+  // Macy's may split brand/name across heading children or use a different
+  // heading while the canonical product title remains in Open Graph metadata.
+  const productNames = [...document.querySelectorAll('h1')].map(el => el.textContent);
+  for (const meta of document.querySelectorAll('meta[property="og:title"]')) {
+    productNames.push((meta.content || '').replace(/\s*[-|–]\s*Macy['’]s\s*$/i, ''));
+  }
+  const names = productNames.map(normalizeName).filter(Boolean);
   const matchesName = value => {
     const name = normalizeName(value);
-    return !!productName && !!name && (name === productName || name.endsWith(' ' + productName) || productName.endsWith(' ' + name));
+    return !!name && names.some(productName => name === productName ||
+      (Math.min(name.length, productName.length) >= 16 &&
+        (name.endsWith(' ' + productName) || productName.endsWith(' ' + name))));
   };
-  const excluded = '[class*="recommend"], [id*="recommend"], [class*="carousel" i][aria-label*="recommend" i], ' +
-    '[class*="recently"], [id*="recently"], [class*="sponsored"], [class*="similar"], [class*="related"]';
+  const excluded = '[class*="recommend" i], [id*="recommend" i], [aria-label*="recommend" i], ' +
+    '[class*="recently" i], [id*="recently" i], [class*="sponsored" i], [class*="similar" i], ' +
+    '[class*="related" i], [id*="related" i], [aria-label*="sponsored" i], [data-ad], iframe';
+  if (markThumbnails) {
+    for (const el of document.querySelectorAll('[data-xeko-product-thumbnail]')) {
+      el.removeAttribute('data-xeko-product-thumbnail');
+    }
+  }
   const galleryRoots = [
     '[class*="product-gallery"]', '[class*="product-images"]',
     '[id*="productImages"]', '[data-testid*="product-gallery"]',
@@ -80,7 +93,18 @@ function collectProductImages() {
     // supplies context; standalone picture components still need product identity.
     if (isMacys) {
       if (img.closest(excluded)) continue;
-      if (!img.closest(galleryRoots) && !matchesName(img.getAttribute('alt'))) continue;
+      const alt = img.getAttribute('alt');
+      // An explicit different product name must not be accepted just because a
+      // recommendation widget shares a generic image-grid ancestor.
+      if (alt && !matchesName(alt) && !/^(?:image|view|thumbnail|front|back|side|detail|alternate)(?:\s*\d+)?$/i.test(alt.trim())) continue;
+      if (!img.closest(galleryRoots) && !matchesName(alt)) continue;
+    }
+    if (markThumbnails) {
+      const control = img.closest('button, [role="tab"], [role="button"], [class*="thumbnail" i]');
+      if (control && !control.closest(excluded) && !control.closest('a') &&
+          !control.querySelector('a') && !/video|play|360/i.test(control.getAttribute('aria-label') || '')) {
+        control.setAttribute('data-xeko-product-thumbnail', '');
+      }
     }
     const zoom = img.getAttribute('data-zoom-image') || img.getAttribute('data-large-image') ||
       img.getAttribute('data-full-image');
@@ -114,24 +138,33 @@ const THUMBNAILS = [
 ]).join(',');
 
 async function collectGalleryImages(page, { maxClicks = 20, budgetMs = 15000 } = {}) {
-  const images = new Set(await page.evaluate(collectProductImages));
+  const images = new Set(await page.evaluate(collectProductImages, { markThumbnails: true }));
   const started = Date.now();
   let clicked = 0;
   let failed = 0;
-  const thumbnails = page.locator(THUMBNAILS);
+  const thumbnails = page.locator(`${THUMBNAILS}, [data-xeko-product-thumbnail]`);
   const count = Math.min(await thumbnails.count(), maxClicks);
   for (let i = 0; i < count && Date.now() - started < budgetMs; i++) {
     const thumb = thumbnails.nth(i);
     try {
       if (!await thumb.isVisible()) continue;
       // A thumbnail wrapper may contain a link. Do not navigate away.
-      const unsafe = await thumb.evaluate(el => !!el.closest('a') ||
+      const unsafe = await thumb.evaluate(el =>
+        (/(^|\.)macys\.com$/.test(new URL(document.baseURI).hostname) && !el.hasAttribute('data-xeko-product-thumbnail')) ||
+        !!el.closest('a') ||
         !!el.querySelector('a') || !!el.closest('[class*="recommend"], [id*="recommend"], [class*="recently"], [class*="related"], [class*="similar"]') || /video|play|360/i.test(el.getAttribute('aria-label') || ''));
       if (unsafe) continue;
       await thumb.click({ timeout: Math.min(1500, Math.max(1, budgetMs - (Date.now() - started))), noWaitAfter: true });
       clicked++;
-      await page.waitForTimeout(500);
-      for (const src of await page.evaluate(collectProductImages)) images.add(src);
+      // Poll for lazy/async image updates instead of assuming 500 ms is enough.
+      const deadline = Math.min(started + budgetMs, Date.now() + 2500);
+      while (Date.now() < deadline) {
+        await page.waitForTimeout(Math.min(250, deadline - Date.now()));
+        const sources = await page.evaluate(collectProductImages);
+        const hasNewImage = sources.some(src => !images.has(src));
+        for (const src of sources) images.add(src);
+        if (hasNewImage) break;
+      }
     } catch {
       failed++;
     }
