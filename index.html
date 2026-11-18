@@ -4739,6 +4739,7 @@
             <col style="width:44px;">
             <col style="width:260px;">
             <col style="width:180px;">
+            <col style="width:90px;">
             <col style="width:130px;">
             <col style="width:180px;">
             <col style="width:90px;">
@@ -4750,6 +4751,7 @@
               <th style="padding:8px 12px; text-align:center; font-weight:600; color:#374151; white-space:nowrap;">STT</th>
               <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151;">Nội dung</th>
               <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151;">Ảnh</th>
+              <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151;">Link SP</th>
               <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151;">Tài khoản</th>
               <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151;" title="Nơi dự kiến đăng đã chọn trong bản nháp">Nơi đăng</th>
               <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151; white-space:nowrap;">Thời gian</th>
@@ -9111,6 +9113,12 @@
       ).join(' ');
       const dt = new Date(item.updatedAt).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' });
 
+      // Link SP — link sản phẩm gốc (vd lấy từ Lấy deal), chỉ hiển thị, giống cột Link SP ở Kho content.
+      const link = (item.link || '').trim();
+      const linkHtml = link
+        ? `<a href="${escapeHtml(/^https?:\/\//i.test(link) ? link : 'https://' + link.replace(/^\/+/, ''))}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Mở link: ${escapeHtml(link)}" style="display:inline-flex;align-items:center;gap:3px;color:#2563eb;text-decoration:none;font-size:12px;font-weight:600;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Link</a>`
+        : '<span style="color:#cbd5e1;font-size:12px;">—</span>';
+
       // Hình ảnh — prepend BASE_URL cho relative path, 1 hàng ngang 40px như bảng Kho content
       const images = (item.images || []).map(u => u.startsWith('/') ? BASE_URL + u : u);
       let imgHtml = '';
@@ -9145,7 +9153,7 @@
             const name = profile?.name || key;
             return `<div style="font-size:12px;line-height:1.5;overflow-wrap:anywhere;margin-bottom:4px;">${kind ? `<span style="color:#6B7280;">${kind}</span><br>` : ''}${escapeHtml(name)}</div>`;
           }).join('')
-        : '<span style="color:#9ca3af;font-size:12px;">Chưa chọn</span>';
+        : '<span style="color:#1e1e2e;font-size:12px;">Chưa chọn</span>';
 
       const odd = stt % 2 === 0 ? 'background:#fafafa;' : '';
 
@@ -9154,13 +9162,14 @@
         <td style="padding:8px 10px; text-align:center;"><input type="checkbox" class="content-row-cb" data-id="${item.id}" onchange="updateContentBatchBtn()" style="cursor:pointer; width:14px; height:14px;"></td>
         <td style="padding:8px 12px; text-align:center; color:#aaa; font-size:12px;">${stt}</td>
         <td style="padding:8px 12px; cursor:default;" data-ctip="${ctipData}">
-          <div style="font-size:12px;color:#777;line-height:1.5;">${escapeHtml(preview)}</div>
+          <div style="font-size:12px;color:#1e1e2e;line-height:1.5;">${escapeHtml(preview)}</div>
           ${tagsHtml ? `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;">${tagsHtml}</div>` : ''}
         </td>
         <td style="padding:8px 12px;">${imgHtml}</td>
+        <td style="padding:8px 12px;">${linkHtml}</td>
         <td style="padding:8px 12px;">${profileHtml}</td>
         <td style="padding:8px 12px;">${destinationsHtml}</td>
-        <td style="padding:8px 12px; font-size:12px; color:#888; white-space:nowrap;">${dt}</td>
+        <td style="padding:8px 12px; font-size:12px; color:#1e1e2e; white-space:nowrap;">${dt}</td>
         <td style="padding:8px 12px; text-align:center; white-space:nowrap;">
           <button onclick="useContent(${item.id})" title="Dùng để đăng bài"
             style="padding:5px 10px;background:#D1FAE5;color:#065F46;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin:2px;">

@@ -2227,7 +2227,7 @@ app.get('/api/contents', (req, res) => {
 });
 
 app.post('/api/contents', upload.array('images', 20), async (req, res) => {
-  const { title, body, tags, platform, category, profiles } = req.body;
+  const { title, body, tags, platform, category, profiles, link } = req.body;
   if (!body) return res.status(400).json({ error: 'Thiếu nội dung bài viết' });
   const imagePaths = (req.files || []).map(f => f.path);
   const newUrls = imagePaths.length ? await persistImages(imagePaths) : [];
@@ -2235,14 +2235,14 @@ app.post('/api/contents', upload.array('images', 20), async (req, res) => {
   const profilesArr = profiles ? (Array.isArray(profiles) ? profiles : [profiles]).filter(Boolean) : [];
   const item = contentStore.create({
     title: (title || '').trim(), body, tags: tagsArr, platform: platform || 'all',
-    images: newUrls, category: (category || '').trim(), profiles: profilesArr,
+    images: newUrls, category: (category || '').trim(), profiles: profilesArr, link: (link || '').trim(),
   });
   res.json(item);
 });
 
 app.put('/api/contents/:id', upload.array('images', 20), async (req, res) => {
   const id = Number(req.params.id);
-  const { title, body, tags, platform, category, profiles } = req.body;
+  const { title, body, tags, platform, category, profiles, link } = req.body;
   if (!body) return res.status(400).json({ error: 'Thiếu nội dung bài viết' });
   const existing = contentStore.getById(id);
   if (!existing) return res.status(404).json({ error: 'Không tìm thấy content' });
@@ -2274,7 +2274,7 @@ app.put('/api/contents/:id', upload.array('images', 20), async (req, res) => {
   const profilesArr = profiles ? (Array.isArray(profiles) ? profiles : [profiles]).filter(Boolean) : [];
   const item = contentStore.update(id, {
     title: (title || '').trim(), body, tags: tagsArr, platform, images,
-    category: (category || '').trim(), profiles: profilesArr,
+    category: (category || '').trim(), profiles: profilesArr, link: link !== undefined ? link.trim() : undefined,
   });
   res.json(item);
 });

@@ -147,7 +147,7 @@ $('create-draft').addEventListener('click', async () => {
     const response = await fetch(BASE_URL + '/api/product-drafts', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, images, price: currentDeal?.price,
-        description: $('draft-description').value, style: $('draft-style').value }),
+        description: $('draft-description').value, style: $('draft-style').value, url: $('url').value.trim() }),
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Không lưu được bản nháp');

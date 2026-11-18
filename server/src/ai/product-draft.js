@@ -57,7 +57,8 @@ Chỉ dùng thông tin được cung cấp hoặc nhìn thấy rõ trong ảnh. 
     const images = await deps.persistImages(files);
     if (images.length !== files.length) throw new Error('Chưa lưu đủ ảnh, chưa tạo bản nháp.');
     // Content library is passive: no post queue, profile assignment or schedule.
-    return deps.create({ title, body, images, tags: [], platform: 'all', profiles: [] });
+    const link = typeof input.url === 'string' ? input.url.trim().slice(0, 2000) : '';
+    return deps.create({ title, body, images, tags: [], platform: 'all', profiles: [], link });
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }

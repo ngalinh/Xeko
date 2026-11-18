@@ -10,6 +10,7 @@ db.exec(`
     images TEXT DEFAULT '[]',
     category TEXT DEFAULT '',
     profiles TEXT DEFAULT '[]',
+    link TEXT DEFAULT '',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -22,13 +23,14 @@ const contentCols = db.prepare("PRAGMA table_info(contents)").all().map(c => c.n
 if (!contentCols.includes('images'))   db.exec(`ALTER TABLE contents ADD COLUMN images TEXT DEFAULT '[]'`);
 if (!contentCols.includes('category')) db.exec(`ALTER TABLE contents ADD COLUMN category TEXT DEFAULT ''`);
 if (!contentCols.includes('profiles')) db.exec(`ALTER TABLE contents ADD COLUMN profiles TEXT DEFAULT '[]'`);
+if (!contentCols.includes('link'))     db.exec(`ALTER TABLE contents ADD COLUMN link TEXT DEFAULT ''`);
 
 const insertStmt = db.prepare(`
-  INSERT INTO contents (title, body, tags, platform, images, category, profiles, created_at, updated_at)
-  VALUES (@title, @body, @tags, @platform, @images, @category, @profiles, @createdAt, @updatedAt)
+  INSERT INTO contents (title, body, tags, platform, images, category, profiles, link, created_at, updated_at)
+  VALUES (@title, @body, @tags, @platform, @images, @category, @profiles, @link, @createdAt, @updatedAt)
 `);
 
-function create({ title, body, tags = [], platform = 'all', images = [], category = '', profiles = [] }) {
+function create({ title, body, tags = [], platform = 'all', images = [], category = '', profiles = [], link = '' }) {
   const now = new Date().toISOString();
   const info = insertStmt.run({
     title, body,
@@ -37,6 +39,7 @@ function create({ title, body, tags = [], platform = 'all', images = [], categor
     images: JSON.stringify(images),
     category,
     profiles: JSON.stringify(profiles),
+    link,
     createdAt: now,
     updatedAt: now,
   });
@@ -45,11 +48,11 @@ function create({ title, body, tags = [], platform = 'all', images = [], categor
 
 const updateStmt = db.prepare(`
   UPDATE contents SET title=@title, body=@body, tags=@tags, platform=@platform,
-    images=@images, category=@category, profiles=@profiles, updated_at=@updatedAt
+    images=@images, category=@category, profiles=@profiles, link=@link, updated_at=@updatedAt
   WHERE id=@id
 `);
 
-function update(id, { title, body, tags, platform, images, category, profiles }) {
+function update(id, { title, body, tags, platform, images, category, profiles, link }) {
   const existing = getById(id);
   if (!existing) return null;
   updateStmt.run({
@@ -61,6 +64,7 @@ function update(id, { title, body, tags, platform, images, category, profiles })
     images: JSON.stringify(images ?? existing.images),
     category: category ?? existing.category,
     profiles: JSON.stringify(profiles ?? existing.profiles),
+    link: link ?? existing.link,
     updatedAt: new Date().toISOString(),
   });
   return getById(id);
@@ -101,6 +105,7 @@ function deserialize(row) {
     images: JSON.parse(row.images || '[]'),
     category: row.category || '',
     profiles: JSON.parse(row.profiles || '[]'),
+    link: row.link || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
