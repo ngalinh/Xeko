@@ -4647,8 +4647,16 @@
     <button id="deal-go" data-deal-id="go">Lấy deal</button>
     <div class="status" role="status" aria-live="polite" id="deal-status" data-deal-id="status"></div>
     <div class="error" role="alert" id="deal-error" data-deal-id="error"></div>
-    <div class="price" id="deal-price" data-deal-id="price"></div>
+    <section class="price-section" data-deal-id="price-section" hidden>
+      <div class="field-label">Giá sản phẩm</div>
+      <div class="price" id="deal-price" data-deal-id="price"></div>
+    </section>
     <p id="deal-images-status" data-deal-id="images-status" class="status"></p>
+    <div class="images-toolbar" data-deal-id="images-toolbar" hidden>
+      <button type="button" data-deal-id="images-select-all">Chọn tất cả ảnh</button>
+      <button type="button" data-deal-id="images-select-none">Bỏ chọn tất cả</button>
+      <button type="button" data-deal-id="images-download-all">Tải tất cả ảnh</button>
+    </div>
     <div id="deal-images" data-deal-id="images" class="product-images"></div>
     <section id="deal-draft-panel" data-deal-id="draft-panel" hidden>
       <h2 style="font-size:18px">Tạo bản nháp sản phẩm</h2>

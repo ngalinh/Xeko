@@ -6,6 +6,7 @@ const root = document.querySelector('[data-deal-app]');
 const $ = (id) => root.querySelector('[data-deal-id=' + id + ']');
 const btn = $('go');
 let currentDeal = null;
+let currentDownloads = []; // hàm tải từng ảnh, dùng lại cho nút "Tải tất cả ảnh"
 
 function setStatus(msg) { $('status').textContent = msg || ''; }
 function setError(msg) { $('error').textContent = msg || ''; }
@@ -39,7 +40,9 @@ btn.addEventListener('click', async () => {
   btn.disabled = true;
   $('engines').disabled = true;
   setError('');
+  $('price-section').hidden = true;
   $('price').textContent = '';
+  $('images-toolbar').hidden = true;
   $('shot').innerHTML = '';
   $('images').replaceChildren();
   $('images-status').textContent = '';
@@ -56,7 +59,8 @@ btn.addEventListener('click', async () => {
     if (!res.ok) throw new Error(data.error || 'Lỗi không rõ');
 
     setStatus('Xong — trình duyệt đã chọn: ' + engineLabel + '.');
-    $('price').textContent = data.price ? ('Giá đọc được: ' + data.price) : 'Không đọc được giá trên trang này.';
+    $('price-section').hidden = false;
+    $('price').textContent = data.price || 'Không đọc được giá trên trang này.';
 
     const images = (Array.isArray(data.images) ? data.images : []).filter(src => {
       try { return ['http:', 'https:'].includes(new URL(src).protocol); } catch { return false; }
@@ -64,11 +68,13 @@ btn.addEventListener('click', async () => {
     $('images-status').textContent = images.length
       ? 'Ảnh sản phẩm: ' + images.length + ' — ưu tiên bản lớn/ảnh zoom; bấm để mở và lưu ảnh.'
       : 'Chưa tìm thấy ảnh sản phẩm trong dữ liệu trang.';
+    $('images-toolbar').hidden = !images.length;
     currentDeal = { price: data.price, images };
     $('draft-title').value = data.debug?.pageTitle || '';
     $('draft-description').value = '';
     $('draft-panel').hidden = !images.length;
     $('create-draft').disabled = false;
+    currentDownloads = [];
     images.forEach((src, index) => {
       const item = document.createElement('div');
       const link = document.createElement('a');
@@ -83,19 +89,22 @@ btn.addEventListener('click', async () => {
         img.remove();
         link.append(document.createTextNode(' (không tải được bản xem trước)'));
       });
-      link.append(img, document.createTextNode('Mở ảnh lớn ' + (index + 1)));
+      link.append(img, document.createTextNode('Link ảnh ' + (index + 1)));
       const download = document.createElement('button');
       download.type = 'button';
-      download.textContent = 'Tải ảnh ' + (index + 1);
+      download.className = 'dl-icon-btn';
+      download.title = 'Tải ảnh ' + (index + 1);
+      download.setAttribute('aria-label', 'Tải ảnh ' + (index + 1));
+      download.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><polyline points="7 11 12 16 17 11"/><path d="M4 19h16"/></svg>';
       const feedback = document.createElement('div');
       feedback.className = 'status';
-      download.addEventListener('click', async () => {
+      const runDownload = async () => {
         download.disabled = true;
         feedback.textContent = 'Đang tải ảnh lớn...';
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 30000);
         try {
-          const response = await fetch(src, { signal: controller.signal(), credentials: 'omit' });
+          const response = await fetch(src, { signal: controller.signal, credentials: 'omit' });
           if (!response.ok) throw new Error('HTTP ' + response.status);
           const blob = await response.blob();
           if (!blob.size || !blob.type.startsWith('image/')) throw new Error('Không nhận được ảnh');
@@ -111,12 +120,14 @@ btn.addEventListener('click', async () => {
           setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
           feedback.textContent = 'Đã gửi ảnh tới trình duyệt để lưu.';
         } catch {
-          feedback.textContent = 'Không tải trực tiếp được. Bấm “Mở ảnh lớn” phía trên, rồi chọn “Lưu hình ảnh thành…”.';
+          feedback.textContent = 'Không tải trực tiếp được. Bấm “Link ảnh” phía trên, rồi chọn “Lưu hình ảnh thành…”.';
         } finally {
           clearTimeout(timeout);
           download.disabled = false;
         }
-      });
+      };
+      download.addEventListener('click', runDownload);
+      currentDownloads.push(runDownload);
       const choice = document.createElement('label');
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
@@ -146,6 +157,19 @@ btn.addEventListener('click', async () => {
     $('engines').disabled = false;
   }
 });
+$('images-select-all').addEventListener('click', () => {
+  root.querySelectorAll('.draft-image').forEach(cb => { cb.checked = true; });
+});
+$('images-select-none').addEventListener('click', () => {
+  root.querySelectorAll('.draft-image').forEach(cb => { cb.checked = false; });
+});
+$('images-download-all').addEventListener('click', async () => {
+  const allBtn = $('images-download-all');
+  allBtn.disabled = true;
+  for (const run of currentDownloads) await run();
+  allBtn.disabled = false;
+});
+
 $('draft-library').href = BASE_URL + '/?page=drafts';
 $('create-draft').addEventListener('click', async () => {
   const images = [...root.querySelectorAll('.draft-image:checked')].map(el => el.value);

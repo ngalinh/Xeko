@@ -20,8 +20,12 @@
 .deal-workspace input[type=checkbox], .deal-workspace input[type=radio] { accent-color:#3b82f6; }
 .deal-workspace .status { color:var(--deal-muted); font-size:13px; line-height:1.7; margin-top:12px; }
 .deal-workspace .error { color:#dc2626; font-size:13px; margin-top:12px; }
-.deal-workspace .price { font-size:22px; font-weight:700; margin-top:20px; }
+.deal-workspace .price-section { margin-top:20px; }
+.deal-workspace .price { font-size:22px; font-weight:700; margin-top:6px; }
 .deal-workspace .price:empty, .deal-workspace .error:empty, .deal-workspace .status:empty { display:none; }
+.deal-workspace .images-toolbar { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.deal-workspace .images-toolbar button { margin-top:0; background:var(--deal-bg); color:#2563eb; border:1px solid var(--deal-line); padding:8px 14px; font-size:12px; font-weight:600; }
+.deal-workspace .images-toolbar button:hover { background:var(--deal-soft); }
 .deal-workspace .product-images { display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:16px; margin-top:16px; }
 .deal-workspace .deal-image { min-width:0; padding:12px; border:1px solid var(--deal-line); border-radius:12px; }
 .deal-workspace .deal-image:has(input:checked) { border-color:#3b82f6; background:var(--deal-soft); }
@@ -29,6 +33,7 @@
 .deal-workspace .deal-image img { width:100%; height:190px; object-fit:contain; background:#fff; border-radius:8px; margin-bottom:8px; }
 .deal-workspace a { color:#2563eb; font-size:13px; overflow-wrap:anywhere; }
 .deal-workspace .deal-image button { background:var(--deal-bg); color:#2563eb; border:1px solid var(--deal-line); padding:8px 12px; }
+.deal-workspace .deal-image .dl-icon-btn { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; padding:0; margin-top:0; flex-shrink:0; vertical-align:middle; }
 .deal-workspace [data-deal-id=draft-panel] { border-top:1px solid var(--deal-line); margin-top:28px; padding-top:24px; }
 .deal-workspace [data-deal-id=draft-preview]:not(:empty) { background:var(--deal-soft); padding:20px; border-radius:10px; font:inherit; line-height:1.8; }
 .deal-workspace .shot img { max-width:100%; border-radius:10px; margin-top:16px; }

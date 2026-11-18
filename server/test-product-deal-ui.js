@@ -28,6 +28,25 @@ for (const file of ['index.html', 'get-deal-test.html']) {
     assert.equal(calls[0].url, 'https://example.com/b/member/api/get-deal'.replace('https://example.com', ''));
     assert.equal(root.querySelectorAll('.draft-image').length, 2);
     assert.equal(get('draft-panel').hidden, false);
+
+    // Giá sản phẩm là 1 mục riêng, hiện sau khi lấy deal.
+    assert.equal(get('price-section').hidden, false);
+    assert.equal(get('price').textContent, '$99');
+
+    // Thanh công cụ Chọn tất cả / Bỏ chọn tất cả / Tải tất cả ảnh.
+    assert.equal(get('images-toolbar').hidden, false);
+    get('images-select-none').click();
+    assert.deepEqual([...root.querySelectorAll('.draft-image')].map(cb => cb.checked), [false, false]);
+    get('images-select-all').click();
+    assert.deepEqual([...root.querySelectorAll('.draft-image')].map(cb => cb.checked), [true, true]);
+
+    // Link ảnh N (không phải "Mở ảnh lớn N") và nút tải chỉ còn icon.
+    const firstLink = root.querySelectorAll('.deal-image a')[0];
+    assert.match(firstLink.textContent, /Link ảnh 1/);
+    const firstDownloadBtn = root.querySelectorAll('.deal-image .dl-icon-btn')[0];
+    assert.equal(firstDownloadBtn.textContent.trim(), '');
+    assert.ok(firstDownloadBtn.querySelector('svg'));
+
     root.querySelectorAll('.draft-image')[1].checked = false;
     get('create-draft').click();
     await new Promise(resolve => setImmediate(resolve));
