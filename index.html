@@ -13629,8 +13629,16 @@
           let nav = '';
           if (totalPages > 1) {
             const btn = (active) => `padding:6px 12px; border:1px solid #ddd; border-radius:6px; background:${active ? '#fff' : '#f3f4f6'}; color:${active ? '#111827' : '#9ca3af'}; cursor:${active ? 'pointer' : 'not-allowed'}; font-size:12px;`;
-            nav = `<div style="display:flex; gap:6px;">
+            nav = `<div style="display:flex; gap:6px; align-items:center;">
               <button ${dashPage > 0 ? `onclick="dashGoPage(${dashPage - 1})"` : 'disabled'} style="${btn(dashPage > 0)}">← Trước</button>
+              <span style="display:flex; align-items:center; gap:4px; font-size:12px; color:#6b7280;">
+                Trang
+                <input type="number" id="dashPageInput" min="1" max="${totalPages}" value="${dashPage + 1}"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();dashGoToPageInput(${totalPages});}"
+                  style="width:46px; padding:5px 4px; border:1px solid #ddd; border-radius:6px; font-size:12px; text-align:center;">
+                / ${totalPages}
+              </span>
+              <button onclick="dashGoToPageInput(${totalPages})" style="${btn(true)}">Đến</button>
               <button ${dashPage < totalPages - 1 ? `onclick="dashGoPage(${dashPage + 1})"` : 'disabled'} style="${btn(dashPage < totalPages - 1)}">Sau →</button>
             </div>`;
           }
@@ -13754,6 +13762,16 @@
     function dashGoPage(page) {
       dashPage = page;
       loadDashHistory();
+    }
+
+    function dashGoToPageInput(totalPages) {
+      const input = document.getElementById('dashPageInput');
+      if (!input) return;
+      let page = parseInt(input.value, 10);
+      if (!Number.isFinite(page) || page < 1) page = 1;
+      if (page > totalPages) page = totalPages;
+      input.value = page;
+      dashGoPage(page - 1);
     }
 
     async function cancelScheduleFromTable(id) {
