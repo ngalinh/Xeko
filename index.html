@@ -9057,7 +9057,7 @@
     // === Kho content ===
 
     let _contentItems = [];
-    let _contentNewImages = []; // File[] chờ upload khi save
+    let _contentImageList = []; // {kind:'existing',url} | {kind:'new',file} theo đúng thứ tự hiển thị/lưu
     let _contentProfilesCache = []; // cache profiles từ /api/accounts
 
     async function loadContents() {
@@ -9267,7 +9267,6 @@
       const errEl = document.getElementById('contentModalError');
 
       errEl.style.display = 'none';
-      _contentNewImages = [];
       document.getElementById('contentImgInput').value = '';
 
       await _loadContentProfiles();
@@ -9280,14 +9279,16 @@
         bodyInput.value = item.body;
         tagsInput.value = (item.tags || []).join(', ');
         _renderProfileCheckboxes(item.profiles || []);
-        renderContentImgPreview(item.images || []);
+        _contentImageList = (item.images || []).map(url => ({ kind: 'existing', url }));
+        renderContentImgPreview();
       } else {
         titleEl.innerHTML = `<svg class="xi xi-md" style="color:#3B82F6;"><use href="#ic-book"/></svg> Thêm content`;
         editId.value = '';
         bodyInput.value = '';
         tagsInput.value = '';
         _renderProfileCheckboxes([]);
-        renderContentImgPreview([]);
+        _contentImageList = [];
+        renderContentImgPreview();
       }
 
       modal.style.display = 'flex';
@@ -9295,54 +9296,64 @@
       setTimeout(() => bodyInput.focus(), 50);
     }
 
-    function renderContentImgPreview(existingUrls) {
+    function renderContentImgPreview() {
       const preview = document.getElementById('contentImgPreview');
       const countEl = document.getElementById('contentImgCount');
-      let html = existingUrls.map((url, i) => {
-        const resolvedUrl = url.startsWith('/') ? BASE_URL + url : url;
-        return `<div style="position:relative;display:inline-block;">
-          <img src="${escapeHtml(resolvedUrl)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #ddd;"
+      const html = _contentImageList.map((item, i) => {
+        const isNew = item.kind === 'new';
+        const src = isNew ? URL.createObjectURL(item.file) : (item.url.startsWith('/') ? BASE_URL + item.url : item.url);
+        const border = isNew ? 'border:2px solid #3B82F6;' : 'border:1px solid #ddd;';
+        return `<div draggable="true" title="Kéo để đổi vị trí"
+            ondragstart="_contentImgDragStart(event,${i})" ondragover="_contentImgDragOver(event)"
+            ondrop="_contentImgDrop(event,${i})" ondragend="_contentImgDragEnd(event)"
+            style="position:relative;display:inline-block;cursor:grab;">
+          <img src="${isNew ? src : escapeHtml(src)}" draggable="false" style="width:60px;height:60px;object-fit:cover;border-radius:8px;${border}pointer-events:none;"
             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
           <span style="display:none;width:60px;height:60px;background:#f3f4f6;border-radius:8px;border:1px solid #ddd;align-items:center;justify-content:center;font-size:20px;">🖼️</span>
-          <button type="button" onclick="event.stopPropagation();removeContentExistingImg(${i})"
-            style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;">×</button>
-        </div>`;
-      }).join('');
-      html += _contentNewImages.map((f, i) => {
-        const url = URL.createObjectURL(f);
-        return `<div style="position:relative;display:inline-block;">
-          <img src="${url}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:2px solid #3B82F6;">
-          <button type="button" onclick="event.stopPropagation();removeContentNewImg(${i})"
+          <button type="button" onclick="event.stopPropagation();removeContentImageAt(${i})"
             style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;">×</button>
         </div>`;
       }).join('');
       preview.innerHTML = html;
-      const total = existingUrls.length + _contentNewImages.length;
-      countEl.textContent = total ? `${total} ảnh` : '';
-      preview._existingUrls = existingUrls;
+      const total = _contentImageList.length;
+      countEl.textContent = total ? `${total} ảnh — kéo để đổi vị trí` : '';
       const hint = document.getElementById('contentDropHint');
       if (hint) hint.style.display = total ? 'none' : 'block';
     }
 
-    function removeContentExistingImg(idx) {
-      const preview = document.getElementById('contentImgPreview');
-      const urls = [...(preview._existingUrls || [])];
-      urls.splice(idx, 1);
-      renderContentImgPreview(urls);
+    function removeContentImageAt(idx) {
+      _contentImageList.splice(idx, 1);
+      renderContentImgPreview();
     }
 
-    function removeContentNewImg(idx) {
-      _contentNewImages.splice(idx, 1);
-      const preview = document.getElementById('contentImgPreview');
-      renderContentImgPreview(preview._existingUrls || []);
+    let _contentImgDragIdx = null;
+    function _contentImgDragStart(e, idx) {
+      _contentImgDragIdx = idx;
+      e.dataTransfer.effectAllowed = 'move';
+      e.currentTarget.style.opacity = '0.4';
+    }
+    function _contentImgDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+    function _contentImgDrop(e, idx) {
+      e.preventDefault();
+      if (_contentImgDragIdx === null || _contentImgDragIdx === idx) return;
+      const [moved] = _contentImageList.splice(_contentImgDragIdx, 1);
+      _contentImageList.splice(idx, 0, moved);
+      _contentImgDragIdx = null;
+      renderContentImgPreview();
+    }
+    function _contentImgDragEnd(e) {
+      e.currentTarget.style.opacity = '';
+      _contentImgDragIdx = null;
     }
 
     async function _addContentImageFiles(files) {
       if (!files.length) return;
       const compressed = await Promise.all(files.map(compressImage));
-      _contentNewImages.push(...compressed);
-      const preview = document.getElementById('contentImgPreview');
-      renderContentImgPreview(preview._existingUrls || []);
+      _contentImageList.push(...compressed.map(file => ({ kind: 'new', file })));
+      renderContentImgPreview();
     }
 
     function _onContentImgDrop(e) {
@@ -9379,8 +9390,6 @@
       const tagsRaw = document.getElementById('contentTagsInput').value;
       const errEl = document.getElementById('contentModalError');
       const saveBtn = document.getElementById('contentSaveBtn');
-      const preview = document.getElementById('contentImgPreview');
-      const existingUrls = preview._existingUrls || [];
       const selectedProfiles = Array.from(
         document.querySelectorAll('#contentProfileCheckboxes input[name="contentProfiles"]:checked')
       ).map(cb => cb.value);
@@ -9396,8 +9405,19 @@
         fd.append('body', body);
         fd.append('tags', tagsRaw);
         selectedProfiles.forEach(k => fd.append('profiles', k));
-        existingUrls.forEach(u => fd.append('keepUrl', u));
-        _contentNewImages.forEach(f => fd.append('images', f));
+        // Giữ đúng thứ tự user đã kéo thả, kể cả xen kẽ ảnh cũ/mới.
+        const imageOrder = [];
+        let keepIdx = 0, newIdx = 0;
+        _contentImageList.forEach(item => {
+          if (item.kind === 'existing') {
+            fd.append('keepUrl', item.url);
+            imageOrder.push('keep' + (keepIdx++));
+          } else {
+            fd.append('images', item.file);
+            imageOrder.push('new' + (newIdx++));
+          }
+        });
+        fd.append('imageOrder', JSON.stringify(imageOrder));
 
         const url = id ? `${BASE_URL}/api/contents/${id}` : `${BASE_URL}/api/contents`;
         const method = id ? 'PUT' : 'POST';

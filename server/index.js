@@ -2251,7 +2251,25 @@ app.put('/api/contents/:id', upload.array('images', 20), async (req, res) => {
   const keepUrls = req.body.keepUrl
     ? (Array.isArray(req.body.keepUrl) ? req.body.keepUrl : [req.body.keepUrl])
     : [];
-  const images = [...keepUrls, ...newUrls];
+  // imageOrder (tuỳ chọn): mảng token "keep<i>"/"new<i>" do client gửi để giữ đúng
+  // thứ tự ảnh cũ/mới user đã kéo thả sắp xếp. Không có thì giữ hành vi cũ: cũ trước, mới sau.
+  let images = [...keepUrls, ...newUrls];
+  if (req.body.imageOrder) {
+    try {
+      const order = JSON.parse(req.body.imageOrder);
+      if (Array.isArray(order) && order.length === keepUrls.length + newUrls.length) {
+        images = order.map(token => {
+          const m = /^(keep|new)(\d+)$/.exec(token);
+          if (!m) return undefined;
+          const list = m[1] === 'keep' ? keepUrls : newUrls;
+          return list[Number(m[2])];
+        });
+        if (images.some(u => !u)) images = [...keepUrls, ...newUrls];
+      }
+    } catch {
+      images = [...keepUrls, ...newUrls];
+    }
+  }
   const tagsArr = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
   const profilesArr = profiles ? (Array.isArray(profiles) ? profiles : [profiles]).filter(Boolean) : [];
   const item = contentStore.update(id, {
