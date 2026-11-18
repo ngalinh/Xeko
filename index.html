@@ -465,22 +465,31 @@
     #pageDashboard[data-view="content"] #dashSummary,
     #pageDashboard[data-view="content"] .dash-2col { display:none !important; }
     #pageDashboard[data-view="dashboard"] #dashHistorySection { display:none !important; }
-    /* Lối vào bản nháp đặt cạnh nút Lọc trong Kho content. */
-    .content-drafts-action {
-      display:inline-flex; align-items:center; justify-content:center; gap:8px;
-      padding:8px 16px; flex-shrink:0;
-      border:none; border-radius:8px;
+    /* Hai tab chung cho lịch sử đăng và bản nháp. */
+    .content-library-tabs {
+      display:flex; gap:4px; margin:16px 20px 0; padding:4px;
+      align-self:flex-start; max-width:calc(100% - 40px);
+      background:#eff6ff; border:1px solid #dbeafe; border-radius:12px;
+    }
+    .content-library-tabs button {
+      padding:10px 16px; border:0; border-radius:8px; background:transparent;
+      color:#475569; font:inherit; font-size:13px; font-weight:600;
+      cursor:pointer; line-height:1.4;
+    }
+    .content-library-tabs button:hover { background:#dbeafe; color:#1d4ed8; }
+    .content-library-tabs button[aria-current="page"] {
       background:var(--xk-cta-gradient, #2563eb); color:#fff;
-      font:inherit; font-size:13px; font-weight:600; line-height:1.4;
-      cursor:pointer; transition:box-shadow .15s ease, background .15s ease;
+      box-shadow:0 2px 6px rgba(37,99,235,.15);
     }
-    .content-drafts-action:hover {
-      background:var(--xk-cta-gradient-hover, #1d4ed8);
-      box-shadow:var(--xk-shadow-cta, 0 4px 12px rgba(37,99,235,.2));
+    .content-library-tabs button:focus-visible { outline:2px solid #3b82f6; outline-offset:2px; }
+    #pageDashboard[data-view="dashboard"] .content-library-tabs { display:none; }
+    [data-theme="dark"] .content-library-tabs { background:#1e293b; border-color:#334155; }
+    [data-theme="dark"] .content-library-tabs button { color:#e2e8f0; }
+    [data-theme="dark"] .content-library-tabs button:hover { background:#334155; }
+    @media (max-width:480px) {
+      .content-library-tabs { align-self:stretch; }
+      .content-library-tabs button { flex:1; padding:10px 8px; }
     }
-    .content-drafts-action:focus-visible { outline:2px solid #3b82f6; outline-offset:3px; }
-    #pageDashboard .content-drafts-action { display:none; }
-    #pageDashboard[data-view="content"] .content-drafts-action { display:inline-flex; }
     #archiveBanner { display:none; }
     #pageDashboard[data-view="content"] #archiveBanner { display:flex; }
     [data-theme="dark"] #archiveBanner { background:#2e2a1a !important; border-color:#4a3a2a !important; color:#fcd34d !important; }
@@ -4627,11 +4636,15 @@
       <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
       <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#1E3A8A;"><svg class="xi xi-md"><use href="#ic-book"/></svg></div>
       <div class="header-info">
-        <h1>Bản nháp / bài mẫu</h1>
+        <h1>Kho content</h1>
         <span>Duyệt và chỉnh sửa trước khi dùng để đăng bài</span>
-        <button type="button" onclick="switchPage('content')">Xem bài đã đăng</button>
       </div>
     </div>
+
+    <nav class="content-library-tabs" aria-label="Kho content">
+      <button type="button" onclick="switchPage('content')">Kho content</button>
+      <button type="button" aria-current="page" onclick="switchPage('drafts')">Bản nháp / Bài mẫu</button>
+    </nav>
 
     <div style="padding:20px; width:100%; box-sizing:border-box;">
 
@@ -4672,7 +4685,7 @@
 
       <!-- Table -->
       <div id="contentTableWrap" style="display:none; overflow-x:auto; background:#fff; border-radius:12px; box-shadow:0 1px 6px rgba(0,0,0,.07);">
-        <table style="width:100%; border-collapse:collapse; font-size:13px; min-width:760px;">
+        <table style="width:100%; border-collapse:collapse; font-size:13px; min-width:940px;">
           <colgroup>
             <col style="width:40px;">
             <col style="width:44px;">
@@ -4680,6 +4693,7 @@
             <col style="width:110px;">
             <col style="width:120px;">
             <col style="width:130px;">
+            <col style="width:180px;">
             <col style="width:95px;">
             <col style="width:90px;">
             <col style="width:140px;">
@@ -4692,6 +4706,7 @@
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Hình ảnh</th>
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Phân loại</th>
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Profile</th>
+              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;" title="Nơi dự kiến đăng đã chọn trong bản nháp">Nơi đăng</th>
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Kênh đăng</th>
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151; white-space:nowrap;">Ngày tháng</th>
               <th style="padding:10px 14px; text-align:center; font-weight:600; color:#374151;">Thao tác</th>
@@ -4908,6 +4923,11 @@
       </div>
     </div>
 
+    <nav class="content-library-tabs" aria-label="Kho content">
+      <button type="button" aria-current="page" onclick="switchPage('content')">Kho content</button>
+      <button type="button" onclick="switchPage('drafts')">Bản nháp / Bài mẫu</button>
+    </nav>
+
     <!-- Thống kê -->
     <div id="dashPanelStats" style="flex:1; overflow-y:auto; padding:20px;">
       <!-- Banner Kho lưu trữ (chỉ hiện ở chế độ archive) -->
@@ -4999,7 +5019,6 @@
           <span id="dashFilterCountBadge" style="display:none; background:#3B82F6; color:#fff; font-size:10px; font-weight:700; padding:1px 6px; border-radius:999px; min-width:14px; text-align:center;">0</span>
         </button>
         <button onclick="loadDashHistory()" style="padding:8px 16px; background:#3B82F6; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:13px; flex-shrink:0;">Lọc</button>
-        <button type="button" class="content-drafts-action" onclick="switchPage('drafts')">Mở bản nháp / bài mẫu</button>
 
         <!-- Collapsible advanced filters -->
         <div id="dashFilterPanel" style="display:none; flex-basis:100%; flex-wrap:wrap; gap:8px; margin-top:4px;">
@@ -9104,6 +9123,16 @@
           }).join(' ')
         : `<span style="color:#ccc;font-size:11px;">—</span>`;
 
+      // Nơi dự kiến đăng, lấy từ lựa chọn đã lưu của bản nháp.
+      const destinationsHtml = profiles.length
+        ? profiles.map(key => {
+            const profile = _contentProfilesCache.find(p => p.key === key);
+            const kind = { facebook: 'Trang cá nhân Facebook', zalo: 'Trang cá nhân Zalo', fbgroup: 'Nhóm Facebook' }[profile?.type];
+            const name = profile?.name || key;
+            return `<div style="font-size:12px;line-height:1.5;overflow-wrap:anywhere;margin-bottom:4px;">${kind ? `<span style="color:#6B7280;">${kind}</span><br>` : ''}${escapeHtml(name)}</div>`;
+          }).join('')
+        : '<span style="color:#9ca3af;font-size:12px;">Chưa chọn</span>';
+
       // Phân loại
       const catHtml = item.category
         ? `<span style="display:inline-block;padding:2px 8px;background:#FEF3C7;border-radius:99px;font-size:11px;color:#92400E;">${escapeHtml(item.category)}</span>`
@@ -9122,6 +9151,7 @@
         <td style="padding:10px 14px;">${imgHtml}</td>
         <td style="padding:10px 14px;">${catHtml}</td>
         <td style="padding:10px 14px;">${profileHtml}</td>
+        <td style="padding:10px 14px;">${destinationsHtml}</td>
         <td style="padding:10px 14px;">
           <span style="font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;background:${platformBg};color:${platformColor};">${platformLabel}</span>
         </td>

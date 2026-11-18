@@ -14,4 +14,4 @@ node --test server/test-product-draft.js server/test-product-images.js server/te
 
 Cần thử trên môi trường triển khai để xác nhận kết nối CDN, Gemini và ảnh được dùng lại khi mở bài trong Kho content.
 
-Nút “Mở bản nháp vừa tạo để duyệt” mở `?page=drafts&draft=<id>` và hiển thị trình sửa đúng bài sau khi tải danh sách. Trong Kho content/Dashboard, chọn “Mở bản nháp / bài mẫu” để xem lại bài đã lưu. Kho content mặc định vẫn hiển thị lịch sử đăng bài.
+Nút “Mở bản nháp vừa tạo để duyệt” mở `?page=drafts&draft=<id>` và hiển thị trình sửa đúng bài sau khi tải danh sách. Trong Kho content, chọn tab “Bản nháp / Bài mẫu” để xem lại bài đã lưu; chọn tab “Kho content” để trở về lịch sử đăng bài. Hai tab nằm dưới tiêu đề, phía trên bộ lọc và không hiển thị ở Dashboard. Kho content mặc định vẫn hiển thị lịch sử đăng bài.
