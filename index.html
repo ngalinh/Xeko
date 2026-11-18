@@ -4737,8 +4737,8 @@
           <colgroup>
             <col style="width:40px;">
             <col style="width:44px;">
-            <col style="width:320px;">
-            <col style="width:110px;">
+            <col style="width:260px;">
+            <col style="width:180px;">
             <col style="width:130px;">
             <col style="width:180px;">
             <col style="width:90px;">
@@ -4746,14 +4746,14 @@
           </colgroup>
           <thead>
             <tr style="background:#f9fafb; border-bottom:2px solid #e5e7eb;">
-              <th style="padding:10px 14px; text-align:center; font-weight:600; color:#374151;"><input type="checkbox" id="contentSelectAll" onchange="contentToggleAll(this.checked)" style="cursor:pointer; width:14px; height:14px;"></th>
-              <th style="padding:10px 14px; text-align:center; font-weight:600; color:#374151; white-space:nowrap;">STT</th>
-              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Nội dung</th>
-              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Ảnh</th>
-              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;">Tài khoản</th>
-              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151;" title="Nơi dự kiến đăng đã chọn trong bản nháp">Nơi đăng</th>
-              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#374151; white-space:nowrap;">Thời gian</th>
-              <th style="padding:10px 14px; text-align:center; font-weight:600; color:#374151;">Thao tác</th>
+              <th style="padding:8px 10px; text-align:center; font-weight:600; color:#374151;"><input type="checkbox" id="contentSelectAll" onchange="contentToggleAll(this.checked)" style="cursor:pointer; width:14px; height:14px;"></th>
+              <th style="padding:8px 12px; text-align:center; font-weight:600; color:#374151; white-space:nowrap;">STT</th>
+              <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151;">Nội dung</th>
+              <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151;">Ảnh</th>
+              <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151;">Tài khoản</th>
+              <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151;" title="Nơi dự kiến đăng đã chọn trong bản nháp">Nơi đăng</th>
+              <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151; white-space:nowrap;">Thời gian</th>
+              <th style="padding:8px 12px; text-align:center; font-weight:600; color:#374151;">Thao tác</th>
             </tr>
           </thead>
           <tbody id="contentTableBody"></tbody>
@@ -9111,19 +9111,19 @@
       ).join(' ');
       const dt = new Date(item.updatedAt).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' });
 
-      // Hình ảnh — prepend BASE_URL cho relative path, lightbox + onerror như dashboard
+      // Hình ảnh — prepend BASE_URL cho relative path, 1 hàng ngang 40px như bảng Kho content
       const images = (item.images || []).map(u => u.startsWith('/') ? BASE_URL + u : u);
       let imgHtml = '';
       if (images.length) {
         const shown = images.slice(0, 4);
         imgHtml = shown.map(u =>
-          `<a href="${escapeHtml(u)}" onclick="openLightbox('${escapeHtml(u)}');return false;" style="display:block;">` +
-          `<img src="${escapeHtml(u)}" style="width:44px;height:44px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;display:block;" loading="lazy" ` +
-          `onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:44px;height:44px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;align-items:center;justify-content:center;font-size:16px;'}))">` +
+          `<a href="${escapeHtml(u)}" onclick="openLightbox('${escapeHtml(u)}');return false;" style="flex-shrink:0;">` +
+          `<img src="${escapeHtml(u)}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb;display:block;" loading="lazy" ` +
+          `onerror="this.closest('a').replaceWith(Object.assign(document.createElement('span'),{innerHTML:'🖼️',style:'display:inline-flex;width:40px;height:40px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;align-items:center;justify-content:center;font-size:14px;'}))">` +
           `</a>`
         ).join('');
-        const more = images.length > 4 ? `<span style="font-size:11px;color:#888;align-self:center;white-space:nowrap;">+${images.length - 4}</span>` : '';
-        imgHtml = `<div data-lb-gallery="${images.map(encodeURIComponent).join(' ')}" style="display:flex;gap:4px;align-items:center;"><div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">${imgHtml}</div>${more}</div>`;
+        const more = images.length > 4 ? `<span style="font-size:11px;color:#888;white-space:nowrap;">+${images.length - 4}</span>` : '';
+        imgHtml = `<div data-lb-gallery="${images.map(encodeURIComponent).join(' ')}" style="display:flex;flex-wrap:nowrap;gap:3px;align-items:center;overflow:hidden;">${imgHtml}${more}</div>`;
       } else {
         imgHtml = `<span style="color:#ccc;font-size:12px;">—</span>`;
       }
@@ -9151,17 +9151,17 @@
 
       const ctipData = escapeHtml(JSON.stringify({body: item.body}));
       return `<tr style="${odd}border-bottom:1px solid #f0f0f0;">
-        <td style="padding:10px 14px; text-align:center;"><input type="checkbox" class="content-row-cb" data-id="${item.id}" onchange="updateContentBatchBtn()" style="cursor:pointer; width:14px; height:14px;"></td>
-        <td style="padding:10px 14px; text-align:center; color:#aaa; font-size:12px;">${stt}</td>
-        <td style="padding:10px 14px; cursor:default;" data-ctip="${ctipData}">
+        <td style="padding:8px 10px; text-align:center;"><input type="checkbox" class="content-row-cb" data-id="${item.id}" onchange="updateContentBatchBtn()" style="cursor:pointer; width:14px; height:14px;"></td>
+        <td style="padding:8px 12px; text-align:center; color:#aaa; font-size:12px;">${stt}</td>
+        <td style="padding:8px 12px; cursor:default;" data-ctip="${ctipData}">
           <div style="font-size:12px;color:#777;line-height:1.5;">${escapeHtml(preview)}</div>
           ${tagsHtml ? `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;">${tagsHtml}</div>` : ''}
         </td>
-        <td style="padding:10px 14px;">${imgHtml}</td>
-        <td style="padding:10px 14px;">${profileHtml}</td>
-        <td style="padding:10px 14px;">${destinationsHtml}</td>
-        <td style="padding:10px 14px; font-size:12px; color:#888; white-space:nowrap;">${dt}</td>
-        <td style="padding:10px 14px; text-align:center; white-space:nowrap;">
+        <td style="padding:8px 12px;">${imgHtml}</td>
+        <td style="padding:8px 12px;">${profileHtml}</td>
+        <td style="padding:8px 12px;">${destinationsHtml}</td>
+        <td style="padding:8px 12px; font-size:12px; color:#888; white-space:nowrap;">${dt}</td>
+        <td style="padding:8px 12px; text-align:center; white-space:nowrap;">
           <button onclick="useContent(${item.id})" title="Dùng để đăng bài"
             style="padding:5px 10px;background:#D1FAE5;color:#065F46;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin:2px;">
             Dùng
