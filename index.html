@@ -4643,15 +4643,6 @@
   <div class="hint">Dán link sản phẩm, chọn ảnh và để AI viết bản nháp. Bạn duyệt trước khi đăng.</div>
   <div class="card">
     <label class="field-label" for="deal-url">Link sản phẩm</label><input type="text" id="deal-url" data-deal-id="url" placeholder="https://www.macys.com/shop/product/...">
-    <details class="deal-options" id="dealAdvancedConfig" style="display:none;"><summary>Cấu hình trình duyệt &amp; proxy</summary><label class="field-label" for="deal-proxy">Proxy (tuỳ chọn)</label><input type="text" id="deal-proxy" data-deal-id="proxy" placeholder="(tuy chon) proxy: user:pass@host:port" style="margin-top:8px;">
-    <fieldset class="engines" id="deal-engines" data-deal-id="engines">
-      <legend>Chọn trình duyệt</legend>
-      <div class="engine-options">
-        <label><input type="radio" name="engine" value="chromium" checked> Chromium</label>
-        <label><input type="radio" name="engine" value="firefox"> Firefox</label>
-        <label><input type="radio" name="engine" value="webkit"> WebKit</label>
-      </div>
-    </fieldset></details>
 
     <button id="deal-go" data-deal-id="go">Lấy deal</button>
     <div class="status" role="status" aria-live="polite" id="deal-status" data-deal-id="status"></div>
@@ -4672,7 +4663,17 @@
       <pre id="deal-draft-preview" data-deal-id="draft-preview" style="white-space:pre-wrap"></pre>
       <a id="deal-draft-library" data-deal-id="draft-library" hidden>Mở bản nháp vừa tạo để duyệt</a>
     </section>
-    <details class="deal-options"><summary>Ảnh chụp trang &amp; thông tin kiểm tra</summary><div class="shot" id="deal-shot" data-deal-id="shot"></div>
+
+    <details class="deal-options" id="dealAdvancedConfig" style="display:none;"><summary>Cài đặt (proxy, trình duyệt &amp; kiểm tra)</summary><label class="field-label" for="deal-proxy">Proxy (tuỳ chọn)</label><input type="text" id="deal-proxy" data-deal-id="proxy" placeholder="(tuy chon) proxy: user:pass@host:port" style="margin-top:8px;">
+    <fieldset class="engines" id="deal-engines" data-deal-id="engines">
+      <legend>Chọn trình duyệt</legend>
+      <div class="engine-options">
+        <label><input type="radio" name="engine" value="chromium" checked> Chromium</label>
+        <label><input type="radio" name="engine" value="firefox"> Firefox</label>
+        <label><input type="radio" name="engine" value="webkit"> WebKit</label>
+      </div>
+    </fieldset>
+    <div class="shot" id="deal-shot" data-deal-id="shot" style="margin-top:10px;"></div>
     <pre class="status" id="deal-debug" data-deal-id="debug" style="white-space:pre-wrap;padding:8px;border-radius:6px;margin-top:10px;"></pre></details>
   </div>
 </div>
