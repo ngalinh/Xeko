@@ -4643,7 +4643,7 @@
   <div class="hint">Dán link sản phẩm, chọn ảnh và để AI viết bản nháp. Bạn duyệt trước khi đăng.</div>
   <div class="card">
     <label class="field-label" for="deal-url">Link sản phẩm</label><input type="text" id="deal-url" data-deal-id="url" placeholder="https://www.macys.com/shop/product/...">
-    <details class="deal-options"><summary>Cấu hình trình duyệt &amp; proxy</summary><label class="field-label" for="deal-proxy">Proxy (tuỳ chọn)</label><input type="text" id="deal-proxy" data-deal-id="proxy" placeholder="(tuy chon) proxy: user:pass@host:port" style="margin-top:8px;">
+    <details class="deal-options" id="dealAdvancedConfig" style="display:none;"><summary>Cấu hình trình duyệt &amp; proxy</summary><label class="field-label" for="deal-proxy">Proxy (tuỳ chọn)</label><input type="text" id="deal-proxy" data-deal-id="proxy" placeholder="(tuy chon) proxy: user:pass@host:port" style="margin-top:8px;">
     <fieldset class="engines" id="deal-engines" data-deal-id="engines">
       <legend>Chọn trình duyệt</legend>
       <div class="engine-options">
@@ -15561,6 +15561,8 @@
       }
       const navPerm = document.getElementById('navPermissions');
       if (navPerm) navPerm.style.display = user.isXekoAdmin ? '' : 'none';
+      const dealCfg = document.getElementById('dealAdvancedConfig');
+      if (dealCfg) dealCfg.style.display = user.isXekoAdmin ? '' : 'none';
     }
 
 
