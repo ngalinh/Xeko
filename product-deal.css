@@ -53,5 +53,11 @@
 .deal-workspace .shot img { max-width:100%; border-radius:10px; margin-top:16px; }
 .deal-workspace pre { overflow-wrap:anywhere; }
 [data-theme=dark] .deal-workspace { --deal-bg:#1e293b; --deal-text:#e2e8f0; --deal-muted:#94a3b8; --deal-line:#334155; --deal-soft:#172033; }
+.deal-workspace .deal-history-card { margin-top:20px; }
+.deal-workspace .deal-history-table { width:100%; border-collapse:collapse; font-size:13px; }
+.deal-workspace .deal-history-table th { text-align:left; padding:8px 10px; border-bottom:1px solid var(--deal-line); color:var(--deal-muted); font-weight:600; font-size:12px; white-space:nowrap; }
+.deal-workspace .deal-history-table td { padding:8px 10px; border-bottom:1px solid var(--deal-line); max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.deal-workspace .deal-history-table tr:last-child td { border-bottom:0; }
+.deal-workspace .deal-history-empty { color:var(--deal-muted); text-align:center; white-space:normal; }
 #pageDeals .deal-scroll { flex:1; min-height:0; overflow-y:auto; }
 @media(max-width:600px) { .deal-workspace { padding:16px; } .deal-workspace .card { padding:16px; } .deal-workspace .product-images { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; } .deal-workspace .deal-image img { height:140px; } .deal-workspace .images-toolbar { flex-direction:column; align-items:stretch; } .deal-workspace .images-toolbar [data-deal-id=images-download-all] { margin-left:0; } .deal-workspace .images-selected-count { text-align:center; } .content-library-tabs { flex-wrap:wrap; } }

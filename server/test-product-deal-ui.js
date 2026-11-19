@@ -11,8 +11,10 @@ for (const file of ['index.html', 'get-deal-test.html']) {
     const root = w.document.querySelector('[data-deal-app]');
     const get = id => root.querySelector('[data-deal-id="' + id + '"]');
     const calls = [];
+    const historyCalls = [];
     const images = ['https://example.com/1.jpg', 'https://example.com/2.jpg'];
     w.fetch = async (url, opts) => {
+      if (url.includes('/api/deal-history')) { historyCalls.push(url); return { ok: true, json: async () => [] }; }
       calls.push({ url, body: JSON.parse(opts.body) });
       return { ok: true, json: async () => url.endsWith('/api/get-deal')
         ? { price: '$99', images, debug: { pageTitle: 'Product' }, screenshotFile: 'shot.png' }
@@ -28,6 +30,10 @@ for (const file of ['index.html', 'get-deal-test.html']) {
     assert.equal(calls[0].url, 'https://example.com/b/member/api/get-deal'.replace('https://example.com', ''));
     assert.equal(root.querySelectorAll('.draft-image').length, 2);
     assert.equal(get('draft-panel').hidden, false);
+
+    // Lịch sử lấy deal: tải lúc khởi tạo trang và tải lại sau khi lấy deal thành công.
+    assert.ok(historyCalls.length >= 2, 'phải gọi /api/deal-history lúc khởi tạo và sau khi lấy deal xong');
+    assert.match(get('history-body').textContent, /Chưa có lịch sử lấy deal/);
 
     // Giá sản phẩm là 1 mục riêng, hiện sau khi lấy deal.
     assert.equal(get('price-section').hidden, false);

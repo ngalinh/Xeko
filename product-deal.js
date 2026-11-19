@@ -20,6 +20,42 @@ $('images').addEventListener('change', (e) => {
   if (e.target.classList.contains('draft-image')) updateSelectedCount();
 });
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+// Lịch sử lấy deal — tên sản phẩm/link/website đã lấy gần đây, để biết ai đã lấy gì.
+async function loadDealHistory() {
+  const body = $('history-body');
+  if (!body) return;
+  try {
+    const res = await fetch(BASE_URL + '/api/deal-history?limit=50');
+    const rows = await res.json();
+    if (!Array.isArray(rows) || !rows.length) {
+      body.innerHTML = '<tr><td colspan="4" class="deal-history-empty">Chưa có lịch sử lấy deal.</td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map(r => {
+      const title = r.title || '(không có tên)';
+      const time = r.createdAt ? new Date(r.createdAt).toLocaleString('vi-VN') : '';
+      const linkCell = r.url
+        ? `<a href="${escapeHtml(r.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(r.url)}">${escapeHtml(r.url)}</a>`
+        : '—';
+      return `<tr>
+        <td title="${escapeHtml(title)}">${escapeHtml(title)}</td>
+        <td>${linkCell}</td>
+        <td>${escapeHtml(r.website || '—')}</td>
+        <td>${escapeHtml(time)}</td>
+      </tr>`;
+    }).join('');
+  } catch {
+    body.innerHTML = '<tr><td colspan="4" class="deal-history-empty">Không tải được lịch sử.</td></tr>';
+  }
+}
+loadDealHistory();
+
 // Nhớ proxy đã nhập lần trước để khỏi phải gõ lại mỗi lần lấy deal.
 const PROXY_STORAGE_KEY = 'xeko-deal-proxy';
 try {
@@ -164,6 +200,7 @@ btn.addEventListener('click', async () => {
       img.src = BASE_URL + '/api/get-deal-image?file=' + encodeURIComponent(data.screenshotFile);
       $('shot').append(img);
     }
+    loadDealHistory();
   } catch (e) {
     setStatus('');
     setError('❌ ' + e.message);

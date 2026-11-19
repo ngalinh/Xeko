@@ -2172,7 +2172,7 @@ app.put('/api/channels/profile-channels', (req, res) => {
 });
 
 // ===== RESTART LOCAL SERVER =====
-async function proxyToLocal(req, res, method, path, body = null) {
+async function proxyToLocal(req, res, method, path, body = null, onData = null) {
   const LOCAL_URL = getLocalUrl();
   if (!LOCAL_URL) return res.status(503).json({ error: 'Local server chưa kết nối' });
   try {
@@ -2188,6 +2188,9 @@ async function proxyToLocal(req, res, method, path, body = null) {
     try { data = JSON.parse(text); } catch {
       return res.status(502).json({ error: `Local server trả về response không hợp lệ (HTTP ${response.status})` });
     }
+    if (response.ok && onData) {
+      try { onData(data); } catch (e) { logger.warn(`proxyToLocal onData: ${e.message}`); }
+    }
     return res.status(response.status).json(data);
   } catch (e) {
     return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
@@ -2196,7 +2199,18 @@ async function proxyToLocal(req, res, method, path, body = null) {
 
 app.post('/api/restart', (req, res) => proxyToLocal(req, res, 'POST', '/api/restart'));
 
-app.post('/api/get-deal', (req, res) => proxyToLocal(req, res, 'POST', '/api/get-deal', req.body));
+const dealHistoryStore = require('./src/database/deal-history-store');
+
+app.post('/api/get-deal', (req, res) => proxyToLocal(req, res, 'POST', '/api/get-deal', req.body, (data) => {
+  const url = String(req.body?.url || '').trim();
+  let website = '';
+  try { website = new URL(url).hostname; } catch {}
+  dealHistoryStore.create({ title: data.debug?.pageTitle || '', url, website, price: data.price || '' });
+}));
+
+app.get('/api/deal-history', (req, res) => {
+  res.json(dealHistoryStore.list({ limit: req.query.limit }));
+});
 
 app.get('/api/get-deal-image', async (req, res) => {
   const file = req.query.file ? String(req.query.file) : '';
