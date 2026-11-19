@@ -4642,10 +4642,11 @@
       <div class="header-info"><h1>Lấy deal</h1><span>Từ sản phẩm đến bài viết của bạn</span></div>
     </div>
     <nav class="content-library-tabs" aria-label="Lấy deal">
-      <button type="button" aria-current="page" onclick="switchPage('deals')">Sản phẩm</button>
-      <button type="button" onclick="switchPage('spy')">Bài viết Facebook</button>
+      <button type="button" aria-current="page" data-deal-tab="product" aria-controls="deal-product-panel">Sản phẩm</button>
+      <button type="button" data-deal-tab="history" aria-controls="deal-history-panel">Lịch sử lấy deal</button>
     </nav>
     <div class="deal-scroll"><div class="deal-workspace" data-deal-app>
+  <div id="deal-product-panel" data-deal-panel="product">
   <h2>Lấy thông tin sản phẩm</h2>
   <div class="hint">Dán link sản phẩm, chọn ảnh và để AI viết bản nháp. Bạn duyệt trước khi đăng.</div>
   <div class="card">
@@ -4699,7 +4700,8 @@
     <pre class="status" id="deal-debug" data-deal-id="debug" style="white-space:pre-wrap;padding:8px;border-radius:6px;margin-top:10px;"></pre></details>
   </div>
 
-  <section class="card deal-history-card">
+  </div>
+  <section id="deal-history-panel" data-deal-panel="history" class="card deal-history-card" style="margin-top:0" hidden>
     <h2 style="font-size:16px;">Lịch sử lấy deal</h2>
     <div class="hint" style="margin-bottom:12px;">Tên sản phẩm, link và website đã lấy deal gần đây.</div>
     <div style="overflow-x:auto;">
@@ -8906,6 +8908,7 @@
 
 
     async function switchPage(pg) {
+      if (pg === 'spy') pg = 'deals'; // Tạm ẩn chức năng lấy bài viết Facebook.
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
 
@@ -15470,7 +15473,7 @@
     <button class="mobile-nav-item" id="mobileNavSession" onclick="switchPage('session')">
       <span class="mn-icon">👥</span>Tài khoản
     </button>
-    <button class="mobile-nav-item" id="mobileNavSpy" onclick="switchPage('spy')">
+    <button class="mobile-nav-item" id="mobileNavSpy" onclick="switchPage('deals')">
       <span class="mn-icon">🔍</span>Spy
     </button>
     <button class="mobile-nav-item" id="mobileNavContent" onclick="switchPage('content')">

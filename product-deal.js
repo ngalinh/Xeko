@@ -58,6 +58,22 @@ async function loadDealHistory() {
 }
 loadDealHistory();
 
+// Chuyển tab chỉ ẩn panel để giữ nguyên form và ảnh đang chọn.
+const dealTabs = document.querySelectorAll('[data-deal-tab]');
+for (const tab of dealTabs) {
+  tab.addEventListener('click', () => {
+    const selected = tab.dataset.dealTab;
+    for (const button of dealTabs) {
+      if (button === tab) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
+    }
+    root.querySelectorAll('[data-deal-panel]').forEach(panel => {
+      panel.hidden = panel.dataset.dealPanel !== selected;
+    });
+    if (selected === 'history') loadDealHistory();
+  });
+}
+
 // Nhớ proxy đã nhập lần trước để khỏi phải gõ lại mỗi lần lấy deal.
 const PROXY_STORAGE_KEY = 'xeko-deal-proxy';
 try {
