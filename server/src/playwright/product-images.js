@@ -213,9 +213,10 @@ const SWATCHES = [
   '[class*="swatch" i]', '[class*="colorway" i]', '[class*="colorpicker" i]',
   '[class*="color-picker" i]', '[data-testid*="swatch" i]', '[data-testid*="color" i]',
 ].flatMap(root => [
-  `${root} button`,
-  `${root} [role="radio"]`,
-  `${root} [role="button"]`,
+  ...['button', '[role="radio"]', '[role="button"]', 'input[type="radio"]'].flatMap(control => [
+    `${root}${control.startsWith('[') ? control : ':is(' + control + ')'}`,
+    `${root} ${control}`,
+  ]),
 ]).join(',');
 
 async function collectAllColorImages(page, { maxColors = 6, perColorBudgetMs = 10000 } = {}) {
@@ -227,11 +228,14 @@ async function collectAllColorImages(page, { maxColors = 6, perColorBudgetMs = 1
   const total = await swatches.count().catch(() => 0);
   const count = Math.min(total, maxColors);
   const seenLabels = new Set();
+  const attempts = [];
   for (let i = 0; i < count; i++) {
     const swatch = swatches.nth(i);
     let label = '';
     try {
       label = ((await swatch.getAttribute('aria-label')) || (await swatch.getAttribute('title')) ||
+        (await swatch.getAttribute('data-color')) || (await swatch.getAttribute('value')) ||
+        (await swatch.locator('img').first().getAttribute('alt').catch(() => '')) ||
         (await swatch.innerText().catch(() => '')) || '').trim();
     } catch {
       continue;
@@ -240,17 +244,35 @@ async function collectAllColorImages(page, { maxColors = 6, perColorBudgetMs = 1
     seenLabels.add(label.toLowerCase());
     try {
       if (!await swatch.isVisible()) continue;
+      const before = await page.evaluate(collectProductImages);
       await swatch.click({ timeout: 2000, noWaitAfter: true });
-      // Chờ ảnh chính + gallery cập nhật sang màu vừa chọn trước khi quét lại.
-      await page.waitForTimeout(1200);
+      // Require a changed, stable gallery before attributing photos to this color.
+      let previous = '';
+      let stable = 0;
+      let ready = false;
+      for (let poll = 0; poll < 24; poll++) {
+        await page.waitForTimeout(250);
+        const sources = await page.evaluate(collectProductImages);
+        const signature = JSON.stringify([...sources].sort());
+        const changed = sources.length && sources.some(src => !before.includes(src));
+        stable = changed && signature === previous ? stable + 1 : 0;
+        previous = signature;
+        if (stable >= 3) { ready = true; break; }
+      }
+      if (!ready) {
+        attempts.push({ label, status: 'unchanged-or-timeout' });
+        continue;
+      }
       const result = await collectGalleryImages(page, { budgetMs: perColorBudgetMs });
       for (const url of result.images) images.add(url);
       colors.push({ label, imageCount: result.images.length });
+      attempts.push({ label, status: 'collected' });
     } catch {
+      attempts.push({ label, status: 'failed' });
       // Bấm lỗi ở 1 màu không chặn các màu còn lại.
     }
   }
-  return { images: [...images], gallery: current.gallery, colors,
+  return { images: [...images], gallery: { ...current.gallery, colorAttempts: attempts }, colors,
     swatchesFound: total, limited: total > maxColors };
 }
 
