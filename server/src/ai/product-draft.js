@@ -58,7 +58,8 @@ Chỉ dùng thông tin được cung cấp hoặc nhìn thấy rõ trong ảnh. 
     if (images.length !== files.length) throw new Error('Chưa lưu đủ ảnh, chưa tạo bản nháp.');
     // Content library is passive: no post queue, profile assignment or schedule.
     const link = typeof input.url === 'string' ? input.url.trim().slice(0, 2000) : '';
-    return deps.create({ title, body, images, tags: [], platform: 'all', profiles: [], link });
+    const price = typeof input.price === 'string' ? input.price.trim().slice(0, 300) : '';
+    return deps.create({ title, body, images, tags: [], platform: 'all', profiles: [], link, price });
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }

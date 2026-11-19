@@ -4753,6 +4753,7 @@
             <col style="width:260px;">
             <col style="width:180px;">
             <col style="width:90px;">
+            <col style="width:100px;">
             <col style="width:130px;">
             <col style="width:180px;">
             <col style="width:90px;">
@@ -4765,6 +4766,7 @@
               <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151;">Nội dung</th>
               <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151;">Ảnh</th>
               <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151;">Link SP</th>
+              <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151;">Giá SP</th>
               <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151;">Tài khoản</th>
               <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151;" title="Nơi dự kiến đăng đã chọn trong bản nháp">Nơi đăng</th>
               <th style="padding:8px 12px; text-align:left; font-weight:600; color:#374151; white-space:nowrap;">Thời gian</th>
@@ -9132,6 +9134,12 @@
         ? `<a href="${escapeHtml(/^https?:\/\//i.test(link) ? link : 'https://' + link.replace(/^\/+/, ''))}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Mở link: ${escapeHtml(link)}" style="display:inline-flex;align-items:center;gap:3px;color:#2563eb;text-decoration:none;font-size:12px;font-weight:600;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Link</a>`
         : '<span style="color:#cbd5e1;font-size:12px;">—</span>';
 
+      // Giá SP — giá đọc được khi lấy deal (chỉ hiển thị, không tự coi là giá bán của shop).
+      const price = (item.price || '').trim();
+      const priceHtml = price
+        ? `<span style="font-size:12px;color:#1e1e2e;overflow-wrap:anywhere;">${escapeHtml(price)}</span>`
+        : '<span style="color:#cbd5e1;font-size:12px;">—</span>';
+
       // Hình ảnh — prepend BASE_URL cho relative path, 1 hàng ngang 40px như bảng Kho content
       const images = (item.images || []).map(u => u.startsWith('/') ? BASE_URL + u : u);
       let imgHtml = '';
@@ -9180,6 +9188,7 @@
         </td>
         <td style="padding:8px 12px;">${imgHtml}</td>
         <td style="padding:8px 12px;">${linkHtml}</td>
+        <td style="padding:8px 12px;">${priceHtml}</td>
         <td style="padding:8px 12px;">${profileHtml}</td>
         <td style="padding:8px 12px;">${destinationsHtml}</td>
         <td style="padding:8px 12px; font-size:12px; color:#1e1e2e; white-space:nowrap;">${dt}</td>
