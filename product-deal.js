@@ -100,6 +100,7 @@ btn.addEventListener('click', async () => {
   const engineLabel = selectedEngine.parentElement.textContent.trim();
   currentDeal = null;
   $('draft-panel').hidden = true;
+  $('product-info').hidden = true;
   $('draft-status').textContent = '';
   $('draft-preview').textContent = '';
   $('draft-library').hidden = true;
@@ -136,7 +137,16 @@ btn.addEventListener('click', async () => {
     setStatus('Xong — trình duyệt đã chọn: ' + engineLabel + '.' + colorNote);
     $('price-section').hidden = false;
     $('price-section').classList.toggle('no-price', !data.price);
-    $('price').textContent = data.price || 'Không đọc được giá trên trang này.';
+    $('product-info').hidden = false;
+    // Only split explicitly labelled prices; missing values remain unknown.
+    const rawPrice = String(data.price || '');
+    const money = '(?:US\\$|\\$|€|£)?\\s*\\d[\\d,.]*';
+    const sale = rawPrice.match(new RegExp('(?:sale|now|giá sale)\\s*:?\\s*(' + money + ')', 'i'));
+    const original = rawPrice.match(new RegExp('(?:orig(?:inal)?\\.?|regular|was|giá gốc)\\s*:?\\s*(' + money + ')', 'i'));
+    const discount = rawPrice.match(/(\d+(?:[.,]\d+)?)\s*%\s*(?:off|giảm)/i);
+    $('price').textContent = sale ? sale[1].trim() : (rawPrice || 'Chưa có giá');
+    $('original-price').textContent = original ? original[1].trim() : '—';
+    $('discount').textContent = discount ? discount[1] + '%' : '—';
 
     const images = (Array.isArray(data.images) ? data.images : []).filter(src => {
       try { return ['http:', 'https:'].includes(new URL(src).protocol); } catch { return false; }
@@ -147,7 +157,7 @@ btn.addEventListener('click', async () => {
       : 'Chưa tìm thấy ảnh sản phẩm trong dữ liệu trang.';
     $('images-toolbar').hidden = !images.length;
     currentDeal = { price: data.price, images };
-    $('draft-title').value = data.debug?.pageTitle || '';
+    $('draft-title').value = data.debug?.jsonLdProducts?.[0]?.name || data.debug?.pageTitle || '';
     $('draft-description').value = '';
     $('draft-panel').hidden = !images.length;
     $('create-draft').disabled = false;
@@ -307,7 +317,7 @@ $('create-draft').addEventListener('click', async () => {
     const response = await fetch(BASE_URL + '/api/product-drafts', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, images, price: currentDeal?.price,
-        description: $('draft-description').value, style: $('draft-style').value, url: $('url').value.trim() }),
+        description: [$('draft-description').value.trim(), $('exchange-rate').value.trim() ? 'Tỷ giá: ' + $('exchange-rate').value.trim() : ''].filter(Boolean).join('\n'), style: $('draft-style').value, url: $('url').value.trim() }),
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Không lưu được bản nháp');

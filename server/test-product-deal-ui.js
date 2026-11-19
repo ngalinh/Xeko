@@ -134,3 +134,33 @@ for (const file of ['index.html', 'get-deal-test.html']) {
     dom.window.close();
   });
 }
+
+test('product summary separates prices and sends exchange rate with content', async () => {
+  const dom = new JSDOM(read('get-deal-test.html'), { url: 'https://example.com/', runScripts: 'outside-only' });
+  const w = dom.window;
+  const get = id => w.document.querySelector('[data-deal-id="' + id + '"]');
+  let submitted;
+  w.fetch = async (url, opts) => ({ ok:true, json:async () => {
+    if (url.includes('deal-history')) return [];
+    if (url.includes('product-drafts')) {
+      submitted = JSON.parse(opts.body);
+      return { item: { id:1, body:'Content', images:submitted.images } };
+    }
+    return { price:'Sale $60.00 Orig. $100.00 40% off', images:['https://example.com/1.jpg'], debug:{ pageTitle:'Page', jsonLdProducts:[{ name:'Sweater' }] } };
+  } });
+  w.eval(read('product-deal.js'));
+  get('url').value = 'https://example.com/product';
+  get('go').click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(get('draft-title').value, 'Sweater');
+  assert.equal(get('price').textContent, '$60.00');
+  assert.equal(get('original-price').textContent, '$100.00');
+  assert.equal(get('discount').textContent, '40%');
+  assert.equal(get('product-info').hidden, false);
+  get('exchange-rate').value = '1 USD = 25.500 VND';
+  get('draft-description').value = 'Viết bằng tiếng Việt';
+  get('create-draft').click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(submitted.description, 'Viết bằng tiếng Việt\nTỷ giá: 1 USD = 25.500 VND');
+  dom.window.close();
+});

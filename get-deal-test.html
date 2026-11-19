@@ -13,9 +13,17 @@
     <button id="deal-go" data-deal-id="go">Lấy deal</button>
     <div class="status" role="status" aria-live="polite" id="deal-status" data-deal-id="status"></div>
     <div class="error" role="alert" id="deal-error" data-deal-id="error"></div>
-    <section class="price-section" data-deal-id="price-section" hidden>
-      <div class="field-label">Giá sản phẩm</div>
-      <div class="price" id="deal-price" data-deal-id="price"></div>
+    <section data-deal-id="product-info" class="deal-product-info" hidden>
+      <label class="field-label">Tên sản phẩm<input type="text" id="deal-draft-title" data-deal-id="draft-title"></label>
+      <section class="price-section" data-deal-id="price-section" hidden>
+        <h3>Giá sản phẩm</h3>
+        <div class="deal-price-grid">
+          <div><span class="field-label">Giá sale</span><div class="price" id="deal-price" data-deal-id="price"></div></div>
+          <div><span class="field-label">% Sale off</span><div class="price" data-deal-id="discount">—</div></div>
+          <div><span class="field-label">Giá gốc</span><div class="price deal-original-price" data-deal-id="original-price">—</div></div>
+        </div>
+      </section>
+      <label class="field-label">Tỷ giá<input type="text" data-deal-id="exchange-rate" placeholder="Ví dụ: 1 USD = 25.500 VND"></label>
     </section>
     <section class="images-section" data-deal-id="images-section" hidden>
       <div class="field-label">Hình ảnh sản phẩm</div>
@@ -28,14 +36,12 @@
       <div id="deal-images" data-deal-id="images" class="product-images"></div>
     </section>
     <section id="deal-draft-panel" data-deal-id="draft-panel" hidden>
-      <h2 style="font-size:18px">Tạo bản nháp sản phẩm</h2>
-      <label>Tên sản phẩm<input type="text" id="deal-draft-title" data-deal-id="draft-title"></label>
-      <label>Thông tin đã xác minh / giá bán của shop
-        <textarea id="deal-draft-description" data-deal-id="draft-description" rows="4" style="width:100%;box-sizing:border-box"></textarea>
-      </label>
-      <label>Phong cách <select id="deal-draft-style" data-deal-id="draft-style"><option value="short">Ngắn gọn</option><option value="detailed">Chi tiết</option><option value="story">Kể chuyện</option></select></label>
+      <div class="deal-content-grid">
+        <label class="field-label">Nội dung<textarea id="deal-draft-description" data-deal-id="draft-description" rows="4" placeholder="Nhập thông tin hoặc yêu cầu để AI viết nội dung"></textarea></label>
+        <label class="field-label">Lựa chọn phong cách<select id="deal-draft-style" data-deal-id="draft-style"><option value="short">Ngắn gọn</option><option value="detailed">Chi tiết</option><option value="story">Kể chuyện</option></select></label>
+      </div>
       <p class="status">Chọn tối đa 20 ảnh phía trên. Gemini dùng tối đa 5 ảnh để viết; bản nháp giữ tất cả ảnh đã chọn. Bài được lưu trong Kho content để bạn sửa và duyệt trước khi chọn đăng/lên lịch.</p>
-      <button id="deal-create-draft" data-deal-id="create-draft" type="button">AI tạo &amp; lưu bản nháp</button>
+      <button id="deal-create-draft" data-deal-id="create-draft" type="button">Tạo nội dung</button>
       <div id="deal-draft-status" data-deal-id="draft-status" class="status" role="status"></div>
       <pre id="deal-draft-preview" data-deal-id="draft-preview" style="white-space:pre-wrap"></pre>
       <a id="deal-draft-library" data-deal-id="draft-library" hidden>Mở bản nháp vừa tạo để duyệt</a>

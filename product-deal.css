@@ -80,3 +80,13 @@
 .deal-workspace .deal-history-log { margin-top:6px; }
 .deal-workspace .deal-history-log summary { cursor:pointer; color:var(--deal-muted); font-size:12px; }
 .deal-workspace .deal-history-log pre { max-height:360px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; padding:8px; background:var(--deal-bg); }
+
+.deal-workspace .deal-product-info { margin-top:24px; border-top:1px solid var(--deal-line); padding-top:8px; }
+.deal-workspace .price-section { display:block; width:100%; }
+.deal-workspace .price-section h3 { margin:0 0 16px; font-size:14px; }
+.deal-workspace .deal-price-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; }
+.deal-workspace .deal-price-grid > div { min-width:0; overflow-wrap:anywhere; }
+.deal-workspace .deal-original-price { text-decoration:line-through; font-weight:500; }
+.deal-workspace .deal-content-grid { display:grid; grid-template-columns:minmax(0,2fr) minmax(200px,1fr); gap:24px; align-items:start; }
+.deal-workspace .deal-content-grid .field-label { margin-top:0; }
+@media(max-width:600px) { .deal-workspace .deal-content-grid { grid-template-columns:1fr; gap:16px; } .deal-workspace .deal-price-grid { gap:10px; } .deal-workspace .deal-price-grid .price { font-size:18px; } }
