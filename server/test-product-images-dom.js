@@ -98,4 +98,32 @@ assert.deepEqual(
 delete global.document;
 altImgDom.window.close();
 
+// Regression: gallery image alt text appends the color name after the product
+// name (e.g. "...Sweater Dark Night Navy"), which broke matchesName's
+// suffix-only checks and rejected the real same-color photos — the DOM scan
+// then came up empty and fell through to JSON-LD, which listed one photo per
+// color under a single Product entry. Both must be fixed together: the color-
+// suffixed alt must be accepted, and once accepted, JSON-LD must be ignored.
+const colorSuffixName = "Tommy Hilfiger Women's Cable-Knit V-Neck Long-Sleeve Sweater";
+const colorAsset = id => `https://slimages.macysassets.com/is/image/MCY/products/2/optimized/${id}_fpx.tif`;
+const colorSuffixDom = new JSDOM(`
+  <meta property="og:title" content="${colorSuffixName} - Macy's">
+  <h1>${colorSuffixName}</h1>
+  <script type="application/ld+json">${JSON.stringify({
+    '@type': 'Product', name: colorSuffixName,
+    image: [colorAsset('jsonld_black'), colorAsset('jsonld_gray')],
+  })}</script>
+  <div class="alt-img">
+    <li class="image-wrapper active" id="navy1"><img class="picture-image loaded" alt="${colorSuffixName} Dark Night Navy" data-src="${colorAsset('navy_angle1')}" src="${colorAsset('navy_angle1')}?wid=1500"></li>
+    <li class="image-wrapper" id="navy2"><img class="picture-image loaded" alt="${colorSuffixName} Dark Night Navy" data-src="${colorAsset('navy_angle2')}" src="${colorAsset('navy_angle2')}?wid=1500"></li>
+  </div>
+`, { url: 'https://www.macys.com/shop/product/sweater?ID=27422020' });
+global.document = colorSuffixDom.window.document;
+const colorSuffixUrls = collectProductImages({ markThumbnails: true });
+assert.deepEqual(colorSuffixUrls.map(url => new URL(url).pathname).sort(),
+  ['navy_angle1', 'navy_angle2'].map(id => new URL(colorAsset(id)).pathname).sort(),
+  'Color-suffixed alt text must still match the product name, and JSON-LD (other colors) must be ignored once the DOM gallery found real images');
+delete global.document;
+colorSuffixDom.window.close();
+
 console.log('Product gallery DOM regression checks passed');

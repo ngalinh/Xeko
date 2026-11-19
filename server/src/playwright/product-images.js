@@ -15,7 +15,13 @@ function collectProductImages({ markThumbnails = false } = {}) {
     const name = normalizeName(value);
     return !!name && names.some(productName => name === productName ||
       (Math.min(name.length, productName.length) >= 16 &&
-        (name.endsWith(' ' + productName) || productName.endsWith(' ' + name))));
+        (name.endsWith(' ' + productName) || productName.endsWith(' ' + name) ||
+          // Gallery image alt text often appends the color/swatch name after the
+          // product name (e.g. "...Sweater Dark Night Navy") — a trailing suffix
+          // that breaks the endsWith checks above and wrongly rejected real
+          // same-color gallery photos, which then fell through to the JSON-LD
+          // fallback that can list every color under one Product entry.
+          name.startsWith(productName + ' '))));
   };
   // Color/variant swatch pickers often live inside the same broad gallery-root
   // wrapper as the real thumbnail strip (e.g. a shared "product-images"
