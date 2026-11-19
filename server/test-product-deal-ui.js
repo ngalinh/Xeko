@@ -85,3 +85,37 @@ test('failed extraction shows feedback and re-enables retry', async () => {
   assert.equal(w.document.querySelector('[data-deal-id=draft-panel]').hidden, true);
   dom.window.close();
 });
+
+for (const file of ['index.html', 'get-deal-test.html']) {
+  test(file + ': groups exact color URLs and selects only one group', async () => {
+    const dom = new JSDOM(read(file), { url: 'https://example.com/', runScripts: 'outside-only' });
+    const w = dom.window;
+    const root = w.document.querySelector('[data-deal-app]');
+    const get = id => root.querySelector('[data-deal-id="' + id + '"]');
+    const images = ['https://example.com/navy.jpg', 'https://example.com/red.jpg', 'https://example.com/back.jpg'];
+    w.fetch = async url => ({ ok: true, json: async () => url.includes('deal-history') ? [] : {
+      images, debug: { colors: [
+        { label: null, images: [images[0], images[2]] },
+        { label: 'Color: Red <b>test</b>', images: [images[1], images[0], 'javascript:alert(1)'] },
+      ] },
+    } });
+    w.eval(read('product-deal.js'));
+    get('url').value = 'https://www.macys.com/shop/product/test?swatchColor=Dark+Night+Navy';
+    get('go').click();
+    await new Promise(resolve => setImmediate(resolve));
+    const groups = root.querySelectorAll('.deal-color-group');
+    assert.equal(groups.length, 2);
+    assert.equal(groups[0].querySelector('h3').textContent, 'Dark Night Navy · 2 ảnh');
+    assert.equal(groups[1].querySelector('h3').textContent, 'Red <b>test</b> · 1 ảnh');
+    assert.equal(groups[1].querySelector('h3 b'), null);
+    assert.deepEqual([...groups[0].querySelectorAll('.draft-image')].map(cb => cb.value), [images[0], images[2]]);
+    assert.equal(root.querySelectorAll('.draft-image').length, 3);
+    get('images-select-none').click();
+    groups[1].querySelector('button').click();
+    assert.deepEqual([...root.querySelectorAll('.draft-image:checked')].map(cb => cb.value), [images[1]]);
+    assert.equal(get('images-selected-count').textContent, 'Đã chọn 1/3 ảnh');
+    groups[1].querySelectorAll('button')[1].click();
+    assert.equal(root.querySelectorAll('.draft-image:checked').length, 0);
+    dom.window.close();
+  });
+}

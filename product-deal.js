@@ -131,69 +131,112 @@ btn.addEventListener('click', async () => {
     $('draft-panel').hidden = !images.length;
     $('create-draft').disabled = false;
     currentDownloads = [];
-    images.forEach((src, index) => {
-      const item = document.createElement('div');
-      const link = document.createElement('a');
-      link.href = src;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      const img = document.createElement('img');
-      img.src = src;
-      img.alt = 'Ảnh sản phẩm ' + (index + 1);
-      img.loading = 'lazy';
-      img.addEventListener('error', () => {
-        img.remove();
-        link.append(document.createTextNode(' (không tải được bản xem trước)'));
+    const groups = [];
+    const assigned = new Set();
+    for (const color of (Array.isArray(data.debug?.colors) ? data.debug.colors : [])) {
+      const sources = (Array.isArray(color.images) ? color.images : []).filter(src => {
+        if (!images.includes(src) || assigned.has(src)) return false;
+        assigned.add(src);
+        return true;
       });
-      link.append(img, document.createTextNode('Link ảnh ' + (index + 1)));
-      const download = document.createElement('button');
-      download.type = 'button';
-      download.className = 'dl-icon-btn';
-      download.title = 'Tải ảnh ' + (index + 1);
-      download.setAttribute('aria-label', 'Tải ảnh ' + (index + 1));
-      download.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><polyline points="7 11 12 16 17 11"/><path d="M4 19h16"/></svg>';
-      const feedback = document.createElement('div');
-      feedback.className = 'status';
-      const runDownload = async () => {
-        download.disabled = true;
-        feedback.textContent = 'Đang tải ảnh lớn...';
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30000);
-        try {
-          const response = await fetch(src, { signal: controller.signal, credentials: 'omit' });
-          if (!response.ok) throw new Error('HTTP ' + response.status);
-          const blob = await response.blob();
-          if (!blob.size || !blob.type.startsWith('image/')) throw new Error('Không nhận được ảnh');
-          const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
-            'image/avif': 'avif', 'image/gif': 'gif' }[blob.type] || 'img';
-          const objectUrl = URL.createObjectURL(blob);
-          const save = document.createElement('a');
-          save.href = objectUrl;
-          save.download = 'san-pham-' + (index + 1) + '.' + ext;
-          document.body.append(save);
-          save.click();
-          save.remove();
-          setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
-          feedback.textContent = 'Đã gửi ảnh tới trình duyệt để lưu.';
-        } catch {
-          feedback.textContent = 'Không tải trực tiếp được. Bấm “Link ảnh” phía trên, rồi chọn “Lưu hình ảnh thành…”.';
-        } finally {
-          clearTimeout(timeout);
-          download.disabled = false;
-        }
-      };
-      download.addEventListener('click', runDownload);
-      currentDownloads.push(runDownload);
-      const choice = document.createElement('label');
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.className = 'draft-image';
-      checkbox.value = src;
-      checkbox.checked = index < 20;
-      choice.append(checkbox, document.createTextNode(' Dùng ảnh ' + (index + 1)));
-      item.className = 'deal-image';
-      item.append(choice, link, download, feedback);
-      $('images').append(item);
+      if (!sources.length) continue;
+      let label = typeof color.label === 'string' ? color.label.replace(/^Color:\s*/i, '').trim() : '';
+      if (!label && groups.length === 0) {
+        try { label = new URL(url).searchParams.get('swatchColor') || ''; } catch {}
+      }
+      groups.push({ label: label || 'Màu ban đầu', images: sources });
+    }
+    const remaining = images.filter(src => !assigned.has(src));
+    if (remaining.length) groups.push({ label: groups.length ? 'Ảnh khác' : 'Ảnh sản phẩm', images: remaining });
+    $('images').classList.toggle('has-color-groups', groups.length > 0);
+    groups.forEach(group => {
+      const section = document.createElement('section');
+      section.className = 'deal-color-group';
+      const header = document.createElement('div');
+      header.className = 'deal-color-header';
+      const heading = document.createElement('h3');
+      heading.textContent = group.label + ' · ' + group.images.length + ' ảnh';
+      header.append(heading);
+      const grid = document.createElement('div');
+      grid.className = 'product-images';
+      for (const [text, checked] of [['Chọn màu này', true], ['Bỏ chọn', false]]) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = text;
+        button.setAttribute('aria-label', text + ': ' + group.label);
+        button.addEventListener('click', () => {
+          grid.querySelectorAll('.draft-image').forEach(cb => { cb.checked = checked; });
+          updateSelectedCount();
+        });
+        header.append(button);
+      }
+      section.append(header, grid);
+      $('images').append(section);
+      group.images.forEach(src => {
+        const index = images.indexOf(src);
+        const item = document.createElement('div');
+        const link = document.createElement('a');
+        link.href = src;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = 'Ảnh sản phẩm ' + (index + 1);
+        img.loading = 'lazy';
+        img.addEventListener('error', () => {
+          img.remove();
+          link.append(document.createTextNode(' (không tải được bản xem trước)'));
+        });
+        link.append(img, document.createTextNode('Link ảnh ' + (index + 1)));
+        const download = document.createElement('button');
+        download.type = 'button';
+        download.className = 'dl-icon-btn';
+        download.title = 'Tải ảnh ' + (index + 1);
+        download.setAttribute('aria-label', 'Tải ảnh ' + (index + 1));
+        download.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><polyline points="7 11 12 16 17 11"/><path d="M4 19h16"/></svg>';
+        const feedback = document.createElement('div');
+        feedback.className = 'status';
+        const runDownload = async () => {
+          download.disabled = true;
+          feedback.textContent = 'Đang tải ảnh lớn...';
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 30000);
+          try {
+            const response = await fetch(src, { signal: controller.signal, credentials: 'omit' });
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            const blob = await response.blob();
+            if (!blob.size || !blob.type.startsWith('image/')) throw new Error('Không nhận được ảnh');
+            const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
+              'image/avif': 'avif', 'image/gif': 'gif' }[blob.type] || 'img';
+            const objectUrl = URL.createObjectURL(blob);
+            const save = document.createElement('a');
+            save.href = objectUrl;
+            save.download = 'san-pham-' + (index + 1) + '.' + ext;
+            document.body.append(save);
+            save.click();
+            save.remove();
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+            feedback.textContent = 'Đã gửi ảnh tới trình duyệt để lưu.';
+          } catch {
+            feedback.textContent = 'Không tải trực tiếp được. Bấm “Link ảnh” phía trên, rồi chọn “Lưu hình ảnh thành…”.';
+          } finally {
+            clearTimeout(timeout);
+            download.disabled = false;
+          }
+        };
+        download.addEventListener('click', runDownload);
+        currentDownloads.push(runDownload);
+        const choice = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'draft-image';
+        checkbox.value = src;
+        checkbox.checked = index < 20;
+        choice.append(checkbox, document.createTextNode(' Dùng ảnh ' + (index + 1)));
+        item.className = 'deal-image';
+        item.append(choice, link, download, feedback);
+        grid.append(item);
+      });
     });
     updateSelectedCount();
 

@@ -54,6 +54,7 @@ dom.window.close();
   const result = await collectAllColorImages(page);
   assert.deepEqual(result.images, ['navy-front', 'navy-back', 'red-front', 'red-back']);
   assert.deepEqual(result.colors.map(c => c.label), [null, 'Red']);
+  assert.deepEqual(result.colors.map(c => c.images), [['navy-front', 'navy-back'], ['red-front', 'red-back']]);
   assert.deepEqual(result.gallery.colorAttempts, [
     { label: 'Red', status: 'collected' },
     { label: 'Broken', status: 'unchanged-or-timeout' },

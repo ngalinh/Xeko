@@ -240,7 +240,7 @@ function colorErrorSummary(error) {
 async function collectAllColorImages(page, { maxColors = 6, perColorBudgetMs = 10000 } = {}) {
   const current = await collectGalleryImages(page, { budgetMs: perColorBudgetMs });
   const images = new Set(current.images);
-  const colors = [{ label: null, imageCount: current.images.length }];
+  const colors = [{ label: null, imageCount: current.images.length, images: current.images }];
 
   const swatches = page.locator(SWATCHES);
   const total = await swatches.count().catch(() => 0);
@@ -313,7 +313,7 @@ async function collectAllColorImages(page, { maxColors = 6, perColorBudgetMs = 1
       stage = 'collect-gallery';
       const result = await collectGalleryImages(page, { budgetMs: perColorBudgetMs });
       for (const url of result.images) images.add(url);
-      colors.push({ label, imageCount: result.images.length });
+      colors.push({ label, imageCount: result.images.length, images: result.images });
       attempts.push({ label, status: 'collected' });
     } catch (error) {
       attempts.push({ label, status: 'failed', stage,
