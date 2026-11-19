@@ -140,6 +140,7 @@ delete global.document;
           nth: i => ({
             getAttribute: async name => name === 'aria-label' ? swatchLabels[i] : null,
             innerText: async () => swatchLabels[i],
+            evaluate: async () => ({ labelFor: null }),
             isVisible: async () => true,
             click: async () => { activeColor = swatchLabels[i]; },
           }),

@@ -242,10 +242,31 @@ async function collectAllColorImages(page, { maxColors = 6, perColorBudgetMs = 1
     }
     if (!label || seenLabels.has(label.toLowerCase())) continue;
     seenLabels.add(label.toLowerCase());
+    let stage = 'inspect-control';
     try {
-      if (!await swatch.isVisible()) continue;
+      const disabled = await swatch.getAttribute('disabled');
+      const ariaDisabled = await swatch.getAttribute('aria-disabled');
+      if (disabled !== null || ariaDisabled === 'true' || /\bunavailable\b/i.test(label)) {
+        attempts.push({ label, status: 'unavailable' });
+        continue;
+      }
+      // Native radio inputs may be hidden beneath a styled, clickable label.
+      const target = await swatch.evaluate(el => {
+        const input = el.matches('input[type="radio"]');
+        return { radio: input, labelFor: input && el.id && el.labels?.length ? el.id : null };
+      });
+      let control = swatch;
+      if (target.labelFor) {
+        control = page.locator('label').filter({ has: swatch });
+        if (!await control.count()) {
+          control = page.locator(`label[for=${JSON.stringify(target.labelFor)}]`);
+        }
+        control = control.first();
+      }
+      stage = 'click';
       const before = await page.evaluate(collectProductImages);
-      await swatch.click({ timeout: 2000, noWaitAfter: true });
+      await control.click({ timeout: 2000, noWaitAfter: true });
+      stage = 'wait-gallery';
       // Require a changed, stable gallery before attributing photos to this color.
       let previous = '';
       let stable = 0;
@@ -263,12 +284,14 @@ async function collectAllColorImages(page, { maxColors = 6, perColorBudgetMs = 1
         attempts.push({ label, status: 'unchanged-or-timeout' });
         continue;
       }
+      stage = 'collect-gallery';
       const result = await collectGalleryImages(page, { budgetMs: perColorBudgetMs });
       for (const url of result.images) images.add(url);
       colors.push({ label, imageCount: result.images.length });
       attempts.push({ label, status: 'collected' });
-    } catch {
-      attempts.push({ label, status: 'failed' });
+    } catch (error) {
+      attempts.push({ label, status: 'failed', stage,
+        error: String(error?.message || error).split('\n').filter(Boolean).slice(0, 8).join('\n').slice(0, 1200) });
       // Bấm lỗi ở 1 màu không chặn các màu còn lại.
     }
   }

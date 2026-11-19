@@ -18,16 +18,18 @@ dom.window.close();
 (async () => {
   let pending = false;
   let ticks = 0;
-  const labels = ['Red', 'Broken'];
+  const labels = ['Red', 'Broken', 'Color: Ivory is unavailable', 'Obstructed'];
+  let labelClicks = 0;
+  const labelControl = { click: async () => { labelClicks++; pending = true; } };
   const page = {
     evaluate: async () => pending && ticks >= 8 ? ['red-front', 'red-back'] : ['navy-front', 'navy-back'],
     waitForTimeout: async () => { ticks++; },
-    locator: selector => selector.includes('swatch') ? {
+    locator: selector => selector === 'label' ? { filter: () => ({ count: async () => 0 }) } : selector.startsWith('label[for=') ? { first: () => labelControl } : selector.includes('swatch') ? {
       count: async () => labels.length,
       nth: i => ({
         getAttribute: async name => name === 'aria-label' ? labels[i] : null,
-        isVisible: async () => true,
-        click: async () => { if (i === 0) pending = true; },
+        evaluate: async () => ({ radio: i === 0, labelFor: i === 0 ? 'red-radio' : null }),
+        click: async () => { if (i === 3) throw new Error('Timeout: overlay intercepts pointer events'); if (i === 0) pending = true; },
       }),
     } : { count: async () => 0 },
   };
@@ -37,7 +39,10 @@ dom.window.close();
   assert.deepEqual(result.gallery.colorAttempts, [
     { label: 'Red', status: 'collected' },
     { label: 'Broken', status: 'unchanged-or-timeout' },
+    { label: 'Color: Ivory is unavailable', status: 'unavailable' },
+    { label: 'Obstructed', status: 'failed', stage: 'click', error: 'Timeout: overlay intercepts pointer events' },
   ]);
+  assert.equal(labelClicks, 1, 'Click associated label for hidden radio');
   assert.ok(ticks >= 11, 'Wait beyond 1.2 seconds for delayed gallery');
   console.log('Color selector and delayed/unchanged gallery checks passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });
