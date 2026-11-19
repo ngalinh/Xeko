@@ -3785,8 +3785,8 @@
       <button class="sidebar-item" onclick="switchPage('permissions')" id="navPermissions" style="display:none;" title="Phân quyền" aria-label="Phân quyền">
         <span class="icon"><svg class="xi"><use href="#ic-key"/></svg></span> <span class="nav-label">Phân quyền</span>
       </button>
-      <button class="sidebar-item" onclick="switchPage('spy')" id="navSpy" title="Lấy nội dung" aria-label="Lấy nội dung">
-        <span class="icon"><svg class="xi"><use href="#ic-search"/></svg></span> <span class="nav-label">Lấy nội dung</span>
+      <button class="sidebar-item" onclick="switchPage('deals')" id="navSpy" title="Lấy deal" aria-label="Lấy deal">
+        <span class="icon"><svg class="xi"><use href="#ic-search"/></svg></span> <span class="nav-label">Lấy deal</span>
       </button>
       <button class="sidebar-item" onclick="location.href=BASE_URL+'/ctv.html'" id="navCtv" title="Gửi tin nhắn hàng loạt" aria-label="Gửi tin nhắn hàng loạt"><span class="icon"><svg class="xi" aria-hidden="true"><use href="#ic-send"/></svg></span> <span class="nav-label">Gửi tin nhắn hàng loạt</span></button>
       <button class="sidebar-item" onclick="switchPage('guide')" id="navGuide" title="HDSD" aria-label="HDSD">
@@ -3892,7 +3892,7 @@
           <a href="#g-post" onclick="_guideTocClick(event,'g-post')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-post"/></svg> Đăng bài</a>
           <a href="#g-dash" onclick="_guideTocClick(event,'g-dash')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-dash"/></svg> Dashboard</a>
           <a href="#g-acc" onclick="_guideTocClick(event,'g-acc')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-users"/></svg> Quản lý tài khoản</a>
-          <a href="#g-spy" onclick="_guideTocClick(event,'g-spy')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-search"/></svg> Lấy nội dung</a>
+          <a href="#g-spy" onclick="_guideTocClick(event,'g-spy')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-search"/></svg> Lấy deal</a>
           <a href="#g-content" onclick="_guideTocClick(event,'g-content')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-book"/></svg> Kho content</a>
           <a href="#g-perm" onclick="_guideTocClick(event,'g-perm')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-key"/></svg> Phân quyền</a>
           <a href="#g-errors" onclick="_guideTocClick(event,'g-errors')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-x"/></svg> Xử lý lỗi</a>
@@ -4060,15 +4060,18 @@
           </div>
         </details>
 
-        <!-- 5. Lấy nội dung -->
+        <!-- 5. Lấy deal -->
         <details class="guide-sec" id="g-spy">
           <summary>
             <span class="g-ico" style="background:#e76f51;"><svg><use href="#ic-search"/></svg></span>
-            <span>Lấy nội dung<span class="g-sub">Dán link Facebook → lấy text + ảnh</span></span>
+            <span>Lấy deal<span class="g-sub">Lấy sản phẩm hoặc nội dung bài viết Facebook</span></span>
             <svg class="g-arrow xi"><use href="#ic-back"/></svg>
           </summary>
           <div class="guide-body">
-            <h4>🔍 Cách dùng</h4>
+            <h4>Lấy deal sản phẩm</h4>
+            <p>Mở <strong>Lấy deal → Sản phẩm</strong>, dán link sản phẩm, chọn màu và ảnh rồi tạo bản nháp. Bản nháp được lưu trong Kho content để duyệt trước khi đăng.</p>
+            <h4>Lấy nội dung bài viết Facebook</h4>
+            <p>Chọn tab <strong>Bài viết Facebook</strong> trong mục Lấy deal.</p>
             <ol>
               <li>Chọn trước một profile Facebook ở tab <strong>Đăng bài</strong> (dùng để mở bài viết).</li>
               <li>Dán <strong>link bài viết Facebook</strong> vào ô nhập.</li>
@@ -4081,7 +4084,7 @@
               <li>Bấm <strong>Tải</strong> trên từng ảnh để lưu về máy.</li>
             </ul>
             <div class="guide-tip">⚠️ Cần chọn profile trước, nếu không Xeko sẽ báo lỗi vì không có tài khoản để mở bài viết.</div>
-            <button class="guide-cta" onclick="switchPage('spy')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-search"/></svg> Mở Lấy nội dung</button>
+            <button class="guide-cta" onclick="switchPage('deals')"><svg class="xi" style="width:14px;height:14px;"><use href="#ic-search"/></svg> Mở Lấy deal</button>
           </div>
         </details>
 
@@ -4181,7 +4184,7 @@
               <li><strong>“Vui lòng nhập nội dung hoặc có ảnh để đăng!”</strong> — nhập nội dung hoặc đính kèm ít nhất 1 ảnh.</li>
               <li><strong>“Chọn profile FB trước nha!”</strong> — chọn tài khoản ở tab Đăng bài trước.</li>
               <li><strong>“Vui lòng chọn ít nhất 1 kênh đăng!”</strong> — chọn nơi đăng (Profile/Group).</li>
-              <li><strong>“Nhập link bài viết vào nha!”</strong> — dán link ở mục Lấy nội dung.</li>
+              <li><strong>“Nhập link bài viết vào nha!”</strong> — dán link ở mục Lấy deal → Bài viết Facebook.</li>
               <li><strong>“Email không hợp lệ” / “Vui lòng nhập host và port!”</strong> — kiểm tra lại định dạng khi thêm user / proxy.</li>
             </ul>
 
@@ -4558,10 +4561,15 @@
       <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
       <div class="header-emoji" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#1E3A8A;"><svg class="xi xi-md"><use href="#ic-search"/></svg></div>
       <div class="header-info">
-        <h1>Lấy nội dung bài viết</h1>
+        <h1>Lấy deal</h1>
         <span>Dán link FB → lấy text + tất cả ảnh</span>
       </div>
     </div>
+
+    <nav class="content-library-tabs" aria-label="Lấy deal">
+      <button type="button" onclick="switchPage('deals')">Sản phẩm</button>
+      <button type="button" aria-current="page" onclick="switchPage('spy')">Bài viết Facebook</button>
+    </nav>
 
     <div style="padding:20px; max-width:700px; margin:0 auto; width:100%; box-sizing:border-box;">
 
@@ -4631,12 +4639,11 @@
 <div class="page" id="pageDeals">
     <div class="header">
       <button class="mobile-hamburger" onclick="toggleSidebar()" style="display:none;" aria-label="Menu"><svg class="xi xi-md"><use href="#ic-menu"/></svg></button>
-      <div class="header-info"><h1>Kho content</h1><span>Từ sản phẩm đến bài viết của bạn</span></div>
+      <div class="header-info"><h1>Lấy deal</h1><span>Từ sản phẩm đến bài viết của bạn</span></div>
     </div>
-    <nav class="content-library-tabs" aria-label="Kho content">
-      <button type="button" onclick="switchPage('content')">Kho content</button>
-      <button type="button" onclick="switchPage('drafts')">Bản nháp / Bài mẫu</button>
-      <button type="button" aria-current="page" onclick="switchPage('deals')">Lấy deal</button>
+    <nav class="content-library-tabs" aria-label="Lấy deal">
+      <button type="button" aria-current="page" onclick="switchPage('deals')">Sản phẩm</button>
+      <button type="button" onclick="switchPage('spy')">Bài viết Facebook</button>
     </nav>
     <div class="deal-scroll"><div class="deal-workspace" data-deal-app>
   <h2>Lấy thông tin sản phẩm</h2>
@@ -4720,7 +4727,6 @@
     <nav class="content-library-tabs" aria-label="Kho content">
       <button type="button" onclick="switchPage('content')">Kho content</button>
       <button type="button" aria-current="page" onclick="switchPage('drafts')">Bản nháp / Bài mẫu</button>
-      <button type="button" onclick="switchPage('deals')">Lấy deal</button>
     </nav>
 
     <div style="padding:20px; width:100%; box-sizing:border-box;">
@@ -4978,7 +4984,6 @@
     <nav class="content-library-tabs" aria-label="Kho content">
       <button type="button" aria-current="page" onclick="switchPage('content')">Kho content</button>
       <button type="button" onclick="switchPage('drafts')">Bản nháp / Bài mẫu</button>
-      <button type="button" onclick="switchPage('deals')">Lấy deal</button>
     </nav>
 
     <!-- Thống kê -->
@@ -8916,7 +8921,7 @@
         // Kho content: dùng lại trang Dashboard ở "chế độ content" (toàn bộ bài đã đăng, ẩn thống kê)
         content: { page: 'pageDashboard', nav: 'navContent' },
         drafts: { page: 'pageContent', nav: 'navContent' },
-        deals: { page: 'pageDeals', nav: 'navContent' },
+        deals: { page: 'pageDeals', nav: 'navSpy' },
         guide: { page: 'pageGuide', nav: 'navGuide' },
       };
 
@@ -8962,7 +8967,7 @@
 
       // Sync mobile bottom nav
       document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
-      const mobileMap = { post: 'Post', calendar: 'Dashboard', dashboard: 'Dashboard', session: 'Session', spy: 'Spy', content: 'Content', drafts: 'Content', deals: 'Content' };
+      const mobileMap = { post: 'Post', calendar: 'Dashboard', dashboard: 'Dashboard', session: 'Session', spy: 'Spy', content: 'Content', drafts: 'Content', deals: 'Spy' };
       const mobileBtn = document.getElementById('mobileNav' + (mobileMap[pg] || ''));
       if (mobileBtn) mobileBtn.classList.add('active');
       // Close sidebar if open
