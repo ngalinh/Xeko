@@ -182,4 +182,26 @@ async function collectGalleryImages(page, { maxClicks = 20, budgetMs = 15000 } =
     imageCount: images.size, limited: count < await thumbnails.count() || Date.now() - started >= budgetMs } };
 }
 
-module.exports = { collectProductImages, collectGalleryImages };
+// DEBUG ONLY — does not affect which images get collected. Reports every
+// img.picture-image on the page (the lenient Macy's fallback selector) along
+// with its alt text and nearby ancestor class chain, so a leak can be traced
+// to the exact container (e.g. a "shop other colors" widget) and excluded by
+// name — instead of guessing exclusion patterns blind.
+function inspectPictureImages() {
+  const isMacys = /(^|\.)macys\.com$/.test(new URL(document.baseURI).hostname);
+  if (!isMacys) return [];
+  const out = [];
+  for (const img of document.querySelectorAll('img.picture-image')) {
+    const chain = [];
+    let el = img;
+    for (let i = 0; i < 5 && el; i++) {
+      const cls = typeof el.className === 'string' ? el.className.trim() : '';
+      chain.push(el.tagName ? el.tagName.toLowerCase() + (cls ? '.' + cls.replace(/\s+/g, '.') : '') : '');
+      el = el.parentElement;
+    }
+    out.push({ alt: img.getAttribute('alt') || '', chain });
+  }
+  return out.slice(0, 20);
+}
+
+module.exports = { collectProductImages, collectGalleryImages, inspectPictureImages };
