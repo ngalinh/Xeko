@@ -10,22 +10,28 @@ module.exports = function collectProductPrice() {
     return true;
   };
   const scope = document.querySelector('#product-details, .product-details, [data-testid="product-details"]') || document.querySelector('main') || document.body;
-  const candidates = [...scope.querySelectorAll('[data-testid="product-price"], [data-auto="price-sales"], [class*="price"], [class*="Price"]')]
+  const candidates = [...scope.querySelectorAll('[data-testid="product-price"], [data-auto="price-sales"], [class*="price"], [class*="Price"], [data-auto="price-original"], del, s, strike')]
     .filter(el => visible(el) && !el.closest('nav, footer, [class*="recommend"], [class*="similar"], [class*="carousel"]'));
   const texts = candidates.map(el => ({ el, text: (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim() }));
+  const originalLabel = /(?:orig(?:inal)?\.?|regular|was)\s*:?\s*((?:US\s*)?\$\s*\d[\d,]*(?:\.\d{2})?)/i;
+  const isOriginal = el => /original|regular|list-price|price-list|strike/i.test(el.className + ' ' + el.getAttribute('data-auto'))
+    || !!el.closest('del, s, strike') || /line-through/.test(window.getComputedStyle(el).textDecorationLine + ' ' + window.getComputedStyle(el).textDecoration);
+  const labelledOriginal = texts.map(({ text }) => text.match(originalLabel)).find(Boolean);
+  const originalElement = texts.find(({ el, text }) => isOriginal(el) && money.test(text));
+  const original = labelledOriginal ? labelledOriginal[1] : originalElement?.text.match(money)[0];
+  const formatSale = (sale, discount) => `Sale ${sale}` + (original ? ` Orig. ${original}` : '') + (discount ? ` ${discount}` : '');
   // Macy's may show the original amount before "Now" in the same block.
   for (const { text } of texts) {
     const sale = text.match(/(?:sale|now|your price)\s*:?\s*((?:US\s*)?\$\s*\d[\d,]*(?:\.\d{2})?)/i);
     if (sale) {
-      const original = text.match(/(?:orig(?:inal)?\.?|regular|was)\s*:?\s*((?:US\s*)?\$\s*\d[\d,]*(?:\.\d{2})?)/i);
       const discount = text.match(/\d+(?:\.\d+)?%\s*off/i);
-      return `Sale ${sale[1]}` + (original ? ` Orig. ${original[1]}` : '') + (discount ? ` ${discount[0]}` : '');
+      return formatSale(sale[1], discount?.[0]);
     }
   }
   for (const { el, text } of texts) {
-    if (/sales?|discount|current|final/i.test(el.className + ' ' + el.getAttribute('data-auto')) && !/original|regular/i.test(el.className)) {
+    if (/sales?|discount|current|final/i.test(el.className + ' ' + el.getAttribute('data-auto')) && !isOriginal(el)) {
       const match = text.match(money);
-      if (match) return match[0];
+      if (match) return original ? formatSale(match[0]) : match[0];
     }
   }
   for (const { text } of texts) {
