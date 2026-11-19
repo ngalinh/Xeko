@@ -46,7 +46,9 @@ async function loadDealHistory() {
         ? `<a href="${escapeHtml(r.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(r.url)}">${escapeHtml(r.url)}</a>`
         : '—';
       return `<tr>
-        <td title="${escapeHtml(title)}">${escapeHtml(title)}</td>
+        <td><span title="${escapeHtml(title)}">${escapeHtml(title)}</span>
+          ${r.log ? `<details class="deal-history-log"><summary>Chi tiết lượt lấy deal · ${r.log.status === 'error' ? 'Thất bại' : 'Thành công'}</summary><pre>${escapeHtml(JSON.stringify(r.log, null, 2))}</pre></details>` : '<div class="status">Chưa có log</div>'}
+        </td>
         <td>${escapeHtml(r.brand || '—')}</td>
         <td>${linkCell}</td>
         <td>${escapeHtml(r.website || '—')}</td>
@@ -270,11 +272,11 @@ btn.addEventListener('click', async () => {
       img.src = BASE_URL + '/api/get-deal-image?file=' + encodeURIComponent(data.screenshotFile);
       $('shot').append(img);
     }
-    loadDealHistory();
   } catch (e) {
     setStatus('');
     setError('❌ ' + e.message);
   } finally {
+    loadDealHistory();
     btn.disabled = false;
     $('engines').disabled = false;
   }

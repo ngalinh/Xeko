@@ -2173,8 +2173,14 @@ app.put('/api/channels/profile-channels', (req, res) => {
 
 // ===== RESTART LOCAL SERVER =====
 async function proxyToLocal(req, res, method, path, body = null, onData = null) {
+  const finish = (status, data) => {
+    if (onData) {
+      try { onData(data, status); } catch (e) { logger.warn(`proxyToLocal onData: ${e.message}`); }
+    }
+    return res.status(status).json(data);
+  };
   const LOCAL_URL = getLocalUrl();
-  if (!LOCAL_URL) return res.status(503).json({ error: 'Local server chưa kết nối' });
+  if (!LOCAL_URL) return finish(503, { error: 'Local server chưa kết nối' });
   try {
     const fetchFn = await getFetch();
     const opts = {
@@ -2186,14 +2192,11 @@ async function proxyToLocal(req, res, method, path, body = null, onData = null) 
     const text = await response.text();
     let data;
     try { data = JSON.parse(text); } catch {
-      return res.status(502).json({ error: `Local server trả về response không hợp lệ (HTTP ${response.status})` });
+      return finish(502, { error: `Local server trả về response không hợp lệ (HTTP ${response.status})` });
     }
-    if (response.ok && onData) {
-      try { onData(data); } catch (e) { logger.warn(`proxyToLocal onData: ${e.message}`); }
-    }
-    return res.status(response.status).json(data);
+    return finish(response.status, data);
   } catch (e) {
-    return res.status(500).json({ error: `Không thể kết nối local server: ${e.message}` });
+    return finish(500, { error: `Không thể kết nối local server: ${e.message}` });
   }
 }
 
@@ -2201,11 +2204,18 @@ app.post('/api/restart', (req, res) => proxyToLocal(req, res, 'POST', '/api/rest
 
 const dealHistoryStore = require('./src/database/deal-history-store');
 
-app.post('/api/get-deal', (req, res) => proxyToLocal(req, res, 'POST', '/api/get-deal', req.body, (data) => {
+app.post('/api/get-deal', (req, res) => proxyToLocal(req, res, 'POST', '/api/get-deal', req.body, (data, status) => {
   const url = String(req.body?.url || '').trim();
   let website = '';
   try { website = new URL(url).hostname; } catch {}
-  dealHistoryStore.create({ title: data.debug?.pageTitle || '', brand: data.brand || '', url, website, price: data.price || '' });
+  dealHistoryStore.create({ title: data.debug?.pageTitle || '', brand: data.brand || '', url, website, price: data.price || '', log: {
+    status: status >= 200 && status < 300 ? 'success' : 'error',
+    httpStatus: status,
+    engine: req.body?.engine || '',
+    allColors: !!req.body?.allColors,
+    error: data.error || null,
+    debug: data.debug || null,
+  } });
 }));
 
 app.get('/api/deal-history', (req, res) => {

@@ -76,3 +76,7 @@
 .deal-workspace .deal-history-table th:nth-child(4) { width:14%; }
 .deal-workspace .deal-history-table th:nth-child(5) { width:16%; }
 .deal-workspace .deal-history-table td:first-child { white-space:normal; overflow-wrap:anywhere; }
+
+.deal-workspace .deal-history-log { margin-top:6px; }
+.deal-workspace .deal-history-log summary { cursor:pointer; color:var(--deal-muted); font-size:12px; }
+.deal-workspace .deal-history-log pre { max-height:360px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; padding:8px; background:var(--deal-bg); }
