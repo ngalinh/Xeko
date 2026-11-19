@@ -14,25 +14,8 @@ function ensureDealDir() {
   }
 }
 
-// Selector giá phổ biến trên web bán lẻ (Macy's và tương tự) — thử lần lượt,
-// selector nào match trước (có số trong text) thì dùng.
-const PRICE_SELECTORS = [
-  '[data-testid="product-price"]',
-  '[data-auto="price-sales"]',
-  '.price-sales',
-  '[class*="price"]',
-];
-
 async function extractPrice(page) {
-  for (const selector of PRICE_SELECTORS) {
-    try {
-      const text = await page.locator(selector).first().innerText({ timeout: 2000 });
-      if (text && /\d/.test(text)) return text.trim();
-    } catch {
-      // selector không có trên trang này — thử selector tiếp theo
-    }
-  }
-  return null;
+  return page.evaluate(require('./product-price')).catch(() => null);
 }
 
 function randomDelayMs(min, max) {
