@@ -271,8 +271,19 @@ async function collectAllColorImages(page, { maxColors = 6, perColorBudgetMs = 1
       // Native radio inputs may be hidden beneath a styled, clickable label.
       const target = await swatch.evaluate(el => {
         const input = el.matches('input[type="radio"]');
-        return { radio: input, labelFor: input && el.id && el.labels?.length ? el.id : null };
+        return { radio: input, labelFor: input && el.id && el.labels?.length ? el.id : null,
+          selected: (input && el.checked) || el.getAttribute('aria-checked') === 'true' ||
+            el.getAttribute('aria-pressed') === 'true' || el.getAttribute('aria-selected') === 'true' } ;
       });
+      // The current color was collected above. Re-clicking it cannot change
+      // the gallery and previously consumed the full six-second timeout.
+      // Only trust explicit selection state, never guessed CSS class names.
+      if (target.selected && current.images.length && colors.length === 1 &&
+          attempts.every(attempt => ['already-selected', 'unavailable'].includes(attempt.status))) {
+        colors[0].label = label;
+        attempts.push({ label, status: 'already-selected' });
+        continue;
+      }
       let control = swatch;
       if (target.labelFor) {
         control = page.locator('label').filter({ has: swatch });
