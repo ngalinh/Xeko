@@ -4644,6 +4644,7 @@
     <nav class="content-library-tabs" aria-label="Lấy deal">
       <button type="button" aria-current="page" data-deal-tab="product" aria-controls="deal-product-panel">Sản phẩm</button>
       <button type="button" data-deal-tab="history" aria-controls="deal-history-panel">Lịch sử lấy deal</button>
+      <button type="button" id="dealSettingsTab" data-deal-tab="settings" aria-controls="deal-settings-panel" style="display:none;">Cài đặt</button>
     </nav>
     <div class="deal-scroll"><div class="deal-workspace" data-deal-app>
   <div id="deal-product-panel" data-deal-panel="product">
@@ -4687,7 +4688,12 @@
       <a id="deal-draft-library" data-deal-id="draft-library" hidden>Mở bản nháp vừa tạo để duyệt</a>
     </section>
 
-    <details class="deal-options" id="dealAdvancedConfig" style="display:none;"><summary>Cài đặt (proxy, trình duyệt &amp; kiểm tra)</summary><label class="field-label" for="deal-proxy">Proxy (tuỳ chọn)</label><input type="text" id="deal-proxy" data-deal-id="proxy" placeholder="(tuy chon) proxy: user:pass@host:port" style="margin-top:8px;">
+
+  </div>
+
+  </div>
+  <section id="deal-settings-panel" data-deal-panel="settings" class="card" hidden>
+    <div id="dealAdvancedConfig" style="display:none;"><h2>Cài đặt</h2><label class="field-label" for="deal-proxy">Proxy (tuỳ chọn)</label><input type="text" id="deal-proxy" data-deal-id="proxy" placeholder="(tuy chon) proxy: user:pass@host:port" style="margin-top:8px;">
     <fieldset class="engines" id="deal-engines" data-deal-id="engines">
       <legend>Chọn trình duyệt</legend>
       <div class="engine-options">
@@ -4697,10 +4703,8 @@
       </div>
     </fieldset>
     <div class="shot" id="deal-shot" data-deal-id="shot" style="margin-top:10px;"></div>
-    <pre class="status" id="deal-debug" data-deal-id="debug" style="white-space:pre-wrap;padding:8px;border-radius:6px;margin-top:10px;"></pre></details>
-  </div>
-
-  </div>
+    <pre class="status" id="deal-debug" data-deal-id="debug" style="white-space:pre-wrap;padding:8px;border-radius:6px;margin-top:10px;"></pre></div>
+  </section>
   <section id="deal-history-panel" data-deal-panel="history" class="card deal-history-card" style="margin-top:0" hidden>
     <h2 style="font-size:16px;">Lịch sử lấy deal</h2>
     <div class="hint" style="margin-bottom:12px;">Tên sản phẩm, thương hiệu, link và website đã lấy deal gần đây.</div>
@@ -15604,6 +15608,11 @@
       if (navPerm) navPerm.style.display = user.isXekoAdmin ? '' : 'none';
       const dealCfg = document.getElementById('dealAdvancedConfig');
       if (dealCfg) dealCfg.style.display = user.isXekoAdmin ? '' : 'none';
+      const dealSettingsTab = document.getElementById('dealSettingsTab');
+      if (dealSettingsTab) dealSettingsTab.style.display = user.isXekoAdmin ? '' : 'none';
+      if (!user.isXekoAdmin && dealSettingsTab?.hasAttribute('aria-current')) {
+        document.querySelector('[data-deal-tab="product"]')?.click();
+      }
     }
 
 
