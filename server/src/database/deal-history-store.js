@@ -12,14 +12,19 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_deal_history_created_at ON deal_history(created_at);
 `);
 
+// Existing histories remain valid when upgrading.
+if (!db.prepare('PRAGMA table_info(deal_history)').all().some(column => column.name === 'brand')) {
+  db.exec("ALTER TABLE deal_history ADD COLUMN brand TEXT DEFAULT ''");
+}
+
 const insertStmt = db.prepare(`
-  INSERT INTO deal_history (title, url, website, price, created_at)
-  VALUES (@title, @url, @website, @price, @createdAt)
+  INSERT INTO deal_history (title, brand, url, website, price, created_at)
+  VALUES (@title, @brand, @url, @website, @price, @createdAt)
 `);
 
-function create({ title = '', url = '', website = '', price = '' }) {
+function create({ title = '', brand = '', url = '', website = '', price = '' }) {
   const now = new Date().toISOString();
-  const info = insertStmt.run({ title, url, website, price, createdAt: now });
+  const info = insertStmt.run({ title, brand, url, website, price, createdAt: now });
   return getById(info.lastInsertRowid);
 }
 
@@ -35,7 +40,7 @@ function list({ limit = 50 } = {}) {
 }
 
 function deserialize(row) {
-  return { id: row.id, title: row.title, url: row.url, website: row.website, price: row.price, createdAt: row.created_at };
+  return { id: row.id, title: row.title, brand: row.brand || '', url: row.url, website: row.website, price: row.price, createdAt: row.created_at };
 }
 
 module.exports = { create, list, getById };

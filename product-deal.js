@@ -36,7 +36,7 @@ async function loadDealHistory() {
     const res = await fetch(BASE_URL + '/api/deal-history?limit=50');
     const rows = await res.json();
     if (!Array.isArray(rows) || !rows.length) {
-      body.innerHTML = '<tr><td colspan="4" class="deal-history-empty">Chưa có lịch sử lấy deal.</td></tr>';
+      body.innerHTML = '<tr><td colspan="5" class="deal-history-empty">Chưa có lịch sử lấy deal.</td></tr>';
       return;
     }
     body.innerHTML = rows.map(r => {
@@ -47,13 +47,14 @@ async function loadDealHistory() {
         : '—';
       return `<tr>
         <td title="${escapeHtml(title)}">${escapeHtml(title)}</td>
+        <td>${escapeHtml(r.brand || '—')}</td>
         <td>${linkCell}</td>
         <td>${escapeHtml(r.website || '—')}</td>
         <td>${escapeHtml(time)}</td>
       </tr>`;
     }).join('');
   } catch {
-    body.innerHTML = '<tr><td colspan="4" class="deal-history-empty">Không tải được lịch sử.</td></tr>';
+    body.innerHTML = '<tr><td colspan="5" class="deal-history-empty">Không tải được lịch sử.</td></tr>';
   }
 }
 loadDealHistory();

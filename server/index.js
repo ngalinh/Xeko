@@ -2205,7 +2205,7 @@ app.post('/api/get-deal', (req, res) => proxyToLocal(req, res, 'POST', '/api/get
   const url = String(req.body?.url || '').trim();
   let website = '';
   try { website = new URL(url).hostname; } catch {}
-  dealHistoryStore.create({ title: data.debug?.pageTitle || '', url, website, price: data.price || '' });
+  dealHistoryStore.create({ title: data.debug?.pageTitle || '', brand: data.brand || '', url, website, price: data.price || '' });
 }));
 
 app.get('/api/deal-history', (req, res) => {

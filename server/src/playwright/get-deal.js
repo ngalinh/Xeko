@@ -109,6 +109,7 @@ async function getDeal(url, opts = {}) {
       bodyText = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
     }
 
+    const brand = await page.evaluate(require('./product-brand')).catch(() => '');
     const price = await extractPrice(page);
     const { images, gallery, colors } = opts.allColors
       ? await collectAllColorImages(page)
@@ -136,7 +137,7 @@ async function getDeal(url, opts = {}) {
     };
 
     logger.info(`[get-deal] ${url} (engine=${engine}) -> price=${price || '(không đọc được)'} debug=${JSON.stringify(debug)}`);
-    return { price, images, screenshotFile: fileName, debug: { ...debug, engine } };
+    return { brand, price, images, screenshotFile: fileName, debug: { ...debug, engine } };
   } finally {
     await browser.close();
   }
