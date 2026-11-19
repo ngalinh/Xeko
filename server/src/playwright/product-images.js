@@ -28,7 +28,8 @@ function collectProductImages({ markThumbnails = false } = {}) {
     '[class*="recently" i], [id*="recently" i], [class*="sponsored" i], [class*="similar" i], ' +
     '[class*="related" i], [id*="related" i], [aria-label*="sponsored" i], [data-ad], iframe, ' +
     '[class*="swatch" i], [class*="colorway" i], [class*="colorpicker" i], [class*="color-picker" i], ' +
-    '[aria-label*="swatch" i], [aria-label*="color" i], [data-testid*="swatch" i], [data-testid*="color" i]';
+    '[aria-label*="swatch" i], [aria-label*="color" i], [data-testid*="swatch" i], [data-testid*="color" i], ' +
+    '[class*="stylitics" i]';
   if (markThumbnails) {
     for (const el of document.querySelectorAll('[data-xeko-product-thumbnail]')) {
       el.removeAttribute('data-xeko-product-thumbnail');
@@ -37,7 +38,7 @@ function collectProductImages({ markThumbnails = false } = {}) {
   const galleryRoots = [
     '[class*="product-gallery"]', '[class*="product-images"]',
     '[id*="productImages"]', '[data-testid*="product-gallery"]',
-    '[class*="image-grid"]', '[class*="imageGrid"]',
+    '[class*="image-grid"]', '[class*="imageGrid"]', '[class*="alt-img"]',
   ].join(',');
   function add(value) {
     if (Array.isArray(value)) return value.forEach(add);
@@ -85,6 +86,7 @@ function collectProductImages({ markThumbnails = false } = {}) {
     '[id*="productImages"] img',
     '[class*="image-grid"] img',
     '[class*="imageGrid"] img',
+    '[class*="alt-img"] img',
     '[data-testid*="product-gallery"] img',
     '[class*="product-gallery"] source',
     '[class*="product-images"] source',
@@ -109,7 +111,7 @@ function collectProductImages({ markThumbnails = false } = {}) {
       if (!img.closest(galleryRoots) && !matchesName(alt)) continue;
     }
     if (markThumbnails) {
-      const control = img.closest('button, [role="tab"], [role="button"], [class*="thumbnail" i]');
+      const control = img.closest('button, [role="tab"], [role="button"], [class*="thumbnail" i], li[class*="image-wrapper" i]');
       if (control && !control.closest(excluded) && !control.closest('a') &&
           !control.querySelector('a') && !/video|play|360/i.test(control.getAttribute('aria-label') || '')) {
         control.setAttribute('data-xeko-product-thumbnail', '');
@@ -139,11 +141,12 @@ function collectProductImages({ markThumbnails = false } = {}) {
 const THUMBNAILS = [
   '[class*="product-gallery"]', '[class*="product-images"]',
   '[id*="productImages"]', '[data-testid*="product-gallery"]',
-  '[class*="image-grid"]', '[class*="imageGrid"]',
+  '[class*="image-grid"]', '[class*="imageGrid"]', '[class*="alt-img"]',
 ].flatMap(root => [
   `${root} button:has(img)`,
   `${root} [role="tab"]:has(img)`,
   `${root} [class*="thumbnail"]:has(img):not(a)`,
+  `${root} li[class*="image-wrapper"]:has(img):not(a)`,
 ]).join(',');
 
 async function collectGalleryImages(page, { maxClicks = 20, budgetMs = 15000 } = {}) {
@@ -183,6 +186,35 @@ async function collectGalleryImages(page, { maxClicks = 20, budgetMs = 15000 } =
 }
 
 // DEBUG ONLY — does not affect which images get collected. Reports every
+// Product entry found in the page's JSON-LD structured data (name/color/sku
+// plus a few of its image URLs), to check whether a single entry aggregates
+// photos across multiple color variants under one product name.
+function inspectJsonLd() {
+  const out = [];
+  function visit(value) {
+    if (!value || typeof value !== 'object') return;
+    if (Array.isArray(value)) return value.forEach(visit);
+    const types = [].concat(value['@type'] || []);
+    if (types.some(type => /(^|[/#])Product$/.test(type))) {
+      const images = [].concat(value.image || []).map(i =>
+        typeof i === 'string' ? i : (i && (i.contentUrl || i.url || i['@id'])) || '');
+      out.push({
+        name: value.name || '',
+        color: value.color || '',
+        sku: value.sku || value.mpn || '',
+        imageCount: images.length,
+        images: images.slice(0, 3),
+      });
+    }
+    Object.values(value).forEach(visit);
+  }
+  for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
+    try { visit(JSON.parse(script.textContent)); } catch { /* Other metadata may be invalid. */ }
+  }
+  return out;
+}
+
+// DEBUG ONLY — does not affect which images get collected. Reports every
 // img.picture-image on the page (the lenient Macy's fallback selector) along
 // with its alt text and nearby ancestor class chain, so a leak can be traced
 // to the exact container (e.g. a "shop other colors" widget) and excluded by
@@ -204,4 +236,4 @@ function inspectPictureImages() {
   return out.slice(0, 20);
 }
 
-module.exports = { collectProductImages, collectGalleryImages, inspectPictureImages };
+module.exports = { collectProductImages, collectGalleryImages, inspectPictureImages, inspectJsonLd };

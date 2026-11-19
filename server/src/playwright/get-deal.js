@@ -4,7 +4,7 @@ const { safeLaunch } = require('../utils/playwright-launch');
 const { firefox, webkit } = require('playwright');
 const { parseProxy } = require('../utils/proxy');
 const logger = require('../utils/logger');
-const { collectGalleryImages, inspectPictureImages } = require('./product-images');
+const { collectGalleryImages, inspectPictureImages, inspectJsonLd } = require('./product-images');
 
 const DEAL_SCREENSHOT_DIR = path.resolve(__dirname, '../../logs/deals');
 
@@ -114,6 +114,7 @@ async function getDeal(url, opts = {}) {
     // Tạm thời: chẩn đoán ảnh lọt từ đâu khi gallery không tìm thấy thumbnail
     // nào (found=0) nhưng vẫn ra ảnh — xem ghi chú ở inspectPictureImages.
     const pictureImages = await page.evaluate(inspectPictureImages).catch(() => []);
+    const jsonLdProducts = await page.evaluate(inspectJsonLd).catch(() => []);
 
     const fileName = `${Date.now()}.png`;
     await page.screenshot({ path: path.join(DEAL_SCREENSHOT_DIR, fileName), fullPage: false });
@@ -123,6 +124,7 @@ async function getDeal(url, opts = {}) {
     const debug = {
       gallery,
       pictureImages,
+      jsonLdProducts,
       finalUrl: page.url(),
       httpStatus: mainResponse ? mainResponse.status() : null,
       pageTitle: await page.title().catch(() => null),
