@@ -6,29 +6,40 @@ const second = base + '39320749_fpx.tif';
 const signed = first + '?wid=100&token=unchanged';
 const other = 'https://example.com/image.jpg?wid=80';
 const attributes = { srcset: second + '?wid=100 100w, ' + second + '?wid=1500&fmt=webp 1500w' };
-global.document = {
+const jsonLdOnlyDocument = () => ({
   baseURI: 'https://www.macys.com/shop/product/test',
   querySelectorAll(selector) {
     if (selector === 'h1') return [{ textContent: 'Test product' }];
     if (selector === 'script[type="application/ld+json"]') return [{ textContent: JSON.stringify({
       '@type': 'Product', name: 'Test product', image: [first, first + '?fmt=webp&wid=100&hei=100&dpr=2', signed, other],
     }) }, { textContent: JSON.stringify({ '@type': 'Product', name: 'Recommended item', image: 'https://example.com/unrelated.jpg' }) }];
-    if (selector.includes('source')) return [{ closest: () => null, getAttribute: name => name === 'alt' ? 'Test product' : attributes[name] || null }];
     return [];
   },
-};
+});
+// JSON-LD is a fallback — used only when the DOM gallery/picture scan found nothing.
+global.document = jsonLdOnlyDocument();
 const images = collectProductImages();
-assert.equal(images.length, 4, 'Same asset at thumbnail sizes must deduplicate');
-for (const asset of [first, second]) {
-  const url = new URL(images.find(src => src.startsWith(asset) && !src.includes('token=')));
-  assert.equal(url.searchParams.get('wid'), '2000');
-  assert.equal(url.searchParams.get('fmt'), 'jpg');
-  assert.equal(url.searchParams.get('qlt'), '90');
-  assert.equal(url.searchParams.has('hei'), false);
-  assert.equal(url.searchParams.has('dpr'), false);
-}
+assert.equal(images.length, 3, 'Same asset at thumbnail sizes must deduplicate');
+const url = new URL(images.find(src => src.startsWith(first) && !src.includes('token=')));
+assert.equal(url.searchParams.get('wid'), '2000');
+assert.equal(url.searchParams.get('fmt'), 'jpg');
+assert.equal(url.searchParams.get('qlt'), '90');
+assert.equal(url.searchParams.has('hei'), false);
+assert.equal(url.searchParams.has('dpr'), false);
 assert.ok(images.includes(signed), 'Preserve signed URLs');
 assert.ok(images.includes(other), 'Do not rewrite other CDNs');
+// Regression: a confirmed real Macy's page had ONE JSON-LD Product entry whose
+// image array held one photo per COLOR VARIANT, while the real DOM gallery
+// correctly showed only the current color. JSON-LD must be ignored once the
+// DOM scan already found legitimate images — merging both leaked other colors.
+global.document = jsonLdOnlyDocument();
+document.querySelectorAll = ((orig) => (selector) => {
+  if (selector.includes('source')) return [{ closest: () => null, getAttribute: name => name === 'alt' ? 'Test product' : attributes[name] || null }];
+  return orig(selector);
+})(document.querySelectorAll.bind(document));
+const domPreferredImages = collectProductImages();
+assert.deepEqual(domPreferredImages.map(src => new URL(src).pathname).sort(), [new URL(second).pathname],
+  'When the DOM gallery already found images, JSON-LD must be ignored entirely (cross-color leak fix)');
 // Regression: the supplied Macy's picture element has no known gallery parent.
 const pictureAsset = 'https://slimages.macysassets.com/is/image/MCY/products/5/optimized/39320745_fpx.tif';
 let includeThumbnail = true;

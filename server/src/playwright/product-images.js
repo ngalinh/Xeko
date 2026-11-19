@@ -40,9 +40,16 @@ function collectProductImages({ markThumbnails = false } = {}) {
     '[id*="productImages"]', '[data-testid*="product-gallery"]',
     '[class*="image-grid"]', '[class*="imageGrid"]', '[class*="alt-img"]',
   ].join(',');
-  function add(value) {
-    if (Array.isArray(value)) return value.forEach(add);
-    if (value && typeof value === 'object') return add(value.contentUrl || value.url || value['@id']);
+  // JSON-LD "Product.image" can legitimately list ONE representative photo per
+  // COLOR VARIANT under a single entry (confirmed: one Macy's product page had
+  // exactly 1 JSON-LD Product node whose image array held 4 photos — one per
+  // color — while the real on-page gallery only ever showed the current color).
+  // Treat JSON-LD as a fallback only, used when the DOM gallery found nothing,
+  // rather than always merging it in and risking a cross-color leak.
+  const jsonLdImages = new Set();
+  function addTo(set, value) {
+    if (Array.isArray(value)) return value.forEach(v => addTo(set, v));
+    if (value && typeof value === 'object') return addTo(set, value.contentUrl || value.url || value['@id']);
     if (typeof value !== 'string' || !value.trim()) return;
     try {
       const url = new URL(value, document.baseURI);
@@ -63,15 +70,16 @@ function collectProductImages({ markThumbnails = false } = {}) {
         url.searchParams.delete('dpr');
         url.searchParams.sort();
       }
-      images.add(url.href);
+      set.add(url.href);
     } catch { /* Ignore malformed image metadata. */ }
   }
+  function add(value) { addTo(images, value); }
   function visit(value) {
     if (!value || typeof value !== 'object') return;
     if (Array.isArray(value)) return value.forEach(visit);
     const types = [].concat(value['@type'] || []);
     if (types.some(type => /(^|[/#])Product$/.test(type)) &&
-        (!isMacys || matchesName(value.name))) add(value.image);
+        (!isMacys || matchesName(value.name))) addTo(jsonLdImages, value.image);
     Object.values(value).forEach(visit);
   }
   for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
@@ -129,6 +137,11 @@ function collectProductImages({ markThumbnails = false } = {}) {
     const largest = (widths.length ? widths : candidates).sort((a, b) => b.size - a.size)[0];
     add(zoom || (largest && largest.url) || img.getAttribute('content') ||
       img.getAttribute('data-src') || img.currentSrc || img.getAttribute('src') || img.getAttribute('href'));
+  }
+  // Only trust JSON-LD once the real DOM gallery/picture scan found nothing —
+  // see the note above jsonLdImages for why.
+  if (!images.size) {
+    for (const url of jsonLdImages) images.add(url);
   }
   if (!images.size) {
     for (const meta of document.querySelectorAll('meta[property="og:image"], meta[property="og:image:secure_url"]')) add(meta.content);
