@@ -14,6 +14,8 @@ function setError(msg) { $('error').textContent = msg || ''; }
 function updateSelectedCount() {
   const total = root.querySelectorAll('.draft-image').length;
   const checked = root.querySelectorAll('.draft-image:checked').length;
+  $('images-select-all').checked = total > 0 && checked === total;
+  $('images-select-all').indeterminate = checked > 0 && checked < total;
   $('images-selected-count').textContent = total ? ('Đã chọn ' + checked + '/' + total + ' ảnh') : '';
 }
 $('images').addEventListener('change', (e) => {
@@ -187,7 +189,8 @@ btn.addEventListener('click', async () => {
           img.remove();
           link.append(document.createTextNode(' (không tải được bản xem trước)'));
         });
-        link.append(img, document.createTextNode('Link ảnh ' + (index + 1)));
+        link.append(img);
+        link.setAttribute('aria-label', 'Mở ảnh ' + (index + 1) + ' trong tab mới');
         const download = document.createElement('button');
         download.type = 'button';
         download.className = 'dl-icon-btn';
@@ -218,7 +221,7 @@ btn.addEventListener('click', async () => {
             setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
             feedback.textContent = 'Đã gửi ảnh tới trình duyệt để lưu.';
           } catch {
-            feedback.textContent = 'Không tải trực tiếp được. Bấm “Link ảnh” phía trên, rồi chọn “Lưu hình ảnh thành…”.';
+            feedback.textContent = 'Không tải trực tiếp được. Bấm vào ảnh, rồi chọn “Lưu hình ảnh thành…”.';
           } finally {
             clearTimeout(timeout);
             download.disabled = false;
@@ -232,7 +235,8 @@ btn.addEventListener('click', async () => {
         checkbox.className = 'draft-image';
         checkbox.value = src;
         checkbox.checked = index < 20;
-        choice.append(checkbox, document.createTextNode(' Dùng ảnh ' + (index + 1)));
+        checkbox.setAttribute('aria-label', 'Chọn ảnh ' + (index + 1));
+        choice.append(checkbox);
         item.className = 'deal-image';
         item.append(choice, link, download, feedback);
         grid.append(item);
@@ -258,12 +262,8 @@ btn.addEventListener('click', async () => {
     $('engines').disabled = false;
   }
 });
-$('images-select-all').addEventListener('click', () => {
-  root.querySelectorAll('.draft-image').forEach(cb => { cb.checked = true; });
-  updateSelectedCount();
-});
-$('images-select-none').addEventListener('click', () => {
-  root.querySelectorAll('.draft-image').forEach(cb => { cb.checked = false; });
+$('images-select-all').addEventListener('change', (event) => {
+  root.querySelectorAll('.draft-image').forEach(cb => { cb.checked = event.target.checked; });
   updateSelectedCount();
 });
 $('images-download-all').addEventListener('click', async () => {

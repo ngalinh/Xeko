@@ -44,7 +44,7 @@ for (const file of ['index.html', 'get-deal-test.html']) {
     assert.equal(get('images-section').hidden, false);
     assert.equal(get('images-toolbar').hidden, false);
     assert.equal(get('images-selected-count').textContent, 'Đã chọn 2/2 ảnh');
-    get('images-select-none').click();
+    get('images-select-all').click();
     assert.deepEqual([...root.querySelectorAll('.draft-image')].map(cb => cb.checked), [false, false]);
     assert.equal(get('images-selected-count').textContent, 'Đã chọn 0/2 ảnh');
     get('images-select-all').click();
@@ -53,7 +53,22 @@ for (const file of ['index.html', 'get-deal-test.html']) {
 
     // Link ảnh N (không phải "Mở ảnh lớn N") và nút tải chỉ còn icon.
     const firstLink = root.querySelectorAll('.deal-image a')[0];
-    assert.match(firstLink.textContent, /Link ảnh 1/);
+    assert.equal(firstLink.textContent, '');
+    assert.equal(firstLink.target, '_blank');
+    assert.equal(firstLink.href, images[0]);
+    assert.ok(firstLink.querySelector('img'));
+    assert.doesNotMatch(root.querySelector('.deal-image').textContent, /Dùng ảnh|Link ảnh/);
+    assert.equal(get('images-select-all').type, 'checkbox');
+    assert.equal(get('images-select-none'), null);
+    assert.equal(get('images-download-all').textContent.trim(), 'Download all');
+    assert.ok(get('images-download-all').querySelector('svg'));
+    const secondChoice = root.querySelectorAll('.draft-image')[1];
+    secondChoice.click();
+    assert.equal(get('images-select-all').indeterminate, true);
+    assert.equal(get('images-select-all').checked, false);
+    get('images-select-all').click();
+    assert.equal(get('images-select-all').indeterminate, false);
+    assert.equal(secondChoice.checked, true);
     const firstDownloadBtn = root.querySelectorAll('.deal-image .dl-icon-btn')[0];
     assert.equal(firstDownloadBtn.textContent.trim(), '');
     assert.ok(firstDownloadBtn.querySelector('svg'));
@@ -110,7 +125,7 @@ for (const file of ['index.html', 'get-deal-test.html']) {
     assert.equal(groups[1].querySelector('h3 b'), null);
     assert.deepEqual([...groups[0].querySelectorAll('.draft-image')].map(cb => cb.value), [images[0], images[2]]);
     assert.equal(root.querySelectorAll('.draft-image').length, 3);
-    get('images-select-none').click();
+    get('images-select-all').click();
     groups[1].querySelector('button').click();
     assert.deepEqual([...root.querySelectorAll('.draft-image:checked')].map(cb => cb.value), [images[1]]);
     assert.equal(get('images-selected-count').textContent, 'Đã chọn 1/3 ảnh');
