@@ -95,18 +95,24 @@ btn.addEventListener('click', async () => {
   $('images').replaceChildren();
   $('images-status').textContent = '';
   $('debug').textContent = '';
-  setStatus('Đang mở trang bằng ' + engineLabel + ' và tự bấm ảnh thu nhỏ để gom ảnh sản phẩm...');
+  const allColors = $('all-colors').checked;
+  setStatus('Đang mở trang bằng ' + engineLabel + (allColors
+    ? ' và lấy ảnh lần lượt từng màu (có thể mất vài phút)...'
+    : ' và tự bấm ảnh thu nhỏ để gom ảnh sản phẩm...'));
 
   try {
     const res = await fetch(BASE_URL + '/api/get-deal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, proxy: $('proxy').value.trim() || undefined, engine }),
+      body: JSON.stringify({ url, proxy: $('proxy').value.trim() || undefined, engine, allColors }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Lỗi không rõ');
 
-    setStatus('Xong — trình duyệt đã chọn: ' + engineLabel + '.');
+    const colorNote = Array.isArray(data.debug?.colors) && data.debug.colors.length > 1
+      ? ' Đã lấy ' + data.debug.colors.length + ' màu.'
+      : '';
+    setStatus('Xong — trình duyệt đã chọn: ' + engineLabel + '.' + colorNote);
     $('price-section').hidden = false;
     $('price-section').classList.toggle('no-price', !data.price);
     $('price').textContent = data.price || 'Không đọc được giá trên trang này.';

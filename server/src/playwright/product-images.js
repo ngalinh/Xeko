@@ -204,6 +204,56 @@ async function collectGalleryImages(page, { maxClicks = 20, budgetMs = 15000 } =
     imageCount: images.size, limited: count < await thumbnails.count() || Date.now() - started >= budgetMs } };
 }
 
+// Color/variant swatch pickers — the SAME patterns collectProductImages()
+// deliberately excludes from the default gallery (see `excluded`), used here
+// on purpose: click each color, re-run the full gallery collection for it,
+// and merge every color's complete photo set. Opt-in only (slower, more
+// clicks — higher chance of bot-detection friction on sites like Macy's).
+const SWATCHES = [
+  '[class*="swatch" i]', '[class*="colorway" i]', '[class*="colorpicker" i]',
+  '[class*="color-picker" i]', '[data-testid*="swatch" i]', '[data-testid*="color" i]',
+].flatMap(root => [
+  `${root} button`,
+  `${root} [role="radio"]`,
+  `${root} [role="button"]`,
+]).join(',');
+
+async function collectAllColorImages(page, { maxColors = 6, perColorBudgetMs = 10000 } = {}) {
+  const current = await collectGalleryImages(page, { budgetMs: perColorBudgetMs });
+  const images = new Set(current.images);
+  const colors = [{ label: null, imageCount: current.images.length }];
+
+  const swatches = page.locator(SWATCHES);
+  const total = await swatches.count().catch(() => 0);
+  const count = Math.min(total, maxColors);
+  const seenLabels = new Set();
+  for (let i = 0; i < count; i++) {
+    const swatch = swatches.nth(i);
+    let label = '';
+    try {
+      label = ((await swatch.getAttribute('aria-label')) || (await swatch.getAttribute('title')) ||
+        (await swatch.innerText().catch(() => '')) || '').trim();
+    } catch {
+      continue;
+    }
+    if (!label || seenLabels.has(label.toLowerCase())) continue;
+    seenLabels.add(label.toLowerCase());
+    try {
+      if (!await swatch.isVisible()) continue;
+      await swatch.click({ timeout: 2000, noWaitAfter: true });
+      // Chờ ảnh chính + gallery cập nhật sang màu vừa chọn trước khi quét lại.
+      await page.waitForTimeout(1200);
+      const result = await collectGalleryImages(page, { budgetMs: perColorBudgetMs });
+      for (const url of result.images) images.add(url);
+      colors.push({ label, imageCount: result.images.length });
+    } catch {
+      // Bấm lỗi ở 1 màu không chặn các màu còn lại.
+    }
+  }
+  return { images: [...images], gallery: current.gallery, colors,
+    swatchesFound: total, limited: total > maxColors };
+}
+
 // DEBUG ONLY — does not affect which images get collected. Reports every
 // Product entry found in the page's JSON-LD structured data (name/color/sku
 // plus a few of its image URLs), to check whether a single entry aggregates
@@ -255,4 +305,4 @@ function inspectPictureImages() {
   return out.slice(0, 20);
 }
 
-module.exports = { collectProductImages, collectGalleryImages, inspectPictureImages, inspectJsonLd };
+module.exports = { collectProductImages, collectGalleryImages, collectAllColorImages, inspectPictureImages, inspectJsonLd };

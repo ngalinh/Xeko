@@ -4,7 +4,7 @@ const { safeLaunch } = require('../utils/playwright-launch');
 const { firefox, webkit } = require('playwright');
 const { parseProxy } = require('../utils/proxy');
 const logger = require('../utils/logger');
-const { collectGalleryImages, inspectPictureImages, inspectJsonLd } = require('./product-images');
+const { collectGalleryImages, collectAllColorImages, inspectPictureImages, inspectJsonLd } = require('./product-images');
 
 const DEAL_SCREENSHOT_DIR = path.resolve(__dirname, '../../logs/deals');
 
@@ -110,7 +110,9 @@ async function getDeal(url, opts = {}) {
     }
 
     const price = await extractPrice(page);
-    const { images, gallery } = await collectGalleryImages(page);
+    const { images, gallery, colors } = opts.allColors
+      ? await collectAllColorImages(page)
+      : await collectGalleryImages(page);
     // Tạm thời: chẩn đoán ảnh lọt từ đâu khi gallery không tìm thấy thumbnail
     // nào (found=0) nhưng vẫn ra ảnh — xem ghi chú ở inspectPictureImages.
     const pictureImages = await page.evaluate(inspectPictureImages).catch(() => []);
@@ -123,6 +125,7 @@ async function getDeal(url, opts = {}) {
     // bang ma loi, hay chi la chua render kip) thay vi doan mo qua anh chup.
     const debug = {
       gallery,
+      colors,
       pictureImages,
       jsonLdProducts,
       finalUrl: page.url(),

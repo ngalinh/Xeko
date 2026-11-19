@@ -1333,12 +1333,12 @@ function isSafePngName(name) {
 
 // ===== GET DEAL (check gia + screenshot san pham tren web Macy's...) =====
 app.post('/api/get-deal', async (req, res) => {
-  const { url, proxy, engine } = req.body || {};
+  const { url, proxy, engine, allColors } = req.body || {};
   if (!isHttpUrl(url)) {
     return res.status(400).json({ error: 'url khong hop le' });
   }
   try {
-    const result = await getDeal(String(url), { proxy, engine });
+    const result = await getDeal(String(url), { proxy, engine, allColors: !!allColors });
     res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });

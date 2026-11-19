@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { collectProductImages, collectGalleryImages } = require('./src/playwright/product-images');
+const { collectProductImages, collectGalleryImages, collectAllColorImages } = require('./src/playwright/product-images');
 const base = 'https://slimages.macysassets.com/is/image/MCY/products/8/optimized/';
 const first = base + '39320748_fpx.tif';
 const second = base + '39320749_fpx.tif';
@@ -118,4 +118,42 @@ delete global.document;
   assert.equal(result.gallery.failed, 0);
   assert.equal(polls, 4, 'Wait for delayed gallery updates beyond the old fixed delay');
   console.log('Product image extraction and gallery checks passed');
+})().catch(error => { console.error(error); process.exitCode = 1; });
+
+// Opt-in "lấy ảnh tất cả màu": click each color swatch and merge every color's
+// own full photo set (not just one representative photo per color).
+(async () => {
+  const colorImages = {
+    default: ['https://cdn.test/base1.jpg'],
+    Black: ['https://cdn.test/black1.jpg', 'https://cdn.test/black2.jpg'],
+    Red: ['https://cdn.test/red1.jpg'],
+  };
+  let activeColor = 'default';
+  const swatchLabels = ['Black', 'Red'];
+  const page = {
+    evaluate: async () => colorImages[activeColor] || [],
+    waitForTimeout: async () => {},
+    locator: (selector) => {
+      if (selector.includes('swatch')) {
+        return {
+          count: async () => swatchLabels.length,
+          nth: i => ({
+            getAttribute: async name => name === 'aria-label' ? swatchLabels[i] : null,
+            innerText: async () => swatchLabels[i],
+            isVisible: async () => true,
+            click: async () => { activeColor = swatchLabels[i]; },
+          }),
+        };
+      }
+      return { count: async () => 0, nth: () => ({ isVisible: async () => false }) };
+    },
+  };
+  const result = await collectAllColorImages(page, { maxColors: 5 });
+  assert.deepEqual([...result.images].sort(),
+    [...colorImages.default, ...colorImages.Black, ...colorImages.Red].sort(),
+    "Merge every color's full image set, not just one photo per color");
+  assert.deepEqual(result.colors.map(c => c.label), [null, 'Black', 'Red'],
+    'Report which colors were visited (null = the color already shown on the page)');
+  assert.equal(result.swatchesFound, 2);
+  console.log('Multi-color gallery collection checks passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

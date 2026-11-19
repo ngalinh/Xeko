@@ -12,6 +12,7 @@
 .deal-workspace :focus-visible { outline:2px solid #3b82f6; outline-offset:3px; }
 .deal-workspace [hidden] { display:none !important; }
 .deal-workspace .field-label, .deal-workspace [data-deal-id=draft-panel] > label { display:block; font-size:13px; font-weight:600; margin-top:16px; }
+.deal-workspace .all-colors-option { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:400; color:var(--deal-muted); margin-top:10px; cursor:pointer; }
 .deal-workspace .deal-options { border-top:1px solid var(--deal-line); padding-top:14px; margin-top:18px; font-size:13px; }
 .deal-workspace summary { color:var(--deal-muted); cursor:pointer; padding:4px 0; }
 .deal-workspace .engines { border:0; padding:12px 0 0; margin:10px 0; }
