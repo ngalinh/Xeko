@@ -36,4 +36,35 @@ assert.equal(urls.length, 2);
 assert.equal(document.querySelector('#second').hasAttribute('data-xeko-product-thumbnail'), false);
 delete global.document;
 dom.window.close();
+
+// Regression: color/variant swatch buttons sharing the same broad gallery-root
+// wrapper as the real thumbnails must not be collected or marked clickable —
+// otherwise auto-clicking them swaps in OTHER colors' photos instead of more
+// angles of the color actually shown on the page.
+const swatchDom = new JSDOM(`
+  <meta property="og:title" content="${name} - Macy's">
+  <h1>25-Days of Beauty Advent Calendar Set</h1>
+  <div class="product-images-container">
+    <div class="product-gallery">
+      <button id="front">${picture('front_angle')}</button>
+      <button id="back">${picture('back_angle')}</button>
+    </div>
+    <div class="ColorSwatches">
+      <button id="swatch-white"><img src="${asset('swatch_white')}"></button>
+      <button id="swatch-gray"><img src="${asset('swatch_gray')}"></button>
+    </div>
+  </div>
+`, { url: 'https://www.macys.com/shop/product/calendar?ID=123' });
+global.document = swatchDom.window.document;
+const swatchUrls = collectProductImages({ markThumbnails: true });
+assert.deepEqual(swatchUrls.map(url => new URL(url).pathname).sort(),
+  ['front_angle', 'back_angle'].map(id => new URL(asset(id)).pathname).sort(),
+  'Color swatch images must be excluded from the gallery');
+assert.deepEqual(
+  [...document.querySelectorAll('[data-xeko-product-thumbnail]')].map(el => el.id).sort(),
+  ['back', 'front'],
+  'Color swatch buttons must not be marked as clickable thumbnails');
+delete global.document;
+swatchDom.window.close();
+
 console.log('Product gallery DOM regression checks passed');

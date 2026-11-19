@@ -17,9 +17,18 @@ function collectProductImages({ markThumbnails = false } = {}) {
       (Math.min(name.length, productName.length) >= 16 &&
         (name.endsWith(' ' + productName) || productName.endsWith(' ' + name))));
   };
+  // Color/variant swatch pickers often live inside the same broad gallery-root
+  // wrapper as the real thumbnail strip (e.g. a shared "product-images"
+  // container). Their small swatch <img> usually has no alt text, so without
+  // this exclusion they pass the alt-text filter below and get collected and
+  // auto-clicked as if they were gallery thumbnails — each click swaps the
+  // main photo to a DIFFERENT color variant instead of another angle of the
+  // color the shopper is actually viewing.
   const excluded = '[class*="recommend" i], [id*="recommend" i], [aria-label*="recommend" i], ' +
     '[class*="recently" i], [id*="recently" i], [class*="sponsored" i], [class*="similar" i], ' +
-    '[class*="related" i], [id*="related" i], [aria-label*="sponsored" i], [data-ad], iframe';
+    '[class*="related" i], [id*="related" i], [aria-label*="sponsored" i], [data-ad], iframe, ' +
+    '[class*="swatch" i], [class*="colorway" i], [class*="colorpicker" i], [class*="color-picker" i], ' +
+    '[aria-label*="swatch" i], [aria-label*="color" i], [data-testid*="swatch" i], [data-testid*="color" i]';
   if (markThumbnails) {
     for (const el of document.querySelectorAll('[data-xeko-product-thumbnail]')) {
       el.removeAttribute('data-xeko-product-thumbnail');
