@@ -219,6 +219,24 @@ const SWATCHES = [
   ]),
 ]).join(',');
 
+// Only activate the already identified color control; never click an ancestor
+// or a different page action when Playwright cannot deliver a pointer click.
+function activateColorControl(el) {
+  if (!el.isConnected || el.matches(':disabled') || el.getAttribute('aria-disabled') === 'true') {
+    throw new Error('Color control is detached or disabled');
+  }
+  if (!el.matches('button, input[type="radio"], [role="radio"], [role="button"], label')) {
+    throw new Error('Unsupported color control');
+  }
+  el.click();
+}
+
+function colorErrorSummary(error) {
+  return String(error?.message || error).replace(/\x1b\[[0-9;]*m/g, '')
+    .split('\n').filter(line => line.trim() && !line.includes('waiting for locator('))
+    .map(line => line.slice(0, 240)).slice(-12).join('\n').slice(0, 2400);
+}
+
 async function collectAllColorImages(page, { maxColors = 6, perColorBudgetMs = 10000 } = {}) {
   const current = await collectGalleryImages(page, { budgetMs: perColorBudgetMs });
   const images = new Set(current.images);
@@ -265,7 +283,15 @@ async function collectAllColorImages(page, { maxColors = 6, perColorBudgetMs = 1
       }
       stage = 'click';
       const before = await page.evaluate(collectProductImages);
-      await control.click({ timeout: 2000, noWaitAfter: true });
+      try {
+        await control.click({ timeout: 2000, noWaitAfter: true });
+      } catch (error) {
+        if (!/timeout/i.test(String(error?.message || error))) throw error;
+        // Styled swatches can have no pointer hit area. DOM activation still
+        // runs their handlers; the gallery-change check below verifies success.
+        stage = 'activate-control';
+        await control.evaluate(activateColorControl);
+      }
       stage = 'wait-gallery';
       // Require a changed, stable gallery before attributing photos to this color.
       let previous = '';
@@ -291,7 +317,7 @@ async function collectAllColorImages(page, { maxColors = 6, perColorBudgetMs = 1
       attempts.push({ label, status: 'collected' });
     } catch (error) {
       attempts.push({ label, status: 'failed', stage,
-        error: String(error?.message || error).split('\n').filter(Boolean).slice(0, 8).join('\n').slice(0, 1200) });
+        error: colorErrorSummary(error) });
       // Bấm lỗi ở 1 màu không chặn các màu còn lại.
     }
   }
