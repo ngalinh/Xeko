@@ -2204,6 +2204,8 @@ app.post('/api/restart', (req, res) => proxyToLocal(req, res, 'POST', '/api/rest
 
 const dealHistoryStore = require('./src/database/deal-history-store');
 
+app.post('/api/get-category', (req, res) => proxyToLocal(req, res, 'POST', '/api/get-category', req.body));
+
 app.post('/api/get-deal', (req, res) => proxyToLocal(req, res, 'POST', '/api/get-deal', req.body, (data, status) => {
   const url = String(req.body?.url || '').trim();
   let website = '';

@@ -4642,11 +4642,31 @@
       <div class="header-info"><h1>Lấy deal</h1><span>Từ sản phẩm đến bài viết của bạn</span></div>
     </div>
     <nav class="content-library-tabs" aria-label="Lấy deal">
-      <button type="button" aria-current="page" data-deal-tab="product" aria-controls="deal-product-panel">Sản phẩm</button>
+      <button type="button" aria-current="page" data-deal-tab="product" aria-controls="deal-product-panel">Theo sản phẩm</button>
+      <button type="button" data-deal-tab="category" aria-controls="deal-category-panel">Theo category</button>
       <button type="button" data-deal-tab="history" aria-controls="deal-history-panel">Lịch sử lấy deal</button>
       <button type="button" id="dealSettingsTab" data-deal-tab="settings" aria-controls="deal-settings-panel" style="display:none;">Cài đặt</button>
     </nav>
     <div class="deal-scroll"><div class="deal-workspace" data-deal-app>
+  <section id="deal-category-panel" data-deal-panel="category" hidden>
+    <h2>Lấy sản phẩm theo category</h2>
+    <p class="hint">Dán link danh mục Macy’s để chọn thumbnail. Bấm Lấy deal trên từng sản phẩm để lấy đủ ảnh và soạn nội dung. Dùng chung proxy và trình duyệt trong Cài đặt.</p>
+    <div class="card">
+      <form data-category="form" class="category-input-row">
+        <label class="field-label">Link category<input type="text" data-category="url" required placeholder="https://www.macys.com/shop/sale/black-friday-deals/womens/clothing?id=80422"></label>
+        <button type="submit" data-category="go">Lấy danh sách</button>
+      </form>
+      <p class="status" data-category="status" role="status" aria-live="polite"></p>
+      <p class="error" data-category="error" role="alert"></p>
+      <div class="category-toolbar" data-category="toolbar" hidden>
+        <label><input type="checkbox" data-category="all"> Chọn tất cả</label>
+        <span data-category="count"></span>
+        <button type="button" data-category="download">Tải ảnh đã chọn</button>
+      </div>
+      <div class="category-grid" data-category="grid"></div>
+      <button type="button" data-category="more" hidden>Tải trang tiếp</button>
+    </div>
+  </section>
   <div id="deal-product-panel" data-deal-panel="product">
   <h2>Lấy thông tin sản phẩm</h2>
   <div class="hint">Dán link sản phẩm, chọn ảnh và để AI viết bản nháp. Bạn duyệt trước khi đăng.</div>
@@ -16034,6 +16054,7 @@
     })();
   </script>
 <script src="product-deal.js"></script>
+<script src="category-deal.js"></script>
 </body>
 </html>
 

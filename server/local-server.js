@@ -1331,6 +1331,14 @@ function isSafePngName(name) {
   return allowedChars.test(name) && name.toLowerCase().endsWith('.png');
 }
 
+const { getCategory, validateCategoryUrl } = require('./src/playwright/get-category');
+app.post('/api/get-category', async (req, res) => {
+  const { url, proxy, engine } = req.body || {};
+  try { validateCategoryUrl(url); } catch (e) { return res.status(400).json({ error: e.message }); }
+  try { res.json(await getCategory(url, { proxy, engine })); }
+  catch (e) { res.status(502).json({ error: e.message }); }
+});
+
 // ===== GET DEAL (check gia + screenshot san pham tren web Macy's...) =====
 app.post('/api/get-deal', async (req, res) => {
   const { url, proxy, engine, allColors } = req.body || {};

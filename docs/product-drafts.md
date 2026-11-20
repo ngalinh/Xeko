@@ -15,3 +15,19 @@ node --test server/test-product-draft.js server/test-product-images.js server/te
 Cần thử trên môi trường triển khai để xác nhận kết nối CDN, Gemini và ảnh được dùng lại khi mở bài trong Kho content.
 
 Nút “Mở bản nháp vừa tạo để duyệt” mở `?page=drafts&draft=<id>` và hiển thị trình sửa đúng bài sau khi tải danh sách. Trong Kho content, chọn tab “Bản nháp / Bài mẫu” để xem lại bài đã lưu; chọn tab “Kho content” để trở về lịch sử đăng bài. Hai tab Kho content và Bản nháp / Bài mẫu nằm dưới tiêu đề, phía trên bộ lọc và không hiển thị ở Dashboard. Lấy deal là mục riêng trên menu, gồm tab Sản phẩm và Lịch sử lấy deal. Chuyển tab giữ nguyên dữ liệu sản phẩm đang nhập. Chức năng Bài viết Facebook tạm ẩn. Kho content mặc định vẫn hiển thị lịch sử đăng bài.
+
+## Lấy theo category (bản thử Macy’s)
+
+Vào **Lấy deal → Theo category**, dán link category HTTPS thuộc `www.macys.com/shop/` rồi bấm **Lấy danh sách**. Giao diện hiển thị thumbnail, tên, giá đọc được từ thẻ sản phẩm; chưa đọc được giá sẽ báo rõ. Cài đặt proxy/trình duyệt dùng chung với tab Theo sản phẩm.
+
+Mỗi lượt cuộn có giới hạn và trả tối đa 120 sản phẩm tìm được, không đảm bảo quét hết danh mục. **Tải trang tiếp** chỉ xuất hiện khi tìm thấy link phân trang; kết quả nối thêm và bỏ trùng ID. Nếu trang chỉ dùng nút JavaScript/infinite scroll, có thể cần dán link trang khác. Đổi tab giữ nguyên kết quả và ảnh đã chọn. **Lấy deal** trên thẻ chuyển sang luồng sản phẩm hiện có và bắt đầu lấy chi tiết.
+
+**Tải ảnh đã chọn** tải thumbnail (không phải bộ ảnh lớn của sản phẩm). Trình duyệt có thể hỏi cho phép tải nhiều file; nếu CDN/CORS chặn, mở thumbnail rồi lưu thủ công. Access Denied được hiển thị để người dùng thử lại sau, không tự lặp tải liên tục.
+
+Kiểm thử bằng dữ liệu giả, không truy cập Macy’s hay dịch vụ đang chạy:
+
+```
+node --test server/test-category-deal.js server/test-product-deal-ui.js server/test-deal-history-log.js
+```
+
+Cần thử link category thật sau triển khai để xác nhận markup Macy’s, ảnh và phân trang hiện tại.
