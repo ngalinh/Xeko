@@ -1,7 +1,7 @@
 
 .deal-workspace { --deal-bg:#fff; --deal-text:#1e293b; --deal-muted:#64748b; --deal-line:#dbe4f0; --deal-soft:#f1f5fb; padding:24px; width:100%; max-width:none; margin:0 auto; box-sizing:border-box; color:var(--deal-text); font-family:inherit; }
 .deal-workspace * { box-sizing:border-box; }
-.deal-workspace h2 { font-size:20px; margin:0 0 8px; letter-spacing:-.4px; }
+.deal-workspace h2 { font-size:16px; margin:0 0 8px; letter-spacing:-.4px; }
 .deal-workspace .hint { color:var(--deal-muted); font-size:13px; margin-bottom:24px; line-height:1.7; }
 .deal-workspace .card { background:var(--deal-bg); border:1px solid var(--deal-line); border-radius:16px; padding:24px; }
 .deal-workspace input[type=text], .deal-workspace textarea, .deal-workspace select { width:100%; background:var(--deal-bg); color:var(--deal-text); border:1px solid var(--deal-line); border-radius:8px; padding:12px; font:inherit; font-size:14px; margin-top:8px; }
@@ -24,7 +24,7 @@
 .deal-workspace .error { color:#dc2626; font-size:13px; margin-top:12px; }
 .deal-workspace .price-section { margin-top:20px; display:inline-block; background:var(--deal-bg); border:1px solid var(--deal-line); border-radius:12px; padding:12px 18px; }
 .deal-workspace .price-section .field-label { margin-top:0; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--deal-muted); }
-.deal-workspace .price { font-size:24px; font-weight:800; margin-top:4px; color:var(--deal-text); }
+.deal-workspace .price { font-size:18px; font-weight:800; margin-top:4px; color:var(--deal-text); }
 .deal-workspace .price-section.no-price { background:var(--deal-soft); border-color:var(--deal-line); }
 .deal-workspace .price-section.no-price .field-label { color:var(--deal-muted); }
 .deal-workspace .price-section.no-price .price { font-size:14px; font-weight:600; color:var(--deal-text); }
@@ -86,7 +86,7 @@
 .deal-workspace .deal-original-price { text-decoration:line-through; font-weight:500; }
 .deal-workspace .deal-content-grid { display:grid; grid-template-columns:minmax(0,2fr) minmax(200px,1fr); gap:24px; align-items:start; }
 .deal-workspace .deal-content-grid .field-label { margin-top:0; }
-@media(max-width:600px) { .deal-workspace .deal-content-grid { grid-template-columns:1fr; gap:16px; } .deal-workspace .deal-price-grid { gap:10px; } .deal-workspace .deal-price-grid .price { font-size:18px; } }
+@media(max-width:600px) { .deal-workspace .deal-content-grid { grid-template-columns:1fr; gap:16px; } .deal-workspace .deal-price-grid { gap:10px; } }
 
 .deal-workspace .deal-price-rate-row { display:grid; grid-template-columns:minmax(0,2fr) minmax(220px,1fr); gap:24px; align-items:center; margin-top:20px; }
 .deal-workspace .deal-price-rate-row > .price-section, .deal-workspace .deal-price-rate-row > .field-label { margin-top:0; min-width:0; }
