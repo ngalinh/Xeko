@@ -155,9 +155,7 @@ btn.addEventListener('click', async () => {
       try { return ['http:', 'https:'].includes(new URL(src).protocol); } catch { return false; }
     });
     $('images-section').hidden = false;
-    $('images-status').textContent = images.length
-      ? 'Ảnh sản phẩm: ' + images.length + ' — ưu tiên bản lớn/ảnh zoom; bấm để mở và lưu ảnh.'
-      : 'Chưa tìm thấy ảnh sản phẩm trong dữ liệu trang.';
+    $('images-status').textContent = images.length ? '' : 'Chưa tìm thấy ảnh sản phẩm trong dữ liệu trang.';
     $('images-toolbar').hidden = !images.length;
     currentDeal = { price: data.price, images };
     $('draft-title').value = data.debug?.jsonLdProducts?.[0]?.name || data.debug?.pageTitle || '';
