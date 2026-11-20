@@ -83,6 +83,15 @@ async function getDeal(url, opts = {}) {
     const mainResponse = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await page.waitForTimeout(randomDelayMs(3000, 5000));
 
+    // Macy's (va cac web lon khac) dung bot-management: khi bi chan, trang tra ve
+    // HTTP 403/503 voi mot trang "Access Denied" rong khong co gia/anh. Bao loi
+    // ngay thay vi tra ve "success" voi du lieu rong gay nham lan.
+    const mainStatus = mainResponse ? mainResponse.status() : null;
+    if (mainStatus !== null && (mainStatus < 200 || mainStatus >= 300)) {
+      const blockedTitle = await page.title().catch(() => '');
+      throw new Error(`Trang trả về lỗi (HTTP ${mainStatus}${blockedTitle ? ': ' + blockedTitle : ''}) — có thể bị chặn bot, hãy thử lại sau.`);
+    }
+
     // Proxy (nhat la residential) thuong cham hon ket noi thang — trang co the
     // chua kip render xong khi het thoi gian cho ban dau. Neu body con gan nhu
     // trong, cho them 1 lan nua truoc khi chup/bo cuoc.
