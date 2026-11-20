@@ -73,14 +73,14 @@ async function getDeal(url, opts = {}) {
     const homepage = homepageOf(url);
     if (homepage && homepage !== url) {
       try {
-        await page.goto(homepage, { waitUntil: 'load', timeout: 45000 });
+        await page.goto(homepage, { waitUntil: 'domcontentloaded', timeout: 45000 });
         await page.waitForTimeout(randomDelayMs(1500, 3000));
       } catch (e) {
         logger.warn(`[get-deal] mở trang chủ thất bại, bỏ qua bước khởi động: ${e.message}`);
       }
     }
 
-    const mainResponse = await page.goto(url, { waitUntil: 'load', timeout: 45000 });
+    const mainResponse = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await page.waitForTimeout(randomDelayMs(3000, 5000));
 
     // Proxy (nhat la residential) thuong cham hon ket noi thang — trang co the
