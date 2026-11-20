@@ -4651,10 +4651,14 @@
   <h2>Lấy thông tin sản phẩm</h2>
   <div class="hint">Dán link sản phẩm, chọn ảnh và để AI viết bản nháp. Bạn duyệt trước khi đăng.</div>
   <div class="card">
-    <label class="field-label" for="deal-url">Link sản phẩm</label><input type="text" id="deal-url" data-deal-id="url" placeholder="https://www.macys.com/shop/product/...">
-    <div class="deal-color-options" role="group" aria-label="Chọn màu lấy ảnh">
-      <label class="all-colors-option"><input type="radio" name="deal-color-mode" value="current" checked> Color đang chọn</label>
-      <label class="all-colors-option"><input type="radio" name="deal-color-mode" value="all" id="deal-all-colors" data-deal-id="all-colors"> Tất cả color còn hàng</label>
+    <div class="deal-url-color-row">
+      <label class="field-label" for="deal-url">Link sản phẩm<input type="text" id="deal-url" data-deal-id="url" placeholder="https://www.macys.com/shop/product/..."></label>
+      <div class="field-label deal-color-field">Color/Variant
+        <div class="deal-color-options" role="group" aria-label="Color/Variant">
+          <label class="all-colors-option"><input type="radio" name="deal-color-mode" value="current" checked> Color đang chọn</label>
+          <label class="all-colors-option"><input type="radio" name="deal-color-mode" value="all" id="deal-all-colors" data-deal-id="all-colors"> Tất cả color còn hàng</label>
+        </div>
+      </div>
     </div>
 
     <button id="deal-go" data-deal-id="go">Lấy deal</button>

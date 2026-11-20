@@ -13,6 +13,10 @@
 .deal-workspace [hidden] { display:none !important; }
 .deal-workspace .field-label, .deal-workspace [data-deal-id=draft-panel] > label { display:block; font-size:13px; font-weight:600; margin-top:16px; }
 .deal-workspace .deal-color-options { display:flex; flex-wrap:wrap; gap:10px 24px; margin-top:10px; }
+.deal-workspace .deal-url-color-row { display:grid; grid-template-columns:minmax(220px,1fr) max-content; gap:24px; align-items:start; }
+.deal-workspace .deal-url-color-row > .field-label { margin-top:0; min-width:0; }
+.deal-workspace .deal-color-field .deal-color-options { margin-top:8px; flex-wrap:nowrap; }
+@media(max-width:600px) { .deal-workspace .deal-url-color-row { grid-template-columns:1fr; gap:16px; } .deal-workspace .deal-color-field .deal-color-options { flex-wrap:wrap; } }
 .deal-workspace .all-colors-option { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:400; color:var(--deal-muted); margin:0; cursor:pointer; }
 .deal-workspace .deal-options { border-top:1px solid var(--deal-line); padding-top:14px; margin-top:18px; font-size:13px; }
 .deal-workspace summary { color:var(--deal-muted); cursor:pointer; padding:4px 0; }
