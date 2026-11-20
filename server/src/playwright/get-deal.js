@@ -80,16 +80,25 @@ async function getDeal(url, opts = {}) {
       }
     }
 
-    const mainResponse = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    await page.waitForTimeout(randomDelayMs(3000, 5000));
-
     // Macy's (va cac web lon khac) dung bot-management: khi bi chan, trang tra ve
-    // HTTP 403/503 voi mot trang "Access Denied" rong khong co gia/anh. Bao loi
-    // ngay thay vi tra ve "success" voi du lieu rong gay nham lan.
-    const mainStatus = mainResponse ? mainResponse.status() : null;
+    // HTTP 403/503 voi mot trang "Access Denied" rong khong co gia/anh. Moi lan
+    // request duoc cham diem rui ro rieng nen thu lai sau 1 khoang nghi ngan co
+    // the qua duoc du lan truoc bi chan; neu van bi chan ca 2 lan moi bao loi.
+    let mainResponse;
+    let mainStatus;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      mainResponse = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+      await page.waitForTimeout(randomDelayMs(3000, 5000));
+      mainStatus = mainResponse ? mainResponse.status() : null;
+      if (mainStatus === null || (mainStatus >= 200 && mainStatus < 300)) break;
+      if (attempt < 2) {
+        logger.warn(`[get-deal] ${url} trả về HTTP ${mainStatus} ở lần ${attempt}, chờ rồi thử lại...`);
+        await page.waitForTimeout(randomDelayMs(15000, 20000));
+      }
+    }
     if (mainStatus !== null && (mainStatus < 200 || mainStatus >= 300)) {
       const blockedTitle = await page.title().catch(() => '');
-      throw new Error(`Trang trả về lỗi (HTTP ${mainStatus}${blockedTitle ? ': ' + blockedTitle : ''}) — có thể bị chặn bot, hãy thử lại sau.`);
+      throw new Error(`Trang trả về lỗi (HTTP ${mainStatus}${blockedTitle ? ': ' + blockedTitle : ''}) sau 2 lần thử — có thể bị chặn bot, hãy thử lại sau.`);
     }
 
     // Proxy (nhat la residential) thuong cham hon ket noi thang — trang co the
