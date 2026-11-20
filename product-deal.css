@@ -22,15 +22,12 @@
 .deal-workspace input[type=checkbox], .deal-workspace input[type=radio] { accent-color:#3b82f6; }
 .deal-workspace .status { color:var(--deal-muted); font-size:13px; line-height:1.7; margin-top:12px; }
 .deal-workspace .error { color:#dc2626; font-size:13px; margin-top:12px; }
-.deal-workspace .price-section { margin-top:20px; display:inline-block; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:12px 18px; }
-.deal-workspace .price-section .field-label { margin-top:0; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:#15803d; }
-.deal-workspace .price { font-size:24px; font-weight:800; margin-top:4px; color:#166534; }
+.deal-workspace .price-section { margin-top:20px; display:inline-block; background:var(--deal-bg); border:1px solid var(--deal-line); border-radius:12px; padding:12px 18px; }
+.deal-workspace .price-section .field-label { margin-top:0; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--deal-muted); }
+.deal-workspace .price { font-size:24px; font-weight:800; margin-top:4px; color:var(--deal-text); }
 .deal-workspace .price-section.no-price { background:var(--deal-soft); border-color:var(--deal-line); }
 .deal-workspace .price-section.no-price .field-label { color:var(--deal-muted); }
 .deal-workspace .price-section.no-price .price { font-size:14px; font-weight:600; color:var(--deal-text); }
-[data-theme=dark] .deal-workspace .price-section { background:#0f2a1b; border-color:#15532c; }
-[data-theme=dark] .deal-workspace .price-section .field-label { color:#4ade80; }
-[data-theme=dark] .deal-workspace .price { color:#86efac; }
 .deal-workspace .price:empty, .deal-workspace .error:empty, .deal-workspace .status:empty { display:none; }
 .deal-workspace .images-section { margin-top:24px; }
 .deal-workspace .images-section .field-label { margin-top:0; }
