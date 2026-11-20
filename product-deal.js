@@ -137,7 +137,7 @@ btn.addEventListener('click', async () => {
     const colorNote = Array.isArray(data.debug?.colors) && data.debug.colors.length > 1
       ? ' Đã lấy ' + data.debug.colors.length + ' màu.'
       : '';
-    setStatus('Xong — trình duyệt đã chọn: ' + engineLabel + '.' + colorNote);
+    setStatus(colorNote.trim());
     $('price-section').hidden = false;
     $('price-section').classList.toggle('no-price', !data.price);
     $('product-info').hidden = false;
