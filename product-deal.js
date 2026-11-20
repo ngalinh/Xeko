@@ -128,7 +128,10 @@ btn.addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, proxy: $('proxy').value.trim() || undefined, engine, allColors }),
     });
-    const data = await res.json();
+    let data;
+    try { data = await res.json(); } catch {
+      throw new Error('Server phản hồi không hợp lệ, có thể do quá thời gian chờ khi lấy nhiều màu. Hãy thử lại, hoặc chọn "Color đang chọn" để lấy nhanh hơn.');
+    }
     if (!res.ok) throw new Error(data.error || 'Lỗi không rõ');
 
     const colorNote = Array.isArray(data.debug?.colors) && data.debug.colors.length > 1
@@ -319,7 +322,10 @@ $('create-draft').addEventListener('click', async () => {
       body: JSON.stringify({ title, images, price: currentDeal?.price,
         description: [$('draft-description').value.trim(), $('exchange-rate').value.trim() ? 'Tỷ giá: ' + $('exchange-rate').value.trim() : ''].filter(Boolean).join('\n'), style: $('draft-style').value, url: $('url').value.trim() }),
     });
-    const data = await response.json();
+    let data;
+    try { data = await response.json(); } catch {
+      throw new Error('Server phản hồi không hợp lệ, có thể do quá thời gian chờ. Vui lòng thử lại.');
+    }
     if (!response.ok) throw new Error(data.error || 'Không lưu được bản nháp');
     $('draft-preview').textContent = data.item.body;
     $('draft-status').textContent = 'Đã lưu bản nháp #' + data.item.id + ' với ' + data.item.images.length + ' ảnh trong Kho content. Chưa đăng bài.';
