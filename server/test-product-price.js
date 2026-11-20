@@ -25,3 +25,6 @@ test('collects struck original but excludes hidden and recommended originals', (
 test('does not invent an original for a sale-only product', () => {
   assert.equal(price('<main><span class="price">Now $39.75</span></main>'), 'Sale $39.75');
 });
+test('extracts sale/original from a promo banner without a sale/orig label', () => {
+  assert.equal(price('<main><div class="price">BLACK FRIDAY DEAL$39.75 (50% off)$79.50Details</div></main>'), 'Sale $39.75 Orig. $79.50 50% off');
+});

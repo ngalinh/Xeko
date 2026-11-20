@@ -20,6 +20,13 @@ module.exports = function collectProductPrice() {
   const originalElement = texts.find(({ el, text }) => isOriginal(el) && money.test(text));
   const original = labelledOriginal ? labelledOriginal[1] : originalElement?.text.match(money)[0];
   const formatSale = (sale, discount) => `Sale ${sale}` + (original ? ` Orig. ${original}` : '') + (discount ? ` ${discount}` : '');
+  // Promo banners glue a label before the price and junk after it, e.g.
+  // "BLACK FRIDAY DEAL$39.75 (50% off)$79.50Details" — pull out just the three values.
+  const dealPattern = /((?:US\s*)?\$\s*\d[\d,]*(?:\.\d{2})?)\s*\(\s*(\d+(?:\.\d+)?%\s*off)\s*\)\s*((?:US\s*)?\$\s*\d[\d,]*(?:\.\d{2})?)/i;
+  for (const { text } of texts) {
+    const deal = text.match(dealPattern);
+    if (deal) return `Sale ${deal[1]} Orig. ${deal[3]} ${deal[2].replace(/\s+/g, ' ')}`;
+  }
   // Macy's may show the original amount before "Now" in the same block.
   for (const { text } of texts) {
     const sale = text.match(/(?:sale|now|your price)\s*:?\s*((?:US\s*)?\$\s*\d[\d,]*(?:\.\d{2})?)/i);
