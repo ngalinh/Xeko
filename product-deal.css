@@ -93,7 +93,7 @@
 .deal-workspace .deal-content-grid .field-label { margin-top:0; }
 @media(max-width:600px) { .deal-workspace .deal-content-grid { grid-template-columns:1fr; gap:16px; } .deal-workspace .deal-price-grid { gap:10px; } }
 
-.deal-workspace .deal-price-rate-row { display:grid; grid-template-columns:max-content minmax(220px,1fr); gap:24px; align-items:center; margin-top:20px; }
+.deal-workspace .deal-price-rate-row { display:grid; grid-template-columns:minmax(220px,1.4fr) max-content minmax(220px,1fr); gap:24px; align-items:center; margin-top:20px; }
 .deal-workspace .deal-price-rate-row > .price-section, .deal-workspace .deal-price-rate-row > .field-label { margin-top:0; min-width:0; }
 .deal-workspace .deal-price-rate-row > .price-section { width:auto; }
 @media(max-width:600px) { .deal-workspace .deal-price-rate-row { grid-template-columns:1fr; gap:16px; } }
