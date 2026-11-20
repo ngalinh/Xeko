@@ -28,6 +28,16 @@ function escapeHtml(value) {
   }[c]));
 }
 
+// Tính giá VNĐ từ Giá sale (USD) và Tỷ giá nhập tay (vd "1 USD = 25.500 VND").
+function computeVndPrice() {
+  const saleMatch = ($('price').textContent || '').match(/[\d.,]+/);
+  const sale = saleMatch ? parseFloat(saleMatch[0].replace(/,/g, '')) : null;
+  const rateMatch = ($('exchange-rate').value || '').match(/([\d.,]+)\s*(?:vnd|đ)?\s*$/i);
+  const rate = rateMatch ? parseInt(rateMatch[1].replace(/[.,]/g, ''), 10) : null;
+  $('price-vnd').textContent = (sale && rate) ? Math.round(sale * rate).toLocaleString('vi-VN') + ' VNĐ' : '—';
+}
+$('exchange-rate').addEventListener('input', computeVndPrice);
+
 // Lịch sử lấy deal — tên sản phẩm/link/website đã lấy gần đây, để biết ai đã lấy gì.
 async function loadDealHistory() {
   const body = $('history-body');
@@ -110,6 +120,7 @@ btn.addEventListener('click', async () => {
   $('price-section').hidden = true;
   $('price-section').classList.remove('no-price');
   $('price').textContent = '';
+  $('price-vnd').textContent = '—';
   $('images-section').hidden = true;
   $('images-toolbar').hidden = true;
   $('images-selected-count').textContent = '';
@@ -150,6 +161,7 @@ btn.addEventListener('click', async () => {
     $('price').textContent = sale ? sale[1].trim() : (rawPrice || 'Chưa có giá');
     $('original-price').textContent = original ? original[1].trim() : '—';
     $('discount').textContent = discount ? discount[1] + '%' : '—';
+    computeVndPrice();
 
     const images = (Array.isArray(data.images) ? data.images : []).filter(src => {
       try { return ['http:', 'https:'].includes(new URL(src).protocol); } catch { return false; }

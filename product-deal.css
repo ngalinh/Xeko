@@ -27,13 +27,12 @@
 .deal-workspace input[type=checkbox], .deal-workspace input[type=radio] { accent-color:#3b82f6; }
 .deal-workspace .status { color:var(--deal-muted); font-size:13px; line-height:1.7; margin-top:12px; }
 .deal-workspace .error { color:#dc2626; font-size:13px; margin-top:12px; }
-.deal-workspace .price-section { margin-top:20px; display:inline-block; background:var(--deal-bg); border:1px solid var(--deal-line); border-radius:12px; padding:10px 18px; box-shadow:0 1px 3px rgba(15,23,42,.06); }
+.deal-workspace .price-section { margin-top:20px; display:inline-block; }
 .deal-workspace .price-section .field-label { margin-top:0; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--deal-muted); line-height:1.3; }
 .deal-workspace .price { font-size:18px; font-weight:800; margin-top:4px; line-height:1.2; color:var(--deal-text); }
 .deal-workspace .price-section [data-deal-id=price] { color:#dc2626; }
 .deal-workspace .price-section [data-deal-id=discount] { display:inline-block; margin-top:4px; padding:2px 10px; border-radius:999px; background:#fee2e2; color:#dc2626; font-size:13px; }
 .deal-workspace .deal-original-price { color:var(--deal-muted); font-weight:500; font-size:15px; }
-.deal-workspace .price-section.no-price { background:var(--deal-soft); border-color:var(--deal-line); }
 .deal-workspace .price-section.no-price .field-label { color:var(--deal-muted); }
 .deal-workspace .price-section.no-price .price { font-size:14px; font-weight:600; color:var(--deal-text); }
 .deal-workspace .price:empty, .deal-workspace .error:empty, .deal-workspace .status:empty { display:none; }
@@ -98,7 +97,7 @@
 .deal-workspace .deal-content-grid .field-label { margin-top:0; }
 @media(max-width:600px) { .deal-workspace .deal-content-grid { grid-template-columns:1fr; gap:16px; } .deal-workspace .deal-price-grid { gap:10px; } }
 
-.deal-workspace .deal-price-rate-row { display:grid; grid-template-columns:minmax(220px,1.4fr) max-content minmax(220px,1fr); gap:24px; align-items:center; margin-top:20px; }
+.deal-workspace .deal-price-rate-row { display:grid; grid-template-columns:minmax(220px,1.4fr) max-content minmax(200px,1fr) minmax(140px,max-content); gap:24px; align-items:center; margin-top:20px; }
 .deal-workspace .deal-price-rate-row > .price-section, .deal-workspace .deal-price-rate-row > .field-label { margin-top:0; min-width:0; }
 .deal-workspace .deal-price-rate-row > .price-section { width:auto; }
 @media(max-width:600px) { .deal-workspace .deal-price-rate-row { grid-template-columns:1fr; gap:16px; } }

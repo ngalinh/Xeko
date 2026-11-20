@@ -158,6 +158,8 @@ test('product summary separates prices and sends exchange rate with content', as
   assert.equal(get('discount').textContent, '50%');
   assert.equal(get('product-info').hidden, false);
   get('exchange-rate').value = '1 USD = 25.500 VND';
+  get('exchange-rate').dispatchEvent(new w.Event('input'));
+  assert.equal(get('price-vnd').textContent, '1.013.625 VNĐ');
   get('draft-description').value = 'Viết bằng tiếng Việt';
   get('create-draft').click();
   await new Promise(resolve => setImmediate(resolve));
