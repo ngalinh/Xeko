@@ -38,7 +38,7 @@
 .deal-workspace .images-toolbar [data-deal-id=images-select-all] { width:18px; height:18px; margin:0; cursor:pointer; flex-shrink:0; }
 .deal-workspace .images-toolbar [data-deal-id=images-download-all] { display:inline-flex; align-items:center; justify-content:center; gap:6px; margin-top:0; margin-left:auto; padding:8px 16px; font-size:12px; }
 .deal-workspace .images-selected-count { font-size:12px; color:var(--deal-muted); white-space:nowrap; }
-.deal-workspace .product-images { display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:16px; margin-top:16px; }
+.deal-workspace .product-images { display:grid; grid-template-columns:repeat(auto-fit,minmax(175px,220px)); gap:16px; margin-top:16px; }
 .deal-workspace .deal-image { position:relative; min-width:0; padding:12px 12px 50px; border:1px solid var(--deal-line); border-radius:12px; box-shadow:0 1px 3px rgba(15,23,42,.06); transition:box-shadow .15s ease, border-color .15s ease, background .15s ease; }
 .deal-workspace .deal-image:hover { box-shadow:0 4px 14px rgba(15,23,42,.10); }
 .deal-workspace .deal-image:has(input:checked) { border-color:#3b82f6; background:var(--deal-soft); }
