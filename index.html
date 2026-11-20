@@ -4691,7 +4691,7 @@
     </section>
     <section id="deal-draft-panel" data-deal-id="draft-panel" hidden>
       <div class="deal-content-grid">
-        <label class="field-label">Nội dung<textarea id="deal-draft-description" data-deal-id="draft-description" rows="4" placeholder="Nhập thông tin hoặc yêu cầu để AI viết nội dung"></textarea></label>
+        <label class="field-label">Nội dung<div style="position:relative; display:flex;"><textarea id="deal-draft-description" data-deal-id="draft-description" rows="4" placeholder="Nhập thông tin hoặc yêu cầu để AI viết nội dung" style="flex:1;"></textarea><button type="button" id="dealAiSuggest" data-deal-id="ai-suggest" class="ai-badge-btn" onclick="openAiSheet('deal')" style="display:none;" aria-label="Gợi ý AI"><svg width="13" height="13" viewBox="0 0 14 13" fill="none" style="vertical-align:-2px;margin-right:3px;"><path d="M5.5 0C5.5 3.04 7.96 5.5 11 5.5C7.96 5.5 5.5 7.96 5.5 11C5.5 7.96 3.04 5.5 0 5.5C3.04 5.5 5.5 3.04 5.5 0Z" fill="white"/><path d="M11.5 0C11.5 1.38 12.62 2.5 14 2.5C12.62 2.5 11.5 3.62 11.5 5C11.5 3.62 10.38 2.5 9 2.5C10.38 2.5 11.5 1.38 11.5 0Z" fill="white" opacity="0.85"/></svg>AI</button></div></label>
         <label class="field-label">Lựa chọn phong cách<select id="deal-draft-style" data-deal-id="draft-style"><option value="short">Ngắn gọn</option><option value="detailed">Chi tiết</option><option value="story">Kể chuyện</option></select></label>
       </div>
       <button id="deal-create-draft" data-deal-id="create-draft" type="button">Tạo nội dung</button>
@@ -7443,9 +7443,16 @@
     let _aiCurrentCategory = '';
     let _aiGenerating = false;
     let _aiCurrentResult = '';
+    let _aiTarget = 'post'; // 'post' (khung chat đăng bài) | 'deal' (ô Nội dung ở Lấy deal)
 
-    function openAiSheet() {
-      if (selectedFiles.length === 0) return;
+    function _aiDealSelectedImages() {
+      return [...document.querySelectorAll('[data-deal-app] .draft-image:checked')].map(el => el.value);
+    }
+
+    function openAiSheet(target) {
+      _aiTarget = target || 'post';
+      const hasImages = _aiTarget === 'deal' ? _aiDealSelectedImages().length > 0 : selectedFiles.length > 0;
+      if (!hasImages) return;
       _aiStyleCache = {};
       _aiCurrentResult = '';
       const backdrop = document.getElementById('aiSheetBackdrop');
@@ -7458,7 +7465,9 @@
       document.getElementById('aiSettingsBtn').style.background = '';
       document.querySelectorAll('.ai-style-chip').forEach(c => c.classList.toggle('active', c.dataset.style === 'short'));
       document.querySelectorAll('.ai-cat-chip').forEach(c => c.classList.toggle('active', c.dataset.cat === ''));
-      document.getElementById('aiProductName').value = '';
+      document.getElementById('aiProductName').value = _aiTarget === 'deal'
+        ? (document.getElementById('deal-draft-title')?.value || '')
+        : '';
       _aiCurrentStyle = 'short';
       _aiCurrentCategory = '';
       runAiGenerate();
@@ -7612,7 +7621,14 @@
         const productName = (document.getElementById('aiProductName')?.value || '').trim();
         const cacheKey = `${_aiCurrentStyle}|${_aiCurrentCategory}|${productName}`;
         const form = new FormData();
-        selectedFiles.slice(0, 5).forEach(f => form.append('images', f));
+        if (_aiTarget === 'deal') {
+          const urls = _aiDealSelectedImages().slice(0, 5);
+          for (const url of urls) {
+            try { form.append('images', await (await fetch(url)).blob(), 'image.jpg'); } catch { /* bỏ qua ảnh lỗi */ }
+          }
+        } else {
+          selectedFiles.slice(0, 5).forEach(f => form.append('images', f));
+        }
         form.append('style', _aiCurrentStyle);
         form.append('category', _aiCurrentCategory);
         if (productName) form.append('productName', productName);
@@ -7643,9 +7659,9 @@
 
     function applyAiResult() {
       if (!_aiCurrentResult) return;
-      const input = document.getElementById('msgInput');
+      const input = document.getElementById(_aiTarget === 'deal' ? 'deal-draft-description' : 'msgInput');
       input.value = _aiCurrentResult;
-      autoGrowMsgInput(input);
+      if (_aiTarget !== 'deal') autoGrowMsgInput(input);
       closeAiSheet();
       input.focus();
     }

@@ -17,6 +17,8 @@ function updateSelectedCount() {
   $('images-select-all').checked = total > 0 && checked === total;
   $('images-select-all').indeterminate = checked > 0 && checked < total;
   $('images-selected-count').textContent = total ? ('Đã chọn ' + checked + '/' + total + ' ảnh') : '';
+  const aiBtn = $('ai-suggest');
+  if (aiBtn) aiBtn.style.display = checked > 0 ? '' : 'none';
 }
 $('images').addEventListener('change', (e) => {
   if (e.target.classList.contains('draft-image')) updateSelectedCount();
