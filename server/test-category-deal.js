@@ -146,10 +146,10 @@ test('"Tạo nội dung cho từng sản phẩm" tự Lấy deal tuần tự, g�
   assert.equal(items[1].querySelector('textarea').hidden, true);
   assert.match(get('ai-each-status').textContent, /Đã xử lý xong 2/);
   assert.equal(get('ai-each').disabled, false);
-  assert.equal(get('ai-each').getAttribute('aria-label'), 'Viết cho từng sản phẩm');
-  assert.equal(get('ai-each-label').hidden, true);
+  assert.equal(get('ai-each').getAttribute('aria-label'), 'Viết từng sản phẩm');
+  assert.equal(get('ai-each-label').hidden, false);
   assert.ok(get('ai-each').querySelector('svg'));
-  assert.equal(get('ai-content').getAttribute('aria-label'), 'Viết cho danh mục');
+  assert.equal(get('ai-content').getAttribute('aria-label'), 'Viết bài danh mục');
   assert.ok(get('ai-content').querySelector('svg'));
   dom.window.close();
 });

@@ -48,11 +48,11 @@
     $('download').disabled = busy || downloading || batchRunning || !selected.size;
     $('ai-content').disabled = busy || downloading || batchRunning || !selected.size;
     $('ai-each').disabled = (busy || downloading) ? true : (!batchRunning && !selected.size);
-    const batchLabel = batchRunning ? (batchCancelled ? 'Đang dừng…' : 'Đang tạo ' + batchCurrent + '/' + batchTotal + ' · Dừng') : 'Viết cho từng sản phẩm';
-    $('ai-each-label').textContent = batchRunning ? batchLabel : '';
-    $('ai-each-label').hidden = !batchRunning;
+    const batchLabel = batchRunning ? (batchCancelled ? 'Đang dừng…' : 'Đang tạo ' + batchCurrent + '/' + batchTotal + ' · Dừng') : 'Viết từng sản phẩm';
+    $('ai-each-label').textContent = batchLabel;
+    $('ai-each-label').hidden = false;
     $('ai-each').setAttribute('aria-label', batchLabel);
-    $('ai-each').title = batchLabel;
+    $('ai-each').title = batchRunning ? batchLabel : 'Lấy deal và viết bài riêng cho từng sản phẩm đã chọn';
     $('ai-each').classList.toggle('is-loading', batchRunning);
     $('ai-each').setAttribute('aria-busy', String(batchRunning));
     if (batchRunning && batchCancelled) $('ai-each').disabled = true;
