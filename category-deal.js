@@ -3,16 +3,18 @@
   const $ = key => root?.querySelector('[data-category="' + key + '"]');
   if (!$('form')) return;
   const base = window.location.pathname.replace(/\/[^/]*$/, '').replace(/\/$/, '');
-  let products = [], nextUrl = null, busy = false, downloading = false;
+  let products = [], nextUrl = null, busy = false, downloading = false, batchRunning = false, batchCancelled = false;
   const selected = new Set(), visited = new Set();
   function update() {
     $('count').textContent = 'Đã chọn ' + selected.size + '/' + products.length + ' ảnh';
     $('all').checked = products.length > 0 && selected.size === products.length;
     $('all').indeterminate = selected.size > 0 && selected.size < products.length;
-    $('download').disabled = busy || downloading || !selected.size;
-    $('ai-content').disabled = busy || downloading || !selected.size;
-    $('go').disabled = busy || downloading;
-    $('more').disabled = busy || downloading;
+    $('download').disabled = busy || downloading || batchRunning || !selected.size;
+    $('ai-content').disabled = busy || downloading || batchRunning || !selected.size;
+    $('ai-each').disabled = (busy || downloading) ? true : (!batchRunning && !selected.size);
+    $('ai-each').textContent = batchRunning ? 'Dừng' : 'Tạo nội dung cho từng sản phẩm';
+    $('go').disabled = busy || downloading || batchRunning;
+    $('more').disabled = busy || downloading || batchRunning;
     $('more').hidden = !nextUrl;
     $('toolbar').hidden = !products.length;
   }
@@ -105,6 +107,58 @@
     try { await navigator.clipboard.writeText(text); $('status').textContent = 'Đã sao chép nội dung.'; }
     catch { $('error').textContent = 'Không sao chép được. Hãy chọn và copy thủ công.'; }
   });
+  $('ai-each').addEventListener('click', () => {
+    if (batchRunning) { batchCancelled = true; return; }
+    runAiEachBatch();
+  });
+  function validDealImages(list) {
+    return (Array.isArray(list) ? list : []).filter(src => {
+      try { return ['http:', 'https:'].includes(new URL(src).protocol); } catch { return false; }
+    });
+  }
+  async function runAiEachBatch() {
+    const items = products.filter(p => selected.has(p.id));
+    if (!items.length || batchRunning) return;
+    batchRunning = true; batchCancelled = false; update();
+    $('ai-each-list').replaceChildren();
+    const engine = root.querySelector('input[name="engine"]:checked')?.value || 'firefox';
+    const proxy = root.querySelector('[data-deal-id="proxy"]')?.value.trim() || undefined;
+    for (const [index, p] of items.entries()) {
+      if (batchCancelled) break;
+      $('ai-each-status').textContent = 'Đang xử lý ' + (index + 1) + '/' + items.length + ': ' + p.title;
+      const row = document.createElement('article'); row.className = 'category-ai-each-item';
+      const thumb = document.createElement('img'); thumb.src = p.thumbnail; thumb.alt = p.title;
+      const heading = document.createElement('div'); heading.className = 'category-ai-each-title'; heading.textContent = p.title;
+      const textarea = document.createElement('textarea'); textarea.rows = 4; textarea.placeholder = 'Đang lấy deal và soạn nội dung…';
+      const copyBtn = document.createElement('button'); copyBtn.type = 'button'; copyBtn.textContent = 'Sao chép'; copyBtn.disabled = true;
+      copyBtn.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(textarea.value); $('ai-each-status').textContent = 'Đã sao chép nội dung — ' + p.title + '.'; }
+        catch { $('error').textContent = 'Không sao chép được. Hãy chọn và copy thủ công.'; }
+      });
+      row.append(thumb, heading, textarea, copyBtn);
+      $('ai-each-list').append(row);
+      try {
+        const response = await fetch(base + '/api/get-deal', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: p.url, engine, proxy, allColors: false }),
+        });
+        let data;
+        try { data = await response.json(); } catch { throw new Error('Server phản hồi không hợp lệ.'); }
+        if (!response.ok) throw new Error(data.error || 'Không lấy được deal.');
+        const images = validDealImages(data.images).slice(0, 5);
+        if (!images.length) throw new Error('Không tìm thấy ảnh sản phẩm.');
+        const content = await window.aiSuggestFromUrls(images, 'short', '', p.title);
+        textarea.value = content || '(Không có kết quả)';
+        textarea.placeholder = '';
+        copyBtn.disabled = !content;
+      } catch (e) {
+        textarea.value = '';
+        textarea.placeholder = '❌ ' + e.message;
+      }
+    }
+    $('ai-each-status').textContent = batchCancelled ? 'Đã dừng.' : 'Đã xử lý xong ' + items.length + ' sản phẩm.';
+    batchRunning = false; update();
+  }
   $('download').addEventListener('click', async () => {
     if (downloading || busy) return;
     const items = products.filter(p => selected.has(p.id));

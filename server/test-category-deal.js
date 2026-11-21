@@ -119,6 +119,36 @@ test('"Tạo nội dung cho danh mục" opens AI sheet with selected thumbnails/
   dom.window.close();
 });
 
+test('"Tạo nội dung cho từng sản phẩm" tự Lấy deal tuần tự, gọi AI theo đúng sản phẩm và báo lỗi riêng từng sản phẩm', async () => {
+  const dealImage = 'https://slimages.macysassets.com/is/image/MCY/products/full.jpg';
+  const { dom, w, calls, get } = setup([
+    { products: [product('1'), product('2')] },
+    { images: [dealImage], price: '$20' },
+    { ok: false, error: 'Access Denied' },
+  ]);
+  const category = w.document.querySelector('[data-deal-tab="category"]'); category.click();
+  get('url').value = 'https://www.macys.com/shop/sale';
+  get('form').dispatchEvent(new w.Event('submit', { cancelable: true })); await tick();
+  const aiCalls = [];
+  w.aiSuggestFromUrls = async (images, style, cat, productName) => { aiCalls.push({ images, style, cat, productName }); return 'Nội dung AI cho ' + productName; };
+  get('ai-each').click();
+  await tick(); await tick(); await tick();
+  assert.equal(calls[1].url, '/b/member/api/get-deal');
+  assert.equal(calls[1].body.url, product('1').url);
+  assert.equal(calls[2].body.url, product('2').url);
+  assert.equal(aiCalls.length, 1);
+  assert.equal(aiCalls[0].productName, 'Dress 1');
+  assert.equal(aiCalls[0].images[0], dealImage);
+  const items = get('ai-each-list').querySelectorAll('.category-ai-each-item');
+  assert.equal(items.length, 2);
+  assert.equal(items[0].querySelector('textarea').value, 'Nội dung AI cho Dress 1');
+  assert.match(items[1].querySelector('textarea').placeholder, /Access Denied/);
+  assert.match(get('ai-each-status').textContent, /Đã xử lý xong 2/);
+  assert.equal(get('ai-each').disabled, false);
+  assert.equal(get('ai-each').textContent, 'Tạo nội dung cho từng sản phẩm');
+  dom.window.close();
+});
+
 test('failed pagination preserves results, shows error and permits retry', async () => {
   const { dom, w, get } = setup([{ products: [product('1')], nextUrl: 'https://www.macys.com/shop/sale/Pageindex/2' }, { ok: false, error: 'Access Denied' }]);
   get('url').value = 'https://www.macys.com/shop/sale';

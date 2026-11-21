@@ -112,6 +112,13 @@
 .deal-workspace .category-ai-result { margin:0 0 20px; padding:14px; border:1px solid var(--deal-line); border-radius:10px; background:var(--deal-bg); }
 .deal-workspace .category-ai-result textarea { width:100%; margin-top:6px; resize:vertical; }
 .deal-workspace .category-ai-result button { margin-top:10px; }
+.deal-workspace .category-ai-each-list { display:flex; flex-direction:column; gap:12px; margin-bottom:20px; }
+.deal-workspace .category-ai-each-item { display:flex; gap:12px; align-items:flex-start; padding:12px; border:1px solid var(--deal-line); border-radius:10px; background:var(--deal-bg); }
+.deal-workspace .category-ai-each-item img { width:72px; height:88px; object-fit:contain; background:#fff; border-radius:6px; flex-shrink:0; }
+.deal-workspace .category-ai-each-item .category-ai-each-title { font-size:13px; font-weight:600; flex:0 0 160px; min-width:0; }
+.deal-workspace .category-ai-each-item textarea { flex:1; min-width:0; resize:vertical; }
+.deal-workspace .category-ai-each-item button { flex-shrink:0; align-self:flex-start; }
+@media(max-width:700px) { .deal-workspace .category-ai-each-item { flex-wrap:wrap; } }
 .deal-workspace .category-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:16px; }
 .deal-workspace .category-product { min-width:0; display:flex; flex-direction:column; gap:10px; padding:12px; border:1px solid var(--deal-line); border-radius:10px; background:var(--deal-bg); box-shadow:0 1px 2px rgba(0,0,0,.04); transition:box-shadow .15s, transform .15s; }
 .deal-workspace .category-product:hover { box-shadow:0 6px 16px rgba(0,0,0,.08); transform:translateY(-2px); }

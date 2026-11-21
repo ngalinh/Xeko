@@ -4662,12 +4662,15 @@
         <label><input type="checkbox" data-category="all"> Chọn tất cả</label>
         <span data-category="count"></span>
         <button type="button" data-category="ai-content">Tạo nội dung cho danh mục</button>
+        <button type="button" data-category="ai-each">Tạo nội dung cho từng sản phẩm</button>
         <button type="button" data-category="download">Tải ảnh đã chọn</button>
       </div>
       <div class="category-ai-result" data-category="ai-result" hidden>
         <label class="field-label">Nội dung cho danh mục<textarea data-category="ai-result-text" rows="6"></textarea></label>
         <button type="button" data-category="ai-result-copy">Sao chép</button>
       </div>
+      <p class="status" data-category="ai-each-status" role="status" aria-live="polite"></p>
+      <div class="category-ai-each-list" data-category="ai-each-list"></div>
       <div class="category-grid" data-category="grid"></div>
       <button type="button" data-category="more" hidden>Tải trang tiếp</button>
     </div>
@@ -7702,6 +7705,22 @@
       if (_aiTarget !== 'deal') autoGrowMsgInput(input);
       closeAiSheet();
       input.focus();
+    }
+
+    // Gọi AI suggest trực tiếp từ URL ảnh, không qua AI Editor sheet — dùng cho các luồng
+    // tự động xử lý hàng loạt (vd Tạo nội dung cho từng sản phẩm ở tab Theo category).
+    async function aiSuggestFromUrls(urls, style, category, productName) {
+      const form = new FormData();
+      for (const url of (urls || []).slice(0, 5)) {
+        try { form.append('images', await (await fetch(url)).blob(), 'image.jpg'); } catch { /* bỏ qua ảnh lỗi */ }
+      }
+      form.append('style', style || 'short');
+      form.append('category', category || '');
+      if (productName) form.append('productName', productName);
+      const res = await fetch(BASE_URL + '/api/ai/suggest', { method: 'POST', credentials: 'include', body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Lỗi không xác định');
+      return (data.suggestions || [])[0] || '';
     }
 
     function escHtml(str) {
