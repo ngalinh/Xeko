@@ -27,6 +27,19 @@
       statusEl.textContent = '❌ ' + e.message;
     }
   }
+  function renderImages(container, items) {
+    container.replaceChildren();
+    for (const item of items) {
+      const link = document.createElement('a');
+      link.href = item.src; link.target = '_blank'; link.rel = 'noopener noreferrer';
+      link.title = item.title + ' — Mở ảnh';
+      const img = document.createElement('img');
+      img.src = item.src; img.alt = item.title; img.loading = 'lazy';
+      img.addEventListener('error', () => { img.hidden = true; });
+      const caption = document.createElement('span'); caption.textContent = item.title;
+      link.append(img, caption); container.append(link);
+    }
+  }
   function update() {
     $('count').textContent = 'Đã chọn ' + selected.size + '/' + products.length + ' ảnh';
     $('all').checked = products.length > 0 && selected.size === products.length;
@@ -122,6 +135,8 @@
     const images = items.map(p => p.thumbnail).slice(0, 5);
     const names = items.slice(0, 5).map(p => p.title);
     const productName = 'Chương trình sale gồm ' + items.length + ' sản phẩm: ' + names.join('; ') + (items.length > names.length ? '…' : '');
+    renderImages($('ai-result-images'), items.slice(0, 5).map(p => ({ src: p.thumbnail, title: p.title })));
+    $('ai-result-images-label').textContent = 'Ảnh gửi AI: ' + images.length + '/' + items.length + ' sản phẩm đã chọn';
     lastCategoryAiImages = images;
     lastCategoryAiTitle = 'Nội dung sale danh mục (' + items.length + ' sản phẩm)';
     window.openAiSheet('category', { images, productName });
@@ -180,7 +195,9 @@
         saveDraft({ title: p.title, body: textarea.value, images: rowImages, link: p.url, price: p.price }, saveStatus);
       });
       actions.append(copyBtn, saveBtn, saveStatus);
-      row.append(head, loading, textarea, actions);
+      const gallery = document.createElement('div'); gallery.className = 'category-content-images';
+      gallery.setAttribute('aria-label', 'Ảnh sản phẩm dùng tạo bài');
+      row.append(head, loading, gallery, textarea, actions);
       $('ai-each-list').append(row);
       try {
         const response = await fetch(base + '/api/get-deal', {
@@ -193,6 +210,8 @@
         const images = validDealImages(data.images).slice(0, 5);
         if (!images.length) throw new Error('Không tìm thấy ảnh sản phẩm.');
         rowImages = images;
+        renderImages(gallery, images.map((src, i) => ({ src, title: p.title + ' — Ảnh ' + (i + 1) })));
+        loading.lastChild.textContent = ' Đã lấy ' + images.length + ' ảnh · Đang soạn nội dung…';
         const content = await window.aiSuggestFromUrls(images, 'short', '', p.title);
         textarea.value = content || '(Không có kết quả)';
       } catch (e) {
