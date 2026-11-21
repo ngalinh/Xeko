@@ -114,9 +114,6 @@
 .deal-workspace .category-ai-result-actions { display:flex; align-items:center; gap:10px; margin-top:10px; }
 .deal-workspace .category-ai-result-actions button { margin:0; }
 .deal-workspace .category-ai-save-status { font-size:12px; color:var(--deal-muted); }
-.deal-workspace .category-ai-each-progress { display:flex; align-items:center; gap:10px; margin-bottom:16px; font-size:13px; color:var(--deal-muted); }
-.deal-workspace .category-ai-each-progress-track { flex:1; height:6px; border-radius:3px; background:var(--deal-line); overflow:hidden; }
-.deal-workspace .category-ai-each-progress-fill { height:100%; width:0; background:#6366f1; transition:width .2s; }
 .deal-workspace .category-ai-each-list { display:flex; flex-direction:column; gap:14px; margin-bottom:20px; }
 .deal-workspace .category-ai-each-item { padding:14px; border:1px solid var(--deal-line); border-radius:10px; background:var(--deal-bg); box-shadow:0 1px 2px rgba(0,0,0,.04); }
 .deal-workspace .category-ai-each-head { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
@@ -178,9 +175,6 @@
 .deal-workspace .category-ai-result .field-label { margin-top:0; }
 .deal-workspace .category-ai-result-actions, .deal-workspace .category-ai-each-actions { flex-wrap:wrap; }
 .deal-workspace .category-ai-save-status { flex-basis:100%; overflow-wrap:anywhere; }
-.deal-workspace .category-ai-each-progress { flex-wrap:wrap; padding:12px; border:1px solid var(--deal-line); border-radius:8px; background:var(--deal-bg); }
-.deal-workspace [data-category=ai-each-status] { flex:1; min-width:0; overflow-wrap:anywhere; }
-.deal-workspace .category-ai-each-progress-track { flex-basis:100%; }
 .deal-workspace .category-ai-each-item textarea { min-height:112px; }
 .deal-workspace .category-ai-each-list { margin-bottom:0; }
 .deal-workspace [data-category=more] { display:block; margin:18px auto 0; }
@@ -198,9 +192,7 @@
   .deal-workspace .category-product { padding:9px; }
 }
 @media(prefers-reduced-motion:reduce) {
-  .deal-workspace .category-product, .deal-workspace .category-ai-each-progress-fill { transition:none; }
   .deal-workspace .category-product:hover { transform:none; }
-  .deal-workspace .category-ai-each-progress .ai-spinner, .deal-workspace .category-ai-each-loading .ai-spinner { animation:none; }
 }
 
 /* Images stay with the generated article, independently of catalog selection. */
@@ -223,7 +215,6 @@
 .deal-workspace .category-ai-each-head { gap:8px; margin-bottom:8px; }
 .deal-workspace .category-ai-each-thumb { width:36px; height:44px; }
 .deal-workspace .category-ai-each-title { line-height:1.4; }
-.deal-workspace .category-ai-each-progress { gap:6px; padding:8px 10px; margin-bottom:10px; }
 .deal-workspace .category-content-images { gap:6px; padding:0 0 6px; margin-bottom:6px; }
 .deal-workspace .category-content-images:empty, .deal-workspace .category-ai-save-status:empty { display:none; }
 .deal-workspace .category-content-images a { flex-basis:64px; }
@@ -236,3 +227,13 @@
 }
 .deal-workspace .category-ai-result-actions, .deal-workspace .category-ai-each-actions { gap:6px; margin-top:6px; }
 .deal-workspace .category-ai-result-actions button, .deal-workspace .category-ai-each-actions button { min-height:36px; padding:7px 10px; }
+
+/* Keep batch activity inside the action button instead of a separate progress panel. */
+.deal-workspace [data-category=ai-each].is-loading { display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+.deal-workspace [data-category=ai-each].is-loading::before { content:""; width:12px; height:12px; flex-shrink:0; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .8s linear infinite; }
+.deal-workspace .category-batch-status { margin:0 0 8px; font-size:12px; color:var(--deal-muted); }
+.deal-workspace .category-batch-status:empty { display:none; }
+@media (prefers-reduced-motion:reduce) {
+  .deal-workspace .category-product { transition:none; }
+  .deal-workspace [data-category=ai-each].is-loading::before, .deal-workspace .category-ai-each-loading .ai-spinner { animation:none; }
+}

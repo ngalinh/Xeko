@@ -4,6 +4,7 @@
   if (!$('form')) return;
   const base = window.location.pathname.replace(/\/[^/]*$/, '').replace(/\/$/, '');
   let products = [], nextUrl = null, busy = false, downloading = false, batchRunning = false, batchCancelled = false;
+  let batchCurrent = 0, batchTotal = 0;
   const selected = new Set(), visited = new Set();
   let lastCategoryAiImages = [], lastCategoryAiTitle = '';
   async function saveDraft({ title, body, images, link, price }, statusEl) {
@@ -47,7 +48,10 @@
     $('download').disabled = busy || downloading || batchRunning || !selected.size;
     $('ai-content').disabled = busy || downloading || batchRunning || !selected.size;
     $('ai-each').disabled = (busy || downloading) ? true : (!batchRunning && !selected.size);
-    $('ai-each').textContent = batchRunning ? 'Dừng' : 'Tạo nội dung cho từng sản phẩm';
+    $('ai-each').textContent = batchRunning ? (batchCancelled ? 'Đang dừng…' : 'Đang tạo ' + batchCurrent + '/' + batchTotal + ' · Dừng') : 'Tạo nội dung cho từng sản phẩm';
+    $('ai-each').classList.toggle('is-loading', batchRunning);
+    $('ai-each').setAttribute('aria-busy', String(batchRunning));
+    if (batchRunning && batchCancelled) $('ai-each').disabled = true;
     $('go').disabled = busy || downloading || batchRunning;
     $('more').disabled = busy || downloading || batchRunning;
     $('more').hidden = !nextUrl;
@@ -152,7 +156,7 @@
       $('ai-result-save-status'));
   });
   $('ai-each').addEventListener('click', () => {
-    if (batchRunning) { batchCancelled = true; return; }
+    if (batchRunning) { batchCancelled = true; update(); return; }
     runAiEachBatch();
   });
   function validDealImages(list) {
@@ -163,17 +167,15 @@
   async function runAiEachBatch() {
     const items = products.filter(p => selected.has(p.id));
     if (!items.length || batchRunning) return;
+    batchCurrent = 0; batchTotal = items.length;
     batchRunning = true; batchCancelled = false; update();
+    $('ai-each-status').textContent = '';
     $('ai-each-list').replaceChildren();
-    $('ai-each-progress').hidden = false;
-    $('ai-each-spinner').hidden = false;
-    $('ai-each-progress-fill').style.width = '0%';
     const engine = root.querySelector('input[name="engine"]:checked')?.value || 'firefox';
     const proxy = root.querySelector('[data-deal-id="proxy"]')?.value.trim() || undefined;
     for (const [index, p] of items.entries()) {
       if (batchCancelled) break;
-      $('ai-each-status').textContent = 'Đang xử lý ' + (index + 1) + '/' + items.length + ': ' + p.title;
-      $('ai-each-progress-fill').style.width = Math.round((index / items.length) * 100) + '%';
+      batchCurrent = index + 1; update();
       const row = document.createElement('article'); row.className = 'category-ai-each-item';
       const head = document.createElement('div'); head.className = 'category-ai-each-head';
       const thumb = document.createElement('img'); thumb.className = 'category-ai-each-thumb'; thumb.src = p.thumbnail; thumb.alt = p.title;
@@ -223,8 +225,6 @@
       textarea.hidden = false;
       actions.hidden = false;
     }
-    $('ai-each-progress-fill').style.width = '100%';
-    $('ai-each-spinner').hidden = true;
     $('ai-each-status').textContent = batchCancelled ? 'Đã dừng.' : 'Đã xử lý xong ' + items.length + ' sản phẩm.';
     batchRunning = false; update();
   }
