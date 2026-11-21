@@ -237,3 +237,39 @@ test('downloads only selected thumbnails and reports CDN failure', async () => {
   assert.equal(get('download').disabled, false);
   dom.window.close();
 });
+
+
+test('category button opens the real AI editor outside the hidden posting page and applies content', async () => {
+  const { dom, w, get } = setup([{ products: [product('1')] }]);
+  const html = read('index.html');
+  const start = html.indexOf('    let _aiStyleCache =');
+  const end = html.indexOf('    // Gọi AI suggest trực tiếp', start);
+  assert.ok(start > 0 && end > start);
+  w.eval(html.slice(start, end));
+  let generated = 0;
+  w.runAiGenerate = () => { generated++; w.showAiResult('Bài sale danh mục'); };
+  const posting = w.document.getElementById('pageDangBai');
+  posting.style.display = 'none';
+  w.document.querySelector('[data-deal-tab="category"]').click();
+  get('url').value = 'https://www.macys.com/shop/sale';
+  get('form').dispatchEvent(new w.Event('submit', { cancelable: true })); await tick();
+  get('ai-content').click();
+  const backdrop = w.document.getElementById('aiSheetBackdrop');
+  assert.equal(backdrop.parentElement, w.document.body);
+  assert.equal(backdrop.classList.contains('show'), true);
+  assert.equal(w.getComputedStyle(backdrop).position, 'fixed');
+  assert.equal(w.getComputedStyle(backdrop).display, 'flex');
+  assert.equal(posting.style.display, 'none');
+  assert.equal(generated, 1);
+  assert.match(w.document.getElementById('aiProductName').value, /Dress 1/);
+  w.applyAiResult();
+  assert.equal(get('ai-result').hidden, false);
+  assert.equal(get('ai-result-text').value, 'Bài sale danh mục');
+  assert.equal(backdrop.classList.contains('show'), false);
+  assert.equal(w.document.body.style.overflow, '');
+  get('ai-content').click();
+  assert.equal(generated, 2);
+  assert.equal(w.document.querySelectorAll('#aiSheetBackdrop').length, 1);
+  w.closeAiSheet();
+  dom.window.close();
+});
