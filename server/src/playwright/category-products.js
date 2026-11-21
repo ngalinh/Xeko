@@ -19,12 +19,30 @@ function extractCategoryProducts() {
       return u.protocol === 'https:' && u.hostname === 'slimages.macysassets.com' && u.pathname.startsWith('/is/image/MCY/') ? u.href : '';
     } catch { return ''; }
   };
+  function splitTitlePriceBlob(raw) {
+    const text = String(raw || '');
+    const idx = text.search(/current price/i);
+    return idx === -1 ? { title: text, blob: '' } : { title: text.slice(0, idx), blob: text.slice(idx) };
+  }
+  function parsePriceBlob(blob) {
+    const sale = blob.match(/current price\D*(\$[\d,.]+)/i)?.[1];
+    if (!sale) return '';
+    const off = blob.match(/(\d+)%\s*off/i)?.[1];
+    const prev = blob.match(/previous price\D*(\$[\d,.]+)/i)?.[1];
+    let out = sale;
+    if (off) out += ' (-' + off + '%)';
+    if (prev && prev !== sale) out += ' · Giá gốc ' + prev;
+    return out;
+  }
   function add(url, title, image, price) {
     const link = productUrl(url);
     const thumbnail = imageUrl(image);
     if (!link || !thumbnail) return;
     const old = products.get(link.id);
-    products.set(link.id, { ...link, title: clean(title) || old?.title || 'Sản phẩm Macy’s', thumbnail, price: clean(price) || old?.price || '' });
+    const { title: titlePart, blob } = splitTitlePriceBlob(title);
+    const cleanedPrice = clean(price);
+    const parsedPrice = cleanedPrice ? '' : parsePriceBlob(blob);
+    products.set(link.id, { ...link, title: clean(titlePart) || old?.title || 'Sản phẩm Macy’s', thumbnail, price: cleanedPrice || parsedPrice || old?.price || '' });
   }
   for (const a of document.querySelectorAll('a[href*="/shop/product/"]')) {
     const card = a.closest('[data-product-id], [data-productid], .productThumbnail, .product-thumbnail, .product-tile, .productTile, li') || a.parentElement;

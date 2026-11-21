@@ -26,6 +26,16 @@ test('extracts lazy thumbnail and price, deduplicates links, finds pagination', 
   dom.window.close();
 });
 
+test('splits mashed title/price text from Macy\u2019s product-description blob', () => {
+  const title = "Created For Macy's 5-Piece Eye Candy Makeup Icons SetDealCurrent price $15.00; 50% off;$15.00 (50% off)Previous price $30.00;$30.00$70.00 valuefree gift with purchase (8)";
+  const dom = new JSDOM(`<ul><li data-product-id=\"1\"><a href=\"/shop/product/dress?ID=1\"><img src=\"${image}\"></a><div class=\"product-description\">${title}</div></li></ul>`, { url: 'https://www.macys.com/shop/sale', runScripts: 'outside-only' });
+  const data = dom.window.eval('(' + extractCategoryProducts.toString() + ')()');
+  assert.equal(data.products.length, 1);
+  assert.equal(data.products[0].title, "Created For Macy's 5-Piece Eye Candy Makeup Icons SetDeal");
+  assert.equal(data.products[0].price, '$15.00 (-50%) \u00b7 Gi\u00e1 g\u1ed1c $30.00');
+  dom.window.close();
+});
+
 test('JSON-LD fallback handles ItemList, malformed scripts and unsafe images', () => {
   const dom = new JSDOM(`<script type="application/ld+json">broken</script><script type="application/ld+json">${JSON.stringify({ '@type': 'ItemList', itemListElement: [{ item: { '@type': 'Product', name: 'Dress', url: product('2').url, image: [image], offers: { priceCurrency: 'USD', price: 20 } } }, { item: { '@type': 'Product', url: product('3').url, image: 'javascript:alert(1)' } }] })}</script>`, { url: 'https://www.macys.com/shop/sale', runScripts: 'outside-only' });
   const data = dom.window.eval('(' + extractCategoryProducts.toString() + ')()');
