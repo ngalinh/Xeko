@@ -39,6 +39,7 @@
     $('more').disabled = busy || downloading || batchRunning;
     $('more').hidden = !nextUrl;
     $('toolbar').hidden = !products.length;
+    $('create-toolbar').hidden = !products.length;
   }
   function render() {
     $('grid').replaceChildren();

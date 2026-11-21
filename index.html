@@ -4659,13 +4659,12 @@
       <p class="status" data-category="status" role="status" aria-live="polite"></p>
       <p class="error" data-category="error" role="alert"></p>
     </div>
-    <div class="category-toolbar" data-category="toolbar" hidden>
-      <div class="category-selection"><label><input type="checkbox" data-category="all"> Chọn tất cả</label><span data-category="count" aria-live="polite"></span><button type="button" class="category-secondary" data-category="download">Tải ảnh đã chọn</button></div>
-      <div class="category-create"><span>Tạo nội dung</span><div class="category-create-options"><div><button type="button" data-category="ai-content">Cho danh mục</button><small>Viết nhanh từ sản phẩm đã chọn</small></div><div><button type="button" data-category="ai-each">Tạo nội dung cho từng sản phẩm</button><small>Lấy deal đầy đủ, viết lần lượt từng bài</small></div></div></div>
-    </div>
     <div class="category-workbench">
       <section class="category-catalog" aria-labelledby="category-catalog-title">
         <div class="category-section-heading"><h3 id="category-catalog-title">Sản phẩm</h3><span>Chọn sản phẩm để tạo bài hoặc tải ảnh</span></div>
+        <div class="category-toolbar" data-category="toolbar" hidden>
+          <div class="category-selection"><label><input type="checkbox" data-category="all"> Chọn tất cả</label><span data-category="count" aria-live="polite"></span><button type="button" class="category-secondary" data-category="download">Tải ảnh đã chọn</button></div>
+        </div>
         <div class="category-panel-scroll" tabindex="0" role="region" aria-labelledby="category-catalog-title">
         <p class="category-empty category-catalog-empty">Dán link danh mục ở trên và bấm “Lấy danh sách” để bắt đầu.</p>
         <div class="category-grid" data-category="grid"></div>
@@ -4674,6 +4673,9 @@
       </section>
       <section class="category-content" aria-labelledby="category-content-title">
         <div class="category-section-heading"><h3 id="category-content-title">Kết quả nội dung</h3><span>Chỉnh sửa, sao chép hoặc lưu vào Kho content</span></div>
+        <div class="category-toolbar" data-category="create-toolbar" hidden>
+          <div class="category-create"><span>Tạo nội dung</span><div class="category-create-options"><div><button type="button" data-category="ai-content">Cho danh mục</button><small>Viết nhanh từ sản phẩm đã chọn</small></div><div><button type="button" data-category="ai-each">Tạo nội dung cho từng sản phẩm</button><small>Lấy deal đầy đủ, viết lần lượt từng bài</small></div></div></div>
+        </div>
         <div class="category-panel-scroll" tabindex="0" role="region" aria-labelledby="category-content-title">
         <p class="category-empty category-content-empty">Nội dung sẽ xuất hiện tại đây khi bạn tạo bài cho danh mục hoặc từng sản phẩm.</p>
       <div class="category-ai-result" data-category="ai-result" hidden>

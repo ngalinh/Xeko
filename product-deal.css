@@ -144,14 +144,16 @@
 .deal-workspace .category-heading .hint { margin:0 0 18px; }
 .deal-workspace .category-source { padding:18px 20px; }
 .deal-workspace .category-help { margin:8px 0 0; font-size:12px; color:var(--deal-muted); }
-.deal-workspace .category-toolbar { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:20px; padding:16px 0; border-bottom:1px solid var(--deal-line); }
+.deal-workspace .category-toolbar { flex:none; display:block; margin:0 0 16px; padding:0 0 16px; border-bottom:1px solid var(--deal-line); }
 .deal-workspace .category-selection { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
 .deal-workspace .category-selection label { display:flex; align-items:center; gap:6px; cursor:pointer; }
 .deal-workspace [data-category=count] { color:var(--deal-muted); }
-.deal-workspace .category-create { display:flex; align-items:center; gap:16px; }
-.deal-workspace .category-create > span { font-weight:600; }
-.deal-workspace .category-create-options { display:flex; gap:12px; }
-.deal-workspace .category-create-options button { width:100%; }
+.deal-workspace .category-create { display:block; min-width:0; }
+.deal-workspace .category-create > span { display:block; margin-bottom:10px; font-weight:600; }
+.deal-workspace .category-create-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.deal-workspace .category-create-options > div { min-width:0; }
+.deal-workspace .category-create-options button { width:100%; height:100%; min-height:44px; white-space:normal; overflow-wrap:anywhere; }
+.deal-workspace .category-create-options > div { display:flex; flex-direction:column; }
 .deal-workspace .category-create-options small { display:block; margin-top:6px; color:var(--deal-muted); font-size:11px; }
 .deal-workspace .category-secondary, .deal-workspace .category-ai-result-actions button:first-child, .deal-workspace .category-ai-each-actions button:first-child { background:var(--deal-bg); color:var(--deal-text); border:1px solid var(--deal-line); }
 .deal-workspace .category-secondary:hover, .deal-workspace .category-ai-result-actions button:first-child:hover, .deal-workspace .category-ai-each-actions button:first-child:hover { background:var(--deal-soft); }
@@ -183,9 +185,6 @@
 .deal-workspace .category-ai-each-list { margin-bottom:0; }
 .deal-workspace [data-category=more] { display:block; margin:18px auto 0; }
 [data-theme=dark] .deal-workspace .category-price { color:#fca5a5; }
-@media(max-width:1100px) {
-  .deal-workspace .category-toolbar { grid-template-columns:1fr; }
-}
 @media(max-width:800px) {
   .deal-workspace .category-workbench { grid-template-columns:minmax(0,1fr); }
   .deal-workspace .category-catalog, .deal-workspace .category-content { height:clamp(360px,65dvh,640px); }
