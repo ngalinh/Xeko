@@ -47,7 +47,7 @@ function extractCategoryProducts() {
   for (const a of document.querySelectorAll('a[href*="/shop/product/"]')) {
     const card = a.closest('[data-product-id], [data-productid], .productThumbnail, .product-thumbnail, .product-tile, .productTile, li') || a.parentElement;
     if (!card) continue;
-    const img = a.querySelector('img') || card.querySelector('img');
+    const img = a.querySelector('.slideshow-item.active img') || card.querySelector('.slideshow-item.active img') || a.querySelector('img') || card.querySelector('img');
     if (!img) continue;
     const source = [img.currentSrc, img.getAttribute('data-src'), img.getAttribute('data-lazy-src'), img.src, ...(img.getAttribute('srcset') || '').split(',').map(s => s.trim().split(/\s+/)[0])].find(imageUrl);
     const title = card.querySelector('.productDescription, .product-description, [data-testid="product-title"], .product-name');

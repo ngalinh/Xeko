@@ -36,6 +36,22 @@ test('splits mashed title/price text from Macy\u2019s product-description blob',
   dom.window.close();
 });
 
+test('prefers the active slideshow image over the hidden first slide (Macy\u2019s carousel tiles)', () => {
+  const dom = new JSDOM(`<ul><li data-product-id=\"1\">
+    <a href=\"/shop/product/dress?ID=1\">
+      <ul class=\"v-slideshow\">
+        <li class=\"cell small-12 slideshow-item\" aria-hidden=\"true\"><img src=\"https://slimages.macysassets.com/is/image/MCY/products/2/back.jpg\"></li>
+        <li class=\"cell small-12 slideshow-item active\"><img src=\"https://slimages.macysassets.com/is/image/MCY/products/3/front.jpg\"></li>
+      </ul>
+    </a>
+    <div class=\"product-description\">Dress</div>
+  </li></ul>`, { url: 'https://www.macys.com/shop/sale', runScripts: 'outside-only' });
+  const data = dom.window.eval('(' + extractCategoryProducts.toString() + ')()');
+  assert.equal(data.products.length, 1);
+  assert.equal(data.products[0].thumbnail, 'https://slimages.macysassets.com/is/image/MCY/products/3/front.jpg');
+  dom.window.close();
+});
+
 test('JSON-LD fallback handles ItemList, malformed scripts and unsafe images', () => {
   const dom = new JSDOM(`<script type="application/ld+json">broken</script><script type="application/ld+json">${JSON.stringify({ '@type': 'ItemList', itemListElement: [{ item: { '@type': 'Product', name: 'Dress', url: product('2').url, image: [image], offers: { priceCurrency: 'USD', price: 20 } } }, { item: { '@type': 'Product', url: product('3').url, image: 'javascript:alert(1)' } }] })}</script>`, { url: 'https://www.macys.com/shop/sale', runScripts: 'outside-only' });
   const data = dom.window.eval('(' + extractCategoryProducts.toString() + ')()');
