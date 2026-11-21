@@ -170,7 +170,7 @@
 .deal-workspace .category-product:has(input:checked) { border-color:#3b82f6; background:var(--deal-soft); }
 .deal-workspace .category-product label { display:flex; align-items:center; gap:6px; cursor:pointer; min-height:28px; }
 .deal-workspace .category-product input { width:16px; height:16px; margin:0; }
-.deal-workspace .category-product img { display:block; }
+.deal-workspace .category-product img { display:block; margin-inline:auto; object-position:center; }
 .deal-workspace .category-product button { width:100%; }
 .deal-workspace .category-ai-result .field-label { margin-top:0; }
 .deal-workspace .category-ai-result-actions, .deal-workspace .category-ai-each-actions { flex-wrap:wrap; }
@@ -218,6 +218,9 @@
 .deal-workspace .category-content-images { gap:6px; padding:0 0 6px; margin-bottom:6px; }
 .deal-workspace .category-content-images:empty, .deal-workspace .category-ai-save-status:empty { display:none; }
 .deal-workspace .category-content-images a { flex-basis:64px; }
+/* Center short image strips; auto margins collapse when horizontal scrolling is needed. */
+.deal-workspace .category-content-images a:first-child { margin-inline-start:auto; }
+.deal-workspace .category-content-images a:last-child { margin-inline-end:auto; }
 .deal-workspace .category-content-images img { width:64px; height:76px; box-sizing:border-box; }
 .deal-workspace .category-content-images span { margin-top:3px; line-height:1.3; }
 .deal-workspace .category-ai-result .hint { margin:0 0 6px; }
