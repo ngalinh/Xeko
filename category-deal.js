@@ -48,7 +48,11 @@
     $('download').disabled = busy || downloading || batchRunning || !selected.size;
     $('ai-content').disabled = busy || downloading || batchRunning || !selected.size;
     $('ai-each').disabled = (busy || downloading) ? true : (!batchRunning && !selected.size);
-    $('ai-each').textContent = batchRunning ? (batchCancelled ? 'Đang dừng…' : 'Đang tạo ' + batchCurrent + '/' + batchTotal + ' · Dừng') : 'Cho từng sản phẩm';
+    const batchLabel = batchRunning ? (batchCancelled ? 'Đang dừng…' : 'Đang tạo ' + batchCurrent + '/' + batchTotal + ' · Dừng') : 'Viết cho từng sản phẩm';
+    $('ai-each-label').textContent = batchRunning ? batchLabel : '';
+    $('ai-each-label').hidden = !batchRunning;
+    $('ai-each').setAttribute('aria-label', batchLabel);
+    $('ai-each').title = batchLabel;
     $('ai-each').classList.toggle('is-loading', batchRunning);
     $('ai-each').setAttribute('aria-busy', String(batchRunning));
     if (batchRunning && batchCancelled) $('ai-each').disabled = true;
