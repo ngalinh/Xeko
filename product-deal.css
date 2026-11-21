@@ -108,7 +108,7 @@
 .deal-workspace .category-input-row button { margin:0; flex-shrink:0; }
 .deal-workspace .category-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:16px; margin:20px 0; font-size:13px; }
 .deal-workspace .category-toolbar button { margin:0; }
-.deal-workspace .category-toolbar button:last-child { margin-left:auto; }
+
 .deal-workspace .category-ai-result { margin:0 0 20px; padding:14px; border:1px solid var(--deal-line); border-radius:10px; background:var(--deal-bg); box-shadow:0 1px 2px rgba(0,0,0,.04); }
 .deal-workspace .category-ai-result textarea { width:100%; margin-top:6px; resize:vertical; }
 .deal-workspace .category-ai-result-actions { display:flex; align-items:center; gap:10px; margin-top:10px; }
@@ -138,4 +138,64 @@
 @media(max-width:600px) {
   .deal-workspace .category-input-row { flex-direction:column; align-items:stretch; }
   .deal-workspace .category-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+}
+
+/* Category workspace: keep selection beside writing results. */
+.deal-workspace .category-heading .hint { margin:0 0 18px; }
+.deal-workspace .category-source { padding:18px 20px; }
+.deal-workspace .category-help { margin:8px 0 0; font-size:12px; color:var(--deal-muted); }
+.deal-workspace .category-toolbar { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:20px; padding:16px 0; border-bottom:1px solid var(--deal-line); }
+.deal-workspace .category-selection { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.deal-workspace .category-selection label { display:flex; align-items:center; gap:6px; cursor:pointer; }
+.deal-workspace [data-category=count] { color:var(--deal-muted); }
+.deal-workspace .category-create { display:flex; align-items:center; gap:16px; }
+.deal-workspace .category-create > span { font-weight:600; }
+.deal-workspace .category-create-options { display:flex; gap:12px; }
+.deal-workspace .category-create-options button { width:100%; }
+.deal-workspace .category-create-options small { display:block; margin-top:6px; color:var(--deal-muted); font-size:11px; }
+.deal-workspace .category-secondary, .deal-workspace .category-ai-result-actions button:first-child, .deal-workspace .category-ai-each-actions button:first-child { background:var(--deal-bg); color:var(--deal-text); border:1px solid var(--deal-line); }
+.deal-workspace .category-secondary:hover, .deal-workspace .category-ai-result-actions button:first-child:hover, .deal-workspace .category-ai-each-actions button:first-child:hover { background:var(--deal-soft); }
+.deal-workspace .category-workbench { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(340px,1fr); gap:24px; margin-top:24px; align-items:start; }
+.deal-workspace .category-catalog, .deal-workspace .category-content { min-width:0; }
+.deal-workspace .category-content { padding:20px; background:var(--deal-soft); border-radius:12px; }
+.deal-workspace .category-section-heading { margin-bottom:16px; }
+.deal-workspace .category-section-heading h3 { margin:0 0 6px; font-size:15px; }
+.deal-workspace .category-section-heading span { font-size:12px; color:var(--deal-muted); }
+.deal-workspace .category-empty { margin:0; padding:32px 20px; border:1px dashed var(--deal-line); border-radius:8px; color:var(--deal-muted); font-size:13px; line-height:1.7; text-align:center; }
+.deal-workspace .category-catalog:has(.category-product) .category-catalog-empty,
+.deal-workspace .category-content:has([data-category=ai-result]:not([hidden]), .category-ai-each-item) .category-content-empty { display:none; }
+.deal-workspace .category-grid { grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:12px; }
+.deal-workspace .category-product { box-shadow:none; gap:8px; }
+.deal-workspace .category-product:has(input:checked) { border-color:#3b82f6; background:var(--deal-soft); }
+.deal-workspace .category-product label { display:flex; align-items:center; gap:6px; cursor:pointer; min-height:28px; }
+.deal-workspace .category-product input { width:16px; height:16px; margin:0; }
+.deal-workspace .category-product img { display:block; }
+.deal-workspace .category-product button { width:100%; }
+.deal-workspace .category-ai-result .field-label { margin-top:0; }
+.deal-workspace .category-ai-result-actions, .deal-workspace .category-ai-each-actions { flex-wrap:wrap; }
+.deal-workspace .category-ai-save-status { flex-basis:100%; overflow-wrap:anywhere; }
+.deal-workspace .category-ai-each-progress { flex-wrap:wrap; padding:12px; border:1px solid var(--deal-line); border-radius:8px; background:var(--deal-bg); }
+.deal-workspace [data-category=ai-each-status] { flex:1; min-width:0; overflow-wrap:anywhere; }
+.deal-workspace .category-ai-each-progress-track { flex-basis:100%; }
+.deal-workspace .category-ai-each-item textarea { min-height:200px; }
+.deal-workspace .category-ai-each-list { margin-bottom:0; }
+.deal-workspace [data-category=more] { display:block; margin:18px auto 0; }
+[data-theme=dark] .deal-workspace .category-price { color:#fca5a5; }
+@media(max-width:1100px) {
+  .deal-workspace .category-toolbar { grid-template-columns:1fr; }
+  .deal-workspace .category-workbench { grid-template-columns:minmax(0,1fr); }
+  .deal-workspace .category-content { margin-top:4px; }
+}
+@media(max-width:600px) {
+  .deal-workspace .category-create { display:block; }
+  .deal-workspace .category-create-options { display:grid; grid-template-columns:1fr 1fr; margin-top:10px; }
+  .deal-workspace .category-create-options button { min-height:56px; padding:10px; }
+  .deal-workspace .category-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .deal-workspace .category-source, .deal-workspace .category-content { padding:14px; }
+  .deal-workspace .category-product { padding:9px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .deal-workspace .category-product, .deal-workspace .category-ai-each-progress-fill { transition:none; }
+  .deal-workspace .category-product:hover { transform:none; }
+  .deal-workspace .category-ai-each-progress .ai-spinner, .deal-workspace .category-ai-each-loading .ai-spinner { animation:none; }
 }

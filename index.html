@@ -4649,22 +4649,30 @@
     </nav>
     <div class="deal-scroll"><div class="deal-workspace" data-deal-app>
   <section id="deal-category-panel" data-deal-panel="category" hidden>
-    <h2>Lấy sản phẩm theo category</h2>
-    <p class="hint">Dán link danh mục Macy’s để chọn thumbnail. Bấm Lấy deal trên từng sản phẩm để lấy đủ ảnh và soạn nội dung. Dùng chung proxy và trình duyệt trong Cài đặt.</p>
-    <div class="card">
+    <header class="category-heading"><h2>Sản phẩm theo danh mục</h2><p class="hint">Lấy danh sách → chọn sản phẩm → tạo nội dung và lưu bản nháp.</p></header>
+    <div class="card category-source">
       <form data-category="form" class="category-input-row">
-        <label class="field-label">Link category<input type="text" data-category="url" required placeholder="https://www.macys.com/shop/sale/black-friday-deals/womens/clothing?id=80422"></label>
+        <label class="field-label">Link danh mục Macy’s<input type="text" data-category="url" required placeholder="https://www.macys.com/shop/sale/…"></label>
         <button type="submit" data-category="go">Lấy danh sách</button>
       </form>
+      <p class="category-help">Dùng trình duyệt và proxy đã chọn trong Cài đặt.</p>
       <p class="status" data-category="status" role="status" aria-live="polite"></p>
       <p class="error" data-category="error" role="alert"></p>
-      <div class="category-toolbar" data-category="toolbar" hidden>
-        <label><input type="checkbox" data-category="all"> Chọn tất cả</label>
-        <span data-category="count"></span>
-        <button type="button" data-category="ai-content">Tạo nội dung cho danh mục</button>
-        <button type="button" data-category="ai-each">Tạo nội dung cho từng sản phẩm</button>
-        <button type="button" data-category="download">Tải ảnh đã chọn</button>
-      </div>
+    </div>
+    <div class="category-toolbar" data-category="toolbar" hidden>
+      <div class="category-selection"><label><input type="checkbox" data-category="all"> Chọn tất cả</label><span data-category="count" aria-live="polite"></span><button type="button" class="category-secondary" data-category="download">Tải ảnh đã chọn</button></div>
+      <div class="category-create"><span>Tạo nội dung</span><div class="category-create-options"><div><button type="button" data-category="ai-content">Cho danh mục</button><small>Viết nhanh từ sản phẩm đã chọn</small></div><div><button type="button" data-category="ai-each">Tạo nội dung cho từng sản phẩm</button><small>Lấy deal đầy đủ, viết lần lượt từng bài</small></div></div></div>
+    </div>
+    <div class="category-workbench">
+      <section class="category-catalog" aria-labelledby="category-catalog-title">
+        <div class="category-section-heading"><h3 id="category-catalog-title">Sản phẩm</h3><span>Chọn sản phẩm để tạo bài hoặc tải ảnh</span></div>
+        <p class="category-empty category-catalog-empty">Dán link danh mục ở trên và bấm “Lấy danh sách” để bắt đầu.</p>
+        <div class="category-grid" data-category="grid"></div>
+        <button type="button" class="category-secondary" data-category="more" hidden>Tải trang tiếp</button>
+      </section>
+      <section class="category-content" aria-labelledby="category-content-title">
+        <div class="category-section-heading"><h3 id="category-content-title">Kết quả nội dung</h3><span>Chỉnh sửa, sao chép hoặc lưu vào Kho content</span></div>
+        <p class="category-empty category-content-empty">Nội dung sẽ xuất hiện tại đây khi bạn tạo bài cho danh mục hoặc từng sản phẩm.</p>
       <div class="category-ai-result" data-category="ai-result" hidden>
         <label class="field-label">Nội dung cho danh mục<textarea data-category="ai-result-text" rows="6"></textarea></label>
         <div class="category-ai-result-actions">
@@ -4679,8 +4687,7 @@
         <div class="category-ai-each-progress-track"><div class="category-ai-each-progress-fill" data-category="ai-each-progress-fill"></div></div>
       </div>
       <div class="category-ai-each-list" data-category="ai-each-list"></div>
-      <div class="category-grid" data-category="grid"></div>
-      <button type="button" data-category="more" hidden>Tải trang tiếp</button>
+      </section>
     </div>
   </section>
   <div id="deal-product-panel" data-deal-panel="product">
