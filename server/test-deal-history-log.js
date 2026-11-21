@@ -64,3 +64,52 @@ test('each proxy outcome records exactly one history callback', async () => {
     assert.equal(res.code, { success: 200, 'http-error': 500, offline: 503, 'invalid-json': 502, 'network-error': 500 }[scenario]);
   }
 });
+
+test('history pages cover older records without duplicates and clamp out-of-range pages', () => {
+  const db = new Database(':memory:');
+  try {
+    const module = { exports: {} };
+    vm.runInNewContext(read('server/src/database/deal-history-store.js'), { module, require: () => db });
+    const store = module.exports;
+    assert.equal(store.page().total, 0);
+    for (let i = 0; i < 55; i++) store.create({ title: 'Item ' + i });
+    const first = store.page();
+    const second = store.page({ page: 2 });
+    const last = store.page({ page: 99 });
+    assert.equal(first.total, 55);
+    assert.equal(first.pages, 3);
+    assert.equal(first.rows.length, 20);
+    assert.equal(second.rows.length, 20);
+    assert.equal(last.page, 3);
+    assert.equal(last.rows.length, 15);
+    assert.equal(new Set([...first.rows, ...second.rows, ...last.rows].map(r => r.id)).size, 55);
+    assert.equal(store.page({ page: -1 }).page, 1);
+  } finally { db.close(); }
+});
+
+for (const file of ['index.html', 'get-deal-test.html']) {
+  test(file + ': page controls update rows and continuous numbering', async () => {
+    const dom = new JSDOM(read(file), { url: 'https://example.com/', runScripts: 'outside-only' });
+    try {
+      const w = dom.window;
+      w.fetch = async url => {
+        const page = Number(new URL(url, w.location.href).searchParams.get('page'));
+        return { ok: true, json: async () => ({ page, pages: 2, total: 21,
+          rows: Array.from({ length: page === 1 ? 20 : 1 }, (_, i) => ({ title: 'Item ' + ((page - 1) * 20 + i) })) }) };
+      };
+      w.eval(read('product-deal.js'));
+      await new Promise(resolve => setImmediate(resolve));
+      const pager = w.document.querySelector('[data-deal-id=history-pagination]');
+      const body = w.document.querySelector('[data-deal-id=history-body]');
+      assert.equal(body.rows.length, 20);
+      assert.equal(body.rows[0].cells[0].textContent, '1');
+      assert.equal(pager.querySelector('button').disabled, true);
+      pager.querySelector('[aria-label="Trang 2"]').click();
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(body.rows.length, 1);
+      assert.equal(body.rows[0].cells[0].textContent, '21');
+      assert.equal(pager.querySelector('[aria-current=page]').textContent, '2');
+      assert.equal(pager.lastChild.disabled, true);
+    } finally { dom.window.close(); }
+  });
+}

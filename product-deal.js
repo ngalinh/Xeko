@@ -41,23 +41,65 @@ function computeVndPrice() {
 $('exchange-rate').addEventListener('input', computeVndPrice);
 
 // Lịch sử lấy deal — tên sản phẩm/link/website đã lấy gần đây, để biết ai đã lấy gì.
-async function loadDealHistory() {
+let historyPage = 1;
+let historyRequest = 0;
+async function loadDealHistory(page = historyPage) {
   const body = $('history-body');
   if (!body) return;
+  const pager = $('history-pagination');
+  const request = ++historyRequest;
+  if (pager) pager.querySelectorAll('button').forEach(button => { button.disabled = true; });
   try {
-    const res = await fetch(BASE_URL + '/api/deal-history?limit=50');
-    const rows = await res.json();
+    const res = await fetch(BASE_URL + '/api/deal-history?limit=20&page=' + page);
+    if (!res.ok) throw new Error('Không tải được lịch sử');
+    const data = await res.json();
+    if (request !== historyRequest) return;
+    const rows = Array.isArray(data) ? data : data.rows;
+    historyPage = Array.isArray(data) ? 1 : data.page;
+    if (pager) {
+      pager.replaceChildren();
+      pager.hidden = !rows?.length;
+      const pages = data.pages || 1;
+      const info = document.createElement('span');
+      info.textContent = `Trang ${historyPage}/${pages} · ${data.total ?? rows.length} lượt`;
+      pager.appendChild(info);
+      const addButton = (label, target, disabled, current = false) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = label;
+        button.disabled = disabled;
+        button.setAttribute('aria-label', /^\d+$/.test(label) ? 'Trang ' + label : label);
+        if (current) button.setAttribute('aria-current', 'page');
+        button.addEventListener('click', () => loadDealHistory(target));
+        pager.appendChild(button);
+      };
+      addButton('Trước', historyPage - 1, historyPage === 1);
+      const visible = new Set([1, pages]);
+      for (let n = Math.max(1, historyPage - 2); n <= Math.min(pages, historyPage + 2); n++) visible.add(n);
+      let previous = 0;
+      for (const n of [...visible].sort((a, b) => a - b)) {
+        if (previous && n - previous > 1) {
+          const gap = document.createElement('span');
+          gap.textContent = '…';
+          pager.appendChild(gap);
+        }
+        addButton(String(n), n, n === historyPage, n === historyPage);
+        previous = n;
+      }
+      addButton('Sau', historyPage + 1, historyPage === pages);
+    }
     if (!Array.isArray(rows) || !rows.length) {
-      body.innerHTML = '<tr><td colspan="5" class="deal-history-empty">Chưa có lịch sử lấy deal.</td></tr>';
+      body.innerHTML = '<tr><td colspan="6" class="deal-history-empty">Chưa có lịch sử lấy deal.</td></tr>';
       return;
     }
-    body.innerHTML = rows.map(r => {
+    body.innerHTML = rows.map((r, index) => {
       const title = r.title || '(không có tên)';
       const time = r.createdAt ? new Date(r.createdAt).toLocaleString('vi-VN') : '';
       const linkCell = r.url
         ? `<a href="${escapeHtml(r.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(r.url)}">${escapeHtml(r.url)}</a>`
         : '—';
       return `<tr>
+        <td>${(historyPage - 1) * 20 + index + 1}</td>
         <td><span title="${escapeHtml(title)}">${escapeHtml(title)}</span>
           ${r.log ? `<details class="deal-history-log"><summary>Chi tiết lượt lấy deal · ${r.log.status === 'error' ? 'Thất bại' : 'Thành công'}</summary><pre>${escapeHtml(JSON.stringify(r.log, null, 2))}</pre></details>` : '<div class="status">Chưa có log</div>'}
         </td>
@@ -68,7 +110,9 @@ async function loadDealHistory() {
       </tr>`;
     }).join('');
   } catch {
-    body.innerHTML = '<tr><td colspan="5" class="deal-history-empty">Không tải được lịch sử.</td></tr>';
+    if (request !== historyRequest) return;
+    if (pager) pager.hidden = true;
+    body.innerHTML = '<tr><td colspan="6" class="deal-history-empty">Không tải được lịch sử.</td></tr>';
   }
 }
 loadDealHistory();

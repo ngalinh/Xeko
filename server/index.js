@@ -2221,7 +2221,9 @@ app.post('/api/get-deal', (req, res) => proxyToLocal(req, res, 'POST', '/api/get
 }));
 
 app.get('/api/deal-history', (req, res) => {
-  res.json(dealHistoryStore.list({ limit: req.query.limit }));
+  res.json(req.query.page !== undefined
+    ? dealHistoryStore.page({ page: req.query.page, limit: req.query.limit })
+    : dealHistoryStore.list({ limit: req.query.limit }));
 });
 
 app.get('/api/get-deal-image', async (req, res) => {

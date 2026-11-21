@@ -38,13 +38,21 @@ function getById(id) {
   return row ? deserialize(row) : null;
 }
 
-function list({ limit = 50 } = {}) {
+function list({ limit = 50, offset = 0 } = {}) {
   const lim = Math.min(Math.max(Number(limit) || 50, 1), 200);
-  return db.prepare(`SELECT * FROM deal_history ORDER BY created_at DESC LIMIT ?`).all(lim).map(deserialize);
+  return db.prepare(`SELECT * FROM deal_history ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`).all(Math.floor(lim), Math.max(0, Math.floor(Number(offset) || 0))).map(deserialize);
 }
 
 function deserialize(row) {
   return { id: row.id, title: row.title, brand: row.brand || '', url: row.url, website: row.website, price: row.price, log: row.log ? JSON.parse(row.log) : null, createdAt: row.created_at };
 }
 
-module.exports = { create, list, getById };
+function page({ page = 1, limit = 20 } = {}) {
+  const size = Math.min(200, Math.max(1, Math.floor(Number(limit) || 20)));
+  const total = db.prepare('SELECT COUNT(*) AS total FROM deal_history').get().total;
+  const pages = Math.max(1, Math.ceil(total / size));
+  const current = Math.min(pages, Math.max(1, Math.floor(Number(page) || 1)));
+  return { rows: list({ limit: size, offset: (current - 1) * size }), total, page: current, pages };
+}
+
+module.exports = { create, list, getById, page };
