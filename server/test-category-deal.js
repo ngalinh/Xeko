@@ -96,6 +96,29 @@ test('category selects, appends without duplicates, preserves tab state and open
   dom.window.close();
 });
 
+test('"Tạo nội dung cho danh mục" opens AI sheet with selected thumbnails/titles and copies result', async () => {
+  const { dom, w, get } = setup([{ products: [product('1'), product('2')] }]);
+  const category = w.document.querySelector('[data-deal-tab="category"]'); category.click();
+  get('url').value = 'https://www.macys.com/shop/sale';
+  get('form').dispatchEvent(new w.Event('submit', { cancelable: true })); await tick();
+  assert.equal(get('ai-content').disabled, false);
+  let openArgs = null;
+  w.openAiSheet = (target, overrides) => { openArgs = { target, overrides }; };
+  get('ai-content').click();
+  assert.equal(openArgs.target, 'category');
+  assert.equal(openArgs.overrides.images.length, 2);
+  assert.equal(openArgs.overrides.images[0], product('1').thumbnail);
+  assert.equal(openArgs.overrides.images[1], product('2').thumbnail);
+  assert.match(openArgs.overrides.productName, /Dress 1/);
+  assert.match(openArgs.overrides.productName, /Dress 2/);
+  get('ai-result-text').value = 'Nội dung mẫu';
+  let copied = '';
+  w.navigator.clipboard = { writeText: async text => { copied = text; } };
+  get('ai-result-copy').click(); await tick();
+  assert.equal(copied, 'Nội dung mẫu');
+  dom.window.close();
+});
+
 test('failed pagination preserves results, shows error and permits retry', async () => {
   const { dom, w, get } = setup([{ products: [product('1')], nextUrl: 'https://www.macys.com/shop/sale/Pageindex/2' }, { ok: false, error: 'Access Denied' }]);
   get('url').value = 'https://www.macys.com/shop/sale';

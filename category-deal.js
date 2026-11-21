@@ -10,6 +10,7 @@
     $('all').checked = products.length > 0 && selected.size === products.length;
     $('all').indeterminate = selected.size > 0 && selected.size < products.length;
     $('download').disabled = busy || downloading || !selected.size;
+    $('ai-content').disabled = busy || downloading || !selected.size;
     $('go').disabled = busy || downloading;
     $('more').disabled = busy || downloading;
     $('more').hidden = !nextUrl;
@@ -89,6 +90,20 @@
   $('more').addEventListener('click', () => load(true));
   $('all').addEventListener('change', () => {
     selected.clear(); if ($('all').checked) products.forEach(p => selected.add(p.id)); render();
+  });
+  $('ai-content').addEventListener('click', () => {
+    const items = products.filter(p => selected.has(p.id));
+    if (!items.length) return;
+    const images = items.map(p => p.thumbnail).slice(0, 5);
+    const names = items.slice(0, 5).map(p => p.title);
+    const productName = 'Chương trình sale gồm ' + items.length + ' sản phẩm: ' + names.join('; ') + (items.length > names.length ? '…' : '');
+    window.openAiSheet('category', { images, productName });
+  });
+  $('ai-result-copy').addEventListener('click', async () => {
+    const text = $('ai-result-text').value;
+    if (!text) return;
+    try { await navigator.clipboard.writeText(text); $('status').textContent = 'Đã sao chép nội dung.'; }
+    catch { $('error').textContent = 'Không sao chép được. Hãy chọn và copy thủ công.'; }
   });
   $('download').addEventListener('click', async () => {
     if (downloading || busy) return;

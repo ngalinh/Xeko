@@ -4661,7 +4661,12 @@
       <div class="category-toolbar" data-category="toolbar" hidden>
         <label><input type="checkbox" data-category="all"> Chọn tất cả</label>
         <span data-category="count"></span>
+        <button type="button" data-category="ai-content">Tạo nội dung cho danh mục</button>
         <button type="button" data-category="download">Tải ảnh đã chọn</button>
+      </div>
+      <div class="category-ai-result" data-category="ai-result" hidden>
+        <label class="field-label">Nội dung cho danh mục<textarea data-category="ai-result-text" rows="6"></textarea></label>
+        <button type="button" data-category="ai-result-copy">Sao chép</button>
       </div>
       <div class="category-grid" data-category="grid"></div>
       <button type="button" data-category="more" hidden>Tải trang tiếp</button>
@@ -7463,15 +7468,19 @@
     let _aiCurrentCategory = '';
     let _aiGenerating = false;
     let _aiCurrentResult = '';
-    let _aiTarget = 'post'; // 'post' (khung chat đăng bài) | 'deal' (ô Nội dung ở Lấy deal)
+    let _aiTarget = 'post'; // 'post' (khung chat đăng bài) | 'deal' (ô Nội dung ở Lấy deal) | 'category' (nội dung cho danh mục)
+    let _aiCategoryImages = [];
 
     function _aiDealSelectedImages() {
       return [...document.querySelectorAll('[data-deal-app] .draft-image:checked')].map(el => el.value);
     }
 
-    function openAiSheet(target) {
+    function openAiSheet(target, overrides) {
       _aiTarget = target || 'post';
-      const hasImages = _aiTarget === 'deal' ? _aiDealSelectedImages().length > 0 : selectedFiles.length > 0;
+      _aiCategoryImages = (overrides && overrides.images) || [];
+      const hasImages = _aiTarget === 'deal' ? _aiDealSelectedImages().length > 0
+        : _aiTarget === 'category' ? _aiCategoryImages.length > 0
+        : selectedFiles.length > 0;
       if (!hasImages) return;
       _aiStyleCache = {};
       _aiCurrentResult = '';
@@ -7487,6 +7496,7 @@
       document.querySelectorAll('.ai-cat-chip').forEach(c => c.classList.toggle('active', c.dataset.cat === ''));
       document.getElementById('aiProductName').value = _aiTarget === 'deal'
         ? (document.getElementById('deal-draft-title')?.value || '')
+        : _aiTarget === 'category' ? ((overrides && overrides.productName) || '')
         : '';
       _aiCurrentStyle = 'short';
       _aiCurrentCategory = '';
@@ -7641,8 +7651,8 @@
         const productName = (document.getElementById('aiProductName')?.value || '').trim();
         const cacheKey = `${_aiCurrentStyle}|${_aiCurrentCategory}|${productName}`;
         const form = new FormData();
-        if (_aiTarget === 'deal') {
-          const urls = _aiDealSelectedImages().slice(0, 5);
+        if (_aiTarget === 'deal' || _aiTarget === 'category') {
+          const urls = (_aiTarget === 'deal' ? _aiDealSelectedImages() : _aiCategoryImages).slice(0, 5);
           for (const url of urls) {
             try { form.append('images', await (await fetch(url)).blob(), 'image.jpg'); } catch { /* bỏ qua ảnh lỗi */ }
           }
@@ -7679,6 +7689,14 @@
 
     function applyAiResult() {
       if (!_aiCurrentResult) return;
+      if (_aiTarget === 'category') {
+        const panel = document.querySelector('[data-category="ai-result"]');
+        const text = document.querySelector('[data-category="ai-result-text"]');
+        if (panel) panel.hidden = false;
+        if (text) text.value = _aiCurrentResult;
+        closeAiSheet();
+        return;
+      }
       const input = document.getElementById(_aiTarget === 'deal' ? 'deal-draft-description' : 'msgInput');
       input.value = _aiCurrentResult;
       if (_aiTarget !== 'deal') autoGrowMsgInput(input);
