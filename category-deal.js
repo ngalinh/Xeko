@@ -48,7 +48,7 @@
     $('download').disabled = busy || downloading || batchRunning || !selected.size;
     $('ai-content').disabled = busy || downloading || batchRunning || !selected.size;
     $('ai-each').disabled = (busy || downloading) ? true : (!batchRunning && !selected.size);
-    $('ai-each').textContent = batchRunning ? (batchCancelled ? 'Đang dừng…' : 'Đang tạo ' + batchCurrent + '/' + batchTotal + ' · Dừng') : 'Tạo nội dung cho từng sản phẩm';
+    $('ai-each').textContent = batchRunning ? (batchCancelled ? 'Đang dừng…' : 'Đang tạo ' + batchCurrent + '/' + batchTotal + ' · Dừng') : 'Cho từng sản phẩm';
     $('ai-each').classList.toggle('is-loading', batchRunning);
     $('ai-each').setAttribute('aria-busy', String(batchRunning));
     if (batchRunning && batchCancelled) $('ai-each').disabled = true;

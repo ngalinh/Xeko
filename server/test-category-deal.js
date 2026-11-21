@@ -146,7 +146,7 @@ test('"Tạo nội dung cho từng sản phẩm" tự Lấy deal tuần tự, g�
   assert.equal(items[1].querySelector('textarea').hidden, true);
   assert.match(get('ai-each-status').textContent, /Đã xử lý xong 2/);
   assert.equal(get('ai-each').disabled, false);
-  assert.equal(get('ai-each').textContent, 'Tạo nội dung cho từng sản phẩm');
+  assert.equal(get('ai-each').textContent, 'Cho từng sản phẩm');
   dom.window.close();
 });
 
