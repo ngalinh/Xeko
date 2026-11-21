@@ -181,7 +181,7 @@
 .deal-workspace .category-ai-each-progress { flex-wrap:wrap; padding:12px; border:1px solid var(--deal-line); border-radius:8px; background:var(--deal-bg); }
 .deal-workspace [data-category=ai-each-status] { flex:1; min-width:0; overflow-wrap:anywhere; }
 .deal-workspace .category-ai-each-progress-track { flex-basis:100%; }
-.deal-workspace .category-ai-each-item textarea { min-height:200px; }
+.deal-workspace .category-ai-each-item textarea { min-height:112px; }
 .deal-workspace .category-ai-each-list { margin-bottom:0; }
 .deal-workspace [data-category=more] { display:block; margin:18px auto 0; }
 [data-theme=dark] .deal-workspace .category-price { color:#fca5a5; }
@@ -209,3 +209,30 @@
 .deal-workspace .category-content-images img { display:block; width:88px; height:106px; object-fit:contain; background:#fff; border:1px solid var(--deal-line); border-radius:8px; }
 .deal-workspace .category-content-images span { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; font-size:11px; line-height:1.4; margin-top:5px; overflow-wrap:anywhere; }
 .deal-workspace .category-content-images a:focus-visible { outline:2px solid #6366f1; outline-offset:2px; }
+
+/* Compact writing results without changing the two equal scrolling panels. */
+.deal-workspace .category-content .category-section-heading { margin-bottom:10px; }
+.deal-workspace .category-content .category-toolbar { margin-bottom:10px; padding-bottom:10px; }
+.deal-workspace .category-content .category-create > span { display:none; }
+.deal-workspace .category-content .category-create-options { gap:8px; margin-top:0; }
+.deal-workspace .category-content .category-create-options button { height:auto; min-height:40px; padding:8px 10px; }
+.deal-workspace .category-content .category-create-options small { margin-top:4px; line-height:1.4; }
+.deal-workspace .category-ai-result, .deal-workspace .category-ai-each-item { padding:10px; box-shadow:none; }
+.deal-workspace .category-ai-result { margin-bottom:10px; }
+.deal-workspace .category-ai-each-list { gap:10px; }
+.deal-workspace .category-ai-each-head { gap:8px; margin-bottom:8px; }
+.deal-workspace .category-ai-each-thumb { width:36px; height:44px; }
+.deal-workspace .category-ai-each-title { line-height:1.4; }
+.deal-workspace .category-ai-each-progress { gap:6px; padding:8px 10px; margin-bottom:10px; }
+.deal-workspace .category-content-images { gap:6px; padding:0 0 6px; margin-bottom:6px; }
+.deal-workspace .category-content-images:empty, .deal-workspace .category-ai-save-status:empty { display:none; }
+.deal-workspace .category-content-images a { flex-basis:64px; }
+.deal-workspace .category-content-images img { width:64px; height:76px; box-sizing:border-box; }
+.deal-workspace .category-content-images span { margin-top:3px; line-height:1.3; }
+.deal-workspace .category-ai-result .hint { margin:0 0 6px; }
+.deal-workspace .category-content textarea { box-sizing:border-box; min-height:112px; margin-top:4px; padding:8px 10px; line-height:1.5; }
+@supports (field-sizing:content) {
+  .deal-workspace .category-content textarea { field-sizing:content; max-height:320px; overflow-y:auto; }
+}
+.deal-workspace .category-ai-result-actions, .deal-workspace .category-ai-each-actions { gap:6px; margin-top:6px; }
+.deal-workspace .category-ai-result-actions button, .deal-workspace .category-ai-each-actions button { min-height:36px; padding:7px 10px; }
