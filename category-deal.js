@@ -5,6 +5,28 @@
   const base = window.location.pathname.replace(/\/[^/]*$/, '').replace(/\/$/, '');
   let products = [], nextUrl = null, busy = false, downloading = false, batchRunning = false, batchCancelled = false;
   const selected = new Set(), visited = new Set();
+  let lastCategoryAiImages = [], lastCategoryAiTitle = '';
+  async function saveDraft({ title, body, images, link, price }, statusEl) {
+    if (!body) return;
+    statusEl.textContent = 'Đang lưu…';
+    try {
+      const form = new FormData();
+      form.append('title', title || '');
+      form.append('body', body);
+      if (link) form.append('link', link);
+      if (price) form.append('price', price);
+      for (const url of (images || []).slice(0, 20)) {
+        try { form.append('images', await (await fetch(url)).blob(), 'image.jpg'); } catch { /* bỏ qua ảnh lỗi */ }
+      }
+      const response = await fetch(base + '/api/contents', { method: 'POST', body: form });
+      let data;
+      try { data = await response.json(); } catch { throw new Error('Server phản hồi không hợp lệ.'); }
+      if (!response.ok) throw new Error(data.error || 'Không lưu được bản nháp.');
+      statusEl.textContent = 'Đã lưu bản nháp #' + data.id + '.';
+    } catch (e) {
+      statusEl.textContent = '❌ ' + e.message;
+    }
+  }
   function update() {
     $('count').textContent = 'Đã chọn ' + selected.size + '/' + products.length + ' ảnh';
     $('all').checked = products.length > 0 && selected.size === products.length;
@@ -99,6 +121,8 @@
     const images = items.map(p => p.thumbnail).slice(0, 5);
     const names = items.slice(0, 5).map(p => p.title);
     const productName = 'Chương trình sale gồm ' + items.length + ' sản phẩm: ' + names.join('; ') + (items.length > names.length ? '…' : '');
+    lastCategoryAiImages = images;
+    lastCategoryAiTitle = 'Nội dung sale danh mục (' + items.length + ' sản phẩm)';
     window.openAiSheet('category', { images, productName });
   });
   $('ai-result-copy').addEventListener('click', async () => {
@@ -106,6 +130,10 @@
     if (!text) return;
     try { await navigator.clipboard.writeText(text); $('status').textContent = 'Đã sao chép nội dung.'; }
     catch { $('error').textContent = 'Không sao chép được. Hãy chọn và copy thủ công.'; }
+  });
+  $('ai-result-save').addEventListener('click', () => {
+    saveDraft({ title: lastCategoryAiTitle, body: $('ai-result-text').value, images: lastCategoryAiImages },
+      $('ai-result-save-status'));
   });
   $('ai-each').addEventListener('click', () => {
     if (batchRunning) { batchCancelled = true; return; }
@@ -121,21 +149,37 @@
     if (!items.length || batchRunning) return;
     batchRunning = true; batchCancelled = false; update();
     $('ai-each-list').replaceChildren();
+    $('ai-each-progress').hidden = false;
+    $('ai-each-spinner').hidden = false;
+    $('ai-each-progress-fill').style.width = '0%';
     const engine = root.querySelector('input[name="engine"]:checked')?.value || 'firefox';
     const proxy = root.querySelector('[data-deal-id="proxy"]')?.value.trim() || undefined;
     for (const [index, p] of items.entries()) {
       if (batchCancelled) break;
       $('ai-each-status').textContent = 'Đang xử lý ' + (index + 1) + '/' + items.length + ': ' + p.title;
+      $('ai-each-progress-fill').style.width = Math.round((index / items.length) * 100) + '%';
       const row = document.createElement('article'); row.className = 'category-ai-each-item';
-      const thumb = document.createElement('img'); thumb.src = p.thumbnail; thumb.alt = p.title;
+      const head = document.createElement('div'); head.className = 'category-ai-each-head';
+      const thumb = document.createElement('img'); thumb.className = 'category-ai-each-thumb'; thumb.src = p.thumbnail; thumb.alt = p.title;
       const heading = document.createElement('div'); heading.className = 'category-ai-each-title'; heading.textContent = p.title;
-      const textarea = document.createElement('textarea'); textarea.rows = 4; textarea.placeholder = 'Đang lấy deal và soạn nội dung…';
-      const copyBtn = document.createElement('button'); copyBtn.type = 'button'; copyBtn.textContent = 'Sao chép'; copyBtn.disabled = true;
+      head.append(thumb, heading);
+      const loading = document.createElement('div'); loading.className = 'category-ai-each-loading';
+      loading.innerHTML = '<span class="ai-spinner"></span> Đang lấy deal và soạn nội dung…';
+      const textarea = document.createElement('textarea'); textarea.rows = 4; textarea.hidden = true;
+      const actions = document.createElement('div'); actions.className = 'category-ai-each-actions'; actions.hidden = true;
+      const copyBtn = document.createElement('button'); copyBtn.type = 'button'; copyBtn.textContent = 'Sao chép';
+      const saveBtn = document.createElement('button'); saveBtn.type = 'button'; saveBtn.textContent = 'Lưu bản nháp';
+      const saveStatus = document.createElement('span'); saveStatus.className = 'category-ai-save-status';
       copyBtn.addEventListener('click', async () => {
         try { await navigator.clipboard.writeText(textarea.value); $('ai-each-status').textContent = 'Đã sao chép nội dung — ' + p.title + '.'; }
         catch { $('error').textContent = 'Không sao chép được. Hãy chọn và copy thủ công.'; }
       });
-      row.append(thumb, heading, textarea, copyBtn);
+      let rowImages = [];
+      saveBtn.addEventListener('click', () => {
+        saveDraft({ title: p.title, body: textarea.value, images: rowImages, link: p.url, price: p.price }, saveStatus);
+      });
+      actions.append(copyBtn, saveBtn, saveStatus);
+      row.append(head, loading, textarea, actions);
       $('ai-each-list').append(row);
       try {
         const response = await fetch(base + '/api/get-deal', {
@@ -147,15 +191,20 @@
         if (!response.ok) throw new Error(data.error || 'Không lấy được deal.');
         const images = validDealImages(data.images).slice(0, 5);
         if (!images.length) throw new Error('Không tìm thấy ảnh sản phẩm.');
+        rowImages = images;
         const content = await window.aiSuggestFromUrls(images, 'short', '', p.title);
         textarea.value = content || '(Không có kết quả)';
-        textarea.placeholder = '';
-        copyBtn.disabled = !content;
       } catch (e) {
         textarea.value = '';
-        textarea.placeholder = '❌ ' + e.message;
+        loading.innerHTML = '❌ ' + e.message;
+        continue;
       }
+      loading.hidden = true;
+      textarea.hidden = false;
+      actions.hidden = false;
     }
+    $('ai-each-progress-fill').style.width = '100%';
+    $('ai-each-spinner').hidden = true;
     $('ai-each-status').textContent = batchCancelled ? 'Đã dừng.' : 'Đã xử lý xong ' + items.length + ' sản phẩm.';
     batchRunning = false; update();
   }

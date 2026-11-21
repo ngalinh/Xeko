@@ -142,10 +142,59 @@ test('"Tạo nội dung cho từng sản phẩm" tự Lấy deal tuần tự, g�
   const items = get('ai-each-list').querySelectorAll('.category-ai-each-item');
   assert.equal(items.length, 2);
   assert.equal(items[0].querySelector('textarea').value, 'Nội dung AI cho Dress 1');
-  assert.match(items[1].querySelector('textarea').placeholder, /Access Denied/);
+  assert.match(items[1].querySelector('.category-ai-each-loading').textContent, /Access Denied/);
+  assert.equal(items[1].querySelector('textarea').hidden, true);
   assert.match(get('ai-each-status').textContent, /Đã xử lý xong 2/);
   assert.equal(get('ai-each').disabled, false);
   assert.equal(get('ai-each').textContent, 'Tạo nội dung cho từng sản phẩm');
+  dom.window.close();
+});
+
+test('"Lưu bản nháp" cho danh mục gửi đúng ảnh/tiêu đề đã dùng để tạo nội dung lên Kho content', async () => {
+  const { dom, w, get } = setup([{ products: [product('1'), product('2')] }]);
+  const category = w.document.querySelector('[data-deal-tab="category"]'); category.click();
+  get('url').value = 'https://www.macys.com/shop/sale';
+  get('form').dispatchEvent(new w.Event('submit', { cancelable: true })); await tick();
+  w.openAiSheet = () => {};
+  get('ai-content').click();
+  get('ai-result-text').value = 'Nội dung sale mẫu';
+  let saved = null;
+  w.fetch = async (url, opts) => {
+    if (url === image) return { blob: async () => new w.Blob(['x'], { type: 'image/jpeg' }) };
+    if (url === '/b/member/api/contents') { saved = opts; return { ok: true, json: async () => ({ id: 42 }) }; }
+    throw new Error('unexpected fetch ' + url);
+  };
+  get('ai-result-save').click(); await tick(); await tick();
+  assert.equal(saved.method, 'POST');
+  assert.equal(saved.body.get('title'), 'Nội dung sale danh mục (2 sản phẩm)');
+  assert.equal(saved.body.get('body'), 'Nội dung sale mẫu');
+  assert.equal(saved.body.getAll('images').length, 2);
+  assert.match(get('ai-result-save-status').textContent, /Đã lưu bản nháp #42/);
+  dom.window.close();
+});
+
+test('"Lưu bản nháp" trên từng dòng sản phẩm gửi đúng ảnh deal, link và giá của sản phẩm đó', async () => {
+  const dealImage = 'https://slimages.macysassets.com/is/image/MCY/products/full.jpg';
+  const { dom, w, get } = setup([{ products: [product('1')] }, { images: [dealImage], price: '$20' }]);
+  const category = w.document.querySelector('[data-deal-tab="category"]'); category.click();
+  get('url').value = 'https://www.macys.com/shop/sale';
+  get('form').dispatchEvent(new w.Event('submit', { cancelable: true })); await tick();
+  w.aiSuggestFromUrls = async () => 'Nội dung AI';
+  get('ai-each').click(); await tick(); await tick(); await tick();
+  let saved = null;
+  w.fetch = async (url, opts) => {
+    if (url === dealImage) return { blob: async () => new w.Blob(['x'], { type: 'image/jpeg' }) };
+    if (url === '/b/member/api/contents') { saved = opts; return { ok: true, json: async () => ({ id: 7 }) }; }
+    throw new Error('unexpected fetch ' + url);
+  };
+  get('ai-each-list').querySelector('.category-ai-each-actions button:nth-child(2)').click();
+  await tick(); await tick();
+  assert.equal(saved.body.get('title'), product('1').title);
+  assert.equal(saved.body.get('link'), product('1').url);
+  assert.equal(saved.body.get('price'), '$20');
+  assert.equal(saved.body.getAll('images')[0] instanceof w.Blob, true);
+  const status = get('ai-each-list').querySelector('.category-ai-save-status');
+  assert.match(status.textContent, /Đã lưu bản nháp #7/);
   dom.window.close();
 });
 
