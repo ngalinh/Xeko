@@ -6,19 +6,123 @@ const root = document.querySelector('[data-deal-app]');
 const $ = (id) => root.querySelector('[data-deal-id=' + id + ']');
 const btn = $('go');
 let currentDeal = null;
+let currentDownloads = []; // hàm tải từng ảnh, dùng lại cho nút "Tải tất cả ảnh"
 
-// Nạp danh sách profile FB để chọn trước nơi đăng — không bắt buộc, để trống
-// thì dùng đúng profile đang active trong tab Đăng bài như trước giờ.
-fetch(BASE_URL + '/api/accounts').then(r => r.json()).then(data => {
-  const profiles = (data && data.facebook) || [];
+// ===== Chọn trước profile + nơi đăng (tuỳ chọn) =====
+// Chỉ ảnh hưởng tới nút "Dùng để đăng bài": nếu để trống thì hành vi y hệt
+// trước giờ (qua tab Đăng bài rồi tự chọn kênh). Dữ liệu kênh lấy từ cùng
+// nguồn với tab "Kênh" của app (/api/channels), không tạo thêm state riêng.
+let _dealIgAccounts = [];
+let _dealChannelsData = { fbGroups: [], fbPages: [], zaloGroups: [], profileChannels: {} };
+
+Promise.all([
+  fetch(BASE_URL + '/api/accounts').then(r => r.json()).catch(() => ({})),
+  fetch(BASE_URL + '/api/channels').then(r => r.json()).catch(() => ({})),
+]).then(([accounts, channels]) => {
+  const profiles = (accounts && accounts.facebook) || [];
+  _dealIgAccounts = (accounts && accounts.instagram) || [];
+  _dealChannelsData = channels && channels.profileChannels ? channels : _dealChannelsData;
   for (const p of profiles) {
     const opt = document.createElement('option');
     opt.value = p.key;
     opt.textContent = p.name || p.key;
     $('post-profile').appendChild(opt);
   }
-}).catch(() => {});
-let currentDownloads = []; // hàm tải từng ảnh, dùng lại cho nút "Tải tất cả ảnh"
+});
+
+function buildDealTargetOptions(profileKey) {
+  const cfg = (_dealChannelsData.profileChannels || {})[profileKey] || {};
+  const opts = [{ value: '', label: '— Không chọn (tự chọn ở tab Đăng bài) —' }];
+  opts.push({ value: 'fb:personal', label: 'FB Profile (trang cá nhân)' });
+  const fbGroupKeys = new Set(cfg.fbGroups || []);
+  const catCount = new Map();
+  for (const g of (_dealChannelsData.fbGroups || [])) {
+    if (!fbGroupKeys.has(g.key)) continue;
+    const cat = (g.category || '').trim() || 'Chưa phân loại';
+    catCount.set(cat, (catCount.get(cat) || 0) + 1);
+  }
+  for (const [cat, count] of catCount) opts.push({ value: 'fb:cat:' + cat, label: 'Nhóm ' + cat + ' (' + count + ')' });
+  const fbPageKeys = new Set(cfg.fbPages || []);
+  for (const p of (_dealChannelsData.fbPages || [])) {
+    if (fbPageKeys.has(p.key)) opts.push({ value: 'fb:page:' + p.key, label: p.name + ' (Page)' });
+  }
+  const zaloGroupKeys = new Set(cfg.zaloGroups || []);
+  for (const z of (_dealChannelsData.zaloGroups || [])) {
+    if (zaloGroupKeys.has(z.key)) opts.push({ value: 'zalo:' + z.key, label: z.name + ' (Zalo)' });
+  }
+  const igKeys = new Set(cfg.instagram || []);
+  for (const ig of _dealIgAccounts) {
+    if (igKeys.has(ig.key)) opts.push({ value: 'instagram:' + ig.key, label: (ig.name || ig.key) + ' (Instagram)' });
+  }
+  return opts;
+}
+
+$('post-profile').addEventListener('change', () => {
+  const profileKey = $('post-profile').value;
+  const targetSelect = $('post-target');
+  targetSelect.innerHTML = '';
+  const opts = profileKey ? buildDealTargetOptions(profileKey) : [{ value: '', label: '— Chọn profile trước —' }];
+  for (const o of opts) {
+    const el = document.createElement('option');
+    el.value = o.value;
+    el.textContent = o.label;
+    targetSelect.appendChild(el);
+  }
+  targetSelect.disabled = !profileKey;
+});
+
+function waitFor(conditionFn, timeoutMs = 6000, intervalMs = 150) {
+  return new Promise(resolve => {
+    const start = Date.now();
+    (function tick() {
+      const value = conditionFn();
+      if (value) return resolve(value);
+      if (Date.now() - start >= timeoutMs) return resolve(null);
+      setTimeout(tick, intervalMs);
+    })();
+  });
+}
+
+function findDealChannelCheckbox(panel, targetVal) {
+  const sepIdx = targetVal.indexOf(':');
+  const platform = sepIdx < 0 ? targetVal : targetVal.slice(0, sepIdx);
+  const rest = sepIdx < 0 ? '' : targetVal.slice(sepIdx + 1);
+  const items = panel.querySelectorAll('.channel-item');
+  for (const item of items) {
+    if (item.dataset.platform !== platform) continue;
+    if (platform === 'fb') {
+      if (rest === 'personal' && item.dataset.chid === 'personal') return item.querySelector('input');
+      if (rest.startsWith('cat:') && item.dataset.chid === 'cat' && item.dataset.category === rest.slice(4)) return item.querySelector('input');
+      if (rest.startsWith('page:') && item.dataset.chid === rest) return item.querySelector('input');
+    } else if (item.dataset.chid === rest) {
+      return item.querySelector('input');
+    }
+  }
+  return null;
+}
+
+// Tick sẵn đúng kênh trong khung chat "Đăng bài" — dùng lại nguyên các hàm
+// thật của khung chat (selectMode/onChannelChange/confirmChannelSelection)
+// thay vì tự dựng lại logic chọn kênh. Panel kênh render bất đồng bộ (phải
+// gọi API /api/channels, /api/accounts riêng của khung chat) nên phải đợi.
+// Nếu có gì bất thường (panel không render kịp, không tìm thấy đúng kênh) thì
+// bỏ qua lặng lẽ — người dùng vẫn tự chọn kênh như bình thường ở tab Đăng bài.
+async function preselectDealChannel(targetVal) {
+  if (typeof selectMode !== 'function' || typeof confirmChannelSelection !== 'function') return;
+  const beforePid = (typeof channelPanelId === 'number') ? channelPanelId : 0;
+  selectMode('now');
+  const panel = await waitFor(() => {
+    if (typeof channelPanelId !== 'number' || channelPanelId <= beforePid) return null;
+    return document.getElementById('channelPanel_' + channelPanelId);
+  });
+  if (!panel) return;
+  const pid = channelPanelId;
+  const checkbox = findDealChannelCheckbox(panel, targetVal);
+  if (!checkbox) return;
+  checkbox.checked = true;
+  if (typeof onChannelChange === 'function') onChannelChange(pid);
+  confirmChannelSelection(pid);
+}
 
 function setStatus(msg) { $('status').textContent = msg || ''; }
 function setError(msg) { $('error').textContent = msg || ''; }
@@ -401,7 +505,7 @@ $('create-draft').addEventListener('click', async () => {
     $('draft-library').href = BASE_URL + '/?page=drafts&draft=' + encodeURIComponent(data.item.id);
     $('draft-library').hidden = false;
     $('use-for-post').hidden = false;
-    $('use-for-post').onclick = () => {
+    $('use-for-post').onclick = async () => {
       // useContent() đọc từ cache _contentItems (chỉ được nạp khi mở trang Kho
       // content) — nạp thẳng bản nháp vừa tạo vào cache để dùng ngay được dù
       // chưa từng mở trang đó trong phiên này.
@@ -409,10 +513,22 @@ $('create-draft').addEventListener('click', async () => {
         _contentItems = _contentItems.filter(c => c.id !== data.item.id);
         _contentItems.push(data.item);
       }
-      // Đã chọn sẵn profile ở ô trên → chuyển luôn profile đó (giống bấm chọn
-      // trong khung chat Đăng bài) trước khi mở bản nháp để đăng.
+      // Đã chọn sẵn profile/nơi đăng ở 2 ô trên → chuyển luôn trước khi mở
+      // bản nháp để đăng, giống hệt như tự bấm chọn trong khung chat.
       const chosenProfile = $('post-profile').value;
-      if (chosenProfile && typeof selectProfile === 'function') selectProfile(chosenProfile);
+      const chosenTarget = $('post-target').value;
+      if (chosenProfile && typeof selectProfile === 'function') {
+        selectProfile(chosenProfile);
+        // selectProfile() tự set currentProfile bất đồng bộ (sau khi gọi API
+        // /api/profile) — đợi nó cập nhật xong rồi mới dựng panel kênh, nếu
+        // không panel sẽ dựng nhầm theo profile cũ.
+        await waitFor(() => (typeof currentProfile !== 'undefined' && currentProfile === chosenProfile) || null, 4000, 100);
+      }
+      if (chosenProfile && chosenTarget) {
+        try { await preselectDealChannel(chosenTarget); } catch (e) {
+          console.error('[deal] Không tự chọn được kênh, bạn chọn tay ở tab Đăng bài nhé.', e);
+        }
+      }
       if (typeof useContent === 'function') useContent(data.item.id);
     };
   } catch (error) {
