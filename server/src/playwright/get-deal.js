@@ -43,12 +43,19 @@ function homepageOf(url) {
 // tinh vi), nhưng tăng cơ hội so với gọi thẳng URL.
 // Chromium dùng wrapper hiện có; Firefox/WebKit dùng Playwright trực tiếp.
 // Workflow deploy cài cả ba engine vào cùng PLAYWRIGHT_BROWSERS_PATH.
+// 'chrome' dùng binary Google Chrome thật qua Playwright channel thay vì
+// Chromium bundled (chromium-headless-shell) — fingerprint gần giống trình
+// duyệt người dùng thật hơn, một số bot-management phân biệt được 2 loại này.
 async function launchBrowser(engine, launchOpts) {
   try {
     if (engine === 'firefox') return await firefox.launch(launchOpts);
     if (engine === 'webkit') return await webkit.launch(launchOpts);
+    if (engine === 'chrome') return await safeLaunch({ ...launchOpts, channel: 'chrome' });
     return await safeLaunch(launchOpts);
   } catch (error) {
+    if (engine === 'chrome' && /Executable doesn'?t exist|distribution 'chrome' is not found|executable.*not found/i.test(error.message || '')) {
+      throw new Error('Không tìm thấy Google Chrome trên máy chạy Xeko. Cài Google Chrome rồi thử lại.', { cause: error });
+    }
     if (/Executable doesn'?t exist|Looks like Playwright was just installed/i.test(error.message || '')) {
       throw new Error(`Chưa cài trình duyệt ${engine} trên máy chạy Xeko. Cần chạy lại workflow deploy để cài đủ browser.`, { cause: error });
     }
@@ -59,7 +66,7 @@ async function launchBrowser(engine, launchOpts) {
 async function getDeal(url, opts = {}) {
   ensureDealDir();
   const proxy = parseProxy(opts.proxy) || undefined;
-  const engine = ['firefox', 'webkit'].includes(opts.engine) ? opts.engine : 'chromium';
+  const engine = ['firefox', 'webkit', 'chrome'].includes(opts.engine) ? opts.engine : 'chromium';
   const browser = await launchBrowser(engine, { headless: false, proxy });
   try {
     const context = await browser.newContext({
