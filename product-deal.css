@@ -109,9 +109,7 @@
 .deal-workspace .deal-price-grid { display:inline-grid; grid-template-columns:repeat(3,max-content); gap:28px; }
 .deal-workspace .deal-price-grid > div { min-width:0; overflow-wrap:anywhere; }
 .deal-workspace .deal-original-price { text-decoration:line-through; font-weight:500; }
-.deal-workspace .deal-content-grid { display:grid; grid-template-columns:minmax(0,2fr) minmax(200px,1fr); gap:24px; align-items:start; }
-.deal-workspace .deal-content-grid .field-label { margin-top:0; }
-@media(max-width:600px) { .deal-workspace .deal-content-grid { grid-template-columns:1fr; gap:16px; } .deal-workspace .deal-price-grid { gap:10px; } }
+@media(max-width:600px) { .deal-workspace .deal-price-grid { gap:10px; } }
 
 .deal-workspace .deal-price-card { margin-top:16px; padding:20px 24px; background:var(--deal-soft); border:1px solid var(--deal-line); border-radius:14px; }
 .deal-workspace .deal-price-card .price-section { margin-top:0; }

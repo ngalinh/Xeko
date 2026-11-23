@@ -493,7 +493,7 @@ $('create-draft').addEventListener('click', async () => {
     const response = await fetch(BASE_URL + '/api/product-drafts', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, images, price: currentDeal?.price,
-        description: [$('draft-description').value.trim(), $('exchange-rate').value.trim() ? 'Tỷ giá: ' + $('exchange-rate').value.trim() : ''].filter(Boolean).join('\n'), style: $('draft-style').value, url: $('url').value.trim() }),
+        description: [$('draft-description').value.trim(), $('exchange-rate').value.trim() ? 'Tỷ giá: ' + $('exchange-rate').value.trim() : ''].filter(Boolean).join('\n'), url: $('url').value.trim() }),
     });
     let data;
     try { data = await response.json(); } catch {
