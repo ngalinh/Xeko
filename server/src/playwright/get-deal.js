@@ -63,10 +63,27 @@ async function launchBrowser(engine, launchOpts) {
   }
 }
 
+// Macy's (va cac web lon khac) co luc chan han 1 engine nhung engine khac lai
+// qua duoc — tu dong doi sang Firefox / Chrome that neu engine dang dung bi
+// chan, truoc khi bao loi han cho nguoi dung.
+const FALLBACK_ENGINES = ['firefox', 'chrome'];
+
 async function getDeal(url, opts = {}) {
   ensureDealDir();
   const proxy = parseProxy(opts.proxy) || undefined;
-  const engine = ['firefox', 'webkit', 'chrome'].includes(opts.engine) ? opts.engine : 'chromium';
+  const initialEngine = ['firefox', 'webkit', 'chrome'].includes(opts.engine) ? opts.engine : 'chromium';
+  const engines = [initialEngine, ...FALLBACK_ENGINES.filter(e => e !== initialEngine)];
+  for (let i = 0; i < engines.length; i++) {
+    try {
+      return await attemptGetDeal(url, opts, engines[i], proxy);
+    } catch (error) {
+      if (i === engines.length - 1 || !/có thể bị chặn bot/i.test(error.message || '')) throw error;
+      logger.warn(`[get-deal] ${url} bị chặn với engine ${engines[i]}, tự đổi sang ${engines[i + 1]}...`);
+    }
+  }
+}
+
+async function attemptGetDeal(url, opts, engine, proxy) {
   const browser = await launchBrowser(engine, { headless: false, proxy });
   try {
     const context = await browser.newContext({
