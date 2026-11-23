@@ -160,6 +160,7 @@ btn.addEventListener('click', async () => {
   $('draft-status').textContent = '';
   $('draft-preview').textContent = '';
   $('draft-library').hidden = true;
+  $('use-for-post').hidden = true;
   btn.disabled = true;
   $('engines').disabled = true;
   setError('');
@@ -387,6 +388,17 @@ $('create-draft').addEventListener('click', async () => {
     $('draft-status').textContent = 'Đã lưu bản nháp #' + data.item.id + ' với ' + data.item.images.length + ' ảnh trong Kho content. Chưa đăng bài.';
     $('draft-library').href = BASE_URL + '/?page=drafts&draft=' + encodeURIComponent(data.item.id);
     $('draft-library').hidden = false;
+    $('use-for-post').hidden = false;
+    $('use-for-post').onclick = () => {
+      // useContent() đọc từ cache _contentItems (chỉ được nạp khi mở trang Kho
+      // content) — nạp thẳng bản nháp vừa tạo vào cache để dùng ngay được dù
+      // chưa từng mở trang đó trong phiên này.
+      if (typeof _contentItems !== 'undefined') {
+        _contentItems = _contentItems.filter(c => c.id !== data.item.id);
+        _contentItems.push(data.item);
+      }
+      if (typeof useContent === 'function') useContent(data.item.id);
+    };
   } catch (error) {
     $('draft-status').textContent = error.message + ' Nếu mất kết nối, kiểm tra Kho content trước khi tạo lại để tránh trùng bài.';
     $('create-draft').disabled = false;
