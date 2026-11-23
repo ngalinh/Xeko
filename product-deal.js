@@ -6,6 +6,18 @@ const root = document.querySelector('[data-deal-app]');
 const $ = (id) => root.querySelector('[data-deal-id=' + id + ']');
 const btn = $('go');
 let currentDeal = null;
+
+// Nạp danh sách profile FB để chọn trước nơi đăng — không bắt buộc, để trống
+// thì dùng đúng profile đang active trong tab Đăng bài như trước giờ.
+fetch(BASE_URL + '/api/accounts').then(r => r.json()).then(data => {
+  const profiles = (data && data.facebook) || [];
+  for (const p of profiles) {
+    const opt = document.createElement('option');
+    opt.value = p.key;
+    opt.textContent = p.name || p.key;
+    $('post-profile').appendChild(opt);
+  }
+}).catch(() => {});
 let currentDownloads = []; // hàm tải từng ảnh, dùng lại cho nút "Tải tất cả ảnh"
 
 function setStatus(msg) { $('status').textContent = msg || ''; }
@@ -397,6 +409,10 @@ $('create-draft').addEventListener('click', async () => {
         _contentItems = _contentItems.filter(c => c.id !== data.item.id);
         _contentItems.push(data.item);
       }
+      // Đã chọn sẵn profile ở ô trên → chuyển luôn profile đó (giống bấm chọn
+      // trong khung chat Đăng bài) trước khi mở bản nháp để đăng.
+      const chosenProfile = $('post-profile').value;
+      if (chosenProfile && typeof selectProfile === 'function') selectProfile(chosenProfile);
       if (typeof useContent === 'function') useContent(data.item.id);
     };
   } catch (error) {
