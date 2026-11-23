@@ -30,10 +30,27 @@ Promise.all([
   }
 });
 
-function buildDealTargetOptions(profileKey) {
+// Danh sách kênh có thể tick cho profile đang chọn — cùng độ chi tiết mà
+// khung chat "Đăng bài" hỗ trợ: cả nhóm FB chỉ chọn được theo category (bó
+// chung), không chọn được 1 nhóm lẻ trong category.
+let _dealSelectedChannels = []; // [{ type: 'personal'|'group'|'page'|'zalo'|'instagram', key?, category?, label, sub, icon }]
+
+function dealChannelKey(o) {
+  return o.type === 'personal' ? 'personal' : o.type + ':' + (o.key || o.category);
+}
+
+function dealChannelToTargetVal(o) {
+  if (o.type === 'personal') return 'fb:personal';
+  if (o.type === 'group') return 'fb:cat:' + o.category;
+  if (o.type === 'page') return 'fb:page:' + o.key;
+  if (o.type === 'zalo') return 'zalo:' + o.key;
+  if (o.type === 'instagram') return 'instagram:' + o.key;
+  return null;
+}
+
+function buildDealChannelOptions(profileKey) {
   const cfg = (_dealChannelsData.profileChannels || {})[profileKey] || {};
-  const opts = [{ value: '', label: '— Không chọn (tự chọn ở tab Đăng bài) —' }];
-  opts.push({ value: 'fb:personal', label: 'FB Profile (trang cá nhân)' });
+  const opts = [{ type: 'personal', icon: 'home', label: 'Profile', sub: '' }];
   const fbGroupKeys = new Set(cfg.fbGroups || []);
   const catCount = new Map();
   for (const g of (_dealChannelsData.fbGroups || [])) {
@@ -41,34 +58,62 @@ function buildDealTargetOptions(profileKey) {
     const cat = (g.category || '').trim() || 'Chưa phân loại';
     catCount.set(cat, (catCount.get(cat) || 0) + 1);
   }
-  for (const [cat, count] of catCount) opts.push({ value: 'fb:cat:' + cat, label: 'Nhóm ' + cat + ' (' + count + ')' });
+  for (const [cat, count] of [...catCount.entries()].sort((a, b) => a[0].localeCompare(b[0], 'vi'))) {
+    opts.push({ type: 'group', category: cat, icon: 'users', label: cat, sub: String(count) });
+  }
   const fbPageKeys = new Set(cfg.fbPages || []);
   for (const p of (_dealChannelsData.fbPages || [])) {
-    if (fbPageKeys.has(p.key)) opts.push({ value: 'fb:page:' + p.key, label: p.name + ' (Page)' });
+    if (fbPageKeys.has(p.key)) opts.push({ type: 'page', key: p.key, icon: 'file', label: p.name || p.key, sub: 'Page' });
   }
   const zaloGroupKeys = new Set(cfg.zaloGroups || []);
   for (const z of (_dealChannelsData.zaloGroups || [])) {
-    if (zaloGroupKeys.has(z.key)) opts.push({ value: 'zalo:' + z.key, label: z.name + ' (Zalo)' });
+    if (zaloGroupKeys.has(z.key)) opts.push({ type: 'zalo', key: z.key, icon: 'chat', label: z.name || z.key, sub: 'Zalo' });
   }
   const igKeys = new Set(cfg.instagram || []);
   for (const ig of _dealIgAccounts) {
-    if (igKeys.has(ig.key)) opts.push({ value: 'instagram:' + ig.key, label: (ig.name || ig.key) + ' (Instagram)' });
+    if (igKeys.has(ig.key)) opts.push({ type: 'instagram', key: ig.key, icon: 'camera', label: ig.name || ig.key, sub: 'Instagram' });
   }
   return opts;
 }
 
-$('post-profile').addEventListener('change', () => {
+// Khung tick chọn kênh — cùng kiểu danh sách checkbox như modal "Repost bài
+// viết" (tài khoản/nơi đăng), nhưng tự quản state riêng (_dealSelectedChannels)
+// để không đụng vào state của modal Repost.
+function renderDealChannelList() {
+  const container = $('post-target-list');
   const profileKey = $('post-profile').value;
-  const targetSelect = $('post-target');
-  targetSelect.innerHTML = '';
-  const opts = profileKey ? buildDealTargetOptions(profileKey) : [{ value: '', label: '— Chọn profile trước —' }];
-  for (const o of opts) {
-    const el = document.createElement('option');
-    el.value = o.value;
-    el.textContent = o.label;
-    targetSelect.appendChild(el);
+  if (!profileKey) {
+    container.innerHTML = '<div class="deal-channel-hint">Chọn profile trước</div>';
+    return;
   }
-  targetSelect.disabled = !profileKey;
+  const opts = buildDealChannelOptions(profileKey);
+  const esc = (typeof escapeHtml === 'function') ? escapeHtml : (x => x);
+  const icon = (name) => (typeof xekoIcon === 'function') ? xekoIcon(name, 'xi xi-sm') : '';
+  container.innerHTML = opts.map((o, i) => {
+    const selected = _dealSelectedChannels.some(c => dealChannelKey(c) === dealChannelKey(o));
+    return `<label class="deal-channel-item${selected ? ' selected' : ''}">`
+      + `<input type="checkbox" data-idx="${i}"${selected ? ' checked' : ''}>`
+      + icon(o.icon) + `<span class="deal-channel-label">${esc(o.label)}</span>`
+      + (o.sub ? `<span class="deal-channel-sub">${esc(o.sub)}</span>` : '')
+      + `</label>`;
+  }).join('');
+  container.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const o = opts[Number(cb.dataset.idx)];
+      const key = dealChannelKey(o);
+      if (cb.checked) {
+        if (!_dealSelectedChannels.some(c => dealChannelKey(c) === key)) _dealSelectedChannels.push(o);
+      } else {
+        _dealSelectedChannels = _dealSelectedChannels.filter(c => dealChannelKey(c) !== key);
+      }
+      cb.closest('.deal-channel-item').classList.toggle('selected', cb.checked);
+    });
+  });
+}
+
+$('post-profile').addEventListener('change', () => {
+  _dealSelectedChannels = []; // đổi profile → nơi đăng của profile cũ không còn hợp lệ
+  renderDealChannelList();
 });
 
 function waitFor(conditionFn, timeoutMs = 6000, intervalMs = 150) {
@@ -101,14 +146,15 @@ function findDealChannelCheckbox(panel, targetVal) {
   return null;
 }
 
-// Tick sẵn đúng kênh trong khung chat "Đăng bài" — dùng lại nguyên các hàm
-// thật của khung chat (selectMode/onChannelChange/confirmChannelSelection)
-// thay vì tự dựng lại logic chọn kênh. Panel kênh render bất đồng bộ (phải
-// gọi API /api/channels, /api/accounts riêng của khung chat) nên phải đợi.
-// Nếu có gì bất thường (panel không render kịp, không tìm thấy đúng kênh) thì
-// bỏ qua lặng lẽ — người dùng vẫn tự chọn kênh như bình thường ở tab Đăng bài.
-async function preselectDealChannel(targetVal) {
-  if (typeof selectMode !== 'function' || typeof confirmChannelSelection !== 'function') return;
+// Tick sẵn đúng (các) kênh đã chọn trong khung chat "Đăng bài" — dùng lại
+// nguyên các hàm thật của khung chat (selectMode/onChannelChange/
+// confirmChannelSelection) thay vì tự dựng lại logic chọn kênh. Panel kênh
+// render bất đồng bộ (phải gọi API /api/channels, /api/accounts riêng của
+// khung chat) nên phải đợi. Nếu có gì bất thường (panel không render kịp,
+// không tìm thấy đúng kênh) thì bỏ qua lặng lẽ — người dùng vẫn tự chọn kênh
+// như bình thường ở tab Đăng bài.
+async function preselectDealChannels(targetVals) {
+  if (!targetVals.length || typeof selectMode !== 'function' || typeof confirmChannelSelection !== 'function') return;
   const beforePid = (typeof channelPanelId === 'number') ? channelPanelId : 0;
   selectMode('now');
   const panel = await waitFor(() => {
@@ -117,9 +163,12 @@ async function preselectDealChannel(targetVal) {
   });
   if (!panel) return;
   const pid = channelPanelId;
-  const checkbox = findDealChannelCheckbox(panel, targetVal);
-  if (!checkbox) return;
-  checkbox.checked = true;
+  let checkedAny = false;
+  for (const val of targetVals) {
+    const checkbox = findDealChannelCheckbox(panel, val);
+    if (checkbox) { checkbox.checked = true; checkedAny = true; }
+  }
+  if (!checkedAny) return;
   if (typeof onChannelChange === 'function') onChannelChange(pid);
   confirmChannelSelection(pid);
 }
@@ -516,7 +565,7 @@ $('create-draft').addEventListener('click', async () => {
       // Đã chọn sẵn profile/nơi đăng ở 2 ô trên → chuyển luôn trước khi mở
       // bản nháp để đăng, giống hệt như tự bấm chọn trong khung chat.
       const chosenProfile = $('post-profile').value;
-      const chosenTarget = $('post-target').value;
+      const chosenTargets = _dealSelectedChannels.map(dealChannelToTargetVal).filter(Boolean);
       if (chosenProfile && typeof selectProfile === 'function') {
         selectProfile(chosenProfile);
         // selectProfile() tự set currentProfile bất đồng bộ (sau khi gọi API
@@ -524,8 +573,8 @@ $('create-draft').addEventListener('click', async () => {
         // không panel sẽ dựng nhầm theo profile cũ.
         await waitFor(() => (typeof currentProfile !== 'undefined' && currentProfile === chosenProfile) || null, 4000, 100);
       }
-      if (chosenProfile && chosenTarget) {
-        try { await preselectDealChannel(chosenTarget); } catch (e) {
+      if (chosenProfile && chosenTargets.length) {
+        try { await preselectDealChannels(chosenTargets); } catch (e) {
           console.error('[deal] Không tự chọn được kênh, bạn chọn tay ở tab Đăng bài nhé.', e);
         }
       }
