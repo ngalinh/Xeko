@@ -241,15 +241,16 @@ app.post('/api/post', upload.array('images', 20), async (req, res) => {
   const jobId = createJob();
   res.json({ jobId, status: 'pending' });
 
-  // Safety net: nếu Playwright bị kẹt và không gọi setJobResult/setJobError,
-  // job sẽ ở pending mãi mãi. Force-fail sau 9 phút (< 10 phút của pollLocalJob ở cloud)
-  // để cloud thấy "failed" thay vì tự timeout với message chung chung hơn.
+  // Cảnh báo (KHÔNG force-fail): job chạy quá 9 phút vẫn có thể đang đăng bình
+  // thường (FB chậm, nhiều ảnh, nhiều group) và sắp thành công. Trước đây force
+  // setJobError ở đây khiến cloud dừng poll sớm rồi báo "Cần kiểm tra" dù bài vừa
+  // đăng xong thành công ngay sau đó — xem pollLocalJob (10 phút) ở cloud làm
+  // lưới an toàn cuối cho trường hợp thật sự bị kẹt.
   queueWorkerJob(jobId, activeProfile.key, async () => {
     const _jobTimeoutId = setTimeout(() => {
       const j = postJobs.get(jobId);
       if (j && j.status === 'pending') {
-        logger.error(`[job ${jobId}] TIMEOUT sau 9 phút — force setJobError`);
-        setJobError(jobId, 'Timeout: Playwright bị kẹt quá 9 phút. Có thể đã đăng thành công — kiểm tra Facebook trước khi đăng lại.');
+        logger.warn(`[job ${jobId}] vẫn đang chạy sau 9 phút — chờ kết quả thật, không force-fail`);
       }
     }, 9 * 60 * 1000);
 
@@ -397,8 +398,7 @@ app.post('/api/post-instagram', upload.array('images', 10), async (req, res) => 
     const _igTimeoutId = setTimeout(() => {
       const j = postJobs.get(jobId);
       if (j && j.status === 'pending') {
-        logger.error(`[job ${jobId}] TIMEOUT sau 9 phút — force setJobError`);
-        setJobError(jobId, 'Timeout: Playwright bị kẹt quá 9 phút. Có thể đã đăng thành công — kiểm tra Instagram trước khi đăng lại.');
+        logger.warn(`[job ${jobId}] vẫn đang chạy sau 9 phút — chờ kết quả thật, không force-fail`);
       }
     }, 9 * 60 * 1000);
 
@@ -432,7 +432,7 @@ app.post('/api/do-comment', upload.array('images', 10), async (req, res) => {
   queueWorkerJob(jobId, profile, async () => {
     const _timeoutId = setTimeout(() => {
       const j = postJobs.get(jobId);
-      if (j && j.status === 'pending') setJobError(jobId, 'Timeout: Playwright bị kẹt quá 9 phút.');
+      if (j && j.status === 'pending') logger.warn(`[job ${jobId}] vẫn đang chạy sau 9 phút — chờ kết quả thật, không force-fail`);
     }, 9 * 60 * 1000);
 
     try {
@@ -493,8 +493,7 @@ app.post('/api/fb-quick-post-test', upload.array('images', 20), async (req, res)
     const _qpTimeoutId = setTimeout(() => {
       const j = postJobs.get(jobId);
       if (j && j.status === 'pending') {
-        logger.error(`[fb-quick-post-test job ${jobId}] TIMEOUT sau 9 phút`);
-        setJobError(jobId, 'Timeout: Playwright bị kẹt quá 9 phút. Có thể đã đăng thành công — kiểm tra Facebook trước khi đăng lại.');
+        logger.warn(`[fb-quick-post-test job ${jobId}] vẫn đang chạy sau 9 phút — chờ kết quả thật, không force-fail`);
       }
     }, 9 * 60 * 1000);
 
