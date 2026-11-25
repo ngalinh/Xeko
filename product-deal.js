@@ -189,6 +189,91 @@ $('images').addEventListener('change', (e) => {
   if (e.target.classList.contains('draft-image')) updateSelectedCount();
 });
 
+// ===== AI Editor nội tuyến (thay cho sheet popup dùng chung toàn app) =====
+// Tự chứa, không đụng state/DOM của sheet AI Editor ở tab Đăng bài/Theo category.
+let _dealAiStyle = 'short';
+let _dealAiCache = {}; // style -> nội dung đã tạo, dùng lại khi đổi qua lại phong cách
+let _dealAiGenerating = false;
+let _dealAiResult = '';
+
+function resetDealAiPanel() {
+  $('ai-panel').hidden = true;
+  _dealAiCache = {};
+  _dealAiResult = '';
+  _dealAiStyle = 'short';
+  $('ai-styles').querySelectorAll('.deal-ai-style').forEach(b => b.classList.toggle('active', b.dataset.style === 'short'));
+}
+
+$('ai-suggest').addEventListener('click', () => {
+  const panel = $('ai-panel');
+  const opening = panel.hidden;
+  panel.hidden = !opening;
+  if (opening) runDealAiGenerate();
+});
+
+$('ai-styles').querySelectorAll('.deal-ai-style').forEach(chip => {
+  chip.addEventListener('click', () => {
+    if (chip.dataset.style === _dealAiStyle && !_dealAiGenerating) return;
+    $('ai-styles').querySelectorAll('.deal-ai-style').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    _dealAiStyle = chip.dataset.style;
+    const cached = _dealAiCache[_dealAiStyle];
+    if (cached) showDealAiResult(cached); else runDealAiGenerate();
+  });
+});
+
+async function runDealAiGenerate() {
+  if (_dealAiGenerating) return;
+  _dealAiGenerating = true;
+  const resultEl = $('ai-result');
+  const applyBtn = $('ai-apply');
+  const retryBtn = $('ai-retry');
+  _dealAiResult = '';
+  resultEl.classList.add('loading');
+  resultEl.innerHTML = '<span class="ai-spinner"></span> AI đang phân tích ảnh sản phẩm...';
+  applyBtn.disabled = true;
+  retryBtn.disabled = true;
+  try {
+    const urls = [...root.querySelectorAll('.draft-image:checked')].map(el => el.value).slice(0, 5);
+    const form = new FormData();
+    for (const url of urls) {
+      try { form.append('images', await (await fetch(url)).blob(), 'image.jpg'); } catch { /* bỏ qua ảnh lỗi */ }
+    }
+    form.append('style', _dealAiStyle);
+    const productName = $('draft-title').value.trim();
+    if (productName) form.append('productName', productName);
+    const res = await fetch(BASE_URL + '/api/ai/suggest', { method: 'POST', credentials: 'include', body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Lỗi không xác định');
+    const text = (data.suggestions || [])[0] || '';
+    _dealAiCache[_dealAiStyle] = text;
+    showDealAiResult(text);
+  } catch (err) {
+    resultEl.classList.remove('loading');
+    resultEl.textContent = '❌ ' + err.message;
+    applyBtn.disabled = true;
+  } finally {
+    _dealAiGenerating = false;
+    retryBtn.disabled = false;
+  }
+}
+
+function showDealAiResult(text) {
+  _dealAiResult = text;
+  const resultEl = $('ai-result');
+  resultEl.classList.remove('loading');
+  resultEl.textContent = text || '(Không có kết quả)';
+  $('ai-apply').disabled = !text;
+}
+
+$('ai-retry').addEventListener('click', runDealAiGenerate);
+$('ai-apply').addEventListener('click', () => {
+  if (!_dealAiResult) return;
+  $('draft-description').value = _dealAiResult;
+  $('ai-panel').hidden = true;
+  $('draft-description').focus();
+});
+
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -321,6 +406,7 @@ btn.addEventListener('click', async () => {
   const engineLabel = selectedEngine.parentElement.textContent.trim();
   currentDeal = null;
   $('draft-panel').hidden = true;
+  resetDealAiPanel();
   $('product-info').hidden = true;
   $('draft-status').textContent = '';
   $('draft-preview').textContent = '';

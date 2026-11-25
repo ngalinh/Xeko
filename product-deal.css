@@ -293,3 +293,25 @@
 .deal-workspace .category-write svg { flex-shrink:0; }
 .deal-workspace .category-content .category-create-options .category-write.is-loading { width:auto; height:auto; }
 .deal-workspace .category-write.is-loading svg { display:none; }
+
+/* Khung AI Editor nội tuyến riêng cho Lấy deal (không dùng sheet popup dùng
+   chung toàn app, để tránh hiện trùng với ô Nội dung ngay phía trên). */
+.deal-workspace .deal-ai-panel { margin-top:12px; padding:14px 16px; border:1px solid var(--deal-line); border-radius:12px; background:var(--deal-soft); }
+.deal-workspace .deal-ai-styles { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; }
+.deal-workspace .deal-ai-style { display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 14px; border-radius:14px; border:1.5px solid var(--deal-line); background:var(--deal-bg); cursor:pointer; flex-shrink:0; min-width:64px; font:inherit; margin:0; }
+.deal-workspace .deal-ai-style:hover { border-color:#a5b4fc; }
+.deal-workspace .deal-ai-style.active { border-color:#6366f1; background:#eef2ff; }
+.deal-workspace .deal-ai-style .chip-icon { font-size:18px; line-height:1; }
+.deal-workspace .deal-ai-style .chip-label { font-size:11px; font-weight:600; color:var(--deal-muted); white-space:nowrap; }
+.deal-workspace .deal-ai-style.active .chip-label { color:#4f46e5; }
+.deal-workspace .deal-ai-result { margin-top:10px; background:var(--deal-bg); border:1.5px solid var(--deal-line); border-radius:12px; padding:12px 14px; font-size:14px; line-height:1.6; color:var(--deal-text); white-space:pre-wrap; word-break:break-word; min-height:64px; }
+.deal-workspace .deal-ai-result.loading { color:var(--deal-muted); font-style:italic; }
+.deal-workspace .deal-ai-actions { display:flex; gap:8px; margin-top:10px; }
+.deal-workspace .deal-ai-apply { flex:1; background:#6366f1; color:#fff; border:none; border-radius:12px; padding:12px; font-size:14px; font-weight:700; cursor:pointer; margin-top:0; }
+.deal-workspace .deal-ai-apply:hover { background:#4f46e5; }
+.deal-workspace .deal-ai-apply:disabled { background:#a5b4fc; cursor:not-allowed; }
+.deal-workspace .deal-ai-retry { width:42px; background:var(--deal-bg); color:#6366f1; border:1px solid var(--deal-line); border-radius:12px; font-size:16px; cursor:pointer; flex-shrink:0; margin-top:0; }
+.deal-workspace .deal-ai-retry:hover { background:#eef2ff; }
+.deal-workspace .deal-ai-retry:disabled { opacity:0.4; cursor:not-allowed; }
+[data-theme=dark] .deal-workspace .deal-ai-style.active { background:#2d2b60; }
+[data-theme=dark] .deal-workspace .deal-ai-result { color:#e0e0f0; }
