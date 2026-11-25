@@ -116,6 +116,23 @@ $('post-profile').addEventListener('change', () => {
   renderDealChannelList();
 });
 
+// Job nền + poll — tránh giới hạn ~60s của ngrok free khi quét nhiều màu hoặc
+// khi bị chặn bot phải đổi engine (xem get-deal.js), chạy lâu hơn 1 request
+// HTTP giữ được. Poll mỗi 3s, tối đa 10 phút.
+async function pollDealJob(jobId) {
+  for (let i = 0; i < 200; i++) {
+    if (i > 0) await new Promise(resolve => setTimeout(resolve, 3000));
+    const res = await fetch(BASE_URL + '/api/deal-job/' + encodeURIComponent(jobId));
+    let job;
+    try { job = await res.json(); } catch { continue; }
+    if (job.status === 'done') {
+      if (!job.ok) throw new Error(job.error || 'Lỗi không rõ');
+      return job.result;
+    }
+  }
+  throw new Error('Quá 10 phút chưa xong — kiểm tra log server hoặc thử lại.');
+}
+
 function waitFor(conditionFn, timeoutMs = 6000, intervalMs = 150) {
   return new Promise(resolve => {
     const start = Date.now();
@@ -432,16 +449,17 @@ btn.addEventListener('click', async () => {
     : ' và tự bấm ảnh thu nhỏ để gom ảnh sản phẩm...'));
 
   try {
-    const res = await fetch(BASE_URL + '/api/get-deal', {
+    const startRes = await fetch(BASE_URL + '/api/get-deal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, proxy: $('proxy').value.trim() || undefined, engine, allColors }),
     });
-    let data;
-    try { data = await res.json(); } catch {
-      throw new Error('Server phản hồi không hợp lệ, có thể do quá thời gian chờ khi lấy nhiều màu. Hãy thử lại, hoặc chọn "Color đang chọn" để lấy nhanh hơn.');
+    let start;
+    try { start = await startRes.json(); } catch {
+      throw new Error('Server phản hồi không hợp lệ. Hãy thử lại.');
     }
-    if (!res.ok) throw new Error(data.error || 'Lỗi không rõ');
+    if (!startRes.ok || !start.jobId) throw new Error(start.error || 'Lỗi không rõ');
+    const data = await pollDealJob(start.jobId);
 
     const colorNote = Array.isArray(data.debug?.colors) && data.debug.colors.length > 1
       ? ' Đã lấy ' + data.debug.colors.length + ' màu.'

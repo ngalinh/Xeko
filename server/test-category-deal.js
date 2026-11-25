@@ -60,14 +60,26 @@ test('JSON-LD fallback handles ItemList, malformed scripts and unsafe images', (
   dom.window.close();
 });
 
+// /api/get-category và /api/get-deal giờ trả {jobId} ngay rồi chạy job nền
+// (xem product-deal.js/category-deal.js: pollDealJob poll /api/deal-job/:id) —
+// mock fetch phải mô phỏng đúng 2 bước này thay vì trả thẳng kết quả.
 function setup(responses) {
   const dom = new JSDOM(read('index.html'), { url: 'https://example.com/b/member/index.html', runScripts: 'outside-only' });
   const w = dom.window, calls = [];
+  const jobResults = new Map();
+  let jobSeq = 0;
   w.fetch = async (url, opts) => {
     if (url.includes('/api/deal-history')) return { ok: true, json: async () => [] };
+    if (url.includes('/api/deal-job/')) {
+      const jobId = url.split('/api/deal-job/')[1];
+      const response = jobResults.get(jobId);
+      return { ok: true, json: async () => ({ status: 'done', ok: response.ok !== false, result: response, error: response.error }) };
+    }
     calls.push({ url, body: JSON.parse(opts.body) });
     const response = responses.shift();
-    return { ok: response.ok !== false, json: async () => response };
+    const jobId = 'job-' + (++jobSeq);
+    jobResults.set(jobId, response);
+    return { ok: true, json: async () => ({ jobId }) };
   };
   w.eval(read('product-deal.js')); w.eval(read('category-deal.js'));
   return { dom, w, calls, get: key => w.document.querySelector('[data-category="' + key + '"]') };

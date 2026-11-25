@@ -7,6 +7,22 @@
   let batchCurrent = 0, batchTotal = 0;
   const selected = new Set(), visited = new Set();
   let lastCategoryAiImages = [], lastCategoryAiTitle = '';
+  // Job nền + poll — tránh giới hạn ~60s của ngrok free khi quét nhiều màu/
+  // nhiều trang hoặc khi bị chặn bot phải đổi engine. Poll mỗi 3s, tối đa 10 phút.
+  async function pollDealJob(jobId) {
+    for (let i = 0; i < 200; i++) {
+      if (i > 0) await new Promise(resolve => setTimeout(resolve, 3000));
+      const res = await fetch(base + '/api/deal-job/' + encodeURIComponent(jobId));
+      let job;
+      try { job = await res.json(); } catch { continue; }
+      if (job.status === 'done') {
+        if (!job.ok) throw new Error(job.error || 'Lỗi không rõ');
+        return job.result;
+      }
+    }
+    throw new Error('Quá 10 phút chưa xong — kiểm tra log server hoặc thử lại.');
+  }
+
   async function saveDraft({ title, body, images, link, price }, statusEl) {
     if (!body) return;
     statusEl.textContent = 'Đang lưu…';
@@ -111,13 +127,14 @@
     if (!url) return;
     busy = true; $('error').textContent = ''; $('status').textContent = 'Đang tải danh sách và thumbnail…'; update();
     try {
-      const response = await fetch(base + '/api/get-category', {
+      const startRes = await fetch(base + '/api/get-category', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, engine: root.querySelector('input[name="engine"]:checked')?.value || 'firefox', proxy: root.querySelector('[data-deal-id="proxy"]')?.value.trim() || undefined }),
       });
-      let data;
-      try { data = await response.json(); } catch { throw new Error('Server phản hồi không hợp lệ. Hãy thử lại sau.'); }
-      if (!response.ok) throw new Error(data.error || 'Không tải được category.');
+      let start;
+      try { start = await startRes.json(); } catch { throw new Error('Server phản hồi không hợp lệ. Hãy thử lại sau.'); }
+      if (!startRes.ok || !start.jobId) throw new Error(start.error || 'Không tải được category.');
+      const data = await pollDealJob(start.jobId);
       if (!Array.isArray(data.products)) throw new Error('Danh sách sản phẩm không hợp lệ.');
       const incoming = data.products.filter(validProduct);
       if (!incoming.length) throw new Error('Chưa tìm thấy sản phẩm có thumbnail.');
@@ -206,13 +223,14 @@
       row.append(head, loading, gallery, textarea, actions);
       $('ai-each-list').append(row);
       try {
-        const response = await fetch(base + '/api/get-deal', {
+        const startRes = await fetch(base + '/api/get-deal', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: p.url, engine, proxy, allColors: false }),
         });
-        let data;
-        try { data = await response.json(); } catch { throw new Error('Server phản hồi không hợp lệ.'); }
-        if (!response.ok) throw new Error(data.error || 'Không lấy được deal.');
+        let start;
+        try { start = await startRes.json(); } catch { throw new Error('Server phản hồi không hợp lệ.'); }
+        if (!startRes.ok || !start.jobId) throw new Error(start.error || 'Không lấy được deal.');
+        const data = await pollDealJob(start.jobId);
         const images = validDealImages(data.images).slice(0, 5);
         if (!images.length) throw new Error('Không tìm thấy ảnh sản phẩm.');
         rowImages = images;

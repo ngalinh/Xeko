@@ -2204,19 +2204,46 @@ app.post('/api/restart', (req, res) => proxyToLocal(req, res, 'POST', '/api/rest
 
 const dealHistoryStore = require('./src/database/deal-history-store');
 
+// /api/get-deal và /api/get-category giờ trả jobId ngay (chạy job nền ở local
+// để tránh timeout ~60s của ngrok free khi quét nhiều màu/nhiều trang) — nên
+// không còn kết quả cuối cùng ngay trong response POST nữa. Ghi "Lịch sử lấy
+// deal" phải dời sang lúc poll /api/deal-job/:jobId thấy status=done; context
+// gốc (url/engine/allColors) lưu tạm theo jobId để ghép lại lúc đó.
+const dealJobRequestInfo = new Map(); // jobId -> { url, engine, allColors, ts }
+setInterval(() => {
+  const cutoff = Date.now() - 30 * 60 * 1000;
+  for (const [id, info] of dealJobRequestInfo) {
+    if (info.ts < cutoff) dealJobRequestInfo.delete(id);
+  }
+}, 10 * 60 * 1000);
+
 app.post('/api/get-category', (req, res) => proxyToLocal(req, res, 'POST', '/api/get-category', req.body));
 
-app.post('/api/get-deal', (req, res) => proxyToLocal(req, res, 'POST', '/api/get-deal', req.body, (data, status) => {
-  const url = String(req.body?.url || '').trim();
-  let website = '';
-  try { website = new URL(url).hostname; } catch {}
-  dealHistoryStore.create({ title: data.debug?.pageTitle || '', brand: data.brand || '', url, website, price: data.price || '', log: {
-    status: status >= 200 && status < 300 ? 'success' : 'error',
-    httpStatus: status,
+app.post('/api/get-deal', (req, res) => proxyToLocal(req, res, 'POST', '/api/get-deal', req.body, (data) => {
+  if (!data || !data.jobId) return;
+  dealJobRequestInfo.set(data.jobId, {
+    url: String(req.body?.url || '').trim(),
     engine: req.body?.engine || '',
     allColors: !!req.body?.allColors,
-    error: data.error || null,
-    debug: data.debug || null,
+    ts: Date.now(),
+  });
+}));
+
+app.get('/api/deal-job/:jobId', (req, res) => proxyToLocal(req, res, 'GET', `/api/deal-job/${encodeURIComponent(req.params.jobId)}`, null, (data) => {
+  if (!data || data.status !== 'done') return;
+  const info = dealJobRequestInfo.get(req.params.jobId);
+  if (!info) return; // không phải job của /api/get-deal (vd get-category), hoặc đã ghi rồi
+  dealJobRequestInfo.delete(req.params.jobId);
+  let website = '';
+  try { website = new URL(info.url).hostname; } catch {}
+  const result = data.ok ? (data.result || {}) : {};
+  dealHistoryStore.create({ title: result.debug?.pageTitle || '', brand: result.brand || '', url: info.url, website, price: result.price || '', log: {
+    status: data.ok ? 'success' : 'error',
+    httpStatus: data.ok ? 200 : 500,
+    engine: info.engine,
+    allColors: info.allColors,
+    error: data.ok ? null : (data.error || null),
+    debug: result.debug || null,
   } });
 }));
 

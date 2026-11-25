@@ -1330,26 +1330,51 @@ function isSafePngName(name) {
   return allowedChars.test(name) && name.toLowerCase().endsWith('.png');
 }
 
+// Async job pattern (giống test-proxy): "Tất cả color" hoặc bị chặn-rồi-đổi-
+// engine đều có thể chạy lâu hơn giới hạn ~60s của ngrok free. Trả jobId ngay,
+// UI poll /api/deal-job/:id cho tới khi xong — không giữ 1 request HTTP lâu.
+const dealJobs = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, job] of dealJobs) {
+    if (now - job.createdAt > 600_000) dealJobs.delete(id); // dọn sau 10 phút
+  }
+}, 600_000);
+
+function runDealJob(fn) {
+  const jobId = crypto.randomBytes(8).toString('hex');
+  dealJobs.set(jobId, { status: 'pending', createdAt: Date.now() });
+  (async () => {
+    try {
+      const result = await fn();
+      dealJobs.set(jobId, { status: 'done', ok: true, result, createdAt: Date.now() });
+    } catch (e) {
+      dealJobs.set(jobId, { status: 'done', ok: false, error: e.message, createdAt: Date.now() });
+    }
+  })();
+  return jobId;
+}
+
 const { getCategory, validateCategoryUrl } = require('./src/playwright/get-category');
-app.post('/api/get-category', async (req, res) => {
+app.post('/api/get-category', (req, res) => {
   const { url, proxy, engine } = req.body || {};
   try { validateCategoryUrl(url); } catch (e) { return res.status(400).json({ error: e.message }); }
-  try { res.json(await getCategory(url, { proxy, engine })); }
-  catch (e) { res.status(502).json({ error: e.message }); }
+  res.json({ jobId: runDealJob(() => getCategory(url, { proxy, engine })) });
 });
 
 // ===== GET DEAL (check gia + screenshot san pham tren web Macy's...) =====
-app.post('/api/get-deal', async (req, res) => {
+app.post('/api/get-deal', (req, res) => {
   const { url, proxy, engine, allColors } = req.body || {};
   if (!isHttpUrl(url)) {
     return res.status(400).json({ error: 'url khong hop le' });
   }
-  try {
-    const result = await getDeal(String(url), { proxy, engine, allColors: !!allColors });
-    res.json(result);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  res.json({ jobId: runDealJob(() => getDeal(String(url), { proxy, engine, allColors: !!allColors })) });
+});
+
+app.get('/api/deal-job/:jobId', (req, res) => {
+  const job = dealJobs.get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Job không tồn tại hoặc đã hết hạn' });
+  res.json(job);
 });
 
 // ?file=<ten file>.png tra ve anh san pham da chup boi /api/get-deal

@@ -15,9 +15,12 @@ for (const file of ['index.html', 'get-deal-test.html']) {
     const images = ['https://example.com/1.jpg', 'https://example.com/2.jpg'];
     w.fetch = async (url, opts) => {
       if (url.includes('/api/deal-history')) { historyCalls.push(url); return { ok: true, json: async () => [] }; }
+      if (url.includes('/api/deal-job/')) {
+        return { ok: true, json: async () => ({ status: 'done', ok: true, result: { price: '$99', images, debug: { pageTitle: 'Product' }, screenshotFile: 'shot.png' } }) };
+      }
       calls.push({ url, body: JSON.parse(opts.body) });
       return { ok: true, json: async () => url.endsWith('/api/get-deal')
-        ? { price: '$99', images, debug: { pageTitle: 'Product' }, screenshotFile: 'shot.png' }
+        ? { jobId: 'job1' }
         : { item: { id: 42, body: 'Nội dung nháp', images: [images[0]] } } };
     };
     const opened = [];
@@ -108,12 +111,15 @@ for (const file of ['index.html', 'get-deal-test.html']) {
     const root = w.document.querySelector('[data-deal-app]');
     const get = id => root.querySelector('[data-deal-id="' + id + '"]');
     const images = ['https://example.com/navy.jpg', 'https://example.com/red.jpg', 'https://example.com/back.jpg'];
-    w.fetch = async url => ({ ok: true, json: async () => url.includes('deal-history') ? [] : {
-      images, debug: { colors: [
-        { label: null, images: [images[0], images[2]] },
-        { label: 'Color: Red <b>test</b>', images: [images[1], images[0], 'javascript:alert(1)'] },
-      ] },
-    } });
+    const colorResult = { images, debug: { colors: [
+      { label: null, images: [images[0], images[2]] },
+      { label: 'Color: Red <b>test</b>', images: [images[1], images[0], 'javascript:alert(1)'] },
+    ] } };
+    w.fetch = async url => {
+      if (url.includes('deal-history')) return { ok: true, json: async () => [] };
+      if (url.includes('/api/deal-job/')) return { ok: true, json: async () => ({ status: 'done', ok: true, result: colorResult }) };
+      return { ok: true, json: async () => ({ jobId: 'job1' }) };
+    };
     w.eval(read('product-deal.js'));
     get('url').value = 'https://www.macys.com/shop/product/test?swatchColor=Dark+Night+Navy';
     get('go').click();
@@ -146,7 +152,10 @@ test('product summary separates prices and sends exchange rate with content', as
       submitted = JSON.parse(opts.body);
       return { item: { id:1, body:'Content', images:submitted.images } };
     }
-    return { price:'Sale $39.75 Orig. $79.50 50% off', images:['https://example.com/1.jpg'], debug:{ pageTitle:'Page', jsonLdProducts:[{ name:'Sweater' }] } };
+    if (url.includes('/api/deal-job/')) {
+      return { status:'done', ok:true, result: { price:'Sale $39.75 Orig. $79.50 50% off', images:['https://example.com/1.jpg'], debug:{ pageTitle:'Page', jsonLdProducts:[{ name:'Sweater' }] } } };
+    }
+    return { jobId: 'job1' };
   } });
   w.eval(read('product-deal.js'));
   get('url').value = 'https://example.com/product';
