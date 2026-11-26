@@ -13,6 +13,7 @@ const playwright = process.env.PLAYWRIGHT_LOCAL_URL
 const postLogger = require('./src/database/post-logger');
 const messageTemplateStore = require('./src/database/message-template-store');
 const seedStore = require('./src/database/seed-store');
+const { mergeProductIntoPhoto } = require('./src/ai/gemini-image');
 const { queuePost } = require('./src/utils/post-queue');
 const { groupDelayMs } = require('./src/utils/post-delays');
 const retryQueue = require('./src/utils/retry-queue');
@@ -934,6 +935,25 @@ app.post('/api/rednote/fetch-images', async (req, res) => {
       setJobError(jobId, e.message);
     }
   }, 'rednote');
+});
+
+// ===== RESEARCH NỘI BỘ: ghép ảnh sản phẩm (website) vào ảnh RedNote bằng AI =====
+// Chạy thẳng trên cloud (không qua VPS) — bước này chỉ cần fetch() HTTP ảnh +
+// gọi Gemini, không cần Chromium. Nếu tải ảnh RedNote (xhscdn.com) từ cloud bị
+// chặn mạng, cần chuyển riêng bước tải ảnh RedNote qua VPS (xem ghi chú trong
+// gemini-image.js) — chưa có bằng chứng cần thiết nên chưa làm trước.
+app.post('/api/rednote/merge-image', async (req, res) => {
+  const { rednoteImageUrl, productImageUrl } = req.body;
+  if (!rednoteImageUrl || !productImageUrl) {
+    return res.status(400).json({ error: 'Thiếu rednoteImageUrl hoặc productImageUrl' });
+  }
+  try {
+    const result = await mergeProductIntoPhoto(rednoteImageUrl, productImageUrl);
+    res.json(result);
+  } catch (e) {
+    logger.error(`[rednote-merge] FAILED: ${e.message}`);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ===== ĐĂNG BÀI INSTAGRAM =====
