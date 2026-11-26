@@ -293,6 +293,8 @@
 }
 
 .deal-workspace .category-content .category-create-options .category-write { display:inline-flex; align-items:center; justify-content:center; gap:6px; width:auto; height:auto; min-height:40px; padding:8px 10px; }
+.deal-workspace .category-write { background:var(--deal-bg); color:#3b82f6; border:1px solid var(--deal-line); }
+.deal-workspace .category-write:hover { background:var(--deal-soft); }
 .deal-workspace .category-write svg { flex-shrink:0; }
 .deal-workspace .category-content .category-create-options .category-write.is-loading { width:auto; height:auto; }
 .deal-workspace .category-write.is-loading svg { display:none; }
