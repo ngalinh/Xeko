@@ -27,6 +27,11 @@
   .grid img.selectable { cursor: pointer; }
   .grid img.selected { border: 3px solid #1877f2; }
   .error { color: #fa383e; font-size: 13px; margin-top: 10px; }
+  .settings { margin-top: 12px; font-size: 13px; }
+  .settings summary { cursor: pointer; color: #65676b; }
+  .field-label { display: block; font-size: 12px; color: #65676b; margin-top: 10px; margin-bottom: 4px; }
+  .engines { border: none; padding: 0; margin: 10px 0 0; display: flex; gap: 14px; }
+  .engines legend { font-size: 12px; color: #65676b; padding: 0; margin-bottom: 4px; }
 </style>
 </head>
 <body>
@@ -47,6 +52,17 @@
     <h2>2. Lấy ảnh sản phẩm từ web (dùng chung API Lấy deal)</h2>
     <div class="hint">Dán link sản phẩm trên website bán hàng, rồi bấm chọn 1 ảnh làm ảnh sản phẩm dùng để ghép.</div>
     <input type="text" id="product-url" placeholder="https://www.macys.com/shop/product/...">
+    <details class="settings">
+      <summary>Cài đặt (proxy &amp; trình duyệt)</summary>
+      <label class="field-label" for="product-proxy">Proxy (tuỳ chọn)</label>
+      <input type="text" id="product-proxy" placeholder="(tuỳ chọn) proxy: user:pass@host:port">
+      <fieldset class="engines">
+        <legend>Chọn trình duyệt</legend>
+        <label><input type="radio" name="product-engine" value="chromium"> Chromium</label>
+        <label><input type="radio" name="product-engine" value="firefox" checked> Firefox</label>
+        <label><input type="radio" name="product-engine" value="webkit"> WebKit</label>
+      </fieldset>
+    </details>
     <button id="product-go">Lấy ảnh sản phẩm</button>
     <div class="status" id="product-status"></div>
     <div class="error" id="product-error"></div>
@@ -166,10 +182,12 @@ $('product-go').addEventListener('click', async () => {
   updateMergeButton();
 
   try {
+    const engine = document.querySelector('input[name="product-engine"]:checked').value;
+    const proxy = $('product-proxy').value.trim() || undefined;
     const startRes = await fetch(BASE_URL + '/api/get-deal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, engine: 'firefox', allColors: false }),
+      body: JSON.stringify({ url, proxy, engine, allColors: false }),
     });
     const start = await startRes.json();
     if (!startRes.ok || !start.jobId) throw new Error(start.error || 'Lỗi không rõ');
