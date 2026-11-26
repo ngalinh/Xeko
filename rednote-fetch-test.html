@@ -55,7 +55,9 @@ async function pollJob(jobId) {
       await new Promise((r) => setTimeout(r, 1500));
       continue;
     }
-    return data;
+    // /api/job/:id trả { status, result }, kết quả thật nằm trong result (xem index.html pollJob).
+    if (data.status === 'failed') return { error: data.error || 'Lỗi không rõ' };
+    return data.result || {};
   }
 }
 
