@@ -59,11 +59,11 @@ async function mergeProductIntoPhoto(rednoteImageUrl, productImageUrls, fetchFn 
   const body = {
     contents: [{
       parts: [
-        { text: 'Ảnh 1 là ảnh người mẫu/bối cảnh tham khảo — CHỈ dùng để lấy dáng người, tư thế, bối cảnh và ánh sáng. Bỏ qua hoàn toàn trang phục đang mặc trong ảnh 1.' },
+        { text: 'Ảnh 1 là ảnh người mẫu/bối cảnh tham khảo — GIỮ NGUYÊN 100% khuôn mặt, tóc, vóc dáng, tư thế, bối cảnh và ánh sáng của NGƯỜI TRONG ẢNH 1 này. Bỏ qua hoàn toàn trang phục đang mặc trong ảnh 1.' },
         photoPart,
-        { text: `${productParts.length} ảnh tiếp theo là CÙNG MỘT sản phẩm thật (nhiều góc chụp khác nhau) cần quảng cáo — đây là nguồn sự thật tuyệt đối về hình dáng, màu sắc, hoạ tiết, logo của sản phẩm.` },
+        { text: `${productParts.length} ảnh tiếp theo là CÙNG MỘT sản phẩm thật (nhiều góc chụp khác nhau) cần quảng cáo — đây là nguồn sự thật tuyệt đối về hình dáng, màu sắc, hoạ tiết, logo của sản phẩm. CÁC ẢNH NÀY CÓ THỂ CHỤP TRÊN NGƯỜI MẪU KHÁC — TUYỆT ĐỐI BỎ QUA khuôn mặt/tóc/người trong các ảnh này, CHỈ lấy thông tin về món đồ (màu sắc, chất liệu, hoạ tiết, kiểu dáng), không được dùng khuôn mặt hay đặc điểm người trong các ảnh này để thay cho người ở ảnh 1.` },
         ...productParts,
-        { text: 'Hãy tạo lại ảnh 1: giữ nguyên dáng người, tư thế, bối cảnh, ánh sáng, nhưng thay thế HOÀN TOÀN món đồ đang mặc bằng ĐÚNG sản phẩm ở các ảnh sau. Ưu tiên TUYỆT ĐỐI độ chính xác của sản phẩm hơn tính thẩm mỹ: giữ đúng 100% màu sắc, chất liệu, hoạ tiết, logo, kiểu dáng (cổ áo, tay áo, số nút, độ dài) như trong ảnh sản phẩm — KHÔNG được tự thêm/bớt hay đổi chi tiết nào. Chỉ trả về 1 ảnh kết quả, không trả text.' },
+        { text: 'Hãy tạo lại ảnh 1: giữ nguyên khuôn mặt, tóc, vóc dáng, tư thế, bối cảnh, ánh sáng của NGƯỜI TRONG ẢNH 1, nhưng thay thế HOÀN TOÀN món đồ đang mặc bằng ĐÚNG sản phẩm ở các ảnh sau. Ưu tiên TUYỆT ĐỐI độ chính xác của sản phẩm hơn tính thẩm mỹ: giữ đúng 100% màu sắc, chất liệu, hoạ tiết, logo, kiểu dáng (cổ áo, tay áo, số nút, độ dài) như trong ảnh sản phẩm — KHÔNG được tự thêm/bớt hay đổi chi tiết nào. KHÔNG được đổi khuôn mặt/danh tính người trong ảnh 1 sang người trong ảnh sản phẩm. Chỉ trả về 1 ảnh kết quả, không trả text.' },
       ],
     }],
     generationConfig: { responseModalities: ['IMAGE'] },
