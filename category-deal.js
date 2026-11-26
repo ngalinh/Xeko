@@ -62,7 +62,7 @@
     $('all').checked = products.length > 0 && selected.size === products.length;
     $('all').indeterminate = selected.size > 0 && selected.size < products.length;
     $('download').disabled = busy || downloading || batchRunning || !selected.size;
-    $('ai-content').disabled = busy || downloading || batchRunning || !selected.size;
+    $('ai-content').disabled = editorBusy || busy || downloading || batchRunning || !selected.size;
     $('ai-each').disabled = (busy || downloading) ? true : (!batchRunning && !selected.size);
     const batchLabel = batchRunning ? (batchCancelled ? 'Đang dừng…' : 'Đang tạo ' + batchCurrent + '/' + batchTotal + ' · Dừng') : 'Viết từng sản phẩm';
     $('ai-each-label').textContent = batchLabel;
@@ -154,17 +154,71 @@
   $('all').addEventListener('change', () => {
     selected.clear(); if ($('all').checked) products.forEach(p => selected.add(p.id)); render();
   });
+  let editorBusy = false, editorResult = '', editorContext = null;
+  let editorStyle = 'short';
+  const editorChips = $('editor-styles').querySelectorAll('[data-style]');
+  async function generateCategoryContent() {
+    if (editorBusy || !editorContext) return;
+    editorBusy = true;
+    editorResult = '';
+    $('editor-apply').disabled = true;
+    $('editor-retry').disabled = true;
+    $('ai-content').disabled = true;
+    editorChips.forEach(chip => { chip.disabled = true; });
+    $('editor-result').classList.add('loading');
+    $('editor-result').textContent = 'AI đang phân tích ảnh sản phẩm…';
+    $('editor-result').setAttribute('aria-busy', 'true');
+    try {
+      editorResult = await window.aiSuggestFromUrls(editorContext.images, editorStyle, '', editorContext.productName);
+      $('editor-result').textContent = editorResult || '(Không có kết quả)';
+      $('editor-apply').disabled = !editorResult;
+    } catch (error) {
+      $('editor-result').textContent = 'Không tạo được nội dung: ' + error.message;
+    } finally {
+      editorBusy = false;
+      $('editor-result').classList.remove('loading');
+      $('editor-result').setAttribute('aria-busy', 'false');
+      $('editor-retry').disabled = false;
+      editorChips.forEach(chip => { chip.disabled = false; });
+      update();
+    }
+  }
+  editorChips.forEach(chip => chip.addEventListener('click', () => {
+    if (editorBusy) return;
+    editorStyle = chip.dataset.style;
+    editorChips.forEach(button => {
+      button.classList.toggle('active', button === chip);
+      button.setAttribute('aria-pressed', String(button === chip));
+    });
+    generateCategoryContent();
+  }));
+  $('editor-retry').addEventListener('click', generateCategoryContent);
+  $('editor-apply').addEventListener('click', () => {
+    if (editorBusy || !editorResult) return;
+    $('ai-result-text').value = editorResult;
+    lastCategoryAiImages = editorContext.images;
+    lastCategoryAiTitle = editorContext.title;
+    renderImages($('ai-result-images'), editorContext.items.map(p => ({ src: p.thumbnail, title: p.title })));
+    $('ai-result-images-label').textContent = editorContext.label;
+    $('ai-result-save-status').textContent = '';
+    $('editor-panel').hidden = true;
+    $('ai-result-text').focus();
+  });
   $('ai-content').addEventListener('click', () => {
+    if (editorBusy) return;
     const items = products.filter(p => selected.has(p.id));
     if (!items.length) return;
     const images = items.map(p => p.thumbnail).slice(0, 5);
     const names = items.slice(0, 5).map(p => p.title);
     const productName = 'Chương trình sale gồm ' + items.length + ' sản phẩm: ' + names.join('; ') + (items.length > names.length ? '…' : '');
-    renderImages($('ai-result-images'), items.slice(0, 5).map(p => ({ src: p.thumbnail, title: p.title })));
-    $('ai-result-images-label').textContent = 'Ảnh gửi AI: ' + images.length + '/' + items.length + ' sản phẩm đã chọn';
-    lastCategoryAiImages = images;
-    lastCategoryAiTitle = 'Nội dung sale danh mục (' + items.length + ' sản phẩm)';
-    window.openAiSheet('category', { images, productName });
+    editorContext = {
+      images, productName, items: items.slice(0, 5),
+      title: 'Nội dung sale danh mục (' + items.length + ' sản phẩm)',
+      label: 'Ảnh gửi AI: ' + images.length + '/' + items.length + ' sản phẩm đã chọn',
+    };
+    $('ai-result').hidden = false;
+    $('editor-panel').hidden = false;
+    generateCategoryContent();
   });
   $('ai-result-copy').addEventListener('click', async () => {
     const text = $('ai-result-text').value;

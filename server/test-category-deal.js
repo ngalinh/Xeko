@@ -108,21 +108,23 @@ test('category selects, appends without duplicates, preserves tab state and open
   dom.window.close();
 });
 
-test('"Tạo nội dung cho danh mục" opens AI sheet with selected thumbnails/titles and copies result', async () => {
+test('"Tạo nội dung cho danh mục" generates inline with selected thumbnails/titles and copies result', async () => {
   const { dom, w, get } = setup([{ products: [product('1'), product('2')] }]);
   const category = w.document.querySelector('[data-deal-tab="category"]'); category.click();
   get('url').value = 'https://www.macys.com/shop/sale';
   get('form').dispatchEvent(new w.Event('submit', { cancelable: true })); await tick();
   assert.equal(get('ai-content').disabled, false);
-  let openArgs = null;
-  w.openAiSheet = (target, overrides) => { openArgs = { target, overrides }; };
-  get('ai-content').click();
-  assert.equal(openArgs.target, 'category');
-  assert.equal(openArgs.overrides.images.length, 2);
-  assert.equal(openArgs.overrides.images[0], product('1').thumbnail);
-  assert.equal(openArgs.overrides.images[1], product('2').thumbnail);
-  assert.match(openArgs.overrides.productName, /Dress 1/);
-  assert.match(openArgs.overrides.productName, /Dress 2/);
+  let args;
+  w.openAiSheet = () => assert.fail('Must not open popup');
+  w.aiSuggestFromUrls = async (...values) => { args = values; return 'Nội dung mẫu'; };
+  get('ai-content').click(); await tick();
+  assert.equal(args[0].length, 2);
+  assert.equal(args[0][0], product('1').thumbnail);
+  assert.match(args[3], /Dress 1/);
+  assert.match(args[3], /Dress 2/);
+  assert.equal(get('editor-panel').hidden, false);
+  get('editor-apply').click();
+  assert.equal(get('ai-result-text').value, 'Nội dung mẫu');
   get('ai-result-text').value = 'Nội dung mẫu';
   let copied = '';
   w.navigator.clipboard = { writeText: async text => { copied = text; } };
@@ -171,8 +173,9 @@ test('"Lưu bản nháp" cho danh mục gửi đúng ảnh/tiêu đề đã dùn
   const category = w.document.querySelector('[data-deal-tab="category"]'); category.click();
   get('url').value = 'https://www.macys.com/shop/sale';
   get('form').dispatchEvent(new w.Event('submit', { cancelable: true })); await tick();
-  w.openAiSheet = () => {};
-  get('ai-content').click();
+  w.aiSuggestFromUrls = async () => 'Nội dung sale mẫu';
+  get('ai-content').click(); await tick();
+  get('editor-apply').click();
   get('ai-result-text').value = 'Nội dung sale mẫu';
   let saved = null;
   w.fetch = async (url, opts) => {
@@ -251,37 +254,34 @@ test('downloads only selected thumbnails and reports CDN failure', async () => {
 });
 
 
-test('category button opens the real AI editor outside the hidden posting page and applies content', async () => {
+test('inline editor handles pending requests, errors, retry and selection changes', async () => {
   const { dom, w, get } = setup([{ products: [product('1')] }]);
-  const html = read('index.html');
-  const start = html.indexOf('    let _aiStyleCache =');
-  const end = html.indexOf('    // Gọi AI suggest trực tiếp', start);
-  assert.ok(start > 0 && end > start);
-  w.eval(html.slice(start, end));
-  let generated = 0;
-  w.runAiGenerate = () => { generated++; w.showAiResult('Bài sale danh mục'); };
-  const posting = w.document.getElementById('pageDangBai');
-  posting.style.display = 'none';
-  w.document.querySelector('[data-deal-tab="category"]').click();
   get('url').value = 'https://www.macys.com/shop/sale';
   get('form').dispatchEvent(new w.Event('submit', { cancelable: true })); await tick();
+  let finish;
+  w.aiSuggestFromUrls = () => new Promise(resolve => { finish = resolve; });
+  get('ai-result-text').value = 'Bản đang chỉnh';
   get('ai-content').click();
-  const backdrop = w.document.getElementById('aiSheetBackdrop');
-  assert.equal(backdrop.parentElement, w.document.body);
-  assert.equal(backdrop.classList.contains('show'), true);
-  assert.equal(w.getComputedStyle(backdrop).position, 'fixed');
-  assert.equal(w.getComputedStyle(backdrop).display, 'flex');
-  assert.equal(posting.style.display, 'none');
-  assert.equal(generated, 1);
-  assert.match(w.document.getElementById('aiProductName').value, /Dress 1/);
-  w.applyAiResult();
-  assert.equal(get('ai-result').hidden, false);
-  assert.equal(get('ai-result-text').value, 'Bài sale danh mục');
-  assert.equal(backdrop.classList.contains('show'), false);
+  assert.equal(get('editor-apply').disabled, true);
+  assert.equal(get('editor-retry').disabled, true);
+  assert.equal(get('editor-styles').querySelector('button').disabled, true);
+  get('all').click();
+  assert.equal(get('ai-content').disabled, true);
+  finish('Bài sale danh mục'); await tick();
+  assert.equal(get('ai-result-text').value, 'Bản đang chỉnh');
+  assert.equal(w.document.getElementById('aiSheetBackdrop').classList.contains('show'), false);
   assert.equal(w.document.body.style.overflow, '');
-  get('ai-content').click();
-  assert.equal(generated, 2);
-  assert.equal(w.document.querySelectorAll('#aiSheetBackdrop').length, 1);
-  w.closeAiSheet();
+  w.aiSuggestFromUrls = async () => { throw new Error('AI lỗi'); };
+  get('editor-retry').click(); await tick();
+  assert.match(get('editor-result').textContent, /AI lỗi/);
+  assert.equal(get('editor-apply').disabled, true);
+  let style;
+  w.aiSuggestFromUrls = async (images, value) => { style = value; return 'Bài mới'; };
+  get('editor-styles').querySelector('[data-style="story"]').click(); await tick();
+  assert.equal(style, 'story');
+  get('editor-apply').click();
+  assert.equal(get('ai-result-text').value, 'Bài mới');
+  assert.equal(get('editor-panel').hidden, true);
+  assert.match(get('ai-result-images-label').textContent, /1\/1/);
   dom.window.close();
 });
