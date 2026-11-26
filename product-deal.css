@@ -104,7 +104,10 @@
 .deal-workspace .deal-history-log summary { cursor:pointer; color:var(--deal-muted); font-size:12px; }
 .deal-workspace .deal-history-log pre { max-height:360px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; padding:8px; background:var(--deal-bg); }
 
-.deal-workspace .deal-product-info { margin-top:24px; border-top:1px solid var(--deal-line); padding-top:8px; }
+.deal-workspace .deal-product-info { display:flex; flex-wrap:wrap; align-items:end; gap:16px 24px; margin-top:24px; border-top:1px solid var(--deal-line); padding-top:24px; }
+.deal-workspace .deal-product-info > .field-label { flex:1 1 280px; min-width:0; margin-top:0; }
+.deal-workspace .deal-product-info > .deal-price-card { flex:0 1 auto; min-width:0; max-width:100%; margin-top:0; }
+@media(max-width:600px) { .deal-workspace .deal-product-info > .field-label, .deal-workspace .deal-product-info > .deal-price-card { flex-basis:100%; } }
 .deal-workspace .price-section { display:block; width:100%; }
 .deal-workspace .deal-price-grid { display:flex; flex-wrap:wrap; align-items:baseline; gap:12px 20px; }
 .deal-workspace .deal-price-grid > div { min-width:0; overflow-wrap:anywhere; }
