@@ -173,6 +173,21 @@ app.get('/get-deal-test.html', (req, res) => {
   res.sendFile(path.join(__dirname, '../get-deal-test.html'));
 });
 
+// Giữ UI chính + các file đi kèm API Lấy deal luôn mới — browser cache cứng
+// các file này từng gây lỗi "Danh sách sản phẩm không hợp lệ." vì JS cũ
+// (trước khi /api/get-deal, /api/get-category đổi sang job nền + poll) vẫn
+// gọi đúng URL nhưng hiểu sai hình dạng response mới.
+for (const file of ['index.html', 'product-deal.js', 'product-deal.css', 'category-deal.js']) {
+  app.get('/' + file, (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, '../' + file));
+  });
+}
+app.get('/', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, '../index.html'));
+});
+
 app.use(express.static(path.join(__dirname, '../')));
 
 async function getFetch() {
