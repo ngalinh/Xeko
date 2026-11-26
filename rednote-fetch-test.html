@@ -50,7 +50,7 @@
 
   <div class="card">
     <h2>2. Lấy ảnh sản phẩm từ web (dùng chung API Lấy deal)</h2>
-    <div class="hint">Dán link sản phẩm trên website bán hàng, rồi bấm chọn 1 ảnh làm ảnh sản phẩm dùng để ghép.</div>
+    <div class="hint">Dán link sản phẩm trên website bán hàng, rồi bấm chọn tối đa 4 ảnh (càng nhiều góc càng chính xác) làm ảnh sản phẩm dùng để ghép.</div>
     <input type="text" id="product-url" placeholder="https://www.macys.com/shop/product/...">
     <details class="settings">
       <summary>Cài đặt (proxy &amp; trình duyệt)</summary>
@@ -71,7 +71,7 @@
 
   <div class="card">
     <h2>3. Ghép ảnh AI</h2>
-    <div class="hint">Lấy xong cả ảnh RedNote (bước 1) và chọn 1 ảnh sản phẩm (bước 2) rồi bấm ghép — AI sẽ thay đồ trong từng ảnh RedNote bằng ảnh sản phẩm đã chọn.</div>
+    <div class="hint">Lấy xong cả ảnh RedNote (bước 1) và chọn ảnh sản phẩm (bước 2) rồi bấm ghép — AI sẽ thay đồ trong từng ảnh RedNote bằng (các) ảnh sản phẩm đã chọn.</div>
     <button id="merge-go" disabled>Ghép ảnh</button>
     <div class="status" id="merge-status"></div>
     <div class="error" id="merge-error"></div>
@@ -84,10 +84,11 @@ const BASE_URL = window.location.pathname.replace(/\/[^/]*$/, '').replace(/\/$/,
 const $ = (id) => document.getElementById(id);
 
 let rednoteImages = [];
-let selectedProductImage = null;
+let selectedProductImages = [];
+const MAX_PRODUCT_IMAGES = 4;
 
 function updateMergeButton() {
-  $('merge-go').disabled = !(rednoteImages.length > 0 && selectedProductImage);
+  $('merge-go').disabled = !(rednoteImages.length > 0 && selectedProductImages.length > 0);
 }
 
 // ===== 1. Lấy ảnh RedNote =====
@@ -178,7 +179,7 @@ $('product-go').addEventListener('click', async () => {
   $('product-error').textContent = '';
   $('product-grid').innerHTML = '';
   $('product-status').textContent = 'Đang lấy ảnh sản phẩm...';
-  selectedProductImage = null;
+  selectedProductImages = [];
   updateMergeButton();
 
   try {
@@ -199,7 +200,7 @@ $('product-go').addEventListener('click', async () => {
       return;
     }
 
-    $('product-status').textContent = `Tìm thấy ${images.length} ảnh — bấm chọn 1 ảnh để dùng ghép:`;
+    $('product-status').textContent = `Tìm thấy ${images.length} ảnh — bấm chọn tối đa ${MAX_PRODUCT_IMAGES} ảnh để dùng ghép:`;
     const grid = $('product-grid');
     for (const src of images) {
       const img = document.createElement('img');
@@ -207,8 +208,18 @@ $('product-go').addEventListener('click', async () => {
       img.loading = 'lazy';
       img.className = 'selectable';
       img.addEventListener('click', () => {
-        selectedProductImage = src;
-        grid.querySelectorAll('img').forEach((el) => el.classList.toggle('selected', el === img));
+        const idx = selectedProductImages.indexOf(src);
+        if (idx !== -1) {
+          selectedProductImages.splice(idx, 1);
+          img.classList.remove('selected');
+        } else {
+          if (selectedProductImages.length >= MAX_PRODUCT_IMAGES) {
+            $('product-status').textContent = `Chỉ chọn tối đa ${MAX_PRODUCT_IMAGES} ảnh — bỏ chọn bớt rồi chọn ảnh khác.`;
+            return;
+          }
+          selectedProductImages.push(src);
+          img.classList.add('selected');
+        }
         updateMergeButton();
       });
       grid.append(img);
@@ -236,7 +247,7 @@ $('merge-go').addEventListener('click', async () => {
       const res = await fetch(BASE_URL + '/api/rednote/merge-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rednoteImageUrl, productImageUrl: selectedProductImage }),
+        body: JSON.stringify({ rednoteImageUrl, productImageUrls: selectedProductImages }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Lỗi không rõ');

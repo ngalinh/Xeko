@@ -943,12 +943,12 @@ app.post('/api/rednote/fetch-images', async (req, res) => {
 // chặn mạng, cần chuyển riêng bước tải ảnh RedNote qua VPS (xem ghi chú trong
 // gemini-image.js) — chưa có bằng chứng cần thiết nên chưa làm trước.
 app.post('/api/rednote/merge-image', async (req, res) => {
-  const { rednoteImageUrl, productImageUrl } = req.body;
-  if (!rednoteImageUrl || !productImageUrl) {
-    return res.status(400).json({ error: 'Thiếu rednoteImageUrl hoặc productImageUrl' });
+  const { rednoteImageUrl, productImageUrls } = req.body;
+  if (!rednoteImageUrl || !Array.isArray(productImageUrls) || productImageUrls.length === 0) {
+    return res.status(400).json({ error: 'Thiếu rednoteImageUrl hoặc productImageUrls' });
   }
   try {
-    const result = await mergeProductIntoPhoto(rednoteImageUrl, productImageUrl);
+    const result = await mergeProductIntoPhoto(rednoteImageUrl, productImageUrls);
     res.json(result);
   } catch (e) {
     logger.error(`[rednote-merge] FAILED: ${e.message}`);

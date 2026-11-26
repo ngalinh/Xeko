@@ -42,22 +42,28 @@ async function downloadImageAsInlinePart(url, fetchFn) {
   return { inline_data: { mime_type: type, data: Buffer.concat(chunks).toString('base64') } };
 }
 
-async function mergeProductIntoPhoto(rednoteImageUrl, productImageUrl, fetchFn = fetch) {
+// productImageUrls: 1-4 ảnh CÙNG 1 sản phẩm, càng nhiều góc (mặt trước, cận
+// cảnh hoạ tiết/logo, mặt sau) càng giúp model hiểu đúng kiểu dáng thật —
+// tránh tự bịa chi tiết (vd thêm/bớt nút áo) khi chỉ thấy 1 góc.
+async function mergeProductIntoPhoto(rednoteImageUrl, productImageUrls, fetchFn = fetch) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY chưa được cấu hình');
+  const urls = Array.isArray(productImageUrls) ? productImageUrls : [productImageUrls];
+  if (urls.length === 0) throw new Error('Thiếu ảnh sản phẩm');
 
-  const [photoPart, productPart] = await Promise.all([
+  const [photoPart, ...productParts] = await Promise.all([
     downloadImageAsInlinePart(rednoteImageUrl, fetchFn),
-    downloadImageAsInlinePart(productImageUrl, fetchFn),
+    ...urls.map((u) => downloadImageAsInlinePart(u, fetchFn)),
   ]);
 
   const body = {
     contents: [{
       parts: [
-        { text: 'Ảnh 1 là ảnh người mẫu/bối cảnh tham khảo. Ảnh 2 là ảnh sản phẩm thật cần quảng cáo.' },
+        { text: 'Ảnh 1 là ảnh người mẫu/bối cảnh tham khảo — CHỈ dùng để lấy dáng người, tư thế, bối cảnh và ánh sáng. Bỏ qua hoàn toàn trang phục đang mặc trong ảnh 1.' },
         photoPart,
-        productPart,
-        { text: 'Hãy tạo lại ảnh 1, GIỮ NGUYÊN dáng người, tư thế, bối cảnh và ánh sáng, chỉ thay thế món đồ/trang phục trong ảnh 1 bằng ĐÚNG sản phẩm ở ảnh 2 (giữ đúng màu sắc, hoạ tiết, kiểu dáng của ảnh 2). Chỉ trả về 1 ảnh kết quả, không trả text.' },
+        { text: `${productParts.length} ảnh tiếp theo là CÙNG MỘT sản phẩm thật (nhiều góc chụp khác nhau) cần quảng cáo — đây là nguồn sự thật tuyệt đối về hình dáng, màu sắc, hoạ tiết, logo của sản phẩm.` },
+        ...productParts,
+        { text: 'Hãy tạo lại ảnh 1: giữ nguyên dáng người, tư thế, bối cảnh, ánh sáng, nhưng thay thế HOÀN TOÀN món đồ đang mặc bằng ĐÚNG sản phẩm ở các ảnh sau. Ưu tiên TUYỆT ĐỐI độ chính xác của sản phẩm hơn tính thẩm mỹ: giữ đúng 100% màu sắc, chất liệu, hoạ tiết, logo, kiểu dáng (cổ áo, tay áo, số nút, độ dài) như trong ảnh sản phẩm — KHÔNG được tự thêm/bớt hay đổi chi tiết nào. Chỉ trả về 1 ảnh kết quả, không trả text.' },
       ],
     }],
     generationConfig: { responseModalities: ['IMAGE'] },
