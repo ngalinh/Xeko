@@ -1,3 +1,24 @@
+// Some CDNs re-serve the exact same photo under a slightly different URL on
+// each render (cache-busting query param, resized-variant filename suffix…).
+// Set-based dedup by exact string misses these, so the gallery can end up
+// with the same picture repeated many times (seen on Tommy Hilfiger). Collapse
+// by hostname+pathname instead, keeping the first URL seen for each.
+function dedupeByPath(urls) {
+  const seen = new Set();
+  const out = [];
+  for (const url of urls) {
+    let key = url;
+    try {
+      const u = new URL(url);
+      key = u.hostname + u.pathname;
+    } catch { /* keep raw url as key */ }
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(url);
+  }
+  return out;
+}
+
 // Runs inside the product page; only collect product metadata/gallery images.
 function collectProductImages({ markThumbnails = false } = {}) {
   const images = new Set();
@@ -200,8 +221,9 @@ async function collectGalleryImages(page, { maxClicks = 20, budgetMs = 15000 } =
       failed++;
     }
   }
-  return { images: [...images], gallery: { found: await thumbnails.count(), clicked, failed,
-    imageCount: images.size, limited: count < await thumbnails.count() || Date.now() - started >= budgetMs } };
+  const deduped = dedupeByPath([...images]);
+  return { images: deduped, gallery: { found: await thumbnails.count(), clicked, failed,
+    imageCount: deduped.length, limited: count < await thumbnails.count() || Date.now() - started >= budgetMs } };
 }
 
 // Color/variant swatch pickers — the SAME patterns collectProductImages()
@@ -332,7 +354,7 @@ async function collectAllColorImages(page, { maxColors = 6, perColorBudgetMs = 1
       // Bấm lỗi ở 1 màu không chặn các màu còn lại.
     }
   }
-  return { images: [...images], gallery: { ...current.gallery, colorAttempts: attempts }, colors,
+  return { images: dedupeByPath([...images]), gallery: { ...current.gallery, colorAttempts: attempts }, colors,
     swatchesFound: total, limited: total > maxColors };
 }
 

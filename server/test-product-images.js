@@ -158,3 +158,23 @@ delete global.document;
   assert.equal(result.swatchesFound, 2);
   console.log('Multi-color gallery collection checks passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });
+
+// Regression: some CDNs re-serve the exact same photo under a different URL
+// each time (cache-busting query param etc.) — confirmed on Tommy Hilfiger,
+// where the gallery ended up with the same picture repeated many times.
+(async () => {
+  const sameImage = 'https://cdn.tommy.test/img/product-front.jpg';
+  let clickCount = 0;
+  const page = {
+    evaluate: async () => [`${sameImage}?v=${clickCount}`],
+    waitForTimeout: async () => {},
+    locator: () => ({
+      count: async () => 3,
+      nth: () => ({ isVisible: async () => true, evaluate: async () => false, click: async () => { clickCount++; } }),
+    }),
+  };
+  const result = await collectGalleryImages(page);
+  assert.equal(result.images.length, 1,
+    'Dedupe the same photo served under different cache-busting query strings');
+  console.log('Gallery dedup-by-path (cache-busting query string) check passed');
+})().catch(error => { console.error(error); process.exitCode = 1; });

@@ -28,3 +28,9 @@ test('does not invent an original for a sale-only product', () => {
 test('extracts sale/original from a promo banner without a sale/orig label', () => {
   assert.equal(price('<main><div class="price">BLACK FRIDAY DEAL$39.75 (50% off)$79.50Details</div></main>'), 'Sale $39.75 Orig. $79.50 50% off');
 });
+test('ignores unrelated trailing dollar figures in unlabelled promo copy (Tommy Hilfiger)', () => {
+  assert.equal(
+    price('<main><div class="price">$189.00 $94.50 50% off Hilfiger Club Exclusive: Extra 25% Off $225+ or 15% Off $175+ Sign In for this exclusive offer. Not a member? Sign up now!</div></main>'),
+    'Sale $94.50 Orig. $189.00 50% off'
+  );
+});

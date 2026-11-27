@@ -41,8 +41,28 @@ module.exports = function collectProductPrice() {
       if (match) return original ? formatSale(match[0]) : match[0];
     }
   }
+  // Last resort: some sites glue the price straight to unrelated promo copy
+  // in the same element with no label/class hint at all (e.g. Tommy Hilfiger:
+  // "$189.00 $94.50 50% off Hilfiger Club Exclusive: Extra 25% Off ... Sign Up
+  // now!") — returning the raw innerText leaks that trailing text into the
+  // saved price. Pull out just the money/percent figures instead of the text.
   for (const { text } of texts) {
-    if (money.test(text)) return text;
+    const moneyAll = text.match(new RegExp(money.source, 'g'));
+    if (!moneyAll) continue;
+    const discount = text.match(/\d+(?:\.\d+)?%\s*off/i);
+    // Only compare the FIRST two figures: the real sale/orig pair sits at the
+    // start, right next to each other; anything further in is unrelated
+    // trailing promo copy (e.g. "...Extra 25% Off $225+ or 15% Off $175+...")
+    // that must not be mistaken for the product's own original price.
+    if (moneyAll.length >= 2) {
+      const [a, b] = moneyAll.slice(0, 2).map(raw => ({ raw, value: parseFloat(raw.replace(/[^\d.]/g, '')) }));
+      if (a.value !== b.value) {
+        const sale = a.value <= b.value ? a : b;
+        const orig = a.value <= b.value ? b : a;
+        return `Sale ${sale.raw} Orig. ${orig.raw}` + (discount ? ` ${discount[0].replace(/\s+/g, ' ')}` : '');
+      }
+    }
+    return moneyAll[0];
   }
   return null;
 };
