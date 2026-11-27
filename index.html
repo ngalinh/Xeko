@@ -485,9 +485,14 @@
     .content-library-tabs button:focus-visible { outline:2px solid #3b82f6; outline-offset:2px; }
     /* Nhóm "Theo sản phẩm"/"Theo category" lại với nhau như 1 công tắc chọn chế
        độ, tách biệt khỏi "Lịch sử lấy deal"/"Cài đặt" (vẫn là tab điều hướng
-       riêng) — cùng cơ chế data-deal-tab/aria-controls như cũ, chỉ nhóm hiển thị. */
-    .deal-mode-toggle { display:flex; gap:4px; padding-right:8px; margin-right:4px; border-right:1px solid #dbeafe; }
-    [data-theme="dark"] .deal-mode-toggle { border-right-color:#334155; }
+       riêng) — cùng cơ chế data-deal-tab/aria-controls như cũ, chỉ nhóm hiển thị.
+       Nền trắng nổi lên trên nền xanh nhạt của thanh tab để nhìn rõ đây là 1
+       khối riêng, chứ không phải thêm 1 tab ngang hàng với các tab còn lại. */
+    .deal-mode-toggle {
+      display:flex; gap:2px; padding:3px; margin-right:8px;
+      background:#fff; border-radius:10px; box-shadow:0 1px 2px rgba(15,23,42,.08);
+    }
+    [data-theme="dark"] .deal-mode-toggle { background:#0f172a; }
     #pageDashboard[data-view="dashboard"] .content-library-tabs { display:none; }
     [data-theme="dark"] .content-library-tabs { background:#1e293b; border-color:#334155; }
     [data-theme="dark"] .content-library-tabs button { color:#e2e8f0; }
