@@ -126,4 +126,24 @@ assert.deepEqual(colorSuffixUrls.map(url => new URL(url).pathname).sort(),
 delete global.document;
 colorSuffixDom.window.close();
 
+// Regression: "Complete the Look" / "Shop the Look" widgets (seen on Tommy
+// Hilfiger) show a DIFFERENT product entirely and must never be collected.
+const lookName = 'Black Bomber Jacket';
+const lookAsset = id => `https://images.tommy.test/${id}.jpg`;
+const lookImg = (id, alt) => `<img src="${lookAsset(id)}" alt="${alt}">`;
+const lookDom = new JSDOM(`
+  <h1>${lookName}</h1>
+  <div class="product-images">
+    <button id="jacket1">${lookImg('jacket_front', lookName)}</button>
+  </div>
+  <section class="complete-the-look-widget">
+    <div>${lookImg('tshirt', 'Lightweight Interlock T-Shirt')}</div>
+  </section>
+`, { url: 'https://usa.tommy.com/en/p/jacket' });
+global.document = lookDom.window.document;
+const lookUrls = collectProductImages({ markThumbnails: true });
+assert.ok(!lookUrls.some(u => u.includes('tshirt')), '"Complete the Look" photo must be excluded');
+delete global.document;
+lookDom.window.close();
+
 console.log('Product gallery DOM regression checks passed');

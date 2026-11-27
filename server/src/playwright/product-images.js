@@ -56,6 +56,10 @@ function collectProductImages({ markThumbnails = false } = {}) {
     '[class*="related" i], [id*="related" i], [aria-label*="sponsored" i], [data-ad], iframe, ' +
     '[class*="swatch" i], [class*="colorway" i], [class*="colorpicker" i], [class*="color-picker" i], ' +
     '[aria-label*="swatch" i], [aria-label*="color" i], [data-testid*="swatch" i], [data-testid*="color" i], ' +
+    // "Complete the Look" / "Shop the Look" widgets (Tommy Hilfiger etc.) show
+    // a DIFFERENT product entirely — must never be collected as this product's photo.
+    '[class*="complete" i], [id*="complete" i], [aria-label*="complete" i], [data-testid*="complete" i], ' +
+    '[class*="shop-the-look" i], [class*="shopthelook" i], [aria-label*="shop the look" i], ' +
     '[class*="stylitics" i]';
   if (markThumbnails) {
     for (const el of document.querySelectorAll('[data-xeko-product-thumbnail]')) {
@@ -204,7 +208,7 @@ async function collectGalleryImages(page, { maxClicks = 20, budgetMs = 15000 } =
       const unsafe = await thumb.evaluate(el =>
         (/(^|\.)macys\.com$/.test(new URL(document.baseURI).hostname) && !el.hasAttribute('data-xeko-product-thumbnail')) ||
         !!el.closest('a') ||
-        !!el.querySelector('a') || !!el.closest('[class*="recommend"], [id*="recommend"], [class*="recently"], [class*="related"], [class*="similar"]') || /video|play|360/i.test(el.getAttribute('aria-label') || ''));
+        !!el.querySelector('a') || !!el.closest('[class*="recommend"], [id*="recommend"], [class*="recently"], [class*="related"], [class*="similar"], [class*="complete" i], [id*="complete" i], [class*="shop-the-look" i], [class*="shopthelook" i]') || /video|play|360/i.test(el.getAttribute('aria-label') || ''));
       if (unsafe) continue;
       await thumb.click({ timeout: Math.min(1500, Math.max(1, budgetMs - (Date.now() - started))), noWaitAfter: true });
       clicked++;
