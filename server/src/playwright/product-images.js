@@ -379,6 +379,7 @@ function inspectJsonLd() {
         name: value.name || '',
         color: value.color || '',
         sku: value.sku || value.mpn || '',
+        brand: typeof value.brand === 'string' ? value.brand : (value.brand?.name || value.brand || ''),
         imageCount: images.length,
         images: images.slice(0, 3),
       });
