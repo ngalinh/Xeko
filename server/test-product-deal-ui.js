@@ -77,10 +77,11 @@ for (const file of ['index.html', 'get-deal-test.html']) {
     assert.ok(firstDownloadBtn.querySelector('svg'));
 
     root.querySelectorAll('.draft-image')[1].checked = false;
+    get('draft-description').value = 'Nội dung nháp';
     get('create-draft').click();
     await new Promise(resolve => setImmediate(resolve));
     assert.deepEqual(calls[1].body.images, [images[0]]);
-    assert.equal(get('draft-preview').textContent, 'Nội dung nháp');
+    assert.equal(calls[1].body.description, 'Nội dung nháp');
     assert.equal(get('draft-library').hidden, false);
     get('draft-library').click();
     await new Promise(resolve => setImmediate(resolve));
@@ -141,7 +142,7 @@ for (const file of ['index.html', 'get-deal-test.html']) {
   });
 }
 
-test('product summary separates prices and sends exchange rate with content', async () => {
+test('product summary separates prices; exchange rate stays out of post content', async () => {
   const dom = new JSDOM(read('get-deal-test.html'), { url: 'https://example.com/', runScripts: 'outside-only' });
   const w = dom.window;
   const get = id => w.document.querySelector('[data-deal-id="' + id + '"]');
@@ -172,6 +173,6 @@ test('product summary separates prices and sends exchange rate with content', as
   get('draft-description').value = 'Viết bằng tiếng Việt';
   get('create-draft').click();
   await new Promise(resolve => setImmediate(resolve));
-  assert.equal(submitted.description, 'Viết bằng tiếng Việt\nTỷ giá: 1 USD = 25.500 VND');
+  assert.equal(submitted.description, 'Viết bằng tiếng Việt');
   dom.window.close();
 });

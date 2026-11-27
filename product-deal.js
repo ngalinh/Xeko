@@ -426,7 +426,6 @@ btn.addEventListener('click', async () => {
   resetDealAiPanel();
   $('product-info').hidden = true;
   $('draft-status').textContent = '';
-  $('draft-preview').textContent = '';
   $('draft-library').hidden = true;
   $('use-for-post').hidden = true;
   btn.disabled = true;
@@ -635,25 +634,24 @@ $('draft-library').href = BASE_URL + '/?page=drafts';
 $('create-draft').addEventListener('click', async () => {
   const images = [...root.querySelectorAll('.draft-image:checked')].map(el => el.value);
   const title = $('draft-title').value.trim();
-  if (!title || !images.length || images.length > 20) {
-    $('draft-status').textContent = 'Nhập tên sản phẩm và chọn từ 1 đến 20 ảnh.';
+  const description = $('draft-description').value.trim();
+  if (!title || !description || !images.length || images.length > 20) {
+    $('draft-status').textContent = 'Nhập tên sản phẩm, nội dung bài đăng và chọn từ 1 đến 20 ảnh.';
     return;
   }
   $('create-draft').disabled = true;
   btn.disabled = true;
-  $('draft-status').textContent = 'Đang tải ảnh, nhờ AI viết và lưu bản nháp…';
+  $('draft-status').textContent = 'Đang tải ảnh và lưu bản nháp…';
   try {
     const response = await fetch(BASE_URL + '/api/product-drafts', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, images, price: currentDeal?.price,
-        description: [$('draft-description').value.trim(), $('exchange-rate').value.trim() ? 'Tỷ giá: ' + $('exchange-rate').value.trim() : ''].filter(Boolean).join('\n'), url: $('url').value.trim() }),
+      body: JSON.stringify({ title, images, price: currentDeal?.price, description, url: $('url').value.trim() }),
     });
     let data;
     try { data = await response.json(); } catch {
       throw new Error('Server phản hồi không hợp lệ, có thể do quá thời gian chờ. Vui lòng thử lại.');
     }
     if (!response.ok) throw new Error(data.error || 'Không lưu được bản nháp');
-    $('draft-preview').textContent = data.item.body;
     $('draft-status').textContent = 'Đã lưu bản nháp #' + data.item.id + ' với ' + data.item.images.length + ' ảnh trong Kho content. Chưa đăng bài.';
     $('draft-library').href = BASE_URL + '/?page=drafts&draft=' + encodeURIComponent(data.item.id);
     $('draft-library').hidden = false;
