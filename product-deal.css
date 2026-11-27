@@ -109,7 +109,7 @@
 @media(max-width:600px) { .deal-workspace .deal-product-info > .field-label, .deal-workspace .deal-product-info > .deal-price-card { flex-basis:100%; } }
 .deal-workspace .price-section { display:block; width:100%; }
 .deal-workspace .deal-price-grid { display:flex; flex-wrap:wrap; align-items:baseline; gap:12px 20px; }
-.deal-workspace .deal-price-grid > div { min-width:0; overflow-wrap:anywhere; }
+.deal-workspace .deal-price-grid > div { display:flex; align-items:baseline; gap:6px; min-width:0; overflow-wrap:anywhere; }
 .deal-workspace .deal-original-price { text-decoration:line-through; font-weight:500; }
 @media(max-width:600px) { .deal-workspace .deal-price-grid { gap:10px; } }
 
@@ -117,7 +117,7 @@
 .deal-workspace .deal-price-card .price-section { margin-top:0; width:auto; }
 .deal-workspace .deal-price-main .price { font-size:22px; }
 .deal-workspace .deal-rate-row { display:flex; flex-wrap:wrap; align-items:end; gap:12px 20px; margin-top:0; padding-top:0; border-top:0; }
-.deal-workspace .deal-rate-row > .field-label { margin-top:0; min-width:0; }
+.deal-workspace .deal-rate-row > .field-label { display:flex; align-items:baseline; gap:6px; margin-top:0; min-width:0; }
 .deal-workspace .deal-rate-row input { width:210px; max-width:100%; }
 @media(max-width:600px) { .deal-workspace .deal-price-card { gap:12px; } .deal-workspace .deal-rate-row { gap:12px; } }
 
