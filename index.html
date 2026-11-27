@@ -9360,6 +9360,10 @@
         <td style="padding:8px 12px;">${destinationsHtml}</td>
         <td style="padding:8px 12px; font-size:12px; color:#1e1e2e; white-space:nowrap;">${dt}</td>
         <td style="padding:8px 12px; text-align:center; white-space:nowrap;">
+          ${profiles.length ? `<button onclick="postContentNow(${item.id})" title="Đăng ngay lên nơi đăng đã lưu"
+            style="padding:5px 10px;background:#FEF3C7;color:#92400E;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin:2px;">
+            Đăng
+          </button>` : ''}
           <button onclick="useContent(${item.id})" title="Dùng để đăng bài"
             style="padding:5px 10px;background:#D1FAE5;color:#065F46;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin:2px;">
             Dùng
@@ -9396,6 +9400,82 @@
         updatePreview();
       }
       switchPage('post');
+    }
+
+    // Đăng ngay từ Kho content — chỉ hỗ trợ đích đã có adapter rõ ràng sang
+    // /api/post (Facebook: trang cá nhân + nhóm lẻ). Zalo cá nhân hoặc key lạ
+    // thì báo bỏ qua, không đoán — tránh đăng nhầm/thiếu nơi.
+    async function postContentNow(id) {
+      const item = _contentItems.find(c => c.id === id);
+      if (!item) return;
+      const profiles = item.profiles || [];
+      if (!profiles.length) return;
+
+      await _loadContentProfiles();
+      const accounts = _contentAccounts();
+      const accountKey = profiles.find(k => accounts.some(a => a.key === k));
+      const account = accounts.find(a => a.key === accountKey);
+      if (!account) {
+        alert('Không xác định được tài khoản để đăng. Vào Sửa để chọn lại Nơi đăng.');
+        return;
+      }
+
+      const assignedGroupKeys = ((_contentChannelsCache.profileChannels || {})[accountKey] || {}).fbGroups || [];
+      const allFbGroups = _contentChannelsCache.fbGroups || [];
+      const groupKeys = profiles.filter(k => k !== accountKey);
+
+      const destinations = [];
+      const skipped = [];
+      if (account.type === 'facebook') {
+        destinations.push({ kind: 'fb-personal' });
+      } else {
+        skipped.push(`Trang cá nhân ${account.type === 'zalo' ? 'Zalo' : account.type} (chưa hỗ trợ Đăng ngay — dùng nút Dùng)`);
+      }
+      for (const gk of groupKeys) {
+        const group = allFbGroups.find(g => g.key === gk);
+        if (group && assignedGroupKeys.includes(gk)) destinations.push({ kind: 'fb-group', key: gk, name: group.name || gk });
+        else skipped.push(gk);
+      }
+
+      if (!destinations.length) {
+        alert('Không có nơi đăng nào được hỗ trợ Đăng ngay.' + (skipped.length ? ' Bỏ qua: ' + skipped.join(', ') : ''));
+        return;
+      }
+
+      const destLabel = destinations.map(d => d.kind === 'fb-personal' ? `Trang cá nhân (${account.name || account.key})` : `Nhóm "${d.name}"`).join(', ');
+      const warn = skipped.length ? `\n\n⚠️ Bỏ qua (chưa hỗ trợ): ${skipped.join(', ')}` : '';
+      if (!confirm(`Đăng ngay bài này lên: ${destLabel}?${warn}\n\nKhông thể huỷ sau khi đã gửi.`)) return;
+
+      const images = (item.images || []).map(u => u.startsWith('/') ? BASE_URL + u : u);
+      const files = [];
+      for (const url of images) {
+        try {
+          const blob = await (await fetch(url)).blob();
+          files.push(new File([blob], url.split('/').pop() || 'image.jpg', { type: blob.type || 'image/jpeg' }));
+        } catch {}
+      }
+
+      let okCount = 0;
+      const failMsgs = [];
+      for (const dest of destinations) {
+        const fd = new FormData();
+        fd.append('message', item.body);
+        fd.append('profile', accountKey);
+        fd.append('profileDisplayName', account.name || accountKey);
+        fd.append('target', dest.kind === 'fb-personal' ? 'personal' : 'group');
+        if (dest.kind === 'fb-group') fd.append('groupId', dest.key);
+        for (const f of files) fd.append('images', f);
+        try {
+          const res = await fetch(BASE_URL + '/api/post', { method: 'POST', body: fd });
+          const data = await res.json();
+          if (!res.ok || data.error) throw new Error(data.error || 'Lỗi không rõ');
+          okCount++;
+        } catch (e) {
+          failMsgs.push(`${dest.kind === 'fb-personal' ? 'Trang cá nhân' : 'Nhóm ' + dest.name}: ${e.message}`);
+        }
+      }
+      alert(`Đã gửi ${okCount}/${destinations.length} nơi đăng.` + (failMsgs.length ? '\n\nLỗi:\n' + failMsgs.join('\n') : ''));
+      loadContents();
     }
 
     async function _loadContentProfiles() {
