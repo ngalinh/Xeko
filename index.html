@@ -483,6 +483,11 @@
       box-shadow:0 2px 6px rgba(37,99,235,.15);
     }
     .content-library-tabs button:focus-visible { outline:2px solid #3b82f6; outline-offset:2px; }
+    /* Nhóm "Theo sản phẩm"/"Theo category" lại với nhau như 1 công tắc chọn chế
+       độ, tách biệt khỏi "Lịch sử lấy deal"/"Cài đặt" (vẫn là tab điều hướng
+       riêng) — cùng cơ chế data-deal-tab/aria-controls như cũ, chỉ nhóm hiển thị. */
+    .deal-mode-toggle { display:flex; gap:4px; padding-right:8px; margin-right:4px; border-right:1px solid #dbeafe; }
+    [data-theme="dark"] .deal-mode-toggle { border-right-color:#334155; }
     #pageDashboard[data-view="dashboard"] .content-library-tabs { display:none; }
     [data-theme="dark"] .content-library-tabs { background:#1e293b; border-color:#334155; }
     [data-theme="dark"] .content-library-tabs button { color:#e2e8f0; }
@@ -4642,8 +4647,10 @@
       <div class="header-info"><h1>Lấy deal</h1><span>Từ sản phẩm đến bài viết của bạn</span></div>
     </div>
     <nav class="content-library-tabs" aria-label="Lấy deal">
-      <button type="button" aria-current="page" data-deal-tab="product" aria-controls="deal-product-panel">Theo sản phẩm</button>
-      <button type="button" data-deal-tab="category" aria-controls="deal-category-panel">Theo category</button>
+      <div class="deal-mode-toggle" role="group" aria-label="Chế độ lấy deal">
+        <button type="button" aria-current="page" data-deal-tab="product" aria-controls="deal-product-panel">Theo sản phẩm</button>
+        <button type="button" data-deal-tab="category" aria-controls="deal-category-panel">Theo category</button>
+      </div>
       <button type="button" data-deal-tab="history" aria-controls="deal-history-panel">Lịch sử lấy deal</button>
       <button type="button" id="dealSettingsTab" data-deal-tab="settings" aria-controls="deal-settings-panel" style="display:none;">Cài đặt</button>
     </nav>
