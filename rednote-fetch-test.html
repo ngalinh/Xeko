@@ -4,78 +4,63 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lấy ảnh RedNote — Xeko (test)</title>
+<link rel="stylesheet" href="product-deal.css">
 <style>
-  :root { color-scheme: light; }
-  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: #f5f6f8; margin: 0; padding: 24px; color: #1c1e21; }
-  .wrap { max-width: 720px; margin: 0 auto; }
-  h1 { font-size: 20px; margin-bottom: 4px; }
-  h2 { font-size: 16px; margin: 0 0 4px; }
-  .hint { color: #65676b; font-size: 13px; margin-bottom: 20px; }
-  .card { background: #fff; border: 1px solid #dadde1; border-radius: 10px; padding: 18px; margin-bottom: 20px; }
-  input[type=text] {
-    width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #ccd0d5;
-    border-radius: 6px; font-size: 14px; font-family: inherit;
-  }
-  button {
-    background: #1877f2; color: #fff; border: none; border-radius: 6px; padding: 9px 16px;
-    font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px;
-  }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  .status { font-size: 13px; color: #65676b; margin-top: 10px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top: 16px; }
-  .grid img { width: 100%; border-radius: 8px; border: 1px solid #dadde1; display: block; }
-  .grid img.selectable { cursor: pointer; }
-  .grid img.selected { border: 3px solid #1877f2; }
-  .error { color: #fa383e; font-size: 13px; margin-top: 10px; }
-  .settings { margin-top: 12px; font-size: 13px; }
-  .settings summary { cursor: pointer; color: #65676b; }
-  .field-label { display: block; font-size: 12px; color: #65676b; margin-top: 10px; margin-bottom: 4px; }
-  .engines { border: none; padding: 0; margin: 10px 0 0; display: flex; gap: 14px; }
-  .engines legend { font-size: 12px; color: #65676b; padding: 0; margin-bottom: 4px; }
+  body { margin: 0; background: #f1f5fb; font-family: Inter, Segoe UI, sans-serif; }
+  .deal-workspace { max-width: 1100px; }
+  .rednote-steps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; align-items: start; }
+  @media (max-width: 900px) { .rednote-steps { grid-template-columns: 1fr; } }
+  .rednote-steps .card { margin: 0; }
+  .rednote-merge-card { margin-top: 24px; }
+  .deal-image.selectable { cursor: pointer; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Lấy ảnh RedNote (test nội bộ)</h1>
+<div class="deal-workspace">
+  <h2>Lấy ảnh RedNote (test nội bộ)</h2>
+  <div class="hint">Lấy ảnh RedNote (Xiaohongshu) + ảnh sản phẩm trên web, rồi dùng AI ghép đồ sản phẩm vào ảnh RedNote. Trang test riêng, chưa gộp vào UI chính.</div>
 
-  <div class="card">
-    <h2>1. Lấy ảnh RedNote</h2>
-    <div class="hint">Dán link 1 bài viết RedNote (Xiaohongshu) công khai để lấy ảnh tham khảo mẫu. Không cần đăng nhập.</div>
-    <input type="text" id="url" placeholder="https://www.rednote.com/discovery/item/...">
-    <button id="go">Lấy ảnh</button>
-    <div class="status" id="status"></div>
-    <div class="error" id="error"></div>
-    <div class="grid" id="grid"></div>
+  <div class="rednote-steps">
+    <div class="card">
+      <h2>1. Lấy ảnh RedNote</h2>
+      <div class="hint">Dán link 1 bài viết RedNote công khai. Không cần đăng nhập.</div>
+      <label class="field-label" for="url">Link RedNote<input type="text" id="url" placeholder="https://www.rednote.com/discovery/item/..."></label>
+      <button id="go">Lấy ảnh</button>
+      <div class="status" id="status"></div>
+      <div class="error" id="error"></div>
+      <div class="product-images" id="grid"></div>
+    </div>
+
+    <div class="card">
+      <h2>2. Lấy ảnh sản phẩm từ web</h2>
+      <div class="hint">Dán link sản phẩm (dùng chung API Lấy deal), rồi tick chọn tối đa 4 ảnh (càng nhiều góc càng chính xác) làm ảnh sản phẩm dùng để ghép.</div>
+      <label class="field-label" for="product-url">Link sản phẩm<input type="text" id="product-url" placeholder="https://www.macys.com/shop/product/..."></label>
+      <details class="deal-options">
+        <summary>Cài đặt (proxy &amp; trình duyệt)</summary>
+        <label class="field-label" for="product-proxy">Proxy (tuỳ chọn)<input type="text" id="product-proxy" placeholder="(tuỳ chọn) proxy: user:pass@host:port"></label>
+        <fieldset class="engines">
+          <legend>Chọn trình duyệt</legend>
+          <div class="engine-options">
+            <label><input type="radio" name="product-engine" value="chromium"> Chromium</label>
+            <label><input type="radio" name="product-engine" value="firefox" checked> Firefox</label>
+            <label><input type="radio" name="product-engine" value="webkit"> WebKit</label>
+          </div>
+        </fieldset>
+      </details>
+      <button id="product-go">Lấy ảnh sản phẩm</button>
+      <div class="status" id="product-status"></div>
+      <div class="error" id="product-error"></div>
+      <div class="product-images" id="product-grid"></div>
+    </div>
   </div>
 
-  <div class="card">
-    <h2>2. Lấy ảnh sản phẩm từ web (dùng chung API Lấy deal)</h2>
-    <div class="hint">Dán link sản phẩm trên website bán hàng, rồi bấm chọn tối đa 4 ảnh (càng nhiều góc càng chính xác) làm ảnh sản phẩm dùng để ghép.</div>
-    <input type="text" id="product-url" placeholder="https://www.macys.com/shop/product/...">
-    <details class="settings">
-      <summary>Cài đặt (proxy &amp; trình duyệt)</summary>
-      <label class="field-label" for="product-proxy">Proxy (tuỳ chọn)</label>
-      <input type="text" id="product-proxy" placeholder="(tuỳ chọn) proxy: user:pass@host:port">
-      <fieldset class="engines">
-        <legend>Chọn trình duyệt</legend>
-        <label><input type="radio" name="product-engine" value="chromium"> Chromium</label>
-        <label><input type="radio" name="product-engine" value="firefox" checked> Firefox</label>
-        <label><input type="radio" name="product-engine" value="webkit"> WebKit</label>
-      </fieldset>
-    </details>
-    <button id="product-go">Lấy ảnh sản phẩm</button>
-    <div class="status" id="product-status"></div>
-    <div class="error" id="product-error"></div>
-    <div class="grid" id="product-grid"></div>
-  </div>
-
-  <div class="card">
+  <div class="card rednote-merge-card">
     <h2>3. Ghép ảnh AI</h2>
     <div class="hint">Lấy xong cả ảnh RedNote (bước 1) và chọn ảnh sản phẩm (bước 2) rồi bấm ghép — AI sẽ thay đồ trong từng ảnh RedNote bằng (các) ảnh sản phẩm đã chọn.</div>
     <button id="merge-go" disabled>Ghép ảnh</button>
     <div class="status" id="merge-status"></div>
     <div class="error" id="merge-error"></div>
-    <div class="grid" id="merge-grid"></div>
+    <div class="product-images" id="merge-grid"></div>
   </div>
 </div>
 <script>
@@ -89,6 +74,16 @@ const MAX_PRODUCT_IMAGES = 4;
 
 function updateMergeButton() {
   $('merge-go').disabled = !(rednoteImages.length > 0 && selectedProductImages.length > 0);
+}
+
+function imageTile(src) {
+  const tile = document.createElement('div');
+  tile.className = 'deal-image';
+  const img = document.createElement('img');
+  img.src = src;
+  img.loading = 'lazy';
+  tile.append(img);
+  return tile;
 }
 
 // ===== 1. Lấy ảnh RedNote =====
@@ -142,12 +137,7 @@ $('go').addEventListener('click', async () => {
     rednoteImages = result.images;
     $('status').textContent = `Tìm thấy ${result.images.length} ảnh:`;
     const grid = $('grid');
-    for (const src of result.images) {
-      const img = document.createElement('img');
-      img.src = src;
-      img.loading = 'lazy';
-      grid.append(img);
-    }
+    for (const src of result.images) grid.append(imageTile(src));
   } catch (e) {
     $('status').textContent = '';
     $('error').textContent = '❌ ' + e.message;
@@ -200,29 +190,30 @@ $('product-go').addEventListener('click', async () => {
       return;
     }
 
-    $('product-status').textContent = `Tìm thấy ${images.length} ảnh — bấm chọn tối đa ${MAX_PRODUCT_IMAGES} ảnh để dùng ghép:`;
+    $('product-status').textContent = `Tìm thấy ${images.length} ảnh — tick chọn tối đa ${MAX_PRODUCT_IMAGES} ảnh để dùng ghép:`;
     const grid = $('product-grid');
     for (const src of images) {
-      const img = document.createElement('img');
-      img.src = src;
-      img.loading = 'lazy';
-      img.className = 'selectable';
-      img.addEventListener('click', () => {
-        const idx = selectedProductImages.indexOf(src);
-        if (idx !== -1) {
-          selectedProductImages.splice(idx, 1);
-          img.classList.remove('selected');
-        } else {
+      const tile = imageTile(src);
+      tile.classList.add('selectable');
+      const label = document.createElement('label');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) {
           if (selectedProductImages.length >= MAX_PRODUCT_IMAGES) {
+            checkbox.checked = false;
             $('product-status').textContent = `Chỉ chọn tối đa ${MAX_PRODUCT_IMAGES} ảnh — bỏ chọn bớt rồi chọn ảnh khác.`;
             return;
           }
           selectedProductImages.push(src);
-          img.classList.add('selected');
+        } else {
+          selectedProductImages = selectedProductImages.filter((u) => u !== src);
         }
         updateMergeButton();
       });
-      grid.append(img);
+      label.append(checkbox);
+      tile.append(label);
+      grid.append(tile);
     }
   } catch (e) {
     $('product-status').textContent = '';
@@ -251,9 +242,7 @@ $('merge-go').addEventListener('click', async () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Lỗi không rõ');
-      const img = document.createElement('img');
-      img.src = `data:${data.mimeType};base64,${data.base64}`;
-      $('merge-grid').append(img);
+      $('merge-grid').append(imageTile(`data:${data.mimeType};base64,${data.base64}`));
     } catch (e) {
       $('merge-error').textContent += `❌ Ảnh ${done}/${total}: ${e.message}\n`;
     }
