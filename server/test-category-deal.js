@@ -103,6 +103,16 @@ function setup(responses) {
   return { dom, w, calls, get: key => w.document.querySelector('[data-category="' + key + '"]') };
 }
 
+test('drops lookbook/banner entries that have no price (not real products)', async () => {
+  const banner = { ...product('99'), price: '', title: 'Travis Kelce wearing Tommy Hilfiger.' };
+  const { dom, w, get } = setup([{ products: [product('1'), banner] }]);
+  const category = w.document.querySelector('[data-deal-tab="category"]'); category.click();
+  get('url').value = 'https://usa.tommy.com/en/sale';
+  get('form').dispatchEvent(new w.Event('submit', { cancelable: true })); await tick();
+  assert.equal(get('grid').children.length, 1, 'only the priced product is kept, the no-price banner entry is dropped');
+  dom.window.close();
+});
+
 test('category selects, appends without duplicates, preserves tab state and opens product flow', async () => {
   const next = 'https://www.macys.com/shop/sale/Pageindex/2';
   const { dom, w, calls, get } = setup([{ products: [product('1')], nextUrl: next }, { products: [product('1'), product('2')], nextUrl: next }, { price: '$20', images: [image], debug: { pageTitle: 'Dress' } }]);

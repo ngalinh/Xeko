@@ -118,7 +118,11 @@
   function validProduct(p) {
     try {
       const u = new URL(p.url), img = new URL(p.thumbnail);
-      return !!(p.id && u.protocol === 'https:' && img.protocol === 'https:');
+      // Từ khi quét tổng quát sang site khác (không còn khoá domain), banner/
+      // ảnh lookbook quảng cáo đôi khi lẫn vào do cũng có link + ảnh lớn đi
+      // kèm — nhưng luôn thiếu giá, khác hẳn sản phẩm thật. Yêu cầu có giá
+      // đọc được là tín hiệu đơn giản để loại bớt banner này.
+      return !!(p.id && u.protocol === 'https:' && img.protocol === 'https:' && String(p.price || '').trim());
     } catch { return false; }
   }
   async function load(append) {
