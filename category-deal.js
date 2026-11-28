@@ -118,7 +118,7 @@
   function validProduct(p) {
     try {
       const u = new URL(p.url), img = new URL(p.thumbnail);
-      return p.id && u.protocol === 'https:' && ['www.macys.com', 'macys.com'].includes(u.hostname) && u.pathname.startsWith('/shop/product/') && img.protocol === 'https:' && img.hostname === 'slimages.macysassets.com';
+      return !!(p.id && u.protocol === 'https:' && img.protocol === 'https:');
     } catch { return false; }
   }
   async function load(append) {

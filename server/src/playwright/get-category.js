@@ -4,11 +4,16 @@ const { parseProxy } = require('../utils/proxy');
 const logger = require('../utils/logger');
 const { extractCategoryProducts } = require('./category-products');
 
+// Chặn SSRF cơ bản: chỉ nhận https, không cổng/thông tin đăng nhập trong URL,
+// từ chối hostname nội bộ/private rõ ràng. Không còn giới hạn riêng Macy's —
+// người dùng đã chọn chế độ "Theo category" rõ ràng ở UI, không cần suy đoán
+// qua hình dạng URL nữa (so với trước đây phải phân biệt category/sản phẩm).
+const PRIVATE_HOSTNAME_RE = /^(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|0\.0\.0\.0|\[?::1\]?)/i;
 function validateCategoryUrl(value) {
   let u;
   try { u = new URL(value); } catch { throw new Error('Link category không hợp lệ.'); }
-  if (u.protocol !== 'https:' || !['www.macys.com', 'macys.com'].includes(u.hostname) || u.port || u.username || u.password || !u.pathname.startsWith('/shop/') || u.pathname.startsWith('/shop/product/')) {
-    throw new Error('Bản thử hỗ trợ link category HTTPS của Macy’s (/shop/...), không phải link sản phẩm.');
+  if (u.protocol !== 'https:' || u.port || u.username || u.password || PRIVATE_HOSTNAME_RE.test(u.hostname)) {
+    throw new Error('Link category phải là URL https hợp lệ.');
   }
   u.hash = '';
   return u.href;
@@ -112,14 +117,16 @@ async function attemptGetCategory(url, engine, proxy) {
       }
     }
     if (status !== null && (status < 200 || status >= 300)) {
-      throw new Error(`Macy’s trả HTTP ${status} sau 2 lần thử — có thể bị chặn bot, hãy thử lại sau hoặc kiểm tra proxy trong Cài đặt.`);
+      throw new Error(`Trang trả HTTP ${status} sau 2 lần thử — có thể bị chặn bot, hãy thử lại sau hoặc kiểm tra proxy trong Cài đặt.`);
     }
 
-    await page.waitForSelector('a[href*="/shop/product/"]', { timeout: 12000 }).catch(() => {});
+    // Best-effort: đợi có ảnh xuất hiện (tín hiệu trang đã tải nội dung) —
+    // không còn chờ riêng selector link sản phẩm của Macy's.
+    await page.waitForSelector('img', { timeout: 12000 }).catch(() => {});
     const products = new Map();
     let nextUrl = null;
     for (let i = 0; i < 7; i++) {
-      if (/access denied|you don.t have permission to access/i.test(await page.locator('body').innerText({ timeout: 5000 }))) throw new Error('Macy’s đang báo Access Denied — có thể bị chặn bot, hãy thử lại sau hoặc kiểm tra proxy trong Cài đặt.');
+      if (/access denied|you don.t have permission to access/i.test(await page.locator('body').innerText({ timeout: 5000 }))) throw new Error('Trang đang báo Access Denied — có thể bị chặn bot, hãy thử lại sau hoặc kiểm tra proxy trong Cài đặt.');
       const data = await page.evaluate(extractCategoryProducts);
       data.products.forEach(p => products.set(p.id, p));
       if (data.nextUrl) {

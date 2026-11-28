@@ -10,9 +10,13 @@ const image = 'https://slimages.macysassets.com/is/image/MCY/products/1.jpg';
 const product = id => ({ id, url: 'https://www.macys.com/shop/product/dress?ID=' + id, thumbnail: image, title: 'Dress ' + id, price: '$20' });
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
-test('category URL accepts Macy’s category and rejects products, credentials and other hosts', () => {
+test('category URL accepts any https site (not Macy\u2019s-only) and rejects http/credentials/port/private hosts', () => {
   assert.equal(validateCategoryUrl('https://www.macys.com/shop/sale?id=80422'), 'https://www.macys.com/shop/sale?id=80422');
-  for (const url of ['http://www.macys.com/shop/sale', 'https://www.macys.com.evil.test/shop/sale', 'https://localhost/shop/sale', 'https://user@www.macys.com/shop/sale', 'https://www.macys.com:999/shop/sale', product('1').url, 'oops']) assert.throws(() => validateCategoryUrl(url));
+  // Not restricted to Macy's anymore — other retailers and product-shaped URLs
+  // are now accepted too, since the UI mode toggle already disambiguates intent.
+  assert.equal(validateCategoryUrl('https://usa.tommy.com/en/sale'), 'https://usa.tommy.com/en/sale');
+  assert.equal(validateCategoryUrl(product('1').url), product('1').url);
+  for (const url of ['http://www.macys.com/shop/sale', 'https://localhost/shop/sale', 'https://user@www.macys.com/shop/sale', 'https://www.macys.com:999/shop/sale', 'oops']) assert.throws(() => validateCategoryUrl(url));
 });
 
 test('extracts lazy thumbnail and price, deduplicates links, finds pagination', () => {
@@ -23,6 +27,20 @@ test('extracts lazy thumbnail and price, deduplicates links, finds pagination', 
   assert.equal(data.products[0].price, 'Sale $20');
   assert.equal(data.products[0].url, product('1').url);
   assert.match(data.nextUrl, /Pageindex\/2/);
+  dom.window.close();
+});
+
+test('extracts products from a generic (non-Macy\u2019s) site with no special markup', () => {
+  const tommyImage = 'https://images.tommy.test/jacket.jpg';
+  const dom = new JSDOM(`<ul>
+    <li><a href="/en/p/jacket-123"><img src="${tommyImage}" alt="Black Bomber Jacket"></a></li>
+    <li><a href="/en/sale/Pageindex/2">Next page</a></li>
+  </ul>`, { url: 'https://usa.tommy.com/en/sale', runScripts: 'outside-only' });
+  const data = dom.window.eval('(' + extractCategoryProducts.toString() + ')()');
+  assert.equal(data.products.length, 1, 'only the product link (with its own <img>) counts, not the plain pagination link');
+  assert.equal(data.products[0].thumbnail, tommyImage);
+  assert.equal(data.products[0].url, 'https://usa.tommy.com/en/p/jacket-123');
+  assert.equal(data.products[0].title, 'Black Bomber Jacket', 'falls back to alt text when there is no known title class');
   dom.window.close();
 });
 
