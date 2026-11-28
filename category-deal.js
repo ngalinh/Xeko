@@ -200,7 +200,7 @@
   $('editor-apply').addEventListener('click', () => {
     if (editorBusy || !editorResult) return;
     $('ai-result-text').value = editorResult;
-    lastCategoryAiImages = editorContext.images;
+    lastCategoryAiImages = editorContext.allImages;
     lastCategoryAiTitle = editorContext.title;
     renderImages($('ai-result-images'), editorContext.items.map(p => ({ src: p.thumbnail, title: p.title })));
     $('ai-result-images-label').textContent = editorContext.label;
@@ -217,6 +217,10 @@
     const productName = 'Chương trình sale gồm ' + items.length + ' sản phẩm: ' + names.join('; ') + (items.length > names.length ? '…' : '');
     editorContext = {
       images, productName, items: items.slice(0, 5),
+      // AI chỉ cần xem 5 ảnh đại diện để viết nội dung, nhưng bài đăng/bản
+      // nháp lưu lại nên có đủ ảnh của các sản phẩm đã chọn — giới hạn 20 cho
+      // khớp với giới hạn upload hiện có của /api/contents (server/index.js).
+      allImages: items.map(p => p.thumbnail).slice(0, 20),
       title: 'Nội dung sale danh mục (' + items.length + ' sản phẩm)',
       label: 'Ảnh gửi AI: ' + images.length + '/' + items.length + ' sản phẩm đã chọn',
     };
